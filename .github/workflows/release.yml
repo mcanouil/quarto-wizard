@@ -55,7 +55,7 @@ jobs:
         CHANGELOG: ${{ env.CHANGELOG }}
       run: |
         vsce package ${STATUS}
-        gh release create ${VERSION} \
+        gh release create ${VERSION} "quarto-wizard-${VERSION}.vsix" \
           ${STATUS} \
           --title ${VERSION} \
           --notes ${CHANGELOG}
