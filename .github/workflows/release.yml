@@ -53,7 +53,7 @@ jobs:
         if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
           vsce package --pre-release
           gh release create ${VERSION} "quarto-wizard-${VERSION}.vsix" \
-            --pre-release \
+            --prerelease \
             --title ${VERSION} \
             --notes ${CHANGELOG}
         else
