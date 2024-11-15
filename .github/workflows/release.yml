@@ -3,11 +3,13 @@ name: Release and Publish VS Code Extension
 on:
   workflow_dispatch:
     inputs:
-      prerelease:
-        description: 'Is this a pre-release?'
-        required: true
-        type: boolean
-        default: true
+      type:
+        type: choice
+        description: Type of release
+        options: 
+          - release
+          - pre-release
+        default: pre-release
 
 jobs:
   publish:
@@ -32,8 +34,8 @@ jobs:
 
     - name: Set status
       run: |
-        if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
-          echo "STATUS=prerelease" >> $GITHUB_ENV
+        if [ "${{ github.event.inputs.type }}" = "prerelease" ]; then
+          echo "STATUS='--prerelease'" >> $GITHUB_ENV
         else
           echo "STATUS=''" >> $GITHUB_ENV
         fi
