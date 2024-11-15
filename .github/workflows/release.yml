@@ -5,14 +5,14 @@ on:
     inputs:
       type:
         type: choice
-        description: Type of release
+        description: Type
         options:
           - release
           - pre-release
         default: pre-release
 
 jobs:
-  publish:
+  release-publish:
     runs-on: ubuntu-latest
 
     steps:
