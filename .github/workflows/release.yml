@@ -6,7 +6,7 @@ on:
       type:
         type: choice
         description: Type of release
-        options: 
+        options:
           - release
           - pre-release
         default: pre-release
@@ -27,11 +27,11 @@ jobs:
 
     - name: Install Visual Studio Code Extension Manager
       run: npm install -g @vscode/vsce
-    
+
     - name: Set version
       run: |
         echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
-    
+
     - name: Set changelog
       env:
         VERSION: ${{ env.VERSION }}
@@ -40,31 +40,24 @@ jobs:
           $0 == version {flag=1; next}
           /^## / && flag {flag=0}
           flag
-        ' CHANGELOG.md >CHANGELOG
-        echo "CHANGELOG=${CHANGELOG}" >> $GITHUB_ENV
+        ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
+        echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
 
     - name: Package extension
       env:
         GH_TOKEN: ${{ secrets.github_token }}
         VERSION: ${{ env.VERSION }}
-        STATUS: ${{ env.STATUS }}
         CHANGELOG: ${{ env.CHANGELOG }}
       run: |
         if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
           vsce package --pre-release
-          gh release create ${VERSION} "quarto-wizard-${VERSION}.vsix" \
-            --prerelease \
-            --title ${VERSION} \
-            --notes ${CHANGELOG}
+          gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG}
         else
           vsce package
-          gh release create ${VERSION} "quarto-wizard-${VERSION}.vsix" \
-            --title ${VERSION} \
-            --notes ${CHANGELOG}
+          gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG}
         fi
 
     - name: Publish extension to Visual Studio Marketplace
-      if: false
       env:
         VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
       run: |
