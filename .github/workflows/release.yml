@@ -31,14 +31,6 @@ jobs:
     - name: Set version
       run: |
         echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
-
-    - name: Set status
-      run: |
-        if [ "${{ github.event.inputs.type }}" = "prerelease" ]; then
-          echo "STATUS='--prerelease'" >> $GITHUB_ENV
-        else
-          echo "STATUS=''" >> $GITHUB_ENV
-        fi
     
     - name: Set changelog
       env:
@@ -58,22 +50,37 @@ jobs:
         STATUS: ${{ env.STATUS }}
         CHANGELOG: ${{ env.CHANGELOG }}
       run: |
-        vsce package ${STATUS}
-        gh release create ${VERSION} "quarto-wizard-${VERSION}.vsix" \
-          ${STATUS} \
-          --title ${VERSION} \
-          --notes ${CHANGELOG}
+        if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+          vsce package --pre-release
+          gh release create ${VERSION} "quarto-wizard-${VERSION}.vsix" \
+            --pre-release \
+            --title ${VERSION} \
+            --notes ${CHANGELOG}
+        else
+          vsce package
+          gh release create ${VERSION} "quarto-wizard-${VERSION}.vsix" \
+            --title ${VERSION} \
+            --notes ${CHANGELOG}
+        fi
 
     - name: Publish extension to Visual Studio Marketplace
       if: false
       env:
         VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
       run: |
-        vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
+        if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+          vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
+        else
+          vsce publish --pat ${VS_MARKETPLACE_TOKEN}
+        fi
 
     - name: Publish extension to Open VSX Registry
       if: false
       env:
         OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
       run: |
-        vsce publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
+        if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+          vsce publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
+        else
+          vsce publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
+        fi
