@@ -1,4 +1,4 @@
-# Quarto Wizard <img src="assets/logo/logo.png" align="right" width="200" />
+# Quarto Wizard <img src="assets/logo/logo.png" align="right" width="120" />
 
 ## Overview
 
