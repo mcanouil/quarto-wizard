@@ -41,6 +41,8 @@ jobs:
         fi
     
     - name: Set changelog
+      env:
+        VERSION: ${{ env.VERSION }}
       run: |
         awk -v version="## ${VERSION}" '
           $0 == version {flag=1; next}
