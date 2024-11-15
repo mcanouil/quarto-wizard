@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Quarto Wizard** extension is a Visual Studio Code extension that helps you manage your Quarto projects.
+**Quarto Wizard** is a Visual Studio Code extension that helps you manage your Quarto projects.
 It allows you to easily install Quarto extensions directly from the [Quarto Extensions Repository](https://github.com/mcanouil/quarto-wizard).
 This extension provides a user-friendly interface to browse, select, and install Quarto extensions, enhancing your Quarto development experience.
 

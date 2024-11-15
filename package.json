@@ -1,7 +1,7 @@
 {
   "name": "quarto-wizard",
   "displayName": "Quarto Wizard",
-  "description": "Quarto Wizard extension is a Visual Studio Code extension that helps you to create and manage Quarto projects.",
+  "description": "A Visual Studio Code extension that helps you manage Quarto projects.",
   "version": "0.1.0",
   "publisher": "mcanouil",
   "author": {
@@ -17,7 +17,12 @@
     "quarto",
     "markdown",
     "pandoc",
-    "extension"
+    "extension",
+    "lua",
+    "latex",
+    "reveal.js",
+    "html",
+    "typst"
   ],
   "categories": [
     "Programming Languages",
