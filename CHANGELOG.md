@@ -7,6 +7,7 @@
 - fix: `Quarto Wizard: Install Extension(s)` errors if no workspace/folder is open. ([#4](https://github.com/mcanouil/quarto-wizard/pull/4))
 - refactor: split `extension.ts` into multiple files.
 - refactor: rename `quartoExtensions` to `quartoWizard`.
+- refactor: update commands prefix from `Quarto` to `Quarto Wizard`.
 - ci: publish to Open VSX Registry. ([#3](https://github.com/mcanouil/quarto-wizard/pull/3))
 
 ## 0.1.0
