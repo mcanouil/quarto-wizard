@@ -48,12 +48,16 @@
   "contributes": {
     "commands": [
       {
-        "command": "quartoExtensions.installExtension",
-        "title": "Quarto: Install Extension(s)"
+        "command": "quartoWizard.installExtension",
+        "title": "Quarto Wizard: Install Extension(s)"
       },
       {
-        "command": "quartoExtensions.showOutput",
-        "title": "Quarto: Show Quarto Wizard Output"
+        "command": "quartoWizard.showOutput",
+        "title": "Quarto Wizard: Show Quarto Wizard Log Output"
+      },
+      {
+        "command": "quartoWizard.clearRecentlyInstalled",
+        "title": "Quarto Wizard: Clear Recently Installed Extensions"
       }
     ]
   },
