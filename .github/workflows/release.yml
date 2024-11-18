@@ -68,12 +68,12 @@ jobs:
         fi
 
     - name: Publish extension to Open VSX Registry
-      if: false
       env:
         OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
       run: |
+        npm install --global ovsx
         if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-          vsce publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
         else
-          vsce publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
         fi
