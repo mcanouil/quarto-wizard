@@ -13,18 +13,19 @@ This extension provides a user-friendly interface to browse, select, and install
 
 ## Commands
 
-- `Quarto: Install Extension(s)`: Opens the extension installer interface.
+- `Quarto Wizard: Install Extension(s)`: Opens the extension installer interface.
   - **Browse Extensions**: View a list of available Quarto extensions.  
     ![List of extensions](assets/images/install-extensions.png)
   - **Install Extensions**: Install selected Quarto extensions with a single click.
-- `Quarto: Show Quarto Wizard Output`: Displays the output log for the extension installer.
+- `Quarto Wizard: Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
+- `Quarto Wizard: Show Quarto Wizard Output`: Displays the output log for the extension installer.
 
 ## Usage
 
 ### Install Quarto Extensions
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto: Install Extension(s)` and select it.
+2. Type `Quarto Wizard: Install Extension(s)` and select it.
 3. Browse the list of available Quarto extensions.
 4. Select the Quarto extension(s) you want to install.
 5. Answer the prompts to confirm the installation.
@@ -32,7 +33,7 @@ This extension provides a user-friendly interface to browse, select, and install
 ### Show Quarto Wizard Output
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto: Show Quarto Wizard Output` and select it.
+2. Type `Quarto Wizard: Show Quarto Wizard Output` and select it.
 3. View the output log for the Quarto Wizard extension.
 4. Use the output log to troubleshoot any issues.
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- docs: update README.md with updated usage instructions.
+
 ## 0.2.0
 
 - feat: cache the list of available Quarto extensions (CSV) for twelve hours.
