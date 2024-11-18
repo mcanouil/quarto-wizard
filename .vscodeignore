@@ -9,3 +9,4 @@ src
 tsconfig.json
 **/*.vsix
 eslint.config.mjs
+assets/logo/logo-social.png
