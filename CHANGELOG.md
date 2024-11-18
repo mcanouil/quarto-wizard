@@ -2,7 +2,7 @@
 
 ## 0.1.1
 
-- feat: cache the list of available Quarto extensions (CSV).
+- feat: cache the list of available Quarto extensions (CSV) for twelve hours.
 - feat: add command `Quarto Wizard: Clear Recently Installed Extensions` to remove the list of recently installed extensions.
 - refactor: split `extension.ts` into multiple files.
 - refactor: rename `quartoExtensions` to `quartoWizard`.
