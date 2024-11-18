@@ -9,6 +9,12 @@ interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 
 export async function installQuartoExtensionCommand(context: vscode.ExtensionContext, log: vscode.OutputChannel, recentlyInstalledExtensions: string) {
 	const extensionsListCsv = "https://raw.githubusercontent.com/mcanouil/quarto-extensions/main/extensions/quarto-extensions.csv";
+	if (!vscode.workspace.workspaceFolders) {
+		const message = "Please open a workspace/folder to install Quarto extensions.";
+		log.appendLine(message);
+		vscode.window.showErrorMessage(message);
+		return;
+	}
 
 	const isConnected = await checkInternetConnection();
 	if (!isConnected) {
