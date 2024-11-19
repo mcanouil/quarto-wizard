@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
+import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 
 const RECENTLY_INSTALLED_QUARTO_EXTENSIONS = "recentlyInstalledExtensions";
 const QUARTO_WIZARD_LOG = vscode.window.createOutputChannel("Quarto Wizard");
@@ -22,6 +23,11 @@ export function activate(context: vscode.ExtensionContext) {
 		installQuartoExtensionCommand(context, QUARTO_WIZARD_LOG, RECENTLY_INSTALLED_QUARTO_EXTENSIONS)
 	);
 	context.subscriptions.push(installExtensionDisposable);
+
+	let newQuartoReprexDisposable = vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () =>
+		newQuartoReprexCommand(context, QUARTO_WIZARD_LOG)
+	);
+	context.subscriptions.push(newQuartoReprexDisposable);
 }
 
 export function deactivate() {}

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document.
+
 ## 0.2.1
 
 - docs: update README.md with updated usage instructions.

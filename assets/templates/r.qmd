@@ -1,0 +1,20 @@
+---
+title: "Reproducible Quarto Document"
+format: html
+engine: knitr
+---
+
+This is a reproducible Quarto document.
+
+```{r}
+x <- c(1, 2, 3, 4, 5)
+y <- c(1, 4, 9, 16, 25)
+
+plot(x, y)
+```
+
+![An image]({{< placeholder 600 400 >}}){#fig-placeholder}
+
+{{< lipsum 1 >}}
+
+The end after @fig-placeholder.
