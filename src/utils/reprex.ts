@@ -31,7 +31,7 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 			return;
 		}
 
-		const newFile = vscode.Uri.parse("untitled:" + path.join(vscode.workspace.rootPath || "", "Untitled.qmd"));
+		const newFile = vscode.Uri.parse("untitled:" + path.join((vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0].uri.fsPath) || "", "Untitled.qmd"));
 		vscode.workspace.openTextDocument(newFile).then((document) => {
 			const edit = new vscode.WorkspaceEdit();
 			edit.insert(newFile, new vscode.Position(0, 0), data);
