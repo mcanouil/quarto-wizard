@@ -1,5 +1,10 @@
 # Changelog
 
+## Development
+
+- fix(README.md): remove duplicated command prefix.
+- style: format code with Prettier.
+
 ## 0.3.0
 
 - feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document.
