@@ -10,13 +10,10 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.showOutput", () => QUARTO_WIZARD_LOG.show())
 	);
 
-	let clearRecentlyInstalledDisposable = vscode.commands.registerCommand(
-		"quartoWizard.clearRecentlyInstalled",
-		() => {
-			context.globalState.update(RECENTLY_INSTALLED_QUARTO_EXTENSIONS, []);
-			vscode.window.showInformationMessage("Recently installed Quarto extensions have been cleared.");
-		}
-	);
+	let clearRecentlyInstalledDisposable = vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
+		context.globalState.update(RECENTLY_INSTALLED_QUARTO_EXTENSIONS, []);
+		vscode.window.showInformationMessage("Recently installed Quarto extensions have been cleared.");
+	});
 	context.subscriptions.push(clearRecentlyInstalledDisposable);
 
 	let installExtensionDisposable = vscode.commands.registerCommand("quartoWizard.installExtension", () =>
