@@ -8,8 +8,8 @@
 
 ## 0.3.0 (2024-11-19)
 
-- feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document.
-- refactor: replace "see details" with "show logs" in notification messages.
+- feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document. ([#6](https://github.com/mcanouil/quarto-wizard/pull/6))
+- refactor: replace "see details" with "show logs" in notification messages. ([#5](https://github.com/mcanouil/quarto-wizard/pull/5))
 
 ## 0.2.1 (2024-11-18)
 
