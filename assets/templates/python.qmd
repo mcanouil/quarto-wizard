@@ -1,0 +1,23 @@
+---
+title: "Reproducible Quarto Document"
+format: html
+engine: jupyter
+---
+
+This is a reproducible Quarto document.
+
+```{python}
+import matplotlib.pyplot as plt
+
+x = [1, 2, 3, 4, 5]
+y = [1, 4, 9, 16, 25]
+
+plt.plot(x, y)
+plt.show()
+```
+
+![An image]({{< placeholder 600 400 >}}){#fig-placeholder}
+
+{{< lipsum 1 >}}
+
+The end after @fig-placeholder.

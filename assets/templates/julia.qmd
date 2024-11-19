@@ -1,0 +1,25 @@
+---
+title: "Reproducible Quarto Document"
+format: html
+engine: julia
+---
+
+```{julia}
+#| include: false
+using Pkg
+Pkg.add("Plots")
+```
+
+This is a reproducible Quarto document.
+
+
+```{julia}
+using Plots
+plot(sin, x -> sin(2x), 0, 2)
+```
+
+![An image]({{< placeholder 600 400 >}}){#fig-placeholder}
+
+{{< lipsum 1 >}}
+
+The end after @fig-placeholder.
