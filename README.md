@@ -19,6 +19,10 @@ This extension provides a user-friendly interface to browse, select, and install
   - **Install Extensions**: Install selected Quarto extensions with a single click.
 - `Quarto Wizard: Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
 - `Quarto Wizard: Show Quarto Wizard Output`: Displays the output log for the extension installer.
+- `Quarto Wizard: New Reproducible Document`: Creates a new Quarto document.
+  - [`R`](/assets/templates/r.qmd)
+  - [`Python`](assets/templates/python.qmd)
+  - [`Julia`](assets/templates/julia.qmd)
 
 ## Usage
 
