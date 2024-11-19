@@ -5,6 +5,7 @@
 - feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
 - fix(README.md): remove duplicated command prefix.
 - style: format code with Prettier.
+- ci: allow anything after version number header in CHANGELOG.md.
 
 ## 0.3.0 (2024-11-19)
 
