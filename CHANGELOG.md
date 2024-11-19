@@ -2,6 +2,7 @@
 
 ## Development
 
+- feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
 - fix(README.md): remove duplicated command prefix.
 - style: format code with Prettier.
 

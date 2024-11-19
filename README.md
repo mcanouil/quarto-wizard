@@ -41,6 +41,12 @@ This extension provides a user-friendly interface to browse, select, and install
 3. View the output log for the Quarto Wizard extension.
 4. Use the output log to troubleshoot any issues.
 
+### Create a New Reproducible Document
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: New Reproducible Document` and select it.
+3. Choose the template for the new Quarto document.
+
 ## Development
 
 1. Clone the repository:
