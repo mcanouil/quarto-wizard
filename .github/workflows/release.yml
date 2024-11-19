@@ -36,8 +36,8 @@ jobs:
       env:
         VERSION: ${{ env.VERSION }}
       run: |
-        awk -v version="## ${VERSION}" '
-          $0 == version {flag=1; next}
+        awk -v version="^## ${VERSION}.*" '
+          $0 ~ version {flag=1; next}
           /^## / && flag {flag=0}
           flag
         ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
