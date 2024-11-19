@@ -1,21 +1,21 @@
 # Changelog
 
-## Development
+## Development (unreleased)
 
 - feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
 - fix(README.md): remove duplicated command prefix.
 - style: format code with Prettier.
 
-## 0.3.0
+## 0.3.0 (2024-11-19)
 
 - feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document.
 - refactor: replace "see details" with "show logs" in notification messages.
 
-## 0.2.1
+## 0.2.1 (2024-11-18)
 
 - docs: update README.md with updated usage instructions.
 
-## 0.2.0
+## 0.2.0 (2024-11-18)
 
 - feat: cache the list of available Quarto extensions (CSV) for twelve hours.
 - feat: add command `Quarto Wizard: Clear Recently Installed Extensions` to remove the list of recently installed extensions.
@@ -25,7 +25,7 @@
 - refactor: update commands prefix from `Quarto` to `Quarto Wizard`.
 - ci: publish to Open VSX Registry. ([#3](https://github.com/mcanouil/quarto-wizard/pull/3))
 
-## 0.1.0
+## 0.1.0 (2024-11-16)
 
 - Initial release of Quarto Wizard extension.
 - feat: add command `Quarto: Install Extension(s)` to open the extension installer interface.
