@@ -3,6 +3,7 @@
 ## 0.3.0
 
 - feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document.
+- refactor: replace "see details" with "show logs" in notification messages.
 
 ## 0.2.1
 

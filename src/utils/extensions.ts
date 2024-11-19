@@ -109,12 +109,12 @@ export async function installQuartoExtensions(
 	vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: "Installing selected extension(s) ([details](command:quartoWizard.showOutput))",
+			title: "Installing selected extension(s) ([show logs](command:quartoWizard.showOutput))",
 			cancellable: true,
 		},
 		async (progress, token) => {
 			token.onCancellationRequested(() => {
-				const message = "Operation cancelled by the user ([details](command:quartoWizard.showOutput)).";
+				const message = "Operation cancelled by the user ([show logs](command:quartoWizard.showOutput)).";
 				log.appendLine(message);
 				vscode.window.showInformationMessage(message);
 			});
@@ -162,14 +162,14 @@ export async function installQuartoExtensions(
 					" manually with `quarto add <extension>`:",
 				].join("");
 				vscode.window.showErrorMessage(
-					`${message} ${failedExtensions.join(", ")}. See [details](command:quartoWizard.showOutput).`
+					`${message} ${failedExtensions.join(", ")}. [Show logs](command:quartoWizard.showOutput).`
 				);
 			} else {
 				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", " installed successfully."].join(
 					""
 				);
 				log.appendLine(message);
-				vscode.window.showInformationMessage(`${message} See [details](command:quartoWizard.showOutput).`);
+				vscode.window.showInformationMessage(`${message} [Show logs](command:quartoWizard.showOutput).`);
 			}
 		}
 	);
