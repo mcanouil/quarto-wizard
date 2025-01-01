@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
 import * as path from "path";
 import { findQuartoExtensions } from "../utils/extensions";
 
@@ -14,6 +15,13 @@ export async function listQuartoExtensionCommand(log: vscode.OutputChannel) {
 		return [];
 	}
 	const extensionsDir = path.join(workspaceFolder, "_extensions");
-	const extensions = findQuartoExtensions(extensionsDir);
+	let extensions: string[] = [];
+	if (fs.existsSync(path.join(workspaceFolder, "_extensions"))) {
+		extensions = findQuartoExtensions(extensionsDir);
+	}
+	if (extensions.length === 0) {
+		log.appendLine("\n\nNo Quarto extensions are installed.");
+		return;
+	} 
 	log.appendLine(`\n\nInstalled extensions: ${extensions.join(", ")}`);
 }
