@@ -1,5 +1,8 @@
 import { exec } from "child_process";
 import * as vscode from "vscode";
+import * as path from "path";
+import { findQuartoExtensions } from "../utils/extensions";
+import { writeFileSync, existsSync, readFileSync } from "fs";
 
 export async function checkQuartoVersion(): Promise<boolean> {
 	return new Promise((resolve) => {

@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import * as https from "https";
 import { IncomingMessage } from "http";
-import { checkQuartoVersion, installQuartoExtension } from "./quarto";
 import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
+import { checkQuartoVersion, installQuartoExtension } from "./quarto";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
@@ -75,16 +77,8 @@ export async function installQuartoExtensions(
 	selectedExtensions: readonly ExtensionQuickPickItem[],
 	log: vscode.OutputChannel
 ) {
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
-
-	const isQuartoAvailable = await checkQuartoVersion();
-	if (!isQuartoAvailable) {
-		const message =
-			"Quarto is not installed or not available in PATH. Please install Quarto and make sure it is available in PATH.";
-		log.appendLine(message);
-		vscode.window.showErrorMessage(message);
-		return;
-	}
 
 	const trustAuthors = await vscode.window.showQuickPick(["Yes", "No"], {
 		placeHolder: "Do you trust the authors of the selected extension(s)?",
@@ -124,6 +118,12 @@ export async function installQuartoExtensions(
 			const totalExtensions = mutableSelectedExtensions.length;
 			let installedCount = 0;
 
+			const lockFilePath = path.join(workspaceFolder, "_extensions", "quarto-wizard.lock");
+			let lockFileContent: { [key: string]: { name: string; source: string } } = {};
+			if (fs.existsSync(lockFilePath)) {
+				lockFileContent = JSON.parse(fs.readFileSync(lockFilePath, "utf-8"));
+			}
+
 			for (const selectedExtension of mutableSelectedExtensions) {
 				if (selectedExtension.description === undefined) {
 					continue;
@@ -132,9 +132,27 @@ export async function installQuartoExtensions(
 					message: `(${installedCount} / ${totalExtensions}) ${selectedExtension.label} ...`,
 					increment: (1 / totalExtensions) * 100,
 				});
+				
+				let initialExtensions: string[] = [];
+				if (fs.existsSync(path.join(workspaceFolder, "_extensions"))) {
+					initialExtensions = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
+				}
+				log.appendLine(`Initial extensions: ${initialExtensions}`);
+
 				const success = await installQuartoExtension(selectedExtension.description, log);
 				if (success) {
 					installedExtensions.push(selectedExtension.description);
+					const finalExtensions: string[] = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
+					log.appendLine(`Success - Initial extensions: ${initialExtensions}`);
+					log.appendLine(`Success - Final extensions: ${finalExtensions}`);
+					const newExtension = finalExtensions.filter((ext) => !initialExtensions.includes(ext))[0];
+					if (newExtension.length > 0) {
+						lockFileContent[newExtension] = {
+							name: newExtension,
+							source: selectedExtension.description,
+						};
+						fs.writeFileSync(lockFilePath, JSON.stringify(lockFileContent, null, 2));
+					}
 				} else {
 					failedExtensions.push(selectedExtension.description);
 				}
@@ -172,5 +190,26 @@ export async function installQuartoExtensions(
 				vscode.window.showInformationMessage(`${message} [Show logs](command:quartoWizard.showOutput).`);
 			}
 		}
+	);
+}
+
+function findQuartoExtensionsRecurse(dir: string): string[] {
+	let results: string[] = [];
+	const list = fs.readdirSync(dir);
+	list.forEach((file) => {
+		const filePath = path.join(dir, file);
+		const stat = fs.statSync(filePath);
+		if (stat && stat.isDirectory() && path.basename(filePath) !== "_extensions") {
+			results = results.concat(findQuartoExtensionsRecurse(filePath));
+		} else if (file.endsWith("_extension.yml") || file.endsWith("_extension.yaml")) {
+			results.push(filePath);
+		}
+	});
+	return results;
+}
+
+export function findQuartoExtensions(dir: string): string[] {
+	return findQuartoExtensionsRecurse(dir).map((filePath) =>
+		path.relative(dir, path.dirname(filePath))
 	);
 }
