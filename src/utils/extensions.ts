@@ -137,14 +137,11 @@ export async function installQuartoExtensions(
 				if (fs.existsSync(path.join(workspaceFolder, "_extensions"))) {
 					initialExtensions = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
 				}
-				log.appendLine(`Initial extensions: ${initialExtensions}`);
 
 				const success = await installQuartoExtension(selectedExtension.description, log);
 				if (success) {
 					installedExtensions.push(selectedExtension.description);
 					const finalExtensions: string[] = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
-					log.appendLine(`Success - Initial extensions: ${initialExtensions}`);
-					log.appendLine(`Success - Final extensions: ${finalExtensions}`);
 					const newExtension = finalExtensions.filter((ext) => !initialExtensions.includes(ext))[0];
 					if (newExtension.length > 0) {
 						lockFileContent[newExtension] = {
