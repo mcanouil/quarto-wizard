@@ -1,12 +1,19 @@
 import { exec } from "child_process";
 import * as vscode from "vscode";
-import * as path from "path";
-import { findQuartoExtensions } from "../utils/extensions";
-import { writeFileSync, existsSync, readFileSync } from "fs";
 
+function getQuartoPath(): string {
+	const config = vscode.workspace.getConfiguration("quartoWizard.quarto");
+	let quartoPath = config.get<string>("path");
+	if (!quartoPath) {
+		const fallbackConfig = vscode.workspace.getConfiguration("quarto");
+		quartoPath = fallbackConfig.get<string>("path");
+	}
+	return quartoPath || "quarto";
+}
 export async function checkQuartoVersion(): Promise<boolean> {
 	return new Promise((resolve) => {
-		exec("quarto --version;", (error, stdout, stderr) => {
+		const quartoPath = getQuartoPath();
+		exec(`${quartoPath} --version`, (error, stdout, stderr) => {
 			if (error || stderr) {
 				resolve(false);
 			} else {
@@ -20,7 +27,8 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 	log.appendLine(`\n\nInstalling ${extension} ...`);
 	return new Promise((resolve) => {
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-		const command = `quarto add ${extension} --no-prompt`;
+		const quartoPath = getQuartoPath();
+		const command = `${quartoPath} add ${extension} --no-prompt`;
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
 				log.appendLine(`${stderr}`);

@@ -3,6 +3,7 @@
 ## Development (unreleased)
 
 - feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
+- feat: get Quarto CLI path from `quarto.path` setting or `quartoWizard.quarto.path` setting if set.
 - fix(README.md): remove duplicated command prefix.
 - style: format code with Prettier.
 - ci: allow anything after version number header in CHANGELOG.md.
