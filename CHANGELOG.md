@@ -6,6 +6,7 @@
 - feat: get Quarto CLI path from `quarto.path` setting or `quartoWizard.quarto.path` setting if set.
 - feat: add settings to control if user should be prompted to trust and install Quarto extensions.
 - feat: trust and install prompts get a "Never ask again" choice.
+- feat: add `source: <repository>` to `_extension.yml` of the installed extension.
 - fix(README.md): remove duplicated command prefix.
 - style: format code with Prettier.
 - ci: allow anything after version number header in CHANGELOG.md.
