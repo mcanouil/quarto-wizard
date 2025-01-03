@@ -150,7 +150,7 @@ export async function installQuartoExtensions(
 				}
 				progress.report({
 					message: `(${installedCount} / ${totalExtensions}) ${selectedExtension.label} ...`,
-					increment: (1 / totalExtensions) * 100,
+					increment: (1 / (totalExtensions + 1)) * 100,
 				});
 				
 				const extensionsDirectory = path.join(workspaceFolder, "_extensions");
@@ -185,6 +185,10 @@ export async function installQuartoExtensions(
 
 				installedCount++;
 			}
+			progress.report({
+				message: `(${totalExtensions} / ${totalExtensions}) extensions processed.`,
+				increment: (1 / (totalExtensions + 1)) * 100,
+			});
 
 			if (installedExtensions.length > 0) {
 				log.appendLine(`\n\nSuccessfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`);
