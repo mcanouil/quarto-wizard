@@ -118,12 +118,6 @@ export async function installQuartoExtensions(
 			const totalExtensions = mutableSelectedExtensions.length;
 			let installedCount = 0;
 
-			const lockFilePath = path.join(workspaceFolder, "_extensions", "quarto-wizard.lock");
-			let lockFileContent: { [key: string]: { name: string; source: string } } = {};
-			if (fs.existsSync(lockFilePath)) {
-				lockFileContent = JSON.parse(fs.readFileSync(lockFilePath, "utf-8"));
-			}
-
 			for (const selectedExtension of mutableSelectedExtensions) {
 				if (selectedExtension.description === undefined) {
 					continue;
@@ -133,22 +127,31 @@ export async function installQuartoExtensions(
 					increment: (1 / totalExtensions) * 100,
 				});
 				
+				const extensionsDirectory = path.join(workspaceFolder, "_extensions");
 				let initialExtensions: string[] = [];
-				if (fs.existsSync(path.join(workspaceFolder, "_extensions"))) {
-					initialExtensions = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
+				if (fs.existsSync(extensionsDirectory)) {
+					initialExtensions = findQuartoExtensions(extensionsDirectory);
 				}
 
 				const success = await installQuartoExtension(selectedExtension.description, log);
 				if (success) {
 					installedExtensions.push(selectedExtension.description);
-					const finalExtensions: string[] = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
+					const finalExtensions: string[] = findQuartoExtensions(extensionsDirectory);
 					const newExtension = finalExtensions.filter((ext) => !initialExtensions.includes(ext))[0];
 					if (newExtension.length > 0) {
-						lockFileContent[newExtension] = {
-							name: newExtension,
-							source: selectedExtension.description,
-						};
-						fs.writeFileSync(lockFilePath, JSON.stringify(lockFileContent, null, 2));
+						const newExtensionDir = path.join(extensionsDirectory, newExtension);
+						const fileNames = ["_extension.yml", "_extension.yaml"];
+						const filePath = fileNames
+							.map((name) => path.join(newExtensionDir, name))
+							.find((fullPath) => fs.existsSync(fullPath));
+
+						if (filePath) {
+							const fileContent = fs.readFileSync(filePath, "utf-8");
+							const updatedContent = fileContent.includes("source: ")
+								? fileContent.replace(/source: .*/, `source: ${selectedExtension.description}`)
+								: `${fileContent.trim()}\nsource: ${selectedExtension.description}`;
+							fs.writeFileSync(filePath, updatedContent);
+						}
 					}
 				} else {
 					failedExtensions.push(selectedExtension.description);
