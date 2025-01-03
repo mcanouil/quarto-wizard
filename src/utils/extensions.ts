@@ -85,10 +85,19 @@ export async function installQuartoExtensions(
 	let configConfirmInstall = config.get<string>("confirmInstall");
 
 	if (configTrustAuthors === "always") {
-		const trustAuthors = await vscode.window.showQuickPick(["Yes", "No"], {
-			placeHolder: "Do you trust the authors of the selected extension(s)?",
-		});
-		if (trustAuthors !== "Yes") {
+		const trustAuthors = await vscode.window.showQuickPick(
+			[
+				{ label: "Yes", description: "Trust authors." },
+				{ label: "No", description: "Do not trust authors." },
+				{ label: "Never ask again", description: "Change setting to never ask again." },
+			],
+			{
+				placeHolder: "Do you trust the authors of the selected extension(s)?",
+			}
+		);
+		if (trustAuthors?.label === "Never ask again") {
+			await config.update("trustAuthors", "never", vscode.ConfigurationTarget.Global);
+		} else if (trustAuthors?.label !== "Yes") {
 			const message = "Operation cancelled because the authors are not trusted.";
 			log.appendLine(message);
 			vscode.window.showInformationMessage(message);
@@ -97,10 +106,19 @@ export async function installQuartoExtensions(
 	}
 
 	if (configConfirmInstall === "always") {
-		const installWorkspace = await vscode.window.showQuickPick(["Yes", "No"], {
-			placeHolder: "Do you want to install the selected extension(s)?",
-		});
-		if (installWorkspace !== "Yes") {
+		const installWorkspace = await vscode.window.showQuickPick(
+			[
+				{ label: "Yes", description: "Install extensions." },
+				{ label: "No", description: "Do not install extensions." },
+				{ label: "Never ask again", description: "Change setting to never ask again." },
+			],
+			{
+				placeHolder: "Do you want to install the selected extension(s)?",
+			}
+		);
+		if (installWorkspace?.label === "Never ask again") {
+			await config.update("confirmInstall", "never", vscode.ConfigurationTarget.Global);
+		} else if (installWorkspace?.label !== "Yes") {
 			const message = "Operation cancelled by the user.";
 			log.appendLine(message);
 			vscode.window.showInformationMessage(message);
