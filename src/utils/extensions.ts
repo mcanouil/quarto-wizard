@@ -4,7 +4,7 @@ import { IncomingMessage } from "http";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { checkQuartoVersion, installQuartoExtension } from "./quarto";
+import { installQuartoExtension } from "./quarto";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
