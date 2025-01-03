@@ -10,6 +10,7 @@ function getQuartoPath(): string {
 	}
 	return quartoPath || "quarto";
 }
+
 export async function checkQuartoVersion(): Promise<boolean> {
 	return new Promise((resolve) => {
 		const quartoPath = getQuartoPath();

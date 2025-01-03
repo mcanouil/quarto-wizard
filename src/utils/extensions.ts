@@ -80,24 +80,32 @@ export async function installQuartoExtensions(
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
-	const trustAuthors = await vscode.window.showQuickPick(["Yes", "No"], {
-		placeHolder: "Do you trust the authors of the selected extension(s)?",
-	});
-	if (trustAuthors !== "Yes") {
-		const message = "Operation cancelled because the authors are not trusted.";
-		log.appendLine(message);
-		vscode.window.showInformationMessage(message);
-		return;
+	const config = vscode.workspace.getConfiguration("quartoWizard.ask");
+	let configTrustAuthors = config.get<string>("trustAuthors");
+	let configConfirmInstall = config.get<string>("confirmInstall");
+
+	if (configTrustAuthors === "always") {
+		const trustAuthors = await vscode.window.showQuickPick(["Yes", "No"], {
+			placeHolder: "Do you trust the authors of the selected extension(s)?",
+		});
+		if (trustAuthors !== "Yes") {
+			const message = "Operation cancelled because the authors are not trusted.";
+			log.appendLine(message);
+			vscode.window.showInformationMessage(message);
+			return;
+		}
 	}
 
-	const installWorkspace = await vscode.window.showQuickPick(["Yes", "No"], {
-		placeHolder: "Do you want to install the selected extension(s)?",
-	});
-	if (installWorkspace !== "Yes") {
-		const message = "Operation cancelled by the user.";
-		log.appendLine(message);
-		vscode.window.showInformationMessage(message);
-		return;
+	if (configConfirmInstall === "always") {
+		const installWorkspace = await vscode.window.showQuickPick(["Yes", "No"], {
+			placeHolder: "Do you want to install the selected extension(s)?",
+		});
+		if (installWorkspace !== "Yes") {
+			const message = "Operation cancelled by the user.";
+			log.appendLine(message);
+			vscode.window.showInformationMessage(message);
+			return;
+		}
 	}
 
 	vscode.window.withProgress(
