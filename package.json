@@ -76,6 +76,32 @@
         }
       ]
     },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "quarto-extension-explorer",
+          "title": "Quarto Extension Explorer",
+          "icon": "assets/logo/quarto.svg",
+          "contextualTitle": "Quarto Extension Explorer"
+        }
+      ]
+    },
+    "views": {
+      "quarto-extension-explorer": [
+        {
+          "id": "quartoWizard.extensionsInstalled",
+          "name": "Installed",
+          "icon": "assets/logo/quarto.svg",
+          "contextualTitle": "Quarto Extensions Installed"
+        },
+        {
+          "id": "quartoWizard.extensions",
+          "name": "Available",
+          "icon": "assets/logo/quarto.svg",
+          "contextualTitle": "Quarto Extensions Explorer"
+        }
+      ]
+    },
     "configuration": {
       "title": "Quarto Wizard",
       "properties": {
