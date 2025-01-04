@@ -1,6 +1,6 @@
 # Changelog
 
-## Development (unreleased)
+## 0.4.0 (2025-01-04)
 
 - feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
 - feat: add settings to specify the Quarto CLI path (`quartoWizard.quarto.path`).
