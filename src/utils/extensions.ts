@@ -163,12 +163,15 @@ export async function installQuartoExtensions(
 					failedExtensions.push(selectedExtension.description);
 				}
 
+				// Update _extension.yml file with source, i.e., GitHub username/repo
+				// This is needed for the extension to be updated in the future
+				// To be removed when Quarto supports source records in the _extension.yml file or elsewhere
+				// See https://github.com/quarto-dev/quarto-cli/issues/11468
 				const newExtension = findModifiedExtensions(existingExtensions, extensionsDirectory);
 				const fileNames = ["_extension.yml", "_extension.yaml"];
 				const filePath = fileNames
 					.map((name) => path.join(extensionsDirectory, ...newExtension, name))
 					.find((fullPath) => fs.existsSync(fullPath));
-
 				if (filePath) {
 					const fileContent = fs.readFileSync(filePath, "utf-8");
 					const updatedContent = fileContent.includes("source: ")
