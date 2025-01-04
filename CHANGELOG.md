@@ -1,5 +1,7 @@
 # Changelog
 
+## Development (unreleased)
+
 ## 0.4.0 (2025-01-04)
 
 - feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
