@@ -2,7 +2,7 @@
   "name": "quarto-wizard",
   "displayName": "Quarto Wizard",
   "description": "A Visual Studio Code extension that helps you manage Quarto projects.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "mcanouil",
   "author": {
     "name": "Mickaël CANOUIL"
