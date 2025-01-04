@@ -2,6 +2,27 @@
 title: "Reproducible Quarto Document"
 format: html
 engine: julia
+references:
+  - id: canouil_jointly_2018
+    author:
+      - family: Canouil
+        given: Mickaël
+      - family: Balkau
+        given: Beverley
+      - family: Roussel
+        given: Ronan
+      - family: Froguel
+        given: Philippe
+      - family: Rocheleau
+        given: Ghislain
+    container-title: Frontiers in Genetics
+    doi: 10.3389/fgene.2018.00210
+    issued: 2018
+    title: "Jointly Modelling Single Nucleotide Polymorphisms With
+      Longitudinal and Time-to-Event Trait: An Application to Type 2
+      Diabetes and Fasting Plasma Glucose"
+    type: article-journal
+    journal-title: "Frontiers in Genetics*"
 ---
 
 ```{julia}
@@ -10,8 +31,7 @@ using Pkg
 Pkg.add("Plots")
 ```
 
-This is a reproducible Quarto document.
-
+This is a reproducible Quarto document with references [@canouil_jointly_2018].
 
 ```{julia}
 using Plots
