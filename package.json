@@ -62,10 +62,6 @@
       {
         "command": "quartoWizard.newQuartoReprex",
         "title": "Quarto Wizard: New Reproducible Document"
-      },
-      {
-        "command": "quartoWizard.listQuartoExtension",
-        "title": "Quarto Wizard: List Quarto Extensions"
       }
     ],
     "configuration": {
