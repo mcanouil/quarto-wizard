@@ -1,5 +1,7 @@
 # Changelog
 
+## Development (unreleased)
+
 ## 0.4.1 (2025-01-04)
 
 - feat(assets/templates): add bibliography reference to the templates.
