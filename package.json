@@ -64,6 +64,14 @@
         "title": "Quarto Wizard: New Reproducible Document"
       }
     ],
+    "menus": {
+      "file/newFile": [
+        {
+          "command": "quartoWizard.newQuartoReprex",
+          "group": "Quarto"
+        }
+      ]
+    },
     "configuration": {
       "title": "Quarto Wizard",
       "properties": {

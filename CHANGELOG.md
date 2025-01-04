@@ -2,6 +2,8 @@
 
 ## Development (unreleased)
 
+- feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document in "new File" menu.
+
 ## 0.4.1 (2025-01-04)
 
 - feat(assets/templates): add bibliography reference to the templates.
