@@ -236,9 +236,7 @@ function findQuartoExtensionsRecurse(dir: string): string[] {
 }
 
 export function findQuartoExtensions(dir: string): string[] {
-	return findQuartoExtensionsRecurse(dir).map((filePath) =>
-		path.relative(dir, path.dirname(filePath))
-	);
+	return findQuartoExtensionsRecurse(dir).map((filePath) => path.relative(dir, path.dirname(filePath)));
 }
 
 function getMtimeExtensions(dir: string): { [key: string]: Date } {
@@ -247,7 +245,7 @@ function getMtimeExtensions(dir: string): { [key: string]: Date } {
 	}
 	const extensions = findQuartoExtensions(dir);
 	const extensionsMtimeDict: { [key: string]: Date } = {};
-	extensions.forEach(extension => {
+	extensions.forEach((extension) => {
 		extensionsMtimeDict[extension] = fs.statSync(path.join(dir, extension)).mtime;
 	});
 	return extensionsMtimeDict;
@@ -259,7 +257,7 @@ function findModifiedExtensions(extensions: { [key: string]: Date }, dir: string
 	}
 	const modifiedExtensions: string[] = [];
 	const currentExtensions = findQuartoExtensions(dir);
-	currentExtensions.forEach(extension => {
+	currentExtensions.forEach((extension) => {
 		const extensionPath = path.join(dir, extension);
 		const extensionMtime = fs.statSync(extensionPath).mtime;
 		if (!extensions[extension] || extensions[extension] < extensionMtime) {
