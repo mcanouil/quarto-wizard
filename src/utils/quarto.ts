@@ -1,5 +1,5 @@
-import { exec } from "child_process";
 import * as vscode from "vscode";
+import { exec } from "child_process";
 
 function getQuartoPath(): string {
 	const config = vscode.workspace.getConfiguration("quartoWizard.quarto");
@@ -28,8 +28,12 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 	log.appendLine(`\n\nInstalling ${extension} ...`);
 	return new Promise((resolve) => {
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+		if (workspaceFolder === undefined) {
+			return;
+		}
 		const quartoPath = getQuartoPath();
 		const command = `${quartoPath} add ${extension} --no-prompt`;
+
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
 				log.appendLine(`${stderr}`);

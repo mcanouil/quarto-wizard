@@ -152,35 +152,29 @@ export async function installQuartoExtensions(
 					message: `(${installedCount} / ${totalExtensions}) ${selectedExtension.label} ...`,
 					increment: (1 / (totalExtensions + 1)) * 100,
 				});
-				
+
 				const extensionsDirectory = path.join(workspaceFolder, "_extensions");
-				let initialExtensions: string[] = [];
-				if (fs.existsSync(extensionsDirectory)) {
-					initialExtensions = findQuartoExtensions(extensionsDirectory);
-				}
+				const existingExtensions = getMtimeExtensions(extensionsDirectory);
 
 				const success = await installQuartoExtension(selectedExtension.description, log);
 				if (success) {
 					installedExtensions.push(selectedExtension.description);
-					const finalExtensions: string[] = findQuartoExtensions(extensionsDirectory);
-					const newExtension = finalExtensions.filter((ext) => !initialExtensions.includes(ext))[0];
-					if (newExtension.length > 0) {
-						const newExtensionDir = path.join(extensionsDirectory, newExtension);
-						const fileNames = ["_extension.yml", "_extension.yaml"];
-						const filePath = fileNames
-							.map((name) => path.join(newExtensionDir, name))
-							.find((fullPath) => fs.existsSync(fullPath));
-
-						if (filePath) {
-							const fileContent = fs.readFileSync(filePath, "utf-8");
-							const updatedContent = fileContent.includes("source: ")
-								? fileContent.replace(/source: .*/, `source: ${selectedExtension.description}`)
-								: `${fileContent.trim()}\nsource: ${selectedExtension.description}`;
-							fs.writeFileSync(filePath, updatedContent);
-						}
-					}
 				} else {
 					failedExtensions.push(selectedExtension.description);
+				}
+
+				const newExtension = findModifiedExtensions(existingExtensions, extensionsDirectory);
+				const fileNames = ["_extension.yml", "_extension.yaml"];
+				const filePath = fileNames
+					.map((name) => path.join(extensionsDirectory, ...newExtension, name))
+					.find((fullPath) => fs.existsSync(fullPath));
+
+				if (filePath) {
+					const fileContent = fs.readFileSync(filePath, "utf-8");
+					const updatedContent = fileContent.includes("source: ")
+						? fileContent.replace(/source: .*/, `source: ${selectedExtension.description}`)
+						: `${fileContent.trim()}\nsource: ${selectedExtension.description}`;
+					fs.writeFileSync(filePath, updatedContent);
 				}
 
 				installedCount++;
@@ -242,4 +236,32 @@ export function findQuartoExtensions(dir: string): string[] {
 	return findQuartoExtensionsRecurse(dir).map((filePath) =>
 		path.relative(dir, path.dirname(filePath))
 	);
+}
+
+function getMtimeExtensions(dir: string): { [key: string]: Date } {
+	if (!fs.existsSync(dir)) {
+		return {};
+	}
+	const extensions = findQuartoExtensions(dir);
+	const extensionsMtimeDict: { [key: string]: Date } = {};
+	extensions.forEach(extension => {
+		extensionsMtimeDict[extension] = fs.statSync(path.join(dir, extension)).mtime;
+	});
+	return extensionsMtimeDict;
+}
+
+function findModifiedExtensions(extensions: { [key: string]: Date }, dir: string): string[] {
+	if (!fs.existsSync(dir)) {
+		return [];
+	}
+	const modifiedExtensions: string[] = [];
+	const currentExtensions = findQuartoExtensions(dir);
+	currentExtensions.forEach(extension => {
+		const extensionPath = path.join(dir, extension);
+		const extensionMtime = fs.statSync(extensionPath).mtime;
+		if (!extensions[extension] || extensions[extension] < extensionMtime) {
+			modifiedExtensions.push(extension);
+		}
+	});
+	return modifiedExtensions;
 }
