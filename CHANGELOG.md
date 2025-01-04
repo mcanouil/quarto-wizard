@@ -3,6 +3,7 @@
 ## Development (unreleased)
 
 - feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document in "new File" menu.
+- refactor: use "category" instead of hardcoding `Quarto Wizard: ` in the command title.
 
 ## 0.4.1 (2025-01-04)
 

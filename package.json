@@ -49,19 +49,23 @@
     "commands": [
       {
         "command": "quartoWizard.installExtension",
-        "title": "Quarto Wizard: Install Extension(s)"
+        "title": "Install Extension(s)",
+        "category": "Quarto Wizard"
       },
       {
         "command": "quartoWizard.showOutput",
-        "title": "Quarto Wizard: Show Quarto Wizard Log Output"
+        "title": "Show Quarto Wizard Log Output",
+        "category": "Quarto Wizard"
       },
       {
         "command": "quartoWizard.clearRecentlyInstalled",
-        "title": "Quarto Wizard: Clear Recently Installed Extensions"
+        "title": "Clear Recently Installed Extensions",
+        "category": "Quarto Wizard"
       },
       {
         "command": "quartoWizard.newQuartoReprex",
-        "title": "Quarto Wizard: New Reproducible Document"
+        "title": "New Reproducible Document",
+        "category": "Quarto Wizard"
       }
     ],
     "menus": {
