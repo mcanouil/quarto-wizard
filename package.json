@@ -43,7 +43,7 @@
     "url": "https://github.com/sponsors/mcanouil"
   },
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.96.0"
   },
   "contributes": {
     "commands": [
