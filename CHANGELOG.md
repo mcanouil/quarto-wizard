@@ -2,6 +2,8 @@
 
 ## Development (unreleased)
 
+- feat(assets/templates): add bibliography reference to the templates.
+
 ## 0.4.0 (2025-01-04)
 
 - feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
