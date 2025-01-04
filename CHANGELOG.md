@@ -3,10 +3,10 @@
 ## Development (unreleased)
 
 - feat(README.md): add usage instructions for `Quarto Wizard: New Reproducible Document`.
-- feat: get Quarto CLI path from `quarto.path` setting or `quartoWizard.quarto.path` setting if set.
-- feat: add settings to control if user should be prompted to trust and install Quarto extensions.
-- feat: trust and install prompts get a "Never ask again" choice.
-- feat: add `source: <repository>` to `_extension.yml` of the installed extension.
+- feat: add settings to specify the Quarto CLI path (`quartoWizard.quarto.path`).
+- feat: add settings to control user prompts for trusting authors and confirming installations (`quartoWizard.ask.trustAuthors`, `quartoWizard.ask.confirmInstall`).
+- feat: introduce prompts for users to trust authors and confirm installations, with a "Never ask again" option to update settings accordingly.
+- feat: enhance the extension installation process to update `_extension.yml` with the source repository (i.e., `source: <repository>`), ensuring future updates.
 - fix(README.md): remove duplicated command prefix.
 - style: format code with Prettier.
 - ci: allow anything after version number header in CHANGELOG.md.
