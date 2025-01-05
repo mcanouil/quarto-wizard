@@ -272,14 +272,7 @@ export interface QuartoExtensionData {
 	title?: string;
 	author?: string;
 	version?: string;
-	contributes?: {
-		filters?: any;
-		formats?: any;
-		metadata?: any;
-		shortcodes?: any;
-		"revealjs-plugins"?: any;
-		project?: any;
-	};
+	contributes?: string;
 	source?: string;
 }
 
@@ -289,12 +282,13 @@ function readYamlFile(filePath: string): QuartoExtensionData | null {
 	}
 	const fileContent = fs.readFileSync(filePath, "utf8");
 	const data = yaml.load(fileContent) as any;
+	console.log(data.contributes);
 	return {
 		title: data.title,
 		author: data.author,
 		version: data.version,
-		contributes: data.contributes ? {} : undefined,
-		source: data.source,
+		contributes: Object.keys(data.contributes).join(", "),
+		source: data.source
 	};
 }
 

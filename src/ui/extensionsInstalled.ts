@@ -50,10 +50,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<QuartoE
 			new QuartoExtensionTreeItem(`Author: ${data.author}`, vscode.TreeItemCollapsibleState.None),
 			new QuartoExtensionTreeItem(`Version: ${data.version}`, vscode.TreeItemCollapsibleState.None),
 			new QuartoExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None),
-			new QuartoExtensionTreeItem(
-				`Contributes: ${JSON.stringify(data.contributes)}`,
-				vscode.TreeItemCollapsibleState.None
-			),
+			new QuartoExtensionTreeItem(`Contributes: ${data.contributes}`, vscode.TreeItemCollapsibleState.None),
 		];
 	}
 
@@ -69,7 +66,6 @@ export class QuartoExtensionsInstalled {
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
 		const extensionsList = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
 		const extensionsData = readExtensions(workspaceFolder, extensionsList);
-		// console.log(extensionsData);
 
 		this.treeDataProvider = new QuartoExtensionTreeDataProvider(extensionsData);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
