@@ -2,6 +2,8 @@
 
 ## Development (unreleased)
 
+- feat: add view to display the list of installed Quarto extensions.
+
 ## 0.4.2 (2025-01-05)
 
 - feat: add command `Quarto Wizard: New Reproducible Document` to create a new Quarto document in "new File" menu.
