@@ -88,12 +88,15 @@ export class QuartoExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => this.treeDataProvider.refresh())
 		);
 		context.subscriptions.push(
-			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.openSource", (item: QuartoExtensionTreeItem) => {
-				if (item.data?.source) {
-					const url = `https://github.com/${item.data?.source}`;
-					vscode.env.openExternal(vscode.Uri.parse(url));
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.openSource",
+				(item: QuartoExtensionTreeItem) => {
+					if (item.data?.source) {
+						const url = `https://github.com/${item.data?.source}`;
+						vscode.env.openExternal(vscode.Uri.parse(url));
+					}
 				}
-			})
+			)
 		);
 	}
 }
