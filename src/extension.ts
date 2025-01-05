@@ -11,21 +11,24 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.showOutput", () => QUARTO_WIZARD_LOG.show())
 	);
 
-	let clearRecentlyInstalledDisposable = vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
-		context.globalState.update(RECENTLY_INSTALLED_QUARTO_EXTENSIONS, []);
-		vscode.window.showInformationMessage("Recently installed Quarto extensions have been cleared.");
-	});
-	context.subscriptions.push(clearRecentlyInstalledDisposable);
-
-	let installExtensionDisposable = vscode.commands.registerCommand("quartoWizard.installExtension", () =>
-		installQuartoExtensionCommand(context, QUARTO_WIZARD_LOG, RECENTLY_INSTALLED_QUARTO_EXTENSIONS)
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
+			context.globalState.update(RECENTLY_INSTALLED_QUARTO_EXTENSIONS, []);
+			vscode.window.showInformationMessage("Recently installed Quarto extensions have been cleared.");
+		})
 	);
-	context.subscriptions.push(installExtensionDisposable);
 
-	let newQuartoReprexDisposable = vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () =>
-		newQuartoReprexCommand(context, QUARTO_WIZARD_LOG)
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtension", () =>
+			installQuartoExtensionCommand(context, QUARTO_WIZARD_LOG, RECENTLY_INSTALLED_QUARTO_EXTENSIONS)
+		)
 	);
-	context.subscriptions.push(newQuartoReprexDisposable);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () =>
+			newQuartoReprexCommand(context, QUARTO_WIZARD_LOG)
+		)
+	);
 
 	new ExtensionsInstalled(context, QUARTO_WIZARD_LOG);
 }
