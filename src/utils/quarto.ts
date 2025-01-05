@@ -52,6 +52,7 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 
 export async function removeQuartoExtension(extension: string, log: vscode.OutputChannel): Promise<boolean> {
 	log.appendLine(`\n\nRemoving ${extension} ...`);
+
 	return new Promise((resolve) => {
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		if (workspaceFolder === undefined) {
