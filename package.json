@@ -95,7 +95,7 @@
           "contextualTitle": "Quarto Extensions Installed"
         },
         {
-          "id": "quartoWizard.extensions",
+          "id": "quartoWizard.extensionsExplorer",
           "name": "Available",
           "icon": "assets/logo/quarto.svg",
           "contextualTitle": "Quarto Extensions Explorer"
