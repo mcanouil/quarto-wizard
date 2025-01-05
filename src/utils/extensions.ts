@@ -4,6 +4,7 @@ import { IncomingMessage } from "http";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import * as yaml from "js-yaml";
 import { installQuartoExtension } from "./quarto";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
@@ -265,4 +266,49 @@ function findModifiedExtensions(extensions: { [key: string]: Date }, dir: string
 		}
 	});
 	return modifiedExtensions;
+}
+
+export interface QuartoExtensionData {
+	title?: string;
+	author?: string;
+	version?: string;
+	contributes?: {
+		filters?: any;
+		formats?: any;
+		metadata?: any;
+		shortcodes?: any;
+		"revealjs-plugins"?: any;
+		project?: any;
+	};
+	source?: string;
+}
+
+function readYamlFile(filePath: string): QuartoExtensionData | null {
+	if (!fs.existsSync(filePath)) {
+		return null;
+	}
+	const fileContent = fs.readFileSync(filePath, "utf8");
+	const data = yaml.load(fileContent) as any;
+	return {
+		title: data.title,
+		author: data.author,
+		version: data.version,
+		contributes: data.contributes ? {} : undefined,
+		source: data.source,
+	};
+}
+
+export function readExtensions(workspaceFolder: string, extensions: string[]): Record<string, QuartoExtensionData> {
+	const extensionsData: Record<string, QuartoExtensionData> = {};
+	for (const ext of extensions) {
+		let filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yml");
+		if (!fs.existsSync(filePath)) {
+			filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yaml");
+		}
+		const extData = readYamlFile(filePath);
+		if (extData) {
+			extensionsData[ext] = extData;
+		}
+	}
+	return extensionsData;
 }
