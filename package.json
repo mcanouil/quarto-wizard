@@ -92,13 +92,15 @@
           "id": "quartoWizard.extensionsInstalled",
           "name": "Installed",
           "icon": "assets/logo/quarto-extension.svg",
-          "contextualTitle": "Quarto Extensions Installed"
+          "contextualTitle": "Quarto Extensions Installed",
+          "visibility": "visible"
         },
         {
           "id": "quartoWizard.extensionsExplorer",
           "name": "Available",
           "icon": "assets/logo/quarto-extension.svg",
-          "contextualTitle": "Quarto Extensions Explorer"
+          "contextualTitle": "Quarto Extensions Explorer",
+          "visibility": "collapsed"
         }
       ]
     },
