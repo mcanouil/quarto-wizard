@@ -116,7 +116,10 @@
           "order": 2,
           "scope": "resource",
           "type": "string",
-          "enum": ["always", "never"],
+          "enum": [
+            "always",
+            "never"
+          ],
           "default": "always",
           "markdownDescription": "Ask for trust when installing extensions. If set to `always`, the extension will always ask for trust. If set to `never`, the extension will never ask for trust."
         },
@@ -124,7 +127,10 @@
           "order": 3,
           "scope": "resource",
           "type": "string",
-          "enum": ["always", "never"],
+          "enum": [
+            "always",
+            "never"
+          ],
           "default": "always",
           "markdownDescription": "Ask for confirmation when installing extensions. If set to `always`, the extension will always ask for confirmation. If set to `never`, the extension will never ask for confirmation."
         }
@@ -139,8 +145,12 @@
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.3",
     "@types/vscode": "^1.96.0",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "js-yaml": "^4.0.9"
   }
 }
