@@ -12,6 +12,7 @@ class QuartoExtensionTreeItem extends vscode.TreeItem {
 		super(label, collapsibleState);
 		this.tooltip = `${this.label}`;
 		this.description = this.data ? `${this.data.version}` : "";
+		this.contextValue = data ? "quartoExtensionItem" : "quartoExtensionItemDetails";
 	}
 }
 
@@ -21,7 +22,14 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<QuartoE
 	readonly onDidChangeTreeData: vscode.Event<QuartoExtensionTreeItem | undefined | void> =
 		this._onDidChangeTreeData.event;
 
-	constructor(private extensionsData: Record<string, QuartoExtensionData>) {}
+	private workspaceFolder: string;
+
+	constructor(workspaceFolder: string) {
+		this.workspaceFolder = workspaceFolder;
+		this.refreshExtensionsData();
+	}
+
+	private extensionsData: Record<string, QuartoExtensionData> = {};
 
 	getTreeItem(element: QuartoExtensionTreeItem): vscode.TreeItem {
 		return element;
@@ -55,7 +63,13 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<QuartoE
 	}
 
 	refresh(): void {
+		this.refreshExtensionsData();
 		this._onDidChangeTreeData.fire();
+	}
+
+	private refreshExtensionsData(): void {
+		const extensionsList = findQuartoExtensions(path.join(this.workspaceFolder, "_extensions"));
+		this.extensionsData = readExtensions(this.workspaceFolder, extensionsList);
 	}
 }
 
@@ -64,10 +78,7 @@ export class QuartoExtensionsInstalled {
 
 	constructor(context: vscode.ExtensionContext) {
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
-		const extensionsList = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
-		const extensionsData = readExtensions(workspaceFolder, extensionsList);
-
-		this.treeDataProvider = new QuartoExtensionTreeDataProvider(extensionsData);
+		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolder);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,
@@ -75,6 +86,14 @@ export class QuartoExtensionsInstalled {
 		context.subscriptions.push(view);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => this.treeDataProvider.refresh())
+		);
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.openSource", (item: QuartoExtensionTreeItem) => {
+				if (item.data?.source) {
+					const url = `https://github.com/${item.data?.source}`;
+					vscode.env.openExternal(vscode.Uri.parse(url));
+				}
+			})
 		);
 	}
 }

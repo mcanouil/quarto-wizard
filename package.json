@@ -66,6 +66,20 @@
         "command": "quartoWizard.newQuartoReprex",
         "title": "New Reproducible Document",
         "category": "Quarto Wizard"
+      },
+      {
+        "command": "quartoWizard.extensionsInstalled.refresh",
+        "title": "Refresh Installed Extensions",
+        "shortTitle": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Quarto Wizard"
+      },
+      {
+        "command": "quartoWizard.extensionsInstalled.openSource",
+        "title": "Open Extension Source",
+        "shortTitle": "Open Source",
+        "icon": "$(github)",
+        "category": "Quarto Wizard"
       }
     ],
     "menus": {
@@ -73,6 +87,22 @@
         {
           "command": "quartoWizard.newQuartoReprex",
           "group": "Quarto"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "quartoWizard.extensionsInstalled.refresh",
+          "when": "view == quartoWizard.extensionsInstalled",
+          "group": "navigation",
+          "title": "Refresh",
+          "icon": "$(refresh)"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "quartoWizard.extensionsInstalled.openSource",
+          "when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+          "group": "inline"
         }
       ]
     },
