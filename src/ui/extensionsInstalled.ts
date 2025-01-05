@@ -40,6 +40,11 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 
 	getChildren(element?: ExtensionTreeItem): Thenable<ExtensionTreeItem[]> {
 		if (!element) {
+			if (Object.keys(this.extensionsData).length === 0) {
+				return Promise.resolve([
+					new ExtensionTreeItem("No extensions installed.", vscode.TreeItemCollapsibleState.None),
+				]);
+			}
 			return Promise.resolve(this.getExtensionItems());
 		}
 		return Promise.resolve(this.getExtensionDetailItems(element));
