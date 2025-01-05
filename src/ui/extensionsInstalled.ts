@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import { findQuartoExtensions } from "../utils/extensions";
 import { ExtensionData, readExtensions } from "../utils/extensions";
 import { installQuartoExtension, removeQuartoExtension } from "../utils/quarto";
+import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
 
 class ExtensionTreeItem extends vscode.TreeItem {
 	constructor(
@@ -69,7 +71,10 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 	}
 
 	private refreshExtensionsData(): void {
-		const extensionsList = findQuartoExtensions(path.join(this.workspaceFolder, "_extensions"));
+		let extensionsList: string[] = [];
+		if (fs.existsSync(path.join(this.workspaceFolder, "_extensions"))) {
+			extensionsList = findQuartoExtensions(path.join(this.workspaceFolder, "_extensions"));
+		}
 		this.extensionsData = readExtensions(this.workspaceFolder, extensionsList);
 	}
 }
