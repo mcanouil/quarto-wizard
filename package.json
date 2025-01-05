@@ -82,6 +82,12 @@
 				"category": "Quarto Wizard"
 			}
 		],
+		"commandPalette": [
+			{
+				"command": "quartoWizard.extensionsInstalled.openSource",
+				"when": false
+			}
+		],
 		"menus": {
 			"file/newFile": [
 				{
