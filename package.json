@@ -81,7 +81,7 @@
         {
           "id": "quarto-extension-explorer",
           "title": "Quarto Extension Explorer",
-          "icon": "assets/logo/quarto.svg",
+          "icon": "assets/logo/quarto-extension.svg",
           "contextualTitle": "Quarto Extension Explorer"
         }
       ]
@@ -91,13 +91,13 @@
         {
           "id": "quartoWizard.extensionsInstalled",
           "name": "Installed",
-          "icon": "assets/logo/quarto.svg",
+          "icon": "assets/logo/quarto-extension.svg",
           "contextualTitle": "Quarto Extensions Installed"
         },
         {
           "id": "quartoWizard.extensionsExplorer",
           "name": "Available",
-          "icon": "assets/logo/quarto.svg",
+          "icon": "assets/logo/quarto-extension.svg",
           "contextualTitle": "Quarto Extensions Explorer"
         }
       ]

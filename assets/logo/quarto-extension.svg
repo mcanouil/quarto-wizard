@@ -22,7 +22,7 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="9.1198547"
-     inkscape:cx="-5.3180672"
+     inkscape:cx="-5.2632417"
      inkscape:cy="21.546396"
      inkscape:window-width="1512"
      inkscape:window-height="828"
@@ -42,28 +42,24 @@
       }
     </style>
   </defs>
-  <g
-     id="g1"
-     transform="translate(1.2535174,-1.2535177)">
-    <path
-       class="cls-1"
-       d="M 11.251529,15.748471 V 5.3584714 a 12,12 0 0 0 -10.4,10.3899996 z"
-       id="path1"
-       style="fill:#d7dae0;fill-opacity:1" />
-    <path
-       class="cls-1"
-       d="m 16.251529,13.748471 h 10.39 a 12,12 0 0 0 -10.39,-10.3899996 z"
-       id="path2"
-       style="fill:#d7dae0;fill-opacity:1" />
-    <path
-       class="cls-1"
-       d="m 14.251529,18.748471 v 10.4 a 12,12 0 0 0 10.39,-10.4 z"
-       id="path3"
-       style="fill:#d7dae0;fill-opacity:1" />
-    <path
-       class="cls-1"
-       d="m 11.251529,18.748471 h -10.4 a 12,12 0 0 0 10.4,10.4 z"
-       id="path4"
-       style="fill:#d7dae0;fill-opacity:1" />
-  </g>
+  <path
+     class="cls-1"
+     d="M 11.251529,15.748471 V 5.3584714 a 12,12 0 0 0 -10.4,10.3899996 z"
+     id="path1"
+     style="fill:#d7dae0;fill-opacity:1" />
+  <path
+     class="cls-1"
+     d="m 18.758564,11.241435 h 10.39 a 12,12 0 0 0 -10.39,-10.38999933 z"
+     id="path2"
+     style="fill:#d7dae0;fill-opacity:1" />
+  <path
+     class="cls-1"
+     d="m 14.251529,18.748471 v 10.4 a 12,12 0 0 0 10.39,-10.4 z"
+     id="path3"
+     style="fill:#d7dae0;fill-opacity:1" />
+  <path
+     class="cls-1"
+     d="m 11.251529,18.748471 h -10.4 a 12,12 0 0 0 10.4,10.4 z"
+     id="path4"
+     style="fill:#d7dae0;fill-opacity:1" />
 </svg>
