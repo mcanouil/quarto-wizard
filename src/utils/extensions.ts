@@ -288,7 +288,7 @@ function readYamlFile(filePath: string): QuartoExtensionData | null {
 		author: data.author,
 		version: data.version,
 		contributes: Object.keys(data.contributes).join(", "),
-		source: data.source
+		source: data.source,
 	};
 }
 
