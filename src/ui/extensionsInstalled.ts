@@ -1,13 +1,14 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { findQuartoExtensions } from "../utils/extensions";
-import { QuartoExtensionData, readExtensions } from "../utils/extensions";
+import { ExtensionData, readExtensions } from "../utils/extensions";
+import { installQuartoExtension, removeQuartoExtension } from "../utils/quarto";
 
-class QuartoExtensionTreeItem extends vscode.TreeItem {
+class ExtensionTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly data?: QuartoExtensionData
+		public readonly data?: ExtensionData
 	) {
 		super(label, collapsibleState);
 		this.tooltip = `${this.label}`;
@@ -16,11 +17,11 @@ class QuartoExtensionTreeItem extends vscode.TreeItem {
 	}
 }
 
-class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<QuartoExtensionTreeItem> {
-	private _onDidChangeTreeData: vscode.EventEmitter<QuartoExtensionTreeItem | undefined | void> =
-		new vscode.EventEmitter<QuartoExtensionTreeItem | undefined | void>();
-	readonly onDidChangeTreeData: vscode.Event<QuartoExtensionTreeItem | undefined | void> =
-		this._onDidChangeTreeData.event;
+class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<ExtensionTreeItem> {
+	private _onDidChangeTreeData: vscode.EventEmitter<ExtensionTreeItem | undefined | void> = new vscode.EventEmitter<
+		ExtensionTreeItem | undefined | void
+	>();
+	readonly onDidChangeTreeData: vscode.Event<ExtensionTreeItem | undefined | void> = this._onDidChangeTreeData.event;
 
 	private workspaceFolder: string;
 
@@ -29,36 +30,36 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<QuartoE
 		this.refreshExtensionsData();
 	}
 
-	private extensionsData: Record<string, QuartoExtensionData> = {};
+	private extensionsData: Record<string, ExtensionData> = {};
 
-	getTreeItem(element: QuartoExtensionTreeItem): vscode.TreeItem {
+	getTreeItem(element: ExtensionTreeItem): vscode.TreeItem {
 		return element;
 	}
 
-	getChildren(element?: QuartoExtensionTreeItem): Thenable<QuartoExtensionTreeItem[]> {
+	getChildren(element?: ExtensionTreeItem): Thenable<ExtensionTreeItem[]> {
 		if (!element) {
 			return Promise.resolve(this.getExtensionItems());
 		}
 		return Promise.resolve(this.getExtensionDetailItems(element));
 	}
 
-	private getExtensionItems(): QuartoExtensionTreeItem[] {
+	private getExtensionItems(): ExtensionTreeItem[] {
 		return Object.keys(this.extensionsData).map(
-			(ext) => new QuartoExtensionTreeItem(ext, vscode.TreeItemCollapsibleState.Collapsed, this.extensionsData[ext])
+			(ext) => new ExtensionTreeItem(ext, vscode.TreeItemCollapsibleState.Collapsed, this.extensionsData[ext])
 		);
 	}
 
-	private getExtensionDetailItems(element: QuartoExtensionTreeItem): QuartoExtensionTreeItem[] {
+	private getExtensionDetailItems(element: ExtensionTreeItem): ExtensionTreeItem[] {
 		const data = element.data;
 		if (!data) {
 			return [];
 		}
 		return [
-			new QuartoExtensionTreeItem(`Title: ${data.title}`, vscode.TreeItemCollapsibleState.None),
-			new QuartoExtensionTreeItem(`Author: ${data.author}`, vscode.TreeItemCollapsibleState.None),
-			new QuartoExtensionTreeItem(`Version: ${data.version}`, vscode.TreeItemCollapsibleState.None),
-			new QuartoExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None),
-			new QuartoExtensionTreeItem(`Contributes: ${data.contributes}`, vscode.TreeItemCollapsibleState.None),
+			new ExtensionTreeItem(`Title: ${data.title}`, vscode.TreeItemCollapsibleState.None),
+			new ExtensionTreeItem(`Author: ${data.author}`, vscode.TreeItemCollapsibleState.None),
+			new ExtensionTreeItem(`Version: ${data.version}`, vscode.TreeItemCollapsibleState.None),
+			new ExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None),
+			new ExtensionTreeItem(`Contributes: ${data.contributes}`, vscode.TreeItemCollapsibleState.None),
 		];
 	}
 
@@ -73,11 +74,14 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<QuartoE
 	}
 }
 
-export class QuartoExtensionsInstalled {
-	private treeDataProvider: QuartoExtensionTreeDataProvider;
+export class ExtensionsInstalled {
+	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
-	constructor(context: vscode.ExtensionContext) {
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
+	constructor(context: vscode.ExtensionContext, log: vscode.OutputChannel) {
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+		if (workspaceFolder === undefined) {
+			return;
+		}
 		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolder);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
@@ -88,15 +92,38 @@ export class QuartoExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => this.treeDataProvider.refresh())
 		);
 		context.subscriptions.push(
-			vscode.commands.registerCommand(
-				"quartoWizard.extensionsInstalled.openSource",
-				(item: QuartoExtensionTreeItem) => {
-					if (item.data?.source) {
-						const url = `https://github.com/${item.data?.source}`;
-						vscode.env.openExternal(vscode.Uri.parse(url));
-					}
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.openSource", (item: ExtensionTreeItem) => {
+				if (item.data?.source) {
+					const url = `https://github.com/${item.data?.source}`;
+					vscode.env.openExternal(vscode.Uri.parse(url));
 				}
-			)
+			})
 		);
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", (item: ExtensionTreeItem) => {
+				if (item.data?.source) {
+					installQuartoExtension(item.data?.source, log);
+				} else {
+					installQuartoExtension(item.label, log);
+				}
+				this.treeDataProvider.refresh();
+			})
+		);
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", (item: ExtensionTreeItem) => {
+				removeQuartoExtension(item.label, log);
+				this.treeDataProvider.refresh();
+			})
+		);
+		view.onDidChangeVisibility((e) => {
+			if (e.visible) {
+				this.treeDataProvider.refresh();
+			}
+		});
+		view.onDidChangeSelection((e) => {
+			if (e.selection) {
+				this.treeDataProvider.refresh();
+			}
+		});
 	}
 }

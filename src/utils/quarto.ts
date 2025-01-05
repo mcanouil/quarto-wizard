@@ -49,3 +49,29 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 		});
 	});
 }
+
+export async function removeQuartoExtension(extension: string, log: vscode.OutputChannel): Promise<boolean> {
+	log.appendLine(`\n\nRemoving ${extension} ...`);
+	return new Promise((resolve) => {
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+		if (workspaceFolder === undefined) {
+			return;
+		}
+		const quartoPath = getQuartoPath();
+		const command = `${quartoPath} remove ${extension} --no-prompt`;
+
+		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
+			if (stderr) {
+				log.appendLine(`${stderr}`);
+				const isRemoved = stderr.includes("Extension removed");
+				if (isRemoved) {
+					resolve(true);
+				} else {
+					resolve(false);
+					return;
+				}
+			}
+			resolve(true);
+		});
+	});
+}

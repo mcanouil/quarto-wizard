@@ -78,7 +78,10 @@ export async function installQuartoExtensions(
 	selectedExtensions: readonly ExtensionQuickPickItem[],
 	log: vscode.OutputChannel
 ) {
-	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+	if (workspaceFolder === undefined) {
+		return;
+	}
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask");
@@ -268,7 +271,7 @@ function findModifiedExtensions(extensions: { [key: string]: Date }, dir: string
 	return modifiedExtensions;
 }
 
-export interface QuartoExtensionData {
+export interface ExtensionData {
 	title?: string;
 	author?: string;
 	version?: string;
@@ -276,7 +279,7 @@ export interface QuartoExtensionData {
 	source?: string;
 }
 
-function readYamlFile(filePath: string): QuartoExtensionData | null {
+function readYamlFile(filePath: string): ExtensionData | null {
 	if (!fs.existsSync(filePath)) {
 		return null;
 	}
@@ -292,8 +295,8 @@ function readYamlFile(filePath: string): QuartoExtensionData | null {
 	};
 }
 
-export function readExtensions(workspaceFolder: string, extensions: string[]): Record<string, QuartoExtensionData> {
-	const extensionsData: Record<string, QuartoExtensionData> = {};
+export function readExtensions(workspaceFolder: string, extensions: string[]): Record<string, ExtensionData> {
+	const extensionsData: Record<string, ExtensionData> = {};
 	for (const ext of extensions) {
 		let filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yml");
 		if (!fs.existsSync(filePath)) {

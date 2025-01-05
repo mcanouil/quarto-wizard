@@ -80,6 +80,20 @@
 				"shortTitle": "Open Source",
 				"icon": "$(github)",
 				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.update",
+				"title": "Update Extension",
+				"shortTitle": "Update",
+				"icon": "$(cloud-download)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.remove",
+				"title": "Remove Extension",
+				"shortTitle": "Remove",
+				"icon": "$(trash)",
+				"category": "Quarto Wizard"
 			}
 		],
 		"menus": {
@@ -100,14 +114,32 @@
 			],
 			"view/item/context": [
 				{
+					"command": "quartoWizard.extensionsInstalled.update",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"group": "inline@1"
+				},
+				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
-					"group": "inline"
+					"group": "inline@4"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.remove",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"group": "inline@3"
 				}
 			],
 			"commandPalette": [
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.update",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.remove",
 					"when": "false"
 				}
 			]

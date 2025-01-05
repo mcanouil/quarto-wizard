@@ -80,7 +80,6 @@ export async function installQuartoExtensionCommand(
 		const selectedExtensions = quickPick.selectedItems;
 		if (selectedExtensions.length > 0) {
 			await installQuartoExtensions(selectedExtensions, log);
-
 			const selectedDescriptions = selectedExtensions.map((ext) => ext.description);
 			let updatedRecentlyInstalled = [
 				...selectedDescriptions,
