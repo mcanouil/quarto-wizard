@@ -3,6 +3,8 @@
 ## 0.5.0 (2025-01-XX)
 
 - feat: add view to display the list of installed Quarto extensions.
+- refactor(utils/extensions.ts): externalise user prompts to a separate module (`utils/ask.ts`).
+- refactor(extension.ts): don't use temporary variables for commands.
 
 ## 0.4.2 (2025-01-05)
 
