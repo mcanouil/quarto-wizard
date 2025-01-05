@@ -1,6 +1,6 @@
 # Changelog
 
-## Development (unreleased)
+## 0.5.0 (2025-01-XX)
 
 - feat: add view to display the list of installed Quarto extensions.
 
