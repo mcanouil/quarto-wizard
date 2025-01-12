@@ -9,13 +9,13 @@ export async function askTrustAuthors(log: vscode.OutputChannel): Promise<number
 			[
 				{ label: "Yes", description: "Trust authors." },
 				{ label: "No", description: "Do not trust authors." },
-				{ label: "Never ask again (yes)", description: "Change setting to never ask again." },
+				{ label: "Yes, never ask again", description: "Change setting to never ask again." },
 			],
 			{
 				placeHolder: "Do you trust the authors of the selected extension(s)?",
 			}
 		);
-		if (trustAuthors?.label === "Never ask again") {
+		if (trustAuthors?.label === "Yes, never ask again") {
 			await config.update("trustAuthors", "never", vscode.ConfigurationTarget.Global);
 			return 0;
 		} else if (trustAuthors?.label !== "Yes") {
@@ -37,13 +37,13 @@ export async function askConfirmInstall(log: vscode.OutputChannel): Promise<numb
 			[
 				{ label: "Yes", description: "Install extensions." },
 				{ label: "No", description: "Do not install extensions." },
-				{ label: "Never ask again (yes)", description: "Change setting to never ask again." },
+				{ label: "Yes, never ask again", description: "Change setting to never ask again." },
 			],
 			{
 				placeHolder: "Do you want to install the selected extension(s)?",
 			}
 		);
-		if (installWorkspace?.label === "Never ask again") {
+		if (installWorkspace?.label === "Yes, never ask again") {
 			await config.update("confirmInstall", "never", vscode.ConfigurationTarget.Global);
 			return 0;
 		} else if (installWorkspace?.label !== "Yes") {
@@ -65,13 +65,13 @@ export async function askConfirmRemove(log: vscode.OutputChannel): Promise<numbe
 			[
 				{ label: "Yes", description: "Remove extensions." },
 				{ label: "No", description: "Do not remove extensions." },
-				{ label: "Never ask again (yes)", description: "Change setting to never ask again." },
+				{ label: "Yes, never ask again", description: "Change setting to never ask again." },
 			],
 			{
 				placeHolder: "Do you want to remove the selected extension(s)?",
 			}
 		);
-		if (removeWorkspace?.label === "Never ask again") {
+		if (removeWorkspace?.label === "Yes, never ask again") {
 			await config.update("confirmRemove", "never", vscode.ConfigurationTarget.Global);
 			return 0;
 		} else if (removeWorkspace?.label !== "Yes") {
