@@ -116,13 +116,11 @@ export class ExtensionsInstalled {
 				} else {
 					installQuartoExtension(item.label, log);
 				}
-				this.treeDataProvider.refresh();
 			})
 		);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", (item: ExtensionTreeItem) => {
 				removeQuartoExtension(item.label, log);
-				this.treeDataProvider.refresh();
 			})
 		);
 		view.onDidChangeVisibility((e) => {
