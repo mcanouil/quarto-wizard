@@ -97,6 +97,16 @@ export class ExtensionsInstalled {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,
 		});
+		view.onDidChangeVisibility((e) => {
+			if (e.visible) {
+				this.treeDataProvider.refresh();
+			}
+		});
+		view.onDidChangeSelection((e) => {
+			if (e.selection) {
+				this.treeDataProvider.refresh();
+			}
+		});
 		context.subscriptions.push(view);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => this.treeDataProvider.refresh())
@@ -123,15 +133,5 @@ export class ExtensionsInstalled {
 				removeQuartoExtension(item.label, log);
 			})
 		);
-		view.onDidChangeVisibility((e) => {
-			if (e.visible) {
-				this.treeDataProvider.refresh();
-			}
-		});
-		view.onDidChangeSelection((e) => {
-			if (e.selection) {
-				this.treeDataProvider.refresh();
-			}
-		});
 	}
 }
