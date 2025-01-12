@@ -243,7 +243,6 @@ function readYamlFile(filePath: string): ExtensionData | null {
 	}
 	const fileContent = fs.readFileSync(filePath, "utf8");
 	const data = yaml.load(fileContent) as any;
-	console.log(data.contributes);
 	return {
 		title: data.title,
 		author: data.author,
