@@ -9,12 +9,16 @@ class ExtensionTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly data?: ExtensionData
+		public readonly data?: ExtensionData,
+		icon?: string
 	) {
 		super(label, collapsibleState);
 		this.tooltip = `${this.label}`;
 		this.description = this.data ? `${this.data.version}` : "";
 		this.contextValue = data ? "quartoExtensionItem" : "quartoExtensionItemDetails";
+		if (icon) {
+			this.iconPath = new vscode.ThemeIcon(icon);
+		}
 	}
 }
 
@@ -41,7 +45,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		if (!element) {
 			if (Object.keys(this.extensionsData).length === 0) {
 				return Promise.resolve([
-					new ExtensionTreeItem("No extensions installed.", vscode.TreeItemCollapsibleState.None),
+					new ExtensionTreeItem("No extensions installed", vscode.TreeItemCollapsibleState.None, undefined, "info"),
 				]);
 			}
 			return Promise.resolve(this.getExtensionItems());
