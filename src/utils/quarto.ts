@@ -45,6 +45,7 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 					return;
 				}
 			}
+			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			resolve(true);
 		});
 	});
@@ -72,6 +73,7 @@ export async function removeQuartoExtension(extension: string, log: vscode.Outpu
 					return;
 				}
 			}
+			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			resolve(true);
 		});
 	});
