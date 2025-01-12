@@ -4,7 +4,6 @@ import * as fs from "fs";
 import { findQuartoExtensions } from "../utils/extensions";
 import { ExtensionData, readExtensions } from "../utils/extensions";
 import { installQuartoExtension, removeQuartoExtension } from "../utils/quarto";
-import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
 
 class ExtensionTreeItem extends vscode.TreeItem {
 	constructor(
