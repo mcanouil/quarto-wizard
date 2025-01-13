@@ -164,7 +164,7 @@
 				{
 					"id": "quarto-extension-explorer",
 					"title": "Quarto Extension Explorer",
-					"icon": "assets/logo/quarto-extension.svg",
+					"icon": "assets/logo/quarto-extensions.svg",
 					"contextualTitle": "Quarto Extension Explorer"
 				}
 			]
@@ -174,7 +174,7 @@
 				{
 					"id": "quartoWizard.extensionsInstalled",
 					"name": "Installed",
-					"icon": "assets/logo/quarto-extension.svg",
+					"icon": "assets/logo/quarto-extensions.svg",
 					"contextualTitle": "Quarto Extensions Installed",
 					"visibility": "visible"
 				}
