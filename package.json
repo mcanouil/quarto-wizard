@@ -223,16 +223,14 @@
 		"watch": "tsc -watch -p ./"
 	},
 	"devDependencies": {
-    "@vscode/vsce": "^3.2.1",
-    "typescript": "^5.7.3",
-    "@types/vscode": "^1.96.0",
-    "@types/node": "^22.10.5",
-		"js-yaml": "^4.0.9"
+		"@vscode/vsce": "^3.2.1",
+		"typescript": "^5.7.3",
+		"@types/vscode": "^1.96.0",
+		"@types/node": "^22.10.5",
+		"@types/js-yaml": "^4.0.9"
 	},
 	"dependencies": {
-    "typescript": "^5.7.3",
-    "vscode": "^1.96.0",
-    "node": "^22.10.5",
+		"typescript": "^5.7.3",
 		"js-yaml": "^4.0.9"
 	}
 }
