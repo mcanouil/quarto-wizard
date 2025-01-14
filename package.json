@@ -86,7 +86,7 @@
 				"command": "quartoWizard.extensionsInstalled.openSource",
 				"title": "Open Extension Source",
 				"shortTitle": "Open Source",
-				"icon": "$(globe)",
+				"icon": "$(github)",
 				"category": "Quarto Wizard"
 			},
 			{
