@@ -1,15 +1,28 @@
 import * as vscode from "vscode";
 import { exec } from "child_process";
 
+let cachedQuartoPath: string | undefined;
+
 function getQuartoPath(): string {
+	if (cachedQuartoPath) {
+		return cachedQuartoPath;
+	}
+
 	const config = vscode.workspace.getConfiguration("quartoWizard.quarto");
 	let quartoPath = config.get<string>("path");
 	if (!quartoPath) {
 		const fallbackConfig = vscode.workspace.getConfiguration("quarto");
 		quartoPath = fallbackConfig.get<string>("path");
 	}
-	return quartoPath || "quarto";
+	cachedQuartoPath = quartoPath || "quarto";
+	return cachedQuartoPath;
 }
+
+vscode.workspace.onDidChangeConfiguration((e) => {
+	if (e.affectsConfiguration("quartoWizard.quarto.path") || e.affectsConfiguration("quarto.path")) {
+		cachedQuartoPath = undefined;
+	}
+});
 
 export async function checkQuartoVersion(): Promise<boolean> {
 	return new Promise((resolve) => {
