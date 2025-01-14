@@ -27,10 +27,10 @@ export async function checkQuartoVersion(): Promise<boolean> {
 export async function installQuartoExtension(extension: string, log: vscode.OutputChannel): Promise<boolean> {
 	log.appendLine(`\n\nInstalling ${extension} ...`);
 	return new Promise((resolve) => {
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-		if (workspaceFolder === undefined) {
+		if (vscode.workspace.workspaceFolders === undefined) {
 			return;
 		}
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		const quartoPath = getQuartoPath();
 		const command = `${quartoPath} add ${extension} --no-prompt`;
 
@@ -55,10 +55,10 @@ export async function removeQuartoExtension(extension: string, log: vscode.Outpu
 	log.appendLine(`\n\nRemoving ${extension} ...`);
 
 	return new Promise((resolve) => {
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-		if (workspaceFolder === undefined) {
+		if (vscode.workspace.workspaceFolders === undefined) {
 			return;
 		}
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		const quartoPath = getQuartoPath();
 		const command = `${quartoPath} remove ${extension} --no-prompt`;
 

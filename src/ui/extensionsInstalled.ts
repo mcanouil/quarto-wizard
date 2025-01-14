@@ -91,10 +91,10 @@ export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
 	constructor(context: vscode.ExtensionContext, log: vscode.OutputChannel) {
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-		if (workspaceFolder === undefined) {
+		if (vscode.workspace.workspaceFolders === undefined) {
 			return;
 		}
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolder);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,

@@ -79,16 +79,16 @@ export async function installQuartoExtensions(
 	selectedExtensions: readonly ExtensionQuickPickItem[],
 	log: vscode.OutputChannel
 ) {
-	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-	if (workspaceFolder === undefined) {
+	if (vscode.workspace.workspaceFolders === undefined) {
 		return;
 	}
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
 	if ((await askTrustAuthors(log)) !== 0) return;
 	if ((await askConfirmInstall(log)) !== 0) return;
 
-	vscode.window.withProgress(
+	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
 			title: "Installing selected extension(s) ([show logs](command:quartoWizard.showOutput))",
