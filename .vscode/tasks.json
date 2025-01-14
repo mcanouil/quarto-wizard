@@ -17,12 +17,6 @@
 			}
 		},
 		{
-			"label": "Setup Debug",
-			"type": "shell",
-			"command": "rm -rf ${workspaceFolder}/out/debug; mkdir -p ${workspaceFolder}/out/debug;",
-			"group": "build"
-		},
-		{
 			"label": "Package Wizard",
 			"type": "shell",
 			"command": "vsce package --pre-release",
