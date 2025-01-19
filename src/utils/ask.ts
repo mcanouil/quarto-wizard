@@ -1,21 +1,21 @@
 import * as vscode from "vscode";
 
 export async function askTrustAuthors(log: vscode.OutputChannel): Promise<number> {
-	const config = vscode.workspace.getConfiguration("quartoWizard.ask");
+	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
 	let configTrustAuthors = config.get<string>("trustAuthors");
 
-	if (configTrustAuthors === "always") {
+	if (configTrustAuthors === "ask") {
 		const trustAuthors = await vscode.window.showQuickPick(
 			[
 				{ label: "Yes", description: "Trust authors." },
 				{ label: "No", description: "Do not trust authors." },
-				{ label: "Yes, never ask again", description: "Change setting to never ask again." },
+				{ label: "Yes, always trust", description: "Change setting to always trust." },
 			],
 			{
 				placeHolder: "Do you trust the authors of the selected extension(s)?",
 			}
 		);
-		if (trustAuthors?.label === "Yes, never ask again") {
+		if (trustAuthors?.label === "Yes, always trust") {
 			await config.update("trustAuthors", "never", vscode.ConfigurationTarget.Global);
 			return 0;
 		} else if (trustAuthors?.label !== "Yes") {
@@ -29,21 +29,21 @@ export async function askTrustAuthors(log: vscode.OutputChannel): Promise<number
 }
 
 export async function askConfirmInstall(log: vscode.OutputChannel): Promise<number> {
-	const config = vscode.workspace.getConfiguration("quartoWizard.ask");
+	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
 	let configConfirmInstall = config.get<string>("confirmInstall");
 
-	if (configConfirmInstall === "always") {
+	if (configConfirmInstall === "ask") {
 		const installWorkspace = await vscode.window.showQuickPick(
 			[
 				{ label: "Yes", description: "Install extensions." },
 				{ label: "No", description: "Do not install extensions." },
-				{ label: "Yes, never ask again", description: "Change setting to never ask again." },
+				{ label: "Yes, always trust", description: "Change setting to always trust." },
 			],
 			{
 				placeHolder: "Do you want to install the selected extension(s)?",
 			}
 		);
-		if (installWorkspace?.label === "Yes, never ask again") {
+		if (installWorkspace?.label === "Yes, always trust") {
 			await config.update("confirmInstall", "never", vscode.ConfigurationTarget.Global);
 			return 0;
 		} else if (installWorkspace?.label !== "Yes") {
@@ -65,13 +65,13 @@ export async function askConfirmRemove(log: vscode.OutputChannel): Promise<numbe
 			[
 				{ label: "Yes", description: "Remove extensions." },
 				{ label: "No", description: "Do not remove extensions." },
-				{ label: "Yes, never ask again", description: "Change setting to never ask again." },
+				{ label: "Yes, always trust", description: "Change setting to always trust." },
 			],
 			{
 				placeHolder: "Do you want to remove the selected extension(s)?",
 			}
 		);
-		if (removeWorkspace?.label === "Yes, never ask again") {
+		if (removeWorkspace?.label === "Yes, always trust") {
 			await config.update("confirmRemove", "never", vscode.ConfigurationTarget.Global);
 			return 0;
 		} else if (removeWorkspace?.label !== "Yes") {

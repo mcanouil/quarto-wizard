@@ -187,7 +187,7 @@
 					"order": 1,
 					"scope": "window",
 					"type": "string",
-					"default": "",
+					"default": null,
 					"markdownDescription": "A path to the Quarto CLI executable. By default, the extension looks for Quarto CLI in the `PATH` and in `#quarto.path#`, but if set, will use the path specified instead."
 				},
 				"quartoWizard.ask.trustAuthors": {
@@ -195,22 +195,22 @@
 					"scope": "resource",
 					"type": "string",
 					"enum": [
-						"always",
-						"never"
+						"never",
+						"ask"
 					],
-					"default": "always",
-					"markdownDescription": "Ask for trust when installing extensions. If set to `always`, the extension will always ask for trust. If set to `never`, the extension will never ask for trust."
+					"default": "ask",
+					"markdownDescription": "Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again."
 				},
 				"quartoWizard.ask.confirmInstall": {
 					"order": 3,
 					"scope": "resource",
 					"type": "string",
 					"enum": [
-						"always",
-						"never"
+						"never",
+						"ask"
 					],
-					"default": "always",
-					"markdownDescription": "Ask for confirmation when installing extensions. If set to `always`, the extension will always ask for confirmation. If set to `never`, the extension will never ask for confirmation."
+					"default": "ask",
+					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
 				}
 			}
 		}
