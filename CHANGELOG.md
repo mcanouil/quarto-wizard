@@ -2,8 +2,9 @@
 
 ## 0.5.0 (2025-01-XX)
 
-- feat: add view to display the list of installed Quarto extensions.
-- fix: update and correct trust authors and confirm installations prompts option value, *i.e.*, `Yes, never ask again`.
+- feat: add view to display and to manage the Quarto extensions installed.
+- feat(checkQuartoPath): better check for the Quarto CLI path.
+- fix: update and correct trust authors and confirm installations prompts option value, *i.e.*, `Yes, always trust`.
 - refactor(utils/extensions.ts): externalise user prompts to a separate module (`utils/ask.ts`).
 - refactor(extension.ts): don't use temporary variables for commands.
 
