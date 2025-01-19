@@ -162,18 +162,18 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "quarto-wizard-extension-explorer",
-					"title": "Quarto Wizard Extension Explorer",
+					"id": "quarto-wizard-explorer",
+					"title": "Quarto Wizard",
 					"icon": "assets/logo/logo.svg",
-					"contextualTitle": "Quarto Wizard Extension Explorer"
+					"contextualTitle": "Quarto Wizard"
 				}
 			]
 		},
 		"views": {
-			"quarto-wizard-extension-explorer": [
+			"quarto-wizard-explorer": [
 				{
 					"id": "quartoWizard.extensionsInstalled",
-					"name": "Installed",
+					"name": "Extensions Installed",
 					"icon": "assets/logo/logo.svg",
 					"contextualTitle": "Quarto Wizard Extensions Installed",
 					"visibility": "visible"
