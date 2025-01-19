@@ -4,8 +4,8 @@
 
 - feat: add view to display and to manage the Quarto extensions installed.
 - feat(checkQuartoPath): better check for the Quarto CLI path.
-- fix: update and correct trust authors and confirm installations prompts option value, *i.e.*, `Yes, always trust`.
 - refactor(utils/extensions.ts): externalise user prompts to a separate module (`utils/ask.ts`).
+- refactor: update and correct trust authors and confirm installations prompts option value, *i.e.*, `Yes, always trust`.
 - refactor(extension.ts): don't use temporary variables for commands.
 
 ## 0.4.2 (2025-01-05)
