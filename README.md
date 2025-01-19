@@ -74,15 +74,7 @@ Note: Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.
    npm install
    ```
 
-4. Compile the extension:
-
-   ```sh
-   npm run compile
-   ```
-
-5. Type `Tasks: Run Task` and select `Setup Debug`.
-
-6. Launch the extension:
+4. Launch the extension:
 
    - Press `F5` to open a new VS Code window with the extension loaded.
 
