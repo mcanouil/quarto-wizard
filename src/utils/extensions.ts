@@ -5,7 +5,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
-import { installQuartoExtension } from "./quarto";
+import { installQuartoExtension, installQuartoExtensionSource } from "./quarto";
 import { askTrustAuthors, askConfirmInstall } from "./ask";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
@@ -115,31 +115,13 @@ export async function installQuartoExtensions(
 					increment: (1 / (totalExtensions + 1)) * 100,
 				});
 
-				const extensionsDirectory = path.join(workspaceFolder, "_extensions");
-				const existingExtensions = getMtimeExtensions(extensionsDirectory);
-
-				const success = await installQuartoExtension(selectedExtension.description, log);
+				const success = await installQuartoExtensionSource(selectedExtension.description, log, workspaceFolder);
+				// Once source is supported in _extension.yml, the above line can be replaced with the following line
+				// const success = await installQuartoExtension(extension, log);
 				if (success) {
 					installedExtensions.push(selectedExtension.description);
 				} else {
 					failedExtensions.push(selectedExtension.description);
-				}
-
-				// Update _extension.yml file with source, i.e., GitHub username/repo
-				// This is needed for the extension to be updated in the future
-				// To be removed when Quarto supports source records in the _extension.yml file or elsewhere
-				// See https://github.com/quarto-dev/quarto-cli/issues/11468
-				const newExtension = findModifiedExtensions(existingExtensions, extensionsDirectory);
-				const fileNames = ["_extension.yml", "_extension.yaml"];
-				const filePath = fileNames
-					.map((name) => path.join(extensionsDirectory, ...newExtension, name))
-					.find((fullPath) => fs.existsSync(fullPath));
-				if (filePath) {
-					const fileContent = fs.readFileSync(filePath, "utf-8");
-					const updatedContent = fileContent.includes("source: ")
-						? fileContent.replace(/source: .*/, `source: ${selectedExtension.description}`)
-						: `${fileContent.trim()}\nsource: ${selectedExtension.description}`;
-					fs.writeFileSync(filePath, updatedContent);
 				}
 
 				installedCount++;
@@ -201,7 +183,7 @@ export function findQuartoExtensions(dir: string): string[] {
 	return findQuartoExtensionsRecurse(dir).map((filePath) => path.relative(dir, path.dirname(filePath)));
 }
 
-function getMtimeExtensions(dir: string): { [key: string]: Date } {
+export function getMtimeExtensions(dir: string): { [key: string]: Date } {
 	if (!fs.existsSync(dir)) {
 		return {};
 	}
@@ -213,7 +195,7 @@ function getMtimeExtensions(dir: string): { [key: string]: Date } {
 	return extensionsMtimeDict;
 }
 
-function findModifiedExtensions(extensions: { [key: string]: Date }, dir: string): string[] {
+export function findModifiedExtensions(extensions: { [key: string]: Date }, dir: string): string[] {
 	if (!fs.existsSync(dir)) {
 		return [];
 	}

@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.5.1 (2025-01-20)
+## 0.5.2 (2025-01-19)
+
+- fix: add source after updating an extension.
+- refactor: add `installQuartoExtensionSource` to contain the logic to install an extension and add the source.
+
+## 0.5.1 (2025-01-19)
 
 - fix(.vscodeignore): remove wrong entry.
 
