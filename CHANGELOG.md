@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (2025-01-XX)
+## 0.5.0 (2025-01-19)
 
 - feat: add view to display and to manage the Quarto extensions installed.
 - feat(checkQuartoPath): better check for the Quarto CLI path.
