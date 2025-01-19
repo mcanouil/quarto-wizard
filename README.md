@@ -23,6 +23,7 @@ This extension provides a user-friendly interface to browse, select, and install
   - [`R`](/assets/templates/r.qmd)
   - [`Python`](assets/templates/python.qmd)
   - [`Julia`](assets/templates/julia.qmd)
+- `Quarto Wizard: Focus on Extensions Installed View`: Opens the Quarto Wizard view to display and manage the Quarto extensions installed.
 
 ## Usage
 
@@ -46,6 +47,14 @@ This extension provides a user-friendly interface to browse, select, and install
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: New Reproducible Document` and select it.
 3. Choose the template for the new Quarto document.
+
+### Manage Quarto Extensions
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Focus on Extensions Installed View` and select it.
+   Or click on the Quarto Wizard icon (<img src="assets/logo/logo.svg" alt="Quarto Wizard logo showing the shape of the labrador wizard holding a wand" width="12"></img>) in the Activity Bar.
+
+![Quarto Wizard Explorer View](assets/images/explorer-view.png)
 
 ## Development
 
