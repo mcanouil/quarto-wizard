@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { checkInternetConnection } from "../utils/network";
-import { checkQuartoVersion } from "../utils/quarto";
+import { getQuartoPath, checkQuartoPath } from "../utils/quarto";
 import { fetchCSVFromURL, createExtensionItems, installQuartoExtensions } from "../utils/extensions";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
@@ -28,15 +28,7 @@ export async function installQuartoExtensionCommand(
 		vscode.window.showErrorMessage(message);
 		return;
 	}
-
-	const isQuartoAvailable = await checkQuartoVersion();
-	if (!isQuartoAvailable) {
-		const message =
-			"Quarto is not installed or not available in PATH. Please install Quarto and make sure it is available in PATH.";
-		log.appendLine(message);
-		vscode.window.showErrorMessage(message);
-		return;
-	}
+	await checkQuartoPath(getQuartoPath());
 
 	let extensionsList: string[] = [];
 	let recentlyInstalled: string[] = context.globalState.get(recentlyInstalledExtensions, []);
