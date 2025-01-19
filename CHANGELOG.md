@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 (2025-01-20)
+
+- fix(.vscodeignore): remove wrong entry.
+
 ## 0.5.0 (2025-01-19)
 
 - feat: add view to display and to manage the Quarto extensions installed.
