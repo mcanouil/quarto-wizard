@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
 import { exec } from "child_process";
+import * as path from "path";
+import * as fs from "fs";
+import { findModifiedExtensions, getMtimeExtensions } from "./extensions";
 
 let cachedQuartoPath: string | undefined;
 
@@ -79,6 +82,36 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 			resolve(true);
 		});
 	});
+}
+
+// Update _extension.yml file with source, i.e., GitHub username/repo
+// This is needed for the extension to be updated in the future
+// To be removed when Quarto supports source records in the _extension.yml file or elsewhere
+// See https://github.com/quarto-dev/quarto-cli/issues/11468
+export async function installQuartoExtensionSource(
+	extension: string,
+	log: any,
+	workspaceFolder: string
+): Promise<boolean> {
+	const extensionsDirectory = path.join(workspaceFolder, "_extensions");
+	const existingExtensions = getMtimeExtensions(extensionsDirectory);
+
+	const success = await installQuartoExtension(extension, log);
+
+	const newExtension = findModifiedExtensions(existingExtensions, extensionsDirectory);
+	const fileNames = ["_extension.yml", "_extension.yaml"];
+	const filePath = fileNames
+		.map((name) => path.join(extensionsDirectory, ...newExtension, name))
+		.find((fullPath) => fs.existsSync(fullPath));
+	if (filePath) {
+		const fileContent = fs.readFileSync(filePath, "utf-8");
+		const updatedContent = fileContent.includes("source: ")
+			? fileContent.replace(/source: .*/, `source: ${extension}`)
+			: `${fileContent.trim()}\nsource: ${extension}`;
+		fs.writeFileSync(filePath, updatedContent);
+	}
+	vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+	return success;
 }
 
 export async function removeQuartoExtension(extension: string, log: vscode.OutputChannel): Promise<boolean> {

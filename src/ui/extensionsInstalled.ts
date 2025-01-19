@@ -3,7 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { findQuartoExtensions } from "../utils/extensions";
 import { ExtensionData, readExtensions } from "../utils/extensions";
-import { installQuartoExtension, removeQuartoExtension } from "../utils/quarto";
+import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
 
 class ExtensionTreeItem extends vscode.TreeItem {
 	constructor(
@@ -124,11 +124,9 @@ export class ExtensionsInstalled {
 		);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", (item: ExtensionTreeItem) => {
-				if (item.data?.source) {
-					installQuartoExtension(item.data?.source, log);
-				} else {
-					installQuartoExtension(item.label, log);
-				}
+				installQuartoExtensionSource(item.data?.source ?? item.label, log, workspaceFolder);
+				// Once source is supported in _extension.yml, the above line can be replaced with the following line
+				// installQuartoExtension(item.data?.source ?? item.label, log);
 			})
 		);
 		context.subscriptions.push(
