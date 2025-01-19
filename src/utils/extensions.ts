@@ -4,7 +4,9 @@ import { IncomingMessage } from "http";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import * as yaml from "js-yaml";
 import { installQuartoExtension } from "./quarto";
+import { askTrustAuthors, askConfirmInstall } from "./ask";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
@@ -77,56 +79,16 @@ export async function installQuartoExtensions(
 	selectedExtensions: readonly ExtensionQuickPickItem[],
 	log: vscode.OutputChannel
 ) {
-	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
+	if (vscode.workspace.workspaceFolders === undefined) {
+		return;
+	}
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
-	const config = vscode.workspace.getConfiguration("quartoWizard.ask");
-	let configTrustAuthors = config.get<string>("trustAuthors");
-	let configConfirmInstall = config.get<string>("confirmInstall");
+	if ((await askTrustAuthors(log)) !== 0) return;
+	if ((await askConfirmInstall(log)) !== 0) return;
 
-	if (configTrustAuthors === "always") {
-		const trustAuthors = await vscode.window.showQuickPick(
-			[
-				{ label: "Yes", description: "Trust authors." },
-				{ label: "No", description: "Do not trust authors." },
-				{ label: "Never ask again", description: "Change setting to never ask again." },
-			],
-			{
-				placeHolder: "Do you trust the authors of the selected extension(s)?",
-			}
-		);
-		if (trustAuthors?.label === "Never ask again") {
-			await config.update("trustAuthors", "never", vscode.ConfigurationTarget.Global);
-		} else if (trustAuthors?.label !== "Yes") {
-			const message = "Operation cancelled because the authors are not trusted.";
-			log.appendLine(message);
-			vscode.window.showInformationMessage(message);
-			return;
-		}
-	}
-
-	if (configConfirmInstall === "always") {
-		const installWorkspace = await vscode.window.showQuickPick(
-			[
-				{ label: "Yes", description: "Install extensions." },
-				{ label: "No", description: "Do not install extensions." },
-				{ label: "Never ask again", description: "Change setting to never ask again." },
-			],
-			{
-				placeHolder: "Do you want to install the selected extension(s)?",
-			}
-		);
-		if (installWorkspace?.label === "Never ask again") {
-			await config.update("confirmInstall", "never", vscode.ConfigurationTarget.Global);
-		} else if (installWorkspace?.label !== "Yes") {
-			const message = "Operation cancelled by the user.";
-			log.appendLine(message);
-			vscode.window.showInformationMessage(message);
-			return;
-		}
-	}
-
-	vscode.window.withProgress(
+	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
 			title: "Installing selected extension(s) ([show logs](command:quartoWizard.showOutput))",
@@ -265,4 +227,42 @@ function findModifiedExtensions(extensions: { [key: string]: Date }, dir: string
 		}
 	});
 	return modifiedExtensions;
+}
+
+export interface ExtensionData {
+	title?: string;
+	author?: string;
+	version?: string;
+	contributes?: string;
+	source?: string;
+}
+
+function readYamlFile(filePath: string): ExtensionData | null {
+	if (!fs.existsSync(filePath)) {
+		return null;
+	}
+	const fileContent = fs.readFileSync(filePath, "utf8");
+	const data = yaml.load(fileContent) as any;
+	return {
+		title: data.title,
+		author: data.author,
+		version: data.version,
+		contributes: Object.keys(data.contributes).join(", "),
+		source: data.source,
+	};
+}
+
+export function readExtensions(workspaceFolder: string, extensions: string[]): Record<string, ExtensionData> {
+	const extensionsData: Record<string, ExtensionData> = {};
+	for (const ext of extensions) {
+		let filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yml");
+		if (!fs.existsSync(filePath)) {
+			filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yaml");
+		}
+		const extData = readYamlFile(filePath);
+		if (extData) {
+			extensionsData[ext] = extData;
+		}
+	}
+	return extensionsData;
 }

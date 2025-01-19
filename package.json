@@ -1,120 +1,236 @@
 {
-  "name": "quarto-wizard",
-  "displayName": "Quarto Wizard",
-  "description": "A Visual Studio Code extension that helps you manage Quarto projects.",
-  "version": "0.4.2",
-  "publisher": "mcanouil",
-  "author": {
-    "name": "Mickaël CANOUIL"
-  },
-  "license": "MIT",
-  "icon": "assets/logo/logo.png",
-  "galleryBanner": {
-    "color": "#333333",
-    "theme": "dark"
-  },
-  "keywords": [
-    "quarto",
-    "markdown",
-    "pandoc",
-    "extension",
-    "lua",
-    "latex",
-    "reveal.js",
-    "html",
-    "typst"
-  ],
-  "categories": [
-    "Programming Languages",
-    "Data Science",
-    "Machine Learning",
-    "Notebooks"
-  ],
-  "pricing": "Free",
-  "homepage": "https://github.com/mcanouil/quarto-wizard",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/mcanouil/quarto-wizard"
-  },
-  "bugs": {
-    "url": "https://github.com/mcanouil/quarto-wizard/issues"
-  },
-  "sponsor": {
-    "url": "https://github.com/sponsors/mcanouil"
-  },
-  "engines": {
-    "vscode": "^1.96.0"
-  },
-  "contributes": {
-    "commands": [
-      {
-        "command": "quartoWizard.installExtension",
-        "title": "Install Extension(s)",
-        "category": "Quarto Wizard"
-      },
-      {
-        "command": "quartoWizard.showOutput",
-        "title": "Show Quarto Wizard Log Output",
-        "category": "Quarto Wizard"
-      },
-      {
-        "command": "quartoWizard.clearRecentlyInstalled",
-        "title": "Clear Recently Installed Extensions",
-        "category": "Quarto Wizard"
-      },
-      {
-        "command": "quartoWizard.newQuartoReprex",
-        "title": "New Reproducible Document",
-        "category": "Quarto Wizard"
-      }
-    ],
-    "menus": {
-      "file/newFile": [
-        {
-          "command": "quartoWizard.newQuartoReprex",
-          "group": "Quarto"
-        }
-      ]
-    },
-    "configuration": {
-      "title": "Quarto Wizard",
-      "properties": {
-        "quartoWizard.quarto.path": {
-          "order": 1,
-          "scope": "window",
-          "type": "string",
-          "default": "",
-          "markdownDescription": "A path to the Quarto CLI executable. By default, the extension looks for Quarto CLI in the `PATH` and in `#quarto.path#`, but if set, will use the path specified instead."
-        },
-        "quartoWizard.ask.trustAuthors": {
-          "order": 2,
-          "scope": "resource",
-          "type": "string",
-          "enum": ["always", "never"],
-          "default": "always",
-          "markdownDescription": "Ask for trust when installing extensions. If set to `always`, the extension will always ask for trust. If set to `never`, the extension will never ask for trust."
-        },
-        "quartoWizard.ask.confirmInstall": {
-          "order": 3,
-          "scope": "resource",
-          "type": "string",
-          "enum": ["always", "never"],
-          "default": "always",
-          "markdownDescription": "Ask for confirmation when installing extensions. If set to `always`, the extension will always ask for confirmation. If set to `never`, the extension will never ask for confirmation."
-        }
-      }
-    }
-  },
-  "main": "./out/extension.js",
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "lint": "eslint",
-    "watch": "tsc -watch -p ./"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.5",
-    "@types/vscode": "^1.96.0",
-    "typescript": "^5.7.3"
-  }
+	"name": "quarto-wizard",
+	"displayName": "Quarto Wizard",
+	"description": "A Visual Studio Code extension that helps you manage Quarto projects.",
+	"version": "0.5.0",
+	"publisher": "mcanouil",
+	"author": {
+		"name": "Mickaël CANOUIL"
+	},
+	"license": "MIT",
+	"icon": "assets/logo/logo.png",
+	"galleryBanner": {
+		"color": "#333333",
+		"theme": "dark"
+	},
+	"keywords": [
+		"quarto",
+		"markdown",
+		"pandoc",
+		"extension",
+		"lua",
+		"latex",
+		"reveal.js",
+		"html",
+		"typst"
+	],
+	"categories": [
+		"Programming Languages",
+		"Data Science",
+		"Machine Learning",
+		"Notebooks"
+	],
+	"pricing": "Free",
+	"homepage": "https://github.com/mcanouil/quarto-wizard",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/mcanouil/quarto-wizard"
+	},
+	"bugs": {
+		"url": "https://github.com/mcanouil/quarto-wizard/issues"
+	},
+	"sponsor": {
+		"url": "https://github.com/sponsors/mcanouil"
+	},
+	"engines": {
+		"vscode": "^1.96.0"
+	},
+	"contributes": {
+		"commands": [
+			{
+				"command": "quartoWizard.installExtension",
+				"title": "Install Extension(s)",
+				"shortTitle": "Refresh",
+				"icon": "$(add)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.showOutput",
+				"title": "Show Quarto Wizard Log Output",
+				"shortTitle": "Show Log",
+				"icon": "$(output)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.clearRecentlyInstalled",
+				"title": "Clear Recently Installed Extensions",
+				"shortTitle": "Clear Recent",
+				"icon": "$(clear-all)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.newQuartoReprex",
+				"title": "New Reproducible Document",
+				"shortTitle": "New Reprex",
+				"icon": "$(new-file)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.refresh",
+				"title": "Refresh Installed Extensions",
+				"shortTitle": "Refresh",
+				"icon": "$(refresh)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.openSource",
+				"title": "Open Extension Source",
+				"shortTitle": "Open Source",
+				"icon": "$(github)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.update",
+				"title": "Update Extension",
+				"shortTitle": "Update",
+				"icon": "$(cloud-download)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.remove",
+				"title": "Remove Extension",
+				"shortTitle": "Remove",
+				"icon": "$(remove)",
+				"category": "Quarto Wizard"
+			}
+		],
+		"menus": {
+			"file/newFile": [
+				{
+					"command": "quartoWizard.newQuartoReprex",
+					"group": "Quarto"
+				}
+			],
+			"view/title": [
+				{
+					"command": "quartoWizard.installExtension",
+					"when": "view == quartoWizard.extensionsInstalled",
+					"group": "navigation@1"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.refresh",
+					"when": "view == quartoWizard.extensionsInstalled",
+					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "quartoWizard.extensionsInstalled.update",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"group": "inline@1"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.remove",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"group": "inline@2"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.openSource",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"group": "inline@3"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "quartoWizard.extensionsInstalled.openSource",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.update",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.remove",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.refresh",
+					"when": "false"
+				}
+			]
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "quarto-wizard-explorer",
+					"title": "Quarto Wizard",
+					"icon": "assets/logo/logo.svg",
+					"contextualTitle": "Quarto Wizard"
+				}
+			]
+		},
+		"views": {
+			"quarto-wizard-explorer": [
+				{
+					"id": "quartoWizard.extensionsInstalled",
+					"name": "Extensions Installed",
+					"icon": "assets/logo/logo.svg",
+					"contextualTitle": "Quarto Wizard Extensions Installed",
+					"visibility": "visible"
+				}
+			]
+		},
+		"configuration": {
+			"title": "Quarto Wizard",
+			"properties": {
+				"quartoWizard.quarto.path": {
+					"order": 1,
+					"scope": "window",
+					"type": "string",
+					"default": null,
+					"markdownDescription": "A path to the Quarto CLI executable. By default, the extension looks for Quarto CLI in the `PATH` and in `#quarto.path#`, but if set, will use the path specified instead."
+				},
+				"quartoWizard.ask.trustAuthors": {
+					"order": 2,
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"never",
+						"ask"
+					],
+					"default": "ask",
+					"markdownDescription": "Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again."
+				},
+				"quartoWizard.ask.confirmInstall": {
+					"order": 3,
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"never",
+						"ask"
+					],
+					"default": "ask",
+					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
+				}
+			}
+		}
+	},
+	"main": "./out/extension.js",
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint",
+		"watch": "tsc -watch -p ./"
+	},
+	"devDependencies": {
+		"@vscode/vsce": "^3.2.1",
+		"typescript": "^5.7.3",
+		"@types/vscode": "^1.96.0",
+		"@types/node": "^22.10.5",
+		"@types/js-yaml": "^4.0.9"
+	},
+	"dependencies": {
+		"typescript": "^5.7.3",
+		"js-yaml": "^4.0.9"
+	}
 }
