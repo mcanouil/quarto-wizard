@@ -3,30 +3,46 @@ import { exec } from "child_process";
 
 let cachedQuartoPath: string | undefined;
 
-function getQuartoPath(): string {
+export function getQuartoPath(): string {
 	if (cachedQuartoPath) {
 		return cachedQuartoPath;
 	}
-
 	const config = vscode.workspace.getConfiguration("quartoWizard.quarto");
 	let quartoPath = config.get<string>("path");
-	if (!quartoPath) {
+	if (!quartoPath && quartoPath !== "") {
 		const fallbackConfig = vscode.workspace.getConfiguration("quarto");
 		quartoPath = fallbackConfig.get<string>("path");
+	}
+	if (!quartoPath && quartoPath !== "") {
+		quartoPath = "quarto";
 	}
 	cachedQuartoPath = quartoPath || "quarto";
 	return cachedQuartoPath;
 }
 
-vscode.workspace.onDidChangeConfiguration((e) => {
+vscode.workspace.onDidChangeConfiguration(async (e) => {
 	if (e.affectsConfiguration("quartoWizard.quarto.path") || e.affectsConfiguration("quarto.path")) {
 		cachedQuartoPath = undefined;
+		await checkQuartoPath(getQuartoPath());
 	}
 });
 
-export async function checkQuartoVersion(): Promise<boolean> {
+export async function checkQuartoPath(quartoPath: string | undefined): Promise<boolean> {
 	return new Promise((resolve) => {
-		const quartoPath = getQuartoPath();
+		if (!quartoPath) {
+			vscode.window.showErrorMessage("Quarto path is not set.");
+			resolve(false);
+		} else if (!checkQuartoVersion(quartoPath)) {
+			vscode.window.showErrorMessage(`Quarto path '${quartoPath}' does not exist.`);
+			resolve(false);
+		} else {
+			resolve(true);
+		}
+	});
+}
+
+export async function checkQuartoVersion(quartoPath: string | undefined): Promise<boolean> {
+	return new Promise((resolve) => {
 		exec(`${quartoPath} --version`, (error, stdout, stderr) => {
 			if (error || stderr) {
 				resolve(false);
@@ -45,6 +61,7 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 		}
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		const quartoPath = getQuartoPath();
+		checkQuartoPath(quartoPath);
 		const command = `${quartoPath} add ${extension} --no-prompt`;
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
@@ -73,6 +90,7 @@ export async function removeQuartoExtension(extension: string, log: vscode.Outpu
 		}
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		const quartoPath = getQuartoPath();
+		checkQuartoPath(quartoPath);
 		const command = `${quartoPath} remove ${extension} --no-prompt`;
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
