@@ -56,6 +56,8 @@ This extension provides a user-friendly interface to browse, select, and install
 
 ![Quarto Wizard Explorer View](assets/images/explorer-view.png)
 
+Note: Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.*, if `source: <owner>/<repository>` is present in `_extension.yml`).
+
 ## Development
 
 1. Clone the repository:
