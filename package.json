@@ -162,20 +162,20 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "quarto-extension-explorer",
-					"title": "Quarto Extension Explorer",
-					"icon": "assets/logo/quarto-extensions.svg",
-					"contextualTitle": "Quarto Extension Explorer"
+					"id": "quarto-wizard-extension-explorer",
+					"title": "Quarto Wizard Extension Explorer",
+					"icon": "assets/logo/logo.svg",
+					"contextualTitle": "Quarto Wizard Extension Explorer"
 				}
 			]
 		},
 		"views": {
-			"quarto-extension-explorer": [
+			"quarto-wizard-extension-explorer": [
 				{
 					"id": "quartoWizard.extensionsInstalled",
 					"name": "Installed",
-					"icon": "assets/logo/quarto-extensions.svg",
-					"contextualTitle": "Quarto Extensions Installed",
+					"icon": "assets/logo/logo.svg",
+					"contextualTitle": "Quarto Wizard Extensions Installed",
 					"visibility": "visible"
 				}
 			]
