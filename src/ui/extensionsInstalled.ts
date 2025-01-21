@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { findQuartoExtensions } from "../utils/extensions";
 import { ExtensionData, readExtensions } from "../utils/extensions";
 import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
+import { showLogsCommand } from "../utils/log";
 
 class ExtensionTreeItem extends vscode.TreeItem {
 	constructor(
@@ -123,15 +124,33 @@ export class ExtensionsInstalled {
 			})
 		);
 		context.subscriptions.push(
-			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", (item: ExtensionTreeItem) => {
-				installQuartoExtensionSource(item.data?.source ?? item.label, log, workspaceFolder);
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
+				const success = await installQuartoExtensionSource(item.data?.source ?? item.label, log, workspaceFolder);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
-				// installQuartoExtension(item.data?.source ?? item.label, log);
+				// const success = await installQuartoExtension(item.data?.source ?? item.label, log);
+				if (success) {
+					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
+				} else {
+					if (item.data?.source === undefined) {
+						vscode.window.showErrorMessage(
+							`Failed to update extension "${item.label}". ` +
+								`Source not found in extension manifest. ` +
+								`${showLogsCommand()}.`
+						);
+					} else {
+						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${showLogsCommand()}.`);
+					}
+				}
 			})
 		);
 		context.subscriptions.push(
-			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", (item: ExtensionTreeItem) => {
-				removeQuartoExtension(item.label, log);
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", async (item: ExtensionTreeItem) => {
+				const success = await removeQuartoExtension(item.label, log);
+				if (success) {
+					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
+				} else {
+					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
+				}
 			})
 		);
 	}

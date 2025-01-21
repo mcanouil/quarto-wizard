@@ -3,6 +3,8 @@
 ## 0.5.3 (unreleased)
 
 - fix: duplication of recently installed extensions in search results.
+- fix: add information and error notifications when updating and removing an extension.
+- refactor: add `showLogsCommand()` function to display a link to the output log in the notification.
 
 ## 0.5.2 (2025-01-19)
 
