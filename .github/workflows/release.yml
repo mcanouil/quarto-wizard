@@ -31,7 +31,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check for "unreleased" in CHANGELOG.md
+        id: check_unreleased
+        shell: bash
+        run: |
+          if grep -q "unreleased" CHANGELOG.md; then
+            echo "UNRELEASED_FOUND=true" >> $GITHUB_ENV
+          else
+            echo "UNRELEASED_FOUND=false" >> $GITHUB_ENV
+
       - name: Update date in CHANGELOG.md
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
         run: |
           if [ "${{ github.event.inputs.date }}" = "today" ]; then
@@ -42,6 +52,7 @@ jobs:
           sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
 
       - name: Commit / Push CHANGELOG.md
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.github_token }}
           COMMIT: "ci: automatic changelog update for release"
@@ -60,16 +71,18 @@ jobs:
           git push --force origin ${{ env.BRANCH }} || echo "No changes to push"
 
       - name: Create Pull Request
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
         run: |
           sleep 30
-          gh pr create --fill-first --base "main" --head "${{ env.BRANCH }}" --label "Type: CI/CD :robot:" || echo "No changes to commit"
+          gh pr create --fill-first --base "main" --head "${{ env.BRANCH }}" --label "Type: CI/CD :robot:"
 
       - name: Merge Pull Request
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
         run: |
           sleep 30
-          gh pr merge --auto --squash --delete-branch || echo "No changes to merge"
+          gh pr merge --auto --squash --delete-branch
 
   release-publish:
     runs-on: ubuntu-latest
