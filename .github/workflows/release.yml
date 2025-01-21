@@ -16,14 +16,13 @@ on:
         default: today
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   update-changelog:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
       pull-requests: write
 
     env:
@@ -66,7 +65,7 @@ jobs:
         shell: bash
         run: |
           sleep 30
-          gh pr create --fill-first --base "main" --head "${{ env.BRANCH }}" --label "Type: CI/CD :robot:"
+          gh pr create --fill-first --base "main" --head "${{ env.BRANCH }}" --label "Type: CI/CD :robot:" || echo "No changes to commit"
 
       - name: Merge Pull Request
         shell: bash
