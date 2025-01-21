@@ -2,7 +2,7 @@
 
 ## 0.5.3 (unreleased)
 
-- fix: recently installed extensions are no longer duplicated when using search.
+- fix: duplication of recently installed extensions in search results.
 
 ## 0.5.2 (2025-01-19)
 
