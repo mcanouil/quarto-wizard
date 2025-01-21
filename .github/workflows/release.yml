@@ -16,11 +16,68 @@ on:
         default: today
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    env:
+      BRANCH: ci/update-changelog-release
+      GITHUB_TOKEN: ${{ secrets.github_token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update date in CHANGELOG.md
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.date }}" = "today" ]; then
+            RELEASE_DATE=$(date +%Y-%m-%d)
+          else
+            RELEASE_DATE=${{ github.event.inputs.date }}
+          fi
+          sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
+
+      - name: Commit / Push CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ secrets.github_token }}
+          COMMIT: "ci: automatic changelog update for release"
+        shell: bash
+        run: |
+          git config --local user.name github-actions[bot]
+          git config --local user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if git show-ref --quiet refs/heads/${{ env.BRANCH }}; then
+            echo "Branch ${{ env.BRANCH }} already exists."
+            git branch -D "${{ env.BRANCH }}"
+            git push origin --delete "${{ env.BRANCH }}"
+          fi
+          git checkout -b "${{ env.BRANCH }}"
+          git add data/* || echo "No changes to add"
+          git commit -m "${{ env.COMMIT }}" || echo "No changes to commit"
+          git push --force origin ${{ env.BRANCH }} || echo "No changes to push"
+
+      - name: Pull Request
+        shell: bash
+        run: |
+          sleep 30
+          gh pr create --fill-first --base "main" --head "${{ env.BRANCH }}" --label "Type: CI/CD :robot:"
+
+      - name: Pull Request
+        shell: bash
+        run: |
+          sleep 30
+          gh pr merge --auto --squash --delete-branch || echo "No changes to merge"
+
   release-publish:
     runs-on: ubuntu-latest
+
+    needs: update-changelog
 
     steps:
       - name: Checkout repository
@@ -30,27 +87,22 @@ jobs:
         uses: actions/setup-node@v4
 
       - name: Install dependencies
+        shell: bash
         run: npm install
 
       - name: Install Visual Studio Code Extension Manager
+        shell: bash
         run: npm install -g @vscode/vsce
 
-      - name: Update date in CHANGELOG.md
-        run: |
-          if [ "${{ github.event.inputs.date }}" = "today" ]; then
-            RELEASE_DATE=$(date +%Y-%m-%d)
-          else
-            RELEASE_DATE=${{ github.event.inputs.date }}
-          fi
-          sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
-
       - name: Set version
+        shell: bash
         run: |
           echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
 
       - name: Set changelog
         env:
           VERSION: ${{ env.VERSION }}
+        shell: bash
         run: |
           awk -v version="^## ${VERSION}.*" '
             $0 ~ version {flag=1; next}
@@ -64,6 +116,7 @@ jobs:
           GH_TOKEN: ${{ secrets.github_token }}
           VERSION: ${{ env.VERSION }}
           CHANGELOG: ${{ env.CHANGELOG }}
+        shell: bash
         run: |
           if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
             vsce package --pre-release
@@ -76,6 +129,7 @@ jobs:
       - name: Publish extension to Visual Studio Marketplace
         env:
           VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+        shell: bash
         run: |
           if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
             vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
@@ -86,6 +140,7 @@ jobs:
       - name: Publish extension to Open VSX Registry
         env:
           OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
+        shell: bash
         run: |
           npm install --global ovsx
           if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
@@ -93,11 +148,3 @@ jobs:
           else
             npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
           fi
-
-      - name: Commit and push changelog
-        run: |
-          git config --local user.name github-actions[bot]
-          git config --local user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add CHANGELOG.md
-          git commit -m "ci: set release date in CHANGELOG.md"
-          git push
