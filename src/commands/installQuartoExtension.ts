@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { checkInternetConnection } from "../utils/network";
 import { getQuartoPath, checkQuartoPath } from "../utils/quarto";
 import { fetchCSVFromURL, createExtensionItems, installQuartoExtensions } from "../utils/extensions";
+import { showLogsCommand } from "../utils/log";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
@@ -15,7 +16,7 @@ export async function installQuartoExtensionCommand(
 	const extensionsListCsv =
 		"https://raw.githubusercontent.com/mcanouil/quarto-extensions/main/extensions/quarto-extensions.csv";
 	if (!vscode.workspace.workspaceFolders) {
-		const message = "Please open a workspace/folder to install Quarto extensions.";
+		const message = `Please open a workspace/folder to install Quarto extensions. ${showLogsCommand()}.`;
 		log.appendLine(message);
 		vscode.window.showErrorMessage(message);
 		return;
@@ -23,7 +24,7 @@ export async function installQuartoExtensionCommand(
 
 	const isConnected = await checkInternetConnection();
 	if (!isConnected) {
-		const message = "No internet connection. Please check your network settings.";
+		const message = `No internet connection. Please check your network settings. ${showLogsCommand()}.`;
 		log.appendLine(message);
 		vscode.window.showErrorMessage(message);
 		return;
@@ -37,7 +38,7 @@ export async function installQuartoExtensionCommand(
 		const data = await fetchCSVFromURL(extensionsListCsv);
 		extensionsList = data.split("\n").filter((line) => line.trim() !== "");
 	} catch (error) {
-		const message = `Error fetching list of extensions from ${extensionsListCsv}`;
+		const message = `Error fetching list of extensions from ${extensionsListCsv}. ${showLogsCommand()}/`;
 		log.appendLine(message);
 		vscode.window.showErrorMessage(message);
 		return;
