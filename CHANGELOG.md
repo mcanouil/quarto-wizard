@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4 (unreleased)
+
+- chore: no changes.
+
 ## 0.5.3 (2025-01-21)
 
 - fix: duplication of recently installed extensions in search results.
