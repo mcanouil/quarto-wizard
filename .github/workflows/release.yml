@@ -12,7 +12,7 @@ on:
         default: pre-release
       date:
         type: string
-        description: Date
+        description: 'Date ("YYYY-MM-DD" or "today")'
         default: today
 
 permissions:
