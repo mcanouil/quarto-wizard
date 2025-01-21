@@ -53,7 +53,9 @@ export async function installQuartoExtensionCommand(
 			label: "All Extensions",
 			kind: vscode.QuickPickItemKind.Separator,
 		},
-		...createExtensionItems(extensionsList).sort((a, b) => a.label.localeCompare(b.label)),
+		...createExtensionItems(extensionsList.filter((ext) => !recentlyInstalled.includes(ext))).sort((a, b) =>
+			a.label.localeCompare(b.label)
+		),
 	];
 
 	const quickPick = vscode.window.createQuickPick<ExtensionQuickPickItem>();

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3 (unreleased)
+
+- fix: duplication of recently installed extensions in search results.
+
 ## 0.5.2 (2025-01-19)
 
 - fix: add source after updating an extension.
