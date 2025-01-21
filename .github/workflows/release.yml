@@ -62,13 +62,13 @@ jobs:
           git commit -m "${{ env.COMMIT }}" || echo "No changes to commit"
           git push --force origin ${{ env.BRANCH }} || echo "No changes to push"
 
-      - name: Pull Request
+      - name: Create Pull Request
         shell: bash
         run: |
           sleep 30
           gh pr create --fill-first --base "main" --head "${{ env.BRANCH }}" --label "Type: CI/CD :robot:"
 
-      - name: Pull Request
+      - name: Merge Pull Request
         shell: bash
         run: |
           sleep 30
