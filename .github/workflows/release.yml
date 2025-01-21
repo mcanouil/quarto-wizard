@@ -15,14 +15,12 @@ on:
         description: 'Date ("YYYY-MM-DD" or "today")'
         default: today
 
-permissions:
-  contents: write
-
 jobs:
   update-changelog:
     runs-on: ubuntu-latest
 
     permissions:
+      contents: write
       pull-requests: write
 
     env:
@@ -77,6 +75,9 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: update-changelog
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
