@@ -11,69 +11,85 @@ on:
           - pre-release
         default: pre-release
 
+permissions:
+  contents: write
+
 jobs:
   release-publish:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
 
-    - name: Install dependencies
-      run: npm install
+      - name: Install dependencies
+        run: npm install
 
-    - name: Install Visual Studio Code Extension Manager
-      run: npm install -g @vscode/vsce
+      - name: Install Visual Studio Code Extension Manager
+        run: npm install -g @vscode/vsce
 
-    - name: Set version
-      run: |
-        echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+      - name: Update date in CHANGELOG.md
+        run: |
+          RELEASE_DATE=$(date +'%Y-%m-%d')
+          sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
 
-    - name: Set changelog
-      env:
-        VERSION: ${{ env.VERSION }}
-      run: |
-        awk -v version="^## ${VERSION}.*" '
-          $0 ~ version {flag=1; next}
-          /^## / && flag {flag=0}
-          flag
-        ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
-        echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
+      - name: Set version
+        run: |
+          echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
 
-    - name: Package extension
-      env:
-        GH_TOKEN: ${{ secrets.github_token }}
-        VERSION: ${{ env.VERSION }}
-        CHANGELOG: ${{ env.CHANGELOG }}
-      run: |
-        if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-          vsce package --pre-release
-          gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
-        else
-          vsce package
-          gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
-        fi
+      - name: Set changelog
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          awk -v version="^## ${VERSION}.*" '
+            $0 ~ version {flag=1; next}
+            /^## / && flag {flag=0}
+            flag
+          ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
+          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
 
-    - name: Publish extension to Visual Studio Marketplace
-      env:
-        VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
-      run: |
-        if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-          vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
-        else
-          vsce publish --pat ${VS_MARKETPLACE_TOKEN}
-        fi
+      - name: Package extension
+        env:
+          GH_TOKEN: ${{ secrets.github_token }}
+          VERSION: ${{ env.VERSION }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce package --pre-release
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          else
+            vsce package
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          fi
 
-    - name: Publish extension to Open VSX Registry
-      env:
-        OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
-      run: |
-        npm install --global ovsx
-        if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-          npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
-        else
-          npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
-        fi
+      - name: Publish extension to Visual Studio Marketplace
+        env:
+          VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
+          else
+            vsce publish --pat ${VS_MARKETPLACE_TOKEN}
+          fi
+
+      - name: Publish extension to Open VSX Registry
+        env:
+          OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
+        run: |
+          npm install --global ovsx
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          else
+            npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          fi
+
+      - name: Commit and push changelog
+        run: |
+          git config --local user.name github-actions[bot]
+          git config --local user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add CHANGELOG.md
+          git commit -m "ci: set release date in CHANGELOG.md"
+          git push
