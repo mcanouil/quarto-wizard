@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.3 (unreleased)
+## 0.5.3 (2025-01-21)
 
 - fix: duplication of recently installed extensions in search results.
 - fix: add information and error notifications when updating and removing an extension.
