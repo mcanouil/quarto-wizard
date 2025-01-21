@@ -10,6 +10,10 @@ on:
           - release
           - pre-release
         default: pre-release
+      date:
+        type: string
+        description: Date
+        default: today
 
 permissions:
   contents: write
@@ -33,7 +37,11 @@ jobs:
 
       - name: Update date in CHANGELOG.md
         run: |
-          RELEASE_DATE=$(date +'%Y-%m-%d')
+          if [ "${{ github.event.inputs.date }}" = "today" ]; then
+            RELEASE_DATE=$(date +%Y-%m-%d)
+          else
+            RELEASE_DATE=${{ github.event.inputs.date }}
+          fi
           sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
 
       - name: Set version
