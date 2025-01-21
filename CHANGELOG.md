@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.5.4 (unreleased)
+## 0.5.5 (2025-01-21)
+
+- chore: no changes.
+
+## 0.5.4 (2025-01-21)
 
 - chore: no changes.
 
