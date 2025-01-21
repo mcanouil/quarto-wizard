@@ -7,6 +7,7 @@ import * as path from "path";
 import * as yaml from "js-yaml";
 import { installQuartoExtension, installQuartoExtensionSource } from "./quarto";
 import { askTrustAuthors, askConfirmInstall } from "./ask";
+import { showLogsCommand } from "./log";
 
 interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
@@ -91,12 +92,12 @@ export async function installQuartoExtensions(
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: "Installing selected extension(s) ([show logs](command:quartoWizard.showOutput))",
+			title: `Installing selected extension(s) (${showLogsCommand()})`,
 			cancellable: true,
 		},
 		async (progress, token) => {
 			token.onCancellationRequested(() => {
-				const message = "Operation cancelled by the user ([show logs](command:quartoWizard.showOutput)).";
+				const message = `Operation cancelled by the user (${showLogsCommand()}).`;
 				log.appendLine(message);
 				vscode.window.showInformationMessage(message);
 			});
@@ -150,15 +151,13 @@ export async function installQuartoExtensions(
 					failedExtensions.length > 1 ? "them" : "it",
 					" manually with `quarto add <extension>`:",
 				].join("");
-				vscode.window.showErrorMessage(
-					`${message} ${failedExtensions.join(", ")}. [Show logs](command:quartoWizard.showOutput).`
-				);
+				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${showLogsCommand()}.`);
 			} else {
 				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", " installed successfully."].join(
 					""
 				);
 				log.appendLine(message);
-				vscode.window.showInformationMessage(`${message} [Show logs](command:quartoWizard.showOutput).`);
+				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}
 		}
 	);
