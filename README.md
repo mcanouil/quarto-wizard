@@ -15,7 +15,7 @@ This extension provides a user-friendly interface to browse, select, and install
 
 - `Quarto Wizard: Install Extension(s)`: Opens the extension installer interface.
   - **Browse Extensions**: View a list of available Quarto extensions.  
-    ![List of extensions](assets/images/install-extensions.png)
+    <p><img src="assets/images/install-extensions.png" alt="List of extensions" width="300" /></p>
   - **Install Extensions**: Install selected Quarto extensions with a single click.
 - `Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
 - `Quarto Wizard: Show Quarto Wizard Log Output`: Displays the output log for the extension installer.
