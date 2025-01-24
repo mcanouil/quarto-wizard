@@ -2,7 +2,7 @@
 	"name": "quarto-wizard",
 	"displayName": "Quarto Wizard",
 	"description": "A Visual Studio Code extension that helps you manage Quarto projects.",
-	"version": "0.5.5",
+	"version": "0.6.0",
 	"publisher": "mcanouil",
 	"author": {
 		"name": "Mickaël CANOUIL"
@@ -70,8 +70,7 @@
 			},
 			{
 				"command": "quartoWizard.newQuartoReprex",
-				"title": "New Reproducible Document",
-				"shortTitle": "New Reprex",
+				"title": "Quarto Reproducible Document",
 				"icon": "$(new-file)",
 				"category": "Quarto Wizard"
 			},
@@ -104,11 +103,47 @@
 				"category": "Quarto Wizard"
 			}
 		],
+		"submenus": [
+			{
+				"id": "quartoWizard.menu",
+				"label": "Quarto Wizard"
+			}
+		],
 		"menus": {
 			"file/newFile": [
 				{
 					"command": "quartoWizard.newQuartoReprex",
 					"group": "Quarto"
+				}
+			],
+			"explorer/context": [
+				{
+					"submenu": "quartoWizard.menu",
+					"group": "2_execution"
+				}
+			],
+			"editor/context": [
+				{
+					"submenu": "quartoWizard.menu",
+					"group": "quartoWizard"
+				}
+			],
+			"quartoWizard.menu": [
+				{
+					"command": "quartoWizard.newQuartoReprex",
+					"group": "quartoWizard@1"
+				},
+				{
+					"command": "quartoWizard.installExtension",
+					"group": "quartoWizard@2"
+				},
+				{
+					"command": "quartoWizard.showOutput",
+					"group": "quartoWizard@3"
+				},
+				{
+					"command": "quartoWizard.clearRecentlyInstalled",
+					"group": "quartoWizard@4"
 				}
 			],
 			"view/title": [
