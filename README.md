@@ -18,8 +18,8 @@ This extension provides a user-friendly interface to browse, select, and install
     ![List of extensions](assets/images/install-extensions.png)
   - **Install Extensions**: Install selected Quarto extensions with a single click.
 - `Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
-- `Quarto Wizard: Show Quarto Wizard Output`: Displays the output log for the extension installer.
-- `Quarto Wizard: New Reproducible Document`: Creates a new Quarto document.
+- `Quarto Wizard: Show Quarto Wizard Log Output`: Displays the output log for the extension installer.
+- `Quarto Wizard: Quarto Reproducible Document`: Creates a new Quarto document.
   - [`R`](/assets/templates/r.qmd)
   - [`Python`](assets/templates/python.qmd)
   - [`Julia`](assets/templates/julia.qmd)
@@ -38,14 +38,14 @@ This extension provides a user-friendly interface to browse, select, and install
 ### Show Quarto Wizard Output
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto Wizard: Show Quarto Wizard Output` and select it.
+2. Type `Quarto Wizard: Show Quarto Wizard Log Output` and select it.
 3. View the output log for the Quarto Wizard extension.
 4. Use the output log to troubleshoot any issues.
 
 ### Create a New Reproducible Document
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto Wizard: New Reproducible Document` and select it.
+2. Type `Quarto Wizard: Quarto Reproducible Document` and select it.
 3. Choose the template for the new Quarto document.
 
 ### Manage Quarto Extensions
@@ -57,6 +57,16 @@ This extension provides a user-friendly interface to browse, select, and install
 ![Quarto Wizard Explorer View](assets/images/explorer-view.png)
 
 Note: Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.*, if `source: <owner>/<repository>` is present in `_extension.yml`).
+
+### Explorer/Editor Context Menu
+
+- Right-click in the Explorer or Editor to access the following commands:
+  - `Quarto Reproducible Document`.
+  - `Install Extension(s)`.
+  - `Show Quarto Wizard Log Output`.
+  - `Clear Recently Installed Extensions`.
+
+![Quarto Wizard context menu from the explorer view showing four commands](assets/images/explorer-context.png)
 
 ## Development
 
