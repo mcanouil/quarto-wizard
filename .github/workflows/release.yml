@@ -39,6 +39,7 @@ jobs:
             echo "UNRELEASED_FOUND=true" >> $GITHUB_ENV
           else
             echo "UNRELEASED_FOUND=false" >> $GITHUB_ENV
+          fi
 
       - name: Update date in CHANGELOG.md
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
