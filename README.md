@@ -66,7 +66,7 @@ Note: Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
 
-![Quarto Wizard context menu from the explorer view showing four commands](assets/images/explorer-context.png)
+<img src="assets/images/explorer-context.png" alt="Quarto Wizard context menu from the explorer view showing four commands" width="300" align="center" />
 
 ## Development
 
