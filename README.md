@@ -15,7 +15,7 @@ This extension provides a user-friendly interface to browse, select, and install
 
 - `Quarto Wizard: Install Extension(s)`: Opens the extension installer interface.
   - **Browse Extensions**: View a list of available Quarto extensions.  
-    ![List of extensions](assets/images/install-extensions.png)
+   <img src="assets/images/install-extensions.png" alt="List of extensions" width="300" />
   - **Install Extensions**: Install selected Quarto extensions with a single click.
 - `Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
 - `Quarto Wizard: Show Quarto Wizard Log Output`: Displays the output log for the extension installer.
@@ -53,8 +53,7 @@ This extension provides a user-friendly interface to browse, select, and install
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Focus on Extensions Installed View` and select it.  
    Or click on the Quarto Wizard icon in the Activity Bar.
-
-![Quarto Wizard Explorer View](assets/images/explorer-view.png)
+   <p align="center"><img src="assets/images/explorer-view.png" alt="Quarto Wizard Explorer View" width="600" /></p>
 
 Note: Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.*, if `source: <owner>/<repository>` is present in `_extension.yml`).
 
@@ -66,7 +65,7 @@ Note: Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
 
-<img src="assets/images/explorer-context.png" alt="Quarto Wizard context menu from the explorer view showing four commands" width="300" align="center" />
+<p align="center"><img src="assets/images/explorer-context.png" alt="Quarto Wizard context menu from the explorer view showing four commands" width="400" /></p>
 
 ## Development
 
