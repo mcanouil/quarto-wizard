@@ -2,6 +2,8 @@
 
 ## 0.7.0 (unreleased)
 
+- refactor(src/utils/network.ts): internal logging.
+
 ## 0.6.0 (2025-01-24)
 
 - feat(package.json): add a "Quarto Wizard" menu in Explorer and Editor context menus.
