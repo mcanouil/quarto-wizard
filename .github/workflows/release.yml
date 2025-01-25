@@ -58,9 +58,9 @@ jobs:
         shell: bash
         run: |
           if grep -q "unreleased" CHANGELOG.md; then
-            echo "UNRELEASED_FOUND=true" >> $GITHUB_ENV
+            echo "UNRELEASED_FOUND=true" >> $GITHUB_OUTPUT
           else
-            echo "UNRELEASED_FOUND=false" >> $GITHUB_ENV
+            echo "UNRELEASED_FOUND=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Update date in CHANGELOG.md
