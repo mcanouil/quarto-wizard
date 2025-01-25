@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.6.0 (unreleased)
+## 0.7.0 (unreleased)
+
+## 0.6.0 (2025-01-24)
 
 - feat(package.json): add a "Quarto Wizard" menu in Explorer and Editor context menus.
 - fix(src/utils/reprex.ts): `Quarto Wizard: Quarto Reproducible Document` command no longer set filename.
