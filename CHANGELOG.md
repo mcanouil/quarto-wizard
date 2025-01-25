@@ -3,6 +3,7 @@
 ## 0.7.0 (unreleased)
 
 - refactor(src/utils/network.ts): internal logging.
+- refactor(src/utils/extensions.ts): externalise Quick Pick UI tools.
 
 ## 0.6.0 (2025-01-24)
 

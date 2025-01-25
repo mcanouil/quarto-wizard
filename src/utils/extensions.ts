@@ -5,24 +5,17 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
-import { installQuartoExtension, installQuartoExtensionSource } from "./quarto";
-import { askTrustAuthors, askConfirmInstall } from "./ask";
-import { showLogsCommand } from "./log";
-
-interface ExtensionQuickPickItem extends vscode.QuickPickItem {
-	url?: string;
-}
 
 function generateHashKey(url: string): string {
 	return crypto.createHash("md5").update(url).digest("hex");
 }
 
-function getGitHubLink(extension: string): string {
+export function getGitHubLink(extension: string): string {
 	const [owner, repo] = extension.split("/").slice(0, 2);
 	return `https://github.com/${owner}/${repo}`;
 }
 
-function formatExtensionLabel(ext: string): string {
+export function formatExtensionLabel(ext: string): string {
 	const parts = ext.split("/");
 	const repo = parts[1];
 	let formattedRepo = repo.replace(/[-_]/g, " ");
@@ -60,107 +53,6 @@ export async function fetchCSVFromURL(url: string): Promise<string> {
 				reject(err);
 			});
 	});
-}
-
-export function createExtensionItems(extensions: string[]): ExtensionQuickPickItem[] {
-	return extensions.map((ext) => ({
-		label: formatExtensionLabel(ext),
-		description: ext,
-		buttons: [
-			{
-				iconPath: new vscode.ThemeIcon("github"),
-				tooltip: "Open GitHub Repository",
-			},
-		],
-		url: getGitHubLink(ext),
-	}));
-}
-
-export async function installQuartoExtensions(
-	selectedExtensions: readonly ExtensionQuickPickItem[],
-	log: vscode.OutputChannel
-) {
-	if (vscode.workspace.workspaceFolders === undefined) {
-		return;
-	}
-	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
-
-	if ((await askTrustAuthors(log)) !== 0) return;
-	if ((await askConfirmInstall(log)) !== 0) return;
-
-	await vscode.window.withProgress(
-		{
-			location: vscode.ProgressLocation.Notification,
-			title: `Installing selected extension(s) (${showLogsCommand()})`,
-			cancellable: true,
-		},
-		async (progress, token) => {
-			token.onCancellationRequested(() => {
-				const message = `Operation cancelled by the user (${showLogsCommand()}).`;
-				log.appendLine(message);
-				vscode.window.showInformationMessage(message);
-			});
-
-			const installedExtensions: string[] = [];
-			const failedExtensions: string[] = [];
-			const totalExtensions = mutableSelectedExtensions.length;
-			let installedCount = 0;
-
-			for (const selectedExtension of mutableSelectedExtensions) {
-				if (selectedExtension.description === undefined) {
-					continue;
-				}
-				progress.report({
-					message: `(${installedCount} / ${totalExtensions}) ${selectedExtension.label} ...`,
-					increment: (1 / (totalExtensions + 1)) * 100,
-				});
-
-				const success = await installQuartoExtensionSource(selectedExtension.description, log, workspaceFolder);
-				// Once source is supported in _extension.yml, the above line can be replaced with the following line
-				// const success = await installQuartoExtension(extension, log);
-				if (success) {
-					installedExtensions.push(selectedExtension.description);
-				} else {
-					failedExtensions.push(selectedExtension.description);
-				}
-
-				installedCount++;
-			}
-			progress.report({
-				message: `(${totalExtensions} / ${totalExtensions}) extensions processed.`,
-				increment: (1 / (totalExtensions + 1)) * 100,
-			});
-
-			if (installedExtensions.length > 0) {
-				log.appendLine(`\n\nSuccessfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`);
-				installedExtensions.forEach((ext) => {
-					log.appendLine(` - ${ext}`);
-				});
-			}
-
-			if (failedExtensions.length > 0) {
-				log.appendLine(`\n\nFailed to install extension${failedExtensions.length > 1 ? "s" : ""}:`);
-				failedExtensions.forEach((ext) => {
-					log.appendLine(` - ${ext}`);
-				});
-				const message = [
-					"The following extension",
-					failedExtensions.length > 1 ? "s were" : " was",
-					" not installed, try installing ",
-					failedExtensions.length > 1 ? "them" : "it",
-					" manually with `quarto add <extension>`:",
-				].join("");
-				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${showLogsCommand()}.`);
-			} else {
-				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", " installed successfully."].join(
-					""
-				);
-				log.appendLine(message);
-				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
-			}
-		}
-	);
 }
 
 function findQuartoExtensionsRecurse(dir: string): string[] {
