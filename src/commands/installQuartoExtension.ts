@@ -1,10 +1,11 @@
 import * as vscode from "vscode";
 import { checkInternetConnection } from "../utils/network";
 import { getQuartoPath, checkQuartoPath, installQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
-import { fetchCSVFromURL } from "../utils/extensions";
+import { fetchExtensions } from "../utils/extensions";
 import { showLogsCommand } from "../utils/log";
 import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
+import { QUARTO_WIZARD_EXTENSIONS } from "../constants";
 
 async function installQuartoExtensions(
 	selectedExtensions: readonly ExtensionQuickPickItem[],
@@ -98,8 +99,6 @@ export async function installQuartoExtensionCommand(
 	log: vscode.OutputChannel,
 	recentlyInstalledExtensions: string
 ) {
-	const extensionsListCsv =
-		"https://raw.githubusercontent.com/mcanouil/quarto-extensions/main/extensions/quarto-extensions.csv";
 	if (!vscode.workspace.workspaceFolders) {
 		const message = `Please open a workspace/folder to install Quarto extensions. ${showLogsCommand()}.`;
 		log.appendLine(message);
@@ -113,19 +112,8 @@ export async function installQuartoExtensionCommand(
 	}
 	await checkQuartoPath(getQuartoPath());
 
-	let extensionsList: string[] = [];
 	let recentlyInstalled: string[] = context.globalState.get(recentlyInstalledExtensions, []);
-
-	try {
-		const data = await fetchCSVFromURL(extensionsListCsv);
-		extensionsList = data.split("\n").filter((line) => line.trim() !== "");
-	} catch (error) {
-		const message = `Error fetching list of extensions from ${extensionsListCsv}. ${showLogsCommand()}/`;
-		log.appendLine(message);
-		vscode.window.showErrorMessage(message);
-		return;
-	}
-
+	const extensionsList = await fetchExtensions(QUARTO_WIZARD_EXTENSIONS);
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {
