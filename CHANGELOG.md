@@ -6,6 +6,8 @@
 - refactor(src/utils/extensions.ts): externalise Quick Pick UI tools.
 - refactor: use constants for log messages target.
 - fix(src/utils/extensions.ts): caching of the list of available Quarto extensions.
+- fix(src/utils/extensions.ts): update cache expiration time for extensions list and display in log as ISO string.
+- chore: use webpack to bundle the extension.
 
 ## 0.6.0 (2025-01-24)
 
