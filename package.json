@@ -250,22 +250,26 @@
 			}
 		}
 	},
-	"main": "./out/extension.js",
+	"main": "./dist/extension",
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"lint": "eslint",
-		"watch": "tsc -watch -p ./"
+		"vscode:prepublish": "webpack --mode production",
+		"webpack": "webpack --mode development --stats-error-details",
+		"webpack-dev": "webpack --mode development --stats-error-details --watch",
+		"test-compile": "tsc -p ./",
+		"lint": "eslint"
 	},
 	"devDependencies": {
-		"@vscode/vsce": "^3.2.1",
-		"typescript": "^5.7.3",
-		"@types/vscode": "^1.96.0",
+		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^22.10.7",
-		"@types/js-yaml": "^4.0.9"
+		"@types/vscode": "^1.96.0",
+		"@vscode/vsce": "^3.2.1",
+		"ts-loader": "^9.5.2",
+		"typescript": "^5.7.3",
+		"webpack": "^5.97.1",
+		"webpack-cli": "^6.0.1"
 	},
 	"dependencies": {
-		"typescript": "^5.7.3",
-		"js-yaml": "^4.0.9"
+		"js-yaml": "^4.0.9",
+		"typescript": "^5.7.3"
 	}
 }

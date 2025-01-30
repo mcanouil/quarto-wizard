@@ -4,7 +4,7 @@ import { showLogsCommand } from "./log";
 
 export async function checkInternetConnection(url: string = "https://github.com/"): Promise<boolean> {
 	try {
-		const response = await fetch(url);
+		const response: Response = await fetch(url);
 		if (response.ok) {
 			return true;
 		} else {

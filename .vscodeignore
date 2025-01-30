@@ -7,10 +7,10 @@
 
 tsconfig.json
 eslint.config.mjs
+webpack.config.js
 
 src
-out/**/*.map
-out/test/**
+dist/**/*.map
 **/*.vsix
 
 assets/logo/logo-social.png

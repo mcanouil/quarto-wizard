@@ -40,13 +40,13 @@ export async function fetchExtensions(url: string, context: vscode.ExtensionCont
 
 	let message = `Error fetching list of extensions from ${QUARTO_WIZARD_EXTENSIONS}.`;
 	try {
-		const response = await fetch(url);
+		const response: Response = await fetch(url);
 		if (!response.ok) {
 			message = `${message}. ${response.statusText}`;
 			throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
 		}
 		const data = await response.text();
-		const extensionsList = data.split("\n").filter((line) => line.trim() !== "");
+		const extensionsList = data.split("\n").filter((line: string) => line.trim() !== "");
 		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
 		const newCachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 		return extensionsList;
