@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
 import { QUARTO_WIZARD_EXTENSIONS, QUARTO_WIZARD_LOG } from "../constants";
+import { showLogsCommand } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { getQuartoPath, checkQuartoPath, installQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
 import { fetchExtensions } from "../utils/extensions";
-import { showLogsCommand } from "../utils/log";
 import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
 
@@ -20,14 +20,14 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: `Installing selected extension(s) (${showLogsCommand()})`,
+			title: `Installing selected extension(s) (${showLogsCommand()}).`,
 			cancellable: true,
 		},
 		async (progress, token) => {
 			token.onCancellationRequested(() => {
-				const message = `Operation cancelled by the user (${showLogsCommand()}).`;
+				const message = "Operation cancelled by the user.";
 				QUARTO_WIZARD_LOG.appendLine(message);
-				vscode.window.showInformationMessage(message);
+				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			});
 
 			const installedExtensions: string[] = [];
@@ -98,9 +98,9 @@ export async function installQuartoExtensionCommand(
 	recentlyInstalledExtensions: string
 ) {
 	if (!vscode.workspace.workspaceFolders) {
-		const message = `Please open a workspace/folder to install Quarto extensions. ${showLogsCommand()}.`;
+		const message = `Please open a workspace/folder to install Quarto extensions.`;
 		QUARTO_WIZARD_LOG.appendLine(message);
-		vscode.window.showErrorMessage(message);
+		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return;
 	}
 

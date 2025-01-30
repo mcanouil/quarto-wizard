@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import { showLogsCommand } from "../utils/log";
 import { findQuartoExtensions } from "../utils/extensions";
 import { ExtensionData, readExtensions } from "../utils/extensions";
 import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
-import { showLogsCommand } from "../utils/log";
 
 class ExtensionTreeItem extends vscode.TreeItem {
 	constructor(

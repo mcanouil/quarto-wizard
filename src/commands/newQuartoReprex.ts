@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { QUARTO_WIZARD_LOG } from "../constants";
-import { newQuartoReprex } from "../utils/reprex";
 import { showLogsCommand } from "../utils/log";
+import { newQuartoReprex } from "../utils/reprex";
 
 export async function newQuartoReprexCommand(context: vscode.ExtensionContext) {
 	const languages = ["R", "Python", "Julia"];
@@ -12,8 +12,8 @@ export async function newQuartoReprexCommand(context: vscode.ExtensionContext) {
 	if (selectedLanguage) {
 		newQuartoReprex(selectedLanguage, context);
 	} else {
-		const message = `No computing language selected. Aborting. ${showLogsCommand()}.`;
+		const message = `No computing language selected. Aborting.`;
 		QUARTO_WIZARD_LOG.appendLine(message);
-		vscode.window.showErrorMessage(message);
+		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 	}
 }

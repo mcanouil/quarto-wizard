@@ -8,15 +8,15 @@ export async function checkInternetConnection(url: string = "https://github.com/
 		if (response.ok) {
 			return true;
 		} else {
-			const message = `No internet connection. Please check your network settings. ${showLogsCommand()}.`;
+			const message = `No internet connection. Please check your network settings.`;
 			QUARTO_WIZARD_LOG.appendLine(message);
-			vscode.window.showErrorMessage(message);
+			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			return false;
 		}
 	} catch (error) {
-		const message = `No internet connection. Please check your network settings. ${showLogsCommand()}.`;
+		const message = `No internet connection. Please check your network settings.`;
 		QUARTO_WIZARD_LOG.appendLine(message);
-		vscode.window.showErrorMessage(message);
+		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return false;
 	}
 }

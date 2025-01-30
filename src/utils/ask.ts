@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { QUARTO_WIZARD_LOG } from "../constants";
+import { showLogsCommand } from "../utils/log";
 
 export async function askTrustAuthors(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
@@ -22,7 +23,7 @@ export async function askTrustAuthors(): Promise<number> {
 		} else if (trustAuthors?.label !== "Yes") {
 			const message = "Operation cancelled because the authors are not trusted.";
 			QUARTO_WIZARD_LOG.appendLine(message);
-			vscode.window.showInformationMessage(message);
+			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			return 1;
 		}
 	}
@@ -50,7 +51,7 @@ export async function askConfirmInstall(): Promise<number> {
 		} else if (installWorkspace?.label !== "Yes") {
 			const message = "Operation cancelled by the user.";
 			QUARTO_WIZARD_LOG.appendLine(message);
-			vscode.window.showInformationMessage(message);
+			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			return 1;
 		}
 	}
@@ -78,7 +79,7 @@ export async function askConfirmRemove(): Promise<number> {
 		} else if (removeWorkspace?.label !== "Yes") {
 			const message = "Operation cancelled by the user.";
 			QUARTO_WIZARD_LOG.appendLine(message);
-			vscode.window.showInformationMessage(message);
+			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			return 1;
 		}
 	}
