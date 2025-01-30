@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
-import * as https from "https";
-import { IncomingMessage } from "http";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
+import { QUARTO_WIZARD_LOG, QUARTO_WIZARD_EXTENSIONS } from "../constants";
+import { showLogsCommand } from "./log";
 
 function generateHashKey(url: string): string {
 	return crypto.createHash("md5").update(url).digest("hex");
@@ -27,32 +27,34 @@ export function formatExtensionLabel(ext: string): string {
 	return formattedRepo;
 }
 
-export async function fetchCSVFromURL(url: string): Promise<string> {
+export async function fetchExtensions(url: string, context: vscode.ExtensionContext): Promise<string[]> {
 	const cacheKey = `${"quarto_wizard_extensions_csv_"}${generateHashKey(url)}`;
-	const cachedData = vscode.workspace.getConfiguration().get<{ data: string; timestamp: number }>(cacheKey);
+	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 
 	if (cachedData && Date.now() - cachedData.timestamp < 12 * 60 * 60 * 1000) {
+		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${cachedData.timestamp}`);
 		return cachedData.data;
+	} else {
+		QUARTO_WIZARD_LOG.appendLine(`Fetching extensions: ${url}`);
 	}
 
-	return new Promise((resolve, reject) => {
-		https
-			.get(url, (res: IncomingMessage) => {
-				let data = "";
-				res.on("data", (chunk) => {
-					data += chunk;
-				});
-				res.on("end", () => {
-					vscode.workspace
-						.getConfiguration()
-						.update(cacheKey, { data, timestamp: Date.now() }, vscode.ConfigurationTarget.Global);
-					resolve(data);
-				});
-			})
-			.on("error", (err) => {
-				reject(err);
-			});
-	});
+	let message = `Error fetching list of extensions from ${QUARTO_WIZARD_EXTENSIONS}.`;
+	try {
+		const response = await fetch(url);
+		if (!response.ok) {
+			message = `${message}. ${response.statusText}`;
+			throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
+		}
+		const data = await response.text();
+		const extensionsList = data.split("\n").filter((line) => line.trim() !== "");
+		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
+		const newCachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
+		return extensionsList;
+	} catch (error) {
+		QUARTO_WIZARD_LOG.appendLine(`${message} ${error}`);
+		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
+		return [];
+	}
 }
 
 function findQuartoExtensionsRecurse(dir: string): string[] {

@@ -4,6 +4,8 @@
 
 - refactor(src/utils/network.ts): internal logging.
 - refactor(src/utils/extensions.ts): externalise Quick Pick UI tools.
+- refactor: use constants for log messages target.
+- fix(src/utils/extensions.ts): caching of the list of available Quarto extensions.
 
 ## 0.6.0 (2025-01-24)
 

@@ -1,23 +1,21 @@
 import * as vscode from "vscode";
+import { QUARTO_WIZARD_EXTENSIONS, QUARTO_WIZARD_LOG } from "../constants";
 import { checkInternetConnection } from "../utils/network";
 import { getQuartoPath, checkQuartoPath, installQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
-import { fetchCSVFromURL } from "../utils/extensions";
+import { fetchExtensions } from "../utils/extensions";
 import { showLogsCommand } from "../utils/log";
 import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
 
-async function installQuartoExtensions(
-	selectedExtensions: readonly ExtensionQuickPickItem[],
-	log: vscode.OutputChannel
-) {
+async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[]) {
 	if (vscode.workspace.workspaceFolders === undefined) {
 		return;
 	}
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
-	if ((await askTrustAuthors(log)) !== 0) return;
-	if ((await askConfirmInstall(log)) !== 0) return;
+	if ((await askTrustAuthors()) !== 0) return;
+	if ((await askConfirmInstall()) !== 0) return;
 
 	await vscode.window.withProgress(
 		{
@@ -28,7 +26,7 @@ async function installQuartoExtensions(
 		async (progress, token) => {
 			token.onCancellationRequested(() => {
 				const message = `Operation cancelled by the user (${showLogsCommand()}).`;
-				log.appendLine(message);
+				QUARTO_WIZARD_LOG.appendLine(message);
 				vscode.window.showInformationMessage(message);
 			});
 
@@ -46,9 +44,9 @@ async function installQuartoExtensions(
 					increment: (1 / (totalExtensions + 1)) * 100,
 				});
 
-				const success = await installQuartoExtensionSource(selectedExtension.description, log, workspaceFolder);
+				const success = await installQuartoExtensionSource(selectedExtension.description, workspaceFolder);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
-				// const success = await installQuartoExtension(extension, log);
+				// const success = await installQuartoExtension(extension);
 				if (success) {
 					installedExtensions.push(selectedExtension.description);
 				} else {
@@ -63,16 +61,18 @@ async function installQuartoExtensions(
 			});
 
 			if (installedExtensions.length > 0) {
-				log.appendLine(`\n\nSuccessfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`);
+				QUARTO_WIZARD_LOG.appendLine(
+					`\n\nSuccessfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`
+				);
 				installedExtensions.forEach((ext) => {
-					log.appendLine(` - ${ext}`);
+					QUARTO_WIZARD_LOG.appendLine(` - ${ext}`);
 				});
 			}
 
 			if (failedExtensions.length > 0) {
-				log.appendLine(`\n\nFailed to install extension${failedExtensions.length > 1 ? "s" : ""}:`);
+				QUARTO_WIZARD_LOG.appendLine(`\n\nFailed to install extension${failedExtensions.length > 1 ? "s" : ""}:`);
 				failedExtensions.forEach((ext) => {
-					log.appendLine(` - ${ext}`);
+					QUARTO_WIZARD_LOG.appendLine(` - ${ext}`);
 				});
 				const message = [
 					"The following extension",
@@ -86,7 +86,7 @@ async function installQuartoExtensions(
 				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", " installed successfully."].join(
 					""
 				);
-				log.appendLine(message);
+				QUARTO_WIZARD_LOG.appendLine(message);
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}
 		}
@@ -95,41 +95,27 @@ async function installQuartoExtensions(
 
 export async function installQuartoExtensionCommand(
 	context: vscode.ExtensionContext,
-	log: vscode.OutputChannel,
 	recentlyInstalledExtensions: string
 ) {
-	const extensionsListCsv =
-		"https://raw.githubusercontent.com/mcanouil/quarto-extensions/main/extensions/quarto-extensions.csv";
 	if (!vscode.workspace.workspaceFolders) {
 		const message = `Please open a workspace/folder to install Quarto extensions. ${showLogsCommand()}.`;
-		log.appendLine(message);
+		QUARTO_WIZARD_LOG.appendLine(message);
 		vscode.window.showErrorMessage(message);
 		return;
 	}
 
-	const isConnected = await checkInternetConnection("https://github.com/", log);
+	const isConnected = await checkInternetConnection("https://github.com/");
 	if (!isConnected) {
 		return;
 	}
 	await checkQuartoPath(getQuartoPath());
 
-	let extensionsList: string[] = [];
 	let recentlyInstalled: string[] = context.globalState.get(recentlyInstalledExtensions, []);
-
-	try {
-		const data = await fetchCSVFromURL(extensionsListCsv);
-		extensionsList = data.split("\n").filter((line) => line.trim() !== "");
-	} catch (error) {
-		const message = `Error fetching list of extensions from ${extensionsListCsv}. ${showLogsCommand()}/`;
-		log.appendLine(message);
-		vscode.window.showErrorMessage(message);
-		return;
-	}
-
+	const extensionsList = await fetchExtensions(QUARTO_WIZARD_EXTENSIONS, context);
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {
-		await installQuartoExtensions(selectedExtensions, log);
+		await installQuartoExtensions(selectedExtensions);
 		const selectedDescriptions = selectedExtensions.map((ext) => ext.description);
 		let updatedRecentlyInstalled = [
 			...selectedDescriptions,

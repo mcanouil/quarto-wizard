@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { exec } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
+import { QUARTO_WIZARD_LOG } from "../constants";
 import { findModifiedExtensions, getMtimeExtensions } from "./extensions";
 
 let cachedQuartoPath: string | undefined;
@@ -56,8 +57,8 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 	});
 }
 
-export async function installQuartoExtension(extension: string, log: vscode.OutputChannel): Promise<boolean> {
-	log.appendLine(`\n\nInstalling ${extension} ...`);
+export async function installQuartoExtension(extension: string): Promise<boolean> {
+	QUARTO_WIZARD_LOG.appendLine(`\n\nInstalling ${extension} ...`);
 	return new Promise((resolve) => {
 		if (vscode.workspace.workspaceFolders === undefined) {
 			return;
@@ -69,7 +70,7 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
-				log.appendLine(`${stderr}`);
+				QUARTO_WIZARD_LOG.appendLine(`${stderr}`);
 				const isInstalled = stderr.includes("Extension installation complete");
 				if (isInstalled) {
 					resolve(true);
@@ -88,15 +89,11 @@ export async function installQuartoExtension(extension: string, log: vscode.Outp
 // This is needed for the extension to be updated in the future
 // To be removed when Quarto supports source records in the _extension.yml file or elsewhere
 // See https://github.com/quarto-dev/quarto-cli/issues/11468
-export async function installQuartoExtensionSource(
-	extension: string,
-	log: any,
-	workspaceFolder: string
-): Promise<boolean> {
+export async function installQuartoExtensionSource(extension: string, workspaceFolder: string): Promise<boolean> {
 	const extensionsDirectory = path.join(workspaceFolder, "_extensions");
 	const existingExtensions = getMtimeExtensions(extensionsDirectory);
 
-	const success = await installQuartoExtension(extension, log);
+	const success = await installQuartoExtension(extension);
 
 	const newExtension = findModifiedExtensions(existingExtensions, extensionsDirectory);
 	const fileNames = ["_extension.yml", "_extension.yaml"];
@@ -114,8 +111,8 @@ export async function installQuartoExtensionSource(
 	return success;
 }
 
-export async function removeQuartoExtension(extension: string, log: vscode.OutputChannel): Promise<boolean> {
-	log.appendLine(`\n\nRemoving ${extension} ...`);
+export async function removeQuartoExtension(extension: string): Promise<boolean> {
+	QUARTO_WIZARD_LOG.appendLine(`\n\nRemoving ${extension} ...`);
 
 	return new Promise((resolve) => {
 		if (vscode.workspace.workspaceFolders === undefined) {
@@ -128,7 +125,7 @@ export async function removeQuartoExtension(extension: string, log: vscode.Outpu
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
-				log.appendLine(`${stderr}`);
+				QUARTO_WIZARD_LOG.appendLine(`${stderr}`);
 				const isRemoved = stderr.includes("Extension removed");
 				if (isRemoved) {
 					resolve(true);
