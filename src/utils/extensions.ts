@@ -29,25 +29,32 @@ export function formatExtensionLabel(ext: string): string {
 
 export async function fetchExtensions(url: string): Promise<string[]> {
 	const cacheKey = `${"quarto_wizard_extensions_csv_"}${generateHashKey(url)}`;
-	const cachedData = vscode.workspace.getConfiguration().get<{ extensionsList: string[]; timestamp: number }>(cacheKey);
+	const cachedData = vscode.workspace.getConfiguration().get<{ data: string[]; timestamp: number }>(cacheKey);
 
-	if (cachedData && Date.now() - cachedData.timestamp < 12 * 60 * 60 * 1000) {
-		return cachedData.extensionsList;
+	if (cachedData) {
+		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${cachedData.timestamp}`);
+	} else {
+		QUARTO_WIZARD_LOG.appendLine(`Fetching extensions: ${url}`);
 	}
+	if (cachedData && Date.now() - cachedData.timestamp < 12 * 60 * 60 * 1000) {
+		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${cachedData.timestamp}`);
+		return cachedData.data;
+	}
+
+	let message = `Error fetching list of extensions from ${QUARTO_WIZARD_EXTENSIONS}. ${showLogsCommand()}`;
 	try {
 		const response = await fetch(url);
 		if (!response.ok) {
+			message = `${message}. ${response.statusText}`;
 			throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
 		}
 		const data = await response.text();
 		const extensionsList = data.split("\n").filter((line) => line.trim() !== "");
 		vscode.workspace
 			.getConfiguration()
-			.update(cacheKey, { extensionsList, timestamp: Date.now() }, vscode.ConfigurationTarget.Global);
-
+			.update(cacheKey, { data: extensionsList, timestamp: Date.now() }, vscode.ConfigurationTarget.Global);
 		return extensionsList;
 	} catch (error) {
-		const message = `Error fetching list of extensions from ${QUARTO_WIZARD_EXTENSIONS}. ${showLogsCommand()}/`;
 		QUARTO_WIZARD_LOG.appendLine(message);
 		vscode.window.showErrorMessage(message);
 		return [];

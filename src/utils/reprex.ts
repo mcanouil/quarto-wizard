@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import { QUARTO_WIZARD_LOG } from "../constants";
 
-export async function newQuartoReprex(language: string, context: vscode.ExtensionContext, log: vscode.OutputChannel) {
+export async function newQuartoReprex(language: string, context: vscode.ExtensionContext) {
 	let templateFile = "";
 
 	switch (language) {
@@ -17,7 +18,7 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 			break;
 		default:
 			const message = `Unsupported language: ${language}`;
-			log.appendLine(message);
+			QUARTO_WIZARD_LOG.appendLine(message);
 			vscode.window.showErrorMessage(message);
 			return;
 	}
@@ -26,7 +27,7 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 	fs.readFile(filePath, "utf8", (err, data) => {
 		if (err) {
 			const message = `Failed to read the template file: ${err.message}`;
-			log.appendLine(message);
+			QUARTO_WIZARD_LOG.appendLine(message);
 			vscode.window.showErrorMessage(message);
 			return;
 		}

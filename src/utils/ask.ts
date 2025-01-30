@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
+import { QUARTO_WIZARD_LOG } from "../constants";
 
-export async function askTrustAuthors(log: vscode.OutputChannel): Promise<number> {
+export async function askTrustAuthors(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
 	let configTrustAuthors = config.get<string>("trustAuthors");
 
@@ -20,7 +21,7 @@ export async function askTrustAuthors(log: vscode.OutputChannel): Promise<number
 			return 0;
 		} else if (trustAuthors?.label !== "Yes") {
 			const message = "Operation cancelled because the authors are not trusted.";
-			log.appendLine(message);
+			QUARTO_WIZARD_LOG.appendLine(message);
 			vscode.window.showInformationMessage(message);
 			return 1;
 		}
@@ -28,7 +29,7 @@ export async function askTrustAuthors(log: vscode.OutputChannel): Promise<number
 	return 0;
 }
 
-export async function askConfirmInstall(log: vscode.OutputChannel): Promise<number> {
+export async function askConfirmInstall(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
 	let configConfirmInstall = config.get<string>("confirmInstall");
 
@@ -48,7 +49,7 @@ export async function askConfirmInstall(log: vscode.OutputChannel): Promise<numb
 			return 0;
 		} else if (installWorkspace?.label !== "Yes") {
 			const message = "Operation cancelled by the user.";
-			log.appendLine(message);
+			QUARTO_WIZARD_LOG.appendLine(message);
 			vscode.window.showInformationMessage(message);
 			return 1;
 		}
@@ -56,7 +57,7 @@ export async function askConfirmInstall(log: vscode.OutputChannel): Promise<numb
 	return 0;
 }
 
-export async function askConfirmRemove(log: vscode.OutputChannel): Promise<number> {
+export async function askConfirmRemove(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask");
 	let configConfirmRemove = config.get<string>("confirmRemove");
 
@@ -76,7 +77,7 @@ export async function askConfirmRemove(log: vscode.OutputChannel): Promise<numbe
 			return 0;
 		} else if (removeWorkspace?.label !== "Yes") {
 			const message = "Operation cancelled by the user.";
-			log.appendLine(message);
+			QUARTO_WIZARD_LOG.appendLine(message);
 			vscode.window.showInformationMessage(message);
 			return 1;
 		}

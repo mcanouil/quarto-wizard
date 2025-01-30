@@ -91,7 +91,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
-	constructor(context: vscode.ExtensionContext, log: vscode.OutputChannel) {
+	constructor(context: vscode.ExtensionContext) {
 		if (vscode.workspace.workspaceFolders === undefined) {
 			return;
 		}
@@ -125,9 +125,9 @@ export class ExtensionsInstalled {
 		);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
-				const success = await installQuartoExtensionSource(item.data?.source ?? item.label, log, workspaceFolder);
+				const success = await installQuartoExtensionSource(item.data?.source ?? item.label, workspaceFolder);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
-				// const success = await installQuartoExtension(item.data?.source ?? item.label, log);
+				// const success = await installQuartoExtension(item.data?.source ?? item.label);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 				} else {
@@ -145,7 +145,7 @@ export class ExtensionsInstalled {
 		);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", async (item: ExtensionTreeItem) => {
-				const success = await removeQuartoExtension(item.label, log);
+				const success = await removeQuartoExtension(item.label);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
 				} else {
