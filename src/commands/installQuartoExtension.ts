@@ -111,7 +111,7 @@ export async function installQuartoExtensionCommand(
 	await checkQuartoPath(getQuartoPath());
 
 	let recentlyInstalled: string[] = context.globalState.get(recentlyInstalledExtensions, []);
-	const extensionsList = await fetchExtensions(QUARTO_WIZARD_EXTENSIONS);
+	const extensionsList = await fetchExtensions(QUARTO_WIZARD_EXTENSIONS, context);
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {

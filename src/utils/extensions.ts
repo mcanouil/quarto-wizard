@@ -27,21 +27,18 @@ export function formatExtensionLabel(ext: string): string {
 	return formattedRepo;
 }
 
-export async function fetchExtensions(url: string): Promise<string[]> {
+export async function fetchExtensions(url: string, context: vscode.ExtensionContext): Promise<string[]> {
 	const cacheKey = `${"quarto_wizard_extensions_csv_"}${generateHashKey(url)}`;
-	const cachedData = vscode.workspace.getConfiguration().get<{ data: string[]; timestamp: number }>(cacheKey);
+	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 
-	if (cachedData) {
-		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${cachedData.timestamp}`);
-	} else {
-		QUARTO_WIZARD_LOG.appendLine(`Fetching extensions: ${url}`);
-	}
 	if (cachedData && Date.now() - cachedData.timestamp < 12 * 60 * 60 * 1000) {
 		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${cachedData.timestamp}`);
 		return cachedData.data;
+	} else {
+		QUARTO_WIZARD_LOG.appendLine(`Fetching extensions: ${url}`);
 	}
 
-	let message = `Error fetching list of extensions from ${QUARTO_WIZARD_EXTENSIONS}. ${showLogsCommand()}`;
+	let message = `Error fetching list of extensions from ${QUARTO_WIZARD_EXTENSIONS}.`;
 	try {
 		const response = await fetch(url);
 		if (!response.ok) {
@@ -50,13 +47,12 @@ export async function fetchExtensions(url: string): Promise<string[]> {
 		}
 		const data = await response.text();
 		const extensionsList = data.split("\n").filter((line) => line.trim() !== "");
-		vscode.workspace
-			.getConfiguration()
-			.update(cacheKey, { data: extensionsList, timestamp: Date.now() }, vscode.ConfigurationTarget.Global);
+		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
+		const newCachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 		return extensionsList;
 	} catch (error) {
-		QUARTO_WIZARD_LOG.appendLine(message);
-		vscode.window.showErrorMessage(message);
+		QUARTO_WIZARD_LOG.appendLine(`${message} ${error}`);
+		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return [];
 	}
 }
