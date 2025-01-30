@@ -31,8 +31,8 @@ export async function fetchExtensions(url: string, context: vscode.ExtensionCont
 	const cacheKey = `${"quarto_wizard_extensions_csv_"}${generateHashKey(url)}`;
 	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 
-	if (cachedData && Date.now() - cachedData.timestamp < 12 * 60 * 60 * 1000) {
-		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${cachedData.timestamp}`);
+	if (cachedData && Date.now() - cachedData.timestamp < 60 * 60 * 1000) {
+		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`);
 		return cachedData.data;
 	} else {
 		QUARTO_WIZARD_LOG.appendLine(`Fetching extensions: ${url}`);
