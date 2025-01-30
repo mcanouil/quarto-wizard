@@ -4,6 +4,7 @@
     "outDir": "out",
     "target": "ES2023",
     "lib": [
+      "dom",
       "ES2023"
     ],
     "sourceMap": true,
