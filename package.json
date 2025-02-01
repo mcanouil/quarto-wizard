@@ -262,7 +262,7 @@
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^22.10.7",
 		"@types/vscode": "^1.96.0",
-		"@vscode/vsce": "^3.2.1",
+		"@vscode/vsce": "^3.2.2",
 		"ts-loader": "^9.5.2",
 		"typescript": "^5.7.3",
 		"webpack": "^5.97.1",
