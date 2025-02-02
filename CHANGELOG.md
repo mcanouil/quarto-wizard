@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.8.0 (unreleased)
+## 0.7.1 (unreleased)
 
 - feat: add "activationEvents" to `package.json` to avoid unnecessary activation.
+- fix: GitHub button in QuickPick UI opens again the repository in the default browser.
 
 ## 0.7.0 (2025-01-30)
 
