@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 (unreleased)
+
+- feat: add "activationEvents" to `package.json` to avoid unnecessary activation.
+
 ## 0.7.0 (2025-01-30)
 
 - refactor(src/utils/network.ts): internal logging.
@@ -8,7 +12,6 @@
 - fix(src/utils/extensions.ts): caching of the list of available Quarto extensions.
 - fix(src/utils/extensions.ts): update cache expiration time for extensions list and display in log as ISO string.
 - fix: harmonise log and notification messages.
-- fix: add "activationEvents" to `package.json` to avoid unnecessary activation.
 - chore: use webpack to bundle the extension.
 
 ## 0.6.0 (2025-01-24)
