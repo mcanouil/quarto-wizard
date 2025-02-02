@@ -8,6 +8,7 @@
 - fix(src/utils/extensions.ts): caching of the list of available Quarto extensions.
 - fix(src/utils/extensions.ts): update cache expiration time for extensions list and display in log as ISO string.
 - fix: harmonise log and notification messages.
+- fix: add "activationEvents" to `package.json` to avoid unnecessary activation.
 - chore: use webpack to bundle the extension.
 
 ## 0.6.0 (2025-01-24)
