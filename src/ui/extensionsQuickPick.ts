@@ -8,7 +8,7 @@ export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 export function createExtensionItems(extensions: string[]): ExtensionQuickPickItem[] {
 	return extensions.map((ext) => ({
 		label: formatExtensionLabel(ext),
-		description: ext,
+		description: getGitHubLink(ext),
 		buttons: [
 			{
 				iconPath: new vscode.ThemeIcon("github"),
@@ -43,6 +43,12 @@ export async function showExtensionQuickPick(
 	quickPick.placeholder = "Select Quarto extensions to install";
 	quickPick.canSelectMany = true;
 	quickPick.matchOnDescription = true;
+	quickPick.onDidTriggerItemButton((e) => {
+		const url = e.item.url;
+		if (url) {
+			vscode.env.openExternal(vscode.Uri.parse(url));
+		}
+	});
 
 	return new Promise((resolve) => {
 		quickPick.onDidAccept(() => {
