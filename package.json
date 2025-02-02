@@ -2,7 +2,7 @@
 	"name": "quarto-wizard",
 	"displayName": "Quarto Wizard",
 	"description": "A Visual Studio Code extension that helps you manage Quarto projects.",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"publisher": "mcanouil",
 	"author": {
 		"name": "Mickaël CANOUIL"
@@ -45,6 +45,13 @@
 	"engines": {
 		"vscode": "^1.96.0"
 	},
+	"activationEvents": [
+		"onLanguage:quarto",
+		"workspaceContains:**/*.{qmd,rmd}",
+		"workspaceContains:**/_quarto.{yml,yaml}",
+		"workspaceContains:**/_brand.{yml,yaml}",
+		"workspaceContains:**/_extension.{yml,yaml}"
+	],
 	"contributes": {
 		"commands": [
 			{

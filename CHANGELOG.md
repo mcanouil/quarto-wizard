@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 (unreleased)
+
+- feat: add "activationEvents" to `package.json` to avoid unnecessary activation.
+
 ## 0.7.0 (2025-01-30)
 
 - refactor(src/utils/network.ts): internal logging.
