@@ -48,7 +48,6 @@ export async function fetchExtensions(url: string, context: vscode.ExtensionCont
 		const data = await response.text();
 		const extensionsList = data.split("\n").filter((line: string) => line.trim() !== "");
 		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
-		const newCachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 		return extensionsList;
 	} catch (error) {
 		QUARTO_WIZARD_LOG.appendLine(`${message} ${error}`);
