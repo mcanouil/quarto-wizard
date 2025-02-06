@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.2 (unreleased)
+
+- fix(src/ui/extensionsQuickPick.ts): broken extensions install by updating description handling in QuickPick UI.
+- deps: update dependencies to latest.
+
 ## 0.7.1 (2025-02-02)
 
 - feat: add "activationEvents" to `package.json` to avoid unnecessary activation.
