@@ -268,7 +268,7 @@
 	"devDependencies": {
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^22.13.1",
-		"@types/vscode": "^1.97.0",
+		"@types/vscode": "^1.96.0",
 		"@vscode/vsce": "^3.2.2",
 		"ts-loader": "^9.5.2",
 		"typescript": "^5.7.3",
