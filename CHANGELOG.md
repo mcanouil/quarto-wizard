@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.2 (unreleased)
+## 0.7.2 (2025-02-06)
 
 - fix(src/ui/extensionsQuickPick.ts): broken extensions install by updating description handling in QuickPick UI.
 - deps: update dependencies to latest.
