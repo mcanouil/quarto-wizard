@@ -8,7 +8,7 @@ export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 export function createExtensionItems(extensions: string[]): ExtensionQuickPickItem[] {
 	return extensions.map((ext) => ({
 		label: formatExtensionLabel(ext),
-		description: getGitHubLink(ext),
+		description: ext,
 		buttons: [
 			{
 				iconPath: new vscode.ThemeIcon("github"),
