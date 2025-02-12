@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: Quarto Wizard - Visual Studio Code Extension
+title: "Quarto Wizard: A Visual Studio Code Extension to Manage Quarto Projects"
 message: "If you use this project, please cite it as below."
 type: software
 authors:
