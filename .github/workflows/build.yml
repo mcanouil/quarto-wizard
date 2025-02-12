@@ -56,4 +56,10 @@ jobs:
 
       - name: Build extension
         shell: bash
-        run: vsce package --pre-release
+        run: vsce package --pre-release --out quarto-wizard.vsix
+
+      - name: Upload VSIX as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarto-wizard-${{ github.sha }}
+          path: quarto-wizard.vsix
