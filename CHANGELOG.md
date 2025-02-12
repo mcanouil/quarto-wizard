@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.3 (unreleased)
+
+- chore(CITATION.cff): add citation file.
+
 ## 0.7.2 (2025-02-06)
 
 - fix(src/ui/extensionsQuickPick.ts): broken extensions install by updating description handling in QuickPick UI.
