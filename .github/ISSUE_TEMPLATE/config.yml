@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question
+    url: https://github.com/mcanouil/quarto-wizard/discussions/categories/q-a
+    about: Please ask and answer questions in our Discussion board
+  - name: Share an idea, a missing feature or anything else
+    url: https://github.com/mcanouil/quarto-wizard/discussions/categories/feature-requests
+    about: Please give us any feedback in our Discussion board
+  - name: Report a Quarto CLI bug
+    url: https://github.com/quarto-dev/quarto-cli
+    about: Please report any issue with Quarto CLI in its repository
