@@ -63,3 +63,4 @@ jobs:
         with:
           name: quarto-wizard-${{ github.sha }}
           path: quarto-wizard.vsix
+          retention-days: 10
