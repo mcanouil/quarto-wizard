@@ -1,0 +1,24 @@
+{
+	"name": "Quarto Wizard",
+	"image": "buildpack-deps:noble-curl",
+	"remoteUser": "vscode",
+	"features": {
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": "true",
+			"username": "vscode",
+			"userUid": "1001",
+			"userGid": "1001",
+			"upgradePackages": "true"
+		},
+		"ghcr.io/devcontainers/features/git:1": {
+			"version": "latest",
+			"ppa": "false"
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"nodeGypDependencies": true,
+			"version": "latest",
+			"pnpmVersion": "latest",
+			"nvmVersion": "latest"
+		}
+	}
+}

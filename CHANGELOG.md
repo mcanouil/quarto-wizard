@@ -5,6 +5,7 @@
 - fix: activate `quarto-wizard-explorer` view only in a workspace.
 - chore(CITATION.cff): add citation file.
 - chore: update TypeScript configuration settings.
+- chore: add basic Dev Container setup.
 - ci: bump version via GitHub Actions input.
 
 ## 0.7.2 (2025-02-06)
