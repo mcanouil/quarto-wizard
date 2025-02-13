@@ -3,6 +3,7 @@
 ## 0.7.3 (unreleased)
 
 - chore(CITATION.cff): add citation file.
+- chore: update TypeScript configuration settings.
 
 ## 0.7.2 (2025-02-06)
 
