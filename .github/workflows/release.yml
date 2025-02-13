@@ -61,7 +61,7 @@ jobs:
         id: check_unreleased
         shell: bash
         run: |
-          if grep -q "unreleased" CHANGELOG.md; then
+          if grep -q "Unreleased" CHANGELOG.md; then
             echo "UNRELEASED_FOUND=true" >> $GITHUB_OUTPUT
           else
             echo "UNRELEASED_FOUND=false" >> $GITHUB_OUTPUT
@@ -104,7 +104,7 @@ jobs:
           vsce package ${{ github.event.inputs.version }} -m "${COMMIT}"
           VERSION=$(jq -r .version package.json)
           RELEASE_DATE="${VERSION} (${DATE})"
-          sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
+          sed -i "s/Unreleased/${RELEASE_DATE}/" CHANGELOG.md
           sed -i "s/^version:.*/version: ${VERSION}/" CITATION.cff
           sed -i "s/^date-released:.*/date-released: \"${DATE}\"/" CITATION.cff
           git add CHANGELOG.md || echo "No changes to add"
