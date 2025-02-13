@@ -1,5 +1,6 @@
 .git
 .github
+.devcontainer
 .vscode
 .vscode-test
 .gitignore
