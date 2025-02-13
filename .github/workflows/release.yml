@@ -36,6 +36,10 @@ on:
         type: string
         description: 'Date ("YYYY-MM-DD" or "today")'
         default: today
+      version:
+        type: string
+        description: "Version"
+        default: "minor"
 
 jobs:
   update-changelog:
@@ -63,42 +67,57 @@ jobs:
             echo "UNRELEASED_FOUND=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Update date in CHANGELOG.md
+      - name: Set up Node.js
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        uses: actions/setup-node@v4
+
+      - name: Install dependencies
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
-        run: |
-          if [ "${{ github.event.inputs.date }}" = "today" ]; then
-            RELEASE_DATE=$(date +%Y-%m-%d)
-          else
-            RELEASE_DATE=${{ github.event.inputs.date }}
-          fi
-          sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
+        run: npm install
 
-      - name: Commit / Push CHANGELOG.md
+      - name: Install Visual Studio Code Extension Manager
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        shell: bash
+        run: npm install -g @vscode/vsce
+
+      - name: Bump Version / Commit / Push CHANGELOG.md
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.github_token }}
-          COMMIT: "ci: automatic changelog update for release"
+          COMMIT: "ci: bump version for release :rocket:"
         shell: bash
         run: |
           git config --local user.name github-actions[bot]
           git config --local user.email 41898282+github-actions[bot]@users.noreply.github.com
-          if git show-ref --quiet refs/heads/${{ env.BRANCH }}; then
-            echo "Branch ${{ env.BRANCH }} already exists."
-            git branch -D "${{ env.BRANCH }}"
-            git push origin --delete "${{ env.BRANCH }}"
+          if git show-ref --quiet refs/heads/${BRANCH}; then
+            echo "Branch ${BRANCH} already exists."
+            git branch -D "${BRANCH}"
+            git push origin --delete "${BRANCH}"
           fi
-          git checkout -b "${{ env.BRANCH }}"
+          git checkout -b "${BRANCH}"
+          if [ "${{ github.event.inputs.date }}" = "today" ]; then
+            DATE=$(date +%Y-%m-%d)
+          else
+            DATE=${{ github.event.inputs.date }}
+          fi
+          vsce package ${{ github.event.inputs.version }} -m "${COMMIT}"
+          VERSION=$(jq -r .version package.json)
+          RELEASE_DATE="${VERSION} (${DATE})"
+          sed -i "s/unreleased/${RELEASE_DATE}/" CHANGELOG.md
+          sed -i "s/^version:.*/version: ${VERSION}/" CITATION.cff
+          sed -i "s/^date-released:.*/date-released: \"${DATE}\"/" CITATION.cff
           git add CHANGELOG.md || echo "No changes to add"
-          git commit -m "${{ env.COMMIT }}" || echo "No changes to commit"
-          git push --force origin ${{ env.BRANCH }} || echo "No changes to push"
+          git add CITATION.cff || echo "No changes to add"
+          git commit -m "${COMMIT}" || echo "No changes to commit"
+          git push --force origin ${BRANCH} || echo "No changes to push"
 
       - name: Create Pull Request
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
         run: |
           sleep 30
-          gh pr create --fill-first --base "main" --head "${{ env.BRANCH }}" --label "Type: CI/CD :robot:"
+          gh pr create --fill-first --base "main" --head "${BRANCH}" --label "Type: CI/CD :robot:"
 
       - name: Merge Pull Request
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
