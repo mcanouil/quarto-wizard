@@ -257,6 +257,12 @@
 					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
 				}
 			}
+		},
+		"configurationDefaults": {
+			"markdownlint.languages": [
+				"markdown",
+				"quarto"
+			]
 		}
 	},
 	"main": "./dist/extension",

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - fix: activate `quarto-wizard-explorer` view only in a workspace.
+- deps: lazy extension dependencies loading.
 - chore(CITATION.cff): add citation file.
 - chore: update TypeScript configuration settings.
 - chore: add basic Dev Container setup.

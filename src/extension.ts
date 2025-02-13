@@ -4,6 +4,7 @@ import { showLogsCommand } from "./utils/log";
 import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
+import { activateExtensions } from "./utils/activate";
 
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
@@ -30,6 +31,8 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	new ExtensionsInstalled(context);
+
+	activateExtensions(["quarto.quarto", "DavidAnson.vscode-markdownlint"]);
 }
 
 export function deactivate() {}
