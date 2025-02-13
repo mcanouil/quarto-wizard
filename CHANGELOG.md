@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.3 (unreleased)
+## Unreleased
 
 - fix: activate `quarto-wizard-explorer` view only in a workspace.
 - chore(CITATION.cff): add citation file.
