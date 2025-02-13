@@ -207,7 +207,8 @@
 					"id": "quarto-wizard-explorer",
 					"title": "Quarto Wizard",
 					"icon": "assets/logo/logo.svg",
-					"contextualTitle": "Quarto Wizard"
+					"contextualTitle": "Quarto Wizard",
+					"when": "workspaceFolderCount >= 1"
 				}
 			]
 		},
@@ -218,7 +219,8 @@
 					"name": "Extensions Installed",
 					"icon": "assets/logo/logo.svg",
 					"contextualTitle": "Quarto Wizard Extensions Installed",
-					"visibility": "visible"
+					"visibility": "visible",
+					"when": "workspaceFolderCount >= 1"
 				}
 			]
 		},
@@ -272,7 +274,7 @@
 		"@vscode/vsce": "^3.2.2",
 		"ts-loader": "^9.5.2",
 		"typescript": "^5.7.3",
-		"webpack": "^5.97.1",
+		"webpack": "^5.98.0",
 		"webpack-cli": "^6.0.1"
 	},
 	"dependencies": {
