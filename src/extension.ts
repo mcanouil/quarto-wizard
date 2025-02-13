@@ -4,6 +4,7 @@ import { showLogsCommand } from "./utils/log";
 import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
+import { ExtensionInfo, getExtensionInfo } from "./utils/extensionInfo";
 
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
@@ -28,6 +29,13 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () => newQuartoReprexCommand(context))
 	);
+
+	let disposable = vscode.commands.registerCommand("quartoWizard.getExtensionInfo", async () => {
+		const info = await getExtensionInfo("mcanouil/quarto-wizard", context);
+		vscode.window.showInformationMessage(`Extension Info: ${JSON.stringify(info)}`);
+	});
+
+	context.subscriptions.push(disposable);
 
 	new ExtensionsInstalled(context);
 }
