@@ -52,6 +52,29 @@
 		"workspaceContains:**/_brand.{yml,yaml}",
 		"workspaceContains:**/_extension.{yml,yaml}"
 	],
+	"main": "./dist/extension",
+	"scripts": {
+		"vscode:prepublish": "webpack --mode production",
+		"webpack": "webpack --mode development --stats-error-details",
+		"webpack-dev": "webpack --mode development --stats-error-details --watch",
+		"test-compile": "tsc -p ./",
+		"lint": "eslint"
+	},
+	"devDependencies": {
+		"@types/js-yaml": "^4.0.9",
+		"@types/node": "^22.13.1",
+		"@types/vscode": "^1.96.0",
+		"@vscode/vsce": "^3.2.2",
+		"ts-loader": "^9.5.2",
+		"typescript": "^5.7.3",
+		"webpack": "^5.98.0",
+		"webpack-cli": "^6.0.1"
+	},
+	"dependencies": {
+		"@octokit/rest": "^21.1.0",
+		"js-yaml": "^4.1.0",
+		"typescript": "^5.7.3"
+	},
 	"contributes": {
 		"commands": [
 			{
@@ -263,28 +286,5 @@
 				}
 			}
 		}
-	},
-	"main": "./dist/extension",
-	"scripts": {
-		"vscode:prepublish": "webpack --mode production",
-		"webpack": "webpack --mode development --stats-error-details",
-		"webpack-dev": "webpack --mode development --stats-error-details --watch",
-		"test-compile": "tsc -p ./",
-		"lint": "eslint"
-	},
-	"devDependencies": {
-		"@types/js-yaml": "^4.0.9",
-		"@types/node": "^22.13.1",
-		"@types/vscode": "^1.96.0",
-		"@vscode/vsce": "^3.2.2",
-		"ts-loader": "^9.5.2",
-		"typescript": "^5.7.3",
-		"webpack": "^5.98.0",
-		"webpack-cli": "^6.0.1"
-	},
-	"dependencies": {
-		"@octokit/rest": "^21.1.0",
-		"js-yaml": "^4.1.0",
-		"typescript": "^5.7.3"
 	}
 }
