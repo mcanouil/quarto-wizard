@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- feat: add Quarto extensions info function.
+- feat: retrieve and display extensions details from GitHub.
 - fix: activate `quarto-wizard-explorer` view only in a workspace.
 - chore(CITATION.cff): add citation file.
 - chore: update TypeScript configuration settings.
