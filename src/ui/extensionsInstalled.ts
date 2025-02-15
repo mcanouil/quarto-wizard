@@ -22,7 +22,6 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		}
 	}
 }
-
 class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<ExtensionTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<ExtensionTreeItem | undefined | void> = new vscode.EventEmitter<
 		ExtensionTreeItem | undefined | void
@@ -87,7 +86,6 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		this.extensionsData = readExtensions(this.workspaceFolder, extensionsList);
 	}
 }
-
 export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
