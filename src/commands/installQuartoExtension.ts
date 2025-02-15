@@ -4,7 +4,7 @@ import { showLogsCommand } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { getQuartoPath, checkQuartoPath, installQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
 import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
-import { ExtensionInfo, getExtensionsInformation } from "../utils/extensionInfo";
+import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
 
 async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[]) {
@@ -108,7 +108,7 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 	await checkQuartoPath(getQuartoPath());
 
 	let recentlyInstalled: string[] = context.globalState.get(QUARTO_WIZARD_RECENTLY_INSTALLED, []);
-	const extensionsList = await getExtensionsInformation(context);
+	const extensionsList = await getExtensionsDetails(context);
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {
