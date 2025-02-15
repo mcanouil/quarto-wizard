@@ -1,13 +1,14 @@
 {
 	"compilerOptions": {
-		"module": "Node16",
 		"outDir": "out",
-		"target": "es2022",
-		"lib": ["dom", "es2022"],
-		"sourceMap": true,
 		"rootDir": "src",
+		"module": "NodeNext",
+		"target": "ES2024",
+		"lib": ["dom", "ES2024"],
+		"sourceMap": true,
 		"strict": true,
-		"forceConsistentCasingInFileNames": true
+		"forceConsistentCasingInFileNames": true,
+		"noImplicitAny": true
 	},
 	"exclude": ["node_modules", ".vscode-test"]
 }
