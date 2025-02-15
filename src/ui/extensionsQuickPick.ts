@@ -1,27 +1,27 @@
 import * as vscode from "vscode";
-import { getGitHubLink, formatExtensionLabel } from "../utils/extensions";
+import { ExtensionInfo } from "../utils/extensionInfo";
 
 export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
 }
 
-export function createExtensionItems(extensions: string[]): ExtensionQuickPickItem[] {
+export function createExtensionItems(extensions: ExtensionInfo[]): ExtensionQuickPickItem[] {
 	return extensions.map((ext) => ({
-		label: formatExtensionLabel(ext),
-		description: ext,
+		label: ext.name,
+		description: ext.description,
 		buttons: [
 			{
 				iconPath: new vscode.ThemeIcon("github"),
 				tooltip: "Open GitHub Repository",
 			},
 		],
-		url: getGitHubLink(ext),
+		url: ext.html_url,
 	}));
 }
 
 export async function showExtensionQuickPick(
-	extensionsList: string[],
-	recentlyInstalled: string[]
+	extensionsList: ExtensionInfo[],
+	recentlyInstalled: ExtensionInfo[]
 ): Promise<readonly ExtensionQuickPickItem[]> {
 	const groupedExtensions: ExtensionQuickPickItem[] = [
 		{

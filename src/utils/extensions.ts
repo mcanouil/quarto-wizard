@@ -1,60 +1,6 @@
-import * as vscode from "vscode";
-import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
-import { QUARTO_WIZARD_LOG, QUARTO_WIZARD_EXTENSIONS } from "../constants";
-import { showLogsCommand } from "./log";
-
-function generateHashKey(url: string): string {
-	return crypto.createHash("md5").update(url).digest("hex");
-}
-
-export function getGitHubLink(extension: string): string {
-	const [owner, repo] = extension.split("/").slice(0, 2);
-	return `https://github.com/${owner}/${repo}`;
-}
-
-export function formatExtensionLabel(ext: string): string {
-	const parts = ext.split("/");
-	const repo = parts[1];
-	let formattedRepo = repo.replace(/[-_]/g, " ");
-	formattedRepo = formattedRepo.replace(/quarto/gi, "").trim();
-	formattedRepo = formattedRepo
-		.split(" ")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-		.join(" ");
-	return formattedRepo;
-}
-
-export async function fetchExtensions(url: string, context: vscode.ExtensionContext): Promise<string[]> {
-	const cacheKey = `${"quarto_wizard_extensions_csv_"}${generateHashKey(url)}`;
-	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
-
-	if (cachedData && Date.now() - cachedData.timestamp < 60 * 60 * 1000) {
-		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`);
-		return cachedData.data;
-	} else {
-		QUARTO_WIZARD_LOG.appendLine(`Fetching extensions: ${url}`);
-	}
-
-	let message = `Error fetching list of extensions from ${QUARTO_WIZARD_EXTENSIONS}.`;
-	try {
-		const response: Response = await fetch(url);
-		if (!response.ok) {
-			message = `${message}. ${response.statusText}`;
-			throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
-		}
-		const data = await response.text();
-		const extensionsList = data.split("\n").filter((line: string) => line.trim() !== "");
-		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
-		return extensionsList;
-	} catch (error) {
-		QUARTO_WIZARD_LOG.appendLine(`${message} ${error}`);
-		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
-		return [];
-	}
-}
 
 function findQuartoExtensionsRecurse(dir: string): string[] {
 	let results: string[] = [];

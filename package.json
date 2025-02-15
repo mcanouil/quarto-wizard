@@ -78,8 +78,8 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "quartoWizard.getExtensionInfo",
-				"title": "Get Extension Info",
+				"command": "quartoWizard.getExtensionsInformation",
+				"title": "Get Extensions Information",
 				"category": "Quarto Wizard"
 			},
 			{
