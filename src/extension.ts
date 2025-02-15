@@ -4,7 +4,6 @@ import { showLogsCommand } from "./utils/log";
 import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
-import { ExtensionInfo, getExtensionsInformation } from "./utils/extensionInfo";
 
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
@@ -21,9 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.installExtension", () =>
-			installQuartoExtensionCommand(context, QUARTO_WIZARD_RECENTLY_INSTALLED)
-		)
+		vscode.commands.registerCommand("quartoWizard.installExtension", () => installQuartoExtensionCommand(context))
 	);
 
 	context.subscriptions.push(

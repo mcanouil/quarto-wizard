@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_LOG } from "../constants";
+import { QUARTO_WIZARD_LOG, QUARTO_WIZARD_RECENTLY_INSTALLED } from "../constants";
 import { showLogsCommand } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { getQuartoPath, checkQuartoPath, installQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
@@ -36,7 +36,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 			let installedCount = 0;
 
 			for (const selectedExtension of mutableSelectedExtensions) {
-				if (selectedExtension.description === undefined) {
+				if (selectedExtension.id === undefined) {
 					continue;
 				}
 				progress.report({
@@ -44,13 +44,13 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 					increment: (1 / (totalExtensions + 1)) * 100,
 				});
 
-				const success = await installQuartoExtensionSource(selectedExtension.description, workspaceFolder);
+				const success = await installQuartoExtensionSource(selectedExtension.id, workspaceFolder);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
 				// const success = await installQuartoExtension(extension);
 				if (success) {
-					installedExtensions.push(selectedExtension.description);
+					installedExtensions.push(selectedExtension.id);
 				} else {
-					failedExtensions.push(selectedExtension.description);
+					failedExtensions.push(selectedExtension.id);
 				}
 
 				installedCount++;
@@ -93,10 +93,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 	);
 }
 
-export async function installQuartoExtensionCommand(
-	context: vscode.ExtensionContext,
-	recentlyInstalledExtensions: string
-) {
+export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
 	if (!vscode.workspace.workspaceFolders) {
 		const message = `Please open a workspace/folder to install Quarto extensions.`;
 		QUARTO_WIZARD_LOG.appendLine(message);
@@ -110,17 +107,15 @@ export async function installQuartoExtensionCommand(
 	}
 	await checkQuartoPath(getQuartoPath());
 
-	let recentlyInstalled: ExtensionInfo[] = context.globalState.get(recentlyInstalledExtensions, []);
+	let recentlyInstalled: string[] = context.globalState.get(QUARTO_WIZARD_RECENTLY_INSTALLED, []);
 	const extensionsList = await getExtensionsInformation(context);
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {
 		await installQuartoExtensions(selectedExtensions);
-		const selectedDescriptions = selectedExtensions.map((ext) => ext.description);
-		let updatedRecentlyInstalled = [
-			...selectedDescriptions,
-			...recentlyInstalled.filter((ext) => !selectedDescriptions.includes(ext.id)),
-		];
-		await context.globalState.update(recentlyInstalledExtensions, updatedRecentlyInstalled.slice(0, 5));
+		const selectedIDs = selectedExtensions.map((ext) => ext.id);
+		let updatedRecentlyInstalled = [...selectedIDs, ...recentlyInstalled.filter((ext) => !selectedIDs.includes(ext))];
+		console.log(selectedIDs);
+		await context.globalState.update(QUARTO_WIZARD_RECENTLY_INSTALLED, updatedRecentlyInstalled.slice(0, 5));
 	}
 }

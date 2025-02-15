@@ -3,6 +3,7 @@ import { ExtensionInfo } from "../utils/extensionInfo";
 
 export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
+	id?: string;
 }
 
 export function createExtensionItems(extensions: ExtensionInfo[]): ExtensionQuickPickItem[] {
@@ -16,24 +17,25 @@ export function createExtensionItems(extensions: ExtensionInfo[]): ExtensionQuic
 			},
 		],
 		url: ext.html_url,
+		id: ext.id,
 	}));
 }
 
 export async function showExtensionQuickPick(
 	extensionsList: ExtensionInfo[],
-	recentlyInstalled: ExtensionInfo[]
+	recentlyInstalled: string[]
 ): Promise<readonly ExtensionQuickPickItem[]> {
 	const groupedExtensions: ExtensionQuickPickItem[] = [
 		{
 			label: "Recently Installed",
 			kind: vscode.QuickPickItemKind.Separator,
 		},
-		...createExtensionItems(recentlyInstalled),
+		...createExtensionItems(extensionsList.filter((ext) => recentlyInstalled.includes(ext.id))),
 		{
 			label: "All Extensions",
 			kind: vscode.QuickPickItemKind.Separator,
 		},
-		...createExtensionItems(extensionsList.filter((ext) => !recentlyInstalled.includes(ext))).sort((a, b) =>
+		...createExtensionItems(extensionsList.filter((ext) => !recentlyInstalled.includes(ext.id))).sort((a, b) =>
 			a.label.localeCompare(b.label)
 		),
 	];
