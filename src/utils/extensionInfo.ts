@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { QUARTO_WIZARD_EXTENSIONS } from "../constants";
 import { fetchExtensions } from "./extensions";
+import { Credentials } from "./githubAuth";
 
 export interface ExtensionInfo {
 	full_name: string; // "owner/repo"
@@ -15,9 +16,9 @@ export interface ExtensionInfo {
 }
 
 export async function getExtensionInfo(repo: string, context: vscode.ExtensionContext): Promise<ExtensionInfo[]> {
-	const Octokit = (await import("@octokit/rest")).Octokit;
-	const session = await vscode.authentication.getSession("github", [], { createIfNone: true });
-	const octokit = new Octokit({ auth: session.accessToken });
+	const credentials = new Credentials();
+	await credentials.initialise(context);
+	const octokit = await credentials.getOctokit();
 
 	const extensionsList = await fetchExtensions(QUARTO_WIZARD_EXTENSIONS, context);
 
