@@ -250,15 +250,6 @@
 					"contextualTitle": "Quarto Wizard Extensions Installed",
 					"visibility": "visible",
 					"when": "workspaceFolderCount >= 1"
-				},
-				{
-					"id": "quartoWizard.extensionsExplorer",
-					"type": "webview",
-					"name": "Extensions Available",
-					"icon": "assets/logo/quarto-extensions.svg",
-					"contextualTitle": "Quarto Extensions Explorer",
-					"visibility": "collapsed",
-					"when": "workspaceFolderCount >= 1"
 				}
 			]
 		},
