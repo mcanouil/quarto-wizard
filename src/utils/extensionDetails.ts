@@ -80,7 +80,7 @@ async function getExtensionDetails(
 		timestamp: number;
 	}>(cacheKey);
 
-	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < 60 * 60 * 1000) {
+	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < 24 * 60 * 60 * 1000) {
 		QUARTO_WIZARD_LOG.appendLine(
 			`Using cached information: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`
 		);
@@ -131,13 +131,8 @@ export async function getExtensionsDetails(context: vscode.ExtensionContext): Pr
 	const extensionsList = await fetchExtensions(context);
 	// const extensionsList = ["mcanouil/quarto-iconify", "gadenbuie/countdown/quarto"];
 
-	const extensions: ExtensionDetails[] = [];
-	for (const ext of extensionsList) {
-		const ExtensionDetails = await getExtensionDetails(context, ext, octokit);
-		if (ExtensionDetails) {
-			extensions.push(ExtensionDetails);
-		}
-	}
+	const extensionsPromises = extensionsList.map((ext) => getExtensionDetails(context, ext, octokit));
+	const extensions = await Promise.all(extensionsPromises);
 
-	return extensions;
+	return extensions.filter((extension): extension is ExtensionDetails => extension !== undefined);
 }
