@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
-import { ExtensionInfo } from "../utils/extensionInfo";
+import { ExtensionDetails } from "../utils/extensionDetails";
 
 export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
 	id?: string;
 }
 
-export function createExtensionItems(extensions: ExtensionInfo[]): ExtensionQuickPickItem[] {
+export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQuickPickItem[] {
 	return extensions.map((ext) => ({
 		label: ext.name,
 		description: ext.description,
@@ -22,7 +22,7 @@ export function createExtensionItems(extensions: ExtensionInfo[]): ExtensionQuic
 }
 
 export async function showExtensionQuickPick(
-	extensionsList: ExtensionInfo[],
+	extensionsList: ExtensionDetails[],
 	recentlyInstalled: string[]
 ): Promise<readonly ExtensionQuickPickItem[]> {
 	const groupedExtensions: ExtensionQuickPickItem[] = [

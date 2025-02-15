@@ -4,7 +4,7 @@ import { showLogsCommand } from "./log";
 import { Credentials } from "./githubAuth";
 import { generateHashKey } from "./hash";
 
-export interface ExtensionInfo {
+export interface ExtensionDetails {
 	id: string;
 	name: string;
 	full_name: string; // "owner/repo"
@@ -69,26 +69,27 @@ function formatExtensionLabel(ext: string): string {
 	return extensionName;
 }
 
-async function getExtensionInformation(
+async function getExtensionDetails(
 	context: vscode.ExtensionContext,
 	ext: string,
 	octokit: any
-): Promise<ExtensionInfo | undefined> {
+): Promise<ExtensionDetails | undefined> {
 	const cacheKey = `${"quarto_wizard_extensions_infos_"}${generateHashKey(ext)}`;
-	const cachedExtensionInformation = context.globalState.get<{ extensionInfo: ExtensionInfo; timestamp: number }>(
-		cacheKey
-	);
+	const cachedExtensionDetails = context.globalState.get<{
+		ExtensionDetails: ExtensionDetails;
+		timestamp: number;
+	}>(cacheKey);
 
-	if (cachedExtensionInformation && Date.now() - cachedExtensionInformation.timestamp < 60 * 60 * 1000) {
+	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < 60 * 60 * 1000) {
 		QUARTO_WIZARD_LOG.appendLine(
-			`Using cached information: ${ext} ${new Date(cachedExtensionInformation.timestamp).toISOString()}`
+			`Using cached information: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`
 		);
-		return cachedExtensionInformation.extensionInfo;
+		return cachedExtensionDetails.ExtensionDetails;
 	}
 
 	QUARTO_WIZARD_LOG.appendLine(`Fetching information: ${ext}`);
 	let message = `Error fetching information for ${ext}.`;
-	let extensionInfo: ExtensionInfo;
+	let ExtensionDetails: ExtensionDetails;
 	try {
 		const [owner, name] = ext.split("/");
 		const repo = `${owner}/${name}`;
@@ -99,7 +100,7 @@ async function getExtensionInformation(
 		if (nonPreReleaseTags.length > 0) {
 			version = nonPreReleaseTags[0].tag_name.replace(/^v/, "");
 		}
-		extensionInfo = {
+		ExtensionDetails = {
 			id: ext,
 			name: formatExtensionLabel(ext),
 			full_name: repo,
@@ -113,8 +114,8 @@ async function getExtensionInformation(
 			version: version,
 		};
 
-		await context.globalState.update(cacheKey, { extensionInfo: extensionInfo, timestamp: Date.now() });
-		return extensionInfo;
+		await context.globalState.update(cacheKey, { ExtensionDetails: ExtensionDetails, timestamp: Date.now() });
+		return ExtensionDetails;
 	} catch (error) {
 		QUARTO_WIZARD_LOG.appendLine(`${message} ${error}`);
 		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
@@ -122,7 +123,7 @@ async function getExtensionInformation(
 	}
 }
 
-export async function getExtensionsInformation(context: vscode.ExtensionContext): Promise<ExtensionInfo[]> {
+export async function getExtensionsDetails(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
 	const credentials = new Credentials();
 	await credentials.initialise(context);
 	const octokit = await credentials.getOctokit();
@@ -130,11 +131,11 @@ export async function getExtensionsInformation(context: vscode.ExtensionContext)
 	const extensionsList = await fetchExtensions(context);
 	// const extensionsList = ["mcanouil/quarto-iconify", "gadenbuie/countdown/quarto"];
 
-	const extensions: ExtensionInfo[] = [];
+	const extensions: ExtensionDetails[] = [];
 	for (const ext of extensionsList) {
-		const extensionInfo = await getExtensionInformation(context, ext, octokit);
-		if (extensionInfo) {
-			extensions.push(extensionInfo);
+		const ExtensionDetails = await getExtensionDetails(context, ext, octokit);
+		if (ExtensionDetails) {
+			extensions.push(ExtensionDetails);
 		}
 	}
 
