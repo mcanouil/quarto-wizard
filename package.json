@@ -244,6 +244,7 @@
 			"quarto-wizard-explorer": [
 				{
 					"id": "quartoWizard.extensionsInstalled",
+					"type": "tree",
 					"name": "Extensions Installed",
 					"icon": "assets/logo/logo.svg",
 					"contextualTitle": "Quarto Wizard Extensions Installed",
@@ -252,6 +253,7 @@
 				},
 				{
 					"id": "quartoWizard.extensionsExplorer",
+					"type": "webview",
 					"name": "Extensions Available",
 					"icon": "assets/logo/quarto-extensions.svg",
 					"contextualTitle": "Quarto Extensions Explorer",
