@@ -73,7 +73,9 @@
 	},
 	"dependencies": {
 		"@octokit/rest": "^21.1.0",
+		"@types/lodash": "^4.17.15",
 		"js-yaml": "^4.1.0",
+		"lodash": "^4.17.21",
 		"semver": "^7.7.1",
 		"typescript": "^5.7.3"
 	},
