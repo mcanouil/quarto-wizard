@@ -9,24 +9,30 @@ import { getExtensionsDetails } from "../utils/extensionDetails";
 import { debounce } from "lodash"; // Import debounce from lodash
 
 class ExtensionTreeItem extends vscode.TreeItem {
+	public latestVersion?: string;
+
 	constructor(
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
 		public readonly data?: ExtensionData,
 		icon?: string,
-		newVersion?: string
+		latestVersion?: string
 	) {
+		const needsUpdate = latestVersion !== undefined;
+		let contextValue = "quartoExtensionItemValues";
+		if (needsUpdate) {
+			contextValue = "quartoExtensionItemOutdated";
+		} else if (data) {
+			contextValue = "quartoExtensionItem";
+		}
 		super(label, collapsibleState);
 		this.tooltip = `${this.label}`;
-		this.description = this.data ? `${this.data.version}${newVersion ? ` (latest: ${newVersion})` : ""}` : "";
-		this.contextValue = newVersion
-			? "quartoExtensionItemOutdated"
-			: data
-			? "quartoExtensionItem"
-			: "quartoExtensionItemValues";
+		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
+		this.contextValue = contextValue;
 		if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
+		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
 	}
 }
 
@@ -44,7 +50,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 	}
 
 	private extensionsData: Record<string, ExtensionData> = {};
-	private newVersions: Record<string, string> = {};
+	private latestVersions: Record<string, string> = {};
 
 	getTreeItem(element: ExtensionTreeItem): vscode.TreeItem {
 		return element;
@@ -70,7 +76,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 					vscode.TreeItemCollapsibleState.Collapsed,
 					this.extensionsData[ext],
 					"package",
-					this.newVersions?.[ext]
+					this.latestVersions?.[ext]
 				)
 		);
 	}
@@ -120,7 +126,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 	): Promise<number> {
 		const extensionsDetails = await getExtensionsDetails(context);
 		const updatesAvailable: string[] = [];
-		const newVersions: Record<string, string> = {};
+		const latestVersions: Record<string, string> = {};
 
 		for (const ext of Object.keys(this.extensionsData)) {
 			const extensionData = this.extensionsData[ext];
@@ -128,12 +134,13 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 			if (!extensionData.version || extensionData.version === "none") {
 				continue;
 			}
-			if (!matchingDetail?.version || matchingDetail.version === "none") {
+			if (matchingDetail?.version === "none") {
+				latestVersions[ext] = "unknown";
 				continue;
 			}
 			if (matchingDetail && semver.lt(extensionData.version, matchingDetail.version)) {
 				updatesAvailable.push(ext);
-				newVersions[ext] = matchingDetail.version;
+				latestVersions[ext] = matchingDetail.version;
 			}
 		}
 
@@ -150,7 +157,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 			};
 		}
 
-		this.newVersions = newVersions;
+		this.latestVersions = latestVersions;
 		return updatesAvailable.length;
 	}
 }
@@ -203,7 +210,10 @@ export class ExtensionsInstalled {
 		);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
-				const success = await installQuartoExtensionSource(item.data?.source ?? item.label, workspaceFolder);
+				const success = await installQuartoExtensionSource(
+					`${item.data?.source ?? item.label}${item.latestVersion}`,
+					workspaceFolder
+				);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
 				// const success = await installQuartoExtension(item.data?.source ?? item.label);
 				if (success) {
