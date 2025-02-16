@@ -25,6 +25,7 @@ export interface ExtensionDetails {
 	html_url: string;
 	homepage: string;
 	version: string;
+	tag: string;
 }
 
 async function fetchExtensions(context: vscode.ExtensionContext): Promise<string[]> {
@@ -101,11 +102,11 @@ async function getExtensionDetails(
 		const [owner, name] = ext.split("/");
 		const repo = `${owner}/${name}`;
 		const response = await octokit.request(`GET /repos/${repo}`);
-		let version = "none";
+		let tagName = "none";
 		const releases = await octokit.request(`GET /repos/${repo}/releases`);
 		const nonPreReleaseTags = releases.data.filter((tag: { prerelease: boolean }) => !tag.prerelease);
 		if (nonPreReleaseTags.length > 0) {
-			version = nonPreReleaseTags[0].tag_name.replace(/^v/, "");
+			tagName = nonPreReleaseTags[0].tag_name;
 		}
 		ExtensionDetails = {
 			id: ext,
@@ -119,7 +120,8 @@ async function getExtensionDetails(
 			size: response.data.size,
 			html_url: response.data.html_url,
 			homepage: response.data.homepage,
-			version: version,
+			version: tagName.replace(/^v/, ""),
+			tag: tagName,
 		};
 
 		await context.globalState.update(cacheKey, { ExtensionDetails: ExtensionDetails, timestamp: Date.now() });
