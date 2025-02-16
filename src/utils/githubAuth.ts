@@ -15,7 +15,6 @@ export class Credentials {
 			createIfNone: false,
 		});
 
-		this.octokit = new Octokit.Octokit();
 		if (session) {
 			this.octokit = new Octokit.Octokit({
 				auth: session.accessToken,
@@ -40,15 +39,12 @@ export class Credentials {
 			return this.octokit;
 		}
 		const session = await vscode.authentication.getSession(QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES, {
-			createIfNone: false,
+			createIfNone: true,
 		});
 
-		this.octokit = new Octokit.Octokit();
-		if (session) {
-			this.octokit = new Octokit.Octokit({
-				auth: session.accessToken,
-			});
-		}
+		this.octokit = new Octokit.Octokit({
+			auth: session.accessToken,
+		});
 
 		return this.octokit;
 	}
