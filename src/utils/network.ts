@@ -8,13 +8,13 @@ export async function checkInternetConnection(url: string = "https://github.com/
 			return true;
 		} else {
 			const message = `No internet connection. Please check your network settings.`;
-			logMessage(message);
+			logMessage(message, "error");
 			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			return false;
 		}
 	} catch (error) {
 		const message = `No internet connection. Please check your network settings.`;
-		logMessage(message);
+		logMessage(message, "error");
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return false;
 	}

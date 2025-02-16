@@ -9,6 +9,7 @@
 - fix: activate `quarto-wizard-explorer` view only in a workspace.
 - refactor: use constants variables for cache name and expiration time.
 - refactor: use `logMessage` function to log messages.
+- refactor: add a log level parameter to `logMessage` function.
 - docs: add GitHub account authentication as a requirement.
 - chore(CITATION.cff): add citation file.
 - chore: update TypeScript configuration settings.

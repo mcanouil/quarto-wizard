@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
 			context.globalState.update(QW_RECENTLY_INSTALLED, []);
 			const message = "Recently installed Quarto extensions have been cleared.";
-			logMessage(message);
+			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 		})
 	);
