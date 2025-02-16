@@ -135,7 +135,6 @@ export async function getExtensionsDetails(context: vscode.ExtensionContext): Pr
 	const octokit = await credentials.getOctokit();
 
 	const extensionsList = await fetchExtensions(context);
-	// const extensionsList = ["mcanouil/quarto-iconify", "gadenbuie/countdown/quarto"];
 
 	const extensionsPromises = extensionsList.map((ext) => getExtensionDetails(context, ext, octokit));
 	const extensions = await Promise.all(extensionsPromises);
