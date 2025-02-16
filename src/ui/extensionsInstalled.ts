@@ -90,6 +90,11 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		this._onDidChangeTreeData.fire();
 	}, 300); // Debounce refresh calls with a 300ms delay
 
+	forceRefresh(): void {
+		this.refresh();
+		this.refresh.flush();
+	}
+
 	private async refreshExtensionsData(): Promise<void> {
 		let extensionsList: string[] = [];
 		const extensionsPath = path.join(this.workspaceFolder, "_extensions");
@@ -179,8 +184,9 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(view);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
+				this.treeDataProvider.forceRefresh();
 				this.treeDataProvider.checkUpdate(context, view);
-				this.treeDataProvider.refresh();
+				this.treeDataProvider.forceRefresh();
 			})
 		);
 		context.subscriptions.push(
@@ -209,8 +215,6 @@ export class ExtensionsInstalled {
 						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${showLogsCommand()}.`);
 					}
 				}
-				this.treeDataProvider.checkUpdate(context, view);
-				this.treeDataProvider.refresh();
 			})
 		);
 		context.subscriptions.push(
@@ -221,8 +225,6 @@ export class ExtensionsInstalled {
 				} else {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
 				}
-				this.treeDataProvider.checkUpdate(context, view);
-				this.treeDataProvider.refresh();
 			})
 		);
 	}
