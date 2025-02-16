@@ -18,8 +18,12 @@ class ExtensionTreeItem extends vscode.TreeItem {
 	) {
 		super(label, collapsibleState);
 		this.tooltip = `${this.label}`;
-		this.description = this.data ? `${this.data.version}${newVersion ? ` > ${newVersion}` : ""}` : "";
-		this.contextValue = data ? "quartoExtensionItem" : "quartoExtensionItemDetails";
+		this.description = this.data ? `${this.data.version}${newVersion ? ` (latest: ${newVersion})` : ""}` : "";
+		this.contextValue = newVersion
+			? "quartoExtensionItemOutdated"
+			: data
+			? "quartoExtensionItem"
+			: "quartoExtensionItemValues";
 		if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
@@ -77,10 +81,10 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 			return [];
 		}
 		return [
+			new ExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None),
 			new ExtensionTreeItem(`Title: ${data.title}`, vscode.TreeItemCollapsibleState.None),
 			new ExtensionTreeItem(`Author: ${data.author}`, vscode.TreeItemCollapsibleState.None),
 			new ExtensionTreeItem(`Version: ${data.version}`, vscode.TreeItemCollapsibleState.None),
-			new ExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None),
 			new ExtensionTreeItem(`Contributes: ${data.contributes}`, vscode.TreeItemCollapsibleState.None),
 		];
 	}
@@ -136,7 +140,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		if (updatesAvailable.length > 0 && !silent) {
 			const message = `Updates available for the following extensions: ${updatesAvailable.join(", ")}.`;
 			logMessage(message);
-			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+			// vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 		}
 
 		if (view) {
