@@ -1,14 +1,13 @@
 import * as vscode from "vscode";
 import { Octokit } from "@octokit/rest";
 import {
-	QW_LOG,
 	QW_EXTENSIONS,
 	QW_EXTENSIONS_CACHE,
 	QW_EXTENSIONS_CACHE_TIME,
 	QW_EXTENSION_DETAILS_CACHE,
 	QW_EXTENSION_DETAILS_CACHE_TIME,
 } from "../constants";
-import { showLogsCommand } from "./log";
+import { showLogsCommand, logMessage } from "./log";
 import { Credentials } from "./githubAuth";
 import { generateHashKey } from "./hash";
 
@@ -34,11 +33,11 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 
 	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
-		QW_LOG.appendLine(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`);
+		logMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`);
 		return cachedData.data;
 	}
 
-	QW_LOG.appendLine(`Fetching extensions: ${url}`);
+	logMessage(`Fetching extensions: ${url}`);
 	let message = `Error fetching list of extensions from ${url}.`;
 	try {
 		const response: Response = await fetch(url);
@@ -51,7 +50,7 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
 		return extensionsList;
 	} catch (error) {
-		QW_LOG.appendLine(`${message} ${error}`);
+		logMessage(`${message} ${error}`);
 		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return [];
 	}
@@ -91,12 +90,12 @@ async function getExtensionDetails(
 	}>(cacheKey);
 
 	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < QW_EXTENSION_DETAILS_CACHE_TIME) {
-		QW_LOG.appendLine(`Using cached information: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`);
+		logMessage(`Using cached details: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`);
 		return cachedExtensionDetails.ExtensionDetails;
 	}
 
-	QW_LOG.appendLine(`Fetching information: ${ext}`);
-	let message = `Error fetching information for ${ext}.`;
+	logMessage(`Fetching details: ${ext}`);
+	let message = `Error fetching details for ${ext}.`;
 	let ExtensionDetails: ExtensionDetails;
 	try {
 		const [owner, name] = ext.split("/");
@@ -127,7 +126,7 @@ async function getExtensionDetails(
 		await context.globalState.update(cacheKey, { ExtensionDetails: ExtensionDetails, timestamp: Date.now() });
 		return ExtensionDetails;
 	} catch (error) {
-		QW_LOG.appendLine(`${message} ${error}`);
+		logMessage(`${message} ${error}`);
 		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return undefined;
 	}

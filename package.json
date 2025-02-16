@@ -79,7 +79,7 @@
 		"commands": [
 			{
 				"command": "quartoWizard.getExtensionsDetails",
-				"title": "Get Extensions Information",
+				"title": "Get Extensions Details",
 				"category": "Quarto Wizard"
 			},
 			{

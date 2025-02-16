@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-export const QW_LOG = vscode.window.createOutputChannel("Quarto Wizard");
+export const QW_LOG = vscode.window.createOutputChannel("Quarto Wizard", { log: true });
 
 export const QW_RECENTLY_INSTALLED = "recentlyInstalledExtensions";
 
