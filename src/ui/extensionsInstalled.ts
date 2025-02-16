@@ -114,7 +114,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 			this.extensionsData = readExtensions(this.workspaceFolder, extensionsList);
 		} catch (error) {
 			const message = "Error refreshing installed extensions data:";
-			logMessage(`${message} ${error}`);
+			logMessage(`${message} ${error}`, "error");
 			vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		}
 	}
@@ -146,7 +146,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 
 		if (updatesAvailable.length > 0 && !silent) {
 			const message = `Updates available for the following extensions: ${updatesAvailable.join(", ")}.`;
-			logMessage(message);
+			logMessage(message, "info");
 			// vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 		}
 

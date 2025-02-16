@@ -58,7 +58,7 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 }
 
 export async function installQuartoExtension(extension: string): Promise<boolean> {
-	logMessage(`Installing ${extension} ...`);
+	logMessage(`Installing ${extension} ...`, "info");
 	return new Promise((resolve) => {
 		if (vscode.workspace.workspaceFolders === undefined) {
 			return;
@@ -70,7 +70,7 @@ export async function installQuartoExtension(extension: string): Promise<boolean
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
-				logMessage(`${stderr}`);
+				logMessage(`${stderr}, "error"`);
 				const isInstalled = stderr.includes("Extension installation complete");
 				if (isInstalled) {
 					resolve(true);
@@ -112,7 +112,7 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
 }
 
 export async function removeQuartoExtension(extension: string): Promise<boolean> {
-	logMessage(`Removing ${extension} ...`);
+	logMessage(`Removing ${extension} ...`, "info");
 
 	return new Promise((resolve) => {
 		if (vscode.workspace.workspaceFolders === undefined) {
@@ -125,7 +125,7 @@ export async function removeQuartoExtension(extension: string): Promise<boolean>
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
-				logMessage(`${stderr}`);
+				logMessage(`${stderr}`, "error");
 				const isRemoved = stderr.includes("Extension removed");
 				if (isRemoved) {
 					resolve(true);

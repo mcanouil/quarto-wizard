@@ -33,11 +33,11 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 
 	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
-		logMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`);
+		logMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "debug");
 		return cachedData.data;
 	}
 
-	logMessage(`Fetching extensions: ${url}`);
+	logMessage(`Fetching extensions: ${url}`, "debug");
 	let message = `Error fetching list of extensions from ${url}.`;
 	try {
 		const response: Response = await fetch(url);
@@ -50,7 +50,7 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
 		return extensionsList;
 	} catch (error) {
-		logMessage(`${message} ${error}`);
+		logMessage(`${message} ${error}`, "error");
 		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return [];
 	}
@@ -90,11 +90,11 @@ async function getExtensionDetails(
 	}>(cacheKey);
 
 	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < QW_EXTENSION_DETAILS_CACHE_TIME) {
-		logMessage(`Using cached details: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`);
+		logMessage(`Using cached details: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`, "debug");
 		return cachedExtensionDetails.ExtensionDetails;
 	}
 
-	logMessage(`Fetching details: ${ext}`);
+	logMessage(`Fetching details: ${ext}`, "debug");
 	let message = `Error fetching details for ${ext}.`;
 	let ExtensionDetails: ExtensionDetails;
 	try {
@@ -126,7 +126,7 @@ async function getExtensionDetails(
 		await context.globalState.update(cacheKey, { ExtensionDetails: ExtensionDetails, timestamp: Date.now() });
 		return ExtensionDetails;
 	} catch (error) {
-		logMessage(`${message} ${error}`);
+		logMessage(`${message} ${error}`, "error");
 		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return undefined;
 	}

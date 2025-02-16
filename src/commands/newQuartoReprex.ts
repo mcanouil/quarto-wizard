@@ -12,7 +12,7 @@ export async function newQuartoReprexCommand(context: vscode.ExtensionContext) {
 		newQuartoReprex(selectedLanguage, context);
 	} else {
 		const message = `No computing language selected. Aborting.`;
-		logMessage(message);
+		logMessage(message, "error");
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 	}
 }

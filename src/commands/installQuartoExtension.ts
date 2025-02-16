@@ -26,7 +26,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 		async (progress, token) => {
 			token.onCancellationRequested(() => {
 				const message = "Operation cancelled by the user.";
-				logMessage(message);
+				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			});
 
@@ -61,16 +61,16 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 			});
 
 			if (installedExtensions.length > 0) {
-				logMessage(`Successfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`);
+				logMessage(`Successfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
 				installedExtensions.forEach((ext) => {
-					logMessage(` - ${ext}`);
+					logMessage(` - ${ext}`, "info");
 				});
 			}
 
 			if (failedExtensions.length > 0) {
-				logMessage(`Failed to install extension${failedExtensions.length > 1 ? "s" : ""}:`);
+				logMessage(`Failed to install extension${failedExtensions.length > 1 ? "s" : ""}:`, "error");
 				failedExtensions.forEach((ext) => {
-					logMessage(` - ${ext}`);
+					logMessage(` - ${ext}`, "error");
 				});
 				const message = [
 					"The following extension",
@@ -84,7 +84,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", " installed successfully."].join(
 					""
 				);
-				logMessage(message);
+				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}
 		}
@@ -94,7 +94,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
 	if (!vscode.workspace.workspaceFolders) {
 		const message = `Please open a workspace/folder to install Quarto extensions.`;
-		logMessage(message);
+		logMessage(message, "error");
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return;
 	}

@@ -18,7 +18,7 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 			break;
 		default:
 			const message = `Unsupported language: ${language}.`;
-			logMessage(message);
+			logMessage(message, "error");
 			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			return;
 	}
@@ -27,7 +27,7 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 	fs.readFile(filePath, "utf8", (err, data) => {
 		if (err) {
 			const message = `Failed to read the template file: ${err.message}.`;
-			logMessage(message);
+			logMessage(message, "error");
 			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			return;
 		}
