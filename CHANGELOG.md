@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-- feat: retrieve and display extensions details from GitHub.
+- feat: retrieve and display extensions details from GitHub API.
 - fix: activate `quarto-wizard-explorer` view only in a workspace.
+- refactor: use constants variables for cache name and expiration time.
 - chore(CITATION.cff): add citation file.
 - chore: update TypeScript configuration settings.
 - chore: add basic Dev Container setup.

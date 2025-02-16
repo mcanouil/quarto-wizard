@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_LOG } from "../constants";
+import { QW_LOG } from "../constants";
 import { showLogsCommand } from "./log";
 
 export async function checkInternetConnection(url: string = "https://github.com/"): Promise<boolean> {
@@ -9,13 +9,13 @@ export async function checkInternetConnection(url: string = "https://github.com/
 			return true;
 		} else {
 			const message = `No internet connection. Please check your network settings.`;
-			QUARTO_WIZARD_LOG.appendLine(message);
+			QW_LOG.appendLine(message);
 			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			return false;
 		}
 	} catch (error) {
 		const message = `No internet connection. Please check your network settings.`;
-		QUARTO_WIZARD_LOG.appendLine(message);
+		QW_LOG.appendLine(message);
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return false;
 	}

@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { exec } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
-import { QUARTO_WIZARD_LOG } from "../constants";
+import { QW_LOG } from "../constants";
 import { findModifiedExtensions, getMtimeExtensions } from "./extensions";
 
 let cachedQuartoPath: string | undefined;
@@ -58,7 +58,7 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 }
 
 export async function installQuartoExtension(extension: string): Promise<boolean> {
-	QUARTO_WIZARD_LOG.appendLine(`\n\nInstalling ${extension} ...`);
+	QW_LOG.appendLine(`\n\nInstalling ${extension} ...`);
 	return new Promise((resolve) => {
 		if (vscode.workspace.workspaceFolders === undefined) {
 			return;
@@ -70,7 +70,7 @@ export async function installQuartoExtension(extension: string): Promise<boolean
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
-				QUARTO_WIZARD_LOG.appendLine(`${stderr}`);
+				QW_LOG.appendLine(`${stderr}`);
 				const isInstalled = stderr.includes("Extension installation complete");
 				if (isInstalled) {
 					resolve(true);
@@ -112,7 +112,7 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
 }
 
 export async function removeQuartoExtension(extension: string): Promise<boolean> {
-	QUARTO_WIZARD_LOG.appendLine(`\n\nRemoving ${extension} ...`);
+	QW_LOG.appendLine(`\n\nRemoving ${extension} ...`);
 
 	return new Promise((resolve) => {
 		if (vscode.workspace.workspaceFolders === undefined) {
@@ -125,7 +125,7 @@ export async function removeQuartoExtension(extension: string): Promise<boolean>
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
-				QUARTO_WIZARD_LOG.appendLine(`${stderr}`);
+				QW_LOG.appendLine(`${stderr}`);
 				const isRemoved = stderr.includes("Extension removed");
 				if (isRemoved) {
 					resolve(true);

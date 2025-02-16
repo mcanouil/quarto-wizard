@@ -1,5 +1,13 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_LOG, QUARTO_WIZARD_EXTENSIONS } from "../constants";
+import { Octokit } from "@octokit/rest";
+import {
+	QW_LOG,
+	QW_EXTENSIONS,
+	QW_EXTENSIONS_CACHE,
+	QW_EXTENSIONS_CACHE_TIME,
+	QW_EXTENSION_DETAILS_CACHE,
+	QW_EXTENSION_DETAILS_CACHE_TIME,
+} from "../constants";
 import { showLogsCommand } from "./log";
 import { Credentials } from "./githubAuth";
 import { generateHashKey } from "./hash";
@@ -19,16 +27,16 @@ export interface ExtensionDetails {
 }
 
 async function fetchExtensions(context: vscode.ExtensionContext): Promise<string[]> {
-	const url = QUARTO_WIZARD_EXTENSIONS;
-	const cacheKey = `${"quarto_wizard_extensions_csv_"}${generateHashKey(url)}`;
+	const url = QW_EXTENSIONS;
+	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
 	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
 
-	if (cachedData && Date.now() - cachedData.timestamp < 60 * 60 * 1000) {
-		QUARTO_WIZARD_LOG.appendLine(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`);
+	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
+		QW_LOG.appendLine(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`);
 		return cachedData.data;
 	}
 
-	QUARTO_WIZARD_LOG.appendLine(`Fetching extensions: ${url}`);
+	QW_LOG.appendLine(`Fetching extensions: ${url}`);
 	let message = `Error fetching list of extensions from ${url}.`;
 	try {
 		const response: Response = await fetch(url);
@@ -41,7 +49,7 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
 		return extensionsList;
 	} catch (error) {
-		QUARTO_WIZARD_LOG.appendLine(`${message} ${error}`);
+		QW_LOG.appendLine(`${message} ${error}`);
 		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return [];
 	}
@@ -72,22 +80,20 @@ function formatExtensionLabel(ext: string): string {
 async function getExtensionDetails(
 	context: vscode.ExtensionContext,
 	ext: string,
-	octokit: any
+	octokit: Octokit
 ): Promise<ExtensionDetails | undefined> {
-	const cacheKey = `${"quarto_wizard_extensions_infos_"}${generateHashKey(ext)}`;
+	const cacheKey = `${QW_EXTENSION_DETAILS_CACHE}_${generateHashKey(ext)}`;
 	const cachedExtensionDetails = context.globalState.get<{
 		ExtensionDetails: ExtensionDetails;
 		timestamp: number;
 	}>(cacheKey);
 
-	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < 24 * 60 * 60 * 1000) {
-		QUARTO_WIZARD_LOG.appendLine(
-			`Using cached information: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`
-		);
+	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < QW_EXTENSION_DETAILS_CACHE_TIME) {
+		QW_LOG.appendLine(`Using cached information: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`);
 		return cachedExtensionDetails.ExtensionDetails;
 	}
 
-	QUARTO_WIZARD_LOG.appendLine(`Fetching information: ${ext}`);
+	QW_LOG.appendLine(`Fetching information: ${ext}`);
 	let message = `Error fetching information for ${ext}.`;
 	let ExtensionDetails: ExtensionDetails;
 	try {
@@ -117,7 +123,7 @@ async function getExtensionDetails(
 		await context.globalState.update(cacheKey, { ExtensionDetails: ExtensionDetails, timestamp: Date.now() });
 		return ExtensionDetails;
 	} catch (error) {
-		QUARTO_WIZARD_LOG.appendLine(`${message} ${error}`);
+		QW_LOG.appendLine(`${message} ${error}`);
 		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return undefined;
 	}
