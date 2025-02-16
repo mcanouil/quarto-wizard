@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import * as fs from "fs/promises"; // Use the promise-based fs module
+import * as fs from "fs"; // Use the promise-based fs module
 import * as semver from "semver";
 import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
@@ -60,7 +60,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		if (!element) {
 			if (Object.keys(this.extensionsData).length === 0) {
 				return Promise.resolve([
-					new ExtensionTreeItem("No extensions installed", vscode.TreeItemCollapsibleState.None, undefined),
+					new ExtensionTreeItem("No extensions installed.", vscode.TreeItemCollapsibleState.None, undefined, "info"),
 				]);
 			}
 			return Promise.resolve(this.getExtensionItems());
@@ -105,18 +105,12 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		this.refresh.flush();
 	}
 
-	private async refreshExtensionsData(): Promise<void> {
+	private refreshExtensionsData(): void {
 		let extensionsList: string[] = [];
-		const extensionsPath = path.join(this.workspaceFolder, "_extensions");
-		try {
-			await fs.access(extensionsPath);
-			extensionsList = findQuartoExtensions(extensionsPath);
-			this.extensionsData = readExtensions(this.workspaceFolder, extensionsList);
-		} catch (error) {
-			const message = "Error refreshing installed extensions data:";
-			logMessage(`${message} ${error}`, "error");
-			vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
+		if (fs.existsSync(path.join(this.workspaceFolder, "_extensions"))) {
+			extensionsList = findQuartoExtensions(path.join(this.workspaceFolder, "_extensions"));
 		}
+		this.extensionsData = readExtensions(this.workspaceFolder, extensionsList);
 	}
 
 	async checkUpdate(
