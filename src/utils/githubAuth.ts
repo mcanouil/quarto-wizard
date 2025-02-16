@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as Octokit from "@octokit/rest";
-import { GITHUB_AUTH_PROVIDER_ID, GITHUB_AUTH_PROVIDER_SCOPES } from "../constants";
+import { QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES } from "../constants";
 
 export class Credentials {
 	private octokit: Octokit.Octokit | undefined;
@@ -11,25 +11,24 @@ export class Credentials {
 	}
 
 	private async setOctokit() {
-		const session = await vscode.authentication.getSession(GITHUB_AUTH_PROVIDER_ID, GITHUB_AUTH_PROVIDER_SCOPES, {
+		const session = await vscode.authentication.getSession(QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES, {
 			createIfNone: false,
 		});
 
+		this.octokit = new Octokit.Octokit();
 		if (session) {
 			this.octokit = new Octokit.Octokit({
 				auth: session.accessToken,
 			});
-
-			return;
 		}
 
-		this.octokit = undefined;
+		return this.octokit;
 	}
 
 	registerListeners(context: vscode.ExtensionContext): void {
 		context.subscriptions.push(
 			vscode.authentication.onDidChangeSessions(async (e) => {
-				if (e.provider.id === GITHUB_AUTH_PROVIDER_ID) {
+				if (e.provider.id === QW_AUTH_PROVIDER_ID) {
 					await this.setOctokit();
 				}
 			})
@@ -40,12 +39,16 @@ export class Credentials {
 		if (this.octokit) {
 			return this.octokit;
 		}
-		const session = await vscode.authentication.getSession(GITHUB_AUTH_PROVIDER_ID, GITHUB_AUTH_PROVIDER_SCOPES, {
-			createIfNone: true,
+		const session = await vscode.authentication.getSession(QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES, {
+			createIfNone: false,
 		});
-		this.octokit = new Octokit.Octokit({
-			auth: session.accessToken,
-		});
+
+		this.octokit = new Octokit.Octokit();
+		if (session) {
+			this.octokit = new Octokit.Octokit({
+				auth: session.accessToken,
+			});
+		}
 
 		return this.octokit;
 	}
