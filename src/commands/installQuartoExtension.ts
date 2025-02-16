@@ -20,7 +20,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: `Installing selected extension(s) (${showLogsCommand()}).`,
+			title: `Installing selected extension(s) (${showLogsCommand()})`,
 			cancellable: true,
 		},
 		async (progress, token) => {
