@@ -5,6 +5,7 @@
 - feat: retrieve and display extensions details from GitHub API.
 - feat: add more details in QuickPick UI for extensions.
 - feat: set `log` to `true` for output channel, allowing colouring.
+- feat: add Quarto extensions update check.
 - fix: activate `quarto-wizard-explorer` view only in a workspace.
 - refactor: use constants variables for cache name and expiration time.
 - refactor: use `logMessage` function to log messages.
