@@ -13,5 +13,7 @@ webpack.config.js
 src
 dist/**/*.map
 **/*.vsix
+node_modules
 
 assets/logo/logo-social.png
+CITATION.cff
