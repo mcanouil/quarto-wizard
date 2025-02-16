@@ -22,6 +22,7 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		}
 	}
 }
+
 class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<ExtensionTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<ExtensionTreeItem | undefined | void> = new vscode.EventEmitter<
 		ExtensionTreeItem | undefined | void
@@ -45,7 +46,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		if (!element) {
 			if (Object.keys(this.extensionsData).length === 0) {
 				return Promise.resolve([
-					new ExtensionTreeItem("No extensions installed", vscode.TreeItemCollapsibleState.None, undefined, "info"),
+					new ExtensionTreeItem("No extensions installed", vscode.TreeItemCollapsibleState.None, undefined),
 				]);
 			}
 			return Promise.resolve(this.getExtensionItems());

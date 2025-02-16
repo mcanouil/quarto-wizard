@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { QW_LOG, QW_RECENTLY_INSTALLED } from "./constants";
-import { showLogsCommand } from "./utils/log";
+import { showLogsCommand, logMessage } from "./utils/log";
 import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
 			context.globalState.update(QW_RECENTLY_INSTALLED, []);
 			const message = "Recently installed Quarto extensions have been cleared.";
-			QW_LOG.appendLine(message);
+			logMessage(message);
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 		})
 	);
