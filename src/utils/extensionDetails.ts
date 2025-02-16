@@ -16,6 +16,7 @@ export interface ExtensionDetails {
 	id: string;
 	name: string;
 	full_name: string; // "owner/repo"
+	owner: string;
 	description: string;
 	topics: string[];
 	stars: number;
@@ -110,6 +111,7 @@ async function getExtensionDetails(
 			id: ext,
 			name: formatExtensionLabel(ext),
 			full_name: repo,
+			owner: owner,
 			description: response.data.description ? response.data.description : "none",
 			topics: response.data.topics.filter((topic: string) => !/quarto/i.test(topic)),
 			stars: response.data.stargazers_count,
