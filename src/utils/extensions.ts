@@ -36,12 +36,12 @@ export function findQuartoExtensions(directory: string): string[] {
  * @param {string} directory - The directory to search.
  * @returns {{ [key: string]: Date }} - An object mapping extension paths to their modification times.
  */
-export function getMtimeExtensions(directory: string): { [key: string]: Date } {
+export function getMtimeExtensions(directory: string): Record<string, Date> {
 	if (!fs.existsSync(directory)) {
 		return {};
 	}
 	const extensions = findQuartoExtensions(directory);
-	const extensionsMtimeDict: { [key: string]: Date } = {};
+	const extensionsMtimeDict: Record<string, Date> = {};
 	extensions.forEach((extension) => {
 		extensionsMtimeDict[extension] = fs.statSync(path.join(directory, extension)).mtime;
 	});
@@ -54,7 +54,7 @@ export function getMtimeExtensions(directory: string): { [key: string]: Date } {
  * @param {string} directory - The directory to search.
  * @returns {string[]} - An array of relative paths to the modified extensions.
  */
-export function findModifiedExtensions(extensions: { [key: string]: Date }, directory: string): string[] {
+export function findModifiedExtensions(extensions: Record<string, Date>, directory: string): string[] {
 	if (!fs.existsSync(directory)) {
 		return [];
 	}
@@ -91,7 +91,7 @@ function readYamlFile(filePath: string): ExtensionData | null {
 		return null;
 	}
 	const fileContent = fs.readFileSync(filePath, "utf8");
-	const data = yaml.load(fileContent) as any;
+	const data = yaml.load(fileContent) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 	return {
 		title: data.title,
 		author: data.author,

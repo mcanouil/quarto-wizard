@@ -22,11 +22,12 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 		case "Python":
 			templateFile = "python.qmd";
 			break;
-		default:
+		default: {
 			const message = `Unsupported language: ${language}.`;
 			logMessage(message, "error");
 			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			return;
+		}
 	}
 
 	const filePath = path.join(context.extensionPath, "assets", "templates", templateFile);

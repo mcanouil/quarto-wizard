@@ -70,13 +70,13 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
  * @returns {string} - The formatted extension label.
  */
 function formatExtensionLabel(extension: string): string {
-	const [owner, name, subDirectory] = extension.split("/");
+	const [, name, subDirectory] = extension.split("/");
 	let extensionName = name
 		.replace(/[-_]/g, " ")
 		.replace(/quarto/gi, "")
 		.trim();
 	if (subDirectory !== undefined) {
-		let extensionNameSubDirectory = subDirectory
+		const extensionNameSubDirectory = subDirectory
 			.replace(/[-_]/g, " ")
 			.replace(/quarto/gi, "")
 			.trim();
@@ -118,7 +118,7 @@ async function getExtensionDetails(
 	}
 
 	logMessage(`Fetching details: ${extension}`, "debug");
-	let message = `Error fetching details for ${extension}.`;
+	const message = `Error fetching details for ${extension}.`;
 	let ExtensionDetails: ExtensionDetails;
 	try {
 		const [owner, name] = extension.split("/");

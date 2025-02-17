@@ -93,7 +93,7 @@ export async function installQuartoExtension(extension: string): Promise<boolean
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			if (stderr) {
-				logMessage(`${stderr}, "error"`);
+				logMessage(`${stderr}`, "error");
 				const isInstalled = stderr.includes("Extension installation complete");
 				if (isInstalled) {
 					resolve(true);

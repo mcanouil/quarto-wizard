@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { QW_RECENTLY_INSTALLED } from "../constants";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
-import { getQuartoPath, checkQuartoPath, installQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
+import { getQuartoPath, checkQuartoPath, installQuartoExtensionSource } from "../utils/quarto";
 import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
@@ -116,15 +116,14 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 	}
 	await checkQuartoPath(getQuartoPath());
 
-	let recentlyInstalled: string[] = context.globalState.get(QW_RECENTLY_INSTALLED, []);
+	const recentlyInstalled: string[] = context.globalState.get(QW_RECENTLY_INSTALLED, []);
 	const extensionsList = await getExtensionsDetails(context);
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {
 		await installQuartoExtensions(selectedExtensions);
 		const selectedIDs = selectedExtensions.map((ext) => ext.id);
-		let updatedRecentlyInstalled = [...selectedIDs, ...recentlyInstalled.filter((ext) => !selectedIDs.includes(ext))];
-		console.log(selectedIDs);
+		const updatedRecentlyInstalled = [...selectedIDs, ...recentlyInstalled.filter((ext) => !selectedIDs.includes(ext))];
 		await context.globalState.update(QW_RECENTLY_INSTALLED, updatedRecentlyInstalled.slice(0, 5));
 	}
 }
