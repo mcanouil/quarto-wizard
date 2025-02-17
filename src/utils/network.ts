@@ -1,6 +1,12 @@
 import * as vscode from "vscode";
 import { showLogsCommand, logMessage } from "./log";
 
+/**
+ * Checks if there is an active internet connection by attempting to fetch a URL.
+ *
+ * @param {string} [url="https://github.com/"] - The URL to check the internet connection against.
+ * @returns {Promise<boolean>} - A promise that resolves to true if the internet connection is active, otherwise false.
+ */
 export async function checkInternetConnection(url: string = "https://github.com/"): Promise<boolean> {
 	try {
 		const response: Response = await fetch(url);

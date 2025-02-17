@@ -3,6 +3,12 @@ import * as fs from "fs";
 import * as path from "path";
 import { showLogsCommand, logMessage } from "./log";
 
+/**
+ * Creates a new Quarto reprex (REPRoducible EXample) file based on the specified language.
+ *
+ * @param {string} language - The programming language for the reprex (e.g., "R", "Julia", "Python").
+ * @param {vscode.ExtensionContext} context - The extension context.
+ */
 export async function newQuartoReprex(language: string, context: vscode.ExtensionContext) {
 	let templateFile = "";
 

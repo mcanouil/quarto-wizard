@@ -15,6 +15,7 @@
 - chore: update TypeScript configuration settings.
 - chore: add basic Dev Container setup.
 - ci: bump version via GitHub Actions input.
+- docs: add JSDoc comments for utility functions and commands.
 
 ## 0.7.2 (2025-02-06)
 
