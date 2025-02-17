@@ -135,7 +135,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 	async checkUpdate(
 		context: vscode.ExtensionContext,
 		view?: vscode.TreeView<ExtensionTreeItem>,
-		silent: boolean = true
+		silent = true
 	): Promise<number> {
 		const extensionsDetails = await getExtensionsDetails(context);
 		const updatesAvailable: string[] = [];
