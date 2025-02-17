@@ -9,6 +9,7 @@
 tsconfig.json
 eslint.config.mjs
 webpack.config.js
+.markdownlint.yml
 
 src
 dist/**/*.map
