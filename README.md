@@ -91,7 +91,7 @@ Note: Quarto extensions can only be updated if installed by Quarto Wizard (_i.e.
 
 4. Launch the extension:
 
-   - Press `F5` to open a new VS Code window with the extension loaded.
+   - Press `F5` to open a new Visual Studio Code window with the extension loaded.
 
 ## Contributing
 
