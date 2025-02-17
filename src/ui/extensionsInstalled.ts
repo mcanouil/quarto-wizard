@@ -8,6 +8,9 @@ import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/qu
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { debounce } from "lodash"; // Import debounce from lodash
 
+/**
+ * Represents a tree item for a Quarto extension.
+ */
 class ExtensionTreeItem extends vscode.TreeItem {
 	public latestVersion?: string;
 
@@ -36,6 +39,9 @@ class ExtensionTreeItem extends vscode.TreeItem {
 	}
 }
 
+/**
+ * Provides data for the Quarto extensions tree view.
+ */
 class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<ExtensionTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<ExtensionTreeItem | undefined | void> = new vscode.EventEmitter<
 		ExtensionTreeItem | undefined | void
@@ -95,11 +101,17 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		];
 	}
 
+	/**
+	 * Refreshes the tree data with a debounce.
+	 */
 	refresh = debounce((): void => {
 		this.refreshExtensionsData();
 		this._onDidChangeTreeData.fire();
 	}, 300); // Debounce refresh calls with a 300ms delay
 
+	/**
+	 * Forces a refresh of the tree data.
+	 */
 	forceRefresh(): void {
 		this.refresh();
 		this.refresh.flush();
@@ -113,6 +125,13 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 		this.extensionsData = readExtensions(this.workspaceFolder, extensionsList);
 	}
 
+	/**
+	 * Checks for updates to the installed extensions.
+	 * @param {vscode.ExtensionContext} context - The extension context.
+	 * @param {vscode.TreeView<ExtensionTreeItem>} [view] - The tree view.
+	 * @param {boolean} [silent=true] - Whether to show update messages.
+	 * @returns {Promise<number>} - The number of updates available.
+	 */
 	async checkUpdate(
 		context: vscode.ExtensionContext,
 		view?: vscode.TreeView<ExtensionTreeItem>,
@@ -156,6 +175,10 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Extensi
 	}
 }
 
+/**
+ * Manages the installed Quarto extensions.
+ * Sets up the tree data provider and registers the necessary commands.
+ */
 export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 

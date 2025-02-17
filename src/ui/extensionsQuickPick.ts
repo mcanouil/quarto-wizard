@@ -1,11 +1,19 @@
 import * as vscode from "vscode";
 import { ExtensionDetails } from "../utils/extensionDetails";
 
+/**
+ * Interface representing a QuickPick item for an extension.
+ */
 export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
 	id?: string;
 }
 
+/**
+ * Creates QuickPick items from extension details.
+ * @param {ExtensionDetails[]} extensions - The list of extension details.
+ * @returns {ExtensionQuickPickItem[]} - An array of QuickPick items.
+ */
 export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQuickPickItem[] {
 	return extensions.map((ext) => ({
 		label: ext.name,
@@ -22,6 +30,12 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 	}));
 }
 
+/**
+ * Shows a QuickPick for selecting Quarto extensions.
+ * @param {ExtensionDetails[]} extensionsList - The list of extension details.
+ * @param {string[]} recentlyInstalled - The list of recently installed extensions.
+ * @returns {Promise<readonly ExtensionQuickPickItem[]>} - A promise that resolves to the selected QuickPick items.
+ */
 export async function showExtensionQuickPick(
 	extensionsList: ExtensionDetails[],
 	recentlyInstalled: string[]

@@ -11,6 +11,9 @@ import { showLogsCommand, logMessage } from "./log";
 import { Credentials } from "./githubAuth";
 import { generateHashKey } from "./hash";
 
+/**
+ * Interface representing the details of a Quarto extension.
+ */
 export interface ExtensionDetails {
 	id: string;
 	name: string;
@@ -27,6 +30,11 @@ export interface ExtensionDetails {
 	tag: string;
 }
 
+/**
+ * Fetches the list of Quarto extensions.
+ * @param {vscode.ExtensionContext} context - The extension context.
+ * @returns {Promise<string[]>} - A promise that resolves to an array of extension names.
+ */
 async function fetchExtensions(context: vscode.ExtensionContext): Promise<string[]> {
 	const url = QW_EXTENSIONS;
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
@@ -56,8 +64,13 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 	}
 }
 
-function formatExtensionLabel(ext: string): string {
-	const [owner, name, subDirectory] = ext.split("/");
+/**
+ * Formats the label of a Quarto extension.
+ * @param {string} extension - The extension name.
+ * @returns {string} - The formatted extension label.
+ */
+function formatExtensionLabel(extension: string): string {
+	const [owner, name, subDirectory] = extension.split("/");
 	let extensionName = name
 		.replace(/[-_]/g, " ")
 		.replace(/quarto/gi, "")
@@ -78,27 +91,37 @@ function formatExtensionLabel(ext: string): string {
 	return extensionName;
 }
 
+/**
+ * Fetches the details of a Quarto extension.
+ * @param {vscode.ExtensionContext} context - The extension context.
+ * @param {string} extension - The extension name.
+ * @param {Octokit} octokit - The Octokit instance.
+ * @returns {Promise<ExtensionDetails | undefined>} - A promise that resolves to the extension details or undefined if an error occurs.
+ */
 async function getExtensionDetails(
 	context: vscode.ExtensionContext,
-	ext: string,
+	extension: string,
 	octokit: Octokit
 ): Promise<ExtensionDetails | undefined> {
-	const cacheKey = `${QW_EXTENSION_DETAILS_CACHE}_${generateHashKey(ext)}`;
+	const cacheKey = `${QW_EXTENSION_DETAILS_CACHE}_${generateHashKey(extension)}`;
 	const cachedExtensionDetails = context.globalState.get<{
 		ExtensionDetails: ExtensionDetails;
 		timestamp: number;
 	}>(cacheKey);
 
 	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < QW_EXTENSION_DETAILS_CACHE_TIME) {
-		logMessage(`Using cached details: ${ext} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`, "debug");
+		logMessage(
+			`Using cached details: ${extension} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`,
+			"debug"
+		);
 		return cachedExtensionDetails.ExtensionDetails;
 	}
 
-	logMessage(`Fetching details: ${ext}`, "debug");
-	let message = `Error fetching details for ${ext}.`;
+	logMessage(`Fetching details: ${extension}`, "debug");
+	let message = `Error fetching details for ${extension}.`;
 	let ExtensionDetails: ExtensionDetails;
 	try {
-		const [owner, name] = ext.split("/");
+		const [owner, name] = extension.split("/");
 		const repo = `${owner}/${name}`;
 		const response = await octokit.request(`GET /repos/${repo}`);
 		let tagName = "none";
@@ -108,8 +131,8 @@ async function getExtensionDetails(
 			tagName = nonPreReleaseTags[0].tag_name;
 		}
 		ExtensionDetails = {
-			id: ext,
-			name: formatExtensionLabel(ext),
+			id: extension,
+			name: formatExtensionLabel(extension),
 			full_name: repo,
 			owner: owner,
 			description: response.data.description ? response.data.description : "none",
@@ -132,6 +155,11 @@ async function getExtensionDetails(
 	}
 }
 
+/**
+ * Fetches the details of all Quarto extensions.
+ * @param {vscode.ExtensionContext} context - The extension context.
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
+ */
 export async function getExtensionsDetails(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
 	const credentials = new Credentials();
 	await credentials.initialise(context);

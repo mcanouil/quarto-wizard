@@ -7,6 +7,11 @@ import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
 
+/**
+ * Installs the selected Quarto extensions.
+ *
+ * @param selectedExtensions - The extensions selected by the user for installation.
+ */
 async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[]) {
 	if (vscode.workspace.workspaceFolders === undefined) {
 		return;
@@ -91,6 +96,12 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 	);
 }
 
+/**
+ * Command to install Quarto extensions.
+ * Prompts the user to select extensions and installs them.
+ *
+ * @param context - The extension context.
+ */
 export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
 	if (!vscode.workspace.workspaceFolders) {
 		const message = `Please open a workspace/folder to install Quarto extensions.`;

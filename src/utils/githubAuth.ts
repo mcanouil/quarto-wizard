@@ -2,14 +2,25 @@ import * as vscode from "vscode";
 import * as Octokit from "@octokit/rest";
 import { QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES } from "../constants";
 
+/**
+ * Manages GitHub authentication and provides an authenticated Octokit instance.
+ */
 export class Credentials {
 	private octokit: Octokit.Octokit | undefined;
 
+	/**
+	 * Initialises the credentials by registering listeners and setting up Octokit.
+	 * @param context - The extension context.
+	 */
 	async initialise(context: vscode.ExtensionContext): Promise<void> {
 		this.registerListeners(context);
 		await this.setOctokit();
 	}
 
+	/**
+	 * Sets up the Octokit instance using the current authentication session.
+	 * @returns The Octokit instance.
+	 */
 	private async setOctokit() {
 		const session = await vscode.authentication.getSession(QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES, {
 			createIfNone: false,
@@ -24,6 +35,10 @@ export class Credentials {
 		return this.octokit;
 	}
 
+	/**
+	 * Registers listeners for authentication session changes.
+	 * @param context - The extension context.
+	 */
 	registerListeners(context: vscode.ExtensionContext): void {
 		context.subscriptions.push(
 			vscode.authentication.onDidChangeSessions(async (e) => {
@@ -34,6 +49,10 @@ export class Credentials {
 		);
 	}
 
+	/**
+	 * Gets the Octokit instance, creating a new authentication session if necessary.
+	 * @returns The Octokit instance.
+	 */
 	async getOctokit(): Promise<Octokit.Octokit> {
 		if (this.octokit) {
 			return this.octokit;
