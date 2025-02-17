@@ -15,7 +15,7 @@ This extension provides a user-friendly interface to browse, select, and install
 
 - **Check Internet Connection**: Ensure you have an active internet connection before installing extensions.
 - **Check Quarto Installation**: Verify that Quarto is installed and available in your system's PATH.
-- **Allow GitHub Access**: Enable GitHub authentication for the extension to display the list of available Quarto extensions (*i.e.*, read-only access to public information).
+- **Allow GitHub Access**: Enable GitHub authentication for the extension to display the list of available Quarto extensions (_i.e._, read-only access to public information).
 
 ## Commands
 
@@ -61,7 +61,7 @@ This extension provides a user-friendly interface to browse, select, and install
    Or click on the Quarto Wizard icon in the Activity Bar.
    <p align="center"><img src="assets/images/explorer-view.png" alt="Quarto Wizard Explorer View" width="600" /></p>
 
-Note: Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.*, if `source: <owner>/<repository>` is present in `_extension.yml`).
+Note: Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
 
 ### Explorer/Editor Context Menu
 
