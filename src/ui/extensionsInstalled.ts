@@ -235,6 +235,7 @@ export class ExtensionsInstalled {
 				// const success = await installQuartoExtension(item.data?.source ?? item.label);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
+					this.treeDataProvider.forceRefresh();
 				} else {
 					if (item.data?.source === undefined) {
 						vscode.window.showErrorMessage(
@@ -253,6 +254,7 @@ export class ExtensionsInstalled {
 				const success = await removeQuartoExtension(item.label);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
+					this.treeDataProvider.forceRefresh();
 				} else {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
 				}
