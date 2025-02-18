@@ -35,10 +35,6 @@ This extension provides a user-friendly interface to browse, select, and install
 
 ### Quarto Wizard Explorer View
 
-> [!IMPORTANT]
-> Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
-> You can manually add the source to the extension's `_extension.yml` file to enable updates.
-
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Focus on Extensions Installed View` and select it.  
    Or click on the Quarto Wizard icon in the Activity Bar.
@@ -46,7 +42,11 @@ This extension provides a user-friendly interface to browse, select, and install
 
 Or click on the Quarto Wizard icon in the Activity Bar.
 
-<video controls src="assets/videos/explorer-view.mp4" title="Wizard Explorer View in action" alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases."></video>
+![Wizard Explorer View in action](assets/videos/explorer-view.mp4){alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases."}
+
+> [!IMPORTANT]
+> Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
+> You can manually add the source to the extension's `_extension.yml` file to enable updates.
 
 ### Explorer/Editor Context Menu
 
