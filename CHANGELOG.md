@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (2025-02-18)
 
 - feat: retrieve and display extensions details from GitHub API.
 - feat: add more details in QuickPick UI for extensions.
