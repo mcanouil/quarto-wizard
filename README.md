@@ -42,7 +42,8 @@ This extension provides a user-friendly interface to browse, select, and install
 
 Or click on the Quarto Wizard icon in the Activity Bar.
 
-*Quarto Wizard Explorer View in action:*
+_Quarto Wizard Explorer View in action:_
+
 <video controls src="https://github.com/user-attachments/assets/af40a9b8-6615-4639-9a13-806c77817d79" title="Wizard Explorer View in action" alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases."></video>
 
 > [!IMPORTANT]
