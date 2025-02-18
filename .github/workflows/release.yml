@@ -125,6 +125,7 @@ jobs:
         run: |
           sleep 30
           gh pr merge --auto --squash --delete-branch
+          sleep 30
 
   release-publish:
     runs-on: ubuntu-latest
