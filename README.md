@@ -20,7 +20,7 @@ This extension provides a user-friendly interface to browse, select, and install
 ## Commands
 
 - `Quarto Wizard: Install Extension(s)`: Opens the extension installer interface.
-  - **Browse Extensions**: View a list of available Quarto extensions.  
+  - **Browse Extensions**: View a list of available Quarto extensions.
     <p><img src="assets/images/install-extensions.png" alt="List of extensions" width="400" /></p>
   - **Install Extensions**: Install selected Quarto extensions with a single click.
 - `Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
@@ -33,35 +33,20 @@ This extension provides a user-friendly interface to browse, select, and install
 
 ## Usage
 
-### Install Quarto Extensions
+### Quarto Wizard Explorer View
 
-1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto Wizard: Install Extension(s)` and select it.
-3. Browse the list of available Quarto extensions.
-4. Select the Quarto extension(s) you want to install.
-5. Answer the prompts to confirm the installation.
-
-### Show Quarto Wizard Output
-
-1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto Wizard: Show Quarto Wizard Log Output` and select it.
-3. View the output log for the Quarto Wizard extension.
-4. Use the output log to troubleshoot any issues.
-
-### Create a New Reproducible Document
-
-1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto Wizard: Quarto Reproducible Document` and select it.
-3. Choose the template for the new Quarto document.
-
-### Manage Quarto Extensions
+> [!IMPORTANT]
+> Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
+> You can manually add the source to the extension's `_extension.yml` file to enable updates.
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Focus on Extensions Installed View` and select it.  
    Or click on the Quarto Wizard icon in the Activity Bar.
    <p align="center"><img src="assets/images/explorer-view.png" alt="Quarto Wizard Explorer View" width="600" /></p>
 
-Note: Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
+Or click on the Quarto Wizard icon in the Activity Bar.
+
+<video controls src="assets/videos/explorer-view.mp4" title="Wizard Explorer View in action" alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases."></video>
 
 ### Explorer/Editor Context Menu
 
@@ -72,6 +57,30 @@ Note: Quarto extensions can only be updated if installed by Quarto Wizard (_i.e.
   - `Clear Recently Installed Extensions`.
 
 <p align="center"><img src="assets/images/explorer-context.png" alt="Quarto Wizard context menu from the explorer view showing four commands" width="400" /></p>
+
+### Install Quarto Extensions
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Install Extension(s)` and select it.
+3. Browse the list of available Quarto extensions.
+4. Select the Quarto extension(s) you want to install.
+5. Answer the prompts to confirm the installation.
+
+> [!NOTE]
+> Quarto Wizard can only display available informations, _i.e._, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+
+### Create a New Reproducible Document
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Quarto Reproducible Document` and select it.
+3. Choose the template for the new Quarto document.
+
+### Show Quarto Wizard Output
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Show Quarto Wizard Log Output` and select it.
+3. View the output log for the Quarto Wizard extension.
+4. Use the output log to troubleshoot any issues.
 
 ## Development
 

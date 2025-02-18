@@ -17,4 +17,5 @@ dist/**/*.map
 node_modules
 
 assets/logo/logo-social.png
+assets/videos/**
 CITATION.cff
