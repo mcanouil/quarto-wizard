@@ -85,11 +85,6 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "quartoWizard.getExtensionsDetails",
-				"title": "Get Extensions Details",
-				"category": "Quarto Wizard"
-			},
-			{
 				"command": "quartoWizard.installExtension",
 				"title": "Install Extension(s)",
 				"shortTitle": "Refresh",
@@ -114,6 +109,11 @@
 				"command": "quartoWizard.newQuartoReprex",
 				"title": "Quarto Reproducible Document",
 				"icon": "$(new-file)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.getExtensionsDetails",
+				"title": "Get Extensions Details",
 				"category": "Quarto Wizard"
 			},
 			{
@@ -232,6 +232,10 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.refresh",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.getExtensionsDetails",
 					"when": "false"
 				}
 			]

@@ -11,6 +11,7 @@
 - refactor: use `logMessage` function to log messages.
 - refactor: add a log level parameter to `logMessage` function.
 - docs: add GitHub account authentication as a requirement.
+- docs: update README.md with new features and usage instructions.
 - chore(CITATION.cff): add citation file.
 - chore: update TypeScript configuration settings.
 - chore: add basic Dev Container setup.
@@ -71,7 +72,7 @@
 - feat: add view to display and to manage the Quarto extensions installed.
 - feat(checkQuartoPath): better check for the Quarto CLI path.
 - refactor(utils/extensions.ts): externalise user prompts to a separate module (`utils/ask.ts`).
-- refactor: update and correct trust authors and confirm installations prompts option value, *i.e.*, `Yes, always trust`.
+- refactor: update and correct trust authors and confirm installations prompts option value, _i.e._, `Yes, always trust`.
 - refactor(extension.ts): don't use temporary variables for commands.
 
 ## 0.4.2 (2025-01-05)
