@@ -44,7 +44,7 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 
 _Quarto Wizard Explorer View in action:_
 
-<video controls src="https://github.com/user-attachments/assets/af40a9b8-6615-4639-9a13-806c77817d79" title="Wizard Explorer View in action" alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases."></video>
+<p align="center"><video controls src="https://github.com/user-attachments/assets/af40a9b8-6615-4639-9a13-806c77817d79" title="Wizard Explorer View in action" alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases." width=600></video></p>
 
 > [!IMPORTANT]
 > Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
