@@ -66,9 +66,9 @@ body:
 
   - type: textarea
     attributes:
-      label: Your environment (_if necessary_)
+      label: Your environment (if necessary)
       description: |
-        Please document any relevant information regarding your environment if necessary.
+        If necessary, please document any relevant information regarding your environment.
 
   - type: markdown
     attributes:
