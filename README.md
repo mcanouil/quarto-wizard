@@ -15,7 +15,6 @@ This extension provides a user-friendly interface to browse, select, and install
 
 - **Check Internet Connection**: Ensure you have an active internet connection before installing extensions.
 - **Check Quarto Installation**: Verify that Quarto is installed and available in your system's PATH.
-- **Allow GitHub Access**: Enable GitHub authentication for the extension to display the list of available Quarto extensions (_i.e._, read-only access to public information).
 
 ## Commands
 
