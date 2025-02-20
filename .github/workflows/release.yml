@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-name: Release
+name: Release and Publish VS Code Extension
 
 on:
   workflow_dispatch:
@@ -123,6 +123,87 @@ jobs:
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
         run: |
-          sleep 10
+          sleep 30
           gh pr merge --auto --squash --delete-branch
           sleep 30
+
+  release-publish:
+    runs-on: ubuntu-latest
+
+    needs: update-changelog
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update branch
+        run: git pull origin main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+
+      - name: Install dependencies
+        shell: bash
+        run: npm install
+
+      - name: Install Visual Studio Code Extension Manager
+        shell: bash
+        run: npm install -g @vscode/vsce
+
+      - name: Set version
+        shell: bash
+        run: |
+          echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+
+      - name: Set changelog
+        env:
+          VERSION: ${{ env.VERSION }}
+        shell: bash
+        run: |
+          awk -v version="^## ${VERSION}.*" '
+            $0 ~ version {flag=1; next}
+            /^## / && flag {flag=0}
+            flag
+          ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
+          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
+
+      - name: Package extension
+        env:
+          GH_TOKEN: ${{ secrets.github_token }}
+          VERSION: ${{ env.VERSION }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce package --pre-release
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          else
+            vsce package
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          fi
+
+      - name: Publish extension to Visual Studio Marketplace
+        env:
+          VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
+          else
+            vsce publish --pat ${VS_MARKETPLACE_TOKEN}
+          fi
+
+      - name: Publish extension to Open VSX Registry
+        env:
+          OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          npm install --global ovsx
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          else
+            npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          fi
