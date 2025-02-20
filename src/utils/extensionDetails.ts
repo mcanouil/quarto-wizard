@@ -7,7 +7,7 @@ import {
 	QW_EXTENSION_DETAILS_CACHE,
 	QW_EXTENSION_DETAILS_CACHE_TIME,
 } from "../constants";
-import { showLogsCommand, logMessage } from "./log";
+import { logMessage } from "./log";
 import { Credentials } from "./githubAuth";
 import { generateHashKey } from "./hash";
 
@@ -59,7 +59,6 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 		return extensionsList;
 	} catch (error) {
 		logMessage(`${message} ${error}`, "error");
-		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return [];
 	}
 }
@@ -150,7 +149,6 @@ async function getExtensionDetails(
 		return ExtensionDetails;
 	} catch (error) {
 		logMessage(`${message} ${error}`, "error");
-		vscode.window.showErrorMessage(`${message}. ${showLogsCommand()}`);
 		return undefined;
 	}
 }
