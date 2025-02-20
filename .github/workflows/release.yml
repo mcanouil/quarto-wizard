@@ -164,8 +164,9 @@ jobs:
         shell: bash
         run: |
           current_version=$(jq -r .version package.json)
+          version_line=$(grep -n '"version"' package.json | cut -d: -f1)
           echo "VERSION=${current_version}" >> $GITHUB_ENV
-          echo "::error file=package.json::${current_version}"
+          echo "::notice file=package.json,line=${version_line}::${current_version}"
 
       - name: Set changelog
         env:
