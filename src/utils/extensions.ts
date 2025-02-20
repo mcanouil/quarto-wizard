@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
+import { logMessage } from "./log";
 
 /**
  * Recursively finds Quarto extension files in a directory.
@@ -120,4 +121,36 @@ export function readExtensions(workspaceFolder: string, extensions: string[]): R
 		}
 	}
 	return extensionsData;
+}
+
+/**
+ * Removes a specified extension and its parent directories if they become empty.
+ *
+ * @param extension - The name of the extension to remove.
+ * @param root - The root directory where the extension is located.
+ * @returns {boolean} - Status (true for success, false for failure).
+ */
+export async function removeExtension(extension: string, root: string): Promise<boolean> {
+	const extensionPath = path.join(root, extension);
+	if (fs.existsSync(extensionPath)) {
+		try {
+			fs.rmSync(extensionPath, { recursive: true, force: true });
+
+			const ownerPath = path.dirname(extensionPath);
+			if (fs.readdirSync(ownerPath).length === 0) {
+				fs.rmdirSync(ownerPath);
+			}
+
+			if (fs.readdirSync(root).length === 0) {
+				fs.rmdirSync(root);
+			}
+			return true;
+		} catch (error) {
+			logMessage(`Failed to remove extension: ${error}`);
+			return false;
+		}
+	} else {
+		logMessage(`Extension path does not exist: ${extensionPath}`);
+		return false;
+	}
 }

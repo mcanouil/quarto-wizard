@@ -3,7 +3,7 @@ import { exec } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 import { logMessage } from "./log";
-import { findModifiedExtensions, getMtimeExtensions } from "./extensions";
+import { findModifiedExtensions, getMtimeExtensions, removeExtension } from "./extensions";
 
 let cachedQuartoPath: string | undefined;
 
@@ -149,29 +149,39 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
  */
 export async function removeQuartoExtension(extension: string): Promise<boolean> {
 	logMessage(`Removing ${extension} ...`, "info");
-
-	return new Promise((resolve) => {
-		if (vscode.workspace.workspaceFolders === undefined) {
-			return;
-		}
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-		const quartoPath = getQuartoPath();
-		checkQuartoPath(quartoPath);
-		const command = `${quartoPath} remove ${extension} --no-prompt`;
-
-		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
-			if (stderr) {
-				logMessage(`${stderr}`, "error");
-				const isRemoved = stderr.includes("Extension removed");
-				if (isRemoved) {
-					resolve(true);
-				} else {
-					resolve(false);
-					return;
-				}
-			}
-			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
-			resolve(true);
-		});
-	});
+	if (vscode.workspace.workspaceFolders === undefined) {
+		return false;
+	}
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+	const status = await removeExtension(extension, path.join(workspaceFolder, "_extensions"));
+	return status;
 }
+/** Quarto command to remove an extension.
+ *
+ * @param extension - The name of the extension to remove.
+ * @param root - The root directory where the extension is located.
+ * @returns {boolean} - Status (true for success, false for failure).
+ *
+ * @deprecated Use removeExtension from extensions.ts instead.
+ */
+// export async function removeExtension(extension: string, root: string): Promise<boolean> {
+// 	return new Promise((resolve) => {
+// 		const quartoPath = getQuartoPath();
+// 		checkQuartoPath(quartoPath);
+// 		const command = `${quartoPath} remove ${extension} --no-prompt`;
+// 		exec(command, { cwd: root }, (error, stdout, stderr) => {
+// 			if (stderr) {
+// 				logMessage(`${stderr}`, "error");
+// 				const isRemoved = stderr.includes("Extension removed");
+// 				if (isRemoved) {
+// 					resolve(true);
+// 				} else {
+// 					resolve(false);
+// 					return;
+// 				}
+// 			}
+// 			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+// 			resolve(true);
+// 		});
+// 	});
+// }
