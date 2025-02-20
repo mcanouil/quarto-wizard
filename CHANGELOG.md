@@ -2,12 +2,49 @@
 
 ## Unreleased
 
-- fix: activate `quarto-wizard-explorer` view only in a workspace.
 - deps: lazy extension dependencies.
+
+## 0.11.0 (2025-02-20)
+
+- feat: first release of the Quarto Wizard extension, but not yet 1.0.0.
+
+## 0.10.1 (2025-02-20)
+
+- chore: no user-facing changes.
+
+## 0.10.0 (2025-02-20)
+
+- refactor: no longer use `quarto remove` to uninstall an extension.
+
+## 0.9.0 (2025-02-20)
+
+- refactor: use a pre-fetched list of Quarto extensions for the QuickPick UI.
+- refactor: drop GitHub authentication requirement for the extension details.
+- refactor: change log level for cached extensions messages.
+- refactor: implement debounced logging for extension fetching via fetchExtensions()
+- feat: add activation log message for Quarto Wizard.
+
+## 0.8.1 (2025-02-20)
+
+- fix: prevent error notification when extension details cannot be retrieved.
+
+## 0.8.0 (2025-02-18)
+
+- feat: retrieve and display extensions details from GitHub API.
+- feat: add more details in QuickPick UI for extensions.
+- feat: set `log` to `true` for output channel, allowing colouring.
+- feat: add Quarto extensions update check.
+- fix: activate `quarto-wizard-explorer` view only in a workspace.
+- refactor: use constants variables for cache name and expiration time.
+- refactor: use `logMessage` function to log messages.
+- refactor: add a log level parameter to `logMessage` function.
+- docs: add GitHub account authentication as a requirement.
+- docs: update README.md with new features and usage instructions.
 - chore(CITATION.cff): add citation file.
 - chore: update TypeScript configuration settings.
 - chore: add basic Dev Container setup.
 - ci: bump version via GitHub Actions input.
+- docs: add JSDoc comments for utility functions and commands.
 
 ## 0.7.2 (2025-02-06)
 
@@ -63,7 +100,7 @@
 - feat: add view to display and to manage the Quarto extensions installed.
 - feat(checkQuartoPath): better check for the Quarto CLI path.
 - refactor(utils/extensions.ts): externalise user prompts to a separate module (`utils/ask.ts`).
-- refactor: update and correct trust authors and confirm installations prompts option value, *i.e.*, `Yes, always trust`.
+- refactor: update and correct trust authors and confirm installations prompts option value, _i.e._, `Yes, always trust`.
 - refactor(extension.ts): don't use temporary variables for commands.
 
 ## 0.4.2 (2025-01-05)

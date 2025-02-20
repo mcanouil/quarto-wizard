@@ -2,10 +2,11 @@
 	"name": "quarto-wizard",
 	"displayName": "Quarto Wizard",
 	"description": "A Visual Studio Code extension that helps you manage Quarto projects.",
-	"version": "0.7.2",
+	"version": "0.11.0",
 	"publisher": "mcanouil",
 	"author": {
-		"name": "Mickaël CANOUIL"
+		"name": "Mickaël CANOUIL",
+		"url": "https://mickael.canouil.fr"
 	},
 	"license": "MIT",
 	"icon": "assets/logo/logo.png",
@@ -52,6 +53,35 @@
 		"workspaceContains:**/_brand.{yml,yaml}",
 		"workspaceContains:**/_extension.{yml,yaml}"
 	],
+	"main": "./dist/extension",
+	"scripts": {
+		"vscode:prepublish": "webpack --mode production",
+		"webpack": "webpack --mode development --stats-error-details",
+		"webpack-dev": "webpack --mode development --stats-error-details --watch",
+		"test-compile": "tsc -p ./",
+		"lint": "eslint -f unix \"src/**/*.{ts,tsx}\""
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.20.0",
+		"@types/js-yaml": "^4.0.9",
+		"@types/node": "^22.13.1",
+		"@types/semver": "^7.5.8",
+		"@types/vscode": "^1.96.0",
+		"@vscode/vsce": "^3.2.2",
+		"eslint": "^9.20.1",
+		"eslint-plugin-tsdoc": "^0.4.0",
+		"ts-loader": "^9.5.2",
+		"typescript": "^5.7.3",
+		"typescript-eslint": "^8.24.1",
+		"webpack": "^5.98.0",
+		"webpack-cli": "^6.0.1"
+	},
+	"dependencies": {
+		"@types/lodash": "^4.17.15",
+		"js-yaml": "^4.1.0",
+		"lodash": "^4.17.21",
+		"semver": "^7.7.1"
+	},
 	"contributes": {
 		"commands": [
 			{
@@ -79,6 +109,11 @@
 				"command": "quartoWizard.newQuartoReprex",
 				"title": "Quarto Reproducible Document",
 				"icon": "$(new-file)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.getExtensionsDetails",
+				"title": "Get Extensions Details",
 				"category": "Quarto Wizard"
 			},
 			{
@@ -168,17 +203,17 @@
 			"view/item/context": [
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemOutdated",
 					"group": "inline@1"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated)",
 					"group": "inline@2"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated)",
 					"group": "inline@3"
 				}
 			],
@@ -198,6 +233,10 @@
 				{
 					"command": "quartoWizard.extensionsInstalled.refresh",
 					"when": "false"
+				},
+				{
+					"command": "quartoWizard.getExtensionsDetails",
+					"when": "false"
 				}
 			]
 		},
@@ -216,6 +255,7 @@
 			"quarto-wizard-explorer": [
 				{
 					"id": "quartoWizard.extensionsInstalled",
+					"type": "tree",
 					"name": "Extensions Installed",
 					"icon": "assets/logo/logo.svg",
 					"contextualTitle": "Quarto Wizard Extensions Installed",
@@ -255,6 +295,19 @@
 					],
 					"default": "ask",
 					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
+				},
+				"quartoWizard.log.level": {
+					"order": 4,
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"error",
+						"warn",
+						"info",
+						"debug"
+					],
+					"default": "info",
+					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything."
 				}
 			}
 		},
@@ -264,27 +317,5 @@
 				"quarto"
 			]
 		}
-	},
-	"main": "./dist/extension",
-	"scripts": {
-		"vscode:prepublish": "webpack --mode production",
-		"webpack": "webpack --mode development --stats-error-details",
-		"webpack-dev": "webpack --mode development --stats-error-details --watch",
-		"test-compile": "tsc -p ./",
-		"lint": "eslint"
-	},
-	"devDependencies": {
-		"@types/js-yaml": "^4.0.9",
-		"@types/node": "^22.13.1",
-		"@types/vscode": "^1.96.0",
-		"@vscode/vsce": "^3.2.2",
-		"ts-loader": "^9.5.2",
-		"typescript": "^5.7.3",
-		"webpack": "^5.98.0",
-		"webpack-cli": "^6.0.1"
-	},
-	"dependencies": {
-		"js-yaml": "^4.1.0",
-		"typescript": "^5.7.3"
 	}
 }

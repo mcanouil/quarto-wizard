@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"outDir": "out",
 		"rootDir": "src",
-		"module": "NodeNext",
+		"module": "NodeNext", // Overwritten by webpack.config.js
 		"target": "ES2024",
 		"lib": ["dom", "ES2024"],
 		"sourceMap": true,

@@ -1,12 +1,17 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_EXTENSIONS, QUARTO_WIZARD_LOG } from "../constants";
-import { showLogsCommand } from "../utils/log";
+import { QW_RECENTLY_INSTALLED } from "../constants";
+import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
-import { getQuartoPath, checkQuartoPath, installQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
-import { fetchExtensions } from "../utils/extensions";
+import { getQuartoPath, checkQuartoPath, installQuartoExtensionSource } from "../utils/quarto";
 import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
+import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
 
+/**
+ * Installs the selected Quarto extensions.
+ *
+ * @param selectedExtensions - The extensions selected by the user for installation.
+ */
 async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[]) {
 	if (vscode.workspace.workspaceFolders === undefined) {
 		return;
@@ -20,13 +25,13 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: `Installing selected extension(s) (${showLogsCommand()}).`,
+			title: `Installing selected extension(s) (${showLogsCommand()})`,
 			cancellable: true,
 		},
 		async (progress, token) => {
 			token.onCancellationRequested(() => {
 				const message = "Operation cancelled by the user.";
-				QUARTO_WIZARD_LOG.appendLine(message);
+				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			});
 
@@ -36,7 +41,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 			let installedCount = 0;
 
 			for (const selectedExtension of mutableSelectedExtensions) {
-				if (selectedExtension.description === undefined) {
+				if (selectedExtension.id === undefined) {
 					continue;
 				}
 				progress.report({
@@ -44,13 +49,13 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 					increment: (1 / (totalExtensions + 1)) * 100,
 				});
 
-				const success = await installQuartoExtensionSource(selectedExtension.description, workspaceFolder);
+				const success = await installQuartoExtensionSource(selectedExtension.id, workspaceFolder);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
 				// const success = await installQuartoExtension(extension);
 				if (success) {
-					installedExtensions.push(selectedExtension.description);
+					installedExtensions.push(selectedExtension.id);
 				} else {
-					failedExtensions.push(selectedExtension.description);
+					failedExtensions.push(selectedExtension.id);
 				}
 
 				installedCount++;
@@ -61,18 +66,16 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 			});
 
 			if (installedExtensions.length > 0) {
-				QUARTO_WIZARD_LOG.appendLine(
-					`\n\nSuccessfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`
-				);
+				logMessage(`Successfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
 				installedExtensions.forEach((ext) => {
-					QUARTO_WIZARD_LOG.appendLine(` - ${ext}`);
+					logMessage(` - ${ext}`, "info");
 				});
 			}
 
 			if (failedExtensions.length > 0) {
-				QUARTO_WIZARD_LOG.appendLine(`\n\nFailed to install extension${failedExtensions.length > 1 ? "s" : ""}:`);
+				logMessage(`Failed to install extension${failedExtensions.length > 1 ? "s" : ""}:`, "error");
 				failedExtensions.forEach((ext) => {
-					QUARTO_WIZARD_LOG.appendLine(` - ${ext}`);
+					logMessage(` - ${ext}`, "error");
 				});
 				const message = [
 					"The following extension",
@@ -86,20 +89,23 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", " installed successfully."].join(
 					""
 				);
-				QUARTO_WIZARD_LOG.appendLine(message);
+				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}
 		}
 	);
 }
 
-export async function installQuartoExtensionCommand(
-	context: vscode.ExtensionContext,
-	recentlyInstalledExtensions: string
-) {
+/**
+ * Command to install Quarto extensions.
+ * Prompts the user to select extensions and installs them.
+ *
+ * @param context - The extension context.
+ */
+export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
 	if (!vscode.workspace.workspaceFolders) {
 		const message = `Please open a workspace/folder to install Quarto extensions.`;
-		QUARTO_WIZARD_LOG.appendLine(message);
+		logMessage(message, "error");
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return;
 	}
@@ -110,17 +116,14 @@ export async function installQuartoExtensionCommand(
 	}
 	await checkQuartoPath(getQuartoPath());
 
-	let recentlyInstalled: string[] = context.globalState.get(recentlyInstalledExtensions, []);
-	const extensionsList = await fetchExtensions(QUARTO_WIZARD_EXTENSIONS, context);
+	const recentlyInstalled: string[] = context.globalState.get(QW_RECENTLY_INSTALLED, []);
+	const extensionsList = await getExtensionsDetails(context);
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {
 		await installQuartoExtensions(selectedExtensions);
-		const selectedDescriptions = selectedExtensions.map((ext) => ext.description);
-		let updatedRecentlyInstalled = [
-			...selectedDescriptions,
-			...recentlyInstalled.filter((ext) => !selectedDescriptions.includes(ext)),
-		];
-		await context.globalState.update(recentlyInstalledExtensions, updatedRecentlyInstalled.slice(0, 5));
+		const selectedIDs = selectedExtensions.map((ext) => ext.id);
+		const updatedRecentlyInstalled = [...selectedIDs, ...recentlyInstalled.filter((ext) => !selectedIDs.includes(ext))];
+		await context.globalState.update(QW_RECENTLY_INSTALLED, updatedRecentlyInstalled.slice(0, 5));
 	}
 }

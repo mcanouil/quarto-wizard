@@ -1,33 +1,40 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_LOG, QUARTO_WIZARD_RECENTLY_INSTALLED } from "./constants";
-import { showLogsCommand } from "./utils/log";
+import { QW_LOG, QW_RECENTLY_INSTALLED } from "./constants";
+import { showLogsCommand, logMessage } from "./utils/log";
 import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
-import { activateExtensions } from "./utils/activate";
+import { getExtensionsDetails } from "./utils/extensionDetails";
 
+/**
+ * This method is called when the extension is activated.
+ * It registers various commands and initialises the ExtensionsInstalled class that defines the installed extensions view.
+ *
+ * @param context - The context in which the extension is running.
+ */
 export function activate(context: vscode.ExtensionContext) {
-	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.showOutput", () => QUARTO_WIZARD_LOG.show())
-	);
+	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
+	QW_LOG.appendLine("Quarto Wizard, your magical assistant, is now active!");
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
-			context.globalState.update(QUARTO_WIZARD_RECENTLY_INSTALLED, []);
+			context.globalState.update(QW_RECENTLY_INSTALLED, []);
 			const message = "Recently installed Quarto extensions have been cleared.";
-			QUARTO_WIZARD_LOG.appendLine(message);
+			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 		})
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.installExtension", () =>
-			installQuartoExtensionCommand(context, QUARTO_WIZARD_RECENTLY_INSTALLED)
-		)
+		vscode.commands.registerCommand("quartoWizard.installExtension", () => installQuartoExtensionCommand(context))
 	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () => newQuartoReprexCommand(context))
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.getExtensionsDetails", () => getExtensionsDetails(context))
 	);
 
 	new ExtensionsInstalled(context);
@@ -35,4 +42,10 @@ export function activate(context: vscode.ExtensionContext) {
 	activateExtensions(["quarto.quarto", "DavidAnson.vscode-markdownlint"]);
 }
 
-export function deactivate() {}
+/**
+ * This method is called when the extension is deactivated.
+ * Currently, it does not perform any specific action.
+ */
+export function deactivate() {
+	// No cleanup necessary
+}

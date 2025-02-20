@@ -1,21 +1,26 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_LOG } from "../constants";
-import { showLogsCommand } from "./log";
+import { showLogsCommand, logMessage } from "./log";
 
-export async function checkInternetConnection(url: string = "https://github.com/"): Promise<boolean> {
+/**
+ * Checks if there is an active internet connection by attempting to fetch a URL.
+ *
+ * @param {string} [url="https://github.com/"] - The URL to check the internet connection against.
+ * @returns {Promise<boolean>} - A promise that resolves to true if the internet connection is active, otherwise false.
+ */
+export async function checkInternetConnection(url = "https://github.com/"): Promise<boolean> {
 	try {
 		const response: Response = await fetch(url);
 		if (response.ok) {
 			return true;
 		} else {
 			const message = `No internet connection. Please check your network settings.`;
-			QUARTO_WIZARD_LOG.appendLine(message);
+			logMessage(message, "error");
 			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			return false;
 		}
-	} catch (error) {
+	} catch {
 		const message = `No internet connection. Please check your network settings.`;
-		QUARTO_WIZARD_LOG.appendLine(message);
+		logMessage(message, "error");
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return false;
 	}

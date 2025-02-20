@@ -9,9 +9,16 @@
 tsconfig.json
 eslint.config.mjs
 webpack.config.js
+.markdownlint.yml
 
 src
 dist/**/*.map
 **/*.vsix
+node_modules
 
 assets/logo/logo-social.png
+assets/videos/**
+CITATION.cff
+
+# Ignore scripts not needed in the final package
+src/utils/githubAuth.ts

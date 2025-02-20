@@ -1,7 +1,7 @@
-/*---------------------------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
+ * --------------------------------------------------------------------------------------------*/
 
 //@ts-check
 
@@ -35,7 +35,8 @@ const config = {
                 loader: 'ts-loader',
                 options: {
                     compilerOptions: {
-                        "module": "es6" // override `tsconfig.json` so that TypeScript emits native JavaScript modules.
+                        "module": "ES2024",
+                        "moduleResolution": "bundler",
                     }
                 }
             }]

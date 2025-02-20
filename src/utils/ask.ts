@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_LOG } from "../constants";
-import { showLogsCommand } from "../utils/log";
+import { showLogsCommand, logMessage } from "../utils/log";
 
+/**
+ * Prompts the user to trust the authors of the selected extensions.
+ * @returns {Promise<number>} - Returns 0 if the authors are trusted, otherwise returns 1.
+ */
 export async function askTrustAuthors(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
-	let configTrustAuthors = config.get<string>("trustAuthors");
+	const configTrustAuthors = config.get<string>("trustAuthors");
 
 	if (configTrustAuthors === "ask") {
 		const trustAuthors = await vscode.window.showQuickPick(
@@ -22,7 +25,7 @@ export async function askTrustAuthors(): Promise<number> {
 			return 0;
 		} else if (trustAuthors?.label !== "Yes") {
 			const message = "Operation cancelled because the authors are not trusted.";
-			QUARTO_WIZARD_LOG.appendLine(message);
+			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			return 1;
 		}
@@ -30,9 +33,13 @@ export async function askTrustAuthors(): Promise<number> {
 	return 0;
 }
 
+/**
+ * Prompts the user to confirm the installation of the selected extensions.
+ * @returns {Promise<number>} - Returns 0 if the installation is confirmed, otherwise returns 1.
+ */
 export async function askConfirmInstall(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
-	let configConfirmInstall = config.get<string>("confirmInstall");
+	const configConfirmInstall = config.get<string>("confirmInstall");
 
 	if (configConfirmInstall === "ask") {
 		const installWorkspace = await vscode.window.showQuickPick(
@@ -50,7 +57,7 @@ export async function askConfirmInstall(): Promise<number> {
 			return 0;
 		} else if (installWorkspace?.label !== "Yes") {
 			const message = "Operation cancelled by the user.";
-			QUARTO_WIZARD_LOG.appendLine(message);
+			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			return 1;
 		}
@@ -58,9 +65,13 @@ export async function askConfirmInstall(): Promise<number> {
 	return 0;
 }
 
+/**
+ * Prompts the user to confirm the removal of the selected extensions.
+ * @returns {Promise<number>} - Returns 0 if the removal is confirmed, otherwise returns 1.
+ */
 export async function askConfirmRemove(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask");
-	let configConfirmRemove = config.get<string>("confirmRemove");
+	const configConfirmRemove = config.get<string>("confirmRemove");
 
 	if (configConfirmRemove === "always") {
 		const removeWorkspace = await vscode.window.showQuickPick(
@@ -78,7 +89,7 @@ export async function askConfirmRemove(): Promise<number> {
 			return 0;
 		} else if (removeWorkspace?.label !== "Yes") {
 			const message = "Operation cancelled by the user.";
-			QUARTO_WIZARD_LOG.appendLine(message);
+			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			return 1;
 		}
