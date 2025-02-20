@@ -20,11 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-name: Release and Publish VS Code Extension
+name: Publish
 
 on:
   workflow_run:
-    workflows: ["Bump Version"]
+    workflows: ["Release"]
     types:
       - completed
 
