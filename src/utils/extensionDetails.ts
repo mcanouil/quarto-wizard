@@ -30,11 +30,11 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<Extens
 	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
 
 	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
-		logMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "debug");
+		logMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "info");
 		return cachedData.data;
 	}
 
-	logMessage(`Fetching extensions: ${url}`, "debug");
+	logMessage(`Fetching extensions: ${url}`, "info");
 	let message = `Error fetching list of extensions from ${url}.`;
 	try {
 		const response: Response = await fetch(url);
