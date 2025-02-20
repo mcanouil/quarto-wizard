@@ -5,6 +5,7 @@
 - refactor: use a pre-fetched list of Quarto extensions for the QuickPick UI.
 - refactor: drop GitHub authentication requirement for the extension details.
 - refactor: change log level for cached extensions messages.
+- refactor: implement debounced logging for extension fetching via fetchExtensions()
 - feat: add activation log message for Quarto Wizard.
 
 ## 0.8.1 (2025-02-20)

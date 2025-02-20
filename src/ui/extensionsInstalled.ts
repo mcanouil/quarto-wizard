@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import * as fs from "fs"; // Use the promise-based fs module
+import * as fs from "fs";
 import * as semver from "semver";
+import { debounce } from "lodash";
 import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
 import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
 import { getExtensionsDetails } from "../utils/extensionDetails";
-import { debounce } from "lodash"; // Import debounce from lodash
 
 /**
  * Represents a tree item for a Quarto extension.

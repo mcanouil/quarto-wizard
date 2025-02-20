@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { debounce } from "lodash";
 import { QW_LOG } from "../constants";
 
 /**
@@ -25,3 +26,5 @@ export function logMessage(message: string, type = "info"): void {
 		QW_LOG.appendLine(message);
 	}
 }
+
+export const debouncedLogMessage = debounce(logMessage, 1000);
