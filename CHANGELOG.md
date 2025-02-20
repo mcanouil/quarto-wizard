@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- feat: first release of the Quarto Wizard extension, but not yet 1.0.0.
+
 ## 0.10.1 (2025-02-20)
 
 - chore: no user-facing changes.
