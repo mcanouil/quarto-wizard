@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.1 (2025-02-20)
 
 - chore: no user-facing changes.
 
