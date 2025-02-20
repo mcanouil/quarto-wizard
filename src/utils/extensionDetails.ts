@@ -1,14 +1,6 @@
 import * as vscode from "vscode";
-import { Octokit } from "@octokit/rest";
-import {
-	QW_EXTENSIONS,
-	QW_EXTENSIONS_CACHE,
-	QW_EXTENSIONS_CACHE_TIME,
-	QW_EXTENSION_DETAILS_CACHE,
-	QW_EXTENSION_DETAILS_CACHE_TIME,
-} from "../constants";
+import { QW_EXTENSIONS, QW_EXTENSIONS_CACHE, QW_EXTENSIONS_CACHE_TIME } from "../constants";
 import { logMessage } from "./log";
-import { Credentials } from "./githubAuth";
 import { generateHashKey } from "./hash";
 
 /**
@@ -20,12 +12,9 @@ export interface ExtensionDetails {
 	full_name: string; // "owner/repo"
 	owner: string;
 	description: string;
-	topics: string[];
 	stars: number;
 	license: string;
-	size: number;
 	html_url: string;
-	homepage: string;
 	version: string;
 	tag: string;
 }
@@ -33,12 +22,12 @@ export interface ExtensionDetails {
 /**
  * Fetches the list of Quarto extensions.
  * @param {vscode.ExtensionContext} context - The extension context.
- * @returns {Promise<string[]>} - A promise that resolves to an array of extension names.
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
  */
-async function fetchExtensions(context: vscode.ExtensionContext): Promise<string[]> {
+async function fetchExtensions(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
 	const url = QW_EXTENSIONS;
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
-	const cachedData = context.globalState.get<{ data: string[]; timestamp: number }>(cacheKey);
+	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
 
 	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
 		logMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "debug");
@@ -54,9 +43,9 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<string
 			throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
 		}
 		const data = await response.text();
-		const extensionsList = data.split("\n").filter((line: string) => line.trim() !== "");
-		await context.globalState.update(cacheKey, { data: extensionsList, timestamp: Date.now() });
-		return extensionsList;
+		const extensionsDetailsList = await parseExtensionsDetails(data);
+		await context.globalState.update(cacheKey, { data: extensionsDetailsList, timestamp: Date.now() });
+		return extensionsDetailsList;
 	} catch (error) {
 		logMessage(`${message} ${error}`, "error");
 		return [];
@@ -91,65 +80,33 @@ function formatExtensionLabel(extension: string): string {
 }
 
 /**
- * Fetches the details of a Quarto extension.
- * @param {vscode.ExtensionContext} context - The extension context.
- * @param {string} extension - The extension name.
- * @param {Octokit} octokit - The Octokit instance.
- * @returns {Promise<ExtensionDetails | undefined>} - A promise that resolves to the extension details or undefined if an error occurs.
+ * Parses the details of a Quarto extensions from JSON data.
+ * @param {string} data - The extensions details as JSON.
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
  */
-async function getExtensionDetails(
-	context: vscode.ExtensionContext,
-	extension: string,
-	octokit: Octokit
-): Promise<ExtensionDetails | undefined> {
-	const cacheKey = `${QW_EXTENSION_DETAILS_CACHE}_${generateHashKey(extension)}`;
-	const cachedExtensionDetails = context.globalState.get<{
-		ExtensionDetails: ExtensionDetails;
-		timestamp: number;
-	}>(cacheKey);
-
-	if (cachedExtensionDetails && Date.now() - cachedExtensionDetails.timestamp < QW_EXTENSION_DETAILS_CACHE_TIME) {
-		logMessage(
-			`Using cached details: ${extension} ${new Date(cachedExtensionDetails.timestamp).toISOString()}`,
-			"debug"
-		);
-		return cachedExtensionDetails.ExtensionDetails;
-	}
-
-	logMessage(`Fetching details: ${extension}`, "debug");
-	const message = `Error fetching details for ${extension}.`;
-	let ExtensionDetails: ExtensionDetails;
+async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]> {
 	try {
-		const [owner, name] = extension.split("/");
-		const repo = `${owner}/${name}`;
-		const response = await octokit.request(`GET /repos/${repo}`);
-		let tagName = "none";
-		const releases = await octokit.request(`GET /repos/${repo}/releases`);
-		const nonPreReleaseTags = releases.data.filter((tag: { prerelease: boolean }) => !tag.prerelease);
-		if (nonPreReleaseTags.length > 0) {
-			tagName = nonPreReleaseTags[0].tag_name;
-		}
-		ExtensionDetails = {
-			id: extension,
-			name: formatExtensionLabel(extension),
-			full_name: repo,
-			owner: owner,
-			description: response.data.description ? response.data.description : "none",
-			topics: response.data.topics.filter((topic: string) => !/quarto/i.test(topic)),
-			stars: response.data.stargazers_count,
-			license: response.data.license ? response.data.license.name : "none",
-			size: response.data.size,
-			html_url: response.data.html_url,
-			homepage: response.data.homepage,
-			version: tagName.replace(/^v/, ""),
-			tag: tagName,
-		};
-
-		await context.globalState.update(cacheKey, { ExtensionDetails: ExtensionDetails, timestamp: Date.now() });
-		return ExtensionDetails;
+		const parsedData = JSON.parse(data);
+		const extensionDetailsList: ExtensionDetails[] = Object.keys(parsedData).map((key) => {
+			const extension = parsedData[key];
+			return {
+				id: key,
+				name: formatExtensionLabel(key),
+				full_name: extension.nameWithOwner,
+				owner: extension.owner,
+				description: extension.description || "none",
+				stars: extension.stargazerCount,
+				license: extension.licenseInfo || "none",
+				html_url: extension.url,
+				version: extension.latestRelease ? extension.latestRelease.replace(/^v/, "") : "none",
+				tag: extension.latestRelease || "none",
+			};
+		});
+		return extensionDetailsList;
 	} catch (error) {
+		const message = "Error parsing extension details.";
 		logMessage(`${message} ${error}`, "error");
-		return undefined;
+		return [];
 	}
 }
 
@@ -159,14 +116,7 @@ async function getExtensionDetails(
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
  */
 export async function getExtensionsDetails(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
-	const credentials = new Credentials();
-	await credentials.initialise(context);
-	const octokit = await credentials.getOctokit();
-
-	const extensionsList = await fetchExtensions(context);
-
-	const extensionsPromises = extensionsList.map((ext) => getExtensionDetails(context, ext, octokit));
-	const extensions = await Promise.all(extensionsPromises);
+	const extensions = await fetchExtensions(context);
 
 	return extensions.filter((extension): extension is ExtensionDetails => extension !== undefined);
 }

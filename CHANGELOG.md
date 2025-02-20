@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- refactor: use a pre-fetched list of Quarto extensions for the QuickPick UI.
+- refactor: drop GitHub authentication requirement for the extension details.
+
 ## 0.8.1 (2025-02-20)
 
 - fix: prevent error notification when extension details cannot be retrieved.

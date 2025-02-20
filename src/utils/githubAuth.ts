@@ -1,6 +1,19 @@
 import * as vscode from "vscode";
 import * as Octokit from "@octokit/rest";
-import { QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES } from "../constants";
+// import { QW_AUTH_PROVIDER_ID, QW_AUTH_PROVIDER_SCOPES } from "../constants";
+
+/**
+ * GitHub authentication provider ID.
+ */
+export const QW_AUTH_PROVIDER_ID = "github";
+
+/**
+ * Scopes for the GitHub authentication provider.
+ * "no scope" = Grants read-only access to public information.
+ * The GitHub Authentication Provider accepts the scopes described here:
+ * https://developer.github.com/apps/building-oauth-apps/understanding-scopes-for-oauth-apps/
+ */
+export const QW_AUTH_PROVIDER_SCOPES: string[] = [];
 
 /**
  * Manages GitHub authentication and provides an authenticated Octokit instance.
