@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 (2025-02-20)
 
 - refactor: use a pre-fetched list of Quarto extensions for the QuickPick UI.
 - refactor: drop GitHub authentication requirement for the extension details.
