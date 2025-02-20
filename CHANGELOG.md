@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- chore: no user-facing changes.
+
 ## 0.10.0 (2025-02-20)
 
 - refactor: no longer use `quarto remove` to uninstall an extension.
