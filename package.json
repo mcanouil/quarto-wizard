@@ -5,7 +5,8 @@
 	"version": "0.11.0",
 	"publisher": "mcanouil",
 	"author": {
-		"name": "Mickaël CANOUIL"
+		"name": "Mickaël CANOUIL",
+		"url": "https://mickael.canouil.fr"
 	},
 	"license": "MIT",
 	"icon": "assets/logo/logo.png",
