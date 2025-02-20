@@ -40,6 +40,10 @@ on:
         type: string
         description: "Version"
         default: "minor"
+      publish:
+        type: boolean
+        description: "Publish"
+        default: true
 
 jobs:
   update-changelog:
@@ -159,7 +163,9 @@ jobs:
       - name: Set version
         shell: bash
         run: |
-          echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+          current_version=$(jq -r .version package.json)
+          echo "VERSION=${current_version}" >> $GITHUB_ENV
+          echo "::error file=package.json::${current_version}"
 
       - name: Set changelog
         env:
@@ -174,6 +180,7 @@ jobs:
           echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
 
       - name: Package extension
+        if: ${{ github.event.inputs.publish }}
         env:
           GH_TOKEN: ${{ secrets.github_token }}
           VERSION: ${{ env.VERSION }}
@@ -189,6 +196,7 @@ jobs:
           fi
 
       - name: Publish extension to Visual Studio Marketplace
+        if: ${{ github.event.inputs.publish }}
         env:
           VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
         shell: bash
@@ -200,6 +208,7 @@ jobs:
           fi
 
       - name: Publish extension to Open VSX Registry
+        if: ${{ github.event.inputs.publish }}
         env:
           OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
         shell: bash
