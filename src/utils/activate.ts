@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { QUARTO_WIZARD_LOG } from "../constants";
+import { QW_LOG } from "../constants";
 
 export async function activateExtensions(extensionsToActivate: string[]): Promise<void> {
 	extensionsToActivate.forEach(async (extensionId) => {
@@ -9,9 +9,9 @@ export async function activateExtensions(extensionsToActivate: string[]): Promis
 			if (!extension.isActive) {
 				await extension.activate();
 			}
-			QUARTO_WIZARD_LOG.appendLine(`${extensionId} activated.`);
+			QW_LOG.appendLine(`${extensionId} activated.`);
 		} else {
-			QUARTO_WIZARD_LOG.appendLine(`Failed to activate ${extensionId}.`);
+			QW_LOG.appendLine(`Failed to activate ${extensionId}.`);
 		}
 	});
 }
