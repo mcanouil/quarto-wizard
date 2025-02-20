@@ -1,0 +1,106 @@
+# MIT License
+#
+# Copyright (c) 2025 Mickaël CANOUIL
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+name: Release and Publish VS Code Extension
+
+on:
+  workflow_run:
+    workflows: ["Bump Version"]
+    types:
+      - completed
+
+jobs:
+  release-publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+
+      - name: Install dependencies
+        shell: bash
+        run: npm install
+
+      - name: Install Visual Studio Code Extension Manager
+        shell: bash
+        run: npm install -g @vscode/vsce
+
+      - name: Set version
+        shell: bash
+        run: |
+          echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+
+      - name: Set changelog
+        env:
+          VERSION: ${{ env.VERSION }}
+        shell: bash
+        run: |
+          awk -v version="^## ${VERSION}.*" '
+            $0 ~ version {flag=1; next}
+            /^## / && flag {flag=0}
+            flag
+          ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
+          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
+
+      - name: Package extension
+        env:
+          GH_TOKEN: ${{ secrets.github_token }}
+          VERSION: ${{ env.VERSION }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce package --pre-release
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          else
+            vsce package
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          fi
+
+      - name: Publish extension to Visual Studio Marketplace
+        env:
+          VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
+          else
+            vsce publish --pat ${VS_MARKETPLACE_TOKEN}
+          fi
+
+      - name: Publish extension to Open VSX Registry
+        env:
+          OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          npm install --global ovsx
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          else
+            npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          fi
