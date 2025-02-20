@@ -55,7 +55,7 @@ body:
     attributes:
       label: What version of Quarto CLI are you using?
       description: Please document the Quarto CLI version being installed in your environment (_e.g._, 1.3.450, 1.4.557, 1.5.57, 1.6.40, _etc._).
-      placeholder: MacOS Ventura 13.4, Windows 11, Linux Debian 11, ...
+      placeholder: 1.3.450, 1.4.557, 1.5.57, 1.6.40, ...
 
   - type: input
     id: os
