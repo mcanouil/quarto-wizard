@@ -14,6 +14,7 @@ import { getExtensionsDetails } from "./utils/extensionDetails";
  */
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
+	QW_LOG.appendLine("Quarto Wizard, your magical assistant, is now active!");
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
