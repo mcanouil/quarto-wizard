@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: prevent error notification when extension details cannot be retrieved.
+
 ## 0.8.0 (2025-02-18)
 
 - feat: retrieve and display extensions details from GitHub API.
