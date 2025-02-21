@@ -145,9 +145,10 @@
 				"category": "Quarto Wizard"
 			},
 			{
-				"command": "quartoWizard.lintWorkspace",
-				"title": "Lint Workspace",
+				"command": "quartoWizard.lint",
+				"title": "Lint",
 				"shortTitle": "Lint",
+				"icon": "$(telescope)",
 				"category": "Quarto Wizard"
 			}
 		],
@@ -302,8 +303,19 @@
 					"default": "ask",
 					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
 				},
-				"quartoWizard.log.level": {
+				"quartoWizard.lint.trigger": {
 					"order": 4,
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"save",
+						"type"
+					],
+					"default": "save",
+					"markdownDescription": "Run the markdown linter on save (`save`) or on type (`type`)."
+				},
+				"quartoWizard.log.level": {
+					"order": 20,
 					"scope": "resource",
 					"type": "string",
 					"enum": [
@@ -316,12 +328,6 @@
 					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything."
 				}
 			}
-		},
-		"configurationDefaults": {
-			"markdownlint.languages": [
-				"markdown",
-				"quarto"
-			]
 		}
 	}
 }
