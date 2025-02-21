@@ -5,6 +5,7 @@ import { installQuartoExtensionCommand } from "./commands/installQuartoExtension
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails } from "./utils/extensionDetails";
+import { activateExtensions } from "./utils/activate";
 import { lint, lintOnEvent } from "./commands/lint";
 
 /**
@@ -40,7 +41,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	new ExtensionsInstalled(context);
 
-	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.lint", () => lint(context)));
+	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.lint", lint));
+	if (vscode.window.activeTextEditor?.document.languageId === "quarto") {
+		activateExtensions(["DavidAnson.vscode-markdownlint"], context);
+	}
 	lintOnEvent();
 }
 

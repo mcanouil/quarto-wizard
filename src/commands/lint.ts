@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { activateExtensions } from "../utils/activate";
 
 /**
  * Lints the currently active text editor if the document language is "quarto".
@@ -11,10 +10,9 @@ import { activateExtensions } from "../utils/activate";
  * 4. Toggles markdown linting twice to ensure it is enabled.
  * 5. Changes the document language back to "quarto".
  */
-export function lint(context: vscode.ExtensionContext) {
+export function lint() {
 	const editor = vscode.window.activeTextEditor;
 	if (editor && editor.document.languageId === "quarto") {
-		activateExtensions(["DavidAnson.vscode-markdownlint"], context);
 		vscode.languages
 			.setTextDocumentLanguage(editor.document, "markdown")
 			.then(() => {
