@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- feat: markdown linting via `markdownlint`.
+- feat: automatic markdown linting via `markdownlint`.
 - feat: lazy extension dependencies.
 
 ## 0.11.0 (2025-02-20)
