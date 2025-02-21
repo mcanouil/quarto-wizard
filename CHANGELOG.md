@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- feat: automatic markdown linting via `markdownlint`.
+- feat: lazy extension dependencies.
+
 ## 0.11.0 (2025-02-20)
 
 - feat: first release of the Quarto Wizard extension, but not yet 1.0.0.
