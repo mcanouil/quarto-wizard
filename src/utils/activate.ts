@@ -21,7 +21,7 @@ async function promptInstallExtension(extensionId: string, context: vscode.Exten
 		return;
 	}
 	const choice = await vscode.window.showInformationMessage(
-		`Extension ${extensionId} is not installed. Would you like to install it?`,
+		`Extension '${extensionId}' is not installed. Would you like to install it?`,
 		"Install Now",
 		"Maybe Later",
 		"Don't Ask Again"

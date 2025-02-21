@@ -143,13 +143,6 @@
 				"shortTitle": "Remove",
 				"icon": "$(remove)",
 				"category": "Quarto Wizard"
-			},
-			{
-				"command": "quartoWizard.lint",
-				"title": "Lint",
-				"shortTitle": "Lint",
-				"icon": "$(telescope)",
-				"category": "Quarto Wizard"
 			}
 		],
 		"submenus": [
