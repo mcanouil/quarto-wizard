@@ -52,9 +52,9 @@ async function promptInstallExtension(extensionId: string, context: vscode.Exten
 export async function activateExtensions(extensions: string[], context: vscode.ExtensionContext): Promise<void> {
 	extensions.forEach(async (extensionId) => {
 		const extension = await vscode.extensions.getExtension(extensionId);
-		console.log(`Activating ${extensionId}...`);
 		if (extension) {
 			if (!extension.isActive) {
+				console.log(`Activating ${extensionId}...`);
 				await extension.activate();
 			}
 			QW_LOG.appendLine(`${extensionId} activated.`);
