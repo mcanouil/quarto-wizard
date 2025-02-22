@@ -79,11 +79,8 @@ function lintOnEvent(lintOn: string) {
  */
 export function lint(context: vscode.ExtensionContext) {
 	const config = vscode.workspace.getConfiguration("quartoWizard.lint", null);
-	const lintOn = config.get<string>("trigger");
-	if (lintOn === "never") {
-		return;
-	}
-	if (vscode.window.activeTextEditor?.document.languageId === "quarto" && lintOn) {
+	const lintOn = config.get<string>("trigger") || "never";
+	if (vscode.window.activeTextEditor?.document.languageId === "quarto" && lintOn !== "never") {
 		activateExtensions([kMarkDownLintExtension], context);
 		lintOnEvent(lintOn);
 	}
