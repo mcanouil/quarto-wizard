@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14.0 (2025-02-22)
 
 - feat: add URI handler for installing Quarto extensions from the browser.  
   `vscode://mcanouil.quarto-wizard/install?repo=mcanouil/quarto-iconify`
