@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.13.0 (2025-02-22)
 
 - feat: allow to disable the automatic markdown linting via `markdownlint` with a "never" option.
 - refactor(lintOnEvent): use `switch` instead of `if`.
