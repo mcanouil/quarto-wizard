@@ -123,9 +123,9 @@ jobs:
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
         run: |
-          sleep 10
+          sleep 30
           gh pr merge --auto --squash --delete-branch
-          sleep 10
+          sleep 30
 
   release-publish:
     runs-on: ubuntu-latest
