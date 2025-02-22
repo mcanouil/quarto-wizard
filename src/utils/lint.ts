@@ -46,25 +46,39 @@ function lint() {
  *
  * When the specified event occurs, and the document's language ID is "quarto", the `quartoWizard.lint` command is executed.
  */
-export function lintOnEvent() {
+function lintOnEvent(lintOn: string) {
 	if (!vscode.extensions.getExtension(kMarkDownLintExtension)) {
 		QW_LOG.appendLine(`The '${kMarkDownLintExtension}' extension is not installed.`);
 		return;
 	}
+	switch (lintOn) {
+		case "save":
+			vscode.workspace.onDidSaveTextDocument((document) => {
+				if (document.languageId === "quarto") {
+					triggerLint();
+				}
+			});
+			break;
+		case "type":
+			vscode.workspace.onDidChangeTextDocument((event) => {
+				if (event.document.languageId === "quarto") {
+					triggerLint();
+				}
+			});
+			break;
+		default:
+			QW_LOG.appendLine(`Unsupported lint trigger: ${lintOn}`);
+	}
+}
+
+export function lint(context: vscode.ExtensionContext) {
 	const config = vscode.workspace.getConfiguration("quartoWizard.lint", null);
 	const lintOn = config.get<string>("trigger");
-	if (lintOn === "save") {
-		vscode.workspace.onDidSaveTextDocument((document) => {
-			if (document.languageId === "quarto") {
-				lint();
-			}
-		});
+	if (lintOn === "never") {
+		return;
 	}
-	if (lintOn === "type") {
-		vscode.workspace.onDidChangeTextDocument((event) => {
-			if (event.document.languageId === "quarto") {
-				lint();
-			}
-		});
+	if (vscode.window.activeTextEditor?.document.languageId === "quarto" && lintOn) {
+		activateExtensions([kMarkDownLintExtension], context);
+		lintOnEvent(lintOn);
 	}
 }
