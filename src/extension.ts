@@ -5,8 +5,7 @@ import { installQuartoExtensionCommand } from "./commands/installQuartoExtension
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails } from "./utils/extensionDetails";
-import { activateExtensions } from "./utils/activate";
-import { lintOnEvent } from "./commands/lint";
+import { lint } from "./utils/lint";
 
 /**
  * This method is called when the extension is activated.
@@ -41,10 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	new ExtensionsInstalled(context);
 
-	if (vscode.window.activeTextEditor?.document.languageId === "quarto") {
-		activateExtensions(["DavidAnson.vscode-markdownlint"], context);
-		lintOnEvent();
-	}
+	lint(context);
 }
 
 /**
