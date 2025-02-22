@@ -83,7 +83,7 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 export async function installQuartoExtension(extension: string): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
 	return new Promise((resolve) => {
-		if (vscode.workspace.workspaceFolders === undefined) {
+		if (!vscode.workspace.workspaceFolders) {
 			return;
 		}
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
@@ -149,7 +149,7 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
  */
 export async function removeQuartoExtension(extension: string): Promise<boolean> {
 	logMessage(`Removing ${extension} ...`, "info");
-	if (vscode.workspace.workspaceFolders === undefined) {
+	if (!vscode.workspace.workspaceFolders) {
 		return false;
 	}
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;

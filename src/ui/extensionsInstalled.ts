@@ -183,7 +183,7 @@ export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
 	private async initialise(context: vscode.ExtensionContext) {
-		if (vscode.workspace.workspaceFolders === undefined) {
+		if (!vscode.workspace.workspaceFolders) {
 			return;
 		}
 
@@ -237,7 +237,7 @@ export class ExtensionsInstalled {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 					this.treeDataProvider.forceRefresh();
 				} else {
-					if (item.data?.source === undefined) {
+					if (!item.data?.source) {
 						vscode.window.showErrorMessage(
 							`Failed to update extension "${item.label}". ` +
 								`Source not found in extension manifest. ` +
