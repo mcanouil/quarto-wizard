@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { QW_LOG } from "../constants";
+import { activateExtensions } from "./activate";
 
 const kMarkDownLintExtension = "DavidAnson.vscode-markdownlint";
 
@@ -13,7 +14,7 @@ const kMarkDownLintExtension = "DavidAnson.vscode-markdownlint";
  * 4. Toggles markdown linting twice to ensure it is enabled.
  * 5. Changes the document language back to "quarto".
  */
-function lint() {
+function triggerLint() {
 	if (!vscode.extensions.getExtension(kMarkDownLintExtension)) {
 		QW_LOG.appendLine(`The '${kMarkDownLintExtension}' extension is not installed.`);
 		return;
@@ -71,6 +72,11 @@ function lintOnEvent(lintOn: string) {
 	}
 }
 
+/**
+ * Lints the current Quarto document based on the user's configuration.
+ *
+ * @param context - The extension context provided by VS Code.
+ */
 export function lint(context: vscode.ExtensionContext) {
 	const config = vscode.workspace.getConfiguration("quartoWizard.lint", null);
 	const lintOn = config.get<string>("trigger");

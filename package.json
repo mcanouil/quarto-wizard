@@ -302,10 +302,11 @@
 					"type": "string",
 					"enum": [
 						"save",
-						"type"
+						"type",
+						"never"
 					],
 					"default": "save",
-					"markdownDescription": "Run the markdown linter on save (`save`) or on type (`type`)."
+					"markdownDescription": "Run the markdown linter on save (`save`), on type (`type`), or never (`never`)."
 				},
 				"quartoWizard.log.level": {
 					"order": 20,
