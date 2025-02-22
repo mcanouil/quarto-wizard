@@ -13,7 +13,7 @@ import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensions
  * @param selectedExtensions - The extensions selected by the user for installation.
  */
 async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[]) {
-	if (vscode.workspace.workspaceFolders === undefined) {
+	if (!vscode.workspace.workspaceFolders) {
 		return;
 	}
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
@@ -41,7 +41,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 			let installedCount = 0;
 
 			for (const selectedExtension of mutableSelectedExtensions) {
-				if (selectedExtension.id === undefined) {
+				if (!selectedExtension.id) {
 					continue;
 				}
 				progress.report({

@@ -63,7 +63,7 @@ function formatExtensionLabel(extension: string): string {
 		.replace(/[-_]/g, " ")
 		.replace(/quarto/gi, "")
 		.trim();
-	if (subDirectory !== undefined) {
+	if (subDirectory) {
 		const extensionNameSubDirectory = subDirectory
 			.replace(/[-_]/g, " ")
 			.replace(/quarto/gi, "")
