@@ -176,6 +176,21 @@ jobs:
           ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
           echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
 
+      - name: Package extension
+        env:
+          GH_TOKEN: ${{ secrets.github_token }}
+          VERSION: ${{ env.VERSION }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce package --pre-release
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          else
+            vsce package
+            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          fi
+
       - name: Publish extension to Visual Studio Marketplace
         env:
           VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
@@ -197,19 +212,4 @@ jobs:
             npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
           else
             npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
-          fi
-
-      - name: Package extension
-        env:
-          GH_TOKEN: ${{ secrets.github_token }}
-          VERSION: ${{ env.VERSION }}
-          CHANGELOG: ${{ env.CHANGELOG }}
-        shell: bash
-        run: |
-          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-            vsce package --pre-release
-            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
-          else
-            vsce package
-            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
           fi
