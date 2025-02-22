@@ -6,6 +6,7 @@ import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails } from "./utils/extensionDetails";
 import { lint } from "./utils/lint";
+import { handleUri } from "./utils/handleUri";
 
 /**
  * This method is called when the extension is activated.
@@ -41,6 +42,8 @@ export function activate(context: vscode.ExtensionContext) {
 	new ExtensionsInstalled(context);
 
 	lint(context);
+
+	vscode.window.registerUriHandler({ handleUri });
 }
 
 /**

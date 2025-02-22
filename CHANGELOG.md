@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- feat: add URI handler for installing Quarto extensions from the browser.  
+  `vscode://mcanouil.quarto-wizard/install?repo=mcanouil/quarto-iconify`
+
 ## 0.13.0 (2025-02-22)
 
 - feat: allow to disable the automatic markdown linting via `markdownlint` with a "never" option.
