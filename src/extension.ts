@@ -6,7 +6,7 @@ import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails } from "./utils/extensionDetails";
 import { activateExtensions } from "./utils/activate";
-import { lintOnEvent } from "./commands/lint";
+import { lintOnEvent } from "./utils/lint";
 
 /**
  * This method is called when the extension is activated.
