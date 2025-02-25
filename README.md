@@ -85,6 +85,23 @@ _Quarto Wizard Explorer View in action:_
 3. View the output log for the Quarto Wizard extension.
 4. Use the output log to troubleshoot any issues.
 
+### Markdown Linting
+
+The Quarto Wizard extension provides automatic Markdown linting to help you write better Markdown documents.  
+This is achieved by using the [`markdownlint`](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint) extension.
+
+In the context of Quarto, it's recommended to disable the following rule in your `settings.json` file:
+
+```json
+{
+  "markdownlint.config": {
+    "first-line-h1": false
+  }
+}
+```
+
+See the [`markdownlint` README](https://github.com/DavidAnson/vscode-markdownlint?tab=readme-ov-file) for more information.
+
 ## Development
 
 1. Clone the repository:
