@@ -95,7 +95,8 @@ In the context of Quarto, it's recommended to disable the following rule in your
 ```json
 {
   "markdownlint.config": {
-    "first-line-h1": false
+    "first-line-h1": false, //MD041
+    "single-h1": false // MD025
   }
 }
 ```
