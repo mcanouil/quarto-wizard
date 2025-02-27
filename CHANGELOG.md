@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- feat: add custome "markdownlint" rules: "blanks-around-fenced-divs".
+- chore: remove a `console.log()` statement.
+
 ## 0.14.1 (2025-02-23)
 
 - feat: improve the SVG icon.
