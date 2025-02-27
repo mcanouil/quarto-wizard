@@ -306,7 +306,7 @@
 						"type",
 						"never"
 					],
-					"default": "save",
+					"default": "type",
 					"markdownDescription": "Run the markdown linter on save (`save`), on type (`type`), or never (`never`)."
 				},
 				"quartoWizard.log.level": {

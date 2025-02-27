@@ -3,6 +3,7 @@
 ## Unreleased
 
 - feat: add custome "markdownlint" rules: "blanks-around-fenced-divs".
+- fix: set "markdownlint" linting to "on type" by default.
 - chore: remove a `console.log()` statement.
 
 ## 0.14.1 (2025-02-23)
