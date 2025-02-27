@@ -54,10 +54,9 @@ export async function activateExtensions(extensions: string[], context: vscode.E
 		const extension = await vscode.extensions.getExtension(extensionId);
 		if (extension) {
 			if (!extension.isActive) {
-				console.log(`Activating ${extensionId}...`);
 				await extension.activate();
+				QW_LOG.appendLine(`${extensionId} activated.`);
 			}
-			QW_LOG.appendLine(`${extensionId} activated.`);
 		} else {
 			QW_LOG.appendLine(`Failed to activate ${extensionId}.`);
 			await promptInstallExtension(extensionId, context);

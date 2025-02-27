@@ -306,7 +306,7 @@
 						"type",
 						"never"
 					],
-					"default": "save",
+					"default": "type",
 					"markdownDescription": "Run the markdown linter on save (`save`), on type (`type`), or never (`never`)."
 				},
 				"quartoWizard.log.level": {
@@ -323,6 +323,11 @@
 					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything."
 				}
 			}
+		},
+		"configurationDefaults": {
+			"markdownlint.customRules": [
+				"{mcanouil.quarto-wizard}/markdownlint-rules/001-blanks-around-fenced-divs.js"
+			]
 		}
 	}
 }
