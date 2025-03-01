@@ -78,7 +78,7 @@
 		"webpack-cli": "^6.0.1"
 	},
 	"dependencies": {
-		"@types/lodash": "^4.17.15",
+		"@types/lodash": "^4.17.16",
 		"js-yaml": "^4.1.0",
 		"lodash": "^4.17.21",
 		"semver": "^7.7.1"
