@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14.2 (2025-03-06)
 
 - feat: add custom "markdownlint" rules: "blanks-around-fenced-divs".
 - fix: set "markdownlint" linting to "on type" by default.
