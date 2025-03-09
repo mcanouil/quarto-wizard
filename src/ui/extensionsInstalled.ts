@@ -252,7 +252,7 @@ export class ExtensionsInstalled {
 		);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", async (item: ExtensionTreeItem) => {
-				const success = await removeQuartoExtension(item.label);
+				const success = await removeQuartoExtension(item.label, workspaceFolder);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
 					this.treeDataProvider.forceRefresh();

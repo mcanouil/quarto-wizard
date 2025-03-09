@@ -4,7 +4,6 @@ import * as path from "path";
 import * as fs from "fs";
 import { logMessage } from "./log";
 import { findModifiedExtensions, getMtimeExtensions, removeExtension } from "./extensions";
-import { selectWorkspaceFolder } from "./workspace";
 
 let cachedQuartoPath: string | undefined;
 
@@ -79,11 +78,11 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
  * Installs a Quarto extension.
  *
  * @param {string} extension - The name of the extension to install.
+ * @param {string} workspaceFolder - The workspace folder path.
  * @returns {Promise<boolean>} - A promise that resolves to true if the extension is installed successfully, otherwise false.
  */
-export async function installQuartoExtension(extension: string): Promise<boolean> {
+export async function installQuartoExtension(extension: string, workspaceFolder: string): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
-	const workspaceFolder = await selectWorkspaceFolder();
 	return new Promise((resolve) => {
 		if (!workspaceFolder) {
 			return;
@@ -124,7 +123,7 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
 	const extensionsDirectory = path.join(workspaceFolder, "_extensions");
 	const existingExtensions = getMtimeExtensions(extensionsDirectory);
 
-	const success = await installQuartoExtension(extension);
+	const success = await installQuartoExtension(extension, workspaceFolder);
 
 	const newExtension = findModifiedExtensions(existingExtensions, extensionsDirectory);
 	const fileNames = ["_extension.yml", "_extension.yaml"];
@@ -146,11 +145,11 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
  * Removes a Quarto extension.
  *
  * @param {string} extension - The name of the extension to remove.
+ * @param {string} workspaceFolder - The workspace folder path.
  * @returns {Promise<boolean>} - A promise that resolves to true if the extension is removed successfully, otherwise false.
  */
-export async function removeQuartoExtension(extension: string): Promise<boolean> {
+export async function removeQuartoExtension(extension: string, workspaceFolder: string): Promise<boolean> {
 	logMessage(`Removing ${extension} ...`, "info");
-	const workspaceFolder = await selectWorkspaceFolder();
 	if (!workspaceFolder) {
 		return false;
 	}
