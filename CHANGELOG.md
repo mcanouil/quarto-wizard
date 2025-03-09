@@ -2,8 +2,8 @@
 
 ## 0.15.0 (2025-03-09)
 
-- feat: add support for multi-root workspaces ([#101](https://github.com/mcanouil/quarto-wizard/issues/101)).
-- feat: implement workspace folder selection utility ([#100](https://github.com/mcanouil/quarto-wizard/issues/100)).
+- feat: add support for multi-root workspaces ([#102](https://github.com/mcanouil/quarto-wizard/issues/102)).
+- feat: implement workspace folder selection utility ([#100](https://github.com/mcanouil/quarto-wizard/issues/100), [#101](https://github.com/mcanouil/quarto-wizard/issues/101)).
 
 ## 0.14.2 (2025-03-06)
 
