@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- feat: Implement workspace folder selection utility ([#100](https://github.com/mcanouil/quarto-wizard/issues/100)).
+
 ## 0.14.2 (2025-03-06)
 
 - feat: add custom "markdownlint" rules: "blanks-around-fenced-divs".
