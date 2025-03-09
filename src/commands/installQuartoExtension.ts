@@ -13,11 +13,7 @@ import { selectWorkspaceFolder } from "../utils/workspace";
  *
  * @param selectedExtensions - The extensions selected by the user for installation.
  */
-async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[]) {
-	const workspaceFolder = await selectWorkspaceFolder();
-	if (!workspaceFolder) {
-		return;
-	}
+async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[], workspaceFolder: string) {
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
 	if ((await askTrustAuthors()) !== 0) return;
@@ -104,10 +100,8 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
  * @param context - The extension context.
  */
 export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
-	if (!vscode.workspace.workspaceFolders) {
-		const message = `Please open a workspace/folder to install Quarto extensions.`;
-		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
 		return;
 	}
 
@@ -122,7 +116,7 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
 
 	if (selectedExtensions.length > 0) {
-		await installQuartoExtensions(selectedExtensions);
+		await installQuartoExtensions(selectedExtensions, workspaceFolder);
 		const selectedIDs = selectedExtensions.map((ext) => ext.id);
 		const updatedRecentlyInstalled = [...selectedIDs, ...recentlyInstalled.filter((ext) => !selectedIDs.includes(ext))];
 		await context.globalState.update(QW_RECENTLY_INSTALLED, updatedRecentlyInstalled.slice(0, 5));
