@@ -7,6 +7,7 @@ import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
 import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
 import { getExtensionsDetails } from "../utils/extensionDetails";
+import { selectWorkspaceFolder } from "../utils/workspace";
 
 /**
  * Represents a tree item for a Quarto extension.
@@ -183,11 +184,11 @@ export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
 	private async initialise(context: vscode.ExtensionContext) {
-		if (!vscode.workspace.workspaceFolders) {
+		const workspaceFolder = await selectWorkspaceFolder();
+		if (!workspaceFolder) {
 			return;
 		}
 
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolder);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,

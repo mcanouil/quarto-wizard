@@ -4,6 +4,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { logMessage } from "./log";
 import { findModifiedExtensions, getMtimeExtensions, removeExtension } from "./extensions";
+import { selectWorkspaceFolder } from "./workspace";
 
 let cachedQuartoPath: string | undefined;
 
@@ -82,11 +83,11 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
  */
 export async function installQuartoExtension(extension: string): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
+	const workspaceFolder = await selectWorkspaceFolder();
 	return new Promise((resolve) => {
-		if (!vscode.workspace.workspaceFolders) {
+		if (!workspaceFolder) {
 			return;
 		}
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		const quartoPath = getQuartoPath();
 		checkQuartoPath(quartoPath);
 		const command = `${quartoPath} add ${extension} --no-prompt`;
@@ -149,10 +150,10 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
  */
 export async function removeQuartoExtension(extension: string): Promise<boolean> {
 	logMessage(`Removing ${extension} ...`, "info");
-	if (!vscode.workspace.workspaceFolders) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
 		return false;
 	}
-	const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 	const status = await removeExtension(extension, path.join(workspaceFolder, "_extensions"));
 	return status;
 }
