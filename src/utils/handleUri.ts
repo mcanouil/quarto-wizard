@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
-import { showLogsCommand, logMessage } from "../utils/log";
 import { installQuartoExtensionSource } from "./quarto";
+import { showLogsCommand, logMessage } from "../utils/log";
+import { selectWorkspaceFolder } from "../utils/workspace";
 
 /**
  * Handle the URI passed to the extension.
@@ -12,10 +13,10 @@ import { installQuartoExtensionSource } from "./quarto";
 export async function handleUri(uri: vscode.Uri) {
 	if (uri.path === "/install") {
 		const repo = new URLSearchParams(uri.query).get("repo");
-		if (!repo || !vscode.workspace.workspaceFolders) {
+		const workspaceFolder = await selectWorkspaceFolder();
+		if (!repo || !workspaceFolder) {
 			return;
 		}
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		const installWorkspace = await vscode.window.showInformationMessage(
 			`Do you confirm the installation of "${repo}" extension?`,
 			{ modal: true },
