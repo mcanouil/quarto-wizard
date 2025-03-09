@@ -35,6 +35,12 @@ on:
       - "package.json"
       - "package-lock.json"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions: read-all
+
 jobs:
   build:
     runs-on: ubuntu-latest
