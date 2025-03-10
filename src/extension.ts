@@ -18,6 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
 	QW_LOG.appendLine("Quarto Wizard, your magical assistant, is now active!");
 
+	lint(context);
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
 			context.globalState.update(QW_RECENTLY_INSTALLED, []);
@@ -40,8 +42,6 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	new ExtensionsInstalled(context);
-
-	lint(context);
 
 	vscode.window.registerUriHandler({ handleUri });
 }
