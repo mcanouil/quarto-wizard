@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.1 (2025-03-10)
 
 - fix: tweak `markdownlint` extension activation and trigger to avoid linting issues.
 
