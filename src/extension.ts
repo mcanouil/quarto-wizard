@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { QW_LOG, QW_RECENTLY_INSTALLED } from "./constants";
+import { QW_LOG, QW_RECENTLY_INSTALLED, kMarkDownLintExtension } from "./constants";
 import { showLogsCommand, logMessage } from "./utils/log";
 import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
@@ -7,6 +7,7 @@ import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails } from "./utils/extensionDetails";
 import { lint } from "./utils/lint";
 import { handleUri } from "./utils/handleUri";
+import { activateExtensions } from "./utils/activate";
 
 /**
  * This method is called when the extension is activated.
@@ -17,6 +18,10 @@ import { handleUri } from "./utils/handleUri";
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
 	QW_LOG.appendLine("Quarto Wizard, your magical assistant, is now active!");
+
+	activateExtensions([kMarkDownLintExtension], context);
+
+	lint();
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
@@ -40,8 +45,6 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	new ExtensionsInstalled(context);
-
-	lint(context);
 
 	vscode.window.registerUriHandler({ handleUri });
 }

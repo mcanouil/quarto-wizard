@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: activate `markdownlint` extension earlier to avoid linting issues.
+
 ## 0.15.0 (2025-03-09)
 
 - feat: add support for multi-root workspaces ([#102](https://github.com/mcanouil/quarto-wizard/issues/102)).

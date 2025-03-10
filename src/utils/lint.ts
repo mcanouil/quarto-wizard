@@ -1,8 +1,5 @@
 import * as vscode from "vscode";
-import { QW_LOG } from "../constants";
-import { activateExtensions } from "./activate";
-
-const kMarkDownLintExtension = "DavidAnson.vscode-markdownlint";
+import { QW_LOG, kMarkDownLintExtension } from "../constants";
 
 /**
  * Lints the currently active text editor if the document language is "quarto".
@@ -77,11 +74,10 @@ function lintOnEvent(lintOn: string) {
  *
  * @param context - The extension context provided by VS Code.
  */
-export function lint(context: vscode.ExtensionContext) {
+export function lint() {
 	const config = vscode.workspace.getConfiguration("quartoWizard.lint", null);
 	const lintOn = config.get<string>("trigger") || "never";
 	if (vscode.window.activeTextEditor?.document.languageId === "quarto" && lintOn !== "never") {
-		activateExtensions([kMarkDownLintExtension], context);
 		lintOnEvent(lintOn);
 	}
 }
