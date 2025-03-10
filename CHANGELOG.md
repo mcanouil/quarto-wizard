@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- fix: activate `markdownlint` extension earlier to avoid linting issues.
+- fix: tweak `markdownlint` extension activation and trigger to avoid linting issues.
 
 ## 0.15.0 (2025-03-09)
 

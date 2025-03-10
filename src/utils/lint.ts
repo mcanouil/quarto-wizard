@@ -1,5 +1,14 @@
 import * as vscode from "vscode";
 import { QW_LOG, kMarkDownLintExtension } from "../constants";
+import { activateExtensions } from "./activate";
+
+/**
+ * Toggle markdown linting for the currently active text editor.
+ */
+export function toggleLinting() {
+	vscode.commands.executeCommand("markdownlint.toggleLinting");
+	vscode.commands.executeCommand("markdownlint.toggleLinting"); // Toggle twice to ensure linting is enabled
+}
 
 /**
  * Lints the currently active text editor if the document language is "quarto".
@@ -20,10 +29,7 @@ function triggerLint() {
 	if (editor && editor.document.languageId === "quarto") {
 		vscode.languages
 			.setTextDocumentLanguage(editor.document, "markdown")
-			.then(() => {
-				vscode.commands.executeCommand("markdownlint.toggleLinting");
-				vscode.commands.executeCommand("markdownlint.toggleLinting"); // Toggle twice to ensure linting is enabled
-			})
+			.then(toggleLinting)
 			.then(() => {
 				vscode.languages.setTextDocumentLanguage(editor.document, "quarto");
 			});
@@ -74,10 +80,12 @@ function lintOnEvent(lintOn: string) {
  *
  * @param context - The extension context provided by VS Code.
  */
-export function lint() {
+export function lint(context: vscode.ExtensionContext) {
 	const config = vscode.workspace.getConfiguration("quartoWizard.lint", null);
 	const lintOn = config.get<string>("trigger") || "never";
 	if (vscode.window.activeTextEditor?.document.languageId === "quarto" && lintOn !== "never") {
+		activateExtensions([kMarkDownLintExtension], context);
+		toggleLinting();
 		lintOnEvent(lintOn);
 	}
 }
