@@ -3,6 +3,7 @@
 ## Unreleased
 
 - feat: add a welcome view in the Quarto Wizard Explorer.
+- feat: handle empty workspace(s) in the explorer view.
 - fix: disable "blanks-around-fenced-divs" rule by default.
 - refactor(src/utils/workspace.ts): use `vscode.WorkspaceFolderPickOptions()` for workspace folder selection.
 - docs: add a note about the "blanks-around-fenced-divs" rule in the README.
