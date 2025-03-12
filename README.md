@@ -103,6 +103,18 @@ In the context of Quarto, it's recommended to disable the following rule in your
 
 See the [`markdownlint` README](https://github.com/DavidAnson/vscode-markdownlint?tab=readme-ov-file) for more information.
 
+#### Custom Markdown Linting Rules
+
+- `QMD001` / `blanks-around-fenced-divs`: Ensure there are no blank lines around [fenced divs](https://pandoc.org/MANUAL.html#extension-fenced_divs) delimiters.
+
+  ```json
+  {
+    "markdownlint.config": {
+      "blanks-around-fenced-divs": true
+    }
+  }
+  ```
+
 ## Development
 
 1. Clone the repository:
