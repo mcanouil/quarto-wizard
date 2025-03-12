@@ -7,16 +7,20 @@ import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
 import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
 import { getExtensionsDetails } from "../utils/extensionDetails";
+import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 
 /**
  * Represents a tree item for a workspace folder.
  */
 class WorkspaceFolderTreeItem extends vscode.TreeItem {
+	public workspaceFolder: string;
+
 	constructor(public readonly label: string, public readonly folderPath: string) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
 		this.contextValue = "quartoExtensionWorkspaceFolder";
 		this.iconPath = new vscode.ThemeIcon("folder");
 		this.tooltip = folderPath;
+		this.workspaceFolder = folderPath;
 	}
 }
 
@@ -301,6 +305,12 @@ export class ExtensionsInstalled {
 					const url = `https://github.com/${item.data?.source}`;
 					vscode.env.openExternal(vscode.Uri.parse(url));
 				}
+			})
+		);
+
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
+				installQuartoExtensionFolderCommand(context, item.workspaceFolder);
 			})
 		);
 
