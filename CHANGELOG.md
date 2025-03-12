@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- fix: disable "blanks-around-fenced-divs" rule by default.
+- docs: add a note about the "blanks-around-fenced-divs" rule in the README.
+
 ## 0.15.1 (2025-03-10)
 
 - fix: tweak `markdownlint` extension activation and trigger to avoid linting issues.
