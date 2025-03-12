@@ -100,6 +100,11 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	}
 
 	private getWorkspaceFolderItems(): WorkspaceFolderTreeItem[] {
+		if (this.workspaceFolders.length > 1) {
+			return this.workspaceFolders.map((folder) => {
+				return new WorkspaceFolderTreeItem(folder.name, folder.uri.fsPath);
+			});
+		}
 		return this.workspaceFolders
 			.filter((folder) => {
 				const folderData = this.extensionsDataByFolder[folder.uri.fsPath] || {};
@@ -112,13 +117,13 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 		const folderData = this.extensionsDataByFolder[workspacePath] || {};
 		if (Object.keys(folderData).length === 0) {
 			return [
-				// new ExtensionTreeItem(
-				// 	"No extensions installed.",
-				// 	vscode.TreeItemCollapsibleState.None,
-				// 	workspacePath,
-				// 	undefined,
-				// 	"info"
-				// ),
+				new ExtensionTreeItem(
+					"No extensions installed.",
+					vscode.TreeItemCollapsibleState.None,
+					workspacePath,
+					undefined,
+					"info"
+				),
 			];
 		}
 
