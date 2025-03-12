@@ -3,6 +3,7 @@
 ## Unreleased
 
 - fix: disable "blanks-around-fenced-divs" rule by default.
+- refactor(src/utils/workspace.ts): use `vscode.WorkspaceFolderPickOptions()` for workspace folder selection.
 - docs: add a note about the "blanks-around-fenced-divs" rule in the README.
 
 ## 0.15.1 (2025-03-10)

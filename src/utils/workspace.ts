@@ -15,12 +15,12 @@ export async function selectWorkspaceFolder(): Promise<string | undefined> {
 		return workspaceFolders[0].uri.fsPath;
 	}
 
-	const selectedFolder = await vscode.window.showQuickPick(
-		workspaceFolders.map((folder) => folder.name),
-		{
-			placeHolder: "Select a workspace folder",
-		}
-	);
+	const options: vscode.WorkspaceFolderPickOptions = {
+		placeHolder: "Select a workspace folder",
+		ignoreFocusOut: true,
+	};
 
-	return selectedFolder ? workspaceFolders.find((folder) => folder.name === selectedFolder)?.uri.fsPath : undefined;
+	const selectedFolder = await vscode.window.showWorkspaceFolderPick(options);
+
+	return selectedFolder?.uri.fsPath;
 }
