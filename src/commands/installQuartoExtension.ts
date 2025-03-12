@@ -99,12 +99,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
  *
  * @param context - The extension context.
  */
-export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
-	const workspaceFolder = await selectWorkspaceFolder();
-	if (!workspaceFolder) {
-		return;
-	}
-
+export async function installQuartoExtensionFolderCommand(context: vscode.ExtensionContext, workspaceFolder: string) {
 	const isConnected = await checkInternetConnection("https://github.com/");
 	if (!isConnected) {
 		return;
@@ -121,4 +116,12 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 		const updatedRecentlyInstalled = [...selectedIDs, ...recentlyInstalled.filter((ext) => !selectedIDs.includes(ext))];
 		await context.globalState.update(QW_RECENTLY_INSTALLED, updatedRecentlyInstalled.slice(0, 5));
 	}
+}
+
+export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+	installQuartoExtensionFolderCommand(context, workspaceFolder);
 }

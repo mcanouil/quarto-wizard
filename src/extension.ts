@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.installExtension", () => installQuartoExtensionCommand(context))
+		vscode.commands.registerCommand("quartoWizard.installExtension", async () => installQuartoExtensionCommand(context))
 	);
 
 	context.subscriptions.push(
