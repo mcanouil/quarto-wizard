@@ -325,6 +325,9 @@
 			}
 		},
 		"configurationDefaults": {
+			"markdownlint.config": {
+				"blanks-around-fenced-divs": false
+			},
 			"markdownlint.customRules": [
 				"{mcanouil.quarto-wizard}/markdownlint-rules/001-blanks-around-fenced-divs.js"
 			]
