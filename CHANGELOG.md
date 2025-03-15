@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.15.2 (2025-03-12)
 
 - feat: add a welcome view in the Quarto Wizard Explorer.
