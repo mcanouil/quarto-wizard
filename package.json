@@ -221,12 +221,12 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated) && viewItem != quartoExtensionItemNoSource",
 					"group": "inline@4"
 				}
 			],

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: don't show "Open Source" button for tree element with no "source".
+
 ## 0.16.0 (2025-03-15)
 
 ## 0.15.2 (2025-03-12)

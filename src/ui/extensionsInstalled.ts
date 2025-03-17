@@ -39,14 +39,18 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		icon?: string,
 		latestVersion?: string
 	) {
+		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined;
 		let contextValue = "quartoExtensionItemValues";
 		if (needsUpdate) {
 			contextValue = "quartoExtensionItemOutdated";
 		} else if (data) {
-			contextValue = "quartoExtensionItem";
+			if (!this.data?.source) {
+				contextValue = "quartoExtensionItemNoSource";
+			} else {
+				contextValue = "quartoExtensionItem";
+			}
 		}
-		super(label, collapsibleState);
 		this.tooltip = `${this.label}`;
 		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
 		this.contextValue = contextValue;
