@@ -134,6 +134,8 @@ jobs:
 
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout repository
@@ -177,6 +179,20 @@ jobs:
           echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
 
       - name: Package extension
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+            vsce package --pre-release
+          else
+            vsce package
+          fi
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "${{ github.workspace }}/quarto-wizard-${{ env.VERSION }}.vsix"
+
+      - name: Release extension on GitHub
         env:
           GH_TOKEN: ${{ secrets.github_token }}
           VERSION: ${{ env.VERSION }}
@@ -184,10 +200,8 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-            vsce package --pre-release
             gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
           else
-            vsce package
             gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
           fi
 
