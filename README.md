@@ -115,6 +115,14 @@ See the [`markdownlint` README](https://github.com/DavidAnson/vscode-markdownlin
   }
   ```
 
+## Verifying Release Asset Build Provenance
+
+To ensure the authenticity and integrity of the release asset, use GitHub CLI to verify its build provenance using GitHub CLI.
+
+```bash
+gh attestation verify quarto-wizard-<version>.vsix --repo mcanouil/quarto-wizard
+```
+
 ## Development
 
 1. Clone the repository:
