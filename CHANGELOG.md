@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- fix: don't show "Open Source" button for tree element with no "source".
+- fix: GitHub icon / "open source" visibility for tree elements without source.
 
 ## 0.16.0 (2025-03-15)
 
