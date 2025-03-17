@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: GitHub icon / "open source" visibility for tree elements without source.
+
 ## 0.16.0 (2025-03-15)
 
 ## 0.15.2 (2025-03-12)
