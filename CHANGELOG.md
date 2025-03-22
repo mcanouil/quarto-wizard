@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- refactor: update to reflect changes in <https://github.com/mcanouil/quarto-extensions>.
+
 ## 0.16.1 (2025-03-17)
 
 - fix: GitHub icon / "open source" visibility for tree elements without source.

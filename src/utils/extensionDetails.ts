@@ -53,33 +53,6 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<Extens
 }
 
 /**
- * Formats the label of a Quarto extension.
- * @param {string} extension - The extension name.
- * @returns {string} - The formatted extension label.
- */
-function formatExtensionLabel(extension: string): string {
-	const [, name, subDirectory] = extension.split("/");
-	let extensionName = name
-		.replace(/[-_]/g, " ")
-		.replace(/quarto/gi, "")
-		.trim();
-	if (subDirectory) {
-		const extensionNameSubDirectory = subDirectory
-			.replace(/[-_]/g, " ")
-			.replace(/quarto/gi, "")
-			.trim();
-		if (extensionNameSubDirectory !== "") {
-			extensionName = extensionNameSubDirectory;
-		}
-	}
-	extensionName = extensionName
-		.split(" ")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-		.join(" ");
-	return extensionName;
-}
-
-/**
  * Parses the details of a Quarto extensions from JSON data.
  * @param {string} data - The extensions details as JSON.
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
@@ -91,15 +64,15 @@ async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]>
 			const extension = parsedData[key];
 			return {
 				id: key,
-				name: formatExtensionLabel(key),
+				name: extension.title,
 				full_name: extension.nameWithOwner,
 				owner: extension.owner,
-				description: extension.description || "none",
+				description: extension.description,
 				stars: extension.stargazerCount,
-				license: extension.licenseInfo || "none",
+				license: extension.licenseInfo,
 				html_url: extension.url,
-				version: extension.latestRelease ? extension.latestRelease.replace(/^v/, "") : "none",
-				tag: extension.latestRelease || "none",
+				version: extension.latestRelease.replace(/^v/, ""),
+				tag: extension.latestRelease,
 			};
 		});
 		return extensionDetailsList;
