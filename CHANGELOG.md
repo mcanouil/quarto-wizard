@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.16.2 (2025-03-22)
 
 - refactor: update to reflect changes in <https://github.com/mcanouil/quarto-extensions>.
 
