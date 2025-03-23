@@ -88,7 +88,7 @@
 			{
 				"command": "quartoWizard.installExtension",
 				"title": "Install Extension(s)",
-				"shortTitle": "Refresh",
+				"shortTitle": "Install",
 				"icon": "$(add)",
 				"category": "Quarto Wizard"
 			},
