@@ -24,6 +24,10 @@ Finally, it provides an automatic Markdown linting feature to help you write bet
   - **Browse Extensions**: View a list of available Quarto extensions.
     <p><img src="assets/images/install-extensions.png" alt="List of extensions" width="400" /></p>
   - **Install Extensions**: Install selected Quarto extensions with a single click.
+- `Quarto Wizard: Use Template`: Opens the template installer interface.
+  - **Browse Templates**: View a list of available Quarto templates from Quarto Extensions.
+    <p><img src="assets/images/use-template.png" alt="List of templates" width="400" /></p>
+  - **Install Templates**: Install selected Quarto template with a single click.
 - `Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
 - `Quarto Wizard: Show Quarto Wizard Log Output`: Displays the output log for the extension installer.
 - `Quarto Wizard: Quarto Reproducible Document`: Creates a new Quarto document.
