@@ -7,6 +7,8 @@ import { ExtensionDetails } from "../utils/extensionDetails";
 export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
 	id?: string;
+	template?: boolean;
+	templateContent?: string;
 }
 
 /**
@@ -27,6 +29,8 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 		],
 		url: ext.html_url,
 		id: ext.id,
+		template: ext.template,
+		templateContent: ext.templateContent,
 	}));
 }
 
@@ -38,11 +42,12 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
  */
 export async function showExtensionQuickPick(
 	extensionsList: ExtensionDetails[],
-	recentlyInstalled: string[]
+	recentlyInstalled: string[],
+	template = false
 ): Promise<readonly ExtensionQuickPickItem[]> {
 	const groupedExtensions: ExtensionQuickPickItem[] = [
 		{
-			label: "Recently Installed",
+			label: template ? "Recently Used" : "Recently Installed",
 			kind: vscode.QuickPickItemKind.Separator,
 		},
 		...createExtensionItems(extensionsList.filter((ext) => recentlyInstalled.includes(ext.id))),
@@ -57,8 +62,8 @@ export async function showExtensionQuickPick(
 
 	const quickPick = vscode.window.createQuickPick<ExtensionQuickPickItem>();
 	quickPick.items = groupedExtensions;
-	quickPick.placeholder = "Select Quarto extensions to install";
-	quickPick.canSelectMany = true;
+	quickPick.placeholder = template ? "Select Quarto extension template to use" : "Select Quarto extensions to install";
+	quickPick.canSelectMany = !template;
 	quickPick.matchOnDescription = true;
 	quickPick.onDidTriggerItemButton((e) => {
 		const url = e.item.url;

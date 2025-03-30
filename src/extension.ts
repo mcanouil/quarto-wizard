@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { QW_LOG, QW_RECENTLY_INSTALLED } from "./constants";
+import { QW_LOG, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "./constants";
 import { showLogsCommand, logMessage } from "./utils/log";
-import { installQuartoExtensionCommand } from "./commands/installQuartoExtension";
+import { installQuartoExtensionCommand, useQuartoTemplateCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails } from "./utils/extensionDetails";
@@ -21,8 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
 	lint(context);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.clearRecentlyInstalled", () => {
+		vscode.commands.registerCommand("quartoWizard.clearRecent", () => {
 			context.globalState.update(QW_RECENTLY_INSTALLED, []);
+			context.globalState.update(QW_RECENTLY_USED, []);
 			const message = "Recently installed Quarto extensions have been cleared.";
 			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
@@ -31,6 +32,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.installExtension", async () => installQuartoExtensionCommand(context))
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.useTemplate", async () => useQuartoTemplateCommand(context))
 	);
 
 	context.subscriptions.push(

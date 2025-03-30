@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { QW_RECENTLY_INSTALLED } from "../constants";
+import { QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { getQuartoPath, checkQuartoPath, installQuartoExtensionSource } from "../utils/quarto";
@@ -12,6 +12,7 @@ import { selectWorkspaceFolder } from "../utils/workspace";
  * Installs the selected Quarto extensions.
  *
  * @param selectedExtensions - The extensions selected by the user for installation.
+ * @param workspaceFolder - The workspace folder where the extensions will be installed.
  */
 async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[], workspaceFolder: string) {
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
@@ -99,22 +100,33 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
  *
  * @param context - The extension context.
  */
-export async function installQuartoExtensionFolderCommand(context: vscode.ExtensionContext, workspaceFolder: string) {
+export async function installQuartoExtensionFolderCommand(
+	context: vscode.ExtensionContext,
+	workspaceFolder: string,
+	template = false
+) {
 	const isConnected = await checkInternetConnection("https://github.com/");
 	if (!isConnected) {
 		return;
 	}
 	await checkQuartoPath(getQuartoPath());
 
-	const recentlyInstalled: string[] = context.globalState.get(QW_RECENTLY_INSTALLED, []);
-	const extensionsList = await getExtensionsDetails(context);
-	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentlyInstalled);
+	let extensionsList = await getExtensionsDetails(context);
+	if (template) {
+		extensionsList = extensionsList.filter((ext) => ext.template);
+	}
+	const recentKey = template ? QW_RECENTLY_USED : QW_RECENTLY_INSTALLED;
+	const recentExtensions: string[] = context.globalState.get(recentKey, []);
+	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentExtensions, template);
 
 	if (selectedExtensions.length > 0) {
 		await installQuartoExtensions(selectedExtensions, workspaceFolder);
+		if (template) {
+			await useQuartoTemplate(selectedExtensions);
+		}
 		const selectedIDs = selectedExtensions.map((ext) => ext.id);
-		const updatedRecentlyInstalled = [...selectedIDs, ...recentlyInstalled.filter((ext) => !selectedIDs.includes(ext))];
-		await context.globalState.update(QW_RECENTLY_INSTALLED, updatedRecentlyInstalled.slice(0, 5));
+		const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
+		await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
 	}
 }
 
@@ -123,5 +135,43 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 	if (!workspaceFolder) {
 		return;
 	}
-	installQuartoExtensionFolderCommand(context, workspaceFolder);
+	installQuartoExtensionFolderCommand(context, workspaceFolder, false);
+}
+
+/**
+ * Use the selected Quarto extension template.
+ *
+ * @param selectedExtension - The extension template selected by the user for use.
+ */
+async function useQuartoTemplate(selectedExtension: readonly ExtensionQuickPickItem[]) {
+	if (selectedExtension.length === 0 || !selectedExtension[0].templateContent) {
+		const message = "No template content found for the selected extension.";
+		logMessage(message, "error");
+		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+		return;
+	}
+
+	try {
+		const decodedContent = Buffer.from(selectedExtension[0].templateContent, "base64").toString("utf-8");
+		await vscode.workspace.openTextDocument({ content: decodedContent, language: "quarto" }).then((document) => {
+			vscode.window.showTextDocument(document);
+		});
+		const message = `Template from ${selectedExtension[0].id} opened successfully.`;
+		logMessage(message, "info");
+	} catch (error) {
+		const message =
+			error instanceof Error
+				? `Failed to open the template from ${selectedExtension[0].id}: ${error.message}.`
+				: `An unknown error occurred retrieving the template content from ${selectedExtension[0].id}.`;
+		logMessage(message, "error");
+		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+	}
+}
+
+export async function useQuartoTemplateCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+	installQuartoExtensionFolderCommand(context, workspaceFolder, true);
 }

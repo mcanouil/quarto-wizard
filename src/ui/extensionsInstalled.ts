@@ -41,15 +41,12 @@ class ExtensionTreeItem extends vscode.TreeItem {
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined;
-		let contextValue = "quartoExtensionItemValues";
+		const baseContextValue = "quartoTemplateItem";
+		let contextValue = baseContextValue;
 		if (needsUpdate) {
-			contextValue = "quartoExtensionItemOutdated";
-		} else if (data) {
-			if (!this.data?.source) {
-				contextValue = "quartoExtensionItemNoSource";
-			} else {
-				contextValue = "quartoExtensionItem";
-			}
+			contextValue = baseContextValue + "Outdated";
+		} else if (data && !this.data?.source) {
+			contextValue = baseContextValue + "NoSource";
 		}
 		this.tooltip = `${this.label}`;
 		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
@@ -314,8 +311,17 @@ export class ExtensionsInstalled {
 
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
-				installQuartoExtensionFolderCommand(context, item.workspaceFolder);
+				installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
 			})
+		);
+
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.useTemplate",
+				async (item: ExtensionTreeItem) => {
+					installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
+				}
+			)
 		);
 
 		context.subscriptions.push(
