@@ -22,11 +22,11 @@ Finally, it provides an automatic Markdown linting feature to help you write bet
 
 - `Quarto Wizard: Install Extension(s)`: Opens the extension installer interface.
   - **Browse Extensions**: View a list of available Quarto extensions.
-    <p><img src="assets/images/install-extensions.png" alt="List of extensions" width="400" /></p>
+    <p><img src="assets/images/install-extensions.png" alt='This image displays a search results interface for Quarto extensions authored by the user "mcanouil". It lists various extensions, including their names, version numbers, star ratings, and brief descriptions. The search highlights extensions such as Animate, Div Reuse, Elevator, Github, Highlight Text, Iconify, Invoice, and Letter, showcasing diverse functionalities ranging from animated content to document styling and templates for invoices and letters. The purpose of the image is to present a concise overview of available extensions along with their popularity and license information for Quarto users.' width="400" /></p>
   - **Install Extensions**: Install selected Quarto extensions with a single click.
 - `Quarto Wizard: Use Template`: Opens the template installer interface.
   - **Browse Templates**: View a list of available Quarto templates from Quarto Extensions.
-    <p><img src="assets/images/use-template.png" alt="List of templates" width="400" /></p>
+    <p><img src="assets/images/use-template.png" alt='This image showcases a menu of Quarto extension templates available for selection. It lists templates like "LETTER," "ACADEMIC TYPST," "ACM," "ACS," and others, each with details such as version, number of stars, repository link, and license type. The "LETTER" template is highlighted, suggesting recent usage. This visual serves as a practical guide for users looking to choose and apply specific Quarto templates effectively.' width="400" /></p>
   - **Install Templates**: Install selected Quarto template with a single click.
 - `Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
 - `Quarto Wizard: Show Quarto Wizard Log Output`: Displays the output log for the extension installer.
@@ -43,7 +43,7 @@ Finally, it provides an automatic Markdown linting feature to help you write bet
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Focus on Extensions Installed View` and select it.  
    Or click on the Quarto Wizard icon in the Activity Bar.
-   <p align="center"><img src="assets/images/explorer-view.png" alt="Quarto Wizard Explorer View" width="600" /></p>
+   <p align="center"><img src="assets/images/explorer-view.png" alt="This image showcases the Quarto Wizard extension interface within Visual Studio Code. It highlights features like the workspace view, extension management options for adding, removing, or updating extensions, as well as template usage and GitHub repository access. The interface also illustrates the Quarto Wizard Explorer section, with annotations using colored arrows and text to explain specific functionalities. Two workspaces are displayed: one with installed extensions labeled wizard-dev, and another without installed extensions labeled quarto-playground. This visual guide serves users looking to manage Quarto extensions in Visual Studio Code effectively." width="600" /></p>
 
 Or click on the Quarto Wizard icon in the Activity Bar.
 
@@ -63,7 +63,7 @@ _Quarto Wizard Explorer View in action:_
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
 
-<p align="center"><img src="assets/images/explorer-context.png" alt="Quarto Wizard context menu from the explorer view showing four commands" width="400" /></p>
+<p align="center"><img src="assets/images/explorer-context.png" alt='This image presents a context menu within Visual Studio Code. The menu displays options such as "Install Extension(s)," "Use Template", "Quarto Reproducible Document", and more. The "Quarto Wizard" option is highlighted. This visual aids users in navigating and utilising Quarto tools effectively within their workspace.' width="400" /></p>
 
 ### Install Quarto Extensions
 
