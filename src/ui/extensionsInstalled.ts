@@ -41,7 +41,7 @@ class ExtensionTreeItem extends vscode.TreeItem {
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined;
-		const baseContextValue = "quartoTemplateItem";
+		const baseContextValue = "quartoExtensionItem";
 		let contextValue = baseContextValue;
 		if (needsUpdate) {
 			contextValue = baseContextValue + "Outdated";
