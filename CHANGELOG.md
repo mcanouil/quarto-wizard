@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.17.0 (2025-03-31)
 
 - feat: support installing/using Quarto extensions templates.
 - fix: correct typo in short title of the `quartoWizard.installExtension` command.
