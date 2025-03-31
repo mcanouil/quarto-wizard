@@ -58,8 +58,9 @@ _Quarto Wizard Explorer View in action:_
 ### Explorer/Editor Context Menu
 
 - Right-click in the Explorer or Editor to access the following commands:
-  - `Quarto Reproducible Document`.
   - `Install Extension(s)`.
+  - `Use Template`.
+  - `Quarto Reproducible Document`.
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
 
@@ -75,6 +76,14 @@ _Quarto Wizard Explorer View in action:_
 
 > [!NOTE]
 > Quarto Wizard can only display available informations, _i.e._, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+
+### Use Quarto Templates
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Use Template` and select it.
+3. Browse the list of available Quarto templates.
+4. Select the Quarto template you want to use.
+5. Answer the prompts to confirm the installation.
 
 ### Create a New Reproducible Document
 
