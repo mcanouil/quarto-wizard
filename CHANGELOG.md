@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- feat: support installing/using Quarto extensions templates.
 - fix: correct typo in short title of the `quartoWizard.installExtension` command.
 
 ## 0.16.2 (2025-03-22)

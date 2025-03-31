@@ -17,6 +17,8 @@ export interface ExtensionDetails {
 	html_url: string;
 	version: string;
 	tag: string;
+	template: boolean;
+	templateContent: string;
 }
 
 /**
@@ -73,6 +75,8 @@ async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]>
 				html_url: extension.url,
 				version: extension.latestRelease.replace(/^v/, ""),
 				tag: extension.latestRelease,
+				template: extension.template,
+				templateContent: extension.templateContent,
 			};
 		});
 		return extensionDetailsList;

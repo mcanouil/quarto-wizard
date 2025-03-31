@@ -93,6 +93,27 @@
 				"category": "Quarto Wizard"
 			},
 			{
+				"command": "quartoWizard.extensionsInstalled.install",
+				"title": "Install Extension(s)",
+				"shortTitle": "Install",
+				"icon": "$(add)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.useTemplate",
+				"title": "Use Template",
+				"shortTitle": "Quarto Use Template",
+				"icon": "$(new-file)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.useTemplate",
+				"title": "Use Template",
+				"shortTitle": "Use Template",
+				"icon": "$(new-file)",
+				"category": "Quarto Wizard"
+			},
+			{
 				"command": "quartoWizard.showOutput",
 				"title": "Show Quarto Wizard Log Output",
 				"shortTitle": "Show Log",
@@ -100,7 +121,7 @@
 				"category": "Quarto Wizard"
 			},
 			{
-				"command": "quartoWizard.clearRecentlyInstalled",
+				"command": "quartoWizard.clearRecent",
 				"title": "Clear Recently Installed Extensions",
 				"shortTitle": "Clear Recent",
 				"icon": "$(clear-all)",
@@ -132,13 +153,6 @@
 				"category": "Quarto Wizard"
 			},
 			{
-				"command": "quartoWizard.extensionsInstalled.install",
-				"title": "Install Extension(s)",
-				"shortTitle": "Install",
-				"icon": "$(add)",
-				"category": "Quarto Wizard"
-			},
-			{
 				"command": "quartoWizard.extensionsInstalled.update",
 				"title": "Update Extension",
 				"shortTitle": "Update",
@@ -164,6 +178,10 @@
 				{
 					"command": "quartoWizard.newQuartoReprex",
 					"group": "Quarto"
+				},
+				{
+					"command": "quartoWizard.useTemplate",
+					"group": "Quarto"
 				}
 			],
 			"explorer/context": [
@@ -180,20 +198,24 @@
 			],
 			"quartoWizard.menu": [
 				{
-					"command": "quartoWizard.newQuartoReprex",
+					"command": "quartoWizard.installExtension",
 					"group": "quartoWizard@1"
 				},
 				{
-					"command": "quartoWizard.installExtension",
+					"command": "quartoWizard.useTemplate",
 					"group": "quartoWizard@2"
 				},
 				{
-					"command": "quartoWizard.showOutput",
+					"command": "quartoWizard.newQuartoReprex",
 					"group": "quartoWizard@3"
 				},
 				{
-					"command": "quartoWizard.clearRecentlyInstalled",
+					"command": "quartoWizard.showOutput",
 					"group": "quartoWizard@4"
+				},
+				{
+					"command": "quartoWizard.clearRecent",
+					"group": "quartoWizard@5"
 				}
 			],
 			"view/title": [
@@ -203,9 +225,14 @@
 					"group": "navigation@1"
 				},
 				{
-					"command": "quartoWizard.extensionsInstalled.refresh",
+					"command": "quartoWizard.useTemplate",
 					"when": "view == quartoWizard.extensionsInstalled",
 					"group": "navigation@2"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.refresh",
+					"when": "view == quartoWizard.extensionsInstalled",
+					"group": "navigation@3"
 				}
 			],
 			"view/item/context": [
@@ -215,19 +242,39 @@
 					"group": "inline@1"
 				},
 				{
+					"command": "quartoWizard.extensionsInstalled.useTemplate",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
+					"group": "inline@2"
+				},
+				{
 					"command": "quartoWizard.extensionsInstalled.update",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemOutdated",
-					"group": "inline@2"
+					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
-					"group": "inline@3"
+					"group": "inline@4"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated) && viewItem != quartoExtensionItemNoSource",
-					"group": "inline@4"
+					"group": "inline@5"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.update",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemOutdated",
+					"group": "navigation@1"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.remove",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
+					"group": "navigation@2"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.openSource",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated) && viewItem != quartoExtensionItemNoSource",
+					"group": "navigation@3"
 				}
 			],
 			"commandPalette": [
@@ -237,6 +284,10 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.install",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.useTemplate",
 					"when": "false"
 				},
 				{
