@@ -47,7 +47,12 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 					increment: (1 / (totalExtensions + 1)) * 100,
 				});
 
-				const success = await installQuartoExtensionSource(selectedExtension.id, workspaceFolder);
+				let extensionSource = selectedExtension.id;
+				if (selectedExtension.tag) {
+					extensionSource = `${selectedExtension.id}@${selectedExtension.tag}`;
+				}
+
+				const success = await installQuartoExtensionSource(extensionSource, workspaceFolder);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
 				// const success = await installQuartoExtension(extension);
 				if (success) {
