@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.0 (2025-04-03)
 
 - feat: add `/use?repo=<repository>` URI handler for installing Quarto extensions templates from the browser.
 - feat: enhance URI handling for Quarto extensions.
