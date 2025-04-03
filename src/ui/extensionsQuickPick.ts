@@ -37,7 +37,8 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 /**
  * Shows a QuickPick for selecting Quarto extensions.
  * @param {ExtensionDetails[]} extensionsList - The list of extension details.
- * @param {string[]} recentlyInstalled - The list of recently installed extensions.
+ * @param {string[]} recentlyInstalled - The list of recently installed or used extensions.
+ * @param {boolean} [template=false] - Whether this is for template selection. If true, only one template can be selected.
  * @returns {Promise<readonly ExtensionQuickPickItem[]>} - A promise that resolves to the selected QuickPick items.
  */
 export async function showExtensionQuickPick(

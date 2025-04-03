@@ -260,6 +260,10 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
+	/**
+	 * Initialises the extensions view and sets up the tree data provider and commands.
+	 * @param {vscode.ExtensionContext} context - The extension context.
+	 */
 	private initialise(context: vscode.ExtensionContext) {
 		const workspaceFolders = vscode.workspace.workspaceFolders || [];
 		if (workspaceFolders.length === 0) {
@@ -324,6 +328,10 @@ export class ExtensionsInstalled {
 			)
 		);
 
+		/**
+		 * Updates a Quarto extension to the latest version.
+		 * Uses the source repository information from the extension manifest.
+		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
 				const success = await installQuartoExtensionSource(
@@ -349,6 +357,10 @@ export class ExtensionsInstalled {
 			})
 		);
 
+		/**
+		 * Removes a Quarto extension from the workspace.
+		 * Deletes the extension directory and refreshes the view.
+		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", async (item: ExtensionTreeItem) => {
 				const success = await removeQuartoExtension(item.label, item.workspaceFolder);

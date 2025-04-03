@@ -4,7 +4,8 @@ import { newQuartoReprex } from "../utils/reprex";
 
 /**
  * Command to create a new Quarto REPRoducible EXample (reprex).
- * Prompts the user to select a computing language and then creates a reprex for the selected language.
+ * Prompts the user to select a computing language (R, Python, or Julia) and then creates a reprex for the selected language.
+ * If no language is selected, displays an error message and aborts the operation.
  *
  * @param context - The extension context.
  */

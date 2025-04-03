@@ -11,6 +11,7 @@ import { handleUri } from "./utils/handleUri";
 /**
  * This method is called when the extension is activated.
  * It registers various commands and initialises the ExtensionsInstalled class that defines the installed extensions view.
+ * It also registers a URI handler for extension protocol links.
  *
  * @param context - The context in which the extension is running.
  */
@@ -47,7 +48,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	new ExtensionsInstalled(context);
 
-	vscode.window.registerUriHandler({ handleUri });
+	vscode.window.registerUriHandler({
+		handleUri: (uri: vscode.Uri) => handleUri(uri, context),
+	});
 }
 
 /**
