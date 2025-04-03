@@ -95,10 +95,12 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 }
 
 /**
- * Command to install Quarto extensions.
- * Prompts the user to select extensions and installs them.
+ * Command to install Quarto extensions in a specified workspace folder.
+ * Prompts the user to select extensions, installs them, and optionally handles templates.
  *
  * @param context - The extension context.
+ * @param workspaceFolder - The target workspace folder for extension installation.
+ * @param template - Whether to filter for and handle template extensions.
  */
 export async function installQuartoExtensionFolderCommand(
 	context: vscode.ExtensionContext,
@@ -130,12 +132,45 @@ export async function installQuartoExtensionFolderCommand(
 	}
 }
 
+/**
+ * Command handler for installing Quarto extensions.
+ * Prompts the user to select a workspace folder and then calls installQuartoExtensionFolderCommand.
+ *
+ * @param context - The extension context.
+ */
 export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
 	const workspaceFolder = await selectWorkspaceFolder();
 	if (!workspaceFolder) {
 		return;
 	}
 	installQuartoExtensionFolderCommand(context, workspaceFolder, false);
+}
+
+/**
+ * Opens a Quarto template in the editor.
+ *
+ * @param id - The ID of the extension containing the template
+ * @param templateContent - The base64-encoded template content
+ * @returns A Promise that resolves to a boolean indicating success or failure
+ */
+export async function openTemplate(id: string, templateContent: string): Promise<boolean> {
+	try {
+		const decodedContent = Buffer.from(templateContent, "base64").toString("utf-8");
+		await vscode.workspace.openTextDocument({ content: decodedContent, language: "quarto" }).then((document) => {
+			vscode.window.showTextDocument(document);
+		});
+		const message = `Template from "${id}" opened successfully.`;
+		logMessage(message, "info");
+		return true;
+	} catch (error) {
+		const message =
+			error instanceof Error
+				? `Failed to open the template from "${id}": ${error.message}.`
+				: `An unknown error occurred retrieving the template content from "${id}".`;
+		logMessage(message, "error");
+		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+		return false;
+	}
 }
 
 /**
@@ -151,23 +186,24 @@ async function useQuartoTemplate(selectedExtension: readonly ExtensionQuickPickI
 		return;
 	}
 
-	try {
-		const decodedContent = Buffer.from(selectedExtension[0].templateContent, "base64").toString("utf-8");
-		await vscode.workspace.openTextDocument({ content: decodedContent, language: "quarto" }).then((document) => {
-			vscode.window.showTextDocument(document);
-		});
-		const message = `Template from ${selectedExtension[0].id} opened successfully.`;
-		logMessage(message, "info");
-	} catch (error) {
-		const message =
-			error instanceof Error
-				? `Failed to open the template from ${selectedExtension[0].id}: ${error.message}.`
-				: `An unknown error occurred retrieving the template content from ${selectedExtension[0].id}.`;
+	const extensionId = selectedExtension[0].id;
+	const extensionTemplate = selectedExtension[0].templateContent;
+	if (!extensionId || !extensionTemplate) {
+		const message = "Invalid extension ID or template content.";
 		logMessage(message, "error");
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+		return;
 	}
+	await openTemplate(extensionId, extensionTemplate);
 }
 
+/**
+ * Executes the command to use a Quarto template.
+ * This function prompts the user to select a workspace folder, then installs a Quarto extension configured as a template.
+ *
+ * @param context - The VS Code extension context
+ * @returns A Promise that resolves when the operation is complete, or void if the user cancels folder selection
+ */
 export async function useQuartoTemplateCommand(context: vscode.ExtensionContext) {
 	const workspaceFolder = await selectWorkspaceFolder();
 	if (!workspaceFolder) {
