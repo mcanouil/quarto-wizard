@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: strip tag from source URL in `/use?repo=<repository>` handler
+
 ## 0.18.0 (2025-04-03)
 
 - feat: add `/use?repo=<repository>` URI handler for installing Quarto extensions templates from the browser.

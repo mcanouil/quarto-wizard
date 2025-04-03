@@ -72,13 +72,10 @@ export async function handleUriInstall(uri: vscode.Uri) {
  * The function installs the specified extension and then opens its template for immediate use.
  */
 export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionContext) {
-	const repo = new URLSearchParams(uri.query).get("repo");
-	const workspaceFolder = await selectWorkspaceFolder();
-	if (!repo || !workspaceFolder) {
-		return;
-	}
 	await handleUriInstall(uri);
 	const extensionsList = await getExtensionsDetails(context);
+	const repoSource = new URLSearchParams(uri.query).get("repo");
+	const repo = repoSource?.replace(/@.*$/, "");
 	const matchingExtension = extensionsList.find((ext: ExtensionDetails) => ext.id === repo);
 	if (!matchingExtension) {
 		const message = `Extension "${repo}" not found.`;
