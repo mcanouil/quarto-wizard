@@ -7,6 +7,7 @@ import { ExtensionDetails } from "../utils/extensionDetails";
 export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	url?: string;
 	id?: string;
+	tag?: string;
 	template?: boolean;
 	templateContent?: string;
 }
@@ -29,6 +30,7 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 		],
 		url: ext.html_url,
 		id: ext.id,
+		tag: ext.tag,
 		template: ext.template,
 		templateContent: ext.templateContent,
 	}));

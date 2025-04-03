@@ -6,6 +6,7 @@
 - feat: enhance URI handling for Quarto extensions.
 - feat: enhance Quarto extension installation and template handling.
 - feat: documentation for Quarto commands.
+- feat: support extension tags in default Quarto installation.
 
 ## 0.17.0 (2025-03-31)
 
