@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.1 (2025-04-03)
 
 - fix: strip tag from source URL in `/use?repo=<repository>` handler
 
