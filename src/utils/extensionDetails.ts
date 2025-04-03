@@ -7,24 +7,24 @@ import { generateHashKey } from "./hash";
  * Interface representing the details of a Quarto extension.
  */
 export interface ExtensionDetails {
-	id: string;
-	name: string;
-	full_name: string; // "owner/repo"
-	owner: string;
-	description: string;
-	stars: number;
-	license: string;
-	html_url: string;
-	version: string;
-	tag: string;
-	template: boolean;
-	templateContent: string;
+	id: string; // Unique identifier for the extension
+	name: string; // Display name of the extension
+	full_name: string; // "owner/repo" format
+	owner: string; // Owner/organisation name
+	description: string; // Extension description
+	stars: number; // GitHub star count
+	license: string; // Licence information
+	html_url: string; // GitHub repository URL
+	version: string; // Current version (without 'v' prefix)
+	tag: string; // Release tag
+	template: boolean; // Whether this extension is a template
+	templateContent: string; // Content of the template if applicable
 }
 
 /**
- * Fetches the list of Quarto extensions.
- * @param {vscode.ExtensionContext} context - The extension context.
- * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
+ * Fetches the list of Quarto extensions, using cached data if available.
+ * @param {vscode.ExtensionContext} context - The extension context used for caching.
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
  */
 async function fetchExtensions(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
 	const url = QW_EXTENSIONS;
@@ -55,9 +55,9 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<Extens
 }
 
 /**
- * Parses the details of a Quarto extensions from JSON data.
- * @param {string} data - The extensions details as JSON.
- * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
+ * Parses the details of Quarto extensions from JSON data.
+ * @param {string} data - The extensions details as JSON with extension keys and metadata.
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
  */
 async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]> {
 	try {
@@ -88,9 +88,9 @@ async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]>
 }
 
 /**
- * Fetches the details of all Quarto extensions.
- * @param {vscode.ExtensionContext} context - The extension context.
- * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details.
+ * Fetches the details of all valid Quarto extensions and filters out any undefined entries.
+ * @param {vscode.ExtensionContext} context - The extension context used for caching.
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of validated extension details.
  */
 export async function getExtensionsDetails(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
 	const extensions = await fetchExtensions(context);

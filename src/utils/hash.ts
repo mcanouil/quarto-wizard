@@ -3,7 +3,7 @@ import * as crypto from "crypto";
 /**
  * Generates a hash key for a given string.
  *
- * @param {string} object - The URL to be hashed.
+ * @param {string} object - The string to be hashed.
  * @returns {string} - The generated hash key in hexadecimal format.
  */
 export function generateHashKey(object: string): string {

@@ -44,6 +44,10 @@ async function promptInstallExtension(extensionId: string, context: vscode.Exten
 
 /**
  * Activates a list of VS Code extensions.
+ * For each extension in the list, the function attempts to:
+ * - Get the extension from the VS Code API
+ * - Activate it if it exists but is not already active
+ * - Prompt the user to install it if it does not exist
  *
  * @param extensions - An array of extension IDs to activate.
  * @param context - The VS Code extension context.

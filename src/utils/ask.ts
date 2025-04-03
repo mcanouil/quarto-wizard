@@ -2,8 +2,8 @@ import * as vscode from "vscode";
 import { showLogsCommand, logMessage } from "../utils/log";
 
 /**
- * Prompts the user to trust the authors of the selected extensions.
- * @returns {Promise<number>} - Returns 0 if the authors are trusted, otherwise returns 1.
+ * Prompts the user to trust the authors of the selected extensions when the trustAuthors setting is set to "ask".
+ * @returns {Promise<number>} - Returns 0 if the authors are trusted or if the setting is updated to "never", otherwise returns 1.
  */
 export async function askTrustAuthors(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
@@ -34,8 +34,8 @@ export async function askTrustAuthors(): Promise<number> {
 }
 
 /**
- * Prompts the user to confirm the installation of the selected extensions.
- * @returns {Promise<number>} - Returns 0 if the installation is confirmed, otherwise returns 1.
+ * Prompts the user to confirm the installation of the selected extensions when the confirmInstall setting is set to "ask".
+ * @returns {Promise<number>} - Returns 0 if the installation is confirmed or if the setting is updated to "never", otherwise returns 1.
  */
 export async function askConfirmInstall(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
@@ -66,8 +66,8 @@ export async function askConfirmInstall(): Promise<number> {
 }
 
 /**
- * Prompts the user to confirm the removal of the selected extensions.
- * @returns {Promise<number>} - Returns 0 if the removal is confirmed, otherwise returns 1.
+ * Prompts the user to confirm the removal of the selected extensions when the confirmRemove setting is set to "always".
+ * @returns {Promise<number>} - Returns 0 if the removal is confirmed or if the setting is updated to "never", otherwise returns 1.
  */
 export async function askConfirmRemove(): Promise<number> {
 	const config = vscode.workspace.getConfiguration("quartoWizard.ask");

@@ -12,7 +12,8 @@ export function showLogsCommand(): string {
 }
 
 /**
- * Logs a message to the Quarto Wizard log output.
+ * Logs a message to the Quarto Wizard log output if the message type
+ * is at or below the configured log level.
  *
  * @param {string} message - The message to log.
  * @param {string} [type="info"] - The type of log message (e.g., "error", "warn", "info", "debug").
@@ -27,4 +28,11 @@ export function logMessage(message: string, type = "info"): void {
 	}
 }
 
+/**
+ * Debounced version of logMessage that limits how frequently messages are logged.
+ * Waits 1000ms before logging the message to prevent excessive logging.
+ *
+ * @param {string} message - The message to log.
+ * @param {string} [type="info"] - The type of log message.
+ */
 export const debouncedLogMessage = debounce(logMessage, 1000);
