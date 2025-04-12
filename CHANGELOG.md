@@ -1,8 +1,12 @@
 # Changelog
 
+## Unreleased
+
+fix: properly handle extension source with default tag.
+
 ## 0.18.1 (2025-04-03)
 
-- fix: strip tag from source URL in `/use?repo=<repository>` handler
+- fix: strip tag from source URL in `/use?repo=<repository>` handler.
 
 ## 0.18.0 (2025-04-03)
 

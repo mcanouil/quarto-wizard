@@ -48,7 +48,7 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 				});
 
 				let extensionSource = selectedExtension.id;
-				if (selectedExtension.tag) {
+				if (selectedExtension.tag && selectedExtension.tag !== "none") {
 					extensionSource = `${selectedExtension.id}@${selectedExtension.tag}`;
 				}
 

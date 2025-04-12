@@ -50,7 +50,7 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		}
 		this.tooltip = `${this.label}`;
 		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
-		this.contextValue = contextValue;
+		this.contextValue = this.data ? contextValue : "quartoExtensionItemDetails";
 		if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
@@ -151,7 +151,6 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 			return [];
 		}
 		return [
-			new ExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
 			new ExtensionTreeItem(`Title: ${data.title}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
 			new ExtensionTreeItem(`Author: ${data.author}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
 			new ExtensionTreeItem(`Version: ${data.version}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
@@ -160,6 +159,12 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder
 			),
+			new ExtensionTreeItem(
+				`Repository: ${data.repository}`,
+				vscode.TreeItemCollapsibleState.None,
+				element.workspaceFolder
+			),
+			new ExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
 		];
 	}
 
@@ -218,7 +223,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 
 			for (const ext of Object.keys(folderData)) {
 				const extensionData = folderData[ext];
-				const matchingDetail = extensionsDetails.find((detail) => detail.id === extensionData.source);
+				const matchingDetail = extensionsDetails.find((detail) => detail.id === extensionData.repository);
 
 				if (!extensionData.version || extensionData.version === "none") {
 					continue;
@@ -306,8 +311,8 @@ export class ExtensionsInstalled {
 
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.openSource", (item: ExtensionTreeItem) => {
-				if (item.data?.source) {
-					const url = `https://github.com/${item.data?.source}`;
+				if (item.data?.repository) {
+					const url = `https://github.com/${item.data?.repository}`;
 					vscode.env.openExternal(vscode.Uri.parse(url));
 				}
 			})
@@ -335,16 +340,16 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
 				const success = await installQuartoExtensionSource(
-					`${item.data?.source ?? item.label}${item.latestVersion}`,
+					`${item.data?.repository ?? item.label}${item.latestVersion}`,
 					item.workspaceFolder
 				);
 				// Once source is supported in _extension.yml, the above line can be replaced with the following line
-				// const success = await installQuartoExtension(item.data?.source ?? item.label);
+				// const success = await installQuartoExtension(item.data?.repository ?? item.label);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 					this.treeDataProvider.forceRefresh();
 				} else {
-					if (!item.data?.source) {
+					if (!item.data?.repository) {
 						vscode.window.showErrorMessage(
 							`Failed to update extension "${item.label}". ` +
 								`Source not found in extension manifest. ` +
