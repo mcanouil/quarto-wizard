@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-fix: properly handle extension source with default tag.
+- fix: proper handling of extension source with default tag
 
 ## 0.18.1 (2025-04-03)
 
