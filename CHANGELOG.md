@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.3 (2025-04-12)
 
 - chore: no usrer-facing changes.
 
