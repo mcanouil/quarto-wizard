@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.2 (2025-04-12)
 
 - fix: proper handling of extension source with default tag
 
