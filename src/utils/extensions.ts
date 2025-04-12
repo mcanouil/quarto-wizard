@@ -80,6 +80,7 @@ export interface ExtensionData {
 	version?: string;
 	contributes?: string;
 	source?: string;
+	repository?: string;
 }
 
 /**
@@ -99,6 +100,7 @@ function readYamlFile(filePath: string): ExtensionData | null {
 		version: data.version,
 		contributes: Object.keys(data.contributes).join(", "),
 		source: data.source,
+		repository: data.source.replace(/@.*$/, ""),
 	};
 }
 
