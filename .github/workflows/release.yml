@@ -31,7 +31,7 @@ on:
         options:
           - release
           - pre-release
-        default: pre-release
+        default: release
       date:
         type: string
         description: 'Date ("YYYY-MM-DD" or "today")'
