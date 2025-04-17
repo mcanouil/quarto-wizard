@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: handle undefined source in repository field for extension tree
+
 ## 0.18.3 (2025-04-12)
 
 - chore: no usrer-facing changes.
