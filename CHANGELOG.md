@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.4 (2025-04-17)
 
 - fix: handle undefined source in repository field for extension tree
 
