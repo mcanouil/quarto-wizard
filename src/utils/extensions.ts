@@ -100,7 +100,7 @@ function readYamlFile(filePath: string): ExtensionData | null {
 		version: data.version,
 		contributes: Object.keys(data.contributes).join(", "),
 		source: data.source,
-		repository: data.source.replace(/@.*$/, ""),
+		repository: data.source ? data.source.replace(/@.*$/, "") : undefined,
 	};
 }
 
