@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.5 (2025-04-25)
 
 - feat: use error code from Quarto CLI >= 1.7.23 when installing an extension.
 
