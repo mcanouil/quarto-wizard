@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- feat: use error code from Quarto CLI >= 1.7.23 when installing an extension.
+
 ## 0.18.4 (2025-04-17)
 
 - fix: handle undefined source in repository field for extension tree
