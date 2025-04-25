@@ -92,18 +92,27 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 		const command = `${quartoPath} add ${extension} --no-prompt`;
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
-			if (stderr) {
-				logMessage(`${stderr}`, "error");
-				const isInstalled = stderr.includes("Extension installation complete");
-				if (isInstalled) {
-					resolve(true);
-				} else {
-					resolve(false);
-					return;
+			let isInstalled = false;
+			if (error) {
+				logMessage(`Error installing extension: ${error}`, "error");
+				if (stderr) {
+					logMessage(`${stderr}`, "error");
 				}
+			} else if (stderr) {
+				isInstalled = stderr.includes("Extension installation complete");
+				if (!isInstalled) {
+					logMessage(`${stderr}`, "error");
+				}
+			} else {
+				isInstalled = true;
 			}
-			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
-			resolve(true);
+
+			if (isInstalled) {
+				vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+				resolve(true);
+			} else {
+				resolve(false);
+			}
 		});
 	});
 }
