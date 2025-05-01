@@ -63,7 +63,7 @@
 		"lint": "eslint --fix --cache --format unix \"src/**/*.{ts,tsx}\""
 	},
 	"devDependencies": {
-		"@eslint/js": "^9.23.0",
+		"@eslint/js": "^9.25.1",
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^22.13.17",
 		"@types/semver": "^7.7.0",
