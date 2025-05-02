@@ -347,6 +347,7 @@ export class ExtensionsInstalled {
 				// const success = await installQuartoExtension(item.data?.repository ?? item.label);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
+					this.treeDataProvider.checkUpdate(context, view);
 					this.treeDataProvider.forceRefresh();
 				} else {
 					if (!item.data?.repository) {
@@ -371,6 +372,7 @@ export class ExtensionsInstalled {
 				const success = await removeQuartoExtension(item.label, item.workspaceFolder);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
+					this.treeDataProvider.checkUpdate(context, view);
 					this.treeDataProvider.forceRefresh();
 				} else {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
