@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.6 (2025-05-02)
 
 - fix: ensure update check occurs after installing, updating, or removing an extension.
 
