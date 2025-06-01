@@ -81,7 +81,7 @@
 		"@types/lodash": "^4.17.16",
 		"js-yaml": "^4.1.0",
 		"lodash": "^4.17.21",
-		"semver": "^7.7.1"
+		"semver": "^7.7.2"
 	},
 	"contributes": {
 		"commands": [
