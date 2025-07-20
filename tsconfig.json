@@ -10,5 +10,5 @@
 		"forceConsistentCasingInFileNames": true,
 		"noImplicitAny": true
 	},
-	"exclude": ["node_modules", ".vscode-test"]
+	"exclude": ["node_modules", ".vscode-test", "dist"]
 }
