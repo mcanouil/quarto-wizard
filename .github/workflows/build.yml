@@ -175,25 +175,20 @@ jobs:
           echo "| Operating System | Node.js Version | Status | Timestamp |" >> ${GITHUB_STEP_SUMMARY}
           echo "|------------------|-----------------|--------|-----------|" >> ${GITHUB_STEP_SUMMARY}
 
-          # Process each job summary file
           total_jobs=0
           successful_jobs=0
           failed_jobs=0
           cancelled_jobs=0
 
-          # Find all job summary files
-          find job-summaries -name "job-summary-*" -type f | while read summary_file; do
-            if [[ -f "$summary_file" ]]; then
+          # Find all job-summary.txt files in job-summaries subfolders
+          find job-summaries -type f -name "job-summary.txt" | while read summary_file; do
+            if [[ -f "${summary_file}" ]]; then
               total_jobs=$((total_jobs + 1))
-              
-              # Extract values from summary file
-              os=$(grep "OS:" "$summary_file" | cut -d' ' -f2- || echo "Unknown")
-              node=$(grep "Node:" "$summary_file" | cut -d' ' -f2- || echo "Unknown")
-              status=$(grep "Status:" "$summary_file" | cut -d' ' -f2- || echo "unknown")
-              timestamp=$(grep "Timestamp:" "$summary_file" | cut -d' ' -f2- || echo "Unknown")
-              
-              # Determine emoji based on status
-              case "$status" in
+              os=$(grep "OS:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+              node=$(grep "Node:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+              status=$(grep "Status:" "${summary_file}" | cut -d' ' -f2- || echo "unknown")
+              timestamp=$(grep "Timestamp:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+              case "${status}" in
                 "success")
                   status_emoji="✅"
                   successful_jobs=$((successful_jobs + 1))
@@ -210,14 +205,12 @@ jobs:
                   status_emoji="⚠️"
                   ;;
               esac
-              
-              # Add row to table
-              echo "| $os | $node | $status_emoji $status | $timestamp |" >> ${GITHUB_STEP_SUMMARY}
+              echo "| ${os} | ${node} | ${status_emoji} ${status} | ${timestamp} |" >> ${GITHUB_STEP_SUMMARY}
             fi
           done
 
           # Calculate totals using GitHub API if job summaries are not available
-          if [[ ! -d "job-summaries" ]] || [[ $(find job-summaries -name "job-summary.txt" -type f | wc -l) -eq 0 ]]; then
+          if [[ ! -d "job-summaries" ]] || [[ $(find job-summaries -type f -name "job-summary.txt" | wc -l) -eq 0 ]]; then
             echo "| Build Matrix | All Versions | ${{ needs.build.result == 'success' && '✅ success' || needs.build.result == 'failure' && '❌ failure' || '🟡 cancelled' }} | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> ${GITHUB_STEP_SUMMARY}
             total_jobs=1
             case "${{ needs.build.result }}" in
@@ -233,33 +226,33 @@ jobs:
 
           # Calculate totals from the files if they exist
           if [[ -d "job-summaries" ]]; then
-            total_jobs=$(find job-summaries -name "job-summary.txt" -type f | wc -l)
-            successful_jobs=$(find job-summaries -name "job-summary.txt" -exec grep -l "Status: success" {} \; | wc -l)
-            failed_jobs=$(find job-summaries -name "job-summary.txt" -exec grep -l "Status: failure" {} \; | wc -l)
-            cancelled_jobs=$(find job-summaries -name "job-summary.txt" -exec grep -l "Status: cancelled" {} \; | wc -l)
+            total_jobs=$(find job-summaries -type f -name "job-summary.txt" | wc -l)
+            successful_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; | wc -l)
+            failed_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: failure" {} \; | wc -l)
+            cancelled_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: cancelled" {} \; | wc -l)
           fi
 
           success_rate=0
-          if [[ $total_jobs -gt 0 ]]; then
+          if [[ ${total_jobs} -gt 0 ]]; then
             success_rate=$(( successful_jobs * 100 / total_jobs ))
           fi
 
-          echo "- **Total Jobs**: $total_jobs" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Successful**: $successful_jobs ✅" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Failed**: $failed_jobs ❌" >> ${GITHUB_STEP_SUMMARY}
-          if [[ $cancelled_jobs -gt 0 ]]; then
-            echo "- **Cancelled**: $cancelled_jobs 🟡" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Total Jobs**: ${total_jobs}" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Successful**: ${successful_jobs} ✅" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Failed**: ${failed_jobs} ❌" >> ${GITHUB_STEP_SUMMARY}
+          if [[ ${cancelled_jobs} -gt 0 ]]; then
+            echo "- **Cancelled**: ${cancelled_jobs} 🟡" >> ${GITHUB_STEP_SUMMARY}
           fi
           echo "- **Success Rate**: ${success_rate}%" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
 
           # Overall workflow status
-          if [[ $failed_jobs -eq 0 && $cancelled_jobs -eq 0 ]]; then
+          if [[ ${failed_jobs} -eq 0 && ${cancelled_jobs} -eq 0 ]]; then
             echo "## 🎉 Overall Result: SUCCESS" >> ${GITHUB_STEP_SUMMARY}
             echo "All build matrix jobs completed successfully!" >> ${GITHUB_STEP_SUMMARY}
-          elif [[ $failed_jobs -gt 0 ]]; then
+          elif [[ ${failed_jobs} -gt 0 ]]; then
             echo "## ⚠️ Overall Result: FAILURE" >> ${GITHUB_STEP_SUMMARY}
-            echo "$failed_jobs out of $total_jobs jobs failed. Please check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
+            echo "${failed_jobs} out of ${total_jobs} jobs failed. Please check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
           else
             echo "## 🟡 Overall Result: CANCELLED" >> ${GITHUB_STEP_SUMMARY}
             echo "Some jobs were cancelled during execution." >> ${GITHUB_STEP_SUMMARY}
