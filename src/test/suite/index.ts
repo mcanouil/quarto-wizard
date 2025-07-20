@@ -15,8 +15,13 @@ export function run(): Promise<void> {
 	const testsRoot = path.resolve(__dirname, "..");
 
 	return new Promise((resolve, reject) => {
+		// Check if we should run only extensions tests
+		const onlyExtensions = process.env.TEST_EXTENSIONS_ONLY === "true";
+
 		// Find all test files
-		glob("**/**.test.js", { cwd: testsRoot })
+		const pattern = onlyExtensions ? "**/extensions.test.js" : "**/**.test.js";
+
+		glob(pattern, { cwd: testsRoot })
 			.then((files) => {
 				// Add files to the test suite
 				files.forEach((file) => mocha.addFile(path.resolve(testsRoot, file)));
