@@ -3,19 +3,28 @@
 .devcontainer
 .vscode
 .vscode-test
+.vscode-test.mjs
 .gitignore
 .DS_Store
+.prettierrc.json
 
 tsconfig.json
 eslint.config.mjs
+eslint.config.js
 webpack.config.js
 .markdownlint.yml
+.eslintcache
 
 src
+out
 dist/**/*.map
 **/*.vsix
 node_modules
+package-lock.json
 
 assets/logo/logo-social.png
 assets/videos/**
 CITATION.cff
+TESTING.md
+test-fixtures
+scripts
