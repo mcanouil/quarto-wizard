@@ -141,7 +141,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: job-summary-${{ matrix.os }}-${{ matrix.node-version }}
-          path: job-summary.txt
+          path: job-summary-${{ matrix.os }}-${{ matrix.node-version }}.txt
           retention-days: 1
 
   summary:
@@ -182,7 +182,7 @@ jobs:
           cancelled_jobs=0
 
           # Find all job summary files
-          find job-summaries -name "job-summary.txt" -type f | while read summary_file; do
+          find job-summaries -name "job-summary-*" -type f | while read summary_file; do
             if [[ -f "$summary_file" ]]; then
               total_jobs=$((total_jobs + 1))
               
