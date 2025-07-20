@@ -85,11 +85,11 @@ contributes:\n`;
 			createTestExtension("quarto-ext", "fancy-text");
 			createTestExtension("mcanouil", "test-extension");
 
-			const extensions = findQuartoExtensions(extensionsDir);
+			const extensions = findQuartoExtensions(extensionsDir).map(path.normalize);
 
 			assert.strictEqual(extensions.length, 2, "Should find 2 extensions");
-			assert.ok(extensions.includes("quarto-ext/fancy-text"), "Should include fancy-text extension");
-			assert.ok(extensions.includes("mcanouil/test-extension"), "Should include test-extension");
+			assert.ok(extensions.includes(path.normalize("quarto-ext/fancy-text")), "Should include fancy-text extension");
+			assert.ok(extensions.includes(path.normalize("mcanouil/test-extension")), "Should include test-extension");
 		});
 
 		test("Should return empty array for non-existent directory", () => {
@@ -105,10 +105,10 @@ contributes:\n`;
 			fs.mkdirSync(extPath, { recursive: true });
 			fs.writeFileSync(path.join(extPath, "_extension.yaml"), "title: Test Extension");
 
-			const extensions = findQuartoExtensions(extensionsDir);
+			const extensions = findQuartoExtensions(extensionsDir).map(path.normalize);
 
 			assert.strictEqual(extensions.length, 1, "Should find 1 extension");
-			assert.ok(extensions.includes("test-author/yaml-extension"), "Should include yaml extension");
+			assert.ok(extensions.includes(path.normalize("test-author/yaml-extension")), "Should include yaml extension");
 		});
 
 		test("Should ignore _extensions subdirectories", () => {
@@ -120,10 +120,10 @@ contributes:\n`;
 			// Create valid extension
 			createTestExtension("author", "valid-extension");
 
-			const extensions = findQuartoExtensions(extensionsDir);
+			const extensions = findQuartoExtensions(extensionsDir).map(path.normalize);
 
 			assert.strictEqual(extensions.length, 1, "Should find only 1 extension");
-			assert.ok(extensions.includes("author/valid-extension"), "Should include valid extension");
+			assert.ok(extensions.includes(path.normalize("author/valid-extension")), "Should include valid extension");
 		});
 
 		test("Should handle empty directory", () => {
@@ -147,8 +147,8 @@ contributes:\n`;
 			const mtimes = getMtimeExtensions(extensionsDir);
 
 			assert.strictEqual(Object.keys(mtimes).length, 2, "Should return mtimes for 2 extensions");
-			assert.ok(mtimes["author1/ext1"] instanceof Date, "Should return Date for first extension");
-			assert.ok(mtimes["author2/ext2"] instanceof Date, "Should return Date for second extension");
+			assert.ok(mtimes[path.normalize("author1/ext1")] instanceof Date, "Should return Date for first extension");
+			assert.ok(mtimes[path.normalize("author2/ext2")] instanceof Date, "Should return Date for second extension");
 		});
 
 		test("Should return empty object for non-existent directory", () => {
@@ -177,11 +177,11 @@ contributes:\n`;
 			createTestExtension("author1", "ext1");
 			createTestExtension("author2", "ext2");
 
-			const modifiedExtensions = findModifiedExtensions(initialMtimes, extensionsDir);
+			const modifiedExtensions = findModifiedExtensions(initialMtimes, extensionsDir).map(path.normalize);
 
 			assert.strictEqual(modifiedExtensions.length, 2, "Should find 2 modified extensions");
-			assert.ok(modifiedExtensions.includes("author1/ext1"), "Should include new extension 1");
-			assert.ok(modifiedExtensions.includes("author2/ext2"), "Should include new extension 2");
+			assert.ok(modifiedExtensions.includes(path.normalize("author1/ext1")), "Should include new extension 1");
+			assert.ok(modifiedExtensions.includes(path.normalize("author2/ext2")), "Should include new extension 2");
 		});
 
 		test("Should find modified extensions", async () => {
@@ -197,10 +197,10 @@ contributes:\n`;
 			// Modify one extension by adding a new file to change directory mtime
 			fs.writeFileSync(path.join(ext1Path, "new-file.txt"), "This will change the directory modification time");
 
-			const modifiedExtensions = findModifiedExtensions(initialMtimes, extensionsDir);
+			const modifiedExtensions = findModifiedExtensions(initialMtimes, extensionsDir).map(path.normalize);
 
 			assert.strictEqual(modifiedExtensions.length, 1, "Should find 1 modified extension");
-			assert.ok(modifiedExtensions.includes("author1/ext1"), "Should include modified extension");
+			assert.ok(modifiedExtensions.includes(path.normalize("author1/ext1")), "Should include modified extension");
 		});
 
 		test("Should return empty array for non-existent directory", () => {
