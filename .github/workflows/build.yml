@@ -66,18 +66,22 @@ jobs:
         run: npm ci
 
       - name: Compile extension
+        id: webpack
         shell: bash
         run: npm run webpack
 
       - name: Run linter
+        id: lint
         shell: bash
         run: npm run lint
 
       - name: Compile TypeScript
+        id: test-compile
         shell: bash
         run: npm run test-compile
 
       - name: Run tests (Ubuntu)
+        id: test-ubuntu
         if: runner.os == 'Linux'
         shell: bash
         run: |
@@ -86,6 +90,7 @@ jobs:
           npm test
 
       - name: Run tests (Windows/macOS)
+        id: test-other
         if: runner.os != 'Linux'
         shell: bash
         run: npm test
@@ -95,6 +100,7 @@ jobs:
         run: npm install -g @vscode/vsce
 
       - name: Build extension
+        id: build-extension
         shell: bash
         run: vsce package --pre-release --out quarto-wizard.vsix
 
@@ -105,64 +111,156 @@ jobs:
           path: quarto-wizard.vsix
           retention-days: 10
 
+      - name: Generate job result summary
+        if: always()
+        shell: bash
+        run: |
+          # Create a summary file for this specific job
+          echo "OS: ${{ matrix.os }}" > job-summary.txt
+          echo "Node: ${{ matrix.node-version }}" >> job-summary.txt
+
+          # Determine test step outcome based on OS
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            test_outcome="${{ steps.test-ubuntu.outcome }}"
+          else
+            test_outcome="${{ steps.test-other.outcome }}"
+          fi
+
+          # Use steps context to determine overall job status
+          if [[ "${{ steps.webpack.outcome }}" == "failure" || "${{ steps.lint.outcome }}" == "failure" || "${{ steps.test-compile.outcome }}" == "failure" || "$test_outcome" == "failure" || "${{ steps.build-extension.outcome }}" == "failure" ]]; then
+            echo "Status: failure" >> job-summary.txt
+          elif [[ "${{ steps.webpack.outcome }}" == "cancelled" || "${{ steps.lint.outcome }}" == "cancelled" || "${{ steps.test-compile.outcome }}" == "cancelled" || "$test_outcome" == "cancelled" || "${{ steps.build-extension.outcome }}" == "cancelled" ]]; then
+            echo "Status: cancelled" >> job-summary.txt
+          else
+            echo "Status: success" >> job-summary.txt
+          fi
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> job-summary.txt
+
+      - name: Upload job summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job-summary-${{ matrix.os }}-${{ matrix.node-version }}
+          path: job-summary.txt
+          retention-days: 1
+
   summary:
     if: always()
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Download all job summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: job-summary-*
+          path: job-summaries
+          merge-multiple: true
+
       - name: Generate consolidated summary
         shell: bash
         run: |
           echo "# 🚀 Quarto Wizard Build & Test Results" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "## 📋 Matrix Job Results" >> ${GITHUB_STEP_SUMMARY}
+
+          # Add Pull Request link if triggered by PR event
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "**🔗 Pull Request**: [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${{ github.event.pull_request.title }}" >> ${GITHUB_STEP_SUMMARY}
+            echo "" >> ${GITHUB_STEP_SUMMARY}
+          fi
+
+          echo "## 📊 Build Matrix Results" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "| OS | Node.js | Status |" >> ${GITHUB_STEP_SUMMARY}
-          echo "|-------|---------|--------|" >> ${GITHUB_STEP_SUMMARY}
 
-          # Parse matrix results from needs context
-          success_count=0
-          failure_count=0
-          total_count=0
+          # Create table header
+          echo "| Operating System | Node.js Version | Status | Timestamp |" >> ${GITHUB_STEP_SUMMARY}
+          echo "|------------------|-----------------|--------|-----------|" >> ${GITHUB_STEP_SUMMARY}
 
-          # Convert needs.build.outputs to JSON and parse individual job results
-          build_results='${{ toJSON(needs.build.outputs) }}'
-          build_result='${{ needs.build.result }}'
+          # Process each job summary file
+          total_jobs=0
+          successful_jobs=0
+          failed_jobs=0
+          cancelled_jobs=0
 
-          # Matrix combinations
-          matrix_os=("ubuntu-latest" "windows-latest" "macos-latest")
-          matrix_node=("20.x" "22.x" "24.x")
-
-          for os in "${matrix_os[@]}"; do
-            for node in "${matrix_node[@]}"; do              
-              # Since we can't access individual matrix job results directly,
-              # we'll show the overall build job result but indicate it's for the entire matrix
-              if [[ "$build_result" == "success" ]]; then
-                echo "| $os | $node | ✅ Success |" >> ${GITHUB_STEP_SUMMARY}
-                success_count=$((success_count + 1))
-              elif [[ "$build_result" == "failure" ]]; then
-                echo "| $os | $node | ❌ Failed |" >> ${GITHUB_STEP_SUMMARY}
-                failure_count=$((failure_count + 1))
-              else
-                echo "| $os | $node | ⚠️ $build_result |" >> ${GITHUB_STEP_SUMMARY}
-                failure_count=$((failure_count + 1))
-              fi
-              total_count=$((total_count + 1))
-            done
+          # Find all job summary files
+          find job-summaries -name "job-summary.txt" -type f | while read summary_file; do
+            if [[ -f "$summary_file" ]]; then
+              total_jobs=$((total_jobs + 1))
+              
+              # Extract values from summary file
+              os=$(grep "OS:" "$summary_file" | cut -d' ' -f2- || echo "Unknown")
+              node=$(grep "Node:" "$summary_file" | cut -d' ' -f2- || echo "Unknown")
+              status=$(grep "Status:" "$summary_file" | cut -d' ' -f2- || echo "unknown")
+              timestamp=$(grep "Timestamp:" "$summary_file" | cut -d' ' -f2- || echo "Unknown")
+              
+              # Determine emoji based on status
+              case "$status" in
+                "success")
+                  status_emoji="✅"
+                  successful_jobs=$((successful_jobs + 1))
+                  ;;
+                "failure")
+                  status_emoji="❌"
+                  failed_jobs=$((failed_jobs + 1))
+                  ;;
+                "cancelled")
+                  status_emoji="🟡"
+                  cancelled_jobs=$((cancelled_jobs + 1))
+                  ;;
+                *)
+                  status_emoji="⚠️"
+                  ;;
+              esac
+              
+              # Add row to table
+              echo "| $os | $node | $status_emoji $status | $timestamp |" >> ${GITHUB_STEP_SUMMARY}
+            fi
           done
 
+          # Calculate totals using GitHub API if job summaries are not available
+          if [[ ! -d "job-summaries" ]] || [[ $(find job-summaries -name "job-summary.txt" -type f | wc -l) -eq 0 ]]; then
+            echo "| Build Matrix | All Versions | ${{ needs.build.result == 'success' && '✅ success' || needs.build.result == 'failure' && '❌ failure' || '🟡 cancelled' }} | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> ${GITHUB_STEP_SUMMARY}
+            total_jobs=1
+            case "${{ needs.build.result }}" in
+              "success") successful_jobs=1 ;;
+              "failure") failed_jobs=1 ;;
+              "cancelled") cancelled_jobs=1 ;;
+            esac
+          fi
+
           echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "## 📊 Summary Statistics" >> ${GITHUB_STEP_SUMMARY}
+          echo "## 📈 Summary Statistics" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Total Jobs:** $total_count" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Successful:** $success_count" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Failed:** $failure_count" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Overall Result:** $build_result" >> ${GITHUB_STEP_SUMMARY}
+
+          # Calculate totals from the files if they exist
+          if [[ -d "job-summaries" ]]; then
+            total_jobs=$(find job-summaries -name "job-summary.txt" -type f | wc -l)
+            successful_jobs=$(find job-summaries -name "job-summary.txt" -exec grep -l "Status: success" {} \; | wc -l)
+            failed_jobs=$(find job-summaries -name "job-summary.txt" -exec grep -l "Status: failure" {} \; | wc -l)
+            cancelled_jobs=$(find job-summaries -name "job-summary.txt" -exec grep -l "Status: cancelled" {} \; | wc -l)
+          fi
+
+          success_rate=0
+          if [[ $total_jobs -gt 0 ]]; then
+            success_rate=$(( successful_jobs * 100 / total_jobs ))
+          fi
+
+          echo "- **Total Jobs**: $total_jobs" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Successful**: $successful_jobs ✅" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Failed**: $failed_jobs ❌" >> ${GITHUB_STEP_SUMMARY}
+          if [[ $cancelled_jobs -gt 0 ]]; then
+            echo "- **Cancelled**: $cancelled_jobs 🟡" >> ${GITHUB_STEP_SUMMARY}
+          fi
+          echo "- **Success Rate**: ${success_rate}%" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "> **Note:** Individual matrix job results are not directly accessible. Status shown reflects the overall build job outcome." >> ${GITHUB_STEP_SUMMARY}
-          echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "## 📦 Build Information" >> ${GITHUB_STEP_SUMMARY}
-          echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Commit SHA:** [${{ github.sha }}](${{ github.event.repository.html_url }}/commit/${{ github.sha }})" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Pull Request:** [#${{ github.event.number }}](${{ github.event.pull_request.html_url }})" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Branch:** ${{ github.head_ref }}" >> ${GITHUB_STEP_SUMMARY}
+
+          # Overall workflow status
+          if [[ $failed_jobs -eq 0 && $cancelled_jobs -eq 0 ]]; then
+            echo "## 🎉 Overall Result: SUCCESS" >> ${GITHUB_STEP_SUMMARY}
+            echo "All build matrix jobs completed successfully!" >> ${GITHUB_STEP_SUMMARY}
+          elif [[ $failed_jobs -gt 0 ]]; then
+            echo "## ⚠️ Overall Result: FAILURE" >> ${GITHUB_STEP_SUMMARY}
+            echo "$failed_jobs out of $total_jobs jobs failed. Please check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
+          else
+            echo "## 🟡 Overall Result: CANCELLED" >> ${GITHUB_STEP_SUMMARY}
+            echo "Some jobs were cancelled during execution." >> ${GITHUB_STEP_SUMMARY}
+          fi
