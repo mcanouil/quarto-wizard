@@ -20,12 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-name: Build Extension
+name: Build & Test Extension
 
 on:
   workflow_dispatch:
   pull_request:
     types:
+      - opened
       - synchronize
       - ready_for_review
     branches:
@@ -43,18 +44,46 @@ permissions: read-all
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20.x, 22.x, 24.x]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
 
       - name: Install dependencies
         shell: bash
-        run: npm install
+        run: npm ci
+
+      - name: Run linter
+        shell: bash
+        run: npm run lint
+
+      - name: Compile TypeScript
+        shell: bash
+        run: npm run test-compile
+
+      - name: Run tests (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          export DISPLAY=':99.0'
+          /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          npm test
+
+      - name: Run tests (Windows/macOS)
+        if: runner.os != 'Linux'
+        shell: bash
+        run: npm test
 
       - name: Install Visual Studio Code Extension Manager
         shell: bash
