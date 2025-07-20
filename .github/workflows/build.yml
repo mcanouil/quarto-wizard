@@ -125,22 +125,26 @@ jobs:
           failure_count=0
           total_count=0
 
+          # Convert needs.build.outputs to JSON and parse individual job results
+          build_results='${{ toJSON(needs.build.outputs) }}'
+          build_result='${{ needs.build.result }}'
+
           # Matrix combinations
           matrix_os=("ubuntu-latest" "windows-latest" "macos-latest")
           matrix_node=("20.x" "22.x" "24.x")
 
           for os in "${matrix_os[@]}"; do
-            for node in "${matrix_node[@]}"; do
-              # Convert matrix values to job result key format
-              os_key=$(echo "$os" | sed 's/-/_/g')
-              node_key=$(echo "$node" | sed 's/\./_/g')
-              
-              # Check job result (this is a simplified approach)
-              if [[ "${{ needs.build.result }}" == "success" ]]; then
+            for node in "${matrix_node[@]}"; do              
+              # Since we can't access individual matrix job results directly,
+              # we'll show the overall build job result but indicate it's for the entire matrix
+              if [[ "$build_result" == "success" ]]; then
                 echo "| $os | $node | ✅ Success |" >> ${GITHUB_STEP_SUMMARY}
                 success_count=$((success_count + 1))
-              else
+              elif [[ "$build_result" == "failure" ]]; then
                 echo "| $os | $node | ❌ Failed |" >> ${GITHUB_STEP_SUMMARY}
+                failure_count=$((failure_count + 1))
+              else
+                echo "| $os | $node | ⚠️ $build_result |" >> ${GITHUB_STEP_SUMMARY}
                 failure_count=$((failure_count + 1))
               fi
               total_count=$((total_count + 1))
@@ -153,9 +157,12 @@ jobs:
           echo "- **Total Jobs:** $total_count" >> ${GITHUB_STEP_SUMMARY}
           echo "- **Successful:** $success_count" >> ${GITHUB_STEP_SUMMARY}
           echo "- **Failed:** $failure_count" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Overall Result:** $build_result" >> ${GITHUB_STEP_SUMMARY}
+          echo "" >> ${GITHUB_STEP_SUMMARY}
+          echo "> **Note:** Individual matrix job results are not directly accessible. Status shown reflects the overall build job outcome." >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
           echo "## 📦 Build Information" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Commit SHA:** ${{ github.sha }}" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Pull Request:** #${{ github.event.number }}" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Commit SHA:** [${{ github.sha }}](${{ github.event.repository.html_url }}/commit/${{ github.sha }})" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Pull Request:** [#${{ github.event.number }}](${{ github.event.pull_request.html_url }})" >> ${GITHUB_STEP_SUMMARY}
           echo "- **Branch:** ${{ github.head_ref }}" >> ${GITHUB_STEP_SUMMARY}
