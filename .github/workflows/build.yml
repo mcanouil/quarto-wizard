@@ -64,6 +64,10 @@ jobs:
         shell: bash
         run: npm ci
 
+      - name: Compile extension
+        shell: bash
+        run: npm run webpack
+
       - name: Run linter
         shell: bash
         run: npm run lint
