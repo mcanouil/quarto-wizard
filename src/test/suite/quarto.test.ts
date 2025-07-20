@@ -148,9 +148,8 @@ suite("Quarto Utils Test Suite", () => {
 		});
 
 		test("should return false when command succeeds but has no output", async () => {
-			// Use a cross-platform command that exits with 0 and no output
-			// On Windows, 'echo' with no arguments outputs a newline, so use a Node.js child process
-			const noOutputCmd = process.platform === "win32" ? `node -e "process.exit(0)"` : "true";
+			// Use a cross-platform command that accepts extra arguments and produces no output
+			const noOutputCmd = process.platform === "win32" ? "cmd /c exit 0" : "true";
 			const result = await checkQuartoVersion(noOutputCmd);
 			assert.strictEqual(result, false);
 		});
