@@ -131,6 +131,7 @@ suite("Install Quarto Extension Test Suite", () => {
 				validateRange: (range) => range,
 				validatePosition: (position) => position,
 				version: 1,
+				encoding: "utf8",
 			} as vscode.TextDocument;
 		};
 
