@@ -1,0 +1,20 @@
+---
+title: "Test Document"
+format: html
+---
+
+# Test Quarto Document
+
+This is a test Quarto document used for testing the extension.
+
+```r
+# Sample R code
+plot(1:10)
+```
+
+```python
+# Sample Python code
+import matplotlib.pyplot as plt
+plt.plot([1, 2, 3, 4])
+plt.show()
+```
