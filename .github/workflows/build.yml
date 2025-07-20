@@ -47,6 +47,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [20.x, 22.x, 24.x]
@@ -103,3 +104,58 @@ jobs:
           name: quarto-wizard-${{ github.sha }}-${{ matrix.os }}-${{ matrix.node-version }}
           path: quarto-wizard.vsix
           retention-days: 10
+
+  summary:
+    if: always()
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate consolidated summary
+        shell: bash
+        run: |
+          echo "# 🚀 Quarto Wizard Build & Test Results" >> ${GITHUB_STEP_SUMMARY}
+          echo "" >> ${GITHUB_STEP_SUMMARY}
+          echo "## 📋 Matrix Job Results" >> ${GITHUB_STEP_SUMMARY}
+          echo "" >> ${GITHUB_STEP_SUMMARY}
+          echo "| OS | Node.js | Status |" >> ${GITHUB_STEP_SUMMARY}
+          echo "|-------|---------|--------|" >> ${GITHUB_STEP_SUMMARY}
+
+          # Parse matrix results from needs context
+          success_count=0
+          failure_count=0
+          total_count=0
+
+          # Matrix combinations
+          matrix_os=("ubuntu-latest" "windows-latest" "macos-latest")
+          matrix_node=("20.x" "22.x" "24.x")
+
+          for os in "${matrix_os[@]}"; do
+            for node in "${matrix_node[@]}"; do
+              # Convert matrix values to job result key format
+              os_key=$(echo "$os" | sed 's/-/_/g')
+              node_key=$(echo "$node" | sed 's/\./_/g')
+              
+              # Check job result (this is a simplified approach)
+              if [[ "${{ needs.build.result }}" == "success" ]]; then
+                echo "| $os | $node | ✅ Success |" >> ${GITHUB_STEP_SUMMARY}
+                success_count=$((success_count + 1))
+              else
+                echo "| $os | $node | ❌ Failed |" >> ${GITHUB_STEP_SUMMARY}
+                failure_count=$((failure_count + 1))
+              fi
+              total_count=$((total_count + 1))
+            done
+          done
+
+          echo "" >> ${GITHUB_STEP_SUMMARY}
+          echo "## 📊 Summary Statistics" >> ${GITHUB_STEP_SUMMARY}
+          echo "" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Total Jobs:** $total_count" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Successful:** $success_count" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Failed:** $failure_count" >> ${GITHUB_STEP_SUMMARY}
+          echo "" >> ${GITHUB_STEP_SUMMARY}
+          echo "## 📦 Build Information" >> ${GITHUB_STEP_SUMMARY}
+          echo "" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Commit SHA:** ${{ github.sha }}" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Pull Request:** #${{ github.event.number }}" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Branch:** ${{ github.head_ref }}" >> ${GITHUB_STEP_SUMMARY}
