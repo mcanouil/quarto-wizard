@@ -154,7 +154,6 @@ jobs:
         with:
           pattern: job-summary-*
           path: job-summaries
-          merge-multiple: true
 
       - name: Generate consolidated summary
         shell: bash
