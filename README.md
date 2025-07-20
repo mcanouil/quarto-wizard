@@ -118,7 +118,7 @@ See the [`markdownlint` README](https://github.com/DavidAnson/vscode-markdownlin
 
 #### Custom Markdown Linting Rules
 
-- `QMD001` / `blanks-around-fenced-divs`: Ensure there are no blank lines around [fenced divs](https://pandoc.org/MANUAL.html#extension-fenced_divs) delimiters.
+- `QMD001` / `blanks-around-fenced-divs`: Ensure there are blank lines around [fenced divs](https://pandoc.org/MANUAL.html#extension-fenced_divs) delimiters.
 
   ```json
   {

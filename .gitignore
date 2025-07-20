@@ -1,5 +1,20 @@
-.DS_Store
+# Build outputs
+out
 dist
-node_modules
 *.vsix
+
+# Dependencies
+node_modules
+package-lock.json
+
+# Cache files
+.eslintcache
+
+# Test directories
+.vscode-test
+
+# OS files
+.DS_Store
+
+# Assets
 /assets/videos

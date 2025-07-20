@@ -9,6 +9,10 @@ import { logMessage } from "./log";
  * @returns {string[]} - An array of file paths to the found extension files.
  */
 function findQuartoExtensionsRecurse(directory: string): string[] {
+	if (!fs.existsSync(directory)) {
+		return [];
+	}
+
 	let results: string[] = [];
 	const list = fs.readdirSync(directory);
 	list.forEach((file) => {
