@@ -141,7 +141,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: job-summary-${{ matrix.os }}-${{ matrix.node-version }}
-          path: job-summary-${{ matrix.os }}-${{ matrix.node-version }}.txt
+          path: job-summary.txt
           retention-days: 1
 
   summary:
