@@ -100,6 +100,6 @@ jobs:
       - name: Upload VSIX as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: quarto-wizard-${{ github.sha }}
+          name: quarto-wizard-${{ github.sha }}-${{ matrix.os }}-${{ matrix.node-version }}
           path: quarto-wizard.vsix
           retention-days: 10
