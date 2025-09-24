@@ -10,8 +10,54 @@
 **Quarto Wizard** is a Visual Studio Code extension that helps you manage your [Quarto](https://quarto.org) projects.  
 It allows you to easily install Quarto extensions directly from the [Quarto Extensions](https://github.com/mcanouil/quarto-extensions) listing repository.  
 This extension provides a user-friendly interface to browse, select, and install Quarto extensions, enhancing your Quarto development experience.  
-Additionally, it offers a set of commands to create new Quarto documents that you can use for as a starting point for your bug reports, feature requests, or any other Quarto-related content.
-Finally, it provides an automatic Markdown linting feature to help you write better Markdown documents.
+Additionally, it offers a set of commands to create new Quarto documents that you can use as a starting point for your bug reports, feature requests, or any other Quarto-related content.
+
+- [Overview](#overview)
+- [Installation](#installation)
+  - [VS Code Marketplace](#vs-code-marketplace)
+  - [Command Line](#command-line)
+  - [Manual Installation](#manual-installation)
+- [Requirements](#requirements)
+- [Commands](#commands)
+- [Usage](#usage)
+  - [Quarto Wizard Explorer View](#quarto-wizard-explorer-view)
+  - [Explorer/Editor Context Menu](#explorereditor-context-menu)
+  - [Install Quarto Extensions](#install-quarto-extensions)
+  - [Use Quarto Templates](#use-quarto-templates)
+  - [Create a New Reproducible Document](#create-a-new-reproducible-document)
+  - [Show Quarto Wizard Output](#show-quarto-wizard-output)
+- [Configuration](#configuration)
+  - [Available Settings](#available-settings)
+    - [Extension Installation Behaviour](#extension-installation-behaviour)
+    - [Quarto CLI Configuration](#quarto-cli-configuration)
+- [Getting Help](#getting-help)
+- [Verifying Release Asset Build Provenance](#verifying-release-asset-build-provenance)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+
+## Installation
+
+### VS Code Marketplace
+
+1. Open Visual Studio Code/Positron.
+2. Go to the Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X` on macOS).
+3. Search for "Quarto Wizard".
+4. Click **Install** on the extension.
+
+### Command Line
+
+```bash
+code --install-extension mcanouil.quarto-wizard
+```
+
+### Manual Installation
+
+1. Download the latest `.vsix` file from the [GitHub Releases](https://github.com/mcanouil/quarto-wizard/releases).
+2. In VS Code, open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+3. Run `Extensions: Install from VSIX...`.
+4. Select the downloaded `.vsix` file.
 
 ## Requirements
 
@@ -20,7 +66,7 @@ Finally, it provides an automatic Markdown linting feature to help you write bet
 
 ## Commands
 
-- `Quarto Wizard: Install Extension(s)`: Opens the extension installer interface.
+- `Quarto Wizard: Install Extensions`: Opens the extension installer interface.
   - **Browse Extensions**: View a list of available Quarto extensions.
     <p>
       <img
@@ -85,7 +131,7 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 ### Explorer/Editor Context Menu
 
 - Right-click in the Explorer or Editor to access the following commands:
-  - `Install Extension(s)`.
+  - `Install Extensions`.
   - `Use Template` (*Only retrieves the Quarto document. For other resources, please use `quarto use template` manually*).
   - `Quarto Reproducible Document`.
   - `Show Quarto Wizard Log Output`.
@@ -94,7 +140,7 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 <p align="center">
   <img
     src="assets/images/explorer-context.png"
-    alt='This image presents a context menu within Visual Studio Code. The menu displays options such as "Install Extension(s)," "Use Template", "Quarto Reproducible Document", and more. The "Quarto Wizard" option is highlighted. This visual aids users in navigating and utilising Quarto tools effectively within their workspace.'
+    alt='This image presents a context menu within Visual Studio Code. The menu displays options such as "Install Extensions," "Use Template", "Quarto Reproducible Document", and more. The "Quarto Wizard" option is highlighted. This visual aids users in navigating and utilising Quarto tools effectively within their workspace.'
     width="400"
   />
 </p>
@@ -102,13 +148,13 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 ### Install Quarto Extensions
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
-2. Type `Quarto Wizard: Install Extension(s)` and select it.
+2. Type `Quarto Wizard: Install Extensions` and select it.
 3. Browse the list of available Quarto extensions.
 4. Select the Quarto extension(s) you want to install.
 5. Answer the prompts to confirm the installation.
 
 > [!NOTE]
-> Quarto Wizard can only display available informations, *i.e.*, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+> Quarto Wizard can only display available information, *i.e.*, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
 
 ### Use Quarto Templates
 
@@ -131,39 +177,55 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 3. View the output log for the Quarto Wizard extension.
 4. Use the output log to troubleshoot any issues.
 
-### Markdown Linting
+## Configuration
 
-The Quarto Wizard extension provides automatic Markdown linting to help you write better Markdown documents.  
-This is achieved by using the [`markdownlint`](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint) extension.
+The Quarto Wizard extension can be configured through VS Code settings.
+Access these through:
 
-In the context of Quarto, it's recommended to disable the following rule in your `settings.json` file:
+- **File** > **Preferences** > **Settings** (or **Code** > **Preferences** > **Settings** on macOS).
+- Search for "Quarto Wizard".
+
+### Available Settings
+
+#### Extension Installation Behaviour
 
 ```json
 {
-  "markdownlint.config": {
-    "first-line-h1": false, //MD041
-    "single-h1": false // MD025
-  }
+  "quartoWizard.ask.trustAuthors": "ask",
+  "quartoWizard.ask.confirmInstall": "ask"
 }
 ```
 
-See the [`markdownlint` README](https://github.com/DavidAnson/vscode-markdownlint?tab=readme-ov-file) for more information.
+- `quartoWizard.ask.trustAuthors`: Control prompts for trusting extension authors
+  - `"ask"`: Ask each time (default).
+  - `"yes"`: Always trust.
+  - `"never"`: Never ask.
+- `quartoWizard.ask.confirmInstall`: Control installation confirmation prompts
+  - `"ask"`: Ask each time (default).
+  - `"yes"`: Auto-confirm.
+  - `"never"`: Never ask.
 
-#### Custom Markdown Linting Rules
+#### Quarto CLI Configuration
 
-- `QMD001` / `blanks-around-fenced-divs`: Ensure there are blank lines around [fenced divs](https://pandoc.org/MANUAL.html#extension-fenced_divs) delimiters.
+```json
+{
+  "quartoWizard.quarto.path": "/usr/local/bin/quarto"
+}
+```
 
-  ```json
-  {
-    "markdownlint.config": {
-      "blanks-around-fenced-divs": true
-    }
-  }
-  ```
+- `quartoWizard.quarto.path`: Specify custom path to Quarto CLI executable.
+
+## Getting Help
+
+If you experience issues:
+
+1. **Check the output log**: `Quarto Wizard: Show Quarto Wizard Log Output`
+2. **Search existing issues**: [GitHub Issues](https://github.com/mcanouil/quarto-wizard/issues)
+3. [**Report a bug**](https://github.com/mcanouil/quarto-wizard/issues/new?template=bug.yml): Create a new issue following the provided template.
 
 ## Verifying Release Asset Build Provenance
 
-To ensure the authenticity and integrity of the release asset, use GitHub CLI to verify its build provenance using GitHub CLI.
+To ensure the authenticity and integrity of the release asset, use GitHub CLI to verify its build provenance.
 
 ```bash
 gh attestation verify quarto-wizard-<version>.vsix --repo mcanouil/quarto-wizard
