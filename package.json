@@ -79,6 +79,8 @@
 		"eslint": "^9.25.1",
 		"eslint-formatter-unix": "^8.40.0",
 		"eslint-plugin-tsdoc": "^0.4.0",
+		"glob": "^11.0.3",
+		"lru-cache": "^11.2.2",
 		"mocha": "^11.7.1",
 		"ts-loader": "^9.5.4",
 		"typescript": "^5.9.2",
