@@ -200,9 +200,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
           else
-            gh release create ${VERSION} ./quarto-wizard-${VERSION}.vsix --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
           fi
 
       - name: Publish extension to Visual Studio Marketplace
