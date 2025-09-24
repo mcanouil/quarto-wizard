@@ -27,4 +27,5 @@ assets/videos/**
 CITATION.cff
 TESTING.md
 test-fixtures
+src/**/README.md
 scripts

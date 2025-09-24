@@ -42,19 +42,26 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 				if (!selectedExtension.id) {
 					continue;
 				}
+
+				// Update progress indicator with current extension being processed
 				progress.report({
 					message: `(${installedCount} / ${totalExtensions}) ${selectedExtension.label} ...`,
 					increment: (1 / (totalExtensions + 1)) * 100,
 				});
 
+				// Build extension source with optional version tag
 				let extensionSource = selectedExtension.id;
 				if (selectedExtension.tag && selectedExtension.tag !== "none") {
 					extensionSource = `${selectedExtension.id}@${selectedExtension.tag}`;
 				}
 
+				// Install extension and automatically add source information to _extension.yml
+				// This enables future updates through the extension's tree view
 				const success = await installQuartoExtensionSource(extensionSource, workspaceFolder);
-				// Once source is supported in _extension.yml, the above line can be replaced with the following line
-				// const success = await installQuartoExtension(extension);
+				// TODO: Once Quarto CLI natively supports source records, replace with:
+				// const success = await installQuartoExtension(extensionSource, workspaceFolder);
+
+				// Track installation results for user feedback
 				if (success) {
 					installedExtensions.push(selectedExtension.id);
 				} else {
