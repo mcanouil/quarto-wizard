@@ -5,10 +5,15 @@ import * as fs from "fs";
 import { logMessage } from "./log";
 import { findModifiedExtensions, getMtimeExtensions, removeExtension } from "./extensions";
 
+// Cache the Quarto path to avoid repeated configuration lookups
 let cachedQuartoPath: string | undefined;
 
 /**
  * Retrieves the Quarto path from the configuration.
+ * Falls back through multiple configuration sources in order of preference:
+ * 1. quartoWizard.quarto.path (extension-specific setting)
+ * 2. quarto.path (general Quarto extension setting)
+ * 3. "quarto" (system PATH)
  *
  * @returns {string} - The Quarto path.
  */
@@ -18,17 +23,23 @@ export function getQuartoPath(): string {
 	}
 	const config = vscode.workspace.getConfiguration("quartoWizard.quarto");
 	let quartoPath = config.get<string>("path");
+
+	// Try fallback to general Quarto extension configuration
 	if (!quartoPath && quartoPath !== "") {
 		const fallbackConfig = vscode.workspace.getConfiguration("quarto");
 		quartoPath = fallbackConfig.get<string>("path");
 	}
+
+	// Final fallback to system PATH
 	if (!quartoPath && quartoPath !== "") {
 		quartoPath = "quarto";
 	}
+
 	cachedQuartoPath = quartoPath || "quarto";
 	return cachedQuartoPath;
 }
 
+// Clear cached path when configuration changes and re-validate
 vscode.workspace.onDidChangeConfiguration(async (e) => {
 	if (e.affectsConfiguration("quartoWizard.quarto.path") || e.affectsConfiguration("quarto.path")) {
 		cachedQuartoPath = undefined;
@@ -93,21 +104,25 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 
 		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
 			let isInstalled = false;
+
 			if (error) {
 				logMessage(`Error installing extension: ${error}`, "error");
 				if (stderr) {
 					logMessage(`${stderr}`, "error");
 				}
 			} else if (stderr) {
+				// Quarto CLI often outputs success messages to stderr, so check for success indicators
 				isInstalled = stderr.includes("Extension installation complete");
 				if (!isInstalled) {
 					logMessage(`${stderr}`, "error");
 				}
 			} else {
+				// No error and no stderr means successful installation
 				isInstalled = true;
 			}
 
 			if (isInstalled) {
+				// Refresh the extensions tree view to show the newly installed extension
 				vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 				resolve(true);
 			} else {

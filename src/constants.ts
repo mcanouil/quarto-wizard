@@ -27,6 +27,8 @@ export const QW_EXTENSIONS =
 export const QW_EXTENSIONS_CACHE = "quarto_wizard_extensions";
 
 /**
- * Cache duration for the Quarto extensions JSON (default to 1 hour).
+ * Cache duration for the Quarto extensions JSON in milliseconds.
+ * Currently set to 0 to disable caching (was 1 hour: 1 * 60 * 60 * 1000).
+ * This ensures users always get the latest extension information.
  */
 export const QW_EXTENSIONS_CACHE_TIME = 0 * 60 * 60 * 1000;

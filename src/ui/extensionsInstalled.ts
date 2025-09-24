@@ -43,17 +43,24 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		const needsUpdate = latestVersion !== undefined;
 		const baseContextValue = "quartoExtensionItem";
 		let contextValue = baseContextValue;
+
+		// Set context value based on extension state for VS Code context menus
+		// This determines which commands are available when right-clicking
 		if (needsUpdate) {
-			contextValue = baseContextValue + "Outdated";
+			contextValue = baseContextValue + "Outdated"; // Shows "update" option
 		} else if (data && !this.data?.source) {
-			contextValue = baseContextValue + "NoSource";
+			contextValue = baseContextValue + "NoSource"; // Cannot be updated, shows limited options
 		}
+
 		this.tooltip = `${this.label}`;
 		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
 		this.contextValue = this.data ? contextValue : "quartoExtensionItemDetails";
+
 		if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
+
+		// Format version for installation commands
 		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
 		this.workspaceFolder = workspacePath;
 	}
@@ -68,6 +75,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	readonly onDidChangeTreeData: vscode.Event<WorkspaceFolderTreeItem | ExtensionTreeItem | undefined | void> =
 		this._onDidChangeTreeData.event;
 
+	// Cache extension data and version information per workspace folder to avoid repeated file reads
 	private extensionsDataByFolder: Record<string, Record<string, ExtensionData>> = {};
 	private latestVersionsByFolder: Record<string, Record<string, string>> = {};
 
