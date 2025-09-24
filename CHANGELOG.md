@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- fix: drop `markdownlint` related code and settings.
+- chore: polish code, comments, and documentation.
+- chore: update dependencies to latest versions.
+
 ## 0.18.6 (2025-05-02)
 
 - fix: ensure update check occurs after installing, updating, or removing an extension.
