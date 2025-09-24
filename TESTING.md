@@ -1,166 +1,148 @@
-# Quarto Wizard - Testing Infrastructure
+# Testing Guide
 
-This document describes the testing infrastructure setup for the Quarto Wizard VS Code extension.
+This guide covers how to run and write tests for the Quarto Wizard extension.
 
-## ✅ What was set up
+## Test Setup
 
-### 1. Testing Dependencies
+The extension includes a comprehensive test suite covering both unit and integration tests. Here's what's included:
 
-- `@vscode/test-cli` - Modern VS Code testing CLI
-- `@vscode/test-electron` - VS Code testing framework
-- `@types/mocha` - TypeScript types for Mocha
-- `mocha` - Test framework
+### Dependencies
 
-### 2. Test Configuration Files
+- `@vscode/test-cli` - VS Code testing CLI.
+- `@vscode/test-electron` - Testing framework for VS Code extensions.
+- `@types/mocha` - TypeScript definitions for Mocha.
+- `mocha` - The test framework.
 
-- `.vscode-test.mjs` - VS Code test CLI configuration
-- `src/test/suite/index.ts` - Test runner script
-- `src/test/runTest.ts` - Advanced test runner (for manual execution)
+### Configuration Files
 
-### 3. Test Files Created
+- `.vscode-test.mjs` - Main test configuration.
+- `src/test/suite/index.ts` - Test suite entry point.
+- `src/test/runTest.ts` - Alternative test runner for manual execution.
 
-- `src/test/suite/extension.test.ts` - Integration tests for the extension
-- `src/test/suite/hash.test.ts` - Unit tests for hash utilities
-- `src/test/suite/quarto.test.ts` - Unit tests for Quarto utilities
+### Test Files
 
-### 4. VS Code Integration
+- `src/test/suite/extension.test.ts` - Tests for extension activation and commands.
+- `src/test/suite/hash.test.ts` - Tests for utility functions.
+- `src/test/suite/quarto.test.ts` - Tests for Quarto CLI integration.
 
-- Updated `.vscode/launch.json` with debug configuration for tests
-- Added test compilation and execution scripts to `package.json`
+### Additional Setup
 
-### 5. CI/CD Setup
+- Debug configuration in `.vscode/launch.json`.
+- Test scripts in `package.json`.
+- CI workflow in `.github/workflows/test.yml` for automated testing across multiple platforms.
+- Test fixtures in `test-fixtures/` directory.
 
-- `.github/workflows/test.yml` - GitHub Actions workflow for automated testing
-- Support for multiple OS (Ubuntu, Windows, macOS) and Node.js versions
+## Running Tests
 
-### 6. Test Fixtures
+### Basic Commands
 
-- `test-fixtures/` directory with sample files for testing
-
-## 🚀 Running Tests
-
-### Quick Commands
+The quickest way to run tests is through npm scripts:
 
 ```bash
-# Install dependencies (if not done already)
+# Install dependencies first
 npm install
 
-# Compile and run tests
+# Run all tests
 npm test
 
-# Run tests with watch mode
+# Run tests in watch mode (re-runs on file changes)
 npm run test:watch
 
-# Compile tests only
+# Only compile tests without running them
 npm run test-compile
 ```
 
-### Manual Testing
+### Advanced Options
+
+For more control over test execution:
 
 ```bash
 # Run specific test configuration
 npx vscode-test --label unitTests
 
-# Dry run (validate configuration)
+# Validate configuration without running tests
 npx vscode-test --dry-run
 
-# Run with specific VS Code version
+# Test against VS Code Insiders
 npx vscode-test --code-version insiders
 ```
 
 ### Debugging Tests
 
-1. Open VS Code
-2. Go to **Run and Debug** (Ctrl+Shift+D)
-3. Select **"Extension Tests"** configuration
-4. Set breakpoints in your test files
-5. Press **F5** to start debugging
+To debug tests in VS Code:
 
-## 🧪 Writing New Tests
+1. Open the project in VS Code.
+2. Go to **Run and Debug** (`Ctrl+Shift+D` or `Cmd+Shift+D` on macOS).
+3. Select **"Extension Tests"** from the dropdown.
+4. Set breakpoints in your test files.
+5. Press **F5** to start debugging.
 
-### Integration Tests (Extension API)
+## Writing Tests
+
+### Integration Tests
+
+Integration tests verify that the extension works properly within VS Code. These tests have access to the full VS Code API:
 
 ```typescript
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
-suite('My Integration Tests', () => {
-    test('Should access VS Code API', () => {
+suite('Extension Integration Tests', () => {
+    test('Extension loads correctly', () => {
         const extension = vscode.extensions.getExtension('mcanouil.quarto-wizard');
         assert.ok(extension, 'Extension should be available');
     });
-});
-```
 
-### Unit Tests (Pure Functions)
-
-```typescript
-import * as assert from 'assert';
-import { myFunction } from '../../utils/myModule';
-
-suite('My Unit Tests', () => {
-    test('Should test pure function', () => {
-        const result = myFunction('input');
-        assert.strictEqual(result, 'expected');
+    test('Commands are registered', async () => {
+        const commands = await vscode.commands.getCommands();
+        assert.ok(commands.includes('quartoWizard.installExtension'));
     });
 });
 ```
 
-## 🔧 Configuration Details
+### Unit Tests
 
-### Test Runner Configuration
+Unit tests focus on individual functions and don't require VS Code:
 
-The `.vscode-test.mjs` file configures:
+```typescript
+import * as assert from 'assert';
+import { hashString } from '../../utils/hash';
 
-- Test files pattern: `out/test/**/*.test.js`
-- VS Code version: `stable`
-- Workspace folder: `./test-fixtures`
-- Mocha timeout: 20 seconds
+suite('Hash Utility Tests', () => {
+    test('Creates consistent hash', () => {
+        const input = 'test string';
+        const hash1 = hashString(input);
+        const hash2 = hashString(input);
+        assert.strictEqual(hash1, hash2);
+    });
+});
+```
 
-## 🚨 Troubleshooting
+## Test Configuration
+
+The main test configuration is in `.vscode-test.mjs`:
+
+- **Test files**: `out/test/**/*.test.js`.
+- **VS Code version**: `stable`.
+- **Workspace**: `./test-fixtures`.
+
+## Troubleshooting
 
 ### Common Issues
 
-**Tests won't start**
+- **Tests won't start**: Ensure `npm run test-compile` runs without errors.
+- **Extension not found**: Check that the extension compiles successfully.
+- **VS Code hangs**: This is normal behaviour; the VS Code test instance remains open.
 
-- Ensure `npm run test-compile` runs without errors
-- Check that all test files are in `out/test/suite/`
+### CI/CD
 
-**Extension not found**
+Tests run automatically on GitHub Actions for:
 
-- Make sure the extension is properly compiled
-- Verify the extension ID matches in tests
+- Ubuntu, Windows, and macOS.
+- Node.js versions 14.x.
 
-**VS Code hangs during tests**
+## Resources
 
-- This is normal - VS Code instance remains open
-- Use `--bail` flag to stop on first failure
-- Use dry run mode to validate configuration
-
-### CI/CD Notes
-
-The GitHub Actions workflow will:
-
-- Run on Ubuntu, Windows, and macOS
-- Test with Node.js 18.x and 20.x
-
-## 📝 Best Practices
-
-1. **Test Independence**: Each test should work in isolation
-2. **Descriptive Names**: Use clear, descriptive test names  
-3. **Arrange-Act-Assert**: Structure tests clearly
-4. **Mock Dependencies**: Mock external APIs and file system calls
-5. **Test Edge Cases**: Include error conditions and boundary tests
-
-## 🎯 Next Steps
-
-1. **Write more tests**: Add tests for your specific commands and utilities
-2. **Set up mocking**: Use libraries like `sinon` for mocking complex dependencies
-3. **Add performance tests**: Test extension startup time and memory usage
-4. **Add e2e tests**: Consider adding end-to-end tests for complete workflows
-
-## 📚 Resources
-
-- [VS Code Extension Testing Guide](https://code.visualstudio.com/api/working-with-extensions/testing-extension)
-- [Mocha Documentation](https://mochajs.org/)
-- [VS Code Test CLI](https://github.com/microsoft/vscode-test-cli)
+- [VS Code Extension Testing Guide](https://code.visualstudio.com/api/working-with-extensions/testing-extension).
+- [Mocha Documentation](https://mochajs.org/).
+- [VS Code Test CLI](https://github.com/microsoft/vscode-test-cli).
