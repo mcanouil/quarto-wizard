@@ -22,11 +22,23 @@ Finally, it provides an automatic Markdown linting feature to help you write bet
 
 - `Quarto Wizard: Install Extension(s)`: Opens the extension installer interface.
   - **Browse Extensions**: View a list of available Quarto extensions.
-    <p><img src="assets/images/install-extensions.png" alt='This image displays a search results interface for Quarto extensions authored by the user "mcanouil". It lists various extensions, including their names, version numbers, star ratings, and brief descriptions. The search highlights extensions such as Animate, Div Reuse, Elevator, Github, Highlight Text, Iconify, Invoice, and Letter, showcasing diverse functionalities ranging from animated content to document styling and templates for invoices and letters. The purpose of the image is to present a concise overview of available extensions along with their popularity and license information for Quarto users.' width="400" /></p>
+    <p>
+      <img
+        src="assets/images/install-extensions.png"
+        alt='This image displays a search results interface for Quarto extensions authored by the user "mcanouil". It lists various extensions, including their names, version numbers, star ratings, and brief descriptions. The search highlights extensions such as Animate, Div Reuse, Elevator, Github, Highlight Text, Iconify, Invoice, and Letter, showcasing diverse functionalities ranging from animated content to document styling and templates for invoices and letters. The purpose of the image is to present a concise overview of available extensions along with their popularity and license information for Quarto users.'
+        width="400"
+      />
+    </p>
   - **Install Extensions**: Install selected Quarto extensions with a single click.
 - `Quarto Wizard: Use Template`: Opens the template installer interface.
   - **Browse Templates**: View a list of available Quarto templates from Quarto Extensions.
-    <p><img src="assets/images/use-template.png" alt='This image showcases a menu of Quarto extension templates available for selection. It lists templates like "LETTER," "ACADEMIC TYPST," "ACM," "ACS," and others, each with details such as version, number of stars, repository link, and license type. The "LETTER" template is highlighted, suggesting recent usage. This visual serves as a practical guide for users looking to choose and apply specific Quarto templates effectively.' width="400" /></p>
+    <p>
+      <img
+        src="assets/images/use-template.png"
+        alt='This image showcases a menu of Quarto extension templates available for selection. It lists templates like "LETTER," "ACADEMIC TYPST," "ACM," "ACS," and others, each with details such as version, number of stars, repository link, and license type. The "LETTER" template is highlighted, suggesting recent usage. This visual serves as a practical guide for users looking to choose and apply specific Quarto templates effectively.'
+        width="400"
+      />
+    </p>
   - **Install Templates**: Install selected Quarto template with a single click.
 - `Quarto Wizard: Clear Recently Installed Extensions`: Clears the list of recently installed extensions.
 - `Quarto Wizard: Show Quarto Wizard Log Output`: Displays the output log for the extension installer.
@@ -43,28 +55,49 @@ Finally, it provides an automatic Markdown linting feature to help you write bet
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Focus on Extensions Installed View` and select it.  
    Or click on the Quarto Wizard icon in the Activity Bar.
-   <p align="center"><img src="assets/images/explorer-view.png" alt="This image showcases the Quarto Wizard extension interface within Visual Studio Code. It highlights features like the workspace view, extension management options for adding, removing, or updating extensions, as well as template usage and GitHub repository access. The interface also illustrates the Quarto Wizard Explorer section, with annotations using colored arrows and text to explain specific functionalities. Two workspaces are displayed: one with installed extensions labeled wizard-dev, and another without installed extensions labeled quarto-playground. This visual guide serves users looking to manage Quarto extensions in Visual Studio Code effectively." width="600" /></p>
+   <p align="center">
+     <img
+       src="assets/images/explorer-view.png"
+       alt="This image showcases the Quarto Wizard extension interface within Visual Studio Code. It highlights features like the workspace view, extension management options for adding, removing, or updating extensions, as well as template usage and GitHub repository access. The interface also illustrates the Quarto Wizard Explorer section, with annotations using colored arrows and text to explain specific functionalities. Two workspaces are displayed: one with installed extensions labeled wizard-dev, and another without installed extensions labeled quarto-playground. This visual guide serves users looking to manage Quarto extensions in Visual Studio Code effectively."
+       width="600"
+     />
+   </p>
 
 Or click on the Quarto Wizard icon in the Activity Bar.
 
-_Quarto Wizard Explorer View in action:_
+*Quarto Wizard Explorer View in action:*
 
-<p align="center"><video controls src="https://github.com/user-attachments/assets/6ea42fb5-a749-4df8-9de3-7038a148ea4d" title="Wizard Explorer View in action" alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases." width=600></video></p>
+<p align="center">
+  <video
+    controls
+    src="https://github.com/user-attachments/assets/6ea42fb5-a749-4df8-9de3-7038a148ea4d"
+    title="Wizard Explorer View in action"
+    alt="A video showcasing the Quarto Wizard Explorer View in action, highlighting its capability to detect updates based on GitHub tags/releases."
+    width=600
+  >
+  </video>
+</p>
 
 > [!IMPORTANT]
-> Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
+> Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.*, if `source: <owner>/<repository>` is present in `_extension.yml`).
 > You can manually add the source to the extension's `_extension.yml` file to enable updates.
 
 ### Explorer/Editor Context Menu
 
 - Right-click in the Explorer or Editor to access the following commands:
   - `Install Extension(s)`.
-  - `Use Template`.
+  - `Use Template` (*Only retrieves the Quarto document. For other resources, please use `quarto use template` manually*).
   - `Quarto Reproducible Document`.
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
 
-<p align="center"><img src="assets/images/explorer-context.png" alt='This image presents a context menu within Visual Studio Code. The menu displays options such as "Install Extension(s)," "Use Template", "Quarto Reproducible Document", and more. The "Quarto Wizard" option is highlighted. This visual aids users in navigating and utilising Quarto tools effectively within their workspace.' width="400" /></p>
+<p align="center">
+  <img
+    src="assets/images/explorer-context.png"
+    alt='This image presents a context menu within Visual Studio Code. The menu displays options such as "Install Extension(s)," "Use Template", "Quarto Reproducible Document", and more. The "Quarto Wizard" option is highlighted. This visual aids users in navigating and utilising Quarto tools effectively within their workspace.'
+    width="400"
+  />
+</p>
 
 ### Install Quarto Extensions
 
@@ -75,7 +108,7 @@ _Quarto Wizard Explorer View in action:_
 5. Answer the prompts to confirm the installation.
 
 > [!NOTE]
-> Quarto Wizard can only display available informations, _i.e._, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+> Quarto Wizard can only display available informations, *i.e.*, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
 
 ### Use Quarto Templates
 
