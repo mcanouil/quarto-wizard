@@ -88,6 +88,7 @@
 	},
 	"dependencies": {
 		"@types/lodash": "^4.17.16",
+		"glob": "^11.0.3",
 		"js-yaml": "^4.1.0",
 		"lodash": "^4.17.21",
 		"semver": "^7.7.2"
