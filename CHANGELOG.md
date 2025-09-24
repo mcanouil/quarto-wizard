@@ -14,7 +14,7 @@
 
 ## 0.18.3 (2025-04-12)
 
-- chore: no usrer-facing changes.
+- chore: no user-facing changes.
 
 ## 0.18.2 (2025-04-12)
 
