@@ -25,13 +25,13 @@ export function getQuartoPath(): string {
 	let quartoPath = config.get<string>("path");
 
 	// Try fallback to general Quarto extension configuration
-	if (!quartoPath && quartoPath !== "") {
+	if (!quartoPath || quartoPath === "") {
 		const fallbackConfig = vscode.workspace.getConfiguration("quarto");
 		quartoPath = fallbackConfig.get<string>("path");
 	}
 
 	// Final fallback to system PATH
-	if (!quartoPath && quartoPath !== "") {
+	if (!quartoPath || quartoPath === "") {
 		quartoPath = "quarto";
 	}
 
