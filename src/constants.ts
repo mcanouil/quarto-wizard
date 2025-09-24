@@ -30,8 +30,3 @@ export const QW_EXTENSIONS_CACHE = "quarto_wizard_extensions";
  * Cache duration for the Quarto extensions JSON (default to 1 hour).
  */
 export const QW_EXTENSIONS_CACHE_TIME = 0 * 60 * 60 * 1000;
-
-/**
- * Markdown Lint extension identifier.
- */
-export const kMarkDownLintExtension = "DavidAnson.vscode-markdownlint";

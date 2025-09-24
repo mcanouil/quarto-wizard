@@ -98,14 +98,14 @@
 		"commands": [
 			{
 				"command": "quartoWizard.installExtension",
-				"title": "Install Extension(s)",
+				"title": "Install Extensions",
 				"shortTitle": "Install",
 				"icon": "$(add)",
 				"category": "Quarto Wizard"
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.install",
-				"title": "Install Extension(s)",
+				"title": "Install Extensions",
 				"shortTitle": "Install",
 				"icon": "$(add)",
 				"category": "Quarto Wizard"
@@ -333,7 +333,7 @@
 		"viewsWelcome": [
 			{
 				"view": "quartoWizard.extensionsInstalled",
-				"contents": "No Quarto extensions installed ([browse extensions](https://m.canouil.dev/quarto-extensions/)).\n[Install Extension(s)](command:quartoWizard.installExtension)\nTo learn more about Quarto and Quarto extensions [read the documentation](https://quarto.org/)."
+				"contents": "No Quarto extensions installed ([browse extensions](https://m.canouil.dev/quarto-extensions/)).\n[Install Extensions](command:quartoWizard.installExtension)\nTo learn more about Quarto and Quarto extensions [read the documentation](https://quarto.org/)."
 			}
 		],
 		"views": {
@@ -381,18 +381,6 @@
 					"default": "ask",
 					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
 				},
-				"quartoWizard.lint.trigger": {
-					"order": 4,
-					"scope": "resource",
-					"type": "string",
-					"enum": [
-						"save",
-						"type",
-						"never"
-					],
-					"default": "type",
-					"markdownDescription": "Run the markdown linter on save (`save`), on type (`type`), or never (`never`)."
-				},
 				"quartoWizard.log.level": {
 					"order": 20,
 					"scope": "resource",
@@ -407,14 +395,6 @@
 					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything."
 				}
 			}
-		},
-		"configurationDefaults": {
-			"markdownlint.config": {
-				"blanks-around-fenced-divs": false
-			},
-			"markdownlint.customRules": [
-				"{mcanouil.quarto-wizard}/markdownlint-rules/001-blanks-around-fenced-divs.js"
-			]
 		}
 	}
 }

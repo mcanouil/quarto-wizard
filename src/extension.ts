@@ -5,7 +5,6 @@ import { installQuartoExtensionCommand, useQuartoTemplateCommand } from "./comma
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails } from "./utils/extensionDetails";
-import { lint } from "./utils/lint";
 import { handleUri } from "./utils/handleUri";
 
 /**
@@ -18,8 +17,6 @@ import { handleUri } from "./utils/handleUri";
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
 	QW_LOG.appendLine("Quarto Wizard, your magical assistant, is now active!");
-
-	lint(context);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearRecent", () => {

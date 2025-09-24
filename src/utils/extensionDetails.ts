@@ -13,7 +13,7 @@ export interface ExtensionDetails {
 	owner: string; // Owner/organisation name
 	description: string; // Extension description
 	stars: number; // GitHub star count
-	license: string; // Licence information
+	license: string; // license information
 	html_url: string; // GitHub repository URL
 	version: string; // Current version (without 'v' prefix)
 	tag: string; // Release tag
