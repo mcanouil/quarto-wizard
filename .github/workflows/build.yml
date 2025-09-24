@@ -145,7 +145,7 @@ jobs:
           retention-days: 1
 
   summary:
-    if: always()
+    if: github.event.pull_request.draft == false
     needs: build
     runs-on: ubuntu-latest
     steps:
