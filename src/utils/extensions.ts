@@ -13,16 +13,16 @@ function findQuartoExtensionsRecurse(directory: string): string[] {
 		return [];
 	}
 
-	let results: string[] = [];
 	const list = fs.readdirSync(directory);
-	list.forEach((file) => {
+	const results = list.flatMap((file) => {
 		const filePath = path.join(directory, file);
 		const stat = fs.statSync(filePath);
 		if (stat && stat.isDirectory() && path.basename(filePath) !== "_extensions") {
-			results = results.concat(findQuartoExtensionsRecurse(filePath));
+			return findQuartoExtensionsRecurse(filePath);
 		} else if (file.endsWith("_extension.yml") || file.endsWith("_extension.yaml")) {
-			results.push(filePath);
+			return [filePath];
 		}
+		return [];
 	});
 	return results;
 }
@@ -46,10 +46,9 @@ export function getMtimeExtensions(directory: string): Record<string, Date> {
 		return {};
 	}
 	const extensions = findQuartoExtensions(directory);
-	const extensionsMtimeDict: Record<string, Date> = {};
-	extensions.forEach((extension) => {
-		extensionsMtimeDict[extension] = fs.statSync(path.join(directory, extension)).mtime;
-	});
+	const extensionsMtimeDict: Record<string, Date> = Object.fromEntries(
+		extensions.map((extension) => [extension, fs.statSync(path.join(directory, extension)).mtime])
+	);
 	return extensionsMtimeDict;
 }
 
@@ -63,14 +62,11 @@ export function findModifiedExtensions(extensions: Record<string, Date>, directo
 	if (!fs.existsSync(directory)) {
 		return [];
 	}
-	const modifiedExtensions: string[] = [];
 	const currentExtensions = findQuartoExtensions(directory);
-	currentExtensions.forEach((extension) => {
+	const modifiedExtensions = currentExtensions.filter((extension) => {
 		const extensionPath = path.join(directory, extension);
 		const extensionMtime = fs.statSync(extensionPath).mtime;
-		if (!extensions[extension] || extensions[extension] < extensionMtime) {
-			modifiedExtensions.push(extension);
-		}
+		return !extensions[extension] || extensions[extension] < extensionMtime;
 	});
 	return modifiedExtensions;
 }

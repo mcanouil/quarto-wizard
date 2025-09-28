@@ -54,7 +54,7 @@ async function promptInstallExtension(extensionId: string, context: vscode.Exten
  * @returns A promise that resolves when all extensions have been processed.
  */
 export async function activateExtensions(extensions: string[], context: vscode.ExtensionContext): Promise<void> {
-	extensions.forEach(async (extensionId) => {
+	await Promise.all(extensions.map(async (extensionId) => {
 		const extension = await vscode.extensions.getExtension(extensionId);
 		if (extension) {
 			if (!extension.isActive) {
@@ -65,5 +65,5 @@ export async function activateExtensions(extensions: string[], context: vscode.E
 			QW_LOG.appendLine(`Failed to activate ${extensionId}.`);
 			await promptInstallExtension(extensionId, context);
 		}
-	});
+	}));
 }
