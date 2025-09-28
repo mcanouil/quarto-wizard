@@ -7,6 +7,7 @@
 - fix: drop `markdownlint` related code and settings.
 - fix: enable extensions caching with 30-minute TTL for improved performance and reduced network requests.
 - fix: migrate from `child_process.exec()` to `child_process.spawn()` for enhanced security and elimination of command injection risks.
+- fix: optimise tree view refresh operations to eliminate duplicate calls and ensure automatic updates after all actions.
 - fix: resolve promise properly when workspace folder is empty in `installQuartoExtension()` function.
 - refactor: Convert remaining forEach to functional array methods.
 - chore: polish code, comments, and documentation.
