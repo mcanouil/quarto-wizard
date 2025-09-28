@@ -55,15 +55,19 @@ async function promptInstallExtension(extensionId: string, context: vscode.Exten
  */
 export async function activateExtensions(extensions: string[], context: vscode.ExtensionContext): Promise<void> {
 	await Promise.all(extensions.map(async (extensionId) => {
-		const extension = await vscode.extensions.getExtension(extensionId);
-		if (extension) {
-			if (!extension.isActive) {
-				await extension.activate();
-				QW_LOG.appendLine(`${extensionId} activated.`);
+		try {
+			const extension = vscode.extensions.getExtension(extensionId);
+			if (extension) {
+				if (!extension.isActive) {
+					await extension.activate();
+					QW_LOG.appendLine(`${extensionId} activated.`);
+				}
+			} else {
+				QW_LOG.appendLine(`Failed to activate ${extensionId}.`);
+				await promptInstallExtension(extensionId, context);
 			}
-		} else {
-			QW_LOG.appendLine(`Failed to activate ${extensionId}.`);
-			await promptInstallExtension(extensionId, context);
+		} catch (error) {
+			QW_LOG.appendLine(`Failed to activate ${extensionId}: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}));
 }
