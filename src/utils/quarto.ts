@@ -103,6 +103,7 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 			if (code !== 0 || stderr) {
 				resolve(false);
 			} else {
+				console.log(`Quarto version: ${stdout.trim()}`);
 				resolve(stdout.trim().length > 0);
 			}
 		});
