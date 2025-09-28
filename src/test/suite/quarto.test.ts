@@ -148,20 +148,23 @@ suite("Quarto Utils Test Suite", () => {
 		});
 
 		test("should return false when command succeeds but has no output", async () => {
-			// Use platform-specific commands that accept extra arguments and produce no output
+			// Use platform-specific commands that succeed but produce no output when called with --version
 			let noOutputCmd: string;
 			switch (process.platform) {
 				case "win32":
-					noOutputCmd = "cmd /c exit 0";
+					// Windows: Use cmd with /c to execute a command that ignores unknown parameters
+					noOutputCmd = "cmd";
 					break;
 				case "linux":
-					noOutputCmd = "true";
+					// Linux: Use /bin/true which ignores all arguments and produces no output
+					noOutputCmd = "/bin/true";
 					break;
 				case "darwin":
-					noOutputCmd = "true";
+					// macOS: Use /usr/bin/true which ignores all arguments and produces no output
+					noOutputCmd = "/usr/bin/true";
 					break;
 				default:
-					noOutputCmd = "true";
+					noOutputCmd = "/bin/true";
 					break;
 			}
 			const result = await checkQuartoVersion(noOutputCmd);
