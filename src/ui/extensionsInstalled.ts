@@ -193,6 +193,15 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 		this.refresh.flush();
 	}
 
+	/**
+	 * Centralized method to handle post-action refresh and update checking.
+	 * Ensures proper order: check for updates first, then refresh display.
+	 */
+	refreshAfterAction(context: vscode.ExtensionContext, view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>): void {
+		this.checkUpdate(context, view);
+		this.forceRefresh();
+	}
+
 	private refreshAllExtensionsData(): void {
 		this.extensionsDataByFolder = {};
 
@@ -293,13 +302,12 @@ export class ExtensionsInstalled {
 			showCollapseAll: true,
 		});
 
-		this.treeDataProvider.checkUpdate(context, view, false);
-		this.treeDataProvider.refresh();
+		// Initial setup with update check and refresh
+		this.treeDataProvider.refreshAfterAction(context, view);
 
 		view.onDidChangeVisibility((e) => {
 			if (e.visible) {
-				this.treeDataProvider.checkUpdate(context, view);
-				this.treeDataProvider.refresh();
+				this.treeDataProvider.refreshAfterAction(context, view);
 			}
 		});
 		// view.onDidChangeSelection((e) => {
@@ -312,9 +320,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(view);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
-				this.treeDataProvider.forceRefresh();
-				this.treeDataProvider.checkUpdate(context, view);
-				this.treeDataProvider.forceRefresh();
+				this.treeDataProvider.refreshAfterAction(context, view);
 			})
 		);
 
@@ -329,7 +335,8 @@ export class ExtensionsInstalled {
 
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
-				installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
+				await installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
+				this.treeDataProvider.refreshAfterAction(context, view);
 			})
 		);
 
@@ -337,7 +344,8 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand(
 				"quartoWizard.extensionsInstalled.useTemplate",
 				async (item: ExtensionTreeItem) => {
-					installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
+					await installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
+					this.treeDataProvider.refreshAfterAction(context, view);
 				}
 			)
 		);
@@ -362,8 +370,7 @@ export class ExtensionsInstalled {
 				);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
-					this.treeDataProvider.checkUpdate(context, view);
-					this.treeDataProvider.forceRefresh();
+					this.treeDataProvider.refreshAfterAction(context, view);
 				} else {
 					if (!item.data?.repository) {
 						vscode.window.showErrorMessage(
@@ -389,8 +396,7 @@ export class ExtensionsInstalled {
 				});
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
-					this.treeDataProvider.checkUpdate(context, view);
-					this.treeDataProvider.forceRefresh();
+					this.treeDataProvider.refreshAfterAction(context, view);
 				} else {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
 				}
