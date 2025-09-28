@@ -71,9 +71,10 @@ export async function checkQuartoPath(quartoPath: string | undefined): Promise<b
  * Checks if the Quarto version is valid by executing the version command.
  *
  * @param {string | undefined} quartoPath - The Quarto path to check the version for.
+ * @param {number} timeoutMs - Timeout in milliseconds (default: 10000ms).
  * @returns {Promise<boolean>} - A promise that resolves to true if the Quarto version is valid, otherwise false.
  */
-export async function checkQuartoVersion(quartoPath: string | undefined): Promise<boolean> {
+export async function checkQuartoVersion(quartoPath: string | undefined, timeoutMs = 10000): Promise<boolean> {
 	return new Promise((resolve) => {
 		if (!quartoPath) {
 			resolve(false);
@@ -86,6 +87,21 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 
 		let stdout = "";
 		let stderr = "";
+		let isResolved = false;
+
+		// Set up timeout
+		const timeout = setTimeout(() => {
+			if (!isResolved) {
+				isResolved = true;
+				logMessage(`Quarto version check timed out after ${timeoutMs}ms`, "error");
+				process.kill("SIGTERM");
+				resolve(false);
+			}
+		}, timeoutMs);
+
+		const cleanup = () => {
+			clearTimeout(timeout);
+		};
 
 		process.stdout?.on("data", (data) => {
 			stdout += data.toString();
@@ -96,15 +112,23 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 		});
 
 		process.on("error", () => {
-			resolve(false);
+			if (!isResolved) {
+				isResolved = true;
+				cleanup();
+				resolve(false);
+			}
 		});
 
 		process.on("close", (code) => {
-			if (code !== 0 || stderr) {
-				resolve(false);
-			} else {
-				console.log(`Quarto version: ${stdout.trim()}`);
-				resolve(stdout.trim().length > 0);
+			if (!isResolved) {
+				isResolved = true;
+				cleanup();
+				if (code !== 0 || stderr) {
+					resolve(false);
+				} else {
+					console.log(`Quarto version: ${stdout.trim()}`);
+					resolve(stdout.trim().length > 0);
+				}
 			}
 		});
 	});
@@ -115,9 +139,10 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
  *
  * @param {string} extension - The name of the extension to install.
  * @param {string} workspaceFolder - The workspace folder path.
+ * @param {number} timeoutMs - Timeout in milliseconds (default: 30000ms).
  * @returns {Promise<boolean>} - A promise that resolves to true if the extension is installed successfully, otherwise false.
  */
-export async function installQuartoExtension(extension: string, workspaceFolder: string): Promise<boolean> {
+export async function installQuartoExtension(extension: string, workspaceFolder: string, timeoutMs = 30000): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
 	return new Promise((resolve) => {
 		if (!workspaceFolder) {
@@ -134,6 +159,21 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 
 		let stdout = ""; // Collected for potential future use in success detection
 		let stderr = "";
+		let isResolved = false;
+
+		// Set up timeout
+		const timeout = setTimeout(() => {
+			if (!isResolved) {
+				isResolved = true;
+				logMessage(`Extension installation timed out after ${timeoutMs}ms`, "error");
+				process.kill("SIGTERM");
+				resolve(false);
+			}
+		}, timeoutMs);
+
+		const cleanup = () => {
+			clearTimeout(timeout);
+		};
 
 		process.stdout?.on("data", (data) => {
 			stdout += data.toString();
@@ -144,36 +184,44 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 		});
 
 		process.on("error", (error) => {
-			logMessage(`Error installing extension: ${error}`, "error");
-			resolve(false);
+			if (!isResolved) {
+				isResolved = true;
+				cleanup();
+				logMessage(`Error installing extension: ${error}`, "error");
+				resolve(false);
+			}
 		});
 
 		process.on("close", (code) => {
-			let isInstalled = false;
+			if (!isResolved) {
+				isResolved = true;
+				cleanup();
+				let isInstalled = false;
 
-			if (code !== 0) {
-				logMessage(`Error installing extension: Process exited with code ${code}`, "error");
-				if (stderr) {
-					logMessage(`${stderr}`, "error");
+				if (code !== 0) {
+					logMessage(`Error installing extension: Process exited with code ${code}`, "error");
+					if (stderr) {
+						logMessage(`${stderr}`, "error");
+					}
+				} else if (stderr) {
+					// Quarto CLI often outputs success messages to stderr, so check for success indicators
+					isInstalled = stderr.includes("Extension installation complete");
+					if (!isInstalled) {
+						logMessage(`${stderr}`, "error");
+					}
+				} else if (stdout.trim().length >= 0) {
+					// No error and no stderr means successful installation
+					// stdout is checked for future extensibility (currently always true)
+					isInstalled = true;
 				}
-			} else if (stderr) {
-				// Quarto CLI often outputs success messages to stderr, so check for success indicators
-				isInstalled = stderr.includes("Extension installation complete");
-				if (!isInstalled) {
-					logMessage(`${stderr}`, "error");
-				}
-			} else if (stdout.trim().length >= 0) {
-				// No error and no stderr means successful installation
-				// stdout is checked for future extensibility (currently always true)
-				isInstalled = true;
-			}
 
-			if (isInstalled) {
-				// Refresh the extensions tree view to show the newly installed extension
-				vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
-				resolve(true);
-			} else {
-				resolve(false);
+				if (isInstalled) {
+					// Refresh the extensions tree view to show the newly installed extension
+					vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+					resolve(true);
+				} else {
+					resolve(false);
+				}
 			}
 		});
 	});

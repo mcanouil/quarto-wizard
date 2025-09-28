@@ -24,9 +24,10 @@ export interface ExtensionDetails {
 /**
  * Fetches the list of Quarto extensions, using cached data if available.
  * @param {vscode.ExtensionContext} context - The extension context used for caching.
+ * @param {number} timeoutMs - Timeout in milliseconds (default: 10000ms).
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
  */
-async function fetchExtensions(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
+async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 10000): Promise<ExtensionDetails[]> {
 	const url = QW_EXTENSIONS;
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
 	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
@@ -38,8 +39,20 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<Extens
 
 	debouncedLogMessage(`Fetching extensions: ${url}`, "info");
 	let message = `Error fetching list of extensions from ${url}.`;
+
 	try {
-		const response: Response = await fetch(url);
+		// Create AbortController for timeout handling
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => {
+			controller.abort();
+		}, timeoutMs);
+
+		const response: Response = await fetch(url, {
+			signal: controller.signal,
+		});
+
+		clearTimeout(timeoutId);
+
 		if (!response.ok) {
 			message = `${message}. ${response.statusText}`;
 			throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
@@ -49,7 +62,11 @@ async function fetchExtensions(context: vscode.ExtensionContext): Promise<Extens
 		await context.globalState.update(cacheKey, { data: extensionsDetailsList, timestamp: Date.now() });
 		return extensionsDetailsList;
 	} catch (error) {
-		logMessage(`${message} ${error}`, "error");
+		if (error instanceof Error && error.name === 'AbortError') {
+			logMessage(`${message} Request timed out after ${timeoutMs}ms`, "error");
+		} else {
+			logMessage(`${message} ${error}`, "error");
+		}
 		return [];
 	}
 }
@@ -90,10 +107,11 @@ async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]>
 /**
  * Fetches the details of all valid Quarto extensions and filters out any undefined entries.
  * @param {vscode.ExtensionContext} context - The extension context used for caching.
+ * @param {number} timeoutMs - Timeout in milliseconds (default: 10000ms).
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of validated extension details.
  */
-export async function getExtensionsDetails(context: vscode.ExtensionContext): Promise<ExtensionDetails[]> {
-	const extensions = await fetchExtensions(context);
+export async function getExtensionsDetails(context: vscode.ExtensionContext, timeoutMs = 10000): Promise<ExtensionDetails[]> {
+	const extensions = await fetchExtensions(context, timeoutMs);
 
 	return extensions.filter((extension): extension is ExtensionDetails => extension !== undefined);
 }
