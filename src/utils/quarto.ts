@@ -81,7 +81,7 @@ export async function checkQuartoVersion(quartoPath: string | undefined): Promis
 		}
 
 		const process = spawn(quartoPath, ["--version"], {
-			stdio: ["ignore", "pipe", "pipe"]
+			stdio: ["ignore", "pipe", "pipe"],
 		});
 
 		let stdout = "";
@@ -128,7 +128,7 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 
 		const process = spawn(quartoPath, ["add", extension, "--no-prompt"], {
 			cwd: workspaceFolder,
-			stdio: ["ignore", "pipe", "pipe"]
+			stdio: ["ignore", "pipe", "pipe"],
 		});
 
 		let stdout = ""; // Collected for potential future use in success detection
