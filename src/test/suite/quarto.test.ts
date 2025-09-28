@@ -149,28 +149,18 @@ suite("Quarto Utils Test Suite", () => {
 
 		test("should return false when command succeeds but has no output", async () => {
 			// Use a cross-platform command that accepts extra arguments and produces no output
-			const noOutputCmd = process.platform === "win32" ? "cmd /c exit 0" : "true";
+			const noOutputCmd =
+				process.platform === "win32" ? "cmd /c exit 0" : 'sh -c \'[ "${1}" = "--version" ] && exit 0 || exit 0\' --';
 			const result = await checkQuartoVersion(noOutputCmd);
 			assert.strictEqual(result, false);
 		});
 	});
 
 	suite("installQuartoExtension", () => {
-		test("should not resolve when workspaceFolder is empty", async () => {
-			// Due to a bug in the implementation, the function returns undefined without resolving the promise
-			// when workspaceFolder is empty, causing it to hang. We'll test with a timeout.
-
-			const timeoutMs = 1000; // 1 second timeout for this test
-			const testPromise = installQuartoExtension("test-extension", "");
-
-			const timeoutPromise = new Promise<string>((resolve) => {
-				setTimeout(() => resolve("timeout"), timeoutMs);
-			});
-
-			const result = await Promise.race([testPromise, timeoutPromise]);
-
-			// The function should timeout because it doesn't resolve the promise
-			assert.strictEqual(result, "timeout");
+		test("should return false when workspaceFolder is empty", async () => {
+			// The function should properly resolve with false when workspaceFolder is empty
+			const result = await installQuartoExtension("test-extension", "");
+			assert.strictEqual(result, false);
 		});
 
 		test("should attempt installation with valid parameters", async () => {
