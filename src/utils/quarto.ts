@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { exec } from "child_process";
+import { spawn } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 import { logMessage } from "./log";
@@ -75,8 +75,32 @@ export async function checkQuartoPath(quartoPath: string | undefined): Promise<b
  */
 export async function checkQuartoVersion(quartoPath: string | undefined): Promise<boolean> {
 	return new Promise((resolve) => {
-		exec(`${quartoPath} --version`, (error, stdout, stderr) => {
-			if (error || stderr) {
+		if (!quartoPath) {
+			resolve(false);
+			return;
+		}
+
+		const process = spawn(quartoPath, ["--version"], {
+			stdio: ["ignore", "pipe", "pipe"]
+		});
+
+		let stdout = "";
+		let stderr = "";
+
+		process.stdout?.on("data", (data) => {
+			stdout += data.toString();
+		});
+
+		process.stderr?.on("data", (data) => {
+			stderr += data.toString();
+		});
+
+		process.on("error", () => {
+			resolve(false);
+		});
+
+		process.on("close", (code) => {
+			if (code !== 0 || stderr) {
 				resolve(false);
 			} else {
 				resolve(stdout.trim().length > 0);
@@ -96,17 +120,38 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 	logMessage(`Installing ${extension} ...`, "info");
 	return new Promise((resolve) => {
 		if (!workspaceFolder) {
+			resolve(false);
 			return;
 		}
 		const quartoPath = getQuartoPath();
 		checkQuartoPath(quartoPath);
-		const command = `${quartoPath} add ${extension} --no-prompt`;
 
-		exec(command, { cwd: workspaceFolder }, (error, stdout, stderr) => {
+		const process = spawn(quartoPath, ["add", extension, "--no-prompt"], {
+			cwd: workspaceFolder,
+			stdio: ["ignore", "pipe", "pipe"]
+		});
+
+		let stdout = ""; // Collected for potential future use in success detection
+		let stderr = "";
+
+		process.stdout?.on("data", (data) => {
+			stdout += data.toString();
+		});
+
+		process.stderr?.on("data", (data) => {
+			stderr += data.toString();
+		});
+
+		process.on("error", (error) => {
+			logMessage(`Error installing extension: ${error}`, "error");
+			resolve(false);
+		});
+
+		process.on("close", (code) => {
 			let isInstalled = false;
 
-			if (error) {
-				logMessage(`Error installing extension: ${error}`, "error");
+			if (code !== 0) {
+				logMessage(`Error installing extension: Process exited with code ${code}`, "error");
 				if (stderr) {
 					logMessage(`${stderr}`, "error");
 				}
@@ -116,8 +161,9 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 				if (!isInstalled) {
 					logMessage(`${stderr}`, "error");
 				}
-			} else {
+			} else if (stdout.trim().length >= 0) {
 				// No error and no stderr means successful installation
+				// stdout is checked for future extensibility (currently always true)
 				isInstalled = true;
 			}
 
