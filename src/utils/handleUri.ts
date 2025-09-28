@@ -4,6 +4,7 @@ import { showLogsCommand, logMessage } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { ExtensionDetails, getExtensionsDetails } from "../utils/extensionDetails";
 import { openTemplate } from "../commands/installQuartoExtension";
+import { withProgressNotification } from "../utils/withProgressNotification";
 
 /**
  * Handle the URI passed to the extension.
@@ -58,7 +59,9 @@ export async function handleUriInstall(uri: vscode.Uri) {
 		vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 		return;
 	}
-	await installQuartoExtensionSource(repo, workspaceFolder);
+	return await withProgressNotification(`Installing Quarto extension from ${repo} ...`, async () => {
+		return installQuartoExtensionSource(repo, workspaceFolder);
+	});
 }
 
 /**
@@ -91,5 +94,8 @@ export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionCon
 		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 		return;
 	}
-	await openTemplate(matchingExtension.id, matchingExtension.templateContent);
+
+	return await withProgressNotification(`Opening Quarto template from ${repo} ...`, async () => {
+		return openTemplate(matchingExtension.id, matchingExtension.templateContent);
+	});
 }

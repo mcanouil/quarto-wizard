@@ -2,10 +2,12 @@
 
 ## Unreleased
 
+- feat: add progress notification when updating or removing an extension from the Quarto Wizard Explorer view.
 - fix: drop `markdownlint` related code and settings.
 - chore: polish code, comments, and documentation.
 - chore: update dependencies to latest versions.
 - chore: optimise `README.md` images.
+- chore: remove outdated test verification script.
 
 ## 0.18.6 (2025-05-02)
 

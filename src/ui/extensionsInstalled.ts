@@ -7,6 +7,7 @@ import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
 import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
 import { getExtensionsDetails } from "../utils/extensionDetails";
+import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 
 /**
@@ -347,12 +348,18 @@ export class ExtensionsInstalled {
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
-				const success = await installQuartoExtensionSource(
-					`${item.data?.repository ?? item.label}${item.latestVersion}`,
-					item.workspaceFolder
+				const latestVersion = item.latestVersion?.replace(/^@/, "");
+				const success = await withProgressNotification(
+					`Updating "${item.data?.repository ?? item.label}" to ${latestVersion} ...`,
+					async () => {
+						// Once source is supported in _extension.yml, the above line can be replaced with the following line
+						// return installQuartoExtension(item.data?.repository ?? item.label);
+						return installQuartoExtensionSource(
+							`${item.data?.repository ?? item.label}${item.latestVersion}`,
+							item.workspaceFolder
+						);
+					}
 				);
-				// Once source is supported in _extension.yml, the above line can be replaced with the following line
-				// const success = await installQuartoExtension(item.data?.repository ?? item.label);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 					this.treeDataProvider.checkUpdate(context, view);
@@ -377,7 +384,9 @@ export class ExtensionsInstalled {
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.remove", async (item: ExtensionTreeItem) => {
-				const success = await removeQuartoExtension(item.label, item.workspaceFolder);
+				const success = await withProgressNotification(`Removing "${item.label}" ...`, async () => {
+					return removeQuartoExtension(item.label, item.workspaceFolder);
+				});
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
 					this.treeDataProvider.checkUpdate(context, view);
