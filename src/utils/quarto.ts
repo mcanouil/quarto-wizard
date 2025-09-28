@@ -126,7 +126,6 @@ export async function checkQuartoVersion(quartoPath: string | undefined, timeout
 				if (code !== 0 || stderr) {
 					resolve(false);
 				} else {
-					console.log(`Quarto version: ${stdout.trim()}`);
 					resolve(stdout.trim().length > 0);
 				}
 			}
@@ -142,7 +141,11 @@ export async function checkQuartoVersion(quartoPath: string | undefined, timeout
  * @param {number} timeoutMs - Timeout in milliseconds (default: 30000ms).
  * @returns {Promise<boolean>} - A promise that resolves to true if the extension is installed successfully, otherwise false.
  */
-export async function installQuartoExtension(extension: string, workspaceFolder: string, timeoutMs = 30000): Promise<boolean> {
+export async function installQuartoExtension(
+	extension: string,
+	workspaceFolder: string,
+	timeoutMs = 30000
+): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
 	return new Promise((resolve) => {
 		if (!workspaceFolder) {
