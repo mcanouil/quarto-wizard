@@ -3,6 +3,7 @@
 ## Unreleased
 
 - feat: add progress notification when updating or removing an extension from the Quarto Wizard Explorer view.
+- feat: implement timeout handling for network and Quarto version checks.
 - fix: drop `markdownlint` related code and settings.
 - fix: enable extensions caching with 30-minute TTL for improved performance and reduced network requests.
 - fix: migrate from `child_process.exec()` to `child_process.spawn()` for enhanced security and elimination of command injection risks.
