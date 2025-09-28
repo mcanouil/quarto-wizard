@@ -149,7 +149,8 @@ suite("Quarto Utils Test Suite", () => {
 
 		test("should return false when command succeeds but has no output", async () => {
 			// Use a cross-platform command that accepts extra arguments and produces no output
-			const noOutputCmd = process.platform === "win32" ? "cmd /c exit 0" : "true";
+			const noOutputCmd =
+				process.platform === "win32" ? "cmd /c exit 0" : 'sh -c \'[ "${1}" = "--version" ] && exit 0 || exit 0\' --';
 			const result = await checkQuartoVersion(noOutputCmd);
 			assert.strictEqual(result, false);
 		});
