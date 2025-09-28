@@ -77,16 +77,12 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 
 			if (installedExtensions.length > 0) {
 				logMessage(`Successfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
-				installedExtensions.forEach((ext) => {
-					logMessage(` - ${ext}`, "info");
-				});
+				installedExtensions.map((ext) => logMessage(` - ${ext}`, "info"));
 			}
 
 			if (failedExtensions.length > 0) {
 				logMessage(`Failed to install extension${failedExtensions.length > 1 ? "s" : ""}:`, "error");
-				failedExtensions.forEach((ext) => {
-					logMessage(` - ${ext}`, "error");
-				});
+				failedExtensions.map((ext) => logMessage(` - ${ext}`, "error"));
 				const message = [
 					"The following extension",
 					failedExtensions.length > 1 ? "s were" : " was",
