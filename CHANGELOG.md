@@ -4,6 +4,7 @@
 
 - feat: add progress notification when updating or removing an extension from the Quarto Wizard Explorer view.
 - fix: drop `markdownlint` related code and settings.
+- fix: enable extensions caching again.
 - chore: polish code, comments, and documentation.
 - chore: update dependencies to latest versions.
 - chore: optimise `README.md` images.
