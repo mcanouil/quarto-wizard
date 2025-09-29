@@ -42,7 +42,7 @@ on:
         default: "minor"
 
 jobs:
-  update-changelog:
+  bump-version:
     runs-on: ubuntu-latest
 
     permissions:
@@ -50,21 +50,59 @@ jobs:
       pull-requests: write
 
     env:
-      BRANCH: ci/update-changelog-release
-      GITHUB_TOKEN: ${{ secrets.github_token }}
+      BRANCH: ci/bump-version
+      COMMIT: "ci: bump version for release :rocket:"
+      BUMP_VERSION: ${{ inputs.version }}
+
+    outputs:
+      version: ${{ steps.bump-version.outputs.version }}
+      release_title: ${{ steps.bump-version.outputs.release_title }}
+      summary: ${{ steps.bump-version.outputs.summary }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Create GitHub App token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        if: ${{ inputs.gh-app-id != '' }}
+        with:
+          app-id: ${{ inputs.gh-app-id }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - name: Get GitHub App User ID
+        id: get-user-id
+        if: ${{ steps.app-token.outputs.app-slug != '' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure Environment for Git User
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          USER_ID: ${{ steps.get-user-id.outputs.user-id }}
+        run: |
+          if [ -z "${APP_SLUG}" ]; then
+            USER_NAME="github-actions[bot]"
+            USER_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+          else
+            USER_NAME="${APP_SLUG}[bot]"
+            USER_EMAIL="${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          fi
+          git config --global user.name "${USER_NAME}"
+          git config --global user.email "${USER_EMAIL}"
 
       - name: Check for "unreleased" in CHANGELOG.md
         id: check_unreleased
         shell: bash
         run: |
           if grep -q "Unreleased" CHANGELOG.md; then
-            echo "UNRELEASED_FOUND=true" >> $GITHUB_OUTPUT
+            echo "UNRELEASED_FOUND=true" >> ${GITHUB_OUTPUT}
           else
-            echo "UNRELEASED_FOUND=false" >> $GITHUB_OUTPUT
+            echo "UNRELEASED_FOUND=false" >> ${GITHUB_OUTPUT}
           fi
 
       - name: Set up Node.js
@@ -86,22 +124,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.github_token }}
           COMMIT: "ci: bump version for release :rocket:"
+          DATE: ${{ github.event.inputs.date }}
+          VERSION: ${{ github.event.inputs.version }}
         shell: bash
         run: |
-          git config --local user.name github-actions[bot]
-          git config --local user.email 41898282+github-actions[bot]@users.noreply.github.com
           if git show-ref --quiet refs/heads/${BRANCH}; then
             echo "Branch ${BRANCH} already exists."
             git branch -D "${BRANCH}"
             git push origin --delete "${BRANCH}"
           fi
           git checkout -b "${BRANCH}"
-          if [ "${{ github.event.inputs.date }}" = "today" ]; then
+          if [ "${DATE}" = "today" ]; then
             DATE=$(date +%Y-%m-%d)
           else
-            DATE=${{ github.event.inputs.date }}
+            DATE=${DATE}
           fi
-          vsce package ${{ github.event.inputs.version }} -m "${COMMIT}"
+          vsce package ${VERSION} -m "${COMMIT}"
           VERSION=$(jq -r .version package.json)
           RELEASE_DATE="${VERSION} (${DATE})"
           sed -i "s/Unreleased/${RELEASE_DATE}/" CHANGELOG.md
@@ -112,25 +150,16 @@ jobs:
           git commit -m "${COMMIT}" || echo "No changes to commit"
           git push --force origin ${BRANCH} || echo "No changes to push"
 
-      - name: Create Pull Request
-        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
-        shell: bash
-        run: |
-          sleep 30
-          gh pr create --fill-first --base "main" --head "${BRANCH}" --label "Type: CI/CD :robot:"
-
-      - name: Merge Pull Request
-        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
-        shell: bash
-        run: |
-          sleep 30
+          sleep 5
+          gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:"
+          sleep 5
           gh pr merge --auto --squash --delete-branch
-          sleep 10
+          sleep 5
 
   release-publish:
     runs-on: ubuntu-latest
 
-    needs: update-changelog
+    needs: bump-version
 
     permissions:
       contents: write
@@ -179,9 +208,11 @@ jobs:
           echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> $GITHUB_ENV
 
       - name: Package extension
+        env:
+          TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+          if [ "${TYPE}" = "pre-release" ]; then
             vsce package --pre-release
           else
             vsce package
@@ -197,20 +228,29 @@ jobs:
           GH_TOKEN: ${{ secrets.github_token }}
           VERSION: ${{ env.VERSION }}
           CHANGELOG: ${{ env.CHANGELOG }}
+          TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
-            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" --prerelease --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+          if [ "${TYPE}" = "pre-release" ]; then
+            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
+              --prerelease \
+              --title ${VERSION} \
+              --notes-file ${CHANGELOG} \
+              --generate-notes
           else
-            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" --title ${VERSION} --notes-file ${CHANGELOG} --generate-notes
+            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
+              --title ${VERSION} \
+              --notes-file ${CHANGELOG} \
+              --generate-notes
           fi
 
       - name: Publish extension to Visual Studio Marketplace
         env:
           VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+          TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+          if [ "${TYPE}" = "pre-release" ]; then
             vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
           else
             vsce publish --pat ${VS_MARKETPLACE_TOKEN}
@@ -219,10 +259,11 @@ jobs:
       - name: Publish extension to Open VSX Registry
         env:
           OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
+          TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
           npm install --global ovsx
-          if [ "${{ github.event.inputs.type }}" = "pre-release" ]; then
+          if [ "${TYPE}" = "pre-release" ]; then
             npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
           else
             npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
