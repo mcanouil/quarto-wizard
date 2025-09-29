@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.19.0 (2025-09-29)
 
 - feat: add progress notification when updating or removing an extension from the Quarto Wizard Explorer view.
 - feat: implement timeout handling for network and Quarto version checks.
