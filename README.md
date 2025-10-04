@@ -48,8 +48,16 @@ Additionally, it offers a set of commands to create new Quarto documents that yo
 
 ### Command Line
 
+- Visual Studio Code:
+
 ```bash
 code --install-extension mcanouil.quarto-wizard
+```
+
+- Positron:
+
+```bash
+positron --install-extension mcanouil.quarto-wizard
 ```
 
 ### Manual Installation
