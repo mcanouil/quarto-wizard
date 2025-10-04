@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.19.1 (2025-10-04)
 
 - docs: add walkthroughs for Quarto Wizard features.
 
