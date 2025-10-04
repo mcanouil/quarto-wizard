@@ -330,6 +330,79 @@
 				}
 			]
 		},
+		"walkthroughs": [
+			{
+				"id": "quartoWizard.gettingStarted",
+				"title": "Getting Started with Quarto Wizard",
+				"description": "Learn how to manage Quarto extensions and templates",
+				"steps": [
+					{
+						"id": "welcome",
+						"title": "Welcome to Quarto Wizard",
+						"description": "Your magical assistant for managing Quarto projects, extensions, and templates.",
+						"media": {
+							"image": "assets/logo/logo.png",
+							"altText": "Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
+						}
+					},
+					{
+						"id": "installExtension",
+						"title": "Install Extensions",
+						"description": "Browse and install from over 250 Quarto extensions.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#install-quarto-extensions)",
+						"media": {
+							"markdown": "assets/walkthroughs/install-extension.md"
+						},
+						"completionEvents": [
+							"onCommand:quartoWizard.installExtension"
+						]
+					},
+					{
+						"id": "exploreView",
+						"title": "Manage Installed Extensions",
+						"description": "View, update, and remove extensions from the Explorer view.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#quarto-wizard-explorer-view)",
+						"media": {
+							"markdown": "assets/walkthroughs/explorer-view.md"
+						},
+						"completionEvents": [
+							"onView:quartoWizard.extensionsInstalled"
+						]
+					},
+					{
+						"id": "useTemplate",
+						"title": "Use Templates",
+						"description": "Quick-start documents with pre-configured templates.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#use-quarto-templates)",
+						"media": {
+							"markdown": "assets/walkthroughs/use-template.md"
+						},
+						"completionEvents": [
+							"onCommand:quartoWizard.useTemplate"
+						]
+					},
+					{
+						"id": "createReprex",
+						"title": "Create Reproducible Documents",
+						"description": "Generate reproducible examples for R, Python, or Julia.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#create-a-new-reproducible-document)",
+						"media": {
+							"markdown": "assets/walkthroughs/reprex.md"
+						},
+						"completionEvents": [
+							"onCommand:quartoWizard.newQuartoReprex"
+						]
+					},
+					{
+						"id": "browseDirectory",
+						"title": "Browse Extensions Directory",
+						"description": "Explore the full catalogue with filtering and search.\n[Open Extensions Directory](https://m.canouil.dev/quarto-extensions/)",
+						"media": {
+							"markdown": "assets/walkthroughs/browse-directory.md"
+						},
+						"completionEvents": [
+							"onLink:https://m.canouil.dev/quarto-extensions/*"
+						]
+					}
+				]
+			}
+		],
 		"viewsWelcome": [
 			{
 				"view": "quartoWizard.extensionsInstalled",
