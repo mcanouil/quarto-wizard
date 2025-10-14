@@ -176,6 +176,13 @@
 				"shortTitle": "Remove",
 				"icon": "$(remove)",
 				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.revealInExplorer",
+				"title": "Reveal in Explorer View",
+				"shortTitle": "Reveal in Explorer",
+				"icon": "$(folder-opened)",
+				"category": "Quarto Wizard"
 			}
 		],
 		"submenus": [
@@ -286,6 +293,11 @@
 					"command": "quartoWizard.extensionsInstalled.openSource",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated) && viewItem != quartoExtensionItemNoSource",
 					"group": "navigation@3"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
+					"group": "navigation@4"
 				}
 			],
 			"commandPalette": [
@@ -315,6 +327,10 @@
 				},
 				{
 					"command": "quartoWizard.getExtensionsDetails",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 					"when": "false"
 				}
 			]

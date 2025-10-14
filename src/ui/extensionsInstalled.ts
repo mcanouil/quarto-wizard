@@ -64,6 +64,12 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		// Format version for installation commands
 		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
 		this.workspaceFolder = workspacePath;
+
+		// Set resource URI for the extension directory to enable "Reveal in Explorer" functionality
+		if (this.data) {
+			const extensionPath = path.join(workspacePath, "_extensions", this.label);
+			this.resourceUri = vscode.Uri.file(extensionPath);
+		}
 	}
 }
 
@@ -399,6 +405,17 @@ export class ExtensionsInstalled {
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
+				}
+			})
+		);
+
+		/**
+		 * Reveals the extension directory in VS Code's Explorer view.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.revealInExplorer", async (item: ExtensionTreeItem) => {
+				if (item.resourceUri) {
+					await vscode.commands.executeCommand("revealInExplorer", item.resourceUri);
 				}
 			})
 		);
