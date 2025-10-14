@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- feat: add "Reveal in Explorer" command for installed extensions.
+- chore: polish code, comments, and documentation.
+
 ## 0.19.1 (2025-10-04)
 
 - docs: add walkthroughs for Quarto Wizard features.

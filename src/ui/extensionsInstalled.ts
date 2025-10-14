@@ -64,6 +64,12 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		// Format version for installation commands
 		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
 		this.workspaceFolder = workspacePath;
+
+		// Set resource URI for the extension directory to enable "Reveal in Explorer" functionality
+		if (this.data) {
+			const extensionPath = path.join(workspacePath, "_extensions", this.label);
+			this.resourceUri = vscode.Uri.file(extensionPath);
+		}
 	}
 }
 
@@ -194,10 +200,13 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	}
 
 	/**
-	 * Centralized method to handle post-action refresh and update checking.
+	 * Centralised method to handle post-action refresh and update checking.
 	 * Ensures proper order: check for updates first, then refresh display.
 	 */
-	refreshAfterAction(context: vscode.ExtensionContext, view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>): void {
+	refreshAfterAction(
+		context: vscode.ExtensionContext,
+		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>
+	): void {
 		this.checkUpdate(context, view);
 		this.forceRefresh();
 	}
@@ -401,6 +410,59 @@ export class ExtensionsInstalled {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
 				}
 			})
+		);
+
+		/**
+		 * Reveals the extension's YAML manifest file in VS Code's Explorer view.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.revealInExplorer",
+				async (item: ExtensionTreeItem) => {
+					// Early return if resourceUri is not available
+					if (!item.resourceUri) {
+						logMessage(`Cannot reveal "${item.label}": resource URI not available.`, "warning");
+						vscode.window.showWarningMessage(`Cannot reveal extension "${item.label}" in Explorer.`);
+						return;
+					}
+
+					// Check if extension directory exists
+					if (!fs.existsSync(item.resourceUri.fsPath)) {
+						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}`, "warning");
+						vscode.window.showWarningMessage(`Extension directory for "${item.label}" not found.`);
+						return;
+					}
+
+					// Try to find _extension.yml or _extension.yaml
+					const extensionYml = path.join(item.resourceUri.fsPath, "_extension.yml");
+					const extensionYaml = path.join(item.resourceUri.fsPath, "_extension.yaml");
+
+					let targetUri: vscode.Uri;
+					if (fs.existsSync(extensionYml)) {
+						targetUri = vscode.Uri.file(extensionYml);
+					} else if (fs.existsSync(extensionYaml)) {
+						targetUri = vscode.Uri.file(extensionYaml);
+					} else {
+						// Fallback to directory if no extension file found
+						logMessage(
+							`No _extension.yml or _extension.yaml found for "${item.label}", showing directory instead.`,
+							"info"
+						);
+						targetUri = item.resourceUri;
+					}
+
+					try {
+						await vscode.commands.executeCommand("revealInExplorer", targetUri);
+						logMessage(`Revealed "${item.label}" in Explorer.`, "info");
+					} catch (error) {
+						const errorMessage = error instanceof Error ? error.message : String(error);
+						logMessage(`Failed to reveal "${item.label}" in Explorer: ${errorMessage}`, "error");
+						vscode.window.showErrorMessage(
+							`Failed to reveal extension "${item.label}" in Explorer. ${showLogsCommand()}.`
+						);
+					}
+				}
+			)
 		);
 	}
 

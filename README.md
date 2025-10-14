@@ -112,7 +112,7 @@ positron --install-extension mcanouil.quarto-wizard
    <p align="center">
      <img
        src="assets/images/explorer-view.png"
-       alt="This image showcases the Quarto Wizard extension interface within Visual Studio Code. It highlights features like the workspace view, extension management options for adding, removing, or updating extensions, as well as template usage and GitHub repository access. The interface also illustrates the Quarto Wizard Explorer section, with annotations using colored arrows and text to explain specific functionalities. Two workspaces are displayed: one with installed extensions labeled wizard-dev, and another without installed extensions labeled quarto-playground. This visual guide serves users looking to manage Quarto extensions in Visual Studio Code effectively."
+       alt="This image showcases the Quarto Wizard extension interface within Visual Studio Code. It highlights features like the workspace view, extension management options for adding, removing, or updating extensions, as well as template usage and GitHub repository access. The interface also illustrates the Quarto Wizard Explorer section, with annotations using coloured arrows and text to explain specific functionalities. Two workspaces are displayed: one with installed extensions labelled wizard-dev, and another without installed extensions labelled quarto-playground. This visual guide serves users looking to manage Quarto extensions in Visual Studio Code effectively."
        width="600"
      />
    </p>

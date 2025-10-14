@@ -36,7 +36,7 @@ export async function handleUri(uri: vscode.Uri, context: vscode.ExtensionContex
  * @param uri - The VS Code URI containing query parameters, expected to have a "repo" parameter
  * specifying the repository to install.
  *
- * @returns A Promise that resolves when the installation is complete or canceled.
+ * @returns A Promise that resolves when the installation is complete or cancelled.
  * The function doesn't return any value but may show information messages to the user
  * and perform the extension installation if confirmed.
  */
@@ -71,7 +71,7 @@ export async function handleUriInstall(uri: vscode.Uri) {
  * specifying the repository to install and use.
  * @param context - The extension context used to access extension resources and state.
  *
- * @returns A Promise that resolves when the installation and template opening is complete or canceled.
+ * @returns A Promise that resolves when the installation and template opening is complete or cancelled.
  * The function installs the specified extension and then opens its template for immediate use.
  */
 export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionContext) {
