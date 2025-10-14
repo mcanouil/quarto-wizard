@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.20.0 (2025-10-14)
 
 - feat: add "Reveal in Explorer" command for installed extensions.
 - chore: polish code, comments, and documentation.
