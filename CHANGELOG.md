@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+**Stable Release** - This project has reached stable status!
+
+- No breaking changes from previous version.
+- All existing functionality remains unchanged.
+
 ## 0.20.1 (2025-10-19)
 
 - fix: prevent overwriting existing "source:" field in `_extension.yml` file (as it will come from `quarto add` command in the future).
