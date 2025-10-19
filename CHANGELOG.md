@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix: prevent overwriting existing "source:" field in `_extension.yml` file (as it will come from `quarto add` command in the future).
+
 ## 0.20.0 (2025-10-14)
 
 - feat: add "Reveal in Explorer" command for installed extensions.

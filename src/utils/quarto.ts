@@ -255,7 +255,7 @@ export async function installQuartoExtensionSource(extension: string, workspaceF
 	if (filePath) {
 		const fileContent = fs.readFileSync(filePath, "utf-8");
 		const updatedContent = fileContent.includes("source: ")
-			? fileContent.replace(/source: .*/, `source: ${extension}`)
+			? fileContent // If "source: " already exists, do not modify it as it comes from "quarto add"
 			: `${fileContent.trim()}\nsource: ${extension}`;
 		fs.writeFileSync(filePath, updatedContent);
 	}
