@@ -123,7 +123,6 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           COMMIT: "ci: bump version for release :rocket:"
           DATE: ${{ github.event.inputs.date }}
-          VERSION: ${{ github.event.inputs.version }}
         shell: bash
         run: |
           if git show-ref --quiet refs/heads/${BRANCH}; then
@@ -137,7 +136,7 @@ jobs:
           else
             DATE=${DATE}
           fi
-          vsce package ${VERSION} -m "${COMMIT}"
+          vsce package ${BUMP_VERSION} -m "${COMMIT}"
           VERSION=$(jq -r .version package.json)
           RELEASE_DATE="${VERSION} (${DATE})"
           sed -i "s/Unreleased/${RELEASE_DATE}/" CHANGELOG.md
