@@ -263,7 +263,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 
 				if (matchingDetail && semver.lt(extensionData.version, matchingDetail.version)) {
 					updatesAvailable.push(`${folder.name}/${ext}`);
-					this.latestVersionsByFolder[workspacePath][ext] = matchingDetail.version;
+					this.latestVersionsByFolder[workspacePath][ext] = matchingDetail.tag;
 					totalUpdates++;
 				}
 			}
@@ -366,8 +366,9 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
 				const latestVersion = item.latestVersion?.replace(/^@/, "");
+				const latestSemver = latestVersion ? latestVersion.replace(/^v/, "") : undefined;
 				const success = await withProgressNotification(
-					`Updating "${item.data?.repository ?? item.label}" to ${latestVersion} ...`,
+					`Updating "${item.data?.repository ?? item.label}" to ${latestSemver} ...`,
 					async () => {
 						// Once source is supported in _extension.yml, the above line can be replaced with the following line
 						// return installQuartoExtension(item.data?.repository ?? item.label);
