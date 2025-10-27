@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 (2025-10-27)
 
 - fix: update is using "version" instead of tag.
 
