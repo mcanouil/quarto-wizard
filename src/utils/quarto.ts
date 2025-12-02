@@ -9,6 +9,34 @@ import { findModifiedExtensions, getMtimeExtensions, removeExtension } from "./e
 let cachedQuartoPath: string | undefined;
 
 /**
+ * Detects if the extension is running in Positron IDE.
+ *
+ * @returns {boolean} - True if running in Positron, false otherwise.
+ */
+function isPositronIDE(): boolean {
+	// Check vscode.env.appName (Positron uses "Positron")
+	if (vscode.env.appName.toLowerCase().includes("positron")) {
+		return true;
+	}
+	// Check POSITRON environment variable (set to "1" in Positron)
+	return process.env.POSITRON === "1";
+}
+
+/**
+ * Gets IDE-specific hints for configuring Quarto CLI path.
+ *
+ * @returns {string} - A hint message specific to the detected IDE.
+ */
+function getQuartoPathHint(): string {
+	if (isPositronIDE()) {
+		const isWindows = process.platform === "win32";
+		const command = isWindows ? "Get-Command quarto" : "which quarto";
+		return `Positron bundles Quarto CLI. Find the path using '${command}' in the Positron terminal, then set it in settings.`;
+	}
+	return "";
+}
+
+/**
  * Retrieves the Quarto path from the configuration.
  * Falls back through multiple configuration sources in order of preference:
  * 1. quartoWizard.quarto.path (extension-specific setting)
@@ -59,12 +87,18 @@ export async function checkQuartoPath(quartoPath: string | undefined): Promise<v
 	if (!quartoPath) {
 		const message = "Quarto CLI path is not configured.";
 		logMessage(message, "error");
+
+		const hint = getQuartoPathHint();
+		if (hint) {
+			logMessage(hint, "info");
+		}
+
+		const errorMessage = hint
+			? `${message} Please install Quarto or configure the path in settings. ${hint} ${showLogsCommand()}.`
+			: `${message} Please install Quarto or configure the path in settings. ${showLogsCommand()}.`;
+
 		vscode.window
-			.showErrorMessage(
-				`${message} Please install Quarto or configure the path in settings. ${showLogsCommand()}.`,
-				"Install Quarto",
-				"Open Settings"
-			)
+			.showErrorMessage(errorMessage, "Install Quarto", "Open Settings")
 			.then((selection) => {
 				if (selection === "Install Quarto") {
 					vscode.env.openExternal(vscode.Uri.parse("https://quarto.org/docs/get-started/"));
@@ -87,13 +121,17 @@ export async function checkQuartoPath(quartoPath: string | undefined): Promise<v
 
 		logMessage(helpMessage, "error");
 
+		const hint = getQuartoPathHint();
+		if (hint) {
+			logMessage(hint, "info");
+		}
+
+		const errorMessage = hint
+			? `${message} ${helpMessage} ${hint} ${showLogsCommand()}.`
+			: `${message} ${helpMessage} ${showLogsCommand()}.`;
+
 		vscode.window
-			.showErrorMessage(
-				`${message} ${helpMessage} ${showLogsCommand()}.`,
-				"Install Quarto",
-				"Open Settings",
-				"View Logs"
-			)
+			.showErrorMessage(errorMessage, "Install Quarto", "Open Settings", "View Logs")
 			.then((selection) => {
 				if (selection === "Install Quarto") {
 					vscode.env.openExternal(vscode.Uri.parse("https://quarto.org/docs/get-started/"));
