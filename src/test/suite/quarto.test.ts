@@ -108,13 +108,10 @@ suite("Quarto Utils Test Suite", () => {
 
 		test("should return false when quarto version check fails", async () => {
 			// Test with a non-existent path
-			// Note: Due to the implementation bug in checkQuartoPath (it doesn't await checkQuartoVersion),
-			// this test may actually return true. This test documents the current behaviour.
 			const result = await checkQuartoPath("invalid-quarto-path-12345");
 
-			// The current implementation has a bug - it doesn't await checkQuartoVersion
-			// so it always returns true for non-empty paths
-			assert.strictEqual(typeof result, "boolean");
+			// Should now correctly return false for invalid paths
+			assert.strictEqual(result, false);
 		});
 
 		test("should handle valid command correctly", async () => {
