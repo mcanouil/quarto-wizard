@@ -76,12 +76,12 @@
 		"@vscode/test-cli": "^0.0.11",
 		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "^3.6.2",
-		"eslint": "^9.25.1",
+		"eslint": "^9.39.0",
 		"eslint-formatter-unix": "^8.40.0",
 		"eslint-plugin-tsdoc": "^0.4.0",
 		"glob": "^11.0.3",
 		"lru-cache": "^11.2.2",
-		"mocha": "^11.7.3",
+		"mocha": "^11.7.4",
 		"ts-loader": "^9.5.4",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.45.0",
@@ -90,9 +90,9 @@
 	},
 	"dependencies": {
 		"@types/lodash": "^4.17.16",
-		"js-yaml": "^4.1.0",
+		"js-yaml": "^4.1.1",
 		"lodash": "^4.17.21",
-		"semver": "^7.7.2"
+		"semver": "^7.7.3"
 	},
 	"contributes": {
 		"commands": [
