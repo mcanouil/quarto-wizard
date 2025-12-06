@@ -119,7 +119,12 @@ export async function installQuartoExtensionFolderCommand(
 	if (!isConnected) {
 		return;
 	}
-	await checkQuartoPath(getQuartoPath());
+	try {
+		const quartoPath = getQuartoPath();
+		await checkQuartoPath(quartoPath);
+	} catch {
+		return;
+	}
 
 	let extensionsList = await getExtensionsDetails(context);
 	if (template) {

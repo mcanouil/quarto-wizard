@@ -2,11 +2,39 @@ import * as vscode from "vscode";
 import { spawn } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
-import { logMessage } from "./log";
+import { logMessage, showLogsCommand } from "./log";
 import { findModifiedExtensions, getMtimeExtensions, removeExtension } from "./extensions";
 
 // Cache the Quarto path to avoid repeated configuration lookups
 let cachedQuartoPath: string | undefined;
+
+/**
+ * Detects if the extension is running in Positron IDE.
+ *
+ * @returns {boolean} - True if running in Positron, false otherwise.
+ */
+function isPositronIDE(): boolean {
+	// Check vscode.env.appName (Positron uses "Positron")
+	if (vscode.env.appName.toLowerCase().includes("positron")) {
+		return true;
+	}
+	// Check POSITRON environment variable (set to "1" in Positron)
+	return process.env.POSITRON === "1";
+}
+
+/**
+ * Gets IDE-specific hints for configuring Quarto CLI path.
+ *
+ * @returns {string} - A hint message specific to the detected IDE.
+ */
+function getQuartoPathHint(): string {
+	if (isPositronIDE()) {
+		const isWindows = process.platform === "win32";
+		const command = isWindows ? "Get-Command quarto" : "which quarto";
+		return `Positron bundles Quarto CLI. Find the path using '${command}' in the Positron terminal, then set it in settings.`;
+	}
+	return "";
+}
 
 /**
  * Retrieves the Quarto path from the configuration.
@@ -49,22 +77,72 @@ vscode.workspace.onDidChangeConfiguration(async (e) => {
 
 /**
  * Checks if the Quarto path is valid and updates the cached path if necessary.
+ * Throws an error if the path is invalid.
  *
  * @param {string | undefined} quartoPath - The Quarto path to check.
- * @returns {Promise<boolean>} - A promise that resolves to true if the Quarto path is valid, otherwise false.
+ * @throws {Error} - Throws an error if the Quarto path is invalid.
+ * @returns {Promise<void>} - A promise that resolves if the Quarto path is valid.
  */
-export async function checkQuartoPath(quartoPath: string | undefined): Promise<boolean> {
-	return new Promise((resolve) => {
-		if (!quartoPath) {
-			vscode.window.showErrorMessage("Quarto path is not set.");
-			resolve(false);
-		} else if (!checkQuartoVersion(quartoPath)) {
-			vscode.window.showErrorMessage(`Quarto path '${quartoPath}' does not exist.`);
-			resolve(false);
-		} else {
-			resolve(true);
+export async function checkQuartoPath(quartoPath: string | undefined): Promise<void> {
+	if (!quartoPath) {
+		const message = "Quarto CLI path is not configured.";
+		logMessage(message, "error");
+
+		const hint = getQuartoPathHint();
+		if (hint) {
+			logMessage(hint, "info");
 		}
-	});
+
+		const errorMessage = hint
+			? `${message} Please install Quarto or configure the path in settings. ${hint} ${showLogsCommand()}.`
+			: `${message} Please install Quarto or configure the path in settings. ${showLogsCommand()}.`;
+
+		vscode.window
+			.showErrorMessage(errorMessage, "Install Quarto", "Open Settings")
+			.then((selection) => {
+				if (selection === "Install Quarto") {
+					vscode.env.openExternal(vscode.Uri.parse("https://quarto.org/docs/get-started/"));
+				} else if (selection === "Open Settings") {
+					vscode.commands.executeCommand("workbench.action.openSettings", "quartoWizard.quarto.path");
+				}
+			});
+		throw new Error(message);
+	}
+
+	const versionCheckResult = await checkQuartoVersion(quartoPath);
+	if (!versionCheckResult) {
+		const message = `Quarto CLI not found at path: '${quartoPath}'.`;
+		logMessage(message, "error");
+
+		const isDefaultPath = quartoPath === "quarto";
+		const helpMessage = isDefaultPath
+			? "Quarto CLI is not installed or not in your system PATH."
+			: "The configured path does not point to a valid Quarto CLI executable.";
+
+		logMessage(helpMessage, "error");
+
+		const hint = getQuartoPathHint();
+		if (hint) {
+			logMessage(hint, "info");
+		}
+
+		const errorMessage = hint
+			? `${message} ${helpMessage} ${hint} ${showLogsCommand()}.`
+			: `${message} ${helpMessage} ${showLogsCommand()}.`;
+
+		vscode.window
+			.showErrorMessage(errorMessage, "Install Quarto", "Open Settings", "View Logs")
+			.then((selection) => {
+				if (selection === "Install Quarto") {
+					vscode.env.openExternal(vscode.Uri.parse("https://quarto.org/docs/get-started/"));
+				} else if (selection === "Open Settings") {
+					vscode.commands.executeCommand("workbench.action.openSettings", "quartoWizard.quarto.path");
+				} else if (selection === "View Logs") {
+					vscode.commands.executeCommand("quartoWizard.showOutput");
+				}
+			});
+		throw new Error(message);
+	}
 }
 
 /**
@@ -111,10 +189,18 @@ export async function checkQuartoVersion(quartoPath: string | undefined, timeout
 			stderr += data.toString();
 		});
 
-		process.on("error", () => {
+		process.on("error", (error: NodeJS.ErrnoException) => {
 			if (!isResolved) {
 				isResolved = true;
 				cleanup();
+
+				if (error.code === "ENOENT") {
+					logMessage(`Quarto executable not found at path: '${quartoPath}'`, "error");
+					logMessage(`This typically means Quarto is not installed or not in PATH.`, "error");
+				} else {
+					logMessage(`Error checking Quarto version: ${error.message} (code: ${error.code})`, "error");
+				}
+
 				resolve(false);
 			}
 		});
@@ -147,14 +233,20 @@ export async function installQuartoExtension(
 	timeoutMs = 30000
 ): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
-	return new Promise((resolve) => {
-		if (!workspaceFolder) {
-			resolve(false);
-			return;
-		}
-		const quartoPath = getQuartoPath();
-		checkQuartoPath(quartoPath);
 
+	if (!workspaceFolder) {
+		return false;
+	}
+
+	const quartoPath = getQuartoPath();
+	try {
+		await checkQuartoPath(quartoPath);
+	} catch {
+		logMessage("Cannot install extension: Quarto CLI is not available.", "error");
+		return false;
+	}
+
+	return new Promise((resolve) => {
 		const process = spawn(quartoPath, ["add", extension, "--no-prompt"], {
 			cwd: workspaceFolder,
 			stdio: ["ignore", "pipe", "pipe"],
@@ -186,11 +278,18 @@ export async function installQuartoExtension(
 			stderr += data.toString();
 		});
 
-		process.on("error", (error) => {
+		process.on("error", (error: NodeJS.ErrnoException) => {
 			if (!isResolved) {
 				isResolved = true;
 				cleanup();
-				logMessage(`Error installing extension: ${error}`, "error");
+
+				if (error.code === "ENOENT") {
+					logMessage(`Error installing extension: Quarto CLI not found at path '${quartoPath}'.`, "error");
+					logMessage(`Please ensure Quarto is installed and the path is configured correctly.`, "error");
+				} else {
+					logMessage(`Error installing extension: ${error.message} (code: ${error.code})`, "error");
+				}
+
 				resolve(false);
 			}
 		});
