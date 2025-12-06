@@ -5,7 +5,7 @@ dist
 
 # Dependencies
 node_modules
-# package-lock.json
+package-lock.json
 
 # Cache files
 .eslintcache
