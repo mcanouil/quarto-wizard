@@ -30,9 +30,16 @@ suite("Quarto Utils Test Suite", () => {
 		originalExecuteCommand = vscode.commands.executeCommand;
 
 		// Mock vscode methods
-		vscode.window.showErrorMessage = async (message: string): Promise<string | undefined> => {
-			// Mock implementation - just return the message for testing
-			return Promise.resolve(message);
+		(vscode.window as unknown as { showErrorMessage: typeof vscode.window.showErrorMessage }).showErrorMessage = async (
+			message: string,
+			...items: unknown[]
+		): Promise<string | undefined> => {
+			// Mock implementation - by default return undefined (no button selected)
+			// Tests can override this to simulate button selection
+			// Use message and items to avoid linting errors
+			void message;
+			void items;
+			return Promise.resolve(undefined);
 		};
 
 		vscode.commands.executeCommand = async <T>(): Promise<T> => {
@@ -94,32 +101,103 @@ suite("Quarto Utils Test Suite", () => {
 	});
 
 	suite("checkQuartoPath", () => {
-		test("should return false when quartoPath is undefined", async () => {
-			const result = await checkQuartoPath(undefined);
-
-			assert.strictEqual(result, false);
+		test("should throw error when quartoPath is undefined", async () => {
+			await assert.rejects(
+				async () => await checkQuartoPath(undefined),
+				(error: Error) => {
+					assert.strictEqual(error.message, "Quarto CLI path is not configured.");
+					return true;
+				}
+			);
 		});
 
-		test("should return false when quartoPath is empty string", async () => {
-			const result = await checkQuartoPath("");
-
-			assert.strictEqual(result, false);
+		test("should throw error when quartoPath is empty string", async () => {
+			await assert.rejects(
+				async () => await checkQuartoPath(""),
+				(error: Error) => {
+					assert.strictEqual(error.message, "Quarto CLI path is not configured.");
+					return true;
+				}
+			);
 		});
 
-		test("should return false when quarto version check fails", async () => {
+		test("should throw error when quarto version check fails", async () => {
 			// Test with a non-existent path
-			const result = await checkQuartoPath("invalid-quarto-path-12345");
-
-			// Should now correctly return false for invalid paths
-			assert.strictEqual(result, false);
+			await assert.rejects(
+				async () => await checkQuartoPath("invalid-quarto-path-12345"),
+				(error: Error) => {
+					assert.ok(error.message.includes("Quarto CLI not found at path"));
+					return true;
+				}
+			);
 		});
 
-		test("should handle valid command correctly", async () => {
-			// This test will depend on the actual checkQuartoVersion implementation
-			const result = await checkQuartoPath("echo");
+		test("should not throw error for valid command", async () => {
+			// Using echo as a mock command that produces output
+			// This should not throw an error
+			await assert.doesNotReject(async () => await checkQuartoPath("echo"));
+		});
 
-			// The result should be a boolean
-			assert.strictEqual(typeof result, "boolean");
+		test("should show error message with action buttons when path is undefined", async () => {
+			let errorMessageShown = false;
+			let buttonOptions: unknown[] = [];
+
+			const mockShowErrorMessage = async (message: string, ...items: unknown[]): Promise<string | undefined> => {
+				errorMessageShown = true;
+				buttonOptions = items;
+				return Promise.resolve(undefined);
+			};
+
+			(vscode.window as unknown as { showErrorMessage: typeof vscode.window.showErrorMessage }).showErrorMessage = mockShowErrorMessage as typeof vscode.window.showErrorMessage;
+
+			try {
+				await checkQuartoPath(undefined);
+			} catch {
+				// Expected to throw
+			}
+
+			assert.ok(errorMessageShown, "Error message should be shown");
+			assert.ok(
+				buttonOptions.includes("Install Quarto"),
+				"Should include 'Install Quarto' button"
+			);
+			assert.ok(
+				buttonOptions.includes("Open Settings"),
+				"Should include 'Open Settings' button"
+			);
+		});
+
+		test("should show error message with action buttons when version check fails", async () => {
+			let errorMessageShown = false;
+			let buttonOptions: unknown[] = [];
+
+			const mockShowErrorMessage = async (message: string, ...items: unknown[]): Promise<string | undefined> => {
+				errorMessageShown = true;
+				buttonOptions = items;
+				return Promise.resolve(undefined);
+			};
+
+			(vscode.window as unknown as { showErrorMessage: typeof vscode.window.showErrorMessage }).showErrorMessage = mockShowErrorMessage as typeof vscode.window.showErrorMessage;
+
+			try {
+				await checkQuartoPath("invalid-quarto-path-12345");
+			} catch {
+				// Expected to throw
+			}
+
+			assert.ok(errorMessageShown, "Error message should be shown");
+			assert.ok(
+				buttonOptions.includes("Install Quarto"),
+				"Should include 'Install Quarto' button"
+			);
+			assert.ok(
+				buttonOptions.includes("Open Settings"),
+				"Should include 'Open Settings' button"
+			);
+			assert.ok(
+				buttonOptions.includes("View Logs"),
+				"Should include 'View Logs' button"
+			);
 		});
 	});
 

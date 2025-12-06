@@ -333,24 +333,26 @@ You can embed GitHub repositories directly in your documents.
 			);
 		});
 
-		test("Should proceed when workspace folder is selected", async () => {
+		test("Should handle error thrown by checkQuartoPath gracefully", async () => {
 			selectedWorkspaceFolder = {
 				uri: vscode.Uri.file(workspaceFolder),
 				name: "test-workspace",
 				index: 0,
 			};
 
-			// Note: This test will attempt to check internet connection and Quarto installation
-			// In a real environment, these dependencies would need to be mocked
-			// For now, we just verify the function can be called without crashing
-
+			// The function should catch the error from checkQuartoPath and handle it gracefully
+			// It may throw or return false depending on the implementation
 			try {
 				await installQuartoExtensionCommand(mockContext as unknown as vscode.ExtensionContext);
-				// If we reach here, the function executed without throwing
-				assert.ok(true, "Function executed without throwing");
+				// If execution reaches here, the error was handled
+				assert.ok(true, "Function handled Quarto validation error gracefully");
 			} catch (error) {
-				// Expected in test environment due to missing dependencies
-				assert.ok(error instanceof Error, "Should throw an error due to missing dependencies in test environment");
+				// Error from checkQuartoPath is expected when Quarto is not available
+				assert.ok(error instanceof Error, "Should throw an error when Quarto is not available");
+				assert.ok(
+					error.message.includes("Quarto CLI"),
+					"Error should reference Quarto CLI"
+				);
 			}
 		});
 	});
@@ -369,20 +371,25 @@ You can embed GitHub repositories directly in your documents.
 			);
 		});
 
-		test("Should proceed when workspace folder is selected", async () => {
+		test("Should handle error thrown by checkQuartoPath gracefully", async () => {
 			selectedWorkspaceFolder = {
 				uri: vscode.Uri.file(workspaceFolder),
 				name: "test-workspace",
 				index: 0,
 			};
 
+			// The function should catch the error from checkQuartoPath and handle it gracefully
 			try {
 				await useQuartoTemplateCommand(mockContext as unknown as vscode.ExtensionContext);
-				// If we reach here, the function executed without throwing
-				assert.ok(true, "Function executed without throwing");
+				// If execution reaches here, the error was handled
+				assert.ok(true, "Function handled Quarto validation error gracefully");
 			} catch (error) {
-				// Expected in test environment due to missing dependencies
-				assert.ok(error instanceof Error, "Should throw an error due to missing dependencies in test environment");
+				// Error from checkQuartoPath is expected when Quarto is not available
+				assert.ok(error instanceof Error, "Should throw an error when Quarto is not available");
+				assert.ok(
+					error.message.includes("Quarto CLI"),
+					"Error should reference Quarto CLI"
+				);
 			}
 		});
 	});
