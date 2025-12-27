@@ -1,0 +1,292 @@
+/**
+ * Extension discovery from the filesystem.
+ */
+
+import * as fs from "node:fs";
+import * as path from "node:path";
+import type { ExtensionId } from "../types/extension.js";
+import type { ExtensionManifest } from "../types/manifest.js";
+import { readManifest } from "./manifest.js";
+
+/** Name of the extensions directory. */
+const EXTENSIONS_DIR = "_extensions";
+
+/**
+ * An installed extension discovered on the filesystem.
+ */
+export interface InstalledExtension {
+  /** Extension identifier. */
+  id: ExtensionId;
+  /** Parsed manifest data. */
+  manifest: ExtensionManifest;
+  /** Full path to the manifest file. */
+  manifestPath: string;
+  /** Full path to the extension directory. */
+  directory: string;
+}
+
+/**
+ * Options for extension discovery.
+ */
+export interface DiscoveryOptions {
+  /** Include extensions without valid manifests. */
+  includeInvalid?: boolean;
+}
+
+/**
+ * Get the extensions directory path for a project.
+ *
+ * @param projectDir - Project root directory
+ * @returns Path to _extensions directory
+ */
+export function getExtensionsDir(projectDir: string): string {
+  return path.join(projectDir, EXTENSIONS_DIR);
+}
+
+/**
+ * Check if an extensions directory exists.
+ *
+ * @param projectDir - Project root directory
+ * @returns True if _extensions directory exists
+ */
+export function hasExtensionsDir(projectDir: string): boolean {
+  const extensionsDir = getExtensionsDir(projectDir);
+  return fs.existsSync(extensionsDir) && fs.statSync(extensionsDir).isDirectory();
+}
+
+/**
+ * Discover all installed extensions in a project.
+ *
+ * Scans the _extensions directory for extensions in the format:
+ * _extensions/owner/name/_extension.yml
+ *
+ * @param projectDir - Project root directory
+ * @param options - Discovery options
+ * @returns Array of installed extensions
+ */
+export async function discoverInstalledExtensions(
+  projectDir: string,
+  options: DiscoveryOptions = {}
+): Promise<InstalledExtension[]> {
+  const extensionsDir = getExtensionsDir(projectDir);
+
+  if (!hasExtensionsDir(projectDir)) {
+    return [];
+  }
+
+  const results: InstalledExtension[] = [];
+
+  try {
+    const ownerEntries = await fs.promises.readdir(extensionsDir, {
+      withFileTypes: true,
+    });
+
+    for (const ownerEntry of ownerEntries) {
+      if (!ownerEntry.isDirectory()) {
+        continue;
+      }
+
+      const ownerPath = path.join(extensionsDir, ownerEntry.name);
+      const extEntries = await fs.promises.readdir(ownerPath, {
+        withFileTypes: true,
+      });
+
+      for (const extEntry of extEntries) {
+        if (!extEntry.isDirectory()) {
+          continue;
+        }
+
+        const extPath = path.join(ownerPath, extEntry.name);
+
+        try {
+          const manifestResult = readManifest(extPath);
+
+          if (manifestResult) {
+            results.push({
+              id: { owner: ownerEntry.name, name: extEntry.name },
+              manifest: manifestResult.manifest,
+              manifestPath: manifestResult.manifestPath,
+              directory: extPath,
+            });
+          } else if (options.includeInvalid) {
+            results.push({
+              id: { owner: ownerEntry.name, name: extEntry.name },
+              manifest: {
+                title: extEntry.name,
+                author: "",
+                version: "",
+                contributes: {},
+              },
+              manifestPath: path.join(extPath, "_extension.yml"),
+              directory: extPath,
+            });
+          }
+        } catch {
+          if (options.includeInvalid) {
+            results.push({
+              id: { owner: ownerEntry.name, name: extEntry.name },
+              manifest: {
+                title: extEntry.name,
+                author: "",
+                version: "",
+                contributes: {},
+              },
+              manifestPath: path.join(extPath, "_extension.yml"),
+              directory: extPath,
+            });
+          }
+        }
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  return results;
+}
+
+/**
+ * Synchronous version of discoverInstalledExtensions.
+ *
+ * @param projectDir - Project root directory
+ * @param options - Discovery options
+ * @returns Array of installed extensions
+ */
+export function discoverInstalledExtensionsSync(
+  projectDir: string,
+  options: DiscoveryOptions = {}
+): InstalledExtension[] {
+  const extensionsDir = getExtensionsDir(projectDir);
+
+  if (!hasExtensionsDir(projectDir)) {
+    return [];
+  }
+
+  const results: InstalledExtension[] = [];
+
+  try {
+    const ownerEntries = fs.readdirSync(extensionsDir, { withFileTypes: true });
+
+    for (const ownerEntry of ownerEntries) {
+      if (!ownerEntry.isDirectory()) {
+        continue;
+      }
+
+      const ownerPath = path.join(extensionsDir, ownerEntry.name);
+      const extEntries = fs.readdirSync(ownerPath, { withFileTypes: true });
+
+      for (const extEntry of extEntries) {
+        if (!extEntry.isDirectory()) {
+          continue;
+        }
+
+        const extPath = path.join(ownerPath, extEntry.name);
+
+        try {
+          const manifestResult = readManifest(extPath);
+
+          if (manifestResult) {
+            results.push({
+              id: { owner: ownerEntry.name, name: extEntry.name },
+              manifest: manifestResult.manifest,
+              manifestPath: manifestResult.manifestPath,
+              directory: extPath,
+            });
+          } else if (options.includeInvalid) {
+            results.push({
+              id: { owner: ownerEntry.name, name: extEntry.name },
+              manifest: {
+                title: extEntry.name,
+                author: "",
+                version: "",
+                contributes: {},
+              },
+              manifestPath: path.join(extPath, "_extension.yml"),
+              directory: extPath,
+            });
+          }
+        } catch {
+          if (options.includeInvalid) {
+            results.push({
+              id: { owner: ownerEntry.name, name: extEntry.name },
+              manifest: {
+                title: extEntry.name,
+                author: "",
+                version: "",
+                contributes: {},
+              },
+              manifestPath: path.join(extPath, "_extension.yml"),
+              directory: extPath,
+            });
+          }
+        }
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  return results;
+}
+
+/**
+ * Find a specific installed extension by ID.
+ *
+ * @param projectDir - Project root directory
+ * @param extensionId - Extension ID to find
+ * @returns InstalledExtension or null if not found
+ */
+export async function findInstalledExtension(
+  projectDir: string,
+  extensionId: ExtensionId
+): Promise<InstalledExtension | null> {
+  if (!extensionId.owner) {
+    const extensions = await discoverInstalledExtensions(projectDir);
+    return extensions.find((ext) => ext.id.name === extensionId.name) ?? null;
+  }
+
+  const extPath = path.join(
+    getExtensionsDir(projectDir),
+    extensionId.owner,
+    extensionId.name
+  );
+
+  if (!fs.existsSync(extPath)) {
+    return null;
+  }
+
+  const manifestResult = readManifest(extPath);
+
+  if (!manifestResult) {
+    return null;
+  }
+
+  return {
+    id: extensionId,
+    manifest: manifestResult.manifest,
+    manifestPath: manifestResult.manifestPath,
+    directory: extPath,
+  };
+}
+
+/**
+ * Get the installation path for an extension.
+ *
+ * @param projectDir - Project root directory
+ * @param extensionId - Extension ID
+ * @returns Path where the extension should be installed
+ */
+export function getExtensionInstallPath(
+  projectDir: string,
+  extensionId: ExtensionId
+): string {
+  if (!extensionId.owner) {
+    throw new Error("Extension ID must have an owner for installation");
+  }
+
+  return path.join(
+    getExtensionsDir(projectDir),
+    extensionId.owner,
+    extensionId.name
+  );
+}
