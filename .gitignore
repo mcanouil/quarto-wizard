@@ -18,3 +18,8 @@ package-lock.json
 
 # Assets
 /assets/videos
+
+# Temporary files
+dev-plans/
+.beads/
+.claude/
