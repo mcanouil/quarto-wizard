@@ -18,8 +18,7 @@ export const QW_RECENTLY_USED = "recentlyUsedTemplates";
 /**
  * URL to the Quarto extensions CSV file.
  */
-export const QW_EXTENSIONS =
-	"https://raw.githubusercontent.com/mcanouil/quarto-extensions/refs/heads/quarto-wizard/quarto-extensions.json";
+export const QW_EXTENSIONS = "https://m.canouil.dev/quarto-extensions/extensions.json";
 
 /**
  * Key for caching the Quarto extensions JSON.
