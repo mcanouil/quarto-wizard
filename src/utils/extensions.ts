@@ -1,7 +1,54 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
+import {
+	discoverInstalledExtensions,
+	type InstalledExtension,
+} from "@quarto-wizard/core";
 import { logMessage } from "./log";
+
+/**
+ * Interface representing the data of a Quarto extension.
+ */
+export interface ExtensionData {
+	title?: string;
+	author?: string;
+	version?: string;
+	contributes?: string;
+	source?: string;
+	repository?: string;
+}
+
+/**
+ * Finds Quarto extensions in a directory.
+ * @param {string} directory - The directory to search.
+ * @returns {string[]} - An array of relative paths to the found extensions.
+ */
+export function findQuartoExtensions(directory: string): string[] {
+	if (!fs.existsSync(directory)) {
+		return [];
+	}
+	return findQuartoExtensionsRecurse(directory).map((filePath) =>
+		path.relative(directory, path.dirname(filePath))
+	);
+}
+
+/**
+ * Finds Quarto extensions in a directory using the core library (async version).
+ * @param {string} directory - The directory to search.
+ * @returns {Promise<string[]>} - A promise that resolves to an array of relative paths to the found extensions.
+ */
+export async function findQuartoExtensionsAsync(directory: string): Promise<string[]> {
+	try {
+		const extensions = await discoverInstalledExtensions(directory);
+		return extensions.map((ext) => {
+			const id = ext.id;
+			return id.owner ? `${id.owner}/${id.name}` : id.name;
+		});
+	} catch {
+		return [];
+	}
+}
 
 /**
  * Recursively finds Quarto extension files in a directory.
@@ -25,15 +72,6 @@ function findQuartoExtensionsRecurse(directory: string): string[] {
 		return [];
 	});
 	return results;
-}
-
-/**
- * Finds Quarto extensions in a directory.
- * @param {string} directory - The directory to search.
- * @returns {string[]} - An array of relative paths to the found extensions.
- */
-export function findQuartoExtensions(directory: string): string[] {
-	return findQuartoExtensionsRecurse(directory).map((filePath) => path.relative(directory, path.dirname(filePath)));
 }
 
 /**
@@ -63,7 +101,7 @@ export function findModifiedExtensions(extensions: Record<string, Date>, directo
 		return [];
 	}
 	const currentExtensions = findQuartoExtensions(directory);
-	const modifiedExtensions = currentExtensions.filter((extension) => {
+	const modifiedExtensions = currentExtensions.filter((extension: string) => {
 		const extensionPath = path.join(directory, extension);
 		const extensionMtime = fs.statSync(extensionPath).mtime;
 		return !extensions[extension] || extensions[extension] < extensionMtime;
@@ -72,15 +110,67 @@ export function findModifiedExtensions(extensions: Record<string, Date>, directo
 }
 
 /**
- * Interface representing the data of a Quarto extension.
+ * Reads Quarto extensions data from a workspace folder using the core library.
+ * @param {string} workspaceFolder - The workspace folder to search.
+ * @returns {Promise<Record<string, ExtensionData>>} - A promise that resolves to an object mapping extension names to their data.
  */
-export interface ExtensionData {
-	title?: string;
-	author?: string;
-	version?: string;
-	contributes?: string;
-	source?: string;
-	repository?: string;
+export async function readExtensionsAsync(
+	workspaceFolder: string
+): Promise<Record<string, ExtensionData>> {
+	try {
+		const extensions = await discoverInstalledExtensions(workspaceFolder);
+		const extensionsData: Record<string, ExtensionData> = {};
+
+		for (const ext of extensions) {
+			const key = ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name;
+			extensionsData[key] = convertInstalledExtension(ext);
+		}
+
+		return extensionsData;
+	} catch {
+		return {};
+	}
+}
+
+/**
+ * Converts an InstalledExtension from core library to ExtensionData.
+ */
+function convertInstalledExtension(ext: InstalledExtension): ExtensionData {
+	const manifest = ext.manifest;
+	return {
+		title: manifest.title,
+		author: manifest.author,
+		version: manifest.version,
+		contributes: manifest.contributes
+			? Object.keys(manifest.contributes).join(", ")
+			: undefined,
+		source: manifest.source,
+		repository: manifest.source ? manifest.source.replace(/@.*$/, "") : undefined,
+	};
+}
+
+/**
+ * Reads Quarto extensions data from a workspace folder (synchronous version for backwards compatibility).
+ * @param {string} workspaceFolder - The workspace folder to search.
+ * @param {string[]} extensions - An array of extension names to read.
+ * @returns {Record<string, ExtensionData>} - An object mapping extension names to their data.
+ */
+export function readExtensions(
+	workspaceFolder: string,
+	extensions: string[]
+): Record<string, ExtensionData> {
+	const extensionsData: Record<string, ExtensionData> = {};
+	for (const ext of extensions) {
+		let filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yml");
+		if (!fs.existsSync(filePath)) {
+			filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yaml");
+		}
+		const extData = readYamlFile(filePath);
+		if (extData) {
+			extensionsData[ext] = extData;
+		}
+	}
+	return extensionsData;
 }
 
 /**
@@ -98,31 +188,10 @@ function readYamlFile(filePath: string): ExtensionData | null {
 		title: data.title,
 		author: data.author,
 		version: data.version,
-		contributes: Object.keys(data.contributes).join(", "),
+		contributes: data.contributes ? Object.keys(data.contributes).join(", ") : undefined,
 		source: data.source,
 		repository: data.source ? data.source.replace(/@.*$/, "") : undefined,
 	};
-}
-
-/**
- * Reads Quarto extensions data from a workspace folder.
- * @param {string} workspaceFolder - The workspace folder to search.
- * @param {string[]} extensions - An array of extension names to read.
- * @returns {Record<string, ExtensionData>} - An object mapping extension names to their data.
- */
-export function readExtensions(workspaceFolder: string, extensions: string[]): Record<string, ExtensionData> {
-	const extensionsData: Record<string, ExtensionData> = {};
-	for (const ext of extensions) {
-		let filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yml");
-		if (!fs.existsSync(filePath)) {
-			filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yaml");
-		}
-		const extData = readYamlFile(filePath);
-		if (extData) {
-			extensionsData[ext] = extData;
-		}
-	}
-	return extensionsData;
 }
 
 /**
@@ -156,3 +225,20 @@ export async function removeExtension(extension: string, root: string): Promise<
 		return false;
 	}
 }
+
+/**
+ * Gets installed extensions with full details using the core library.
+ * @param {string} workspaceFolder - The workspace folder to search.
+ * @returns {Promise<InstalledExtension[]>} - A promise that resolves to an array of installed extensions.
+ */
+export async function getInstalledExtensions(
+	workspaceFolder: string
+): Promise<InstalledExtension[]> {
+	try {
+		return await discoverInstalledExtensions(workspaceFolder);
+	} catch {
+		return [];
+	}
+}
+
+export { type InstalledExtension } from "@quarto-wizard/core";

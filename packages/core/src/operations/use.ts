@@ -14,30 +14,62 @@ import {
   type InstallSource,
   type InstallResult,
 } from "./install.js";
+import { cleanupExtraction } from "../archive/extract.js";
 
 /**
  * Default patterns to exclude when copying templates.
+ * These files are typically repository metadata and should not be copied to the project.
  */
 const DEFAULT_EXCLUDE_PATTERNS = [
+  // Extension directory (already installed separately)
   "_extensions/**",
+  // Git files
   ".git/**",
   ".github/**",
   ".gitignore",
   ".gitattributes",
+  // Quarto files
+  ".quartoignore",
+  // Documentation (repository-specific)
+  "README.md",
+  "README.qmd",
+  "LICENSE",
+  "LICENSE.md",
+  "CHANGELOG.md",
+  // Node/build artifacts
   "node_modules/**",
+  // OS files
   ".DS_Store",
   "Thumbs.db",
+  // Temporary files
   "*.log",
   "*.bak",
   "*.tmp",
+  // IDE files
   ".vscode/**",
   ".idea/**",
 ];
 
 /**
- * Callback for confirming file overwrites.
+ * Callback for confirming file overwrites (per-file).
  */
 export type OverwriteCallback = (file: string) => Promise<boolean>;
+
+/**
+ * Result of batch overwrite confirmation.
+ * - 'all': Overwrite all files.
+ * - 'none': Skip all files.
+ * - string[]: List of specific files to overwrite.
+ */
+export type OverwriteBatchResult = "all" | "none" | string[];
+
+/**
+ * Callback for confirming file overwrites in batch.
+ * Receives all conflicting files upfront and returns which ones to overwrite.
+ */
+export type OverwriteBatchCallback = (
+  files: string[]
+) => Promise<OverwriteBatchResult>;
 
 /**
  * Options for "use extension" operation.
@@ -53,8 +85,10 @@ export interface UseOptions {
   include?: string[];
   /** Additional patterns to exclude. */
   exclude?: string[];
-  /** Callback to confirm overwrites. */
+  /** Callback to confirm overwrites (per-file). Takes precedence if confirmOverwriteBatch is not provided. */
   confirmOverwrite?: OverwriteCallback;
+  /** Callback to confirm overwrites in batch. Receives all conflicting files upfront. Takes precedence over confirmOverwrite. */
+  confirmOverwriteBatch?: OverwriteBatchCallback;
   /** Progress callback. */
   onProgress?: (info: { phase: string; message: string; file?: string }) => void;
 }
@@ -89,6 +123,7 @@ export async function use(
     include,
     exclude = [],
     confirmOverwrite,
+    confirmOverwriteBatch,
     onProgress,
   } = options;
 
@@ -96,10 +131,12 @@ export async function use(
 
   onProgress?.({ phase: "installing", message: "Installing extension..." });
 
+  // Keep source directory so we can copy template files from the repo root
   const installResult = await install(installSource, {
     projectDir,
     auth,
     force: true,
+    keepSourceDir: !noTemplate,
     onProgress: (p) => {
       onProgress?.({ phase: p.phase, message: p.message });
     },
@@ -113,26 +150,43 @@ export async function use(
     };
   }
 
-  onProgress?.({ phase: "copying", message: "Copying template files..." });
+  try {
+    onProgress?.({ phase: "copying", message: "Copying template files..." });
 
-  const { templateFiles, skippedFiles } = await copyTemplateFiles(
-    installResult.extension.directory,
-    projectDir,
-    {
-      include,
-      exclude: [...DEFAULT_EXCLUDE_PATTERNS, ...exclude],
-      confirmOverwrite,
-      onProgress: (file) => {
-        onProgress?.({ phase: "copying", message: `Copying ${file}...`, file });
-      },
+    // Use sourceRoot (the GitHub repo root) for template copying
+    const sourceRoot = installResult.sourceRoot;
+    if (!sourceRoot) {
+      throw new ExtensionError(
+        "No source root available for template copying",
+        "This may be a bug in the extension installation"
+      );
     }
-  );
 
-  return {
-    install: installResult,
-    templateFiles,
-    skippedFiles,
-  };
+    const { templateFiles, skippedFiles } = await copyTemplateFiles(
+      sourceRoot,
+      projectDir,
+      {
+        include,
+        exclude: [...DEFAULT_EXCLUDE_PATTERNS, ...exclude],
+        confirmOverwrite,
+        confirmOverwriteBatch,
+        onProgress: (file) => {
+          onProgress?.({ phase: "copying", message: `Copying ${file}...`, file });
+        },
+      }
+    );
+
+    return {
+      install: installResult,
+      templateFiles,
+      skippedFiles,
+    };
+  } finally {
+    // Clean up the source directory after template copying
+    if (installResult.sourceRoot) {
+      await cleanupExtraction(installResult.sourceRoot);
+    }
+  }
 }
 
 /**
@@ -143,58 +197,37 @@ interface CopyTemplateOptions {
   include?: string[];
   /** Patterns to exclude. */
   exclude: string[];
-  /** Callback to confirm overwrites. */
+  /** Callback to confirm overwrites (per-file). */
   confirmOverwrite?: OverwriteCallback;
+  /** Callback to confirm overwrites in batch. */
+  confirmOverwriteBatch?: OverwriteBatchCallback;
   /** Progress callback. */
   onProgress?: (file: string) => void;
 }
 
 /**
- * Copy template files from extension to project.
+ * Copy template files from repo root to project.
  */
 async function copyTemplateFiles(
-  extensionDir: string,
+  sourceRoot: string,
   projectDir: string,
   options: CopyTemplateOptions
 ): Promise<{ templateFiles: string[]; skippedFiles: string[] }> {
-  const { include, exclude, confirmOverwrite, onProgress } = options;
+  const { include, exclude, confirmOverwrite, confirmOverwriteBatch, onProgress } = options;
 
-  const parentDir = path.dirname(extensionDir);
-
-  let sourceDir: string;
-  let files: string[];
-
-  const parentFiles = await glob("**/*", {
-    cwd: parentDir,
+  // Glob all files from repo root, excluding patterns
+  let files = await glob("**/*", {
+    cwd: sourceRoot,
     nodir: true,
     dot: false,
     ignore: exclude,
   });
 
-  const extensionName = path.basename(extensionDir);
-  const extensionFiles = parentFiles.filter((f) =>
-    f.startsWith(`${extensionName}/`)
-  );
-
-  if (extensionFiles.length === parentFiles.length) {
-    sourceDir = extensionDir;
-    files = await glob("**/*", {
-      cwd: extensionDir,
-      nodir: true,
-      dot: false,
-      ignore: exclude,
-    });
-  } else {
-    sourceDir = parentDir;
-    files = parentFiles.filter(
-      (f) => !f.startsWith(`${extensionName}/`) && !f.startsWith("_extensions/")
-    );
-  }
-
   if (files.length === 0) {
     return { templateFiles: [], skippedFiles: [] };
   }
 
+  // Filter by include patterns if provided
   if (include && include.length > 0) {
     files = files.filter((f) => include.some((pattern) => minimatch(f, pattern)));
   }
@@ -202,19 +235,49 @@ async function copyTemplateFiles(
   const templateFiles: string[] = [];
   const skippedFiles: string[] = [];
 
+  // Collect all conflicting files first
+  const conflictingFiles: string[] = [];
   for (const file of files) {
-    const sourcePath = path.join(sourceDir, file);
+    const targetPath = path.join(projectDir, file);
+    if (fs.existsSync(targetPath)) {
+      conflictingFiles.push(file);
+    }
+  }
+
+  // Determine which files to overwrite
+  let filesToOverwrite: Set<string>;
+
+  if (conflictingFiles.length > 0 && confirmOverwriteBatch) {
+    // Use batch confirmation
+    const result = await confirmOverwriteBatch(conflictingFiles);
+    if (result === "all") {
+      filesToOverwrite = new Set(conflictingFiles);
+    } else if (result === "none") {
+      filesToOverwrite = new Set();
+    } else {
+      filesToOverwrite = new Set(result);
+    }
+  } else if (conflictingFiles.length > 0 && confirmOverwrite) {
+    // Fall back to per-file confirmation
+    filesToOverwrite = new Set();
+    for (const file of conflictingFiles) {
+      const shouldOverwrite = await confirmOverwrite(file);
+      if (shouldOverwrite) {
+        filesToOverwrite.add(file);
+      }
+    }
+  } else {
+    // No confirmation callback provided, skip all conflicting files
+    filesToOverwrite = new Set();
+  }
+
+  // Copy files
+  for (const file of files) {
+    const sourcePath = path.join(sourceRoot, file);
     const targetPath = path.join(projectDir, file);
 
     if (fs.existsSync(targetPath)) {
-      if (confirmOverwrite) {
-        const shouldOverwrite = await confirmOverwrite(file);
-
-        if (!shouldOverwrite) {
-          skippedFiles.push(file);
-          continue;
-        }
-      } else {
+      if (!filesToOverwrite.has(file)) {
         skippedFiles.push(file);
         continue;
       }
@@ -231,28 +294,20 @@ async function copyTemplateFiles(
 }
 
 /**
- * Get list of template files that would be copied.
+ * Get list of template files that would be copied from repo root.
  *
- * @param extensionDir - Extension directory
+ * @param sourceRoot - Repository root directory
  * @param exclude - Patterns to exclude
  * @returns List of template file paths
  */
 export async function getTemplateFiles(
-  extensionDir: string,
+  sourceRoot: string,
   exclude: string[] = DEFAULT_EXCLUDE_PATTERNS
 ): Promise<string[]> {
-  const parentDir = path.dirname(extensionDir);
-
-  const parentFiles = await glob("**/*", {
-    cwd: parentDir,
+  return await glob("**/*", {
+    cwd: sourceRoot,
     nodir: true,
     dot: false,
     ignore: exclude,
   });
-
-  const extensionName = path.basename(extensionDir);
-
-  return parentFiles.filter(
-    (f) => !f.startsWith(`${extensionName}/`) && !f.startsWith("_extensions/")
-  );
 }

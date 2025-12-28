@@ -60,10 +60,11 @@
 	],
 	"main": "./dist/extension",
 	"scripts": {
-		"vscode:prepublish": "webpack --mode production",
-		"webpack": "webpack --mode development --stats-error-details",
-		"watch": "webpack --watch --mode development --stats-error-details",
-		"test-compile": "tsc -p ./",
+		"build:core": "cd packages/core && npm run build",
+		"vscode:prepublish": "npm run build:core && npx webpack --mode production",
+		"webpack": "npm run build:core && npx webpack --mode development --stats-error-details",
+		"watch": "npm run build:core && npx webpack --watch --mode development --stats-error-details",
+		"test-compile": "npm run build:core && npx tsc -p ./",
 		"pretest": "npm run test-compile && npm run lint",
 		"test": "vscode-test",
 		"test:watch": "npm run test-compile && vscode-test",
@@ -93,6 +94,7 @@
 		"webpack-cli": "^6.0.1"
 	},
 	"dependencies": {
+		"@quarto-wizard/core": "*",
 		"@types/lodash": "^4.17.16",
 		"js-yaml": "^4.1.1",
 		"lodash": "^4.17.21",
@@ -445,15 +447,8 @@
 		"configuration": {
 			"title": "Quarto Wizard",
 			"properties": {
-				"quartoWizard.quarto.path": {
-					"order": 1,
-					"scope": "window",
-					"type": "string",
-					"default": null,
-					"markdownDescription": "A path to the Quarto CLI executable. By default, the extension looks for Quarto CLI in the `PATH` and in `#quarto.path#`, but if set, will use the path specified instead."
-				},
 				"quartoWizard.ask.trustAuthors": {
-					"order": 2,
+					"order": 1,
 					"scope": "resource",
 					"type": "string",
 					"enum": [
@@ -464,7 +459,7 @@
 					"markdownDescription": "Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again."
 				},
 				"quartoWizard.ask.confirmInstall": {
-					"order": 3,
+					"order": 2,
 					"scope": "resource",
 					"type": "string",
 					"enum": [

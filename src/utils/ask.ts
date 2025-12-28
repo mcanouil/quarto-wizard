@@ -96,3 +96,69 @@ export async function askConfirmRemove(): Promise<number> {
 	}
 	return 0;
 }
+
+/**
+ * Result type for batch overwrite confirmation.
+ */
+export type OverwriteBatchResult = "all" | "none" | string[];
+
+/**
+ * Creates a callback for batch file overwrite confirmation.
+ * Shows all conflicting files upfront and lets the user choose how to handle them.
+ *
+ * @returns A function that receives all conflicting files and returns which ones to overwrite.
+ */
+export function createConfirmOverwriteBatch(): (files: string[]) => Promise<OverwriteBatchResult> {
+	return async (files: string[]): Promise<OverwriteBatchResult> => {
+		if (files.length === 0) {
+			return "all";
+		}
+
+		if (files.length === 1) {
+			// For a single file, show simple dialog
+			const result = await vscode.window.showWarningMessage(
+				`File "${files[0]}" already exists. Overwrite?`,
+				{ modal: true },
+				"Yes",
+				"No"
+			);
+			return result === "Yes" ? "all" : "none";
+		}
+
+		// For multiple files, show options
+		const fileList = files.map((f) => `  • ${f}`).join("\n");
+		const result = await vscode.window.showWarningMessage(
+			`The following ${files.length} file(s) already exist:\n${fileList}\n\nHow would you like to proceed?`,
+			{ modal: true },
+			"Overwrite All",
+			"Choose Individually",
+			"Skip All"
+		);
+
+		if (result === "Overwrite All") {
+			return "all";
+		}
+
+		if (result === "Skip All" || result === undefined) {
+			return "none";
+		}
+
+		// "Choose Individually" - show QuickPick for file selection
+		const items = files.map((file) => ({
+			label: file,
+			picked: false,
+		}));
+
+		const selected = await vscode.window.showQuickPick(items, {
+			canPickMany: true,
+			placeHolder: "Select files to overwrite (press Enter to confirm)",
+			title: "Choose Files to Overwrite",
+		});
+
+		if (!selected || selected.length === 0) {
+			return "none";
+		}
+
+		return selected.map((item) => item.label);
+	};
+}

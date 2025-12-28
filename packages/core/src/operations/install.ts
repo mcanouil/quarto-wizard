@@ -60,6 +60,8 @@ export interface InstallOptions {
   onProgress?: InstallProgressCallback;
   /** Force reinstall if already installed. */
   force?: boolean;
+  /** Keep source directory after installation (for template copying). */
+  keepSourceDir?: boolean;
 }
 
 /**
@@ -74,6 +76,8 @@ export interface InstallResult {
   filesCreated: string[];
   /** Source string for the manifest. */
   source: string;
+  /** Path to extracted source root (only set if keepSourceDir was true). */
+  sourceRoot?: string;
 }
 
 /**
@@ -151,11 +155,12 @@ export async function install(
   source: InstallSource,
   options: InstallOptions
 ): Promise<InstallResult> {
-  const { projectDir, auth, onProgress, force = false } = options;
+  const { projectDir, auth, onProgress, force = false, keepSourceDir = false } = options;
 
   let archivePath: string | undefined;
   let extractDir: string | undefined;
   let tagName: string | undefined;
+  let repoRoot: string | undefined;
 
   try {
     onProgress?.({ phase: "resolving", message: "Resolving extension source..." });
@@ -203,6 +208,18 @@ export async function install(
       );
     }
 
+    // Compute repo root from extensionRoot
+    // extensionRoot is like /tmp/xxx/owner-repo-tag/_extensions/owner/name
+    // Repo root is the parent of _extensions (e.g., /tmp/xxx/owner-repo-tag)
+    const extensionRootParts = extensionRoot.split(path.sep);
+    const extensionsIndex = extensionRootParts.lastIndexOf("_extensions");
+    if (extensionsIndex >= 0) {
+      repoRoot = extensionRootParts.slice(0, extensionsIndex).join(path.sep) || "/";
+    } else {
+      // No _extensions in path, extension is at repo root level
+      repoRoot = path.dirname(extensionRoot);
+    }
+
     const manifestResult = readManifest(extensionRoot);
 
     if (!manifestResult) {
@@ -244,13 +261,15 @@ export async function install(
       },
       filesCreated,
       source: sourceString,
+      sourceRoot: keepSourceDir ? repoRoot : undefined,
     };
   } finally {
     if (archivePath && source.type !== "local" && fs.existsSync(archivePath)) {
       await fs.promises.unlink(archivePath).catch(() => {});
     }
 
-    if (extractDir && source.type !== "local") {
+    // Only cleanup extraction directory if keepSourceDir is false
+    if (extractDir && source.type !== "local" && !keepSourceDir) {
       await cleanupExtraction(extractDir);
     }
   }

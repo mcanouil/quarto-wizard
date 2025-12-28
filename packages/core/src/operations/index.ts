@@ -32,6 +32,8 @@ export {
 
 export {
   type OverwriteCallback,
+  type OverwriteBatchResult,
+  type OverwriteBatchCallback,
   type UseOptions,
   type UseResult,
   use,

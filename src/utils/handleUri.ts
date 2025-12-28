@@ -1,10 +1,9 @@
 import * as vscode from "vscode";
-import { installQuartoExtensionSource } from "./quarto";
+import { installQuartoExtensionSource, useQuartoExtension } from "./quarto";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
-import { ExtensionDetails, getExtensionsDetails } from "../utils/extensionDetails";
-import { openTemplate } from "../commands/installQuartoExtension";
 import { withProgressNotification } from "../utils/withProgressNotification";
+import { createConfirmOverwriteBatch } from "../utils/ask";
 
 /**
  * Handle the URI passed to the extension.
@@ -71,31 +70,34 @@ export async function handleUriInstall(uri: vscode.Uri) {
  * specifying the repository to install and use.
  * @param context - The extension context used to access extension resources and state.
  *
- * @returns A Promise that resolves when the installation and template opening is complete or cancelled.
- * The function installs the specified extension and then opens its template for immediate use.
+ * @returns A Promise that resolves when the installation and template copying is complete or cancelled.
+ * The function installs the specified extension and copies template files to the workspace.
  */
-export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionContext) {
-	await handleUriInstall(uri);
-	const extensionsList = await getExtensionsDetails(context);
-	const repoSource = new URLSearchParams(uri.query).get("repo");
-	const repo = repoSource?.replace(/@.*$/, "");
-	const matchingExtension = extensionsList.find((ext: ExtensionDetails) => ext.id === repo);
-	if (!matchingExtension) {
-		const message = `Extension "${repo}" not found.`;
-		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
-		return;
-	}
-	const extensionId = matchingExtension.id;
-	const extensionTemplate = matchingExtension.templateContent;
-	if (!extensionId || !extensionTemplate) {
-		const message = "Invalid extension ID or template content.";
-		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function handleUriUse(uri: vscode.Uri, _context: vscode.ExtensionContext) {
+	const repo = new URLSearchParams(uri.query).get("repo");
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!repo || !workspaceFolder) {
 		return;
 	}
 
-	return await withProgressNotification(`Opening Quarto template from ${repo} ...`, async () => {
-		return openTemplate(matchingExtension.id, matchingExtension.templateContent);
+	const useTemplate = await vscode.window.showInformationMessage(
+		`Do you confirm using the "${repo}" template extension? This will install the extension and copy template files to your project.`,
+		{ modal: true },
+		"Yes",
+		"No"
+	);
+
+	if (useTemplate === "No") {
+		const message = "Operation cancelled by the user.";
+		logMessage(message, "info");
+		vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+		return;
+	}
+
+	return await withProgressNotification(`Using Quarto template from ${repo} ...`, async () => {
+		const confirmOverwriteBatch = createConfirmOverwriteBatch();
+		const result = await useQuartoExtension(repo, workspaceFolder, confirmOverwriteBatch);
+		return result !== null;
 	});
 }

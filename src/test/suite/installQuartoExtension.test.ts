@@ -4,7 +4,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import {
-	openTemplate,
 	installQuartoExtensionCommand,
 	useQuartoTemplateCommand,
 } from "../../commands/installQuartoExtension";
@@ -44,6 +43,7 @@ suite("Install Quarto Extension Test Suite", () => {
 	let logMessages: { message: string; type: string }[];
 	let documentContent: string;
 	let documentLanguage: string;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let documentShown: boolean;
 	let selectedWorkspaceFolder: vscode.WorkspaceFolder | undefined;
 
@@ -194,131 +194,6 @@ suite("Install Quarto Extension Test Suite", () => {
 		}
 	});
 
-	suite("openTemplate", () => {
-		test("Should successfully open a valid base64-encoded template", async () => {
-			const extensionId = "mcanouil/quarto-github";
-			const originalContent =
-				"---\ntitle: GitHub Template\n---\n\n# GitHub Repository Link\n\nmcanouil/quarto-wizard#1";
-			const templateContent = Buffer.from(originalContent).toString("base64");
-
-			const result = await openTemplate(extensionId, templateContent);
-
-			assert.strictEqual(result, true, "Should return true for successful template opening");
-			assert.strictEqual(documentLanguage, "quarto", "Should set document language to quarto");
-			assert.strictEqual(documentContent, originalContent, "Should decode template content correctly");
-			assert.strictEqual(documentShown, true, "Should show the document");
-			assert.strictEqual(logMessages.filter((log) => log.type === "info").length, 1, "Should show success message");
-			assert.ok(
-				logMessages.some((log) => log.message.includes('Template from "mcanouil/quarto-github" opened successfully')),
-				"Should show correct success message"
-			);
-			assert.strictEqual(logMessages.filter((log) => log.type === "error").length, 0, "Should not show error messages");
-		});
-
-		test("Should handle invalid base64 content gracefully", async () => {
-			const extensionId = "mcanouil/invalid-extension";
-			const validBase64ButFailingContent = "dGVzdA=="; // "test" in base64
-
-			// Mock openTextDocument to throw an error
-			const mockWorkspace = vscode.workspace as unknown as {
-				openTextDocument: (options: { content?: string; language?: string }) => Promise<vscode.TextDocument>;
-			};
-
-			mockWorkspace.openTextDocument = async () => {
-				throw new Error("Simulated VS Code API error");
-			};
-
-			const result = await openTemplate(extensionId, validBase64ButFailingContent);
-
-			assert.strictEqual(result, false, "Should return false when VS Code API fails");
-			assert.strictEqual(documentShown, false, "Should not show document when API fails");
-			assert.strictEqual(
-				logMessages.filter((log) => log.type === "info").length,
-				0,
-				"Should not show success messages"
-			);
-			assert.strictEqual(logMessages.filter((log) => log.type === "error").length, 1, "Should show error message");
-			assert.ok(
-				logMessages.some((log) => log.message.includes("Failed to open the template")),
-				"Should show appropriate error message"
-			);
-			assert.ok(
-				logMessages.some((log) => log.message.includes("mcanouil/invalid-extension")),
-				"Should include extension ID in error message"
-			);
-		});
-
-		test("Should handle highlight-text extension template", async () => {
-			const extensionId = "mcanouil/quarto-highlight-text";
-			const highlightContent =
-				"---\ntitle: Highlight Text Template\n---\n\n# Highlighted Content\n\n[This is highlighted text]{.highlight-text}";
-			const templateContent = Buffer.from(highlightContent).toString("base64");
-
-			const result = await openTemplate(extensionId, templateContent);
-
-			assert.strictEqual(result, true, "Should return true for highlight-text template");
-			assert.strictEqual(documentContent, highlightContent, "Should handle highlight-text content correctly");
-			assert.strictEqual(documentLanguage, "quarto", "Should set document language to quarto");
-			assert.strictEqual(documentShown, true, "Should show the document");
-			assert.strictEqual(logMessages.filter((log) => log.type === "info").length, 1, "Should show success message");
-			assert.strictEqual(logMessages.filter((log) => log.type === "error").length, 0, "Should not show error messages");
-		});
-
-		test("Should handle empty template content", async () => {
-			const extensionId = "mcanouil/empty-extension";
-			const emptyContent = "";
-			const templateContent = Buffer.from(emptyContent).toString("base64");
-
-			const result = await openTemplate(extensionId, templateContent);
-
-			assert.strictEqual(result, true, "Should return true for empty content");
-			assert.strictEqual(documentContent, emptyContent, "Should handle empty content correctly");
-			assert.strictEqual(documentLanguage, "quarto", "Should set document language to quarto");
-			assert.strictEqual(documentShown, true, "Should show the document");
-			assert.strictEqual(logMessages.filter((log) => log.type === "info").length, 1, "Should show success message");
-			assert.strictEqual(logMessages.filter((log) => log.type === "error").length, 0, "Should not show error messages");
-		});
-
-		test("Should handle complex YAML frontmatter with extension metadata", async () => {
-			const extensionId = "mcanouil/quarto-github";
-			const yamlContent = `---
-title: "GitHub Extension Demo"
-author: "Test Author"
-date: "2024-01-01"
-format:
-  html:
-    theme: cosmo
-    toc: true
-filters:
-  - quarto-github
-execute:
-  echo: false
-  warning: false
----
-
-# GitHub Integration
-
-This template demonstrates the GitHub extension usage.
-
-mcanouil/quarto-wizard#1
-
-## Repository Information
-
-You can embed GitHub repositories directly in your documents.
-`;
-			const templateContent = Buffer.from(yamlContent).toString("base64");
-
-			const result = await openTemplate(extensionId, templateContent);
-
-			assert.strictEqual(result, true, "Should return true for complex YAML content");
-			assert.strictEqual(documentContent, yamlContent, "Should preserve YAML formatting");
-			assert.strictEqual(documentLanguage, "quarto", "Should set document language to quarto");
-			assert.strictEqual(documentShown, true, "Should show the document");
-			assert.strictEqual(logMessages.filter((log) => log.type === "info").length, 1, "Should show success message");
-			assert.strictEqual(logMessages.filter((log) => log.type === "error").length, 0, "Should not show error messages");
-		});
-	});
-
 	suite("installQuartoExtensionCommand", () => {
 		test("Should return early if no workspace folder is selected", async () => {
 			selectedWorkspaceFolder = undefined;
@@ -333,28 +208,6 @@ You can embed GitHub repositories directly in your documents.
 			);
 		});
 
-		test("Should handle error thrown by checkQuartoPath gracefully", async () => {
-			selectedWorkspaceFolder = {
-				uri: vscode.Uri.file(workspaceFolder),
-				name: "test-workspace",
-				index: 0,
-			};
-
-			// The function should catch the error from checkQuartoPath and handle it gracefully
-			// It may throw or return false depending on the implementation
-			try {
-				await installQuartoExtensionCommand(mockContext as unknown as vscode.ExtensionContext);
-				// If execution reaches here, the error was handled
-				assert.ok(true, "Function handled Quarto validation error gracefully");
-			} catch (error) {
-				// Error from checkQuartoPath is expected when Quarto is not available
-				assert.ok(error instanceof Error, "Should throw an error when Quarto is not available");
-				assert.ok(
-					error.message.includes("Quarto CLI"),
-					"Error should reference Quarto CLI"
-				);
-			}
-		});
 	});
 
 	suite("useQuartoTemplateCommand", () => {
@@ -369,28 +222,6 @@ You can embed GitHub repositories directly in your documents.
 				0,
 				"Should not show any error messages"
 			);
-		});
-
-		test("Should handle error thrown by checkQuartoPath gracefully", async () => {
-			selectedWorkspaceFolder = {
-				uri: vscode.Uri.file(workspaceFolder),
-				name: "test-workspace",
-				index: 0,
-			};
-
-			// The function should catch the error from checkQuartoPath and handle it gracefully
-			try {
-				await useQuartoTemplateCommand(mockContext as unknown as vscode.ExtensionContext);
-				// If execution reaches here, the error was handled
-				assert.ok(true, "Function handled Quarto validation error gracefully");
-			} catch (error) {
-				// Error from checkQuartoPath is expected when Quarto is not available
-				assert.ok(error instanceof Error, "Should throw an error when Quarto is not available");
-				assert.ok(
-					error.message.includes("Quarto CLI"),
-					"Error should reference Quarto CLI"
-				);
-			}
 		});
 	});
 

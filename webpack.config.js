@@ -8,6 +8,7 @@
 'use strict';
 
 const path = require('path');
+const webpack = require('webpack');
 
 /**@type {import('webpack').Configuration}*/
 const config = {
@@ -42,6 +43,12 @@ const config = {
             }]
         }]
     },
+    plugins: [
+        // Ignore optional AWS SDK dependency from unzipper
+        new webpack.IgnorePlugin({
+            resourceRegExp: /^@aws-sdk\/client-s3$/
+        })
+    ]
 }
 
 module.exports = config;

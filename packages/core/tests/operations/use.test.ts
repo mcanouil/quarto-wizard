@@ -25,35 +25,35 @@ describe("getTemplateFiles", () => {
     fs.writeFileSync(fullPath, content);
   }
 
-  it("should list template files excluding extension directory", async () => {
-    createFile("my-extension/_extension.yml", "title: Test");
-    createFile("my-extension/filter.lua", "-- filter");
+  it("should list template files from repo root excluding _extensions", async () => {
+    // Create a repo structure with extension in _extensions and template files at root
+    createFile("_extensions/owner/my-extension/_extension.yml", "title: Test");
+    createFile("_extensions/owner/my-extension/filter.lua", "-- filter");
     createFile("template.qmd", "---\ntitle: Template\n---");
     createFile("assets/style.css", "body {}");
 
-    const extensionDir = path.join(tempDir, "my-extension");
-    const files = await getTemplateFiles(extensionDir);
+    // Pass repo root (tempDir) directly
+    const files = await getTemplateFiles(tempDir);
 
     expect(files).toContain("template.qmd");
     expect(files).toContain("assets/style.css");
-    expect(files).not.toContain("my-extension/_extension.yml");
-    expect(files).not.toContain("my-extension/filter.lua");
+    // _extensions should be excluded by default
+    expect(files.some((f) => f.includes("_extensions"))).toBe(false);
   });
 
-  it("should exclude _extensions directory", async () => {
-    createFile("my-extension/_extension.yml", "title: Test");
+  it("should exclude _extensions directory by default", async () => {
+    createFile("_extensions/owner/ext/_extension.yml", "title: Test");
     createFile("_extensions/other/ext.yml", "title: Other");
     createFile("template.qmd", "content");
 
-    const extensionDir = path.join(tempDir, "my-extension");
-    const files = await getTemplateFiles(extensionDir);
+    const files = await getTemplateFiles(tempDir);
 
     expect(files).toContain("template.qmd");
     expect(files.some((f) => f.includes("_extensions"))).toBe(false);
   });
 
   it("should exclude default patterns", async () => {
-    createFile("my-extension/_extension.yml", "title: Test");
+    createFile("_extensions/owner/ext/_extension.yml", "title: Test");
     createFile("template.qmd", "content");
     createFile(".git/config", "git config");
     createFile(".github/workflows/ci.yml", "workflow");
@@ -63,8 +63,7 @@ describe("getTemplateFiles", () => {
     createFile("debug.log", "log content");
     createFile("backup.bak", "backup");
 
-    const extensionDir = path.join(tempDir, "my-extension");
-    const files = await getTemplateFiles(extensionDir);
+    const files = await getTemplateFiles(tempDir);
 
     expect(files).toContain("template.qmd");
     expect(files.some((f) => f.startsWith(".git/"))).toBe(false);
@@ -76,24 +75,24 @@ describe("getTemplateFiles", () => {
   });
 
   it("should return empty for extension-only repository", async () => {
-    createFile("my-extension/_extension.yml", "title: Test");
-    createFile("my-extension/filter.lua", "-- filter");
-    createFile("my-extension/styles.css", "body {}");
+    // Only extension files, no template files at root
+    createFile("_extensions/owner/my-extension/_extension.yml", "title: Test");
+    createFile("_extensions/owner/my-extension/filter.lua", "-- filter");
+    createFile("_extensions/owner/my-extension/styles.css", "body {}");
 
-    const extensionDir = path.join(tempDir, "my-extension");
-    const files = await getTemplateFiles(extensionDir);
+    const files = await getTemplateFiles(tempDir);
 
+    // All files are in _extensions which is excluded
     expect(files).toHaveLength(0);
   });
 
   it("should support custom exclude patterns", async () => {
-    createFile("my-extension/_extension.yml", "title: Test");
+    createFile("_extensions/owner/ext/_extension.yml", "title: Test");
     createFile("template.qmd", "content");
     createFile("README.md", "readme");
     createFile("LICENSE", "mit");
 
-    const extensionDir = path.join(tempDir, "my-extension");
-    const files = await getTemplateFiles(extensionDir, [
+    const files = await getTemplateFiles(tempDir, [
       "_extensions/**",
       "README.md",
       "LICENSE",

@@ -70,7 +70,6 @@ suite("Extension Details Test Suite", () => {
 	};
 
 	// Expected extension details - we cast the results as the actual function returns
-	// The templateContent might be null in JSON but the function should handle it
 	const expectedExtensions = [
 		{
 			id: "mcanouil/quarto-github",
@@ -85,7 +84,6 @@ suite("Extension Details Test Suite", () => {
 			version: "1.0.1",
 			tag: "1.0.1",
 			template: false,
-			templateContent: null, // This will be what the function actually returns
 		},
 		{
 			id: "mcanouil/quarto-highlight-text",
@@ -100,7 +98,6 @@ suite("Extension Details Test Suite", () => {
 			version: "1.3.3",
 			tag: "1.3.3",
 			template: false,
-			templateContent: null, // This will be what the function actually returns
 		},
 	];
 
@@ -134,7 +131,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(mockExtensionData),
+				json: async () => mockExtensionData,
 			} as Response;
 		};
 
@@ -162,7 +159,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(mockExtensionData),
+				json: async () => mockExtensionData,
 			} as Response;
 		};
 
@@ -198,7 +195,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(mockExtensionData),
+				json: async () => mockExtensionData,
 			} as Response;
 		};
 
@@ -233,7 +230,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(mockExtensionData),
+				json: async () => mockExtensionData,
 			} as Response;
 		};
 
@@ -260,7 +257,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: false,
 				statusText: "Not Found",
-				text: async () => "",
+				json: async () => ({}),
 			} as Response;
 		};
 
@@ -275,8 +272,8 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => "invalid json {",
-			} as Response;
+				json: async () => { throw new SyntaxError("Invalid JSON"); },
+			} as unknown as Response;
 		};
 
 		const result = await getExtensionsDetails(mockContext as unknown as vscode.ExtensionContext);
@@ -290,7 +287,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => "{}",
+				json: async () => ({}),
 			} as Response;
 		};
 
@@ -316,7 +313,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(dataWithVersions),
+				json: async () => dataWithVersions,
 			} as Response;
 		};
 
@@ -337,7 +334,6 @@ suite("Extension Details Test Suite", () => {
 			"mcanouil/template-extension": {
 				...mockExtensionData["mcanouil/quarto-highlight-text"],
 				template: true,
-				templateContent: "# Template Content\n\nThis is a template.",
 			},
 		};
 
@@ -346,7 +342,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(testData),
+				json: async () => testData,
 			} as Response;
 		};
 
@@ -356,14 +352,7 @@ suite("Extension Details Test Suite", () => {
 		const template = result.find((ext) => ext.id === "mcanouil/template-extension");
 
 		assert.strictEqual(nonTemplate?.template, false, "Non-template extension should have template=false");
-		assert.strictEqual(nonTemplate?.templateContent, null, "Non-template should have null template content");
-
 		assert.strictEqual(template?.template, true, "Template extension should have template=true");
-		assert.strictEqual(
-			template?.templateContent,
-			"# Template Content\n\nThis is a template.",
-			"Template should have content"
-		);
 	});
 
 	test("getExtensionsDetails - Should save fetched data to cache", async () => {
@@ -372,7 +361,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(mockExtensionData),
+				json: async () => mockExtensionData,
 			} as Response;
 		};
 
@@ -394,10 +383,10 @@ suite("Extension Details Test Suite", () => {
 				title: "Incomplete Extension",
 				nameWithOwner: "mcanouil/incomplete",
 				owner: "mcanouil",
+				url: "https://github.com/mcanouil/incomplete",
 				// Missing description, stargazerCount, etc.
 				latestRelease: "v1.0.0",
 				template: false,
-				templateContent: null,
 			},
 		};
 
@@ -406,7 +395,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(incompleteData),
+				json: async () => incompleteData,
 			} as Response;
 		};
 
@@ -415,7 +404,7 @@ suite("Extension Details Test Suite", () => {
 		assert.strictEqual(result.length, 1, "Should return 1 extension even with missing fields");
 		assert.strictEqual(result[0].id, "mcanouil/incomplete", "Should have correct id");
 		assert.strictEqual(result[0].name, "Incomplete Extension", "Should have correct name");
-		assert.strictEqual(result[0].description, undefined, "Should handle missing description");
+		assert.strictEqual(result[0].description, "", "Should handle missing description as empty string");
 	});
 
 	test("getExtensionsDetails - Should validate ExtensionDetails interface", async () => {
@@ -424,7 +413,7 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				text: async () => JSON.stringify(mockExtensionData),
+				json: async () => mockExtensionData,
 			} as Response;
 		};
 
@@ -439,10 +428,6 @@ suite("Extension Details Test Suite", () => {
 			assert.ok(typeof extension.version === "string", "version should be a string");
 			assert.ok(typeof extension.tag === "string", "tag should be a string");
 			assert.ok(typeof extension.template === "boolean", "template should be a boolean");
-			assert.ok(
-				typeof extension.templateContent === "string" || extension.templateContent === null,
-				"templateContent should be a string or null"
-			);
 
 			// Validate optional fields when present
 			if (extension.description !== undefined) {

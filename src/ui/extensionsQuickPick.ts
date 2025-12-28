@@ -9,7 +9,6 @@ export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	id?: string;
 	tag?: string;
 	template?: boolean;
-	templateContent?: string;
 }
 
 /**
@@ -32,7 +31,6 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 		id: ext.id,
 		tag: ext.tag,
 		template: ext.template,
-		templateContent: ext.templateContent,
 	}));
 }
 

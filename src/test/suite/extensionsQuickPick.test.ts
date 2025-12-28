@@ -65,7 +65,6 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "1.0.0",
 			tag: "v1.0.0",
 			template: false,
-			templateContent: "",
 		},
 		{
 			id: "ext2",
@@ -79,7 +78,6 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "2.1.0",
 			tag: "v2.1.0",
 			template: true,
-			templateContent: "Template content here",
 		},
 		{
 			id: "ext3",
@@ -93,7 +91,6 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "0.5.0",
 			tag: "v0.5.0",
 			template: false,
-			templateContent: "",
 		},
 	];
 
@@ -139,13 +136,11 @@ suite("Extensions QuickPick Test Suite", () => {
 			assert.strictEqual(firstItem.id, "ext1");
 			assert.strictEqual(firstItem.tag, "v1.0.0");
 			assert.strictEqual(firstItem.template, false);
-			assert.strictEqual(firstItem.templateContent, "");
 
 			// Test template item
 			const templateItem = items[1];
 			assert.strictEqual(templateItem.label, "Extension Two");
 			assert.strictEqual(templateItem.template, true);
-			assert.strictEqual(templateItem.templateContent, "Template content here");
 
 			// Verify all items have GitHub button
 			items.forEach((item) => {
@@ -172,7 +167,6 @@ suite("Extensions QuickPick Test Suite", () => {
 				version: "1.0.0",
 				tag: "v1.0.0",
 				template: false,
-				templateContent: "",
 			};
 
 			const items = createExtensionItems([minimalExtension]);
@@ -347,7 +341,6 @@ suite("Extensions QuickPick Test Suite", () => {
 					version: "1.0.0-beta",
 					tag: "v1.0.0-beta",
 					template: true,
-					templateContent: "# Special Template\n\n```r\nprint('Hello World')\n```",
 				},
 			];
 
@@ -362,7 +355,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			assert.ok(specialItem.description?.includes("9999"));
 			assert.ok(specialItem.description?.includes("Custom License"));
 			assert.strictEqual(specialItem.detail, "Extension with special characters: <>&\"'");
-			assert.strictEqual(specialItem.templateContent, "# Special Template\n\n```r\nprint('Hello World')\n```");
+			assert.strictEqual(specialItem.template, true);
 
 			mockQuickPick.triggerAccept();
 			await promise;
