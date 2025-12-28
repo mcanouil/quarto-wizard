@@ -181,6 +181,8 @@ interface TreeQuickPickItem extends vscode.QuickPickItem {
 	isExcludedByDefault: boolean;
 	/** Child file paths (for directories). */
 	childPaths: string[];
+	/** Whether this directory has children (files or subdirectories). */
+	hasChildren: boolean;
 }
 
 /**
@@ -199,6 +201,7 @@ interface TreeNode {
 /**
  * Creates a callback for interactive file selection with tree structure.
  * Shows a tree-like checkbox list where users can select directories to toggle all children.
+ * Directories can be collapsed/expanded using inline buttons.
  *
  * @returns A function that receives available files and returns selection result.
  */
@@ -260,65 +263,21 @@ export function createFileSelectionCallback(): (
 			current.files.push(filePath);
 		}
 
-		// Convert tree to flat list of QuickPick items
-		const items: TreeQuickPickItem[] = [];
+		// Track collapsed directories
+		const collapsedDirs = new Set<string>();
 
-		function addNodeToItems(node: TreeNode, depth: number) {
-			// Add directory items (except root)
-			if (node.path !== "") {
-				const allChildFiles = getAllFilesInNode(node);
-				const hasExisting = allChildFiles.some((f) => existingSet.has(f));
-				const allExcluded = allChildFiles.every((f) => defaultExcludePatterns.some((pattern) => minimatch(f, pattern)));
+		// Track selected paths (persists across rebuilds)
+		const selectedPaths = new Set<string>();
 
-				items.push({
-					label: `${"    ".repeat(depth)}$(folder) ${node.name}/`,
-					path: node.path,
-					isDirectory: true,
-					depth,
-					isExisting: hasExisting,
-					isExcludedByDefault: allExcluded || node.isExcludedByDefault,
-					childPaths: allChildFiles,
-					description: hasExisting ? "$(warning) contains existing files" : (allExcluded ? "excluded by default" : ""),
-					picked: !allExcluded && !node.isExcludedByDefault,
-				});
-			}
-
-			// Add subdirectories first (sorted)
-			const sortedDirs = [...node.children.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-			for (const [, childNode] of sortedDirs) {
-				addNodeToItems(childNode, node.path === "" ? 0 : depth + 1);
-			}
-
-			// Add files in this directory (sorted)
-			const sortedFiles = [...node.files].sort();
-			const fileDepth = node.path === "" ? 0 : depth + 1;
-			for (const filePath of sortedFiles) {
-				const fileName = filePath.split("/").pop()!;
-				const isExisting = existingSet.has(filePath);
-				const isExcludedByDefault = defaultExcludePatterns.some((pattern) => minimatch(filePath, pattern));
-
-				let description = "";
-				if (isExisting && isExcludedByDefault) {
-					description = "$(warning) exists, excluded by default";
-				} else if (isExisting) {
-					description = "$(warning) exists";
-				} else if (isExcludedByDefault) {
-					description = "excluded by default";
-				}
-
-				items.push({
-					label: `${"    ".repeat(fileDepth)}$(file) ${fileName}`,
-					path: filePath,
-					isDirectory: false,
-					depth: fileDepth,
-					isExisting,
-					isExcludedByDefault,
-					childPaths: [],
-					description,
-					picked: !isExcludedByDefault,
-				});
-			}
-		}
+		// Buttons for collapse/expand
+		const expandButton: vscode.QuickInputButton = {
+			iconPath: new vscode.ThemeIcon("chevron-right"),
+			tooltip: "Expand",
+		};
+		const collapseButton: vscode.QuickInputButton = {
+			iconPath: new vscode.ThemeIcon("chevron-down"),
+			tooltip: "Collapse",
+		};
 
 		function getAllFilesInNode(node: TreeNode): string[] {
 			const files: string[] = [...node.files];
@@ -328,7 +287,119 @@ export function createFileSelectionCallback(): (
 			return files;
 		}
 
-		addNodeToItems(root, 0);
+		function nodeHasChildren(node: TreeNode): boolean {
+			return node.files.length > 0 || node.children.size > 0;
+		}
+
+		/**
+		 * Build visible items based on current collapse state.
+		 */
+		function buildVisibleItems(): TreeQuickPickItem[] {
+			const items: TreeQuickPickItem[] = [];
+
+			function addNodeToItems(node: TreeNode, depth: number, parentCollapsed: boolean) {
+				// Skip if parent is collapsed
+				if (parentCollapsed) {
+					return;
+				}
+
+				const isCollapsed = collapsedDirs.has(node.path);
+
+				// Add directory items (except root)
+				if (node.path !== "") {
+					const allChildFiles = getAllFilesInNode(node);
+					const hasExisting = allChildFiles.some((f) => existingSet.has(f));
+					const allExcluded = allChildFiles.every((f) => defaultExcludePatterns.some((pattern) => minimatch(f, pattern)));
+					const hasChildren = nodeHasChildren(node);
+
+					// Determine initial picked state
+					let picked: boolean;
+					if (selectedPaths.size > 0) {
+						// Use persisted selection
+						picked = selectedPaths.has(node.path);
+					} else {
+						// Initial state based on exclusion patterns
+						picked = !allExcluded && !node.isExcludedByDefault;
+					}
+
+					items.push({
+						label: `${"    ".repeat(depth)}$(folder) ${node.name}/`,
+						path: node.path,
+						isDirectory: true,
+						depth,
+						isExisting: hasExisting,
+						isExcludedByDefault: allExcluded || node.isExcludedByDefault,
+						childPaths: allChildFiles,
+						hasChildren,
+						description: hasExisting ? "$(warning) contains existing files" : (allExcluded ? "excluded by default" : ""),
+						picked,
+						buttons: hasChildren ? [isCollapsed ? expandButton : collapseButton] : [],
+					});
+				}
+
+				// Add subdirectories first (sorted)
+				const sortedDirs = [...node.children.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+				for (const [, childNode] of sortedDirs) {
+					addNodeToItems(childNode, node.path === "" ? 0 : depth + 1, isCollapsed);
+				}
+
+				// Add files in this directory (sorted)
+				if (!isCollapsed) {
+					const fileSorted = [...node.files].sort();
+					const fileDepth = node.path === "" ? 0 : depth + 1;
+					for (const filePath of fileSorted) {
+						const fileName = filePath.split("/").pop()!;
+						const isExisting = existingSet.has(filePath);
+						const isExcludedByDefault = defaultExcludePatterns.some((pattern) => minimatch(filePath, pattern));
+
+						// Determine initial picked state
+						let picked: boolean;
+						if (selectedPaths.size > 0) {
+							// Use persisted selection
+							picked = selectedPaths.has(filePath);
+						} else {
+							// Initial state based on exclusion patterns
+							picked = !isExcludedByDefault;
+						}
+
+						let description = "";
+						if (isExisting && isExcludedByDefault) {
+							description = "$(warning) exists, excluded by default";
+						} else if (isExisting) {
+							description = "$(warning) exists";
+						} else if (isExcludedByDefault) {
+							description = "excluded by default";
+						}
+
+						items.push({
+							label: `${"    ".repeat(fileDepth)}$(file) ${fileName}`,
+							path: filePath,
+							isDirectory: false,
+							depth: fileDepth,
+							isExisting,
+							isExcludedByDefault,
+							childPaths: [],
+							hasChildren: false,
+							description,
+							picked,
+						});
+					}
+				}
+			}
+
+			addNodeToItems(root, 0, false);
+			return items;
+		}
+
+		// Build initial items
+		let items = buildVisibleItems();
+
+		// Initialise selected paths from initial picked state
+		for (const item of items) {
+			if (item.picked) {
+				selectedPaths.add(item.path);
+			}
+		}
 
 		// Create QuickPick
 		const quickPick = vscode.window.createQuickPick<TreeQuickPickItem>();
@@ -348,24 +419,83 @@ export function createFileSelectionCallback(): (
 				iconPath: new vscode.ThemeIcon("close-all"),
 				tooltip: "Deselect All",
 			},
+			{
+				iconPath: new vscode.ThemeIcon("expand-all"),
+				tooltip: "Expand All",
+			},
+			{
+				iconPath: new vscode.ThemeIcon("collapse-all"),
+				tooltip: "Collapse All",
+			},
 		];
 
 		// Track previous selection for directory toggle detection
 		let previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
 
+		/**
+		 * Rebuild and update the QuickPick items, preserving selection.
+		 */
+		function rebuildItems() {
+			items = buildVisibleItems();
+			quickPick.items = items;
+			// Restore selection from selectedPaths
+			quickPick.selectedItems = items.filter((item) => selectedPaths.has(item.path));
+			previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
+		}
+
 		return new Promise<FileSelectionResult | null>((resolve) => {
 			quickPick.onDidTriggerButton((button) => {
 				if (button.tooltip === "Select All") {
-					quickPick.selectedItems = [...quickPick.items];
-					previousSelection = new Set(quickPick.items.map((item) => item.path));
+					// Select all items (including hidden ones in collapsed dirs)
+					for (const file of availableFiles) {
+						selectedPaths.add(file);
+					}
+					// Also select all directory paths
+					for (const item of items) {
+						selectedPaths.add(item.path);
+					}
+					rebuildItems();
 				} else if (button.tooltip === "Deselect All") {
-					quickPick.selectedItems = [];
-					previousSelection = new Set();
+					selectedPaths.clear();
+					rebuildItems();
+				} else if (button.tooltip === "Expand All") {
+					collapsedDirs.clear();
+					rebuildItems();
+				} else if (button.tooltip === "Collapse All") {
+					// Collapse all directories
+					for (const item of items) {
+						if (item.isDirectory && item.hasChildren) {
+							collapsedDirs.add(item.path);
+						}
+					}
+					rebuildItems();
+				}
+			});
+
+			quickPick.onDidTriggerItemButton((event) => {
+				const item = event.item;
+				if (item.isDirectory) {
+					// Toggle collapse state
+					if (collapsedDirs.has(item.path)) {
+						collapsedDirs.delete(item.path);
+					} else {
+						collapsedDirs.add(item.path);
+					}
+					rebuildItems();
 				}
 			});
 
 			quickPick.onDidChangeSelection((selected) => {
 				const currentSelection = new Set(selected.map((item) => item.path));
+
+				// Update selectedPaths based on visible items
+				for (const item of quickPick.items) {
+					if (currentSelection.has(item.path)) {
+						selectedPaths.add(item.path);
+					} else {
+						selectedPaths.delete(item.path);
+					}
+				}
 
 				// Find directories that changed selection state
 				for (const item of quickPick.items) {
@@ -375,30 +505,24 @@ export function createFileSelectionCallback(): (
 					const isSelected = currentSelection.has(item.path);
 
 					if (wasSelected !== isSelected) {
-						// Directory selection changed, update all children
-						const childPaths = new Set(item.childPaths);
-						const newSelection = [...selected];
+						// Directory selection changed, update all children (including hidden ones)
+						const childPaths = item.childPaths;
 
 						if (isSelected) {
-							// Select all children not already selected
-							for (const child of quickPick.items) {
-								if (!child.isDirectory && childPaths.has(child.path) && !currentSelection.has(child.path)) {
-									newSelection.push(child);
-								}
+							// Select all children
+							for (const childPath of childPaths) {
+								selectedPaths.add(childPath);
 							}
 						} else {
 							// Deselect all children
-							const filtered = newSelection.filter((s) => !childPaths.has(s.path) || s.isDirectory);
-							newSelection.length = 0;
-							newSelection.push(...filtered);
+							for (const childPath of childPaths) {
+								selectedPaths.delete(childPath);
+							}
 						}
 
-						// Avoid infinite loop by checking if selection actually changed
-						if (newSelection.length !== selected.length) {
-							quickPick.selectedItems = newSelection;
-							previousSelection = new Set(newSelection.map((item) => item.path));
-							return;
-						}
+						// Rebuild to update visible items
+						rebuildItems();
+						return;
 					}
 				}
 
@@ -406,10 +530,8 @@ export function createFileSelectionCallback(): (
 			});
 
 			quickPick.onDidAccept(async () => {
-				// Get only file selections (not directories)
-				const selectedFiles = quickPick.selectedItems
-					.filter((item) => !item.isDirectory)
-					.map((item) => item.path);
+				// Get only file selections (not directories) from selectedPaths
+				const selectedFiles = availableFiles.filter((f) => selectedPaths.has(f));
 				quickPick.hide();
 
 				if (selectedFiles.length === 0) {
@@ -418,11 +540,11 @@ export function createFileSelectionCallback(): (
 				}
 
 				// Check if any existing files are selected
-				const selectedExisting = quickPick.selectedItems.filter((item) => !item.isDirectory && item.isExisting);
+				const selectedExisting = selectedFiles.filter((f) => existingSet.has(f));
 
 				let overwriteExisting = false;
 				if (selectedExisting.length > 0) {
-					const existingList = selectedExisting.map((f) => `  - ${f.path}`).join("\n");
+					const existingList = selectedExisting.map((f) => `  - ${f}`).join("\n");
 					const result = await vscode.window.showWarningMessage(
 						`The following ${selectedExisting.length} file(s) already exist:\n${existingList}\n\nOverwrite them?`,
 						{ modal: true },
