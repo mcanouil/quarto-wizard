@@ -56,24 +56,6 @@ export async function installQuartoExtension(
 }
 
 /**
- * Installs a Quarto extension and ensures source is recorded.
- * With the core library, source is automatically recorded in the manifest.
- *
- * @param {string} extension - The name of the extension to install.
- * @param {string} workspaceFolder - The workspace folder path.
- * @returns {Promise<boolean>} - A promise that resolves to true if the extension is installed successfully, otherwise false.
- */
-export async function installQuartoExtensionSource(
-	extension: string,
-	workspaceFolder: string
-): Promise<boolean> {
-	// The core library automatically records the source in the manifest
-	const success = await installQuartoExtension(extension, workspaceFolder);
-	vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
-	return success;
-}
-
-/**
  * Removes a Quarto extension using the core library.
  *
  * @param {string} extension - The name of the extension to remove (e.g., "owner/name").

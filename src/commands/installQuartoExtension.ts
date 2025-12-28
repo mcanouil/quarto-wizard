@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
-import { installQuartoExtensionSource, useQuartoExtension } from "../utils/quarto";
+import { installQuartoExtension, useQuartoExtension } from "../utils/quarto";
 import { askTrustAuthors, askConfirmInstall, createFileSelectionCallback } from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
@@ -71,7 +71,7 @@ async function installQuartoExtensions(
 					success = result !== null;
 				} else {
 					// Regular install: just install the extension
-					success = await installQuartoExtensionSource(extensionSource, workspaceFolder);
+					success = await installQuartoExtension(extensionSource, workspaceFolder);
 				}
 
 				// Track installation results for user feedback

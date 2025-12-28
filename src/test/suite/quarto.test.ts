@@ -5,7 +5,6 @@ import * as fs from "fs";
 import * as os from "os";
 import {
 	installQuartoExtension,
-	installQuartoExtensionSource,
 	removeQuartoExtension,
 } from "../../utils/quarto";
 
@@ -52,22 +51,6 @@ suite("Quarto Utils Test Suite", () => {
 			// Since we don't have a real extension in tests,
 			// we expect this to fail, but we can verify the function executes
 			const result = await installQuartoExtension(extensionName, testWorkspaceDir);
-
-			assert.strictEqual(typeof result, "boolean");
-		});
-	});
-
-	suite("installQuartoExtensionSource", () => {
-		test("should return false when workspaceFolder is empty", async () => {
-			const result = await installQuartoExtensionSource("test-extension", "");
-			assert.strictEqual(result, false);
-		});
-
-		test("should attempt installation with valid parameters", async () => {
-			const extensionName = "test-extension";
-
-			// This should not throw an error even if installation fails
-			const result = await installQuartoExtensionSource(extensionName, testWorkspaceDir);
 
 			assert.strictEqual(typeof result, "boolean");
 		});

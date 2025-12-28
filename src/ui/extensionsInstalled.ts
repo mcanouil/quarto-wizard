@@ -5,7 +5,7 @@ import * as semver from "semver";
 import { debounce } from "lodash";
 import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
-import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
+import { removeQuartoExtension, installQuartoExtension } from "../utils/quarto";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
@@ -370,9 +370,7 @@ export class ExtensionsInstalled {
 				const success = await withProgressNotification(
 					`Updating "${item.data?.repository ?? item.label}" to ${latestSemver} ...`,
 					async () => {
-						// Once source is supported in _extension.yml, the above line can be replaced with the following line
-						// return installQuartoExtension(item.data?.repository ?? item.label);
-						return installQuartoExtensionSource(
+						return installQuartoExtension(
 							`${item.data?.repository ?? item.label}${item.latestVersion}`,
 							item.workspaceFolder
 						);

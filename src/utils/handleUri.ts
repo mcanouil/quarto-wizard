@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { installQuartoExtensionSource, useQuartoExtension } from "./quarto";
+import { installQuartoExtension, useQuartoExtension } from "./quarto";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
@@ -59,7 +59,7 @@ export async function handleUriInstall(uri: vscode.Uri) {
 		return;
 	}
 	return await withProgressNotification(`Installing Quarto extension from ${repo} ...`, async () => {
-		return installQuartoExtensionSource(repo, workspaceFolder);
+		return installQuartoExtension(repo, workspaceFolder);
 	});
 }
 
