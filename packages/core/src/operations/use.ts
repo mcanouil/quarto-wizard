@@ -72,6 +72,27 @@ export type OverwriteBatchCallback = (
 ) => Promise<OverwriteBatchResult>;
 
 /**
+ * Result of file selection callback.
+ */
+export interface FileSelectionResult {
+  /** Files selected for copying. */
+  selectedFiles: string[];
+  /** Whether to overwrite existing files without prompting. */
+  overwriteExisting: boolean;
+}
+
+/**
+ * Callback for interactive file selection.
+ * Receives all available template files and which ones already exist.
+ * Returns which files to copy and whether to overwrite existing.
+ */
+export type FileSelectionCallback = (
+  availableFiles: string[],
+  existingFiles: string[],
+  defaultExcludePatterns: string[]
+) => Promise<FileSelectionResult | null>;
+
+/**
  * Options for "use extension" operation.
  */
 export interface UseOptions {
@@ -89,6 +110,8 @@ export interface UseOptions {
   confirmOverwrite?: OverwriteCallback;
   /** Callback to confirm overwrites in batch. Receives all conflicting files upfront. Takes precedence over confirmOverwrite. */
   confirmOverwriteBatch?: OverwriteBatchCallback;
+  /** Callback for interactive file selection. Takes precedence over include/exclude/confirmOverwrite. */
+  selectFiles?: FileSelectionCallback;
   /** Progress callback. */
   onProgress?: (info: { phase: string; message: string; file?: string }) => void;
 }
@@ -124,6 +147,7 @@ export async function use(
     exclude = [],
     confirmOverwrite,
     confirmOverwriteBatch,
+    selectFiles,
     onProgress,
   } = options;
 
@@ -151,8 +175,6 @@ export async function use(
   }
 
   try {
-    onProgress?.({ phase: "copying", message: "Copying template files..." });
-
     // Use sourceRoot (the GitHub repo root) for template copying
     const sourceRoot = installResult.sourceRoot;
     if (!sourceRoot) {
@@ -162,14 +184,74 @@ export async function use(
       );
     }
 
+    let filesToCopy: string[];
+    let overwriteAll = false;
+
+    if (selectFiles) {
+      // Interactive file selection mode
+      onProgress?.({ phase: "selecting", message: "Preparing file selection..." });
+
+      // Get all available files (only exclude _extensions/), including hidden files
+      const allFiles = await glob("**/*", {
+        cwd: sourceRoot,
+        nodir: true,
+        dot: true,
+        ignore: ["_extensions/**"],
+      });
+
+      // Find which files already exist in the project
+      const existingFiles: string[] = [];
+      for (const file of allFiles) {
+        const targetPath = path.join(projectDir, file);
+        if (fs.existsSync(targetPath)) {
+          existingFiles.push(file);
+        }
+      }
+
+      // Call the selection callback
+      const selectionResult = await selectFiles(
+        allFiles,
+        existingFiles,
+        DEFAULT_EXCLUDE_PATTERNS.filter((p) => p !== "_extensions/**")
+      );
+
+      if (!selectionResult) {
+        // User cancelled
+        return {
+          install: installResult,
+          templateFiles: [],
+          skippedFiles: allFiles,
+        };
+      }
+
+      filesToCopy = selectionResult.selectedFiles;
+      overwriteAll = selectionResult.overwriteExisting;
+    } else {
+      // Legacy mode: use include/exclude patterns
+      filesToCopy = await glob("**/*", {
+        cwd: sourceRoot,
+        nodir: true,
+        dot: false,
+        ignore: [...DEFAULT_EXCLUDE_PATTERNS, ...exclude],
+      });
+
+      if (include && include.length > 0) {
+        filesToCopy = filesToCopy.filter((f) =>
+          include.some((pattern) => minimatch(f, pattern))
+        );
+      }
+    }
+
+    onProgress?.({ phase: "copying", message: "Copying template files..." });
+
     const { templateFiles, skippedFiles } = await copyTemplateFiles(
       sourceRoot,
       projectDir,
       {
-        include,
-        exclude: [...DEFAULT_EXCLUDE_PATTERNS, ...exclude],
-        confirmOverwrite,
-        confirmOverwriteBatch,
+        filesToCopy,
+        overwriteAll,
+        confirmOverwrite: selectFiles ? undefined : confirmOverwrite,
+        confirmOverwriteBatch: selectFiles ? undefined : confirmOverwriteBatch,
         onProgress: (file) => {
           onProgress?.({ phase: "copying", message: `Copying ${file}...`, file });
         },
@@ -193,10 +275,10 @@ export async function use(
  * Options for copying template files.
  */
 interface CopyTemplateOptions {
-  /** Patterns to include. */
-  include?: string[];
-  /** Patterns to exclude. */
-  exclude: string[];
+  /** Explicit list of files to copy. */
+  filesToCopy: string[];
+  /** Whether to overwrite all existing files without prompting. */
+  overwriteAll?: boolean;
   /** Callback to confirm overwrites (per-file). */
   confirmOverwrite?: OverwriteCallback;
   /** Callback to confirm overwrites in batch. */
@@ -213,23 +295,10 @@ async function copyTemplateFiles(
   projectDir: string,
   options: CopyTemplateOptions
 ): Promise<{ templateFiles: string[]; skippedFiles: string[] }> {
-  const { include, exclude, confirmOverwrite, confirmOverwriteBatch, onProgress } = options;
+  const { filesToCopy, overwriteAll, confirmOverwrite, confirmOverwriteBatch, onProgress } = options;
 
-  // Glob all files from repo root, excluding patterns
-  let files = await glob("**/*", {
-    cwd: sourceRoot,
-    nodir: true,
-    dot: false,
-    ignore: exclude,
-  });
-
-  if (files.length === 0) {
+  if (filesToCopy.length === 0) {
     return { templateFiles: [], skippedFiles: [] };
-  }
-
-  // Filter by include patterns if provided
-  if (include && include.length > 0) {
-    files = files.filter((f) => include.some((pattern) => minimatch(f, pattern)));
   }
 
   const templateFiles: string[] = [];
@@ -237,7 +306,7 @@ async function copyTemplateFiles(
 
   // Collect all conflicting files first
   const conflictingFiles: string[] = [];
-  for (const file of files) {
+  for (const file of filesToCopy) {
     const targetPath = path.join(projectDir, file);
     if (fs.existsSync(targetPath)) {
       conflictingFiles.push(file);
@@ -247,7 +316,10 @@ async function copyTemplateFiles(
   // Determine which files to overwrite
   let filesToOverwrite: Set<string>;
 
-  if (conflictingFiles.length > 0 && confirmOverwriteBatch) {
+  if (overwriteAll) {
+    // Overwrite all existing files
+    filesToOverwrite = new Set(conflictingFiles);
+  } else if (conflictingFiles.length > 0 && confirmOverwriteBatch) {
     // Use batch confirmation
     const result = await confirmOverwriteBatch(conflictingFiles);
     if (result === "all") {
@@ -272,7 +344,7 @@ async function copyTemplateFiles(
   }
 
   // Copy files
-  for (const file of files) {
+  for (const file of filesToCopy) {
     const sourcePath = path.join(sourceRoot, file);
     const targetPath = path.join(projectDir, file);
 

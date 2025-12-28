@@ -3,7 +3,7 @@ import { installQuartoExtensionSource, useQuartoExtension } from "./quarto";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
-import { createConfirmOverwriteBatch } from "../utils/ask";
+import { createFileSelectionCallback } from "../utils/ask";
 
 /**
  * Handle the URI passed to the extension.
@@ -96,8 +96,8 @@ export async function handleUriUse(uri: vscode.Uri, _context: vscode.ExtensionCo
 	}
 
 	return await withProgressNotification(`Using Quarto template from ${repo} ...`, async () => {
-		const confirmOverwriteBatch = createConfirmOverwriteBatch();
-		const result = await useQuartoExtension(repo, workspaceFolder, confirmOverwriteBatch);
+		const selectFiles = createFileSelectionCallback();
+		const result = await useQuartoExtension(repo, workspaceFolder, selectFiles);
 		return result !== null;
 	});
 }

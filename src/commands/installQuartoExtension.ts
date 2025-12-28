@@ -3,7 +3,7 @@ import { QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { installQuartoExtensionSource, useQuartoExtension } from "../utils/quarto";
-import { askTrustAuthors, askConfirmInstall, createConfirmOverwriteBatch } from "../utils/ask";
+import { askTrustAuthors, askConfirmInstall, createFileSelectionCallback } from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
@@ -46,9 +46,6 @@ async function installQuartoExtensions(
 			const totalExtensions = mutableSelectedExtensions.length;
 			let installedCount = 0;
 
-			// Create a batch confirm overwrite callback
-			const confirmOverwriteBatch = createConfirmOverwriteBatch();
-
 			for (const selectedExtension of mutableSelectedExtensions) {
 				if (!selectedExtension.id) {
 					continue;
@@ -69,7 +66,8 @@ async function installQuartoExtensions(
 				let success: boolean;
 				if (template) {
 					// Use template: install extension and copy template files
-					const result = await useQuartoExtension(extensionSource, workspaceFolder, confirmOverwriteBatch);
+					const selectFiles = createFileSelectionCallback();
+					const result = await useQuartoExtension(extensionSource, workspaceFolder, selectFiles);
 					success = result !== null;
 				} else {
 					// Regular install: just install the extension

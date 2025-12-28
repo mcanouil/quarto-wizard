@@ -6,7 +6,7 @@ import {
 	parseInstallSource,
 	parseExtensionId,
 	type UseResult,
-	type OverwriteBatchResult,
+	type FileSelectionCallback,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
@@ -119,13 +119,13 @@ export async function removeQuartoExtension(
  *
  * @param {string} extension - The name of the extension to use (e.g., "owner/repo" or "owner/repo@version").
  * @param {string} workspaceFolder - The workspace folder path.
- * @param {(files: string[]) => Promise<OverwriteBatchResult>} confirmOverwriteBatch - Optional callback to confirm file overwrites in batch.
+ * @param {FileSelectionCallback} selectFiles - Callback for interactive file selection.
  * @returns {Promise<UseResult | null>} - A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
-	confirmOverwriteBatch?: (files: string[]) => Promise<OverwriteBatchResult>
+	selectFiles?: FileSelectionCallback
 ): Promise<UseResult | null> {
 	logMessage(`Using template ${extension} ...`, "info");
 
@@ -139,7 +139,7 @@ export async function useQuartoExtension(
 
 		const result = await use(source, {
 			projectDir: workspaceFolder,
-			confirmOverwriteBatch,
+			selectFiles,
 			onProgress: (progress) => {
 				if (progress.file) {
 					logMessage(`[${progress.phase}] ${progress.message} (${progress.file})`, "debug");
