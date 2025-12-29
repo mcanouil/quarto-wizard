@@ -2,6 +2,44 @@ import * as vscode from "vscode";
 import { ExtensionDetails } from "../utils/extensionDetails";
 
 /**
+ * Contribution type definitions with icons and labels.
+ * These map the "contributes" field values from the registry.
+ */
+const CONTRIBUTION_TYPES: Record<string, { icon: string; label: string }> = {
+	filters: { icon: "$(filter)", label: "Filter" },
+	shortcodes: { icon: "$(code)", label: "Shortcode" },
+	formats: { icon: "$(file-text)", label: "Format" },
+	projects: { icon: "$(project)", label: "Project" },
+	revealjs: { icon: "$(play)", label: "Reveal.js" },
+};
+
+/**
+ * Derives extension type badges from the contributes field.
+ * @param contributes - What the extension contributes (filters, formats, etc.).
+ * @param isTemplate - Whether the extension is a template.
+ * @returns Array of type badges as strings.
+ */
+function getExtensionTypeBadges(contributes: string[], isTemplate: boolean): string[] {
+	const badges: string[] = [];
+
+	// Check for known contribution types
+	for (const contrib of contributes) {
+		const lowerContrib = contrib.toLowerCase();
+		if (CONTRIBUTION_TYPES[lowerContrib]) {
+			const type = CONTRIBUTION_TYPES[lowerContrib];
+			badges.push(`${type.icon} ${type.label}`);
+		}
+	}
+
+	// Add template badge if it's a template
+	if (isTemplate) {
+		badges.push("$(file-code) Template");
+	}
+
+	return badges;
+}
+
+/**
  * Interface representing a QuickPick item for an extension.
  */
 export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
@@ -9,6 +47,7 @@ export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	id?: string;
 	tag?: string;
 	template?: boolean;
+	contributes?: string[];
 }
 
 /**
@@ -17,21 +56,27 @@ export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
  * @returns {ExtensionQuickPickItem[]} - An array of QuickPick items.
  */
 export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQuickPickItem[] {
-	return extensions.map((ext) => ({
-		label: ext.name,
-		description: `$(tag) ${ext.version} $(star) ${ext.stars.toString()} $(repo) ${ext.full_name} $(law) ${ext.license}`,
-		detail: `${ext.description}`,
-		buttons: [
-			{
-				iconPath: new vscode.ThemeIcon("github"),
-				tooltip: "Open GitHub Repository",
-			},
-		],
-		url: ext.html_url,
-		id: ext.id,
-		tag: ext.tag,
-		template: ext.template,
-	}));
+	return extensions.map((ext) => {
+		const typeBadges = getExtensionTypeBadges(ext.contributes, ext.template);
+		const typeBadgeStr = typeBadges.length > 0 ? `${typeBadges.join(" ")} ` : "";
+
+		return {
+			label: ext.name,
+			description: `${typeBadgeStr}$(star) ${ext.stars} $(repo) ${ext.full_name}`,
+			detail: `${ext.description}${ext.version ? ` (v${ext.version})` : ""}`,
+			buttons: [
+				{
+					iconPath: new vscode.ThemeIcon("github"),
+					tooltip: "Open GitHub Repository",
+				},
+			],
+			url: ext.html_url,
+			id: ext.id,
+			tag: ext.tag,
+			template: ext.template,
+			contributes: ext.contributes,
+		};
+	});
 }
 
 /**
@@ -63,9 +108,12 @@ export async function showExtensionQuickPick(
 
 	const quickPick = vscode.window.createQuickPick<ExtensionQuickPickItem>();
 	quickPick.items = groupedExtensions;
-	quickPick.placeholder = template ? "Select Quarto extension template to use" : "Select Quarto extensions to install";
+	quickPick.placeholder = template
+		? "Search and select a Quarto template to use"
+		: "Search and select Quarto extensions to install";
 	quickPick.canSelectMany = !template;
 	quickPick.matchOnDescription = true;
+	quickPick.matchOnDetail = true;
 	quickPick.onDidTriggerItemButton((e) => {
 		const url = e.item.url;
 		if (url) {

@@ -25,6 +25,7 @@ export interface ExtensionDetails {
 	version: string; // Current version (without 'v' prefix)
 	tag: string; // Release tag
 	template: boolean; // Whether this extension is a template
+	contributes: string[]; // What the extension contributes (filters, formats, shortcodes, etc.)
 }
 
 /**
@@ -43,6 +44,7 @@ function convertRegistryEntry(entry: RegistryEntry): ExtensionDetails {
 		version: entry.latestVersion ?? "",
 		tag: entry.latestTag ?? "",
 		template: entry.template,
+		contributes: entry.contributes ?? [],
 	};
 }
 

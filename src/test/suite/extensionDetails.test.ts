@@ -32,6 +32,7 @@ suite("Extension Details Test Suite", () => {
 			owner: "mcanouil",
 			pushedAt: "2025-08-20T20:09:28Z",
 			repositoryTopics: ["github", "short-link", "example"],
+			contributes: ["shortcodes"],
 			stargazerCount: 20,
 			title: "GITHUB",
 			updatedAt: "2025-09-19T19:19:18Z",
@@ -55,6 +56,7 @@ suite("Extension Details Test Suite", () => {
 			owner: "mcanouil",
 			pushedAt: "2025-05-25T12:31:06Z",
 			repositoryTopics: ["docx", "filter", "highlight", "highlight-text", "html", "latex", "typst", "example"],
+			contributes: ["filters"],
 			stargazerCount: 27,
 			title: "HIGHLIGHT TEXT",
 			updatedAt: "2025-09-26T11:40:17Z",
@@ -80,6 +82,7 @@ suite("Extension Details Test Suite", () => {
 			version: "1.0.1",
 			tag: "1.0.1",
 			template: false,
+			contributes: ["shortcodes"],
 		},
 		{
 			id: "mcanouil/quarto-highlight-text",
@@ -94,6 +97,7 @@ suite("Extension Details Test Suite", () => {
 			version: "1.3.3",
 			tag: "1.3.3",
 			template: false,
+			contributes: ["filters"],
 		},
 	];
 

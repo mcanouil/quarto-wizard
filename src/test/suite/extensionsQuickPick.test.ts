@@ -17,6 +17,7 @@ suite("Extensions QuickPick Test Suite", () => {
 		public placeholder = "";
 		public canSelectMany = false;
 		public matchOnDescription = false;
+		public matchOnDetail = false;
 		public selectedItems: readonly ExtensionQuickPickItem[] = [];
 
 		private _onDidAcceptHandlers: (() => void)[] = [];
@@ -65,6 +66,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "1.0.0",
 			tag: "v1.0.0",
 			template: false,
+			contributes: ["filters"],
 		},
 		{
 			id: "ext2",
@@ -78,6 +80,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "2.1.0",
 			tag: "v2.1.0",
 			template: true,
+			contributes: ["formats"],
 		},
 		{
 			id: "ext3",
@@ -91,6 +94,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "0.5.0",
 			tag: "v0.5.0",
 			template: false,
+			contributes: ["shortcodes"],
 		},
 	];
 
@@ -127,20 +131,29 @@ suite("Extensions QuickPick Test Suite", () => {
 
 			assert.strictEqual(items.length, 3);
 
-			// Test first item
+			// Test first item (contributes filters)
 			const firstItem = items[0];
 			assert.strictEqual(firstItem.label, "Extension One");
-			assert.strictEqual(firstItem.description, "$(tag) 1.0.0 $(star) 100 $(repo) author1/ext1 $(law) MIT");
-			assert.strictEqual(firstItem.detail, "First test extension");
+			assert.ok(firstItem.description?.includes("$(filter) Filter"));
+			assert.ok(firstItem.description?.includes("$(star) 100"));
+			assert.ok(firstItem.description?.includes("$(repo) author1/ext1"));
+			assert.ok(firstItem.detail?.includes("First test extension"));
+			assert.ok(firstItem.detail?.includes("(v1.0.0)"));
 			assert.strictEqual(firstItem.url, "https://github.com/author1/ext1");
 			assert.strictEqual(firstItem.id, "ext1");
 			assert.strictEqual(firstItem.tag, "v1.0.0");
 			assert.strictEqual(firstItem.template, false);
 
-			// Test template item
+			// Test template item (contributes formats, is template)
 			const templateItem = items[1];
 			assert.strictEqual(templateItem.label, "Extension Two");
 			assert.strictEqual(templateItem.template, true);
+			assert.ok(templateItem.description?.includes("$(file-code) Template"));
+			assert.ok(templateItem.description?.includes("$(file-text) Format"));
+
+			// Test shortcode item (contributes shortcodes)
+			const shortcodeItem = items[2];
+			assert.ok(shortcodeItem.description?.includes("$(code) Shortcode"));
 
 			// Verify all items have GitHub button
 			items.forEach((item) => {
@@ -167,6 +180,7 @@ suite("Extensions QuickPick Test Suite", () => {
 				version: "1.0.0",
 				tag: "v1.0.0",
 				template: false,
+				contributes: [],
 			};
 
 			const items = createExtensionItems([minimalExtension]);
@@ -181,7 +195,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyInstalled, false);
 
 			// Verify QuickPick configuration
-			assert.strictEqual(mockQuickPick.placeholder, "Select Quarto extensions to install");
+			assert.strictEqual(mockQuickPick.placeholder, "Search and select Quarto extensions to install");
 			assert.strictEqual(mockQuickPick.canSelectMany, true);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 
@@ -210,7 +224,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyUsed, true);
 
 			// Verify QuickPick configuration for templates
-			assert.strictEqual(mockQuickPick.placeholder, "Select Quarto extension template to use");
+			assert.strictEqual(mockQuickPick.placeholder, "Search and select a Quarto template to use");
 			assert.strictEqual(mockQuickPick.canSelectMany, false);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 
@@ -341,6 +355,7 @@ suite("Extensions QuickPick Test Suite", () => {
 					version: "1.0.0-beta",
 					tag: "v1.0.0-beta",
 					template: true,
+					contributes: ["formats", "revealjs"],
 				},
 			];
 
@@ -353,8 +368,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const specialItem = extensionItems[0];
 			assert.strictEqual(specialItem.label, "Special Extension");
 			assert.ok(specialItem.description?.includes("9999"));
-			assert.ok(specialItem.description?.includes("Custom License"));
-			assert.strictEqual(specialItem.detail, "Extension with special characters: <>&\"'");
+			assert.ok(specialItem.detail?.includes("Extension with special characters: <>&\"'"));
 			assert.strictEqual(specialItem.template, true);
 
 			mockQuickPick.triggerAccept();

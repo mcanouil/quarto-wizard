@@ -18,6 +18,8 @@ export interface RegistryEntry {
 	description: string | null;
 	/** Repository topics/tags. */
 	topics: string[];
+	/** What the extension contributes (e.g., filters, formats, shortcodes). */
+	contributes: string[];
 	/** Latest version (without 'v' prefix). */
 	latestVersion: string | null;
 	/** Latest release tag (with 'v' prefix if present). */
@@ -52,6 +54,8 @@ export interface RawRegistryEntry {
 	nameWithOwner: string;
 	description?: string | null;
 	repositoryTopics?: string[];
+	/** What the extension contributes (e.g., filters, formats, shortcodes). */
+	contributes?: string[];
 	latestRelease?: string | null;
 	latestReleaseUrl?: string | null;
 	stargazerCount?: number;
@@ -81,6 +85,7 @@ export function parseRegistryEntry(key: string, raw: RawRegistryEntry): Registry
 		fullName: raw.nameWithOwner,
 		description: raw.description ?? null,
 		topics: raw.repositoryTopics ?? [],
+		contributes: raw.contributes ?? [],
 		latestVersion,
 		latestTag,
 		latestReleaseUrl: raw.latestReleaseUrl ?? null,
