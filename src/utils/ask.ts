@@ -247,16 +247,6 @@ export function createFileSelectionCallback(): (
 		// Track selected paths (persists across rebuilds)
 		const selectedPaths = new Set<string>();
 
-		// Buttons for collapse/expand
-		const expandButton: vscode.QuickInputButton = {
-			iconPath: new vscode.ThemeIcon("chevron-right"),
-			tooltip: "Expand",
-		};
-		const collapseButton: vscode.QuickInputButton = {
-			iconPath: new vscode.ThemeIcon("chevron-down"),
-			tooltip: "Collapse",
-		};
-
 		function getAllFilesInNode(node: TreeNode): string[] {
 			const files: string[] = [...node.files];
 			for (const child of node.children.values()) {
@@ -311,7 +301,6 @@ export function createFileSelectionCallback(): (
 						hasChildren,
 						description: hasExisting ? "$(warning) contains existing files" : (allExcluded ? "excluded by default" : ""),
 						picked,
-						buttons: hasChildren ? [isCollapsed ? expandButton : collapseButton] : [],
 					});
 				}
 
@@ -445,19 +434,6 @@ export function createFileSelectionCallback(): (
 						if (item.isDirectory && item.hasChildren) {
 							collapsedDirs.add(item.path);
 						}
-					}
-					rebuildItems();
-				}
-			});
-
-			quickPick.onDidTriggerItemButton((event) => {
-				const item = event.item;
-				if (item.isDirectory) {
-					// Toggle collapse state
-					if (collapsedDirs.has(item.path)) {
-						collapsedDirs.delete(item.path);
-					} else {
-						collapsedDirs.add(item.path);
 					}
 					rebuildItems();
 				}
