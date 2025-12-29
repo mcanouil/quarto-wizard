@@ -13,6 +13,7 @@ import {
   getExtensionInstallPath,
   type InstalledExtension,
 } from "../filesystem/discovery.js";
+import { copyDirectory } from "../filesystem/walk.js";
 import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
@@ -318,28 +319,5 @@ async function copyExtension(
   sourceDir: string,
   targetDir: string
 ): Promise<string[]> {
-  await fs.promises.mkdir(targetDir, { recursive: true });
-
-  const filesCreated: string[] = [];
-
-  async function copyDir(src: string, dest: string): Promise<void> {
-    const entries = await fs.promises.readdir(src, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const srcPath = path.join(src, entry.name);
-      const destPath = path.join(dest, entry.name);
-
-      if (entry.isDirectory()) {
-        await fs.promises.mkdir(destPath, { recursive: true });
-        await copyDir(srcPath, destPath);
-      } else {
-        await fs.promises.copyFile(srcPath, destPath);
-        filesCreated.push(destPath);
-      }
-    }
-  }
-
-  await copyDir(sourceDir, targetDir);
-
-  return filesCreated;
+  return copyDirectory(sourceDir, targetDir);
 }

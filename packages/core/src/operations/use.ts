@@ -17,6 +17,33 @@ import {
 import { cleanupExtraction } from "../archive/extract.js";
 
 /**
+ * Options for globbing files.
+ */
+interface GlobFilesOptions {
+  /** Include hidden files (dot files). */
+  includeHidden?: boolean;
+  /** Patterns to ignore. */
+  ignore?: string[];
+}
+
+/**
+ * Glob all files in a directory with sensible defaults.
+ *
+ * @param cwd - Directory to search in
+ * @param options - Glob options
+ * @returns Array of file paths relative to cwd
+ */
+async function globFiles(cwd: string, options: GlobFilesOptions = {}): Promise<string[]> {
+  const { includeHidden = false, ignore = [] } = options;
+  return glob("**/*", {
+    cwd,
+    nodir: true,
+    dot: includeHidden,
+    ignore,
+  });
+}
+
+/**
  * Default patterns to exclude when copying templates.
  * These files are typically repository metadata and should not be copied to the project.
  */
@@ -226,10 +253,8 @@ export async function use(
       onProgress?.({ phase: "selecting", message: "Preparing file selection..." });
 
       // Get all available files (only exclude _extensions/), including hidden files
-      const allFiles = await glob("**/*", {
-        cwd: sourceRoot,
-        nodir: true,
-        dot: true,
+      const allFiles = await globFiles(sourceRoot, {
+        includeHidden: true,
         ignore: ["_extensions/**"],
       });
 
@@ -262,10 +287,7 @@ export async function use(
       overwriteAll = selectionResult.overwriteExisting;
     } else {
       // Legacy mode: use include/exclude patterns
-      filesToCopy = await glob("**/*", {
-        cwd: sourceRoot,
-        nodir: true,
-        dot: false,
+      filesToCopy = await globFiles(sourceRoot, {
         ignore: [...DEFAULT_EXCLUDE_PATTERNS, ...exclude],
       });
 
@@ -410,10 +432,5 @@ export async function getTemplateFiles(
   sourceRoot: string,
   exclude: string[] = DEFAULT_EXCLUDE_PATTERNS
 ): Promise<string[]> {
-  return await glob("**/*", {
-    cwd: sourceRoot,
-    nodir: true,
-    dot: false,
-    ignore: exclude,
-  });
+  return globFiles(sourceRoot, { ignore: exclude });
 }

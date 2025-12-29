@@ -12,6 +12,7 @@ import {
   getExtensionsDir,
   type InstalledExtension,
 } from "../filesystem/discovery.js";
+import { collectFiles } from "../filesystem/walk.js";
 
 /**
  * Options for removal.
@@ -105,31 +106,6 @@ export async function removeMultiple(
   }
 
   return results;
-}
-
-/**
- * Collect all files in a directory.
- */
-async function collectFiles(directory: string): Promise<string[]> {
-  const files: string[] = [];
-
-  async function walk(dir: string): Promise<void> {
-    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-
-      if (entry.isDirectory()) {
-        await walk(fullPath);
-      } else {
-        files.push(fullPath);
-      }
-    }
-  }
-
-  await walk(directory);
-
-  return files;
 }
 
 /**

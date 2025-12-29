@@ -33,30 +33,36 @@ interface ConfirmationDialogConfig {
  */
 function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promise<number> {
 	return async (): Promise<number> => {
-		const vsConfig = vscode.workspace.getConfiguration("quartoWizard.ask", null);
-		const configValue = vsConfig.get<string>(config.configKey);
+		try {
+			const vsConfig = vscode.workspace.getConfiguration("quartoWizard.ask", null);
+			const configValue = vsConfig.get<string>(config.configKey);
 
-		if (configValue === config.triggerValue) {
-			const result = await vscode.window.showQuickPick(
-				[
-					{ label: "Yes", description: config.yesDescription },
-					{ label: "No", description: config.noDescription },
-					{ label: config.alwaysLabel, description: config.alwaysDescription },
-				],
-				{
-					placeHolder: config.placeholder,
+			if (configValue === config.triggerValue) {
+				const result = await vscode.window.showQuickPick(
+					[
+						{ label: "Yes", description: config.yesDescription },
+						{ label: "No", description: config.noDescription },
+						{ label: config.alwaysLabel, description: config.alwaysDescription },
+					],
+					{
+						placeHolder: config.placeholder,
+					}
+				);
+				if (result?.label === config.alwaysLabel) {
+					await vsConfig.update(config.configKey, "never", vscode.ConfigurationTarget.Global);
+					return 0;
+				} else if (result?.label !== "Yes") {
+					logMessage(config.cancelMessage, "info");
+					vscode.window.showInformationMessage(`${config.cancelMessage} ${showLogsCommand()}.`);
+					return 1;
 				}
-			);
-			if (result?.label === config.alwaysLabel) {
-				await vsConfig.update(config.configKey, "never", vscode.ConfigurationTarget.Global);
-				return 0;
-			} else if (result?.label !== "Yes") {
-				logMessage(config.cancelMessage, "info");
-				vscode.window.showInformationMessage(`${config.cancelMessage} ${showLogsCommand()}.`);
-				return 1;
 			}
+			return 0;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logMessage(`Error showing confirmation dialog: ${message}`, "error");
+			return 1;
 		}
-		return 0;
 	};
 }
 
@@ -247,11 +253,21 @@ export function createFileSelectionCallback(): (
 		// Track selected paths (persists across rebuilds)
 		const selectedPaths = new Set<string>();
 
+		// Cache for getAllFilesInNode results (memoisation)
+		const nodeFilesCache = new Map<string, string[]>();
+
 		function getAllFilesInNode(node: TreeNode): string[] {
+			const cached = nodeFilesCache.get(node.path);
+			if (cached !== undefined) {
+				return cached;
+			}
+
 			const files: string[] = [...node.files];
 			for (const child of node.children.values()) {
 				files.push(...getAllFilesInNode(child));
 			}
+
+			nodeFilesCache.set(node.path, files);
 			return files;
 		}
 
@@ -316,6 +332,7 @@ export function createFileSelectionCallback(): (
 					const fileDepth = node.path === "" ? 0 : depth + 1;
 					for (const filePath of fileSorted) {
 						const fileName = filePath.split("/").pop()!;
+						const parentPath = node.path;
 						const isExisting = existingSet.has(filePath);
 						const isExcludedByDefault = isExcludedByPatterns(filePath);
 
@@ -329,14 +346,19 @@ export function createFileSelectionCallback(): (
 							picked = !isExcludedByDefault;
 						}
 
-						let description = "";
-						if (isExisting && isExcludedByDefault) {
-							description = "$(warning) exists, excluded by default";
-						} else if (isExisting) {
-							description = "$(warning) exists";
-						} else if (isExcludedByDefault) {
-							description = "excluded by default";
+						// Build description: parent path + status indicators
+						const statusParts: string[] = [];
+						if (parentPath) {
+							statusParts.push(parentPath);
 						}
+						if (isExisting && isExcludedByDefault) {
+							statusParts.push("$(warning) exists, excluded by default");
+						} else if (isExisting) {
+							statusParts.push("$(warning) exists");
+						} else if (isExcludedByDefault) {
+							statusParts.push("excluded by default");
+						}
+						const description = statusParts.join(" · ");
 
 						items.push({
 							label: `${"    ".repeat(fileDepth)}$(file) ${fileName}`,
@@ -484,45 +506,51 @@ export function createFileSelectionCallback(): (
 			});
 
 			quickPick.onDidAccept(async () => {
-				// Get only file selections (not directories) from selectedPaths
-				const selectedFiles = availableFiles.filter((f) => selectedPaths.has(f));
-				quickPick.hide();
+				try {
+					// Get only file selections (not directories) from selectedPaths
+					const selectedFiles = availableFiles.filter((f) => selectedPaths.has(f));
+					quickPick.hide();
 
-				if (selectedFiles.length === 0) {
-					resolve({ selectedFiles: [], overwriteExisting: false });
-					return;
-				}
-
-				// Check if any existing files are selected
-				const selectedExisting = selectedFiles.filter((f) => existingSet.has(f));
-
-				let overwriteExisting = false;
-				if (selectedExisting.length > 0) {
-					const existingList = selectedExisting.map((f) => `  - ${f}`).join("\n");
-					const result = await vscode.window.showWarningMessage(
-						`The following ${selectedExisting.length} file(s) already exist:\n${existingList}\n\nOverwrite them?`,
-						{ modal: true },
-						"Yes, Overwrite",
-						"No, Skip Existing"
-					);
-
-					if (result === undefined) {
-						// User cancelled
-						resolve(null);
+					if (selectedFiles.length === 0) {
+						resolve({ selectedFiles: [], overwriteExisting: false });
 						return;
 					}
 
-					overwriteExisting = result === "Yes, Overwrite";
+					// Check if any existing files are selected
+					const selectedExisting = selectedFiles.filter((f) => existingSet.has(f));
 
-					if (!overwriteExisting) {
-						// Remove existing files from selection
-						const finalFiles = selectedFiles.filter((f) => !existingSet.has(f));
-						resolve({ selectedFiles: finalFiles, overwriteExisting: false });
-						return;
+					let overwriteExisting = false;
+					if (selectedExisting.length > 0) {
+						const existingList = selectedExisting.map((f) => `  - ${f}`).join("\n");
+						const result = await vscode.window.showWarningMessage(
+							`The following ${selectedExisting.length} file(s) already exist:\n${existingList}\n\nOverwrite them?`,
+							{ modal: true },
+							"Yes, Overwrite",
+							"No, Skip Existing"
+						);
+
+						if (result === undefined) {
+							// User cancelled
+							resolve(null);
+							return;
+						}
+
+						overwriteExisting = result === "Yes, Overwrite";
+
+						if (!overwriteExisting) {
+							// Remove existing files from selection
+							const finalFiles = selectedFiles.filter((f) => !existingSet.has(f));
+							resolve({ selectedFiles: finalFiles, overwriteExisting: false });
+							return;
+						}
 					}
-				}
 
-				resolve({ selectedFiles, overwriteExisting });
+					resolve({ selectedFiles, overwriteExisting });
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error);
+					logMessage(`Error in file selection: ${message}`, "error");
+					resolve(null);
+				}
 			});
 
 			quickPick.onDidHide(() => {
