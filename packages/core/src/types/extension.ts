@@ -20,6 +20,7 @@ export type VersionSpec =
 	| { type: "exact"; version: string }
 	| { type: "tag"; tag: string }
 	| { type: "branch"; branch: string }
+	| { type: "commit"; commit: string }
 	| { type: "latest" };
 
 /**
@@ -65,7 +66,9 @@ export function formatExtensionId(id: ExtensionId): string {
 /**
  * Parse a version specification string.
  *
- * @param input - Version string (e.g., "v1.0.0", "main", "latest")
+ * Resolution order: tag > commit > branch
+ *
+ * @param input - Version string (e.g., "v1.0.0", "abc1234", "main", "latest")
  * @returns Parsed VersionSpec
  */
 export function parseVersionSpec(input: string): VersionSpec {
@@ -75,10 +78,17 @@ export function parseVersionSpec(input: string): VersionSpec {
 		return { type: "latest" };
 	}
 
+	// 1. Tags: starts with 'v' or looks like semver (e.g., "v1.0.0", "1.0.0")
 	if (trimmed.startsWith("v") || /^\d+\.\d+/.test(trimmed)) {
 		return { type: "tag", tag: trimmed };
 	}
 
+	// 2. Commits: 7-40 hex characters (e.g., "abc1234", "abc1234567890...")
+	if (/^[a-f0-9]{7,40}$/i.test(trimmed)) {
+		return { type: "commit", commit: trimmed };
+	}
+
+	// 3. Branches: anything else (e.g., "main", "develop", "feature/foo")
 	return { type: "branch", branch: trimmed };
 }
 
@@ -126,5 +136,7 @@ export function formatExtensionRef(ref: ExtensionRef): string {
 			return `${idStr}@${ref.version.tag}`;
 		case "branch":
 			return `${idStr}@${ref.version.branch}`;
+		case "commit":
+			return `${idStr}@${ref.version.commit.substring(0, 7)}`;
 	}
 }

@@ -180,4 +180,105 @@ describe("checkForUpdates", () => {
 
 		expect(updates).toHaveLength(0);
 	});
+
+	it("should detect commit-based updates when lastCommit changes", async () => {
+		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@abc1234");
+
+		vi.mocked(fetchRegistry).mockResolvedValue({
+			"quarto-ext/fontawesome": {
+				fullName: "quarto-ext/fontawesome",
+				latestVersion: null,
+				latestTag: null,
+				latestReleaseUrl: null,
+				lastCommit: "def5678901234567890abcdef1234567890abcdef",
+				htmlUrl: "https://github.com/quarto-ext/fontawesome",
+			},
+		});
+
+		const updates = await checkForUpdates({ projectDir: tempDir });
+
+		expect(updates).toHaveLength(1);
+		expect(updates[0].currentVersion).toBe("abc1234");
+		expect(updates[0].latestVersion).toBe("def5678");
+		expect(updates[0].source).toBe("quarto-ext/fontawesome@def5678");
+	});
+
+	it("should not flag commit-based update when commits match", async () => {
+		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@abc1234");
+
+		vi.mocked(fetchRegistry).mockResolvedValue({
+			"quarto-ext/fontawesome": {
+				fullName: "quarto-ext/fontawesome",
+				latestVersion: null,
+				latestTag: null,
+				latestReleaseUrl: null,
+				lastCommit: "abc1234567890abcdef1234567890abcdef123456",
+				htmlUrl: "https://github.com/quarto-ext/fontawesome",
+			},
+		});
+
+		const updates = await checkForUpdates({ projectDir: tempDir });
+
+		expect(updates).toHaveLength(0);
+	});
+
+	it("should skip commit-based extension if registry has no lastCommit", async () => {
+		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@abc1234");
+
+		vi.mocked(fetchRegistry).mockResolvedValue({
+			"quarto-ext/fontawesome": {
+				fullName: "quarto-ext/fontawesome",
+				latestVersion: null,
+				latestTag: null,
+				latestReleaseUrl: null,
+				lastCommit: null,
+				htmlUrl: "https://github.com/quarto-ext/fontawesome",
+			},
+		});
+
+		const updates = await checkForUpdates({ projectDir: tempDir });
+
+		expect(updates).toHaveLength(0);
+	});
+
+	it("should use semver for non-commit sources even with lastCommit available", async () => {
+		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+
+		vi.mocked(fetchRegistry).mockResolvedValue({
+			"quarto-ext/fontawesome": {
+				fullName: "quarto-ext/fontawesome",
+				latestVersion: "2.0.0",
+				latestTag: "v2.0.0",
+				latestReleaseUrl: "https://github.com/quarto-ext/fontawesome/releases/tag/v2.0.0",
+				lastCommit: "abc1234567890",
+				htmlUrl: "https://github.com/quarto-ext/fontawesome",
+			},
+		});
+
+		const updates = await checkForUpdates({ projectDir: tempDir });
+
+		expect(updates).toHaveLength(1);
+		expect(updates[0].currentVersion).toBe("1.0.0");
+		expect(updates[0].latestVersion).toBe("2.0.0");
+		expect(updates[0].source).toBe("quarto-ext/fontawesome@v2.0.0");
+	});
+
+	it("should handle case-insensitive commit comparison", async () => {
+		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@ABC1234");
+
+		vi.mocked(fetchRegistry).mockResolvedValue({
+			"quarto-ext/fontawesome": {
+				fullName: "quarto-ext/fontawesome",
+				latestVersion: null,
+				latestTag: null,
+				latestReleaseUrl: null,
+				lastCommit: "abc1234567890abcdef",
+				htmlUrl: "https://github.com/quarto-ext/fontawesome",
+			},
+		});
+
+		const updates = await checkForUpdates({ projectDir: tempDir });
+
+		expect(updates).toHaveLength(0);
+	});
 });

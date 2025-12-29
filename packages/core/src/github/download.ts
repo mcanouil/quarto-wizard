@@ -9,7 +9,7 @@ import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { NetworkError } from "../errors.js";
-import { resolveVersion, type GitHubOptions } from "./releases.js";
+import { resolveVersion, type ResolveVersionOptions } from "./releases.js";
 
 /**
  * Progress callback for downloads.
@@ -25,7 +25,7 @@ export type DownloadProgressCallback = (progress: {
 /**
  * Options for downloading archives.
  */
-export interface DownloadOptions extends GitHubOptions {
+export interface DownloadOptions extends ResolveVersionOptions {
 	/** Preferred archive format. */
 	format?: "zip" | "tarball";
 	/** Progress callback. */
@@ -44,6 +44,8 @@ export interface DownloadResult {
 	tagName: string;
 	/** Archive format. */
 	format: "zip" | "tarball";
+	/** Commit SHA if resolved to a commit (first 7 characters). */
+	commitSha?: string;
 }
 
 /**
@@ -61,14 +63,14 @@ export async function downloadGitHubArchive(
 	version: VersionSpec,
 	options: DownloadOptions = {}
 ): Promise<DownloadResult> {
-	const { auth, timeout = 60000, format = "zip", onProgress, downloadDir } = options;
+	const { auth, timeout = 60000, format = "zip", onProgress, downloadDir, defaultBranch, latestCommit } = options;
 
 	onProgress?.({
 		phase: "resolving",
 		message: `Resolving version for ${owner}/${repo}...`,
 	});
 
-	const resolved = await resolveVersion(owner, repo, version, { auth, timeout });
+	const resolved = await resolveVersion(owner, repo, version, { auth, timeout, defaultBranch, latestCommit });
 
 	const downloadUrl = format === "zip" ? resolved.zipballUrl : resolved.tarballUrl;
 	const extension = format === "zip" ? ".zip" : ".tar.gz";
@@ -90,6 +92,7 @@ export async function downloadGitHubArchive(
 		archivePath,
 		tagName: resolved.tagName,
 		format,
+		commitSha: resolved.commitSha,
 	};
 }
 

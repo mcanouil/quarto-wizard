@@ -50,7 +50,7 @@ vi.mock("../src/registry/http.js", () => ({
 	}),
 }));
 
-import { fetchReleases, fetchTags, getLatestRelease, resolveVersion } from "../src/github/releases.js";
+import { fetchReleases, fetchTags, getLatestRelease, resolveVersion, constructArchiveUrl } from "../src/github/releases.js";
 
 describe("fetchReleases", () => {
 	beforeEach(() => {
@@ -133,5 +133,68 @@ describe("resolveVersion", () => {
 
 	it("throws for unknown tag", async () => {
 		await expect(resolveVersion("owner", "repo", { type: "tag", tag: "v999.0.0" })).rejects.toThrow("not found");
+	});
+
+	it("resolves commit version", async () => {
+		const result = await resolveVersion("owner", "repo", {
+			type: "commit",
+			commit: "abc1234567890",
+		});
+
+		expect(result.tagName).toBe("abc1234");
+		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/abc1234567890.zip");
+		expect(result.tarballUrl).toBe("https://github.com/owner/repo/archive/abc1234567890.tar.gz");
+		expect(result.commitSha).toBe("abc1234");
+	});
+
+	it("uses custom default branch when no releases/tags", async () => {
+		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/releases")) return Promise.resolve([]);
+			if (url.includes("/tags")) return Promise.resolve([]);
+			return Promise.reject(new Error("Unknown URL"));
+		});
+
+		const result = await resolveVersion(
+			"owner",
+			"repo",
+			{ type: "latest" },
+			{ defaultBranch: "develop", latestCommit: "abc1234567890" }
+		);
+
+		expect(result.tagName).toBe("abc1234");
+		expect(result.zipballUrl).toContain("refs/heads/develop");
+		expect(result.commitSha).toBe("abc1234");
+	});
+});
+
+describe("constructArchiveUrl", () => {
+	it("constructs tag URL correctly", () => {
+		const url = constructArchiveUrl("owner", "repo", "v1.0.0", "tag");
+		expect(url).toBe("https://github.com/owner/repo/archive/refs/tags/v1.0.0.zip");
+	});
+
+	it("constructs tag URL with tarball format", () => {
+		const url = constructArchiveUrl("owner", "repo", "v1.0.0", "tag", "tarball");
+		expect(url).toBe("https://github.com/owner/repo/archive/refs/tags/v1.0.0.tar.gz");
+	});
+
+	it("constructs branch URL correctly", () => {
+		const url = constructArchiveUrl("owner", "repo", "main", "branch");
+		expect(url).toBe("https://github.com/owner/repo/archive/refs/heads/main.zip");
+	});
+
+	it("constructs branch URL with tarball format", () => {
+		const url = constructArchiveUrl("owner", "repo", "develop", "branch", "tarball");
+		expect(url).toBe("https://github.com/owner/repo/archive/refs/heads/develop.tar.gz");
+	});
+
+	it("constructs commit URL correctly", () => {
+		const url = constructArchiveUrl("owner", "repo", "abc1234", "commit");
+		expect(url).toBe("https://github.com/owner/repo/archive/abc1234.zip");
+	});
+
+	it("constructs commit URL with tarball format", () => {
+		const url = constructArchiveUrl("owner", "repo", "abc1234567890", "commit", "tarball");
+		expect(url).toBe("https://github.com/owner/repo/archive/abc1234567890.tar.gz");
 	});
 });

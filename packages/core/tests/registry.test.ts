@@ -102,6 +102,52 @@ describe("parseRegistryEntry", () => {
 		expect(entry.template).toBe(true);
 		expect(entry.templateContent).toBe("template.qmd");
 	});
+
+	it("parses defaultBranchRef and lastCommit fields", () => {
+		const raw = {
+			owner: "test",
+			title: "Test",
+			nameWithOwner: "test/test",
+			url: "https://github.com/test/test",
+			defaultBranchRef: "develop",
+			lastCommit: "abc1234567890abcdef1234567890abcdef123456",
+		};
+
+		const entry = parseRegistryEntry("test/test", raw);
+
+		expect(entry.defaultBranchRef).toBe("develop");
+		expect(entry.lastCommit).toBe("abc1234567890abcdef1234567890abcdef123456");
+	});
+
+	it("handles missing defaultBranchRef and lastCommit", () => {
+		const raw = {
+			owner: "test",
+			title: "Test",
+			nameWithOwner: "test/test",
+			url: "https://github.com/test/test",
+		};
+
+		const entry = parseRegistryEntry("test/test", raw);
+
+		expect(entry.defaultBranchRef).toBeNull();
+		expect(entry.lastCommit).toBeNull();
+	});
+
+	it("handles null defaultBranchRef and lastCommit", () => {
+		const raw = {
+			owner: "test",
+			title: "Test",
+			nameWithOwner: "test/test",
+			url: "https://github.com/test/test",
+			defaultBranchRef: null,
+			lastCommit: null,
+		};
+
+		const entry = parseRegistryEntry("test/test", raw);
+
+		expect(entry.defaultBranchRef).toBeNull();
+		expect(entry.lastCommit).toBeNull();
+	});
 });
 
 describe("parseRegistry", () => {

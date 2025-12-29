@@ -34,6 +34,10 @@ export interface RegistryEntry {
 	template: boolean;
 	/** Template content if applicable. */
 	templateContent: string | null;
+	/** Default branch name (e.g., "main", "master"). */
+	defaultBranchRef: string | null;
+	/** SHA of the latest commit on the default branch. */
+	lastCommit: string | null;
 }
 
 /**
@@ -57,6 +61,8 @@ export interface RawRegistryEntry {
 	url: string;
 	template?: boolean;
 	templateContent?: string | null;
+	defaultBranchRef?: string | null;
+	lastCommit?: string | null;
 }
 
 /**
@@ -85,6 +91,8 @@ export function parseRegistryEntry(key: string, raw: RawRegistryEntry): Registry
 		htmlUrl: raw.url,
 		template: raw.template ?? false,
 		templateContent: raw.templateContent ?? null,
+		defaultBranchRef: raw.defaultBranchRef ?? null,
+		lastCommit: raw.lastCommit ?? null,
 	};
 }
 

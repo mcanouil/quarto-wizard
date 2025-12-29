@@ -93,6 +93,46 @@ describe("parseVersionSpec", () => {
 			expect(spec.branch).toBe("feature/new-stuff");
 		}
 	});
+
+	it("parses 7-character commit hash", () => {
+		const spec = parseVersionSpec("abc1234");
+		expect(spec.type).toBe("commit");
+		if (spec.type === "commit") {
+			expect(spec.commit).toBe("abc1234");
+		}
+	});
+
+	it("parses full 40-character commit hash", () => {
+		const spec = parseVersionSpec("abc1234567890abcdef1234567890abcdef1234");
+		expect(spec.type).toBe("commit");
+		if (spec.type === "commit") {
+			expect(spec.commit).toBe("abc1234567890abcdef1234567890abcdef1234");
+		}
+	});
+
+	it("parses uppercase commit hash", () => {
+		const spec = parseVersionSpec("ABC1234");
+		expect(spec.type).toBe("commit");
+		if (spec.type === "commit") {
+			expect(spec.commit).toBe("ABC1234");
+		}
+	});
+
+	it("does not parse 6-character hex as commit (too short)", () => {
+		const spec = parseVersionSpec("abc123");
+		expect(spec.type).toBe("branch");
+	});
+
+	it("does not parse non-hex characters as commit", () => {
+		const spec = parseVersionSpec("abc123g");
+		expect(spec.type).toBe("branch");
+	});
+
+	it("resolution order: tag takes precedence over commit-like strings", () => {
+		// Version starting with 'v' is always a tag
+		const spec = parseVersionSpec("v1a2b3c");
+		expect(spec.type).toBe("tag");
+	});
 });
 
 describe("parseExtensionRef", () => {
@@ -136,6 +176,16 @@ describe("parseExtensionRef", () => {
 		expect(ref.id.name).toBe("repo");
 		expect(ref.version.type).toBe("tag");
 	});
+
+	it("parses ref with commit hash", () => {
+		const ref = parseExtensionRef("quarto-ext/lightbox@abc1234");
+		expect(ref.id.owner).toBe("quarto-ext");
+		expect(ref.id.name).toBe("lightbox");
+		expect(ref.version.type).toBe("commit");
+		if (ref.version.type === "commit") {
+			expect(ref.version.commit).toBe("abc1234");
+		}
+	});
 });
 
 describe("formatExtensionRef", () => {
@@ -169,5 +219,21 @@ describe("formatExtensionRef", () => {
 			version: { type: "exact", version: "1.0.0" },
 		});
 		expect(result).toBe("quarto-ext/lightbox@1.0.0");
+	});
+
+	it("formats ref with commit version (truncates to 7 chars)", () => {
+		const result = formatExtensionRef({
+			id: { owner: "quarto-ext", name: "lightbox" },
+			version: { type: "commit", commit: "abc1234567890" },
+		});
+		expect(result).toBe("quarto-ext/lightbox@abc1234");
+	});
+
+	it("formats ref with short commit version", () => {
+		const result = formatExtensionRef({
+			id: { owner: "quarto-ext", name: "lightbox" },
+			version: { type: "commit", commit: "abc1234" },
+		});
+		expect(result).toBe("quarto-ext/lightbox@abc1234");
 	});
 });

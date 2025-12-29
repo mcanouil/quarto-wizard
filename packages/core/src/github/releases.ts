@@ -83,6 +83,30 @@ export interface GitHubOptions {
 }
 
 /**
+ * Options for version resolution.
+ */
+export interface ResolveVersionOptions extends GitHubOptions {
+	/** Default branch to use when no releases/tags exist. */
+	defaultBranch?: string;
+	/** Latest commit SHA on default branch (for fallback). */
+	latestCommit?: string;
+}
+
+/**
+ * Result of version resolution.
+ */
+export interface ResolvedVersion {
+	/** Resolved tag/version name. */
+	tagName: string;
+	/** URL to download the zipball. */
+	zipballUrl: string;
+	/** URL to download the tarball. */
+	tarballUrl: string;
+	/** Commit SHA if resolved to a commit (first 7 characters). */
+	commitSha?: string;
+}
+
+/**
  * Get GitHub API headers.
  */
 function getGitHubHeaders(auth?: AuthConfig): Record<string, string> {
@@ -91,6 +115,36 @@ function getGitHubHeaders(auth?: AuthConfig): Record<string, string> {
 		"User-Agent": "quarto-wizard",
 		...getAuthHeaders(auth, true),
 	};
+}
+
+/**
+ * Construct a GitHub archive URL.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param ref - Git reference (tag, branch, or commit)
+ * @param refType - Type of reference
+ * @param format - Archive format
+ * @returns Archive URL
+ */
+export function constructArchiveUrl(
+	owner: string,
+	repo: string,
+	ref: string,
+	refType: "tag" | "branch" | "commit",
+	format: "zip" | "tarball" = "zip"
+): string {
+	const ext = format === "zip" ? ".zip" : ".tar.gz";
+	const baseUrl = `https://github.com/${owner}/${repo}/archive`;
+
+	switch (refType) {
+		case "tag":
+			return `${baseUrl}/refs/tags/${ref}${ext}`;
+		case "branch":
+			return `${baseUrl}/refs/heads/${ref}${ext}`;
+		case "commit":
+			return `${baseUrl}/${ref}${ext}`;
+	}
 }
 
 /**
@@ -212,16 +266,16 @@ export async function getLatestRelease(
  * @param owner - Repository owner
  * @param repo - Repository name
  * @param version - Version specification
- * @param options - GitHub options
+ * @param options - Resolution options
  * @returns Resolved release/tag info with download URL
  */
 export async function resolveVersion(
 	owner: string,
 	repo: string,
 	version: VersionSpec,
-	options: GitHubOptions = {}
-): Promise<{ tagName: string; zipballUrl: string; tarballUrl: string }> {
-	const { auth, timeout } = options;
+	options: ResolveVersionOptions = {}
+): Promise<ResolvedVersion> {
+	const { defaultBranch = "main", latestCommit } = options;
 
 	switch (version.type) {
 		case "latest": {
@@ -243,10 +297,13 @@ export async function resolveVersion(
 				};
 			}
 
+			// Fallback to default branch with commit tracking
+			const commitSha = latestCommit?.substring(0, 7);
 			return {
-				tagName: "HEAD",
-				zipballUrl: `https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`,
-				tarballUrl: `https://github.com/${owner}/${repo}/archive/refs/heads/main.tar.gz`,
+				tagName: commitSha ?? "HEAD",
+				zipballUrl: constructArchiveUrl(owner, repo, defaultBranch, "branch", "zip"),
+				tarballUrl: constructArchiveUrl(owner, repo, defaultBranch, "branch", "tarball"),
+				commitSha,
 			};
 		}
 
@@ -280,12 +337,23 @@ export async function resolveVersion(
 			);
 		}
 
+		case "commit": {
+			const commitRef = version.commit;
+			const shortCommit = commitRef.substring(0, 7);
+			return {
+				tagName: shortCommit,
+				zipballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "zip"),
+				tarballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "tarball"),
+				commitSha: shortCommit,
+			};
+		}
+
 		case "branch": {
 			const branchName = version.branch;
 			return {
 				tagName: branchName,
-				zipballUrl: `https://github.com/${owner}/${repo}/archive/refs/heads/${branchName}.zip`,
-				tarballUrl: `https://github.com/${owner}/${repo}/archive/refs/heads/${branchName}.tar.gz`,
+				zipballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "zip"),
+				tarballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "tarball"),
 			};
 		}
 	}

@@ -15,6 +15,7 @@ import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import { extractArchive, findExtensionRoot, cleanupExtraction } from "../archive/extract.js";
 import { validateManifest, type ValidationResult, type ValidationOptions } from "../validation/manifest.js";
+import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 
 /**
  * Source for extension installation.
@@ -37,7 +38,7 @@ export type InstallProgressCallback = (progress: { phase: InstallPhase; message:
 /**
  * Options for extension installation.
  */
-export interface InstallOptions {
+export interface InstallOptions extends RegistryOptions {
 	/** Project directory. */
 	projectDir: string;
 	/** Authentication configuration. */
@@ -135,6 +136,9 @@ export function formatInstallSource(source: InstallSource): string {
 			if (source.version.type === "exact") {
 				return `${base}@v${source.version.version}`;
 			}
+			if (source.version.type === "commit") {
+				return `${base}@${source.version.commit.substring(0, 7)}`;
+			}
 			return base;
 		}
 		case "url":
@@ -167,13 +171,31 @@ export async function install(source: InstallSource, options: InstallOptions): P
 	let extractDir: string | undefined;
 	let tagName: string | undefined;
 	let repoRoot: string | undefined;
+	let commitSha: string | undefined;
 
 	try {
 		onProgress?.({ phase: "resolving", message: "Resolving extension source..." });
 
 		if (source.type === "github") {
+			// Try to get registry info for default branch and latest commit
+			let defaultBranch: string | undefined;
+			let latestCommit: string | undefined;
+			try {
+				const registry = await fetchRegistry(options);
+				const registryKey = `${source.owner}/${source.repo}`;
+				const entry = registry[registryKey] ?? registry[registryKey.toLowerCase()];
+				if (entry) {
+					defaultBranch = entry.defaultBranchRef ?? undefined;
+					latestCommit = entry.lastCommit ?? undefined;
+				}
+			} catch {
+				// Registry fetch failed, use defaults
+			}
+
 			const result = await downloadGitHubArchive(source.owner, source.repo, source.version, {
 				auth,
+				defaultBranch,
+				latestCommit,
 				onProgress: (p) => {
 					onProgress?.({
 						phase: p.phase === "resolving" ? "resolving" : "downloading",
@@ -184,6 +206,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			});
 			archivePath = result.archivePath;
 			tagName = result.tagName;
+			commitSha = result.commitSha;
 		} else if (source.type === "url") {
 			onProgress?.({ phase: "downloading", message: "Downloading archive..." });
 			archivePath = await downloadFromUrl(source.url, { auth });
@@ -246,7 +269,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		const extensionId = resolveExtensionId(source, extensionRoot, manifestResult.manifest);
 		const targetDir = getExtensionInstallPath(projectDir, extensionId);
-		const sourceString = formatSourceString(source, tagName);
+		const sourceString = formatSourceString(source, tagName, commitSha);
 		const alreadyExists = fs.existsSync(targetDir);
 
 		// In dry-run mode, return what would happen without making changes
@@ -340,9 +363,13 @@ function resolveExtensionId(source: InstallSource, extensionRoot: string, manife
 /**
  * Format source string for manifest.
  */
-function formatSourceString(source: InstallSource, tagName?: string): string {
+function formatSourceString(source: InstallSource, tagName?: string, commitSha?: string): string {
 	if (source.type === "github") {
 		const base = `${source.owner}/${source.repo}`;
+		// If we resolved to a commit (no releases), use short commit format
+		if (commitSha) {
+			return `${base}@${commitSha}`;
+		}
 		return tagName && tagName !== "HEAD" ? `${base}@${tagName}` : base;
 	}
 

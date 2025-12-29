@@ -109,7 +109,31 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 
 		const entry = registry[registryKey];
 
-		if (!entry?.latestVersion) {
+		if (!entry) {
+			continue;
+		}
+
+		// Check for commit-based installation
+		const currentCommit = extractCommitFromSource(source);
+
+		if (currentCommit && entry.lastCommit) {
+			// Commit-based comparison
+			const latestCommit = entry.lastCommit.substring(0, 7).toLowerCase();
+
+			if (currentCommit !== latestCommit) {
+				updates.push({
+					extension: ext,
+					currentVersion: currentCommit,
+					latestVersion: latestCommit,
+					releaseUrl: entry.htmlUrl,
+					source: `${entry.fullName}@${latestCommit}`,
+				});
+			}
+			continue; // Skip semver comparison for commit-based
+		}
+
+		// Semver-based comparison for tagged releases
+		if (!entry.latestVersion) {
 			continue;
 		}
 
@@ -229,6 +253,22 @@ function findRegistryKey(source: string, registry: Record<string, unknown>): str
 		}
 	}
 
+	return null;
+}
+
+/**
+ * Check if a source string represents a commit-based installation.
+ * Returns the short commit hash if it is, null otherwise.
+ */
+function extractCommitFromSource(source: string): string | null {
+	const atIndex = source.lastIndexOf("@");
+	if (atIndex <= 0) return null;
+
+	const ref = source.substring(atIndex + 1);
+	// Match 7-character hex string (short commit hash)
+	if (/^[a-f0-9]{7}$/i.test(ref)) {
+		return ref.toLowerCase();
+	}
 	return null;
 }
 
