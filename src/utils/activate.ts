@@ -24,7 +24,7 @@ async function promptInstallExtension(extensionId: string, context: vscode.Exten
 		`Extension '${extensionId}' is not installed. Would you like to install it?`,
 		"Install Now",
 		"Maybe Later",
-		"Don't Ask Again"
+		"Don't Ask Again",
 	);
 	switch (choice) {
 		case "Install Now":
@@ -69,9 +69,9 @@ export async function activateExtensions(extensions: string[], context: vscode.E
 				}
 			} catch (error) {
 				QW_LOG.appendLine(
-					`Failed to activate ${extensionId}: ${error instanceof Error ? error.message : String(error)}`
+					`Failed to activate ${extensionId}: ${error instanceof Error ? error.message : String(error)}`,
 				);
 			}
-		})
+		}),
 	);
 }

@@ -41,7 +41,7 @@ suite("Extensions Utils Test Suite", () => {
 			version: string;
 			contributes: Record<string, string[]>;
 			source: string;
-		}> = {}
+		}> = {},
 	) {
 		const extPath = path.join(extensionsDir, author, name);
 		fs.mkdirSync(extPath, { recursive: true });
@@ -246,7 +246,7 @@ contributes:\n`;
 			assert.strictEqual(
 				data.repository,
 				"https://github.com/quarto-ext/fancy-text",
-				"Should extract repository correctly"
+				"Should extract repository correctly",
 			);
 		});
 
@@ -270,7 +270,7 @@ source: "https://github.com/test-author/yaml-ext@main"
 			assert.strictEqual(
 				extensionData["test-author/yaml-ext"].title,
 				"YAML Extension",
-				"Should read title from .yaml file"
+				"Should read title from .yaml file",
 			);
 		});
 
@@ -284,7 +284,7 @@ source: "https://github.com/test-author/yaml-ext@main"
 			assert.strictEqual(
 				extensionData["non-existent/extension"],
 				undefined,
-				"Should not include non-existent extension"
+				"Should not include non-existent extension",
 			);
 		});
 

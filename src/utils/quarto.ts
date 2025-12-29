@@ -101,7 +101,7 @@ export async function removeQuartoExtension(extension: string, workspaceFolder: 
 export async function useQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
-	selectFiles?: FileSelectionCallback
+	selectFiles?: FileSelectionCallback,
 ): Promise<UseResult | null> {
 	logMessage(`Using template ${extension} ...`, "info");
 

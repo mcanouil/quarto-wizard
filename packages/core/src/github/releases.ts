@@ -132,7 +132,7 @@ export function constructArchiveUrl(
 	repo: string,
 	ref: string,
 	refType: "tag" | "branch" | "commit",
-	format: "zip" | "tarball" = "zip"
+	format: "zip" | "tarball" = "zip",
 ): string {
 	const ext = format === "zip" ? ".zip" : ".tar.gz";
 	const baseUrl = `https://github.com/${owner}/${repo}/archive`;
@@ -158,14 +158,14 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
 			throw new AuthenticationError(
 				`Authentication required for ${owner}/${repo}. ` +
 					`Status: ${status}. ` +
-					"The repository may be private or you may have hit the rate limit."
+					"The repository may be private or you may have hit the rate limit.",
 			);
 		}
 
 		if (status === 404) {
 			throw new RepositoryNotFoundError(
 				`Repository not found: ${owner}/${repo}`,
-				"Check if the repository exists and you have access to it"
+				"Check if the repository exists and you have access to it",
 			);
 		}
 	}
@@ -184,7 +184,7 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
 export async function fetchReleases(
 	owner: string,
 	repo: string,
-	options: GitHubOptions = {}
+	options: GitHubOptions = {},
 ): Promise<GitHubRelease[]> {
 	const { auth, timeout, includePrereleases = false } = options;
 	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/releases`;
@@ -254,7 +254,7 @@ export async function fetchTags(owner: string, repo: string, options: GitHubOpti
 export async function getLatestRelease(
 	owner: string,
 	repo: string,
-	options: GitHubOptions = {}
+	options: GitHubOptions = {},
 ): Promise<GitHubRelease | null> {
 	const releases = await fetchReleases(owner, repo, options);
 	return releases[0] ?? null;
@@ -273,7 +273,7 @@ export async function resolveVersion(
 	owner: string,
 	repo: string,
 	version: VersionSpec,
-	options: ResolveVersionOptions = {}
+	options: ResolveVersionOptions = {},
 ): Promise<ResolvedVersion> {
 	const { defaultBranch = "main", latestCommit } = options;
 
@@ -333,7 +333,7 @@ export async function resolveVersion(
 
 			throw new VersionError(
 				`Version "${tagName}" not found for ${owner}/${repo}`,
-				"Check available releases at: https://github.com/" + `${owner}/${repo}/releases`
+				"Check available releases at: https://github.com/" + `${owner}/${repo}/releases`,
 			);
 		}
 

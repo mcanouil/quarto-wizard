@@ -105,7 +105,7 @@ export function parseInstallSource(input: string): InstallSource {
 	if (!ref.id.owner) {
 		throw new ExtensionError(
 			`Invalid extension reference: "${input}"`,
-			'Use format "owner/repo" or "owner/repo@version"'
+			'Use format "owner/repo" or "owner/repo@version"',
 		);
 	}
 
@@ -228,7 +228,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		if (!extensionRoot) {
 			throw new ExtensionError(
 				"No _extension.yml found in archive",
-				"Ensure the archive contains a valid Quarto extension"
+				"Ensure the archive contains a valid Quarto extension",
 			);
 		}
 
@@ -260,7 +260,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 					validationResult.issues
 						.filter((i) => i.severity === "error")
 						.map((i) => `${i.field}: ${i.message}`)
-						.join("; ")
+						.join("; "),
 				);
 			}
 		}
@@ -300,7 +300,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			if (!force) {
 				throw new ExtensionError(
 					`Extension already installed: ${extensionId.owner}/${extensionId.name}`,
-					"Use force option to reinstall"
+					"Use force option to reinstall",
 				);
 			}
 			await fs.promises.rm(targetDir, { recursive: true, force: true });

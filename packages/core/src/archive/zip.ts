@@ -45,7 +45,7 @@ function checkPathTraversal(filePath: string): void {
 export async function extractZip(
 	archivePath: string,
 	destDir: string,
-	options: ZipExtractOptions = {}
+	options: ZipExtractOptions = {},
 ): Promise<string[]> {
 	const { maxSize = DEFAULT_MAX_SIZE, onProgress } = options;
 
@@ -62,7 +62,7 @@ export async function extractZip(
 
 		if (totalUncompressedSize > maxSize) {
 			throw new SecurityError(
-				`Archive exceeds maximum size: ${formatSize(totalUncompressedSize)} > ${formatSize(maxSize)}`
+				`Archive exceeds maximum size: ${formatSize(totalUncompressedSize)} > ${formatSize(maxSize)}`,
 			);
 		}
 	}
@@ -71,7 +71,7 @@ export async function extractZip(
 		const ratio = totalUncompressedSize / compressedSize;
 		if (ratio > MAX_COMPRESSION_RATIO) {
 			throw new SecurityError(
-				`Suspicious compression ratio detected: ${ratio.toFixed(1)}:1. ` + "This may indicate a zip bomb."
+				`Suspicious compression ratio detected: ${ratio.toFixed(1)}:1. ` + "This may indicate a zip bomb.",
 			);
 		}
 	}

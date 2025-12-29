@@ -147,7 +147,7 @@ export interface FileSelectionResult {
 export type FileSelectionCallback = (
 	availableFiles: string[],
 	existingFiles: string[],
-	defaultExcludePatterns: string[]
+	defaultExcludePatterns: string[],
 ) => Promise<FileSelectionResult | null>;
 
 /**
@@ -245,7 +245,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		if (!sourceRoot) {
 			throw new ExtensionError(
 				"No source root available for template copying",
-				"This may be a bug in the extension installation"
+				"This may be a bug in the extension installation",
 			);
 		}
 
@@ -275,7 +275,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			const selectionResult = await selectFiles(
 				allFiles,
 				existingFiles,
-				DEFAULT_EXCLUDE_PATTERNS.filter((p) => p !== "_extensions/**")
+				DEFAULT_EXCLUDE_PATTERNS.filter((p) => p !== "_extensions/**"),
 			);
 
 			if (!selectionResult) {
@@ -368,7 +368,7 @@ interface CopyTemplateOptions {
 async function copyTemplateFiles(
 	sourceRoot: string,
 	projectDir: string,
-	options: CopyTemplateOptions
+	options: CopyTemplateOptions,
 ): Promise<{ templateFiles: string[]; skippedFiles: string[] }> {
 	const { filesToCopy, overwriteAll, confirmOverwrite, confirmOverwriteBatch, onProgress } = options;
 
@@ -449,7 +449,7 @@ async function copyTemplateFiles(
  */
 export async function getTemplateFiles(
 	sourceRoot: string,
-	exclude: string[] = DEFAULT_EXCLUDE_PATTERNS
+	exclude: string[] = DEFAULT_EXCLUDE_PATTERNS,
 ): Promise<string[]> {
 	return globFiles(sourceRoot, { ignore: exclude });
 }

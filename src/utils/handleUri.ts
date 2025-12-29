@@ -36,7 +36,7 @@ async function handleUriAction(uri: vscode.Uri, config: UriActionConfig): Promis
 		config.confirmMessage(repo),
 		{ modal: true },
 		"Yes",
-		"No"
+		"No",
 	);
 
 	if (confirmed === "No") {

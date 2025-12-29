@@ -81,7 +81,7 @@ suite("Network Utils Test Suite", () => {
 			({
 				ok: true,
 				status: 200,
-			} as Response);
+			}) as Response;
 
 		const result = await checkInternetConnection();
 
@@ -96,7 +96,7 @@ suite("Network Utils Test Suite", () => {
 			({
 				ok: false,
 				status: 404,
-			} as Response);
+			}) as Response;
 
 		const result = await checkInternetConnection();
 
@@ -183,7 +183,7 @@ suite("Network Utils Test Suite", () => {
 			({
 				ok: false,
 				status: 500,
-			} as Response);
+			}) as Response;
 
 		const result = await checkInternetConnection();
 
@@ -221,7 +221,7 @@ suite("Network Utils Test Suite", () => {
 				({
 					ok: false,
 					status: statusCode,
-				} as Response);
+				}) as Response;
 
 			const result = await checkInternetConnection();
 
@@ -243,7 +243,7 @@ suite("Network Utils Test Suite", () => {
 				({
 					ok: true,
 					status: statusCode,
-				} as Response);
+				}) as Response;
 
 			const result = await checkInternetConnection();
 

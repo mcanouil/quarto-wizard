@@ -44,7 +44,7 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 export async function showExtensionQuickPick(
 	extensionsList: ExtensionDetails[],
 	recentlyInstalled: string[],
-	template = false
+	template = false,
 ): Promise<readonly ExtensionQuickPickItem[]> {
 	const groupedExtensions: ExtensionQuickPickItem[] = [
 		{
@@ -57,7 +57,7 @@ export async function showExtensionQuickPick(
 			kind: vscode.QuickPickItemKind.Separator,
 		},
 		...createExtensionItems(extensionsList.filter((ext) => !recentlyInstalled.includes(ext.id))).sort((a, b) =>
-			a.label.localeCompare(b.label)
+			a.label.localeCompare(b.label),
 		),
 	];
 

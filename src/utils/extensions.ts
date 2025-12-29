@@ -80,7 +80,7 @@ export function getMtimeExtensions(directory: string): Record<string, Date> {
 	}
 	const extensions = findQuartoExtensions(directory);
 	const extensionsMtimeDict: Record<string, Date> = Object.fromEntries(
-		extensions.map((extension) => [extension, fs.statSync(path.join(directory, extension)).mtime])
+		extensions.map((extension) => [extension, fs.statSync(path.join(directory, extension)).mtime]),
 	);
 	return extensionsMtimeDict;
 }

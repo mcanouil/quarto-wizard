@@ -18,7 +18,7 @@ import { selectWorkspaceFolder } from "../utils/workspace";
 async function installQuartoExtensions(
 	selectedExtensions: readonly ExtensionQuickPickItem[],
 	workspaceFolder: string,
-	template = false
+	template = false,
 ) {
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
@@ -96,7 +96,7 @@ async function installQuartoExtensions(
 			if (failedExtensions.length > 0) {
 				logMessage(
 					`Failed to ${template ? "use" : "install"} extension${failedExtensions.length > 1 ? "s" : ""}:`,
-					"error"
+					"error",
 				);
 				failedExtensions.map((ext) => logMessage(` - ${ext}`, "error"));
 				const message = [
@@ -117,7 +117,7 @@ async function installQuartoExtensions(
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}
-		}
+		},
 	);
 }
 
@@ -132,7 +132,7 @@ async function installQuartoExtensions(
 export async function installQuartoExtensionFolderCommand(
 	context: vscode.ExtensionContext,
 	workspaceFolder: string,
-	template = false
+	template = false,
 ) {
 	const isConnected = await checkInternetConnection("https://github.com/");
 	if (!isConnected) {

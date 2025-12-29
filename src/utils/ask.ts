@@ -46,7 +46,7 @@ function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promi
 					],
 					{
 						placeHolder: config.placeholder,
-					}
+					},
 				);
 				if (result?.label === config.alwaysLabel) {
 					await vsConfig.update(config.configKey, "never", vscode.ConfigurationTarget.Global);
@@ -154,12 +154,12 @@ interface TreeNode {
 export function createFileSelectionCallback(): (
 	availableFiles: string[],
 	existingFiles: string[],
-	defaultExcludePatterns: string[]
+	defaultExcludePatterns: string[],
 ) => Promise<FileSelectionResult | null> {
 	return async (
 		availableFiles: string[],
 		existingFiles: string[],
-		defaultExcludePatterns: string[]
+		defaultExcludePatterns: string[],
 	): Promise<FileSelectionResult | null> => {
 		if (availableFiles.length === 0) {
 			vscode.window.showInformationMessage("No template files found to copy.");
@@ -195,7 +195,7 @@ export function createFileSelectionCallback(): (
 				return cached;
 			}
 			const result = defaultExcludePatterns.some(
-				(pattern) => minimatch(dirPath, pattern) || minimatch(dirPath + "/", pattern)
+				(pattern) => minimatch(dirPath, pattern) || minimatch(dirPath + "/", pattern),
 			);
 			exclusionCache.set(cacheKey, result);
 			return result;
@@ -569,7 +569,7 @@ export function createFileSelectionCallback(): (
 							`The following ${selectedExisting.length} file(s) already exist:\n${existingList}\n\nOverwrite them?`,
 							{ modal: true },
 							"Yes, Overwrite",
-							"No, Skip Existing"
+							"No, Skip Existing",
 						);
 
 						if (result === undefined) {

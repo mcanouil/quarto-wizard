@@ -66,7 +66,7 @@ export function hasExtensionsDir(projectDir: string): boolean {
  */
 export async function discoverInstalledExtensions(
 	projectDir: string,
-	options: DiscoveryOptions = {}
+	options: DiscoveryOptions = {},
 ): Promise<InstalledExtension[]> {
 	const extensionsDir = getExtensionsDir(projectDir);
 
@@ -154,7 +154,7 @@ export async function discoverInstalledExtensions(
  */
 export function discoverInstalledExtensionsSync(
 	projectDir: string,
-	options: DiscoveryOptions = {}
+	options: DiscoveryOptions = {},
 ): InstalledExtension[] {
 	const extensionsDir = getExtensionsDir(projectDir);
 
@@ -238,7 +238,7 @@ export function discoverInstalledExtensionsSync(
  */
 export async function findInstalledExtension(
 	projectDir: string,
-	extensionId: ExtensionId
+	extensionId: ExtensionId,
 ): Promise<InstalledExtension | null> {
 	if (!extensionId.owner) {
 		const extensions = await discoverInstalledExtensions(projectDir);

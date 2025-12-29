@@ -16,7 +16,10 @@ import { installQuartoExtensionFolderCommand } from "../commands/installQuartoEx
 class WorkspaceFolderTreeItem extends vscode.TreeItem {
 	public workspaceFolder: string;
 
-	constructor(public readonly label: string, public readonly folderPath: string) {
+	constructor(
+		public readonly label: string,
+		public readonly folderPath: string,
+	) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
 		this.contextValue = "quartoExtensionWorkspaceFolder";
 		this.iconPath = new vscode.ThemeIcon("folder");
@@ -38,7 +41,7 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		public readonly workspacePath: string,
 		public readonly data?: ExtensionData,
 		icon?: string,
-		latestVersion?: string
+		latestVersion?: string,
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined;
@@ -95,7 +98,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	}
 
 	getChildren(
-		element?: WorkspaceFolderTreeItem | ExtensionTreeItem
+		element?: WorkspaceFolderTreeItem | ExtensionTreeItem,
 	): Thenable<(WorkspaceFolderTreeItem | ExtensionTreeItem)[]> {
 		if (!element) {
 			if (this.workspaceFolders.length === 0) {
@@ -105,7 +108,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 						vscode.TreeItemCollapsibleState.None,
 						"",
 						undefined,
-						"info"
+						"info",
 					),
 				]);
 			}
@@ -142,7 +145,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 					vscode.TreeItemCollapsibleState.None,
 					workspacePath,
 					undefined,
-					"info"
+					"info",
 				),
 			];
 		}
@@ -155,8 +158,8 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 					workspacePath,
 					folderData[ext],
 					"package",
-					this.latestVersionsByFolder[workspacePath]?.[ext]
-				)
+					this.latestVersionsByFolder[workspacePath]?.[ext],
+				),
 		);
 	}
 
@@ -172,12 +175,12 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 			new ExtensionTreeItem(
 				`Contributes: ${data.contributes}`,
 				vscode.TreeItemCollapsibleState.None,
-				element.workspaceFolder
+				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
 				`Repository: ${data.repository}`,
 				vscode.TreeItemCollapsibleState.None,
-				element.workspaceFolder
+				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
 		];
@@ -205,7 +208,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	 */
 	refreshAfterAction(
 		context: vscode.ExtensionContext,
-		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>
+		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
 	): void {
 		this.checkUpdate(context, view);
 		this.forceRefresh();
@@ -236,7 +239,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	async checkUpdate(
 		context: vscode.ExtensionContext,
 		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
-		silent = true
+		silent = true,
 	): Promise<number> {
 		const extensionsDetails = await getExtensionsDetails(context);
 		const updatesAvailable: string[] = [];
@@ -330,7 +333,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
 				this.treeDataProvider.refreshAfterAction(context, view);
-			})
+			}),
 		);
 
 		context.subscriptions.push(
@@ -339,14 +342,14 @@ export class ExtensionsInstalled {
 					const url = `https://github.com/${item.data?.repository}`;
 					vscode.env.openExternal(vscode.Uri.parse(url));
 				}
-			})
+			}),
 		);
 
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
 				await installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
 				this.treeDataProvider.refreshAfterAction(context, view);
-			})
+			}),
 		);
 
 		context.subscriptions.push(
@@ -355,8 +358,8 @@ export class ExtensionsInstalled {
 				async (item: ExtensionTreeItem) => {
 					await installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
 					this.treeDataProvider.refreshAfterAction(context, view);
-				}
-			)
+				},
+			),
 		);
 
 		/**
@@ -372,9 +375,9 @@ export class ExtensionsInstalled {
 					async () => {
 						return installQuartoExtension(
 							`${item.data?.repository ?? item.label}${item.latestVersion}`,
-							item.workspaceFolder
+							item.workspaceFolder,
 						);
-					}
+					},
 				);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
@@ -384,13 +387,13 @@ export class ExtensionsInstalled {
 						vscode.window.showErrorMessage(
 							`Failed to update extension "${item.label}". ` +
 								`Source not found in extension manifest. ` +
-								`${showLogsCommand()}.`
+								`${showLogsCommand()}.`,
 						);
 					} else {
 						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${showLogsCommand()}.`);
 					}
 				}
-			})
+			}),
 		);
 
 		/**
@@ -408,7 +411,7 @@ export class ExtensionsInstalled {
 				} else {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
 				}
-			})
+			}),
 		);
 
 		/**
@@ -445,7 +448,7 @@ export class ExtensionsInstalled {
 						// Fallback to directory if no extension file found
 						logMessage(
 							`No _extension.yml or _extension.yaml found for "${item.label}", showing directory instead.`,
-							"info"
+							"info",
 						);
 						targetUri = item.resourceUri;
 					}
@@ -457,11 +460,11 @@ export class ExtensionsInstalled {
 						const errorMessage = error instanceof Error ? error.message : String(error);
 						logMessage(`Failed to reveal "${item.label}" in Explorer: ${errorMessage}`, "error");
 						vscode.window.showErrorMessage(
-							`Failed to reveal extension "${item.label}" in Explorer. ${showLogsCommand()}.`
+							`Failed to reveal extension "${item.label}" in Explorer. ${showLogsCommand()}.`,
 						);
 					}
-				}
-			)
+				},
+			),
 		);
 	}
 

@@ -49,7 +49,7 @@ export async function remove(extensionId: ExtensionId, options: RemoveOptions): 
 	if (!extension) {
 		throw new ExtensionError(
 			`Extension not found: ${formatExtensionId(extensionId)}`,
-			"Use 'list' to see installed extensions"
+			"Use 'list' to see installed extensions",
 		);
 	}
 
@@ -82,7 +82,7 @@ export async function remove(extensionId: ExtensionId, options: RemoveOptions): 
  */
 export async function removeMultiple(
 	extensionIds: ExtensionId[],
-	options: RemoveOptions
+	options: RemoveOptions,
 ): Promise<Array<RemoveResult | { extensionId: ExtensionId; error: string }>> {
 	const results: Array<RemoveResult | { extensionId: ExtensionId; error: string }> = [];
 

@@ -57,7 +57,7 @@ export function parseManifestFile(manifestPath: string): ExtensionManifest {
 		}
 		throw new ManifestError(
 			`Failed to read manifest file: ${error instanceof Error ? error.message : String(error)}`,
-			manifestPath
+			manifestPath,
 		);
 	}
 }
@@ -85,7 +85,7 @@ export function parseManifestContent(content: string, sourcePath?: string): Exte
 		}
 		throw new ManifestError(
 			`Failed to parse manifest: ${error instanceof Error ? error.message : String(error)}`,
-			sourcePath
+			sourcePath,
 		);
 	}
 }

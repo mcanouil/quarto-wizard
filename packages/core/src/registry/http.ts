@@ -100,7 +100,7 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 						...headers,
 					},
 				},
-				timeout
+				timeout,
 			);
 
 			if (!response.ok) {
@@ -152,7 +152,7 @@ export async function fetchText(url: string, options: HttpOptions = {}): Promise
 						...headers,
 					},
 				},
-				timeout
+				timeout,
 			);
 
 			if (!response.ok) {

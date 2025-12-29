@@ -27,32 +27,34 @@ export function activate(context: vscode.ExtensionContext) {
 			const message = "Recently installed Quarto extensions have been cleared.";
 			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
-		})
+		}),
 	);
 
 	// Register command to clear all cached extension data (registry + recent lists)
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.clearCache", () => clearExtensionsCache(context))
+		vscode.commands.registerCommand("quartoWizard.clearCache", () => clearExtensionsCache(context)),
 	);
 
 	// Register main extension installation command
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.installExtension", async () => installQuartoExtensionCommand(context))
+		vscode.commands.registerCommand("quartoWizard.installExtension", async () =>
+			installQuartoExtensionCommand(context),
+		),
 	);
 
 	// Register template installation command
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.useTemplate", async () => useQuartoTemplateCommand(context))
+		vscode.commands.registerCommand("quartoWizard.useTemplate", async () => useQuartoTemplateCommand(context)),
 	);
 
 	// Register reproducible document creation command
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () => newQuartoReprexCommand(context))
+		vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () => newQuartoReprexCommand(context)),
 	);
 
 	// Register command to fetch and display extension details from GitHub
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.getExtensionsDetails", () => getExtensionsDetails(context))
+		vscode.commands.registerCommand("quartoWizard.getExtensionsDetails", () => getExtensionsDetails(context)),
 	);
 
 	// Initialise the Extensions Installed tree view provider

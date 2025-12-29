@@ -61,7 +61,7 @@ export async function downloadGitHubArchive(
 	owner: string,
 	repo: string,
 	version: VersionSpec,
-	options: DownloadOptions = {}
+	options: DownloadOptions = {},
 ): Promise<DownloadResult> {
 	const { auth, timeout = 60000, format = "zip", onProgress, downloadDir, defaultBranch, latestCommit } = options;
 
@@ -111,7 +111,7 @@ export async function downloadArchive(
 		extension?: string;
 		downloadDir?: string;
 		onProgress?: DownloadProgressCallback;
-	} = {}
+	} = {},
 ): Promise<string> {
 	const { auth, timeout = 60000, extension = ".zip", downloadDir, onProgress } = options;
 
@@ -207,7 +207,7 @@ export async function downloadFromUrl(
 		timeout?: number;
 		downloadDir?: string;
 		onProgress?: DownloadProgressCallback;
-	} = {}
+	} = {},
 ): Promise<string> {
 	const extension = getExtensionFromUrl(url);
 

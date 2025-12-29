@@ -39,7 +39,7 @@ export function getDefaultCacheDir(): string {
 		return path.join(
 			process.env["LOCALAPPDATA"] ?? path.join(os.homedir(), "AppData", "Local"),
 			"quarto-wizard",
-			"cache"
+			"cache",
 		);
 	} else {
 		return path.join(process.env["XDG_CACHE_HOME"] ?? path.join(os.homedir(), ".cache"), "quarto-wizard");
@@ -68,7 +68,7 @@ export function getCacheFilePath(cacheDir?: string): string {
 export async function readCachedRegistry(
 	cacheDir: string,
 	url: string,
-	ttl: number = DEFAULT_TTL
+	ttl: number = DEFAULT_TTL,
 ): Promise<Registry | null> {
 	const cacheFile = getCacheFilePath(cacheDir);
 
@@ -145,7 +145,7 @@ export async function clearRegistryCache(cacheDir?: string): Promise<void> {
  * @returns Cache status or null if no cache exists
  */
 export async function getCacheStatus(
-	cacheDir?: string
+	cacheDir?: string,
 ): Promise<{ exists: boolean; age?: number; url?: string } | null> {
 	const cacheFile = getCacheFilePath(cacheDir);
 

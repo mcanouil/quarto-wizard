@@ -121,7 +121,7 @@ suite("Install Quarto Extension Test Suite", () => {
 				save: async () => true,
 				eol: vscode.EndOfLine.LF,
 				lineCount: documentContent.split("\n").length,
-				lineAt: () => ({ text: "", lineNumber: 0 } as vscode.TextLine),
+				lineAt: () => ({ text: "", lineNumber: 0 }) as vscode.TextLine,
 				offsetAt: () => 0,
 				positionAt: () => new vscode.Position(0, 0),
 				getWordRangeAtPosition: () => undefined,
@@ -201,7 +201,7 @@ suite("Install Quarto Extension Test Suite", () => {
 			assert.strictEqual(
 				logMessages.filter((log) => log.type === "error").length,
 				0,
-				"Should not show any error messages"
+				"Should not show any error messages",
 			);
 		});
 	});
@@ -216,7 +216,7 @@ suite("Install Quarto Extension Test Suite", () => {
 			assert.strictEqual(
 				logMessages.filter((log) => log.type === "error").length,
 				0,
-				"Should not show any error messages"
+				"Should not show any error messages",
 			);
 		});
 	});
@@ -239,7 +239,7 @@ suite("Install Quarto Extension Test Suite", () => {
 			assert.strictEqual(
 				highlightBase,
 				"mcanouil/quarto-highlight-text",
-				"Should extract correct highlight-text extension base ID"
+				"Should extract correct highlight-text extension base ID",
 			);
 
 			// Extract versions
@@ -273,7 +273,7 @@ suite("Install Quarto Extension Test Suite", () => {
 			assert.strictEqual(
 				mockHighlightExtension.id,
 				"mcanouil/quarto-highlight-text",
-				"Highlight extension ID should be correct"
+				"Highlight extension ID should be correct",
 			);
 			assert.strictEqual(mockHighlightExtension.tag, "1.3.3", "Highlight extension version should be correct");
 		});
@@ -286,7 +286,7 @@ suite("Install Quarto Extension Test Suite", () => {
 			assert.strictEqual(
 				extensionSource,
 				"mcanouil/quarto-github@1.0.1",
-				"Should construct versioned extension source correctly"
+				"Should construct versioned extension source correctly",
 			);
 
 			// Test with "none" version (should not append version)
@@ -404,7 +404,7 @@ suite("Install Quarto Extension Test Suite", () => {
 			assert.ok(installedExtensions.includes("mcanouil/quarto-github"), "Should include GitHub extension");
 			assert.ok(
 				installedExtensions.includes("mcanouil/quarto-highlight-text"),
-				"Should include highlight-text extension"
+				"Should include highlight-text extension",
 			);
 		});
 	});

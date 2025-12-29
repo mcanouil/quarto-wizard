@@ -42,7 +42,7 @@ function checkPathTraversal(filePath: string): void {
 export async function extractTar(
 	archivePath: string,
 	destDir: string,
-	options: TarExtractOptions = {}
+	options: TarExtractOptions = {},
 ): Promise<string[]> {
 	const { maxSize = DEFAULT_MAX_SIZE, onProgress } = options;
 

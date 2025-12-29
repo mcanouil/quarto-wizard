@@ -72,7 +72,7 @@ async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 100
 		});
 
 		const extensionDetailsList: ExtensionDetails[] = Object.values(registry).map((entry) =>
-			convertRegistryEntry(entry)
+			convertRegistryEntry(entry),
 		);
 
 		await context.globalState.update(cacheKey, {
@@ -96,7 +96,7 @@ async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 100
  */
 export async function getExtensionsDetails(
 	context: vscode.ExtensionContext,
-	timeoutMs = 10000
+	timeoutMs = 10000,
 ): Promise<ExtensionDetails[]> {
 	const extensions = await fetchExtensions(context, timeoutMs);
 
@@ -113,7 +113,7 @@ export async function getExtensionsDetails(
 export async function searchExtensionsDetails(
 	context: vscode.ExtensionContext,
 	query: string,
-	limit = 50
+	limit = 50,
 ): Promise<ExtensionDetails[]> {
 	const extensions = await fetchExtensions(context);
 
@@ -145,7 +145,7 @@ export async function listExtensionsByType(
 		templatesOnly?: boolean;
 		extensionsOnly?: boolean;
 		limit?: number;
-	} = {}
+	} = {},
 ): Promise<ExtensionDetails[]> {
 	const extensions = await fetchExtensions(context);
 

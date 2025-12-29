@@ -40,7 +40,7 @@ suite("Timeout Handling Test Suite", () => {
 		assert.strictEqual(result, false);
 		assert.ok(
 			elapsed >= shortTimeout && elapsed < shortTimeout * 2,
-			`Expected timeout around ${shortTimeout}ms, got ${elapsed}ms`
+			`Expected timeout around ${shortTimeout}ms, got ${elapsed}ms`,
 		);
 	});
 });

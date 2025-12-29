@@ -61,7 +61,7 @@ export async function extractArchive(archivePath: string, options: ExtractOption
 	if (!format) {
 		throw new ExtensionError(
 			`Unsupported archive format: ${path.basename(archivePath)}`,
-			"Supported formats: .zip, .tar.gz, .tgz"
+			"Supported formats: .zip, .tar.gz, .tgz",
 		);
 	}
 
