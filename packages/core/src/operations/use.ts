@@ -23,28 +23,62 @@ import { cleanupExtraction } from "../archive/extract.js";
 const DEFAULT_EXCLUDE_PATTERNS = [
   // Extension directory (already installed separately)
   "_extensions/**",
+
   // Git files
   ".git/**",
   ".github/**",
   ".gitignore",
   ".gitattributes",
+
   // Quarto files
   ".quartoignore",
+
   // Documentation (repository-specific)
   "README.md",
   "README.qmd",
   "LICENSE",
   "LICENSE.md",
   "CHANGELOG.md",
-  // Node/build artifacts
+  "CONTRIBUTING.md",
+  "CODE_OF_CONDUCT.md",
+
+  // Node.js
   "node_modules/**",
+  "package-lock.json",
+  "yarn.lock",
+  "pnpm-lock.yaml",
+
+  // Python
+  "__pycache__/**",
+  "*.pyc",
+  "venv/**",
+  ".venv/**",
+
+  // R
+  ".Rproj.user/**",
+  "renv/**",
+
+  // Build artifacts
+  "dist/**",
+  "build/**",
+  "_site/**",
+
+  // Test/coverage
+  "coverage/**",
+  ".nyc_output/**",
+
   // OS files
   ".DS_Store",
   "Thumbs.db",
-  // Temporary files
+
+  // Temporary/backup files
   "*.log",
   "*.bak",
   "*.tmp",
+  "*.swp",
+  "*.swo",
+  "*~",
+
   // IDE files
   ".vscode/**",
   ".idea/**",

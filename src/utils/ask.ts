@@ -4,100 +4,106 @@ import { showLogsCommand, logMessage } from "../utils/log";
 import type { FileSelectionResult } from "@quarto-wizard/core";
 
 /**
+ * Configuration for a confirmation dialog.
+ */
+interface ConfirmationDialogConfig {
+	/** The configuration key to check (e.g., "trustAuthors"). */
+	configKey: string;
+	/** The value that triggers the prompt (e.g., "ask" or "always"). */
+	triggerValue: string;
+	/** The placeholder text for the quick pick. */
+	placeholder: string;
+	/** Description for the "Yes" option. */
+	yesDescription: string;
+	/** Description for the "No" option. */
+	noDescription: string;
+	/** Label for the "always" option (e.g., "Yes, always trust"). */
+	alwaysLabel: string;
+	/** Description for the "always" option. */
+	alwaysDescription: string;
+	/** Message to show when the user cancels. */
+	cancelMessage: string;
+}
+
+/**
+ * Creates a confirmation dialog function based on the provided configuration.
+ *
+ * @param config - The configuration for the confirmation dialog.
+ * @returns A function that prompts the user and returns 0 for success, 1 for cancellation.
+ */
+function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promise<number> {
+	return async (): Promise<number> => {
+		const vsConfig = vscode.workspace.getConfiguration("quartoWizard.ask", null);
+		const configValue = vsConfig.get<string>(config.configKey);
+
+		if (configValue === config.triggerValue) {
+			const result = await vscode.window.showQuickPick(
+				[
+					{ label: "Yes", description: config.yesDescription },
+					{ label: "No", description: config.noDescription },
+					{ label: config.alwaysLabel, description: config.alwaysDescription },
+				],
+				{
+					placeHolder: config.placeholder,
+				}
+			);
+			if (result?.label === config.alwaysLabel) {
+				await vsConfig.update(config.configKey, "never", vscode.ConfigurationTarget.Global);
+				return 0;
+			} else if (result?.label !== "Yes") {
+				logMessage(config.cancelMessage, "info");
+				vscode.window.showInformationMessage(`${config.cancelMessage} ${showLogsCommand()}.`);
+				return 1;
+			}
+		}
+		return 0;
+	};
+}
+
+/**
  * Prompts the user to trust the authors of the selected extensions when the trustAuthors setting is set to "ask".
  * @returns {Promise<number>} - Returns 0 if the authors are trusted or if the setting is updated to "never", otherwise returns 1.
  */
-export async function askTrustAuthors(): Promise<number> {
-	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
-	const configTrustAuthors = config.get<string>("trustAuthors");
-
-	if (configTrustAuthors === "ask") {
-		const trustAuthors = await vscode.window.showQuickPick(
-			[
-				{ label: "Yes", description: "Trust authors." },
-				{ label: "No", description: "Do not trust authors." },
-				{ label: "Yes, always trust", description: "Change setting to always trust." },
-			],
-			{
-				placeHolder: "Do you trust the authors of the selected extension(s)?",
-			}
-		);
-		if (trustAuthors?.label === "Yes, always trust") {
-			await config.update("trustAuthors", "never", vscode.ConfigurationTarget.Global);
-			return 0;
-		} else if (trustAuthors?.label !== "Yes") {
-			const message = "Operation cancelled because the authors are not trusted.";
-			logMessage(message, "info");
-			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
-			return 1;
-		}
-	}
-	return 0;
-}
+export const askTrustAuthors = createConfirmationDialog({
+	configKey: "trustAuthors",
+	triggerValue: "ask",
+	placeholder: "Do you trust the authors of the selected extension(s)?",
+	yesDescription: "Trust authors.",
+	noDescription: "Do not trust authors.",
+	alwaysLabel: "Yes, always trust",
+	alwaysDescription: "Change setting to always trust.",
+	cancelMessage: "Operation cancelled because the authors are not trusted.",
+});
 
 /**
  * Prompts the user to confirm the installation of the selected extensions when the confirmInstall setting is set to "ask".
  * @returns {Promise<number>} - Returns 0 if the installation is confirmed or if the setting is updated to "never", otherwise returns 1.
  */
-export async function askConfirmInstall(): Promise<number> {
-	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
-	const configConfirmInstall = config.get<string>("confirmInstall");
-
-	if (configConfirmInstall === "ask") {
-		const installWorkspace = await vscode.window.showQuickPick(
-			[
-				{ label: "Yes", description: "Install extensions." },
-				{ label: "No", description: "Do not install extensions." },
-				{ label: "Yes, always install", description: "Change setting to always install." },
-			],
-			{
-				placeHolder: "Do you want to install the selected extension(s)?",
-			}
-		);
-		if (installWorkspace?.label === "Yes, always install") {
-			await config.update("confirmInstall", "never", vscode.ConfigurationTarget.Global);
-			return 0;
-		} else if (installWorkspace?.label !== "Yes") {
-			const message = "Operation cancelled by the user.";
-			logMessage(message, "info");
-			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
-			return 1;
-		}
-	}
-	return 0;
-}
+export const askConfirmInstall = createConfirmationDialog({
+	configKey: "confirmInstall",
+	triggerValue: "ask",
+	placeholder: "Do you want to install the selected extension(s)?",
+	yesDescription: "Install extensions.",
+	noDescription: "Do not install extensions.",
+	alwaysLabel: "Yes, always install",
+	alwaysDescription: "Change setting to always install.",
+	cancelMessage: "Operation cancelled by the user.",
+});
 
 /**
  * Prompts the user to confirm the removal of the selected extensions when the confirmRemove setting is set to "always".
  * @returns {Promise<number>} - Returns 0 if the removal is confirmed or if the setting is updated to "never", otherwise returns 1.
  */
-export async function askConfirmRemove(): Promise<number> {
-	const config = vscode.workspace.getConfiguration("quartoWizard.ask", null);
-	const configConfirmRemove = config.get<string>("confirmRemove");
-
-	if (configConfirmRemove === "always") {
-		const removeWorkspace = await vscode.window.showQuickPick(
-			[
-				{ label: "Yes", description: "Remove extensions." },
-				{ label: "No", description: "Do not remove extensions." },
-				{ label: "Yes, always remove", description: "Change setting to always remove." },
-			],
-			{
-				placeHolder: "Do you want to remove the selected extension(s)?",
-			}
-		);
-		if (removeWorkspace?.label === "Yes, always remove") {
-			await config.update("confirmRemove", "never", vscode.ConfigurationTarget.Global);
-			return 0;
-		} else if (removeWorkspace?.label !== "Yes") {
-			const message = "Operation cancelled by the user.";
-			logMessage(message, "info");
-			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
-			return 1;
-		}
-	}
-	return 0;
-}
+export const askConfirmRemove = createConfirmationDialog({
+	configKey: "confirmRemove",
+	triggerValue: "always",
+	placeholder: "Do you want to remove the selected extension(s)?",
+	yesDescription: "Remove extensions.",
+	noDescription: "Do not remove extensions.",
+	alwaysLabel: "Yes, always remove",
+	alwaysDescription: "Change setting to always remove.",
+	cancelMessage: "Operation cancelled by the user.",
+});
 
 /**
  * Quick pick item for file/directory selection with tree metadata.
@@ -156,6 +162,44 @@ export function createFileSelectionCallback(): (
 
 		const existingSet = new Set(existingFiles);
 
+		// Pre-compute exclusion cache for all paths to avoid repeated minimatch calls
+		const exclusionCache = new Map<string, boolean>();
+
+		/**
+		 * Check if a path matches any exclude pattern (with caching).
+		 */
+		function isExcludedByPatterns(pathToCheck: string): boolean {
+			const cached = exclusionCache.get(pathToCheck);
+			if (cached !== undefined) {
+				return cached;
+			}
+			const result = defaultExcludePatterns.some((pattern) => minimatch(pathToCheck, pattern));
+			exclusionCache.set(pathToCheck, result);
+			return result;
+		}
+
+		/**
+		 * Check if a directory path matches any exclude pattern (with caching).
+		 * Checks both with and without trailing slash.
+		 */
+		function isDirExcludedByPatterns(dirPath: string): boolean {
+			const cacheKey = `dir:${dirPath}`;
+			const cached = exclusionCache.get(cacheKey);
+			if (cached !== undefined) {
+				return cached;
+			}
+			const result = defaultExcludePatterns.some(
+				(pattern) => minimatch(dirPath, pattern) || minimatch(dirPath + "/", pattern)
+			);
+			exclusionCache.set(cacheKey, result);
+			return result;
+		}
+
+		// Pre-populate cache for all file paths
+		for (const filePath of availableFiles) {
+			isExcludedByPatterns(filePath);
+		}
+
 		// Build tree structure from file paths
 		const root: TreeNode = {
 			name: "",
@@ -187,7 +231,7 @@ export function createFileSelectionCallback(): (
 						children: new Map(),
 						files: [],
 						isExisting: false,
-						isExcludedByDefault: defaultExcludePatterns.some((pattern) => minimatch(dirPath, pattern) || minimatch(dirPath + "/", pattern)),
+						isExcludedByDefault: isDirExcludedByPatterns(dirPath),
 					});
 				}
 				current = current.children.get(dirName)!;
@@ -243,7 +287,7 @@ export function createFileSelectionCallback(): (
 				if (node.path !== "") {
 					const allChildFiles = getAllFilesInNode(node);
 					const hasExisting = allChildFiles.some((f) => existingSet.has(f));
-					const allExcluded = allChildFiles.every((f) => defaultExcludePatterns.some((pattern) => minimatch(f, pattern)));
+					const allExcluded = allChildFiles.every((f) => isExcludedByPatterns(f));
 					const hasChildren = nodeHasChildren(node);
 
 					// Determine initial picked state
@@ -284,7 +328,7 @@ export function createFileSelectionCallback(): (
 					for (const filePath of fileSorted) {
 						const fileName = filePath.split("/").pop()!;
 						const isExisting = existingSet.has(filePath);
-						const isExcludedByDefault = defaultExcludePatterns.some((pattern) => minimatch(filePath, pattern));
+						const isExcludedByDefault = isExcludedByPatterns(filePath);
 
 						// Determine initial picked state
 						let picked: boolean;
