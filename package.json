@@ -69,7 +69,10 @@
 		"test": "vscode-test",
 		"test:watch": "npm run test-compile && vscode-test",
 		"test:manual": "node ./out/test/runTest.js",
-		"lint": "eslint --fix --cache --format unix \"src/**/*.{ts,tsx}\""
+		"lint": "eslint --fix --cache --format unix \"src/**/*.{ts,tsx}\"",
+		"format": "prettier --write \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
+		"format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
+		"sync-metadata": "node scripts/sync-package-metadata.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.23.0",
@@ -87,6 +90,7 @@
 		"glob": "^11.1.0",
 		"lru-cache": "^11.2.2",
 		"mocha": "^11.7.4",
+		"prettier": "^3.5.0",
 		"ts-loader": "^9.5.4",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.48.1",
