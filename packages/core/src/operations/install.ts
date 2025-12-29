@@ -186,7 +186,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				const entry = registry[registryKey] ?? registry[registryKey.toLowerCase()];
 				if (entry) {
 					defaultBranch = entry.defaultBranchRef ?? undefined;
-					latestCommit = entry.lastCommit ?? undefined;
+					latestCommit = entry.latestCommit ?? undefined;
 				}
 			} catch {
 				// Registry fetch failed, use defaults

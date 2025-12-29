@@ -15,7 +15,6 @@ describe("parseRegistryEntry", () => {
 			licenseInfo: "MIT",
 			url: "https://github.com/quarto-ext/lightbox",
 			template: false,
-			templateContent: null,
 		};
 
 		const entry = parseRegistryEntry("quarto-ext/lightbox", raw);
@@ -33,7 +32,6 @@ describe("parseRegistryEntry", () => {
 		expect(entry.licence).toBe("MIT");
 		expect(entry.htmlUrl).toBe("https://github.com/quarto-ext/lightbox");
 		expect(entry.template).toBe(false);
-		expect(entry.templateContent).toBeNull();
 	});
 
 	it("handles missing optional fields", () => {
@@ -54,7 +52,6 @@ describe("parseRegistryEntry", () => {
 		expect(entry.stars).toBe(0);
 		expect(entry.licence).toBeNull();
 		expect(entry.template).toBe(false);
-		expect(entry.templateContent).toBeNull();
 	});
 
 	it("strips v prefix from version", () => {
@@ -94,32 +91,30 @@ describe("parseRegistryEntry", () => {
 			nameWithOwner: "test/template",
 			url: "https://github.com/test/template",
 			template: true,
-			templateContent: "template.qmd",
 		};
 
 		const entry = parseRegistryEntry("test/template", raw);
 
 		expect(entry.template).toBe(true);
-		expect(entry.templateContent).toBe("template.qmd");
 	});
 
-	it("parses defaultBranchRef and lastCommit fields", () => {
+	it("parses defaultBranchRef and latestCommit fields", () => {
 		const raw = {
 			owner: "test",
 			title: "Test",
 			nameWithOwner: "test/test",
 			url: "https://github.com/test/test",
 			defaultBranchRef: "develop",
-			lastCommit: "abc1234567890abcdef1234567890abcdef123456",
+			latestCommit: "abc1234567890abcdef1234567890abcdef123456",
 		};
 
 		const entry = parseRegistryEntry("test/test", raw);
 
 		expect(entry.defaultBranchRef).toBe("develop");
-		expect(entry.lastCommit).toBe("abc1234567890abcdef1234567890abcdef123456");
+		expect(entry.latestCommit).toBe("abc1234567890abcdef1234567890abcdef123456");
 	});
 
-	it("handles missing defaultBranchRef and lastCommit", () => {
+	it("handles missing defaultBranchRef and latestCommit", () => {
 		const raw = {
 			owner: "test",
 			title: "Test",
@@ -130,23 +125,23 @@ describe("parseRegistryEntry", () => {
 		const entry = parseRegistryEntry("test/test", raw);
 
 		expect(entry.defaultBranchRef).toBeNull();
-		expect(entry.lastCommit).toBeNull();
+		expect(entry.latestCommit).toBeNull();
 	});
 
-	it("handles null defaultBranchRef and lastCommit", () => {
+	it("handles null defaultBranchRef and latestCommit", () => {
 		const raw = {
 			owner: "test",
 			title: "Test",
 			nameWithOwner: "test/test",
 			url: "https://github.com/test/test",
 			defaultBranchRef: null,
-			lastCommit: null,
+			latestCommit: null,
 		};
 
 		const entry = parseRegistryEntry("test/test", raw);
 
 		expect(entry.defaultBranchRef).toBeNull();
-		expect(entry.lastCommit).toBeNull();
+		expect(entry.latestCommit).toBeNull();
 	});
 });
 

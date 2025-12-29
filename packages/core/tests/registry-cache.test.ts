@@ -37,7 +37,6 @@ describe("registry cache", () => {
 			licence: "MIT",
 			htmlUrl: "https://github.com/test/ext",
 			template: false,
-			templateContent: null,
 		},
 	};
 

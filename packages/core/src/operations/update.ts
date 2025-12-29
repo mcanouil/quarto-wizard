@@ -116,9 +116,9 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		// Check for commit-based installation
 		const currentCommit = extractCommitFromSource(source);
 
-		if (currentCommit && entry.lastCommit) {
+		if (currentCommit && entry.latestCommit) {
 			// Commit-based comparison
-			const latestCommit = entry.lastCommit.substring(0, 7).toLowerCase();
+			const latestCommit = entry.latestCommit.substring(0, 7).toLowerCase();
 
 			if (currentCommit !== latestCommit) {
 				updates.push({

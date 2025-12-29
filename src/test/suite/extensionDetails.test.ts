@@ -38,9 +38,7 @@ suite("Extension Details Test Suite", () => {
 			url: "https://github.com/mcanouil/quarto-github",
 			author: "Mickaël Canouil",
 			template: false,
-			templateContent: null,
 			example: true,
-			exampleContent: "LS0tCnRpdGxlOiAiQXV0b2xpbmtlZCByZWZlcmVuY2VzIGFuZCBVUkxzIgpk",
 		},
 		"mcanouil/quarto-highlight-text": {
 			createdAt: "2024-05-03T20:09:15Z",
@@ -63,9 +61,7 @@ suite("Extension Details Test Suite", () => {
 			url: "https://github.com/mcanouil/quarto-highlight-text",
 			author: "Mickaël Canouil",
 			template: false,
-			templateContent: null,
 			example: true,
-			exampleContent: "LS0tCnRpdGxlOiAiSGlnaGxpZ2h0LXRleHQgUXVhcnRvIEV4dGVuc2lvbiIK",
 		},
 	};
 

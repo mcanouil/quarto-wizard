@@ -16,7 +16,6 @@ const createMockRegistry = (): Registry => ({
 		licence: "MIT",
 		htmlUrl: "https://github.com/quarto-ext/lightbox",
 		template: false,
-		templateContent: null,
 	},
 	"quarto-ext/fontawesome": {
 		id: "quarto-ext/fontawesome",
@@ -32,7 +31,6 @@ const createMockRegistry = (): Registry => ({
 		licence: "MIT",
 		htmlUrl: "https://github.com/quarto-ext/fontawesome",
 		template: false,
-		templateContent: null,
 	},
 	"user/template-ext": {
 		id: "user/template-ext",
@@ -48,7 +46,6 @@ const createMockRegistry = (): Registry => ({
 		licence: null,
 		htmlUrl: "https://github.com/user/template-ext",
 		template: true,
-		templateContent: "template.qmd",
 	},
 	"another/revealjs-theme": {
 		id: "another/revealjs-theme",
@@ -64,7 +61,6 @@ const createMockRegistry = (): Registry => ({
 		licence: "MIT",
 		htmlUrl: "https://github.com/another/revealjs-theme",
 		template: false,
-		templateContent: null,
 	},
 });
 

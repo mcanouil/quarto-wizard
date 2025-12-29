@@ -181,7 +181,7 @@ describe("checkForUpdates", () => {
 		expect(updates).toHaveLength(0);
 	});
 
-	it("should detect commit-based updates when lastCommit changes", async () => {
+	it("should detect commit-based updates when latestCommit changes", async () => {
 		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@abc1234");
 
 		vi.mocked(fetchRegistry).mockResolvedValue({
@@ -190,7 +190,7 @@ describe("checkForUpdates", () => {
 				latestVersion: null,
 				latestTag: null,
 				latestReleaseUrl: null,
-				lastCommit: "def5678901234567890abcdef1234567890abcdef",
+				latestCommit: "def5678901234567890abcdef1234567890abcdef",
 				htmlUrl: "https://github.com/quarto-ext/fontawesome",
 			},
 		});
@@ -212,7 +212,7 @@ describe("checkForUpdates", () => {
 				latestVersion: null,
 				latestTag: null,
 				latestReleaseUrl: null,
-				lastCommit: "abc1234567890abcdef1234567890abcdef123456",
+				latestCommit: "abc1234567890abcdef1234567890abcdef123456",
 				htmlUrl: "https://github.com/quarto-ext/fontawesome",
 			},
 		});
@@ -222,7 +222,7 @@ describe("checkForUpdates", () => {
 		expect(updates).toHaveLength(0);
 	});
 
-	it("should skip commit-based extension if registry has no lastCommit", async () => {
+	it("should skip commit-based extension if registry has no latestCommit", async () => {
 		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@abc1234");
 
 		vi.mocked(fetchRegistry).mockResolvedValue({
@@ -231,7 +231,7 @@ describe("checkForUpdates", () => {
 				latestVersion: null,
 				latestTag: null,
 				latestReleaseUrl: null,
-				lastCommit: null,
+				latestCommit: null,
 				htmlUrl: "https://github.com/quarto-ext/fontawesome",
 			},
 		});
@@ -241,7 +241,7 @@ describe("checkForUpdates", () => {
 		expect(updates).toHaveLength(0);
 	});
 
-	it("should use semver for non-commit sources even with lastCommit available", async () => {
+	it("should use semver for non-commit sources even with latestCommit available", async () => {
 		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
 
 		vi.mocked(fetchRegistry).mockResolvedValue({
@@ -250,7 +250,7 @@ describe("checkForUpdates", () => {
 				latestVersion: "2.0.0",
 				latestTag: "v2.0.0",
 				latestReleaseUrl: "https://github.com/quarto-ext/fontawesome/releases/tag/v2.0.0",
-				lastCommit: "abc1234567890",
+				latestCommit: "abc1234567890",
 				htmlUrl: "https://github.com/quarto-ext/fontawesome",
 			},
 		});
@@ -272,7 +272,7 @@ describe("checkForUpdates", () => {
 				latestVersion: null,
 				latestTag: null,
 				latestReleaseUrl: null,
-				lastCommit: "abc1234567890abcdef",
+				latestCommit: "abc1234567890abcdef",
 				htmlUrl: "https://github.com/quarto-ext/fontawesome",
 			},
 		});
