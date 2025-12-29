@@ -145,6 +145,13 @@
 				"category": "Quarto Wizard"
 			},
 			{
+				"command": "quartoWizard.clearCache",
+				"title": "Clear Extension Cache",
+				"shortTitle": "Clear Cache",
+				"icon": "$(trash)",
+				"category": "Quarto Wizard"
+			},
+			{
 				"command": "quartoWizard.newQuartoReprex",
 				"title": "Quarto Reproducible Document",
 				"icon": "$(new-file)",
@@ -240,6 +247,10 @@
 				{
 					"command": "quartoWizard.clearRecent",
 					"group": "quartoWizard@5"
+				},
+				{
+					"command": "quartoWizard.clearCache",
+					"group": "quartoWizard@6"
 				}
 			],
 			"view/title": [

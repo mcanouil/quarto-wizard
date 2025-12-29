@@ -38,5 +38,8 @@ export * from "./github/index.js";
 // Archive exports
 export * from "./archive/index.js";
 
+// Validation exports
+export * from "./validation/index.js";
+
 // Operations exports
 export * from "./operations/index.js";

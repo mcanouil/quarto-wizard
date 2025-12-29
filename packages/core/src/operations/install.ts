@@ -13,7 +13,7 @@ import {
   getExtensionInstallPath,
   type InstalledExtension,
 } from "../filesystem/discovery.js";
-import { copyDirectory } from "../filesystem/walk.js";
+import { copyDirectory, collectFiles } from "../filesystem/walk.js";
 import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
@@ -21,6 +21,11 @@ import {
   findExtensionRoot,
   cleanupExtraction,
 } from "../archive/extract.js";
+import {
+  validateManifest,
+  type ValidationResult,
+  type ValidationOptions,
+} from "../validation/manifest.js";
 
 /**
  * Source for extension installation.
@@ -63,6 +68,12 @@ export interface InstallOptions {
   force?: boolean;
   /** Keep source directory after installation (for template copying). */
   keepSourceDir?: boolean;
+  /** Dry run mode - resolve and validate without installing. */
+  dryRun?: boolean;
+  /** Validate manifest before installation. */
+  validate?: boolean;
+  /** Options for manifest validation (only used if validate is true). */
+  validationOptions?: ValidationOptions;
 }
 
 /**
@@ -79,6 +90,14 @@ export interface InstallResult {
   source: string;
   /** Path to extracted source root (only set if keepSourceDir was true). */
   sourceRoot?: string;
+  /** Whether this was a dry run (no files were actually created). */
+  dryRun?: boolean;
+  /** Files that would be created (only set in dry run mode). */
+  wouldCreate?: string[];
+  /** Whether the extension already exists (only relevant in dry run mode). */
+  alreadyExists?: boolean;
+  /** Validation result (only set if validate option was true). */
+  validation?: ValidationResult;
 }
 
 /**
@@ -156,7 +175,16 @@ export async function install(
   source: InstallSource,
   options: InstallOptions
 ): Promise<InstallResult> {
-  const { projectDir, auth, onProgress, force = false, keepSourceDir = false } = options;
+  const {
+    projectDir,
+    auth,
+    onProgress,
+    force = false,
+    keepSourceDir = false,
+    dryRun = false,
+    validate = false,
+    validationOptions,
+  } = options;
 
   let archivePath: string | undefined;
   let extractDir: string | undefined;
@@ -227,12 +255,53 @@ export async function install(
       throw new ExtensionError("Failed to read extension manifest");
     }
 
-    onProgress?.({ phase: "installing", message: "Installing extension..." });
+    // Run validation if requested
+    let validationResult: ValidationResult | undefined;
+    if (validate) {
+      validationResult = validateManifest(manifestResult.manifest, validationOptions);
+      if (!validationResult.valid) {
+        throw new ExtensionError(
+          `Extension manifest validation failed with ${validationResult.summary.errors} error(s)`,
+          validationResult.issues
+            .filter((i) => i.severity === "error")
+            .map((i) => `${i.field}: ${i.message}`)
+            .join("; ")
+        );
+      }
+    }
+
+    onProgress?.({ phase: "installing", message: dryRun ? "Validating installation..." : "Installing extension..." });
 
     const extensionId = resolveExtensionId(source, extensionRoot, manifestResult.manifest);
     const targetDir = getExtensionInstallPath(projectDir, extensionId);
+    const sourceString = formatSourceString(source, tagName);
+    const alreadyExists = fs.existsSync(targetDir);
 
-    if (fs.existsSync(targetDir)) {
+    // In dry-run mode, return what would happen without making changes
+    if (dryRun) {
+      // Collect files that would be created
+      const wouldCreate = await collectExtensionFiles(extensionRoot);
+      const manifestPath = path.join(targetDir, manifestResult.filename);
+
+      return {
+        success: true,
+        extension: {
+          id: extensionId,
+          manifest: manifestResult.manifest,
+          manifestPath,
+          directory: targetDir,
+        },
+        filesCreated: [],
+        source: sourceString,
+        sourceRoot: keepSourceDir ? repoRoot : undefined,
+        dryRun: true,
+        wouldCreate,
+        alreadyExists,
+        validation: validationResult,
+      };
+    }
+
+    if (alreadyExists) {
       if (!force) {
         throw new ExtensionError(
           `Extension already installed: ${extensionId.owner}/${extensionId.name}`,
@@ -246,7 +315,6 @@ export async function install(
 
     onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
 
-    const sourceString = formatSourceString(source, tagName);
     const manifestPath = path.join(targetDir, manifestResult.filename);
     updateManifestSource(manifestPath, sourceString);
 
@@ -263,6 +331,7 @@ export async function install(
       filesCreated,
       source: sourceString,
       sourceRoot: keepSourceDir ? repoRoot : undefined,
+      validation: validationResult,
     };
   } finally {
     if (archivePath && source.type !== "local" && fs.existsSync(archivePath)) {
@@ -320,4 +389,13 @@ async function copyExtension(
   targetDir: string
 ): Promise<string[]> {
   return copyDirectory(sourceDir, targetDir);
+}
+
+/**
+ * Collect extension files for dry-run preview.
+ * Returns relative paths that would be created.
+ */
+async function collectExtensionFiles(sourceDir: string): Promise<string[]> {
+  const absolutePaths = await collectFiles(sourceDir);
+  return absolutePaths.map((p) => path.relative(sourceDir, p));
 }

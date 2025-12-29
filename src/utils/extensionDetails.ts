@@ -3,8 +3,8 @@ import {
 	fetchRegistry,
 	type RegistryEntry,
 } from "@quarto-wizard/core";
-import { QW_EXTENSIONS, QW_EXTENSIONS_CACHE, QW_EXTENSIONS_CACHE_TIME } from "../constants";
-import { logMessage, debouncedLogMessage } from "./log";
+import { QW_EXTENSIONS, QW_EXTENSIONS_CACHE, QW_EXTENSIONS_CACHE_TIME, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
+import { logMessage, debouncedLogMessage, showLogsCommand } from "./log";
 import { generateHashKey } from "./hash";
 
 /**
@@ -172,4 +172,25 @@ export async function listExtensionsByType(
 	}
 
 	return filtered;
+}
+
+/**
+ * Clears all cached extension data and recently used/installed lists.
+ * @param {vscode.ExtensionContext} context - The extension context.
+ * @returns {Promise<void>}
+ */
+export async function clearExtensionsCache(context: vscode.ExtensionContext): Promise<void> {
+	const url = QW_EXTENSIONS;
+	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
+
+	// Clear extension registry cache
+	await context.globalState.update(cacheKey, undefined);
+
+	// Clear recently installed/used lists
+	await context.globalState.update(QW_RECENTLY_INSTALLED, []);
+	await context.globalState.update(QW_RECENTLY_USED, []);
+
+	const message = "Extension cache and recent lists cleared successfully.";
+	logMessage(message, "info");
+	vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 }

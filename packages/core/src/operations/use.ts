@@ -175,6 +175,8 @@ export interface UseOptions {
   selectFiles?: FileSelectionCallback;
   /** Progress callback. */
   onProgress?: (info: { phase: string; message: string; file?: string }) => void;
+  /** Dry run mode - resolve and validate without copying files. */
+  dryRun?: boolean;
 }
 
 /**
@@ -187,6 +189,12 @@ export interface UseResult {
   templateFiles: string[];
   /** Files skipped due to existing. */
   skippedFiles: string[];
+  /** Whether this was a dry run (no files were actually copied). */
+  dryRun?: boolean;
+  /** Template files that would be copied (only set in dry run mode). */
+  wouldCopy?: string[];
+  /** Files that would conflict with existing files (only set in dry run mode). */
+  wouldConflict?: string[];
 }
 
 /**
@@ -210,6 +218,7 @@ export async function use(
     confirmOverwriteBatch,
     selectFiles,
     onProgress,
+    dryRun = false,
   } = options;
 
   const installSource = typeof source === "string" ? parseInstallSource(source) : source;
@@ -221,7 +230,8 @@ export async function use(
     projectDir,
     auth,
     force: true,
-    keepSourceDir: !noTemplate,
+    keepSourceDir: !noTemplate || dryRun,
+    dryRun,
     onProgress: (p) => {
       onProgress?.({ phase: p.phase, message: p.message });
     },
@@ -296,6 +306,27 @@ export async function use(
           include.some((pattern) => minimatch(f, pattern))
         );
       }
+    }
+
+    // In dry-run mode, return what would happen without copying
+    if (dryRun) {
+      // Find which files would conflict
+      const wouldConflict: string[] = [];
+      for (const file of filesToCopy) {
+        const targetPath = path.join(projectDir, file);
+        if (fs.existsSync(targetPath)) {
+          wouldConflict.push(file);
+        }
+      }
+
+      return {
+        install: installResult,
+        templateFiles: [],
+        skippedFiles: [],
+        dryRun: true,
+        wouldCopy: filesToCopy,
+        wouldConflict,
+      };
     }
 
     onProgress?.({ phase: "copying", message: "Copying template files..." });

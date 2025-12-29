@@ -4,7 +4,7 @@ import { showLogsCommand, logMessage } from "./utils/log";
 import { installQuartoExtensionCommand, useQuartoTemplateCommand } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
-import { getExtensionsDetails } from "./utils/extensionDetails";
+import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
 
 /**
@@ -28,6 +28,11 @@ export function activate(context: vscode.ExtensionContext) {
 			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 		})
+	);
+
+	// Register command to clear all cached extension data (registry + recent lists)
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.clearCache", () => clearExtensionsCache(context))
 	);
 
 	// Register main extension installation command
