@@ -119,7 +119,7 @@ positron --install-extension mcanouil.quarto-wizard
 
 Or click on the Quarto Wizard icon in the Activity Bar.
 
-*Quarto Wizard Explorer View in action:*
+_Quarto Wizard Explorer View in action:_
 
 <p align="center">
   <video
@@ -133,14 +133,14 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 </p>
 
 > [!IMPORTANT]
-> Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.*, if `source: <owner>/<repository>` is present in `_extension.yml`).
+> Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
 > You can manually add the source to the extension's `_extension.yml` file to enable updates.
 
 ### Explorer/Editor Context Menu
 
 - Right-click in the Explorer or Editor to access the following commands:
   - `Install Extensions`.
-  - `Use Template` (*Only retrieves the Quarto document. For other resources, please use `quarto use template` manually*).
+  - `Use Template` (_Only retrieves the Quarto document. For other resources, please use `quarto use template` manually_).
   - `Quarto Reproducible Document`.
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
@@ -162,7 +162,7 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 5. Answer the prompts to confirm the installation.
 
 > [!NOTE]
-> Quarto Wizard can only display available information, *i.e.*, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+> Quarto Wizard can only display available information, _i.e._, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
 
 ### Use Quarto Templates
 
@@ -199,8 +199,8 @@ Access these through:
 
 ```json
 {
-  "quartoWizard.ask.trustAuthors": "ask",
-  "quartoWizard.ask.confirmInstall": "ask"
+	"quartoWizard.ask.trustAuthors": "ask",
+	"quartoWizard.ask.confirmInstall": "ask"
 }
 ```
 
@@ -217,7 +217,7 @@ Access these through:
 
 ```json
 {
-  "quartoWizard.quarto.path": "/usr/local/bin/quarto"
+	"quartoWizard.quarto.path": "/usr/local/bin/quarto"
 }
 ```
 

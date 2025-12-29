@@ -1,10 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
-import {
-	discoverInstalledExtensions,
-	type InstalledExtension,
-} from "@quarto-wizard/core";
+import { discoverInstalledExtensions, type InstalledExtension } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
@@ -28,9 +25,7 @@ export function findQuartoExtensions(directory: string): string[] {
 	if (!fs.existsSync(directory)) {
 		return [];
 	}
-	return findQuartoExtensionsRecurse(directory).map((filePath) =>
-		path.relative(directory, path.dirname(filePath))
-	);
+	return findQuartoExtensionsRecurse(directory).map((filePath) => path.relative(directory, path.dirname(filePath)));
 }
 
 /**
@@ -114,9 +109,7 @@ export function findModifiedExtensions(extensions: Record<string, Date>, directo
  * @param {string} workspaceFolder - The workspace folder to search.
  * @returns {Promise<Record<string, ExtensionData>>} - A promise that resolves to an object mapping extension names to their data.
  */
-export async function readExtensionsAsync(
-	workspaceFolder: string
-): Promise<Record<string, ExtensionData>> {
+export async function readExtensionsAsync(workspaceFolder: string): Promise<Record<string, ExtensionData>> {
 	try {
 		const extensions = await discoverInstalledExtensions(workspaceFolder);
 		const extensionsData: Record<string, ExtensionData> = {};
@@ -141,9 +134,7 @@ function convertInstalledExtension(ext: InstalledExtension): ExtensionData {
 		title: manifest.title,
 		author: manifest.author,
 		version: manifest.version,
-		contributes: manifest.contributes
-			? Object.keys(manifest.contributes).join(", ")
-			: undefined,
+		contributes: manifest.contributes ? Object.keys(manifest.contributes).join(", ") : undefined,
 		source: manifest.source,
 		repository: manifest.source ? manifest.source.replace(/@.*$/, "") : undefined,
 	};
@@ -155,10 +146,7 @@ function convertInstalledExtension(ext: InstalledExtension): ExtensionData {
  * @param {string[]} extensions - An array of extension names to read.
  * @returns {Record<string, ExtensionData>} - An object mapping extension names to their data.
  */
-export function readExtensions(
-	workspaceFolder: string,
-	extensions: string[]
-): Record<string, ExtensionData> {
+export function readExtensions(workspaceFolder: string, extensions: string[]): Record<string, ExtensionData> {
 	const extensionsData: Record<string, ExtensionData> = {};
 	for (const ext of extensions) {
 		let filePath = path.join(workspaceFolder, "_extensions", ext, "_extension.yml");
@@ -231,9 +219,7 @@ export async function removeExtension(extension: string, root: string): Promise<
  * @param {string} workspaceFolder - The workspace folder to search.
  * @returns {Promise<InstalledExtension[]>} - A promise that resolves to an array of installed extensions.
  */
-export async function getInstalledExtensions(
-	workspaceFolder: string
-): Promise<InstalledExtension[]> {
+export async function getInstalledExtensions(workspaceFolder: string): Promise<InstalledExtension[]> {
 	try {
 		return await discoverInstalledExtensions(workspaceFolder);
 	} catch {

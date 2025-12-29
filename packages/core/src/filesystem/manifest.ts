@@ -16,12 +16,12 @@ const MANIFEST_FILENAMES = ["_extension.yml", "_extension.yaml"] as const;
  * Result of reading a manifest file.
  */
 export interface ManifestReadResult {
-  /** Parsed manifest data. */
-  manifest: ExtensionManifest;
-  /** Full path to the manifest file. */
-  manifestPath: string;
-  /** Filename used (e.g., "_extension.yml"). */
-  filename: string;
+	/** Parsed manifest data. */
+	manifest: ExtensionManifest;
+	/** Full path to the manifest file. */
+	manifestPath: string;
+	/** Filename used (e.g., "_extension.yml"). */
+	filename: string;
 }
 
 /**
@@ -31,13 +31,13 @@ export interface ManifestReadResult {
  * @returns Path to manifest file or null if not found
  */
 export function findManifestFile(directory: string): string | null {
-  for (const filename of MANIFEST_FILENAMES) {
-    const manifestPath = path.join(directory, filename);
-    if (fs.existsSync(manifestPath)) {
-      return manifestPath;
-    }
-  }
-  return null;
+	for (const filename of MANIFEST_FILENAMES) {
+		const manifestPath = path.join(directory, filename);
+		if (fs.existsSync(manifestPath)) {
+			return manifestPath;
+		}
+	}
+	return null;
 }
 
 /**
@@ -48,18 +48,18 @@ export function findManifestFile(directory: string): string | null {
  * @throws ManifestError if parsing fails
  */
 export function parseManifestFile(manifestPath: string): ExtensionManifest {
-  try {
-    const content = fs.readFileSync(manifestPath, "utf-8");
-    return parseManifestContent(content, manifestPath);
-  } catch (error) {
-    if (error instanceof ManifestError) {
-      throw error;
-    }
-    throw new ManifestError(
-      `Failed to read manifest file: ${error instanceof Error ? error.message : String(error)}`,
-      manifestPath
-    );
-  }
+	try {
+		const content = fs.readFileSync(manifestPath, "utf-8");
+		return parseManifestContent(content, manifestPath);
+	} catch (error) {
+		if (error instanceof ManifestError) {
+			throw error;
+		}
+		throw new ManifestError(
+			`Failed to read manifest file: ${error instanceof Error ? error.message : String(error)}`,
+			manifestPath
+		);
+	}
 }
 
 /**
@@ -70,27 +70,24 @@ export function parseManifestFile(manifestPath: string): ExtensionManifest {
  * @returns Parsed manifest
  * @throws ManifestError if parsing fails
  */
-export function parseManifestContent(
-  content: string,
-  sourcePath?: string
-): ExtensionManifest {
-  try {
-    const raw = yaml.load(content) as RawManifest;
+export function parseManifestContent(content: string, sourcePath?: string): ExtensionManifest {
+	try {
+		const raw = yaml.load(content) as RawManifest;
 
-    if (!raw || typeof raw !== "object") {
-      throw new ManifestError("Manifest file is empty or invalid", sourcePath);
-    }
+		if (!raw || typeof raw !== "object") {
+			throw new ManifestError("Manifest file is empty or invalid", sourcePath);
+		}
 
-    return normaliseManifest(raw);
-  } catch (error) {
-    if (error instanceof ManifestError) {
-      throw error;
-    }
-    throw new ManifestError(
-      `Failed to parse manifest: ${error instanceof Error ? error.message : String(error)}`,
-      sourcePath
-    );
-  }
+		return normaliseManifest(raw);
+	} catch (error) {
+		if (error instanceof ManifestError) {
+			throw error;
+		}
+		throw new ManifestError(
+			`Failed to parse manifest: ${error instanceof Error ? error.message : String(error)}`,
+			sourcePath
+		);
+	}
 }
 
 /**
@@ -100,20 +97,20 @@ export function parseManifestContent(
  * @returns ManifestReadResult or null if no manifest found
  */
 export function readManifest(directory: string): ManifestReadResult | null {
-  const manifestPath = findManifestFile(directory);
+	const manifestPath = findManifestFile(directory);
 
-  if (!manifestPath) {
-    return null;
-  }
+	if (!manifestPath) {
+		return null;
+	}
 
-  const manifest = parseManifestFile(manifestPath);
-  const filename = path.basename(manifestPath);
+	const manifest = parseManifestFile(manifestPath);
+	const filename = path.basename(manifestPath);
 
-  return {
-    manifest,
-    manifestPath,
-    filename,
-  };
+	return {
+		manifest,
+		manifestPath,
+		filename,
+	};
 }
 
 /**
@@ -123,7 +120,7 @@ export function readManifest(directory: string): ManifestReadResult | null {
  * @returns True if manifest exists
  */
 export function hasManifest(directory: string): boolean {
-  return findManifestFile(directory) !== null;
+	return findManifestFile(directory) !== null;
 }
 
 /**
@@ -132,56 +129,53 @@ export function hasManifest(directory: string): boolean {
  * @param manifestPath - Path to write the manifest
  * @param manifest - Manifest data to write
  */
-export function writeManifest(
-  manifestPath: string,
-  manifest: ExtensionManifest
-): void {
-  const raw: RawManifest = {
-    title: manifest.title,
-    author: manifest.author,
-    version: manifest.version,
-  };
+export function writeManifest(manifestPath: string, manifest: ExtensionManifest): void {
+	const raw: RawManifest = {
+		title: manifest.title,
+		author: manifest.author,
+		version: manifest.version,
+	};
 
-  if (manifest.quartoRequired) {
-    raw["quarto-required"] = manifest.quartoRequired;
-  }
+	if (manifest.quartoRequired) {
+		raw["quarto-required"] = manifest.quartoRequired;
+	}
 
-  if (manifest.source) {
-    raw.source = manifest.source;
-  }
+	if (manifest.source) {
+		raw.source = manifest.source;
+	}
 
-  const contributes: RawManifest["contributes"] = {};
-  if (manifest.contributes.filters?.length) {
-    contributes.filters = manifest.contributes.filters;
-  }
-  if (manifest.contributes.shortcodes?.length) {
-    contributes.shortcodes = manifest.contributes.shortcodes;
-  }
-  if (manifest.contributes.formats && Object.keys(manifest.contributes.formats).length) {
-    contributes.formats = manifest.contributes.formats;
-  }
-  if (manifest.contributes.project) {
-    contributes.project = manifest.contributes.project;
-  }
-  if (manifest.contributes.revealjsPlugins?.length) {
-    contributes.revealjs = { plugins: manifest.contributes.revealjsPlugins };
-  }
-  if (manifest.contributes.metadata) {
-    contributes.metadata = manifest.contributes.metadata;
-  }
+	const contributes: RawManifest["contributes"] = {};
+	if (manifest.contributes.filters?.length) {
+		contributes.filters = manifest.contributes.filters;
+	}
+	if (manifest.contributes.shortcodes?.length) {
+		contributes.shortcodes = manifest.contributes.shortcodes;
+	}
+	if (manifest.contributes.formats && Object.keys(manifest.contributes.formats).length) {
+		contributes.formats = manifest.contributes.formats;
+	}
+	if (manifest.contributes.project) {
+		contributes.project = manifest.contributes.project;
+	}
+	if (manifest.contributes.revealjsPlugins?.length) {
+		contributes.revealjs = { plugins: manifest.contributes.revealjsPlugins };
+	}
+	if (manifest.contributes.metadata) {
+		contributes.metadata = manifest.contributes.metadata;
+	}
 
-  if (Object.keys(contributes).length > 0) {
-    raw.contributes = contributes;
-  }
+	if (Object.keys(contributes).length > 0) {
+		raw.contributes = contributes;
+	}
 
-  const content = yaml.dump(raw, {
-    indent: 2,
-    lineWidth: 120,
-    noRefs: true,
-    sortKeys: false,
-  });
+	const content = yaml.dump(raw, {
+		indent: 2,
+		lineWidth: 120,
+		noRefs: true,
+		sortKeys: false,
+	});
 
-  fs.writeFileSync(manifestPath, content, "utf-8");
+	fs.writeFileSync(manifestPath, content, "utf-8");
 }
 
 /**
@@ -191,7 +185,7 @@ export function writeManifest(
  * @param source - New source value
  */
 export function updateManifestSource(manifestPath: string, source: string): void {
-  const manifest = parseManifestFile(manifestPath);
-  manifest.source = source;
-  writeManifest(manifestPath, manifest);
+	const manifest = parseManifestFile(manifestPath);
+	manifest.source = source;
+	writeManifest(manifestPath, manifest);
 }

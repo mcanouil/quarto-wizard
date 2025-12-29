@@ -247,7 +247,7 @@ export function createFileSelectionCallback(): (
 			current.files.push(filePath);
 		}
 
-		// Track collapsed directories
+		// Track collapsed directories (start collapsed by default)
 		const collapsedDirs = new Set<string>();
 
 		// Track selected paths (persists across rebuilds)
@@ -255,6 +255,25 @@ export function createFileSelectionCallback(): (
 
 		// Cache for getAllFilesInNode results (memoisation)
 		const nodeFilesCache = new Map<string, string[]>();
+
+		/**
+		 * Collect all directory paths from the tree for initial collapse.
+		 */
+		function collectAllDirectoryPaths(node: TreeNode): string[] {
+			const paths: string[] = [];
+			if (node.path !== "" && (node.children.size > 0 || node.files.length > 0)) {
+				paths.push(node.path);
+			}
+			for (const child of node.children.values()) {
+				paths.push(...collectAllDirectoryPaths(child));
+			}
+			return paths;
+		}
+
+		// Start with all directories collapsed
+		for (const dirPath of collectAllDirectoryPaths(root)) {
+			collapsedDirs.add(dirPath);
+		}
 
 		function getAllFilesInNode(node: TreeNode): string[] {
 			const cached = nodeFilesCache.get(node.path);
@@ -270,6 +289,37 @@ export function createFileSelectionCallback(): (
 			nodeFilesCache.set(node.path, files);
 			return files;
 		}
+
+		// Pre-populate selectedPaths with files that should be selected by default
+		// (This ensures selection is preserved even when directories are collapsed)
+		for (const filePath of availableFiles) {
+			if (!isExcludedByPatterns(filePath)) {
+				selectedPaths.add(filePath);
+			}
+		}
+
+		/**
+		 * Check if all files in a directory are selected.
+		 */
+		function areAllChildrenSelected(node: TreeNode): boolean {
+			const allFiles = getAllFilesInNode(node);
+			return allFiles.length > 0 && allFiles.every((f) => selectedPaths.has(f));
+		}
+
+		/**
+		 * Update directory selection state based on children.
+		 */
+		function updateDirectorySelections(node: TreeNode): void {
+			for (const child of node.children.values()) {
+				updateDirectorySelections(child);
+			}
+			if (node.path !== "" && areAllChildrenSelected(node)) {
+				selectedPaths.add(node.path);
+			}
+		}
+
+		// Update directory selections based on file selections
+		updateDirectorySelections(root);
 
 		function nodeHasChildren(node: TreeNode): boolean {
 			return node.files.length > 0 || node.children.size > 0;
@@ -315,7 +365,7 @@ export function createFileSelectionCallback(): (
 						isExcludedByDefault: allExcluded || node.isExcludedByDefault,
 						childPaths: allChildFiles,
 						hasChildren,
-						description: hasExisting ? "$(warning) contains existing files" : (allExcluded ? "excluded by default" : ""),
+						description: hasExisting ? "$(warning) contains existing files" : allExcluded ? "excluded by default" : "",
 						picked,
 					});
 				}
@@ -382,13 +432,6 @@ export function createFileSelectionCallback(): (
 
 		// Build initial items
 		let items = buildVisibleItems();
-
-		// Initialise selected paths from initial picked state
-		for (const item of items) {
-			if (item.picked) {
-				selectedPaths.add(item.path);
-			}
-		}
 
 		// Create QuickPick
 		const quickPick = vscode.window.createQuickPick<TreeQuickPickItem>();

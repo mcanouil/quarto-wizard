@@ -38,7 +38,9 @@ suite("Timeout Handling Test Suite", () => {
 
 		// Should return false and respect the timeout
 		assert.strictEqual(result, false);
-		assert.ok(elapsed >= shortTimeout && elapsed < shortTimeout * 2,
-			`Expected timeout around ${shortTimeout}ms, got ${elapsed}ms`);
+		assert.ok(
+			elapsed >= shortTimeout && elapsed < shortTimeout * 2,
+			`Expected timeout around ${shortTimeout}ms, got ${elapsed}ms`
+		);
 	});
 });

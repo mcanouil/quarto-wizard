@@ -5,25 +5,21 @@
 export { type HttpOptions, fetchJson, fetchText } from "./http.js";
 
 export {
-  getDefaultCacheDir,
-  getCacheFilePath,
-  readCachedRegistry,
-  writeCachedRegistry,
-  clearRegistryCache,
-  getCacheStatus,
+	getDefaultCacheDir,
+	getCacheFilePath,
+	readCachedRegistry,
+	writeCachedRegistry,
+	clearRegistryCache,
+	getCacheStatus,
 } from "./cache.js";
 
-export {
-  type RegistryOptions,
-  fetchRegistry,
-  getDefaultRegistryUrl,
-} from "./fetcher.js";
+export { type RegistryOptions, fetchRegistry, getDefaultRegistryUrl } from "./fetcher.js";
 
 export {
-  type ListAvailableOptions,
-  type SearchOptions,
-  listAvailable,
-  search,
-  getExtension,
-  getExtensionsByOwner,
+	type ListAvailableOptions,
+	type SearchOptions,
+	listAvailable,
+	search,
+	getExtension,
+	getExtensionsByOwner,
 } from "./search.js";

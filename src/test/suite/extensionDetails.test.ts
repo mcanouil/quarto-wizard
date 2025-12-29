@@ -272,7 +272,9 @@ suite("Extension Details Test Suite", () => {
 			return {
 				ok: true,
 				statusText: "OK",
-				json: async () => { throw new SyntaxError("Invalid JSON"); },
+				json: async () => {
+					throw new SyntaxError("Invalid JSON");
+				},
 			} as unknown as Response;
 		};
 

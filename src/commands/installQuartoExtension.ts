@@ -94,7 +94,10 @@ async function installQuartoExtensions(
 			}
 
 			if (failedExtensions.length > 0) {
-				logMessage(`Failed to ${template ? "use" : "install"} extension${failedExtensions.length > 1 ? "s" : ""}:`, "error");
+				logMessage(
+					`Failed to ${template ? "use" : "install"} extension${failedExtensions.length > 1 ? "s" : ""}:`,
+					"error"
+				);
 				failedExtensions.map((ext) => logMessage(` - ${ext}`, "error"));
 				const message = [
 					"The following extension",
@@ -105,9 +108,12 @@ async function installQuartoExtensions(
 				].join("");
 				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${showLogsCommand()}.`);
 			} else {
-				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", ` ${actionPast} successfully.`].join(
-					""
-				);
+				const message = [
+					installedCount,
+					" extension",
+					installedCount > 1 ? "s" : "",
+					` ${actionPast} successfully.`,
+				].join("");
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}

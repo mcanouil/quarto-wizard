@@ -6,30 +6,30 @@
  * HTTP header for custom authentication.
  */
 export interface HttpHeader {
-  /** Header name (e.g., "Authorization"). */
-  name: string;
-  /** Header value (e.g., "Bearer token123"). */
-  value: string;
+	/** Header name (e.g., "Authorization"). */
+	name: string;
+	/** Header value (e.g., "Bearer token123"). */
+	value: string;
 }
 
 /**
  * Authentication configuration for API requests.
  */
 export interface AuthConfig {
-  /** GitHub personal access token for GitHub API and private repos. */
-  githubToken?: string;
-  /** Custom HTTP headers for URL downloads. */
-  httpHeaders: HttpHeader[];
+	/** GitHub personal access token for GitHub API and private repos. */
+	githubToken?: string;
+	/** Custom HTTP headers for URL downloads. */
+	httpHeaders: HttpHeader[];
 }
 
 /**
  * Options for creating an AuthConfig.
  */
 export interface AuthConfigOptions {
-  /** GitHub personal access token. */
-  githubToken?: string;
-  /** HTTP headers in "Name: Value" format. */
-  httpHeaders?: string[];
+	/** GitHub personal access token. */
+	githubToken?: string;
+	/** HTTP headers in "Name: Value" format. */
+	httpHeaders?: string[];
 }
 
 /**
@@ -41,30 +41,27 @@ export interface AuthConfigOptions {
  * @throws Error if header format is invalid
  */
 export function createAuthConfig(options: AuthConfigOptions = {}): AuthConfig {
-  const headers: HttpHeader[] = [];
+	const headers: HttpHeader[] = [];
 
-  for (const header of options.httpHeaders ?? []) {
-    const colonIndex = header.indexOf(":");
+	for (const header of options.httpHeaders ?? []) {
+		const colonIndex = header.indexOf(":");
 
-    if (colonIndex === -1) {
-      throw new Error(`Invalid header format: "${header}". Expected "Name: Value".`);
-    }
+		if (colonIndex === -1) {
+			throw new Error(`Invalid header format: "${header}". Expected "Name: Value".`);
+		}
 
-    headers.push({
-      name: header.substring(0, colonIndex).trim(),
-      value: header.substring(colonIndex + 1).trim(),
-    });
-  }
+		headers.push({
+			name: header.substring(0, colonIndex).trim(),
+			value: header.substring(colonIndex + 1).trim(),
+		});
+	}
 
-  const githubToken =
-    options.githubToken ??
-    process.env["GITHUB_TOKEN"] ??
-    process.env["QUARTO_WIZARD_TOKEN"];
+	const githubToken = options.githubToken ?? process.env["GITHUB_TOKEN"] ?? process.env["QUARTO_WIZARD_TOKEN"];
 
-  return {
-    githubToken,
-    httpHeaders: headers,
-  };
+	return {
+		githubToken,
+		httpHeaders: headers,
+	};
 }
 
 /**
@@ -74,21 +71,18 @@ export function createAuthConfig(options: AuthConfigOptions = {}): AuthConfig {
  * @param isGitHub - Whether this is a GitHub API request
  * @returns Headers object for fetch
  */
-export function getAuthHeaders(
-  auth: AuthConfig | undefined,
-  isGitHub: boolean
-): Record<string, string> {
-  const headers: Record<string, string> = {};
+export function getAuthHeaders(auth: AuthConfig | undefined, isGitHub: boolean): Record<string, string> {
+	const headers: Record<string, string> = {};
 
-  if (isGitHub && auth?.githubToken) {
-    headers["Authorization"] = `Bearer ${auth.githubToken}`;
-  }
+	if (isGitHub && auth?.githubToken) {
+		headers["Authorization"] = `Bearer ${auth.githubToken}`;
+	}
 
-  if (auth?.httpHeaders) {
-    for (const header of auth.httpHeaders) {
-      headers[header.name] = header.value;
-    }
-  }
+	if (auth?.httpHeaders) {
+		for (const header of auth.httpHeaders) {
+			headers[header.name] = header.value;
+		}
+	}
 
-  return headers;
+	return headers;
 }

@@ -32,7 +32,7 @@ export async function checkInternetConnection(url = "https://github.com/", timeo
 		}
 	} catch (error) {
 		let message = `No internet connection. Please check your network settings.`;
-		if (error instanceof Error && error.name === 'AbortError') {
+		if (error instanceof Error && error.name === "AbortError") {
 			message = `Network connection check timed out after ${timeoutMs}ms. Please check your network settings.`;
 		}
 		logMessage(message, "error");

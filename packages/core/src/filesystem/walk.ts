@@ -9,12 +9,12 @@ import * as path from "node:path";
  * Entry information for directory walking.
  */
 export interface WalkEntry {
-  /** Full path to the entry. */
-  path: string;
-  /** Entry name (basename). */
-  name: string;
-  /** Whether entry is a directory. */
-  isDirectory: boolean;
+	/** Full path to the entry. */
+	path: string;
+	/** Entry name (basename). */
+	name: string;
+	/** Whether entry is a directory. */
+	isDirectory: boolean;
 }
 
 /**
@@ -29,26 +29,23 @@ export type WalkCallback = (entry: WalkEntry) => boolean | void | Promise<boolea
  * @param directory - Directory to walk
  * @param callback - Callback for each entry
  */
-export async function walkDirectory(
-  directory: string,
-  callback: WalkCallback
-): Promise<void> {
-  const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+export async function walkDirectory(directory: string, callback: WalkCallback): Promise<void> {
+	const entries = await fs.promises.readdir(directory, { withFileTypes: true });
 
-  for (const entry of entries) {
-    const fullPath = path.join(directory, entry.name);
-    const walkEntry: WalkEntry = {
-      path: fullPath,
-      name: entry.name,
-      isDirectory: entry.isDirectory(),
-    };
+	for (const entry of entries) {
+		const fullPath = path.join(directory, entry.name);
+		const walkEntry: WalkEntry = {
+			path: fullPath,
+			name: entry.name,
+			isDirectory: entry.isDirectory(),
+		};
 
-    const result = await callback(walkEntry);
+		const result = await callback(walkEntry);
 
-    if (entry.isDirectory() && result !== false) {
-      await walkDirectory(fullPath, callback);
-    }
-  }
+		if (entry.isDirectory() && result !== false) {
+			await walkDirectory(fullPath, callback);
+		}
+	}
 }
 
 /**
@@ -58,15 +55,15 @@ export async function walkDirectory(
  * @returns Array of file paths
  */
 export async function collectFiles(directory: string): Promise<string[]> {
-  const files: string[] = [];
+	const files: string[] = [];
 
-  await walkDirectory(directory, (entry) => {
-    if (!entry.isDirectory) {
-      files.push(entry.path);
-    }
-  });
+	await walkDirectory(directory, (entry) => {
+		if (!entry.isDirectory) {
+			files.push(entry.path);
+		}
+	});
 
-  return files;
+	return files;
 }
 
 /**
@@ -76,25 +73,22 @@ export async function collectFiles(directory: string): Promise<string[]> {
  * @param targetDir - Target directory
  * @returns Array of created file paths
  */
-export async function copyDirectory(
-  sourceDir: string,
-  targetDir: string
-): Promise<string[]> {
-  await fs.promises.mkdir(targetDir, { recursive: true });
+export async function copyDirectory(sourceDir: string, targetDir: string): Promise<string[]> {
+	await fs.promises.mkdir(targetDir, { recursive: true });
 
-  const filesCreated: string[] = [];
+	const filesCreated: string[] = [];
 
-  await walkDirectory(sourceDir, async (entry) => {
-    const relativePath = path.relative(sourceDir, entry.path);
-    const destPath = path.join(targetDir, relativePath);
+	await walkDirectory(sourceDir, async (entry) => {
+		const relativePath = path.relative(sourceDir, entry.path);
+		const destPath = path.join(targetDir, relativePath);
 
-    if (entry.isDirectory) {
-      await fs.promises.mkdir(destPath, { recursive: true });
-    } else {
-      await fs.promises.copyFile(entry.path, destPath);
-      filesCreated.push(destPath);
-    }
-  });
+		if (entry.isDirectory) {
+			await fs.promises.mkdir(destPath, { recursive: true });
+		} else {
+			await fs.promises.copyFile(entry.path, destPath);
+			filesCreated.push(destPath);
+		}
+	});
 
-  return filesCreated;
+	return filesCreated;
 }

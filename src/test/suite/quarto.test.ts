@@ -3,10 +3,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
-import {
-	installQuartoExtension,
-	removeQuartoExtension,
-} from "../../utils/quarto";
+import { installQuartoExtension, removeQuartoExtension } from "../../utils/quarto";
 
 suite("Quarto Utils Test Suite", () => {
 	let testWorkspaceDir: string;

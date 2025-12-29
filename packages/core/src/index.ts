@@ -14,16 +14,16 @@ export * from "./types/index.js";
 
 // Error exports
 export {
-  QuartoWizardError,
-  ExtensionError,
-  AuthenticationError,
-  RepositoryNotFoundError,
-  NetworkError,
-  SecurityError,
-  ManifestError,
-  VersionError,
-  isQuartoWizardError,
-  wrapError,
+	QuartoWizardError,
+	ExtensionError,
+	AuthenticationError,
+	RepositoryNotFoundError,
+	NetworkError,
+	SecurityError,
+	ManifestError,
+	VersionError,
+	isQuartoWizardError,
+	wrapError,
 } from "./errors.js";
 
 // Filesystem exports

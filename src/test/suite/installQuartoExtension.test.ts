@@ -3,10 +3,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import {
-	installQuartoExtensionCommand,
-	useQuartoTemplateCommand,
-} from "../../commands/installQuartoExtension";
+import { installQuartoExtensionCommand, useQuartoTemplateCommand } from "../../commands/installQuartoExtension";
 import { ExtensionQuickPickItem } from "../../ui/extensionsQuickPick";
 import * as logUtils from "../../utils/log";
 import * as constants from "../../constants";
@@ -207,7 +204,6 @@ suite("Install Quarto Extension Test Suite", () => {
 				"Should not show any error messages"
 			);
 		});
-
 	});
 
 	suite("useQuartoTemplateCommand", () => {

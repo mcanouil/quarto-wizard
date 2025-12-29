@@ -17,10 +17,7 @@ import { logMessage } from "./log";
  * @param {string} workspaceFolder - The workspace folder path.
  * @returns {Promise<boolean>} - A promise that resolves to true if the extension is installed successfully, otherwise false.
  */
-export async function installQuartoExtension(
-	extension: string,
-	workspaceFolder: string
-): Promise<boolean> {
+export async function installQuartoExtension(extension: string, workspaceFolder: string): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
 
 	if (!workspaceFolder) {
@@ -62,10 +59,7 @@ export async function installQuartoExtension(
  * @param {string} workspaceFolder - The workspace folder path.
  * @returns {Promise<boolean>} - A promise that resolves to true if the extension is removed successfully, otherwise false.
  */
-export async function removeQuartoExtension(
-	extension: string,
-	workspaceFolder: string
-): Promise<boolean> {
+export async function removeQuartoExtension(extension: string, workspaceFolder: string): Promise<boolean> {
 	logMessage(`Removing ${extension} ...`, "info");
 
 	if (!workspaceFolder) {

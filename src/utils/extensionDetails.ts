@@ -1,9 +1,12 @@
 import * as vscode from "vscode";
+import { fetchRegistry, type RegistryEntry } from "@quarto-wizard/core";
 import {
-	fetchRegistry,
-	type RegistryEntry,
-} from "@quarto-wizard/core";
-import { QW_EXTENSIONS, QW_EXTENSIONS_CACHE, QW_EXTENSIONS_CACHE_TIME, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
+	QW_EXTENSIONS,
+	QW_EXTENSIONS_CACHE,
+	QW_EXTENSIONS_CACHE_TIME,
+	QW_RECENTLY_INSTALLED,
+	QW_RECENTLY_USED,
+} from "../constants";
 import { logMessage, debouncedLogMessage, showLogsCommand } from "./log";
 import { generateHashKey } from "./hash";
 
@@ -49,21 +52,13 @@ function convertRegistryEntry(entry: RegistryEntry): ExtensionDetails {
  * @param {number} timeoutMs - Timeout in milliseconds (default: 10000ms).
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
  */
-async function fetchExtensions(
-	context: vscode.ExtensionContext,
-	timeoutMs = 10000
-): Promise<ExtensionDetails[]> {
+async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 10000): Promise<ExtensionDetails[]> {
 	const url = QW_EXTENSIONS;
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
-	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(
-		cacheKey
-	);
+	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
 
 	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
-		debouncedLogMessage(
-			`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`,
-			"info"
-		);
+		debouncedLogMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "info");
 		return cachedData.data;
 	}
 
@@ -76,8 +71,8 @@ async function fetchExtensions(
 			forceRefresh: true, // Use VSCode cache, not filesystem cache
 		});
 
-		const extensionDetailsList: ExtensionDetails[] = Object.values(registry).map(
-			(entry) => convertRegistryEntry(entry)
+		const extensionDetailsList: ExtensionDetails[] = Object.values(registry).map((entry) =>
+			convertRegistryEntry(entry)
 		);
 
 		await context.globalState.update(cacheKey, {
@@ -105,9 +100,7 @@ export async function getExtensionsDetails(
 ): Promise<ExtensionDetails[]> {
 	const extensions = await fetchExtensions(context, timeoutMs);
 
-	return extensions.filter(
-		(extension): extension is ExtensionDetails => extension !== undefined
-	);
+	return extensions.filter((extension): extension is ExtensionDetails => extension !== undefined);
 }
 
 /**
@@ -131,10 +124,7 @@ export async function searchExtensionsDetails(
 	// Simple search: filter by query matching name, description, or owner
 	const queryLower = query.toLowerCase();
 	const results = extensions.filter((ext) => {
-		const searchable = [ext.name, ext.full_name, ext.owner, ext.description]
-			.filter(Boolean)
-			.join(" ")
-			.toLowerCase();
+		const searchable = [ext.name, ext.full_name, ext.owner, ext.description].filter(Boolean).join(" ").toLowerCase();
 		return searchable.includes(queryLower);
 	});
 

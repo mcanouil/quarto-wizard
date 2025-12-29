@@ -8,14 +8,14 @@ import { NetworkError } from "../errors.js";
  * Options for HTTP requests.
  */
 export interface HttpOptions {
-  /** Request timeout in milliseconds (default: 30000). */
-  timeout?: number;
-  /** Number of retry attempts (default: 3). */
-  retries?: number;
-  /** Base delay for exponential backoff in ms (default: 1000). */
-  retryDelay?: number;
-  /** Custom headers to include. */
-  headers?: Record<string, string>;
+	/** Request timeout in milliseconds (default: 30000). */
+	timeout?: number;
+	/** Number of retry attempts (default: 3). */
+	retries?: number;
+	/** Base delay for exponential backoff in ms (default: 1000). */
+	retryDelay?: number;
+	/** Custom headers to include. */
+	headers?: Record<string, string>;
 }
 
 const DEFAULT_TIMEOUT = 30000;
@@ -30,49 +30,45 @@ const DEFAULT_RETRY_DELAY = 1000;
  * @param timeout - Timeout in milliseconds
  * @returns Response
  */
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeout: number
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    return response;
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new NetworkError(`Request timed out after ${timeout}ms`);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+	try {
+		const response = await fetch(url, {
+			...options,
+			signal: controller.signal,
+		});
+		return response;
+	} catch (error) {
+		if (error instanceof Error && error.name === "AbortError") {
+			throw new NetworkError(`Request timed out after ${timeout}ms`);
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeoutId);
+	}
 }
 
 /**
  * Check if an error is retryable.
  */
 function isRetryableError(error: unknown): boolean {
-  if (error instanceof NetworkError) {
-    const statusCode = error.statusCode;
-    if (statusCode) {
-      return statusCode >= 500 || statusCode === 429;
-    }
-    return true;
-  }
-  return error instanceof Error && error.name === "AbortError";
+	if (error instanceof NetworkError) {
+		const statusCode = error.statusCode;
+		if (statusCode) {
+			return statusCode >= 500 || statusCode === 429;
+		}
+		return true;
+	}
+	return error instanceof Error && error.name === "AbortError";
 }
 
 /**
  * Sleep for a given number of milliseconds.
  */
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -82,56 +78,50 @@ function sleep(ms: number): Promise<void> {
  * @param options - HTTP options
  * @returns Parsed JSON response
  */
-export async function fetchJson<T>(
-  url: string,
-  options: HttpOptions = {}
-): Promise<T> {
-  const {
-    timeout = DEFAULT_TIMEOUT,
-    retries = DEFAULT_RETRIES,
-    retryDelay = DEFAULT_RETRY_DELAY,
-    headers = {},
-  } = options;
+export async function fetchJson<T>(url: string, options: HttpOptions = {}): Promise<T> {
+	const {
+		timeout = DEFAULT_TIMEOUT,
+		retries = DEFAULT_RETRIES,
+		retryDelay = DEFAULT_RETRY_DELAY,
+		headers = {},
+	} = options;
 
-  let lastError: Error | undefined;
+	let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const response = await fetchWithTimeout(
-        url,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "quarto-wizard",
-            ...headers,
-          },
-        },
-        timeout
-      );
+	for (let attempt = 0; attempt <= retries; attempt++) {
+		try {
+			const response = await fetchWithTimeout(
+				url,
+				{
+					method: "GET",
+					headers: {
+						Accept: "application/json",
+						"User-Agent": "quarto-wizard",
+						...headers,
+					},
+				},
+				timeout
+			);
 
-      if (!response.ok) {
-        throw new NetworkError(
-          `HTTP ${response.status}: ${response.statusText}`,
-          response.status
-        );
-      }
+			if (!response.ok) {
+				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, response.status);
+			}
 
-      return (await response.json()) as T;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+			return (await response.json()) as T;
+		} catch (error) {
+			lastError = error instanceof Error ? error : new Error(String(error));
 
-      if (attempt < retries && isRetryableError(error)) {
-        const delay = retryDelay * Math.pow(2, attempt);
-        await sleep(delay);
-        continue;
-      }
+			if (attempt < retries && isRetryableError(error)) {
+				const delay = retryDelay * Math.pow(2, attempt);
+				await sleep(delay);
+				continue;
+			}
 
-      throw error;
-    }
-  }
+			throw error;
+		}
+	}
 
-  throw lastError ?? new NetworkError("Request failed after all retries");
+	throw lastError ?? new NetworkError("Request failed after all retries");
 }
 
 /**
@@ -141,53 +131,47 @@ export async function fetchJson<T>(
  * @param options - HTTP options
  * @returns Response text
  */
-export async function fetchText(
-  url: string,
-  options: HttpOptions = {}
-): Promise<string> {
-  const {
-    timeout = DEFAULT_TIMEOUT,
-    retries = DEFAULT_RETRIES,
-    retryDelay = DEFAULT_RETRY_DELAY,
-    headers = {},
-  } = options;
+export async function fetchText(url: string, options: HttpOptions = {}): Promise<string> {
+	const {
+		timeout = DEFAULT_TIMEOUT,
+		retries = DEFAULT_RETRIES,
+		retryDelay = DEFAULT_RETRY_DELAY,
+		headers = {},
+	} = options;
 
-  let lastError: Error | undefined;
+	let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const response = await fetchWithTimeout(
-        url,
-        {
-          method: "GET",
-          headers: {
-            "User-Agent": "quarto-wizard",
-            ...headers,
-          },
-        },
-        timeout
-      );
+	for (let attempt = 0; attempt <= retries; attempt++) {
+		try {
+			const response = await fetchWithTimeout(
+				url,
+				{
+					method: "GET",
+					headers: {
+						"User-Agent": "quarto-wizard",
+						...headers,
+					},
+				},
+				timeout
+			);
 
-      if (!response.ok) {
-        throw new NetworkError(
-          `HTTP ${response.status}: ${response.statusText}`,
-          response.status
-        );
-      }
+			if (!response.ok) {
+				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, response.status);
+			}
 
-      return await response.text();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+			return await response.text();
+		} catch (error) {
+			lastError = error instanceof Error ? error : new Error(String(error));
 
-      if (attempt < retries && isRetryableError(error)) {
-        const delay = retryDelay * Math.pow(2, attempt);
-        await sleep(delay);
-        continue;
-      }
+			if (attempt < retries && isRetryableError(error)) {
+				const delay = retryDelay * Math.pow(2, attempt);
+				await sleep(delay);
+				continue;
+			}
 
-      throw error;
-    }
-  }
+			throw error;
+		}
+	}
 
-  throw lastError ?? new NetworkError("Request failed after all retries");
+	throw lastError ?? new NetworkError("Request failed after all retries");
 }

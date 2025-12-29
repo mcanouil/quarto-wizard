@@ -84,19 +84,19 @@ To debug tests in VS Code:
 Integration tests verify that the extension works properly within VS Code. These tests have access to the full VS Code API:
 
 ```typescript
-import * as assert from 'assert';
-import * as vscode from 'vscode';
+import * as assert from "assert";
+import * as vscode from "vscode";
 
-suite('Extension Integration Tests', () => {
-    test('Extension loads correctly', () => {
-        const extension = vscode.extensions.getExtension('mcanouil.quarto-wizard');
-        assert.ok(extension, 'Extension should be available');
-    });
+suite("Extension Integration Tests", () => {
+	test("Extension loads correctly", () => {
+		const extension = vscode.extensions.getExtension("mcanouil.quarto-wizard");
+		assert.ok(extension, "Extension should be available");
+	});
 
-    test('Commands are registered', async () => {
-        const commands = await vscode.commands.getCommands();
-        assert.ok(commands.includes('quartoWizard.installExtension'));
-    });
+	test("Commands are registered", async () => {
+		const commands = await vscode.commands.getCommands();
+		assert.ok(commands.includes("quartoWizard.installExtension"));
+	});
 });
 ```
 
@@ -105,16 +105,16 @@ suite('Extension Integration Tests', () => {
 Unit tests focus on individual functions and don't require VS Code:
 
 ```typescript
-import * as assert from 'assert';
-import { hashString } from '../../utils/hash';
+import * as assert from "assert";
+import { hashString } from "../../utils/hash";
 
-suite('Hash Utility Tests', () => {
-    test('Creates consistent hash', () => {
-        const input = 'test string';
-        const hash1 = hashString(input);
-        const hash2 = hashString(input);
-        assert.strictEqual(hash1, hash2);
-    });
+suite("Hash Utility Tests", () => {
+	test("Creates consistent hash", () => {
+		const input = "test string";
+		const hash1 = hashString(input);
+		const hash2 = hashString(input);
+		assert.strictEqual(hash1, hash2);
+	});
 });
 ```
 
