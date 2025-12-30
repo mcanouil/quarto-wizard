@@ -14,6 +14,74 @@ const CONTRIBUTION_TYPES: Record<string, { icon: string; label: string }> = {
 };
 
 /**
+ * Interface for type filter items.
+ */
+interface TypeFilterItem extends vscode.QuickPickItem {
+	filterValue: string | null;
+}
+
+/**
+ * Shows a QuickPick for selecting extension type filter.
+ * @param extensionsList - List of all extensions to derive available types.
+ * @returns The selected filter value or null for "All".
+ */
+export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]): Promise<string | null | undefined> {
+	// Count extensions by type
+	const typeCounts: Record<string, number> = {};
+	let templateCount = 0;
+
+	for (const ext of extensionsList) {
+		if (ext.template) {
+			templateCount++;
+		}
+		for (const contrib of ext.contributes) {
+			const lowerContrib = contrib.toLowerCase();
+			if (CONTRIBUTION_TYPES[lowerContrib]) {
+				typeCounts[lowerContrib] = (typeCounts[lowerContrib] || 0) + 1;
+			}
+		}
+	}
+
+	// Build filter items
+	const filterItems: TypeFilterItem[] = [
+		{
+			label: "$(list-unordered) All Extensions",
+			description: `${extensionsList.length} extensions`,
+			filterValue: null,
+		},
+	];
+
+	// Add type filters sorted by count
+	const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+	for (const [type, count] of sortedTypes) {
+		const typeInfo = CONTRIBUTION_TYPES[type];
+		if (typeInfo) {
+			filterItems.push({
+				label: `${typeInfo.icon} ${typeInfo.label}`,
+				description: `${count} extensions`,
+				filterValue: type,
+			});
+		}
+	}
+
+	// Add template filter if templates exist
+	if (templateCount > 0) {
+		filterItems.push({
+			label: "$(file-code) Template",
+			description: `${templateCount} extensions`,
+			filterValue: "template",
+		});
+	}
+
+	const selected = await vscode.window.showQuickPick(filterItems, {
+		placeHolder: "Filter by extension type (optional, press Enter to skip)",
+		title: "Extension Type Filter",
+	});
+
+	return selected?.filterValue;
+}
+
+/**
  * Derives extension type badges from the contributes field.
  * @param contributes - What the extension contributes (filters, formats, etc.).
  * @param isTemplate - Whether the extension is a template.
@@ -80,28 +148,61 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 }
 
 /**
+ * Filters extensions by type.
+ * @param extensions - List of extensions to filter.
+ * @param typeFilter - The type filter to apply (null for all).
+ * @returns Filtered list of extensions.
+ */
+function filterExtensionsByType(extensions: ExtensionDetails[], typeFilter: string | null): ExtensionDetails[] {
+	if (!typeFilter) {
+		return extensions;
+	}
+
+	if (typeFilter === "template") {
+		return extensions.filter((ext) => ext.template);
+	}
+
+	return extensions.filter((ext) => ext.contributes.some((c) => c.toLowerCase() === typeFilter.toLowerCase()));
+}
+
+/**
  * Shows a QuickPick for selecting Quarto extensions.
  * @param {ExtensionDetails[]} extensionsList - The list of extension details.
  * @param {string[]} recentlyInstalled - The list of recently installed or used extensions.
  * @param {boolean} [template=false] - Whether this is for template selection. If true, only one template can be selected.
+ * @param {string | null} [typeFilter=null] - Optional type filter to apply.
  * @returns {Promise<readonly ExtensionQuickPickItem[]>} - A promise that resolves to the selected QuickPick items.
  */
 export async function showExtensionQuickPick(
 	extensionsList: ExtensionDetails[],
 	recentlyInstalled: string[],
 	template = false,
+	typeFilter: string | null = null,
 ): Promise<readonly ExtensionQuickPickItem[]> {
+	// Apply type filter if specified
+	const filteredExtensions = filterExtensionsByType(extensionsList, typeFilter);
+
+	// Get the type label for the placeholder
+	let filterLabel = "";
+	if (typeFilter) {
+		if (typeFilter === "template") {
+			filterLabel = " (Templates)";
+		} else if (CONTRIBUTION_TYPES[typeFilter]) {
+			filterLabel = ` (${CONTRIBUTION_TYPES[typeFilter].label}s)`;
+		}
+	}
+
 	const groupedExtensions: ExtensionQuickPickItem[] = [
 		{
 			label: template ? "Recently Used" : "Recently Installed",
 			kind: vscode.QuickPickItemKind.Separator,
 		},
-		...createExtensionItems(extensionsList.filter((ext) => recentlyInstalled.includes(ext.id))),
+		...createExtensionItems(filteredExtensions.filter((ext) => recentlyInstalled.includes(ext.id))),
 		{
-			label: "All Extensions",
+			label: typeFilter ? `${filterLabel.trim()} Extensions` : "All Extensions",
 			kind: vscode.QuickPickItemKind.Separator,
 		},
-		...createExtensionItems(extensionsList.filter((ext) => !recentlyInstalled.includes(ext.id))).sort((a, b) =>
+		...createExtensionItems(filteredExtensions.filter((ext) => !recentlyInstalled.includes(ext.id))).sort((a, b) =>
 			a.label.localeCompare(b.label),
 		),
 	];
@@ -109,8 +210,8 @@ export async function showExtensionQuickPick(
 	const quickPick = vscode.window.createQuickPick<ExtensionQuickPickItem>();
 	quickPick.items = groupedExtensions;
 	quickPick.placeholder = template
-		? "Search and select a Quarto template to use"
-		: "Search and select Quarto extensions to install";
+		? `Search and select a Quarto template to use${filterLabel}`
+		: `Search and select Quarto extensions to install${filterLabel}`;
 	quickPick.canSelectMany = !template;
 	quickPick.matchOnDescription = true;
 	quickPick.matchOnDetail = true;

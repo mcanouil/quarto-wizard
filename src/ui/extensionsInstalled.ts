@@ -3,9 +3,15 @@ import * as path from "path";
 import * as fs from "fs";
 import * as semver from "semver";
 import { debounce } from "lodash";
+import {
+	validateManifest,
+	formatValidationIssues,
+	type ValidationResult,
+	parseManifestFile,
+} from "@quarto-wizard/core";
 import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
-import { removeQuartoExtension, installQuartoExtension } from "../utils/quarto";
+import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
@@ -34,6 +40,7 @@ class WorkspaceFolderTreeItem extends vscode.TreeItem {
 class ExtensionTreeItem extends vscode.TreeItem {
 	public latestVersion?: string;
 	public workspaceFolder: string;
+	public validationResult?: ValidationResult;
 
 	constructor(
 		public readonly label: string,
@@ -42,6 +49,7 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		public readonly data?: ExtensionData,
 		icon?: string,
 		latestVersion?: string,
+		validationResult?: ValidationResult,
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined;
@@ -56,7 +64,28 @@ class ExtensionTreeItem extends vscode.TreeItem {
 			contextValue = baseContextValue + "NoSource"; // Cannot be updated, shows limited options
 		}
 
-		this.tooltip = `${this.label}`;
+		// Build tooltip with validation warnings if any
+		let tooltipText = `${this.label}`;
+		if (validationResult && validationResult.issues.length > 0) {
+			const warnings = validationResult.issues.filter((i) => i.severity === "warning");
+			const errors = validationResult.issues.filter((i) => i.severity === "error");
+			if (errors.length > 0 || warnings.length > 0) {
+				tooltipText += "\n\n";
+				if (errors.length > 0) {
+					tooltipText += `⛔ ${errors.length} error(s)\n`;
+					errors.forEach((e) => {
+						tooltipText += `  • ${e.field}: ${e.message}\n`;
+					});
+				}
+				if (warnings.length > 0) {
+					tooltipText += `⚠️ ${warnings.length} warning(s)\n`;
+					warnings.forEach((w) => {
+						tooltipText += `  • ${w.field}: ${w.message}\n`;
+					});
+				}
+			}
+		}
+		this.tooltip = tooltipText;
 		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
 		this.contextValue = this.data ? contextValue : "quartoExtensionItemDetails";
 
@@ -67,6 +96,7 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		// Format version for installation commands
 		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
 		this.workspaceFolder = workspacePath;
+		this.validationResult = validationResult;
 
 		// Set resource URI for the extension directory to enable "Reveal in Explorer" functionality
 		if (this.data) {
@@ -88,6 +118,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	// Cache extension data and version information per workspace folder to avoid repeated file reads
 	private extensionsDataByFolder: Record<string, Record<string, ExtensionData>> = {};
 	private latestVersionsByFolder: Record<string, Record<string, string>> = {};
+	private validationResultsByFolder: Record<string, Record<string, ValidationResult>> = {};
 
 	constructor(private workspaceFolders: readonly vscode.WorkspaceFolder[]) {
 		this.refreshAllExtensionsData();
@@ -159,8 +190,34 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 					folderData[ext],
 					"package",
 					this.latestVersionsByFolder[workspacePath]?.[ext],
+					this.validationResultsByFolder[workspacePath]?.[ext],
 				),
 		);
+	}
+
+	/**
+	 * Validates an extension manifest and returns the validation result.
+	 * @param workspacePath - The workspace folder path.
+	 * @param extensionName - The extension name (e.g., "owner/name").
+	 * @returns ValidationResult or null if manifest cannot be read.
+	 */
+	validateExtension(workspacePath: string, extensionName: string): ValidationResult | null {
+		const extensionPath = path.join(workspacePath, "_extensions", extensionName);
+		let manifestPath = path.join(extensionPath, "_extension.yml");
+		if (!fs.existsSync(manifestPath)) {
+			manifestPath = path.join(extensionPath, "_extension.yaml");
+		}
+		if (!fs.existsSync(manifestPath)) {
+			return null;
+		}
+
+		try {
+			const manifest = parseManifestFile(manifestPath);
+			return validateManifest(manifest, { requireContributions: true });
+		} catch (error) {
+			logMessage(`Failed to validate ${extensionName}: ${error}`, "error");
+			return null;
+		}
 	}
 
 	private getExtensionDetailItems(element: ExtensionTreeItem): ExtensionTreeItem[] {
@@ -216,6 +273,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 
 	private refreshAllExtensionsData(): void {
 		this.extensionsDataByFolder = {};
+		this.validationResultsByFolder = {};
 
 		for (const folder of this.workspaceFolders) {
 			const workspaceFolder = folder.uri.fsPath;
@@ -226,7 +284,64 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 			}
 
 			this.extensionsDataByFolder[workspaceFolder] = readExtensions(workspaceFolder, extensionsList);
+
+			// Validate each extension and cache results
+			this.validationResultsByFolder[workspaceFolder] = {};
+			for (const ext of extensionsList) {
+				const result = this.validateExtension(workspaceFolder, ext);
+				if (result) {
+					this.validationResultsByFolder[workspaceFolder][ext] = result;
+				}
+			}
 		}
+	}
+
+	/**
+	 * Gets all outdated extensions across all workspace folders.
+	 * @returns Array of objects with extension info and update details.
+	 */
+	getOutdatedExtensions(): {
+		extensionId: string;
+		workspaceFolder: string;
+		repository: string | undefined;
+		latestVersion: string;
+	}[] {
+		const outdated: {
+			extensionId: string;
+			workspaceFolder: string;
+			repository: string | undefined;
+			latestVersion: string;
+		}[] = [];
+
+		for (const folder of this.workspaceFolders) {
+			const workspacePath = folder.uri.fsPath;
+			const folderData = this.extensionsDataByFolder[workspacePath] || {};
+			const latestVersions = this.latestVersionsByFolder[workspacePath] || {};
+
+			for (const ext of Object.keys(latestVersions)) {
+				const version = latestVersions[ext];
+				if (version && version !== "unknown") {
+					outdated.push({
+						extensionId: ext,
+						workspaceFolder: workspacePath,
+						repository: folderData[ext]?.repository,
+						latestVersion: version,
+					});
+				}
+			}
+		}
+
+		return outdated;
+	}
+
+	/**
+	 * Gets all installed extensions in a workspace folder.
+	 * @param workspaceFolder - The workspace folder path.
+	 * @returns Array of extension IDs.
+	 */
+	getInstalledExtensions(workspaceFolder: string): string[] {
+		const folderData = this.extensionsDataByFolder[workspaceFolder] || {};
+		return Object.keys(folderData);
 	}
 
 	/**
@@ -461,6 +576,154 @@ export class ExtensionsInstalled {
 						logMessage(`Failed to reveal "${item.label}" in Explorer: ${errorMessage}`, "error");
 						vscode.window.showErrorMessage(
 							`Failed to reveal extension "${item.label}" in Explorer. ${showLogsCommand()}.`,
+						);
+					}
+				},
+			),
+		);
+
+		/**
+		 * Updates all outdated extensions to their latest versions.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.updateAll", async () => {
+				const outdated = this.treeDataProvider.getOutdatedExtensions();
+
+				if (outdated.length === 0) {
+					vscode.window.showInformationMessage("All extensions are up to date.");
+					return;
+				}
+
+				const confirm = await vscode.window.showWarningMessage(
+					`Update ${outdated.length} extension(s) to their latest versions?`,
+					{ modal: true },
+					"Update All",
+				);
+
+				if (confirm !== "Update All") {
+					return;
+				}
+
+				let successCount = 0;
+				let failedCount = 0;
+
+				await withProgressNotification(`Updating ${outdated.length} extension(s) ...`, async () => {
+					for (const ext of outdated) {
+						const source = ext.repository ? `${ext.repository}@${ext.latestVersion}` : `${ext.extensionId}@${ext.latestVersion}`;
+						const success = await installQuartoExtension(source, ext.workspaceFolder);
+						if (success) {
+							successCount++;
+						} else {
+							failedCount++;
+						}
+					}
+					return successCount > 0;
+				});
+
+				if (successCount > 0) {
+					vscode.window.showInformationMessage(
+						`Successfully updated ${successCount} extension(s)${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
+					);
+				} else {
+					vscode.window.showErrorMessage(`Failed to update extensions. ${showLogsCommand()}.`);
+				}
+
+				this.treeDataProvider.refreshAfterAction(context, view);
+			}),
+		);
+
+		/**
+		 * Removes multiple selected extensions from a workspace folder.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.removeMultiple",
+				async (item: WorkspaceFolderTreeItem) => {
+					const extensions = this.treeDataProvider.getInstalledExtensions(item.workspaceFolder);
+
+					if (extensions.length === 0) {
+						vscode.window.showInformationMessage("No extensions to remove.");
+						return;
+					}
+
+					const selected = await vscode.window.showQuickPick(
+						extensions.map((ext) => ({ label: ext, picked: false })),
+						{
+							placeHolder: "Select extensions to remove",
+							canPickMany: true,
+						},
+					);
+
+					if (!selected || selected.length === 0) {
+						return;
+					}
+
+					const confirm = await vscode.window.showWarningMessage(
+						`Remove ${selected.length} extension(s)? This cannot be undone.`,
+						{ modal: true },
+						"Remove",
+					);
+
+					if (confirm !== "Remove") {
+						return;
+					}
+
+					const extensionNames = selected.map((s) => s.label);
+					const result = await withProgressNotification(
+						`Removing ${extensionNames.length} extension(s) ...`,
+						async () => {
+							return removeQuartoExtensions(extensionNames, item.workspaceFolder);
+						},
+					);
+
+					if (result.successCount > 0) {
+						vscode.window.showInformationMessage(
+							`Successfully removed ${result.successCount} extension(s)${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
+						);
+					} else {
+						vscode.window.showErrorMessage(`Failed to remove extensions. ${showLogsCommand()}.`);
+					}
+
+					this.treeDataProvider.refreshAfterAction(context, view);
+				},
+			),
+		);
+
+		/**
+		 * Validates an extension and shows the validation results.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.validate",
+				async (item: ExtensionTreeItem) => {
+					const result = this.treeDataProvider.validateExtension(item.workspaceFolder, item.label);
+
+					if (!result) {
+						vscode.window.showErrorMessage(
+							`Could not validate extension "${item.label}". Manifest file not found.`,
+						);
+						return;
+					}
+
+					if (result.issues.length === 0) {
+						vscode.window.showInformationMessage(`Extension "${item.label}" passed validation with no issues.`);
+						return;
+					}
+
+					// Format and show validation results
+					const formattedResult = formatValidationIssues(result);
+					logMessage(`Validation results for ${item.label}:\n${formattedResult}`, "info");
+
+					const errors = result.issues.filter((i) => i.severity === "error");
+					const warnings = result.issues.filter((i) => i.severity === "warning");
+
+					if (errors.length > 0) {
+						vscode.window.showErrorMessage(
+							`Extension "${item.label}" has ${errors.length} error(s) and ${warnings.length} warning(s). ${showLogsCommand()}.`,
+						);
+					} else {
+						vscode.window.showWarningMessage(
+							`Extension "${item.label}" has ${warnings.length} warning(s). ${showLogsCommand()}.`,
 						);
 					}
 				},

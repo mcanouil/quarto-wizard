@@ -200,6 +200,27 @@
 				"shortTitle": "Reveal in Explorer",
 				"icon": "$(folder-opened)",
 				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.updateAll",
+				"title": "Update All Extensions",
+				"shortTitle": "Update All",
+				"icon": "$(sync)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.removeMultiple",
+				"title": "Remove Multiple Extensions",
+				"shortTitle": "Remove Multiple",
+				"icon": "$(trash)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.validate",
+				"title": "Validate Extension",
+				"shortTitle": "Validate",
+				"icon": "$(check)",
+				"category": "Quarto Wizard"
 			}
 		],
 		"submenus": [
@@ -269,9 +290,14 @@
 					"group": "navigation@2"
 				},
 				{
-					"command": "quartoWizard.extensionsInstalled.refresh",
+					"command": "quartoWizard.extensionsInstalled.updateAll",
 					"when": "view == quartoWizard.extensionsInstalled",
 					"group": "navigation@3"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.refresh",
+					"when": "view == quartoWizard.extensionsInstalled",
+					"group": "navigation@4"
 				}
 			],
 			"view/item/context": [
@@ -284,6 +310,11 @@
 					"command": "quartoWizard.extensionsInstalled.useTemplate",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
 					"group": "inline@2"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.removeMultiple",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
+					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
@@ -319,6 +350,11 @@
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@4"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.validate",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
+					"group": "navigation@5"
 				}
 			],
 			"commandPalette": [
@@ -352,6 +388,10 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.validate",
 					"when": "false"
 				}
 			]
@@ -496,6 +536,15 @@
 					],
 					"default": "info",
 					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything."
+				},
+				"quartoWizard.cache.ttlMinutes": {
+					"order": 10,
+					"scope": "resource",
+					"type": "number",
+					"minimum": 1,
+					"maximum": 1440,
+					"default": 30,
+					"markdownDescription": "Cache duration for extension registry data in minutes. Lower values fetch fresher data but increase network requests. Default is 30 minutes."
 				}
 			}
 		}

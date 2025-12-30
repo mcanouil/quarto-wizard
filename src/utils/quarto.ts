@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import {
 	install,
 	remove,
+	removeMultiple,
 	use,
 	parseInstallSource,
 	parseExtensionId,
@@ -87,6 +88,65 @@ export async function removeQuartoExtension(extension: string, workspaceFolder: 
 		const message = error instanceof Error ? error.message : String(error);
 		logMessage(`Error removing extension: ${message}`, "error");
 		return false;
+	}
+}
+
+/**
+ * Batch removal result for tracking success/failure.
+ */
+export interface BatchRemoveResult {
+	successCount: number;
+	failedExtensions: string[];
+}
+
+/**
+ * Removes multiple Quarto extensions using the core library.
+ *
+ * @param extensions - Array of extension names to remove (e.g., "owner/name").
+ * @param workspaceFolder - The workspace folder path.
+ * @returns A promise that resolves to the batch remove result.
+ */
+export async function removeQuartoExtensions(
+	extensions: string[],
+	workspaceFolder: string,
+): Promise<BatchRemoveResult> {
+	logMessage(`Removing ${extensions.length} extension(s) ...`, "info");
+
+	if (!workspaceFolder) {
+		logMessage("No workspace folder specified.", "error");
+		return { successCount: 0, failedExtensions: extensions };
+	}
+
+	try {
+		const extensionIds = extensions.map((ext) => parseExtensionId(ext));
+
+		const results = await removeMultiple(extensionIds, {
+			projectDir: workspaceFolder,
+			cleanupEmpty: true,
+		});
+
+		const successCount = results.filter((r) => "success" in r && r.success).length;
+		const failedExtensions = results
+			.filter((r) => "error" in r)
+			.map((r) => {
+				const failed = r as { extensionId: { owner: string | null; name: string }; error: string };
+				return failed.extensionId.owner ? `${failed.extensionId.owner}/${failed.extensionId.name}` : failed.extensionId.name;
+			});
+
+		if (successCount > 0) {
+			logMessage(`Successfully removed ${successCount} extension(s)`, "info");
+		}
+		if (failedExtensions.length > 0) {
+			logMessage(`Failed to remove: ${failedExtensions.join(", ")}`, "error");
+		}
+
+		vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+
+		return { successCount, failedExtensions };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		logMessage(`Error removing extensions: ${message}`, "error");
+		return { successCount: 0, failedExtensions: extensions };
 	}
 }
 

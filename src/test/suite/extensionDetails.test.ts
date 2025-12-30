@@ -4,6 +4,12 @@ import { getExtensionsDetails, ExtensionDetails } from "../../utils/extensionDet
 import { generateHashKey } from "../../utils/hash";
 import * as constants from "../../constants";
 
+/**
+ * Default cache TTL in milliseconds for tests.
+ * Matches the default value in extensionDetails.ts.
+ */
+const DEFAULT_CACHE_TTL_MS = 30 * 60 * 1000;
+
 interface MockExtensionContext {
 	globalState: {
 		get: (key: string) => unknown;
@@ -165,7 +171,7 @@ suite("Extension Details Test Suite", () => {
 
 		const result = await getExtensionsDetails(mockContext as unknown as vscode.ExtensionContext);
 
-		if (constants.QW_EXTENSIONS_CACHE_TIME === 0) {
+		if (DEFAULT_CACHE_TTL_MS === 0) {
 			// Cache is disabled, so fetch should be called
 			assert.strictEqual(fetchCalled, true, "Fetch should be called when cache is disabled");
 			assert.strictEqual(result.length, 2, "Should return fresh extensions");
@@ -203,7 +209,7 @@ suite("Extension Details Test Suite", () => {
 
 		// Test the logical condition: if current time - cached time < cache time, then use cache
 		const cacheAge = Date.now() - recentTimestamp;
-		const shouldUseCache = cacheAge < constants.QW_EXTENSIONS_CACHE_TIME;
+		const shouldUseCache = cacheAge < DEFAULT_CACHE_TTL_MS;
 
 		if (shouldUseCache) {
 			assert.strictEqual(fetchCalled, false, "Should use cache when data is fresh");
@@ -221,7 +227,7 @@ suite("Extension Details Test Suite", () => {
 		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
 		globalStateStorage[cacheKey] = {
 			data: [],
-			timestamp: Date.now() - (constants.QW_EXTENSIONS_CACHE_TIME + 1000), // Expired
+			timestamp: Date.now() - (DEFAULT_CACHE_TTL_MS + 1000), // Expired
 		};
 
 		// Mock successful fetch

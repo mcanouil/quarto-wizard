@@ -5,7 +5,7 @@ import { checkInternetConnection } from "../utils/network";
 import { installQuartoExtension, useQuartoExtension } from "../utils/quarto";
 import { askTrustAuthors, askConfirmInstall, createFileSelectionCallback } from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
-import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
+import { ExtensionQuickPickItem, showExtensionQuickPick, showTypeFilterQuickPick } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
 
 /**
@@ -143,9 +143,21 @@ export async function installQuartoExtensionFolderCommand(
 	if (template) {
 		extensionsList = extensionsList.filter((ext) => ext.template);
 	}
+
+	// Show type filter picker (skip for template mode as it's already filtered)
+	let typeFilter: string | null = null;
+	if (!template) {
+		const selectedFilter = await showTypeFilterQuickPick(extensionsList);
+		if (selectedFilter === undefined) {
+			// User cancelled the filter picker
+			return;
+		}
+		typeFilter = selectedFilter;
+	}
+
 	const recentKey = template ? QW_RECENTLY_USED : QW_RECENTLY_INSTALLED;
 	const recentExtensions: string[] = context.globalState.get(recentKey, []);
-	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentExtensions, template);
+	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
 
 	if (selectedExtensions.length > 0) {
 		await installQuartoExtensions(selectedExtensions, workspaceFolder, template);

@@ -1,14 +1,23 @@
 import * as vscode from "vscode";
 import { fetchRegistry, type RegistryEntry } from "@quarto-wizard/core";
-import {
-	QW_EXTENSIONS,
-	QW_EXTENSIONS_CACHE,
-	QW_EXTENSIONS_CACHE_TIME,
-	QW_RECENTLY_INSTALLED,
-	QW_RECENTLY_USED,
-} from "../constants";
+import { QW_EXTENSIONS, QW_EXTENSIONS_CACHE, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
 import { logMessage, debouncedLogMessage, showLogsCommand } from "./log";
 import { generateHashKey } from "./hash";
+
+/**
+ * Default cache TTL in minutes.
+ */
+const DEFAULT_CACHE_TTL_MINUTES = 30;
+
+/**
+ * Gets the configured cache TTL in milliseconds.
+ * @returns Cache TTL in milliseconds.
+ */
+function getCacheTTL(): number {
+	const config = vscode.workspace.getConfiguration("quartoWizard");
+	const ttlMinutes = config.get<number>("cache.ttlMinutes", DEFAULT_CACHE_TTL_MINUTES);
+	return ttlMinutes * 60 * 1000;
+}
 
 /**
  * Interface representing the details of a Quarto extension.
@@ -59,7 +68,7 @@ async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 100
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
 	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
 
-	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
+	if (cachedData && Date.now() - cachedData.timestamp < getCacheTTL()) {
 		debouncedLogMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "info");
 		return cachedData.data;
 	}
