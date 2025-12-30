@@ -22,8 +22,8 @@ describe("normaliseManifest", () => {
 		expect(manifest.author).toBe("Quarto");
 		expect(manifest.version).toBe("1.0.0");
 		expect(manifest.quartoRequired).toBe(">=1.3.0");
-		expect(manifest.contributes.filters).toEqual(["lightbox.lua"]);
-		expect(manifest.contributes.shortcodes).toEqual(["lb.lua"]);
+		expect(manifest.contributes.filter).toEqual(["lightbox.lua"]);
+		expect(manifest.contributes.shortcode).toEqual(["lb.lua"]);
 		expect(manifest.source).toBe("quarto-ext/lightbox");
 	});
 
@@ -56,15 +56,13 @@ describe("normaliseManifest", () => {
 		const raw = {
 			title: "Reveal Plugin",
 			contributes: {
-				revealjs: {
-					plugins: ["plugin.js"],
-				},
+				"revealjs-plugins": ["plugin.js"],
 			},
 		};
 
 		const manifest = normaliseManifest(raw);
 
-		expect(manifest.contributes.revealjsPlugins).toEqual(["plugin.js"]);
+		expect(manifest.contributes.revealjsPlugin).toEqual(["plugin.js"]);
 	});
 });
 
@@ -146,7 +144,7 @@ contributes:
 		expect(manifest.title).toBe("Test Extension");
 		expect(manifest.author).toBe("Test Author");
 		expect(manifest.version).toBe("1.0.0");
-		expect(manifest.contributes.filters).toEqual(["filter.lua"]);
+		expect(manifest.contributes.filter).toEqual(["filter.lua"]);
 	});
 
 	it("throws on invalid YAML", () => {

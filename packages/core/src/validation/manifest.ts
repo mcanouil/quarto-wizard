@@ -15,7 +15,7 @@ export type ValidationSeverity = "error" | "warning";
 export interface ValidationIssue {
 	/** Severity of the issue. */
 	severity: ValidationSeverity;
-	/** Field path where the issue was found (e.g., "contributes.filters"). */
+	/** Field path where the issue was found (e.g., "contributes.filter"). */
 	field: string;
 	/** Human-readable message describing the issue. */
 	message: string;
@@ -154,11 +154,11 @@ function checkHasContributions(contributes: Contributes): boolean {
 	}
 
 	return (
-		(contributes.filters && contributes.filters.length > 0) ||
-		(contributes.shortcodes && contributes.shortcodes.length > 0) ||
-		(contributes.formats && Object.keys(contributes.formats).length > 0) ||
+		(contributes.filter && contributes.filter.length > 0) ||
+		(contributes.shortcode && contributes.shortcode.length > 0) ||
+		(contributes.format && Object.keys(contributes.format).length > 0) ||
 		contributes.project !== undefined ||
-		(contributes.revealjsPlugins && contributes.revealjsPlugins.length > 0) ||
+		(contributes.revealjsPlugin && contributes.revealjsPlugin.length > 0) ||
 		contributes.metadata !== undefined
 	);
 }
@@ -201,13 +201,13 @@ function validateContributes(contributes: Contributes, issues: ValidationIssue[]
 	}
 
 	// Check filters are strings
-	if (contributes.filters) {
-		for (let i = 0; i < contributes.filters.length; i++) {
-			const filter = contributes.filters[i];
+	if (contributes.filter) {
+		for (let i = 0; i < contributes.filter.length; i++) {
+			const filter = contributes.filter[i];
 			if (typeof filter !== "string" || filter.trim() === "") {
 				issues.push({
 					severity: "error",
-					field: `contributes.filters[${i}]`,
+					field: `contributes.filter[${i}]`,
 					message: "Filter path must be a non-empty string",
 					suggestion: "Specify the path to a Lua filter file",
 				});
@@ -216,13 +216,13 @@ function validateContributes(contributes: Contributes, issues: ValidationIssue[]
 	}
 
 	// Check shortcodes are strings
-	if (contributes.shortcodes) {
-		for (let i = 0; i < contributes.shortcodes.length; i++) {
-			const shortcode = contributes.shortcodes[i];
+	if (contributes.shortcode) {
+		for (let i = 0; i < contributes.shortcode.length; i++) {
+			const shortcode = contributes.shortcode[i];
 			if (typeof shortcode !== "string" || shortcode.trim() === "") {
 				issues.push({
 					severity: "error",
-					field: `contributes.shortcodes[${i}]`,
+					field: `contributes.shortcode[${i}]`,
 					message: "Shortcode path must be a non-empty string",
 					suggestion: "Specify the path to a Lua shortcode file",
 				});
@@ -231,23 +231,23 @@ function validateContributes(contributes: Contributes, issues: ValidationIssue[]
 	}
 
 	// Check formats is an object
-	if (contributes.formats && typeof contributes.formats !== "object") {
+	if (contributes.format && typeof contributes.format !== "object") {
 		issues.push({
 			severity: "error",
-			field: "contributes.formats",
-			message: "Formats must be an object",
+			field: "contributes.format",
+			message: "Format must be an object",
 			suggestion: "Define formats as an object with format names as keys",
 		});
 	}
 
 	// Check revealjs plugins are strings
-	if (contributes.revealjsPlugins) {
-		for (let i = 0; i < contributes.revealjsPlugins.length; i++) {
-			const plugin = contributes.revealjsPlugins[i];
+	if (contributes.revealjsPlugin) {
+		for (let i = 0; i < contributes.revealjsPlugin.length; i++) {
+			const plugin = contributes.revealjsPlugin[i];
 			if (typeof plugin !== "string" || plugin.trim() === "") {
 				issues.push({
 					severity: "error",
-					field: `contributes.revealjsPlugins[${i}]`,
+					field: `contributes.revealjsPlugin[${i}]`,
 					message: "Reveal.js plugin path must be a non-empty string",
 					suggestion: "Specify the path to a Reveal.js plugin",
 				});

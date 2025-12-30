@@ -34,7 +34,7 @@ export interface ExtensionRef {
 /**
  * Types of contributions an extension can provide.
  */
-export type ExtensionType = "filter" | "shortcode" | "format" | "project" | "revealjs" | "metadata";
+export type ExtensionType = "filter" | "shortcode" | "format" | "project" | "revealjs-plugin" | "metadata";
 
 /**
  * Parse an extension ID string into an ExtensionId object.

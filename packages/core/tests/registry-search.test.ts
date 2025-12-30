@@ -104,8 +104,8 @@ describe("listAvailable", () => {
 		expect(results).toHaveLength(2);
 	});
 
-	it("filters by revealjs type", async () => {
-		const results = await listAvailable({ type: "revealjs" });
+	it("filters by revealjs-plugin type", async () => {
+		const results = await listAvailable({ type: "revealjs-plugin" });
 
 		expect(results).toHaveLength(1);
 		expect(results[0]?.id).toBe("another/revealjs-theme");

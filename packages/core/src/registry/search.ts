@@ -160,7 +160,7 @@ function getTypeKeywords(type: ExtensionType): string[] {
 			return ["format", "template", "document"];
 		case "project":
 			return ["project"];
-		case "revealjs":
+		case "revealjs-plugin":
 			return ["revealjs", "reveal", "slides", "presentation"];
 		case "metadata":
 			return ["metadata"];

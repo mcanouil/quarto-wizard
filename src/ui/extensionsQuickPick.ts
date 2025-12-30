@@ -2,33 +2,35 @@ import * as vscode from "vscode";
 import { ExtensionDetails } from "../utils/extensionDetails";
 
 /**
- * Aliases to normalise singular/plural contributes values to canonical forms.
+ * Normalise contributes values from plural to singular form.
+ * Handles transition period where registry may still have plural forms.
  */
-const CONTRIBUTES_ALIASES: Record<string, string> = {
-	format: "formats",
-	project: "projects",
+const CONTRIBUTES_TO_SINGULAR: Record<string, string> = {
+	filters: "filter",
+	shortcodes: "shortcode",
+	formats: "format",
+	projects: "project",
+	"revealjs-plugins": "revealjs-plugin",
 };
 
 /**
- * Normalises a contributes value to its canonical form.
- * @param value - The contributes value from the registry.
- * @returns The canonical form of the value.
+ * Normalise a contributes value to singular form.
  */
-function normaliseContributesValue(value: string): string {
+function normaliseContributes(value: string): string {
 	const lower = value.toLowerCase();
-	return CONTRIBUTES_ALIASES[lower] ?? lower;
+	return CONTRIBUTES_TO_SINGULAR[lower] ?? lower;
 }
 
 /**
  * Contribution type definitions with icons and labels.
- * These map the canonical "contributes" field values from the registry.
+ * These map the "contributes" field values from the registry (singular forms).
  */
 const CONTRIBUTION_TYPES: Record<string, { icon: string; label: string }> = {
-	filters: { icon: "$(filter)", label: "Filter" },
-	shortcodes: { icon: "$(code)", label: "Shortcode" },
-	formats: { icon: "$(file-text)", label: "Format" },
-	projects: { icon: "$(project)", label: "Project" },
-	"revealjs-plugins": { icon: "$(play)", label: "Reveal.js Plugins" },
+	filter: { icon: "$(filter)", label: "Filter" },
+	shortcode: { icon: "$(code)", label: "Shortcode" },
+	format: { icon: "$(file-text)", label: "Format" },
+	project: { icon: "$(project)", label: "Project" },
+	"revealjs-plugin": { icon: "$(play)", label: "Reveal.js Plugin" },
 	metadata: { icon: "$(note)", label: "Metadata" },
 };
 
@@ -54,7 +56,7 @@ export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]
 			templateCount++;
 		}
 		for (const contrib of ext.contributes) {
-			const normalised = normaliseContributesValue(contrib);
+			const normalised = normaliseContributes(contrib);
 			if (CONTRIBUTION_TYPES[normalised]) {
 				typeCounts[normalised] = (typeCounts[normalised] || 0) + 1;
 			}
@@ -110,9 +112,9 @@ function getExtensionTypeBadges(contributes: string[], isTemplate: boolean): str
 	const badges: string[] = [];
 	const seen = new Set<string>();
 
-	// Check for known contribution types (deduplicate normalised values)
+	// Check for known contribution types (deduplicate after normalisation)
 	for (const contrib of contributes) {
-		const normalised = normaliseContributesValue(contrib);
+		const normalised = normaliseContributes(contrib);
 		if (CONTRIBUTION_TYPES[normalised] && !seen.has(normalised)) {
 			seen.add(normalised);
 			const type = CONTRIBUTION_TYPES[normalised];
@@ -183,7 +185,7 @@ function filterExtensionsByType(extensions: ExtensionDetails[], typeFilter: stri
 		return extensions.filter((ext) => ext.template);
 	}
 
-	return extensions.filter((ext) => ext.contributes.some((c) => normaliseContributesValue(c) === typeFilter));
+	return extensions.filter((ext) => ext.contributes.some((c) => normaliseContributes(c) === typeFilter));
 }
 
 /**

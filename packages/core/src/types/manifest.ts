@@ -6,18 +6,19 @@ import type { ExtensionType } from "./extension.js";
 
 /**
  * Contributions an extension can provide to Quarto.
+ * Uses singular forms normalised from YAML plural keys.
  */
 export interface Contributes {
 	/** Lua filters provided by the extension. */
-	filters?: string[];
+	filter?: string[];
 	/** Shortcodes provided by the extension. */
-	shortcodes?: string[];
+	shortcode?: string[];
 	/** Custom formats provided by the extension. */
-	formats?: Record<string, unknown>;
+	format?: Record<string, unknown>;
 	/** Project type contributions. */
 	project?: unknown;
 	/** Reveal.js plugins provided by the extension. */
-	revealjsPlugins?: string[];
+	revealjsPlugin?: string[];
 	/** Metadata contributions. */
 	metadata?: unknown;
 }
@@ -70,15 +71,15 @@ export function getExtensionTypes(manifest: ExtensionManifest): ExtensionType[] 
 	const types: ExtensionType[] = [];
 	const { contributes } = manifest;
 
-	if (contributes.filters && contributes.filters.length > 0) {
+	if (contributes.filter && contributes.filter.length > 0) {
 		types.push("filter");
 	}
 
-	if (contributes.shortcodes && contributes.shortcodes.length > 0) {
+	if (contributes.shortcode && contributes.shortcode.length > 0) {
 		types.push("shortcode");
 	}
 
-	if (contributes.formats && Object.keys(contributes.formats).length > 0) {
+	if (contributes.format && Object.keys(contributes.format).length > 0) {
 		types.push("format");
 	}
 
@@ -86,8 +87,8 @@ export function getExtensionTypes(manifest: ExtensionManifest): ExtensionType[] 
 		types.push("project");
 	}
 
-	if (contributes.revealjsPlugins && contributes.revealjsPlugins.length > 0) {
-		types.push("revealjs");
+	if (contributes.revealjsPlugin && contributes.revealjsPlugin.length > 0) {
+		types.push("revealjs-plugin");
 	}
 
 	if (contributes.metadata) {
@@ -110,11 +111,11 @@ export function normaliseManifest(raw: RawManifest): ExtensionManifest {
 		version: String(raw.version ?? ""),
 		quartoRequired: raw["quarto-required"],
 		contributes: {
-			filters: raw.contributes?.filters,
-			shortcodes: raw.contributes?.shortcodes,
-			formats: raw.contributes?.formats,
+			filter: raw.contributes?.filters,
+			shortcode: raw.contributes?.shortcodes,
+			format: raw.contributes?.formats,
 			project: raw.contributes?.project,
-			revealjsPlugins: raw.contributes?.["revealjs-plugins"],
+			revealjsPlugin: raw.contributes?.["revealjs-plugins"],
 			metadata: raw.contributes?.metadata,
 		},
 		source: raw.source,

@@ -145,20 +145,20 @@ export function writeManifest(manifestPath: string, manifest: ExtensionManifest)
 	}
 
 	const contributes: RawManifest["contributes"] = {};
-	if (manifest.contributes.filters?.length) {
-		contributes.filters = manifest.contributes.filters;
+	if (manifest.contributes.filter?.length) {
+		contributes.filters = manifest.contributes.filter;
 	}
-	if (manifest.contributes.shortcodes?.length) {
-		contributes.shortcodes = manifest.contributes.shortcodes;
+	if (manifest.contributes.shortcode?.length) {
+		contributes.shortcodes = manifest.contributes.shortcode;
 	}
-	if (manifest.contributes.formats && Object.keys(manifest.contributes.formats).length) {
-		contributes.formats = manifest.contributes.formats;
+	if (manifest.contributes.format && Object.keys(manifest.contributes.format).length) {
+		contributes.formats = manifest.contributes.format;
 	}
 	if (manifest.contributes.project) {
 		contributes.project = manifest.contributes.project;
 	}
-	if (manifest.contributes.revealjsPlugins?.length) {
-		contributes["revealjs-plugins"] = manifest.contributes.revealjsPlugins;
+	if (manifest.contributes.revealjsPlugin?.length) {
+		contributes["revealjs-plugins"] = manifest.contributes.revealjsPlugin;
 	}
 	if (manifest.contributes.metadata) {
 		contributes.metadata = manifest.contributes.metadata;
