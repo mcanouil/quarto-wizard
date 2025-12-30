@@ -20,6 +20,15 @@ function getCacheTTL(): number {
 }
 
 /**
+ * Gets the configured registry URL.
+ * @returns The registry URL from settings or the default.
+ */
+function getRegistryUrl(): string {
+	const config = vscode.workspace.getConfiguration("quartoWizard");
+	return config.get<string>("registry.url", QW_EXTENSIONS);
+}
+
+/**
  * Interface representing the details of a Quarto extension.
  */
 export interface ExtensionDetails {
@@ -64,7 +73,7 @@ function convertRegistryEntry(entry: RegistryEntry): ExtensionDetails {
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
  */
 async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 10000): Promise<ExtensionDetails[]> {
-	const url = QW_EXTENSIONS;
+	const url = getRegistryUrl();
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
 	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
 
@@ -181,7 +190,7 @@ export async function listExtensionsByType(
  * @returns {Promise<void>}
  */
 export async function clearExtensionsCache(context: vscode.ExtensionContext): Promise<void> {
-	const url = QW_EXTENSIONS;
+	const url = getRegistryUrl();
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
 
 	// Clear extension registry cache
