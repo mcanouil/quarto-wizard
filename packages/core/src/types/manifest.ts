@@ -54,9 +54,7 @@ export interface RawManifest {
 		shortcodes?: string[];
 		formats?: Record<string, unknown>;
 		project?: unknown;
-		revealjs?: {
-			plugins?: string[];
-		};
+		"revealjs-plugins"?: string[];
 		metadata?: unknown;
 	};
 	source?: string;
@@ -116,7 +114,7 @@ export function normaliseManifest(raw: RawManifest): ExtensionManifest {
 			shortcodes: raw.contributes?.shortcodes,
 			formats: raw.contributes?.formats,
 			project: raw.contributes?.project,
-			revealjsPlugins: raw.contributes?.revealjs?.plugins,
+			revealjsPlugins: raw.contributes?.["revealjs-plugins"],
 			metadata: raw.contributes?.metadata,
 		},
 		source: raw.source,

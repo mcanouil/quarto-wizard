@@ -158,7 +158,7 @@ export function writeManifest(manifestPath: string, manifest: ExtensionManifest)
 		contributes.project = manifest.contributes.project;
 	}
 	if (manifest.contributes.revealjsPlugins?.length) {
-		contributes.revealjs = { plugins: manifest.contributes.revealjsPlugins };
+		contributes["revealjs-plugins"] = manifest.contributes.revealjsPlugins;
 	}
 	if (manifest.contributes.metadata) {
 		contributes.metadata = manifest.contributes.metadata;

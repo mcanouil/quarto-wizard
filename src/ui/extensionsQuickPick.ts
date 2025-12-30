@@ -2,15 +2,34 @@ import * as vscode from "vscode";
 import { ExtensionDetails } from "../utils/extensionDetails";
 
 /**
+ * Aliases to normalise singular/plural contributes values to canonical forms.
+ */
+const CONTRIBUTES_ALIASES: Record<string, string> = {
+	format: "formats",
+	project: "projects",
+};
+
+/**
+ * Normalises a contributes value to its canonical form.
+ * @param value - The contributes value from the registry.
+ * @returns The canonical form of the value.
+ */
+function normaliseContributesValue(value: string): string {
+	const lower = value.toLowerCase();
+	return CONTRIBUTES_ALIASES[lower] ?? lower;
+}
+
+/**
  * Contribution type definitions with icons and labels.
- * These map the "contributes" field values from the registry.
+ * These map the canonical "contributes" field values from the registry.
  */
 const CONTRIBUTION_TYPES: Record<string, { icon: string; label: string }> = {
 	filters: { icon: "$(filter)", label: "Filter" },
 	shortcodes: { icon: "$(code)", label: "Shortcode" },
 	formats: { icon: "$(file-text)", label: "Format" },
 	projects: { icon: "$(project)", label: "Project" },
-	revealjs: { icon: "$(play)", label: "Reveal.js" },
+	"revealjs-plugins": { icon: "$(play)", label: "Reveal.js Plugins" },
+	metadata: { icon: "$(note)", label: "Metadata" },
 };
 
 /**
@@ -35,9 +54,9 @@ export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]
 			templateCount++;
 		}
 		for (const contrib of ext.contributes) {
-			const lowerContrib = contrib.toLowerCase();
-			if (CONTRIBUTION_TYPES[lowerContrib]) {
-				typeCounts[lowerContrib] = (typeCounts[lowerContrib] || 0) + 1;
+			const normalised = normaliseContributesValue(contrib);
+			if (CONTRIBUTION_TYPES[normalised]) {
+				typeCounts[normalised] = (typeCounts[normalised] || 0) + 1;
 			}
 		}
 	}
@@ -89,12 +108,14 @@ export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]
  */
 function getExtensionTypeBadges(contributes: string[], isTemplate: boolean): string[] {
 	const badges: string[] = [];
+	const seen = new Set<string>();
 
-	// Check for known contribution types
+	// Check for known contribution types (deduplicate normalised values)
 	for (const contrib of contributes) {
-		const lowerContrib = contrib.toLowerCase();
-		if (CONTRIBUTION_TYPES[lowerContrib]) {
-			const type = CONTRIBUTION_TYPES[lowerContrib];
+		const normalised = normaliseContributesValue(contrib);
+		if (CONTRIBUTION_TYPES[normalised] && !seen.has(normalised)) {
+			seen.add(normalised);
+			const type = CONTRIBUTION_TYPES[normalised];
 			badges.push(`${type.icon} ${type.label}`);
 		}
 	}
@@ -162,7 +183,7 @@ function filterExtensionsByType(extensions: ExtensionDetails[], typeFilter: stri
 		return extensions.filter((ext) => ext.template);
 	}
 
-	return extensions.filter((ext) => ext.contributes.some((c) => c.toLowerCase() === typeFilter.toLowerCase()));
+	return extensions.filter((ext) => ext.contributes.some((c) => normaliseContributesValue(c) === typeFilter));
 }
 
 /**
