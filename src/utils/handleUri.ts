@@ -56,6 +56,13 @@ async function handleUriAction(
 	// Get authentication configuration (prompts sign-in if needed for private repos)
 	const auth = await getAuthConfig(context, { createIfNone: true });
 
+	// Log source and extension
+	logMessage("Source: URI handler (GitHub)", "info");
+	logMessage(`Extension: ${repo}`, "info");
+	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
+		logMessage("Authentication: none (public access)", "info");
+	}
+
 	return await withProgressNotification(config.progressMessage(repo), async () => {
 		return config.executor(repo, workspaceFolder, auth);
 	});

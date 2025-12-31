@@ -25,10 +25,11 @@ export async function installQuartoExtension(
 	workspaceFolder: string,
 	auth?: AuthConfig,
 ): Promise<boolean> {
-	logMessage(`Installing ${extension} ...`, "info");
+	const prefix = `[${extension}]`;
+	logMessage(`${prefix} Installing ...`, "info");
 
 	if (!workspaceFolder) {
-		logMessage("No workspace folder specified.", "error");
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return false;
 	}
 
@@ -40,22 +41,22 @@ export async function installQuartoExtension(
 			force: true,
 			auth,
 			onProgress: (progress) => {
-				logMessage(`[${progress.phase}] ${progress.message}`, "debug");
+				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
 			},
 		});
 
 		if (result.success) {
-			logMessage(`Successfully installed ${extension}`, "info");
+			logMessage(`${prefix} Successfully installed.`, "info");
 			// Refresh the extensions tree view to show the newly installed extension
 			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
 		} else {
-			logMessage(`Failed to install ${extension}`, "error");
+			logMessage(`${prefix} Failed to install.`, "error");
 			return false;
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`Error installing extension: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}`, "error");
 
 		// Check for authentication errors and offer to sign in
 		if (message.includes("401") || message.includes("authentication") || message.includes("Unauthorized")) {
@@ -84,10 +85,11 @@ export async function installQuartoExtension(
  * @returns {Promise<boolean>} - A promise that resolves to true if the extension is removed successfully, otherwise false.
  */
 export async function removeQuartoExtension(extension: string, workspaceFolder: string): Promise<boolean> {
-	logMessage(`Removing ${extension} ...`, "info");
+	const prefix = `[${extension}]`;
+	logMessage(`${prefix} Removing ...`, "info");
 
 	if (!workspaceFolder) {
-		logMessage("No workspace folder specified.", "error");
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return false;
 	}
 
@@ -100,16 +102,16 @@ export async function removeQuartoExtension(extension: string, workspaceFolder: 
 		});
 
 		if (result.success) {
-			logMessage(`Successfully removed ${extension}`, "info");
+			logMessage(`${prefix} Successfully removed.`, "info");
 			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
 		} else {
-			logMessage(`Failed to remove ${extension}`, "error");
+			logMessage(`${prefix} Failed to remove.`, "error");
 			return false;
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`Error removing extension: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}`, "error");
 		return false;
 	}
 }
@@ -133,10 +135,11 @@ export async function removeQuartoExtensions(
 	extensions: string[],
 	workspaceFolder: string,
 ): Promise<BatchRemoveResult> {
-	logMessage(`Removing ${extensions.length} extension(s) ...`, "info");
+	const prefix = `[batch-remove]`;
+	logMessage(`${prefix} Removing ${extensions.length} extension(s): ${extensions.join(", ")}`, "info");
 
 	if (!workspaceFolder) {
-		logMessage("No workspace folder specified.", "error");
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return { successCount: 0, failedExtensions: extensions };
 	}
 
@@ -157,10 +160,10 @@ export async function removeQuartoExtensions(
 			});
 
 		if (successCount > 0) {
-			logMessage(`Successfully removed ${successCount} extension(s)`, "info");
+			logMessage(`${prefix} Successfully removed ${successCount} extension(s).`, "info");
 		}
 		if (failedExtensions.length > 0) {
-			logMessage(`Failed to remove: ${failedExtensions.join(", ")}`, "error");
+			logMessage(`${prefix} Failed to remove: ${failedExtensions.join(", ")}`, "error");
 		}
 
 		vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
@@ -168,7 +171,7 @@ export async function removeQuartoExtensions(
 		return { successCount, failedExtensions };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`Error removing extensions: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}`, "error");
 		return { successCount: 0, failedExtensions: extensions };
 	}
 }
@@ -188,10 +191,11 @@ export async function useQuartoExtension(
 	selectFiles?: FileSelectionCallback,
 	auth?: AuthConfig,
 ): Promise<UseResult | null> {
-	logMessage(`Using template ${extension} ...`, "info");
+	const prefix = `[${extension}]`;
+	logMessage(`${prefix} Using template ...`, "info");
 
 	if (!workspaceFolder) {
-		logMessage("No workspace folder specified.", "error");
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return null;
 	}
 
@@ -204,35 +208,35 @@ export async function useQuartoExtension(
 			auth,
 			onProgress: (progress) => {
 				if (progress.file) {
-					logMessage(`[${progress.phase}] ${progress.message} (${progress.file})`, "debug");
+					logMessage(`${prefix} [${progress.phase}] ${progress.message} (${progress.file})`, "debug");
 				} else {
-					logMessage(`[${progress.phase}] ${progress.message}`, "debug");
+					logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
 				}
 			},
 		});
 
 		if (result.install.success) {
-			logMessage(`Successfully installed template extension ${extension}`, "info");
+			logMessage(`${prefix} Successfully installed template.`, "info");
 
 			if (result.templateFiles.length > 0) {
-				logMessage(`Copied ${result.templateFiles.length} template file(s):`, "info");
-				result.templateFiles.forEach((file) => logMessage(`  - ${file}`, "info"));
+				logMessage(`${prefix} Copied ${result.templateFiles.length} template file(s):`, "info");
+				result.templateFiles.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 			}
 
 			if (result.skippedFiles.length > 0) {
-				logMessage(`Skipped ${result.skippedFiles.length} existing file(s):`, "info");
-				result.skippedFiles.forEach((file) => logMessage(`  - ${file}`, "info"));
+				logMessage(`${prefix} Skipped ${result.skippedFiles.length} existing file(s):`, "info");
+				result.skippedFiles.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 			}
 
 			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return result;
 		} else {
-			logMessage(`Failed to use template ${extension}`, "error");
+			logMessage(`${prefix} Failed to use template.`, "error");
 			return null;
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`Error using template extension: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}`, "error");
 
 		// Check for authentication errors and offer to sign in
 		if (message.includes("401") || message.includes("authentication") || message.includes("Unauthorized")) {
@@ -242,7 +246,7 @@ export async function useQuartoExtension(
 				"Set Token",
 			);
 			if (action === "Sign In") {
-				logMessage("User requested GitHub sign-in.", "info");
+				logMessage(`${prefix} User requested GitHub sign-in.`, "info");
 			} else if (action === "Set Token") {
 				await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
 			}

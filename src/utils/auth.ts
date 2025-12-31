@@ -45,7 +45,7 @@ export async function getAuthConfig(
 	// 1. Check for manual token (highest priority)
 	const manualToken = await context.secrets.get(MANUAL_TOKEN_KEY);
 	if (manualToken) {
-		logMessage("Using manual GitHub token from SecretStorage.", "debug");
+		logMessage("Using manual GitHub token from SecretStorage.", "info");
 		return createAuthConfig({ githubToken: manualToken });
 	}
 
@@ -57,7 +57,7 @@ export async function getAuthConfig(
 		});
 
 		if (session) {
-			logMessage("Using GitHub token from VSCode session.", "debug");
+			logMessage("Using GitHub token from VSCode session.", "info");
 			return createAuthConfig({ githubToken: session.accessToken });
 		}
 	} catch (error) {
@@ -70,7 +70,7 @@ export async function getAuthConfig(
 	// 3. Fall back to environment variables (handled by createAuthConfig)
 	const authConfig = createAuthConfig();
 	if (authConfig.githubToken) {
-		logMessage("Using GitHub token from environment variable.", "debug");
+		logMessage("Using GitHub token from environment variable (GITHUB_TOKEN or QUARTO_WIZARD_TOKEN).", "info");
 	}
 
 	return authConfig;

@@ -34,6 +34,13 @@ async function installQuartoExtensions(
 	const actionWord = template ? "Using" : "Installing";
 	const actionPast = template ? "used" : "installed";
 
+	// Log source and extensions
+	logMessage("Source: registry", "info");
+	logMessage(`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}`, "info");
+	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
+		logMessage("Authentication: none (public access)", "info");
+	}
+
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -153,24 +160,111 @@ export async function installQuartoExtensionFolderCommand(
 	// Show type filter picker (skip for template mode as it's already filtered)
 	let typeFilter: string | null = null;
 	if (!template) {
-		const selectedFilter = await showTypeFilterQuickPick(extensionsList);
-		if (selectedFilter === undefined) {
-			// User cancelled the filter picker
+		const filterResult = await showTypeFilterQuickPick(extensionsList);
+
+		if (filterResult.type === "cancelled") {
 			return;
 		}
-		typeFilter = selectedFilter;
+
+		// If user selected an alternative source at the filter stage, install directly
+		if (filterResult.type === "github" || filterResult.type === "url" || filterResult.type === "local") {
+			await installFromSource(context, filterResult.source, workspaceFolder, template);
+			return;
+		}
+
+		// User selected a filter
+		typeFilter = filterResult.value;
 	}
 
 	const recentKey = template ? QW_RECENTLY_USED : QW_RECENTLY_INSTALLED;
 	const recentExtensions: string[] = context.globalState.get(recentKey, []);
-	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
+	const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
 
-	if (selectedExtensions.length > 0) {
-		await installQuartoExtensions(context, selectedExtensions, workspaceFolder, template);
-		const selectedIDs = selectedExtensions.map((ext) => ext.id);
-		const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
-		await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+	if (result.type === "cancelled") {
+		return;
 	}
+
+	if (result.type === "registry") {
+		// Registry installation flow
+		if (result.items.length > 0) {
+			await installQuartoExtensions(context, result.items, workspaceFolder, template);
+			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
+			const updatedRecentExtensions = [
+				...selectedIDs,
+				...recentExtensions.filter((ext) => !selectedIDs.includes(ext)),
+			];
+			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+		}
+	} else {
+		// Alternative source installation (github, url, local)
+		await installFromSource(context, result.source, workspaceFolder, template);
+	}
+}
+
+/**
+ * Detect the source type for logging purposes.
+ */
+function detectSourceTypeForLogging(source: string): string {
+	if (source.startsWith("http://") || source.startsWith("https://")) {
+		return "URL";
+	}
+	if (source.startsWith("/") || source.startsWith("~") || /^[a-zA-Z]:[/\\]/.test(source)) {
+		return "local path";
+	}
+	return "GitHub";
+}
+
+/**
+ * Install extension from an alternative source (GitHub, URL, or local path).
+ *
+ * @param context - The extension context for authentication.
+ * @param source - The source string (GitHub repo, URL, or local path).
+ * @param workspaceFolder - The workspace folder where the extension will be installed.
+ * @param template - Whether to use the template functionality.
+ */
+async function installFromSource(
+	context: vscode.ExtensionContext,
+	source: string,
+	workspaceFolder: string,
+	template: boolean,
+) {
+	if ((await askTrustAuthors()) !== 0) return;
+	if ((await askConfirmInstall()) !== 0) return;
+
+	const auth = await getAuthConfig(context, { createIfNone: true });
+	const actionWord = template ? "Using" : "Installing";
+	const sourceType = detectSourceTypeForLogging(source);
+
+	// Log source and extension
+	logMessage(`Source: ${sourceType}`, "info");
+	logMessage(`Extension: ${source}`, "info");
+	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
+		logMessage("Authentication: none (public access)", "info");
+	}
+
+	await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: `${actionWord} extension from ${source} (${showLogsCommand()})`,
+			cancellable: false,
+		},
+		async () => {
+			let success: boolean;
+			if (template) {
+				const selectFiles = createFileSelectionCallback();
+				const result = await useQuartoExtension(source, workspaceFolder, selectFiles, auth);
+				success = result !== null;
+			} else {
+				success = await installQuartoExtension(source, workspaceFolder, auth);
+			}
+
+			if (success) {
+				const message = template ? "Template used successfully." : "Extension installed successfully.";
+				logMessage(message, "info");
+				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+			}
+		},
+	);
 }
 
 /**

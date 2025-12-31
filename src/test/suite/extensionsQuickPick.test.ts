@@ -21,10 +21,20 @@ suite("Extensions QuickPick Test Suite", () => {
 		public selectedItems: readonly ExtensionQuickPickItem[] = [];
 
 		private _onDidAcceptHandlers: (() => void)[] = [];
+		private _onDidHideHandlers: (() => void)[] = [];
+		private _onDidChangeValueHandlers: ((value: string) => void)[] = [];
 		private _onDidTriggerItemButtonHandlers: ((e: { item: ExtensionQuickPickItem }) => void)[] = [];
 
 		onDidAccept(handler: () => void): void {
 			this._onDidAcceptHandlers.push(handler);
+		}
+
+		onDidHide(handler: () => void): void {
+			this._onDidHideHandlers.push(handler);
+		}
+
+		onDidChangeValue(handler: (value: string) => void): void {
+			this._onDidChangeValueHandlers.push(handler);
 		}
 
 		onDidTriggerItemButton(handler: (e: { item: ExtensionQuickPickItem }) => void): void {
@@ -42,6 +52,14 @@ suite("Extensions QuickPick Test Suite", () => {
 		// Test helper methods
 		triggerAccept(): void {
 			this._onDidAcceptHandlers.forEach((handler) => handler());
+		}
+
+		triggerHide(): void {
+			this._onDidHideHandlers.forEach((handler) => handler());
+		}
+
+		triggerValueChange(value: string): void {
+			this._onDidChangeValueHandlers.forEach((handler) => handler(value));
 		}
 
 		triggerItemButton(item: ExtensionQuickPickItem): void {
@@ -195,7 +213,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyInstalled, false);
 
 			// Verify QuickPick configuration
-			assert.strictEqual(mockQuickPick.placeholder, "Search and select Quarto extensions to install");
+			assert.ok(mockQuickPick.placeholder.includes("Search registry"));
 			assert.strictEqual(mockQuickPick.canSelectMany, true);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 
@@ -215,8 +233,11 @@ suite("Extensions QuickPick Test Suite", () => {
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.strictEqual(result.length, 2);
-			assert.strictEqual(result[0].label, "Extension One");
+			assert.strictEqual(result.type, "registry");
+			if (result.type === "registry") {
+				assert.strictEqual(result.items.length, 2);
+				assert.strictEqual(result.items[0].label, "Extension One");
+			}
 		});
 
 		test("Should configure QuickPick for template selection", async () => {
@@ -224,7 +245,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyUsed, true);
 
 			// Verify QuickPick configuration for templates
-			assert.strictEqual(mockQuickPick.placeholder, "Search and select a Quarto template to use");
+			assert.ok(mockQuickPick.placeholder.includes("Search registry"));
 			assert.strictEqual(mockQuickPick.canSelectMany, false);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 
@@ -237,8 +258,11 @@ suite("Extensions QuickPick Test Suite", () => {
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.strictEqual(result.length, 1);
-			assert.strictEqual(result[0].id, "ext2");
+			assert.strictEqual(result.type, "registry");
+			if (result.type === "registry") {
+				assert.strictEqual(result.items.length, 1);
+				assert.strictEqual(result.items[0].id, "ext2");
+			}
 		});
 
 		test("Should sort non-recently used extensions alphabetically", async () => {
@@ -260,10 +284,10 @@ suite("Extensions QuickPick Test Suite", () => {
 		test("Should handle empty recently installed list", async () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, [], false);
 
-			// Should have separator + 0 recently installed + separator + 3 all extensions = 5 items
-			assert.strictEqual(mockQuickPick.items.length, 5);
-			assert.strictEqual(mockQuickPick.items[0].label, "Recently Installed");
-			assert.strictEqual(mockQuickPick.items[1].label, "All Extensions");
+			// Should have separator + 3 all extensions = 4 items (no "Recently Installed" when empty)
+			assert.strictEqual(mockQuickPick.items.length, 4);
+			assert.strictEqual(mockQuickPick.items[0].label, "All Extensions");
+			assert.strictEqual(mockQuickPick.items[0].kind, vscode.QuickPickItemKind.Separator);
 
 			mockQuickPick.triggerAccept();
 			await promise;
@@ -308,14 +332,17 @@ suite("Extensions QuickPick Test Suite", () => {
 			await promise;
 		});
 
-		test("Should resolve with empty array when no items selected", async () => {
+		test("Should resolve with empty items when no items selected", async () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, [], false);
 
 			// Don't set any selected items, just trigger accept
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.strictEqual(result.length, 0);
+			assert.strictEqual(result.type, "registry");
+			if (result.type === "registry") {
+				assert.strictEqual(result.items.length, 0);
+			}
 		});
 
 		test("Should filter out recently installed from all extensions section", async () => {
@@ -394,7 +421,8 @@ suite("Extensions QuickPick Test Suite", () => {
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.ok(Array.isArray(result));
+			assert.ok(typeof result === "object");
+			assert.ok("type" in result);
 		});
 	});
 });

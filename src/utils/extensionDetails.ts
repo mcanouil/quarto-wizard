@@ -78,11 +78,11 @@ async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 100
 	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
 
 	if (cachedData && Date.now() - cachedData.timestamp < getCacheTTL()) {
-		debouncedLogMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "info");
+		debouncedLogMessage(`Using cached registry: ${new Date(cachedData.timestamp).toISOString()}`, "debug");
 		return cachedData.data;
 	}
 
-	debouncedLogMessage(`Fetching extensions: ${url}`, "info");
+	debouncedLogMessage(`Fetching registry: ${url}`, "info");
 
 	try {
 		const registry = await fetchRegistry({
