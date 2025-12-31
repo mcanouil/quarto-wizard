@@ -18,7 +18,7 @@ import { setManualToken, clearManualToken } from "./utils/auth";
 export function activate(context: vscode.ExtensionContext) {
 	// Register command to show the extension's output log
 	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
-	QW_LOG.appendLine("Quarto Wizard, your magical assistant, is now active!");
+	logMessage("Quarto Wizard, your magical assistant, is now active!", "info");
 
 	// Register command to clear the recently installed/used extensions cache
 	context.subscriptions.push(

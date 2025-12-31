@@ -35,10 +35,10 @@ async function installQuartoExtensions(
 	const actionPast = template ? "used" : "installed";
 
 	// Log source and extensions
-	logMessage("Source: registry", "info");
-	logMessage(`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}`, "info");
+	logMessage("Source: registry.", "info");
+	logMessage(`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}.`, "info");
 	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access)", "info");
+		logMessage("Authentication: none (public access).", "info");
 	}
 
 	await vscode.window.withProgress(
@@ -236,10 +236,10 @@ async function installFromSource(
 	const sourceType = detectSourceTypeForLogging(source);
 
 	// Log source and extension
-	logMessage(`Source: ${sourceType}`, "info");
-	logMessage(`Extension: ${source}`, "info");
+	logMessage(`Source: ${sourceType}.`, "info");
+	logMessage(`Extension: ${source}.`, "info");
 	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access)", "info");
+		logMessage("Authentication: none (public access).", "info");
 	}
 
 	await vscode.window.withProgress(

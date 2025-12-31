@@ -205,11 +205,11 @@ export async function removeExtension(extension: string, root: string): Promise<
 			}
 			return true;
 		} catch (error) {
-			logMessage(`Failed to remove extension: ${error}`);
+			logMessage(`Failed to remove extension: ${error}`, "error");
 			return false;
 		}
 	} else {
-		logMessage(`Extension path does not exist: ${extensionPath}`);
+		logMessage(`Extension path does not exist: ${extensionPath}`, "warn");
 		return false;
 	}
 }

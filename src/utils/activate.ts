@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { QW_LOG } from "../constants";
+import { logMessage } from "./log";
 
 /**
  * Prompts the user to install a specified extension if it is not already installed.
@@ -29,14 +29,14 @@ async function promptInstallExtension(extensionId: string, context: vscode.Exten
 	switch (choice) {
 		case "Install Now":
 			await vscode.commands.executeCommand("workbench.extensions.installExtension", extensionId);
-			QW_LOG.appendLine(`${extensionId} installation initiated.`);
+			logMessage(`${extensionId} installation initiated.`, "info");
 			break;
 		case "Maybe Later":
-			QW_LOG.appendLine(`User chose to install ${extensionId} later.`);
+			logMessage(`User chose to install ${extensionId} later.`, "info");
 			context.globalState.update(`${kPromptInstallExtension}.${extensionId}`, true);
 			break;
 		case "Don't Ask Again":
-			QW_LOG.appendLine(`User chose not to be asked again about ${extensionId}.`);
+			logMessage(`User chose not to be asked again about ${extensionId}.`, "info");
 			context.globalState.update(`${kPromptInstallExtension}.${extensionId}`, false);
 			break;
 	}
@@ -61,15 +61,16 @@ export async function activateExtensions(extensions: string[], context: vscode.E
 				if (extension) {
 					if (!extension.isActive) {
 						await extension.activate();
-						QW_LOG.appendLine(`${extensionId} activated.`);
+						logMessage(`${extensionId} activated.`, "info");
 					}
 				} else {
-					QW_LOG.appendLine(`Failed to activate ${extensionId}.`);
+					logMessage(`${extensionId} not found.`, "warn");
 					await promptInstallExtension(extensionId, context);
 				}
 			} catch (error) {
-				QW_LOG.appendLine(
+				logMessage(
 					`Failed to activate ${extensionId}: ${error instanceof Error ? error.message : String(error)}`,
+					"error",
 				);
 			}
 		}),

@@ -541,14 +541,14 @@ export class ExtensionsInstalled {
 				async (item: ExtensionTreeItem) => {
 					// Early return if resourceUri is not available
 					if (!item.resourceUri) {
-						logMessage(`Cannot reveal "${item.label}": resource URI not available.`, "warning");
+						logMessage(`Cannot reveal "${item.label}": resource URI not available.`, "warn");
 						vscode.window.showWarningMessage(`Cannot reveal extension "${item.label}" in Explorer.`);
 						return;
 					}
 
 					// Check if extension directory exists
 					if (!fs.existsSync(item.resourceUri.fsPath)) {
-						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}`, "warning");
+						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}`, "warn");
 						vscode.window.showWarningMessage(`Extension directory for "${item.label}" not found.`);
 						return;
 					}

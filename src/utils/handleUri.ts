@@ -57,10 +57,10 @@ async function handleUriAction(
 	const auth = await getAuthConfig(context, { createIfNone: true });
 
 	// Log source and extension
-	logMessage("Source: URI handler (GitHub)", "info");
-	logMessage(`Extension: ${repo}`, "info");
+	logMessage("Source: URI handler (GitHub).", "info");
+	logMessage(`Extension: ${repo}.`, "info");
 	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access)", "info");
+		logMessage("Authentication: none (public access).", "info");
 	}
 
 	return await withProgressNotification(config.progressMessage(repo), async () => {

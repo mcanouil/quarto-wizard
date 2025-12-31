@@ -131,9 +131,9 @@ suite("Ask Utils Test Suite", () => {
 			assert.strictEqual(updateCalls.length, 0);
 		});
 
-		test("Should return 0 and update config when user selects 'Yes, always trust'", async () => {
+		test("Should return 0 and update config when user selects 'Yes, always install'", async () => {
 			configValues["confirmInstall"] = "ask";
-			quickPickResult = { label: "Yes, always trust", description: "Change setting to always trust." };
+			quickPickResult = { label: "Yes, always install", description: "Change setting to always install." };
 
 			const result = await askConfirmInstall();
 
@@ -182,9 +182,9 @@ suite("Ask Utils Test Suite", () => {
 			assert.strictEqual(updateCalls.length, 0);
 		});
 
-		test("Should return 0 and update config when user selects 'Yes, always trust'", async () => {
+		test("Should return 0 and update config when user selects 'Yes, always remove'", async () => {
 			configValues["confirmRemove"] = "always";
-			quickPickResult = { label: "Yes, always trust", description: "Change setting to always trust." };
+			quickPickResult = { label: "Yes, always remove", description: "Change setting to always remove." };
 
 			const result = await askConfirmRemove();
 
