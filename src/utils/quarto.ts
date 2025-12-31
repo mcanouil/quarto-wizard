@@ -8,17 +8,23 @@ import {
 	parseExtensionId,
 	type UseResult,
 	type FileSelectionCallback,
+	type AuthConfig,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
  * Installs a Quarto extension using the core library.
  *
- * @param {string} extension - The name of the extension to install (e.g., "owner/repo" or "owner/repo@version").
- * @param {string} workspaceFolder - The workspace folder path.
- * @returns {Promise<boolean>} - A promise that resolves to true if the extension is installed successfully, otherwise false.
+ * @param extension - The name of the extension to install (e.g., "owner/repo" or "owner/repo@version").
+ * @param workspaceFolder - The workspace folder path.
+ * @param auth - Optional authentication configuration for private repositories.
+ * @returns A promise that resolves to true if the extension is installed successfully, otherwise false.
  */
-export async function installQuartoExtension(extension: string, workspaceFolder: string): Promise<boolean> {
+export async function installQuartoExtension(
+	extension: string,
+	workspaceFolder: string,
+	auth?: AuthConfig,
+): Promise<boolean> {
 	logMessage(`Installing ${extension} ...`, "info");
 
 	if (!workspaceFolder) {
@@ -32,6 +38,7 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 		const result = await install(source, {
 			projectDir: workspaceFolder,
 			force: true,
+			auth,
 			onProgress: (progress) => {
 				logMessage(`[${progress.phase}] ${progress.message}`, "debug");
 			},
@@ -49,6 +56,22 @@ export async function installQuartoExtension(extension: string, workspaceFolder:
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		logMessage(`Error installing extension: ${message}`, "error");
+
+		// Check for authentication errors and offer to sign in
+		if (message.includes("401") || message.includes("authentication") || message.includes("Unauthorized")) {
+			const action = await vscode.window.showErrorMessage(
+				"Authentication may be required. Sign in to GitHub to access private repositories.",
+				"Sign In",
+				"Set Token",
+			);
+			if (action === "Sign In") {
+				// Trigger native GitHub sign-in (will be handled by caller on retry)
+				logMessage("User requested GitHub sign-in.", "info");
+			} else if (action === "Set Token") {
+				await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+			}
+		}
+
 		return false;
 	}
 }
@@ -153,15 +176,17 @@ export async function removeQuartoExtensions(
 /**
  * Uses a Quarto template extension: installs it and copies template files to the project.
  *
- * @param {string} extension - The name of the extension to use (e.g., "owner/repo" or "owner/repo@version").
- * @param {string} workspaceFolder - The workspace folder path.
- * @param {FileSelectionCallback} selectFiles - Callback for interactive file selection.
- * @returns {Promise<UseResult | null>} - A promise that resolves to the use result, or null on failure.
+ * @param extension - The name of the extension to use (e.g., "owner/repo" or "owner/repo@version").
+ * @param workspaceFolder - The workspace folder path.
+ * @param selectFiles - Callback for interactive file selection.
+ * @param auth - Optional authentication configuration for private repositories.
+ * @returns A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
 	selectFiles?: FileSelectionCallback,
+	auth?: AuthConfig,
 ): Promise<UseResult | null> {
 	logMessage(`Using template ${extension} ...`, "info");
 
@@ -176,6 +201,7 @@ export async function useQuartoExtension(
 		const result = await use(source, {
 			projectDir: workspaceFolder,
 			selectFiles,
+			auth,
 			onProgress: (progress) => {
 				if (progress.file) {
 					logMessage(`[${progress.phase}] ${progress.message} (${progress.file})`, "debug");
@@ -207,6 +233,21 @@ export async function useQuartoExtension(
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		logMessage(`Error using template extension: ${message}`, "error");
+
+		// Check for authentication errors and offer to sign in
+		if (message.includes("401") || message.includes("authentication") || message.includes("Unauthorized")) {
+			const action = await vscode.window.showErrorMessage(
+				"Authentication may be required. Sign in to GitHub to access private repositories.",
+				"Sign In",
+				"Set Token",
+			);
+			if (action === "Sign In") {
+				logMessage("User requested GitHub sign-in.", "info");
+			} else if (action === "Set Token") {
+				await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+			}
+		}
+
 		return null;
 	}
 }

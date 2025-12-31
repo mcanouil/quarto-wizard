@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
+import type { AuthConfig } from "@quarto-wizard/core";
 import { installQuartoExtension, useQuartoExtension } from "./quarto";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { createFileSelectionCallback } from "../utils/ask";
+import { getAuthConfig } from "../utils/auth";
 
 /**
  * Configuration for a URI action handler.
@@ -14,7 +16,7 @@ interface UriActionConfig {
 	/** Function to generate the progress message from the repo name. */
 	progressMessage: (repo: string) => string;
 	/** The executor function that performs the action. */
-	executor: (repo: string, workspaceFolder: string) => Promise<boolean>;
+	executor: (repo: string, workspaceFolder: string, auth: AuthConfig) => Promise<boolean>;
 }
 
 /**
@@ -22,10 +24,15 @@ interface UriActionConfig {
  * Extracts repo from URI, prompts for workspace folder, confirms action, and executes.
  *
  * @param uri - The VS Code URI containing query parameters.
+ * @param context - The extension context for authentication.
  * @param config - Configuration for the action.
  * @returns A Promise that resolves when the action is complete or cancelled.
  */
-async function handleUriAction(uri: vscode.Uri, config: UriActionConfig): Promise<boolean | undefined> {
+async function handleUriAction(
+	uri: vscode.Uri,
+	context: vscode.ExtensionContext,
+	config: UriActionConfig,
+): Promise<boolean | undefined> {
 	const repo = new URLSearchParams(uri.query).get("repo");
 	const workspaceFolder = await selectWorkspaceFolder();
 	if (!repo || !workspaceFolder) {
@@ -46,8 +53,11 @@ async function handleUriAction(uri: vscode.Uri, config: UriActionConfig): Promis
 		return;
 	}
 
+	// Get authentication configuration (prompts sign-in if needed for private repos)
+	const auth = await getAuthConfig(context, { createIfNone: true });
+
 	return await withProgressNotification(config.progressMessage(repo), async () => {
-		return config.executor(repo, workspaceFolder);
+		return config.executor(repo, workspaceFolder, auth);
 	});
 }
 
@@ -64,7 +74,7 @@ async function handleUriAction(uri: vscode.Uri, config: UriActionConfig): Promis
 export async function handleUri(uri: vscode.Uri, context: vscode.ExtensionContext) {
 	switch (uri.path) {
 		case "/install":
-			handleUriInstall(uri);
+			handleUriInstall(uri, context);
 			break;
 		case "/use":
 			handleUriUse(uri, context);
@@ -80,16 +90,17 @@ export async function handleUri(uri: vscode.Uri, context: vscode.ExtensionContex
  *
  * @param uri - The VS Code URI containing query parameters, expected to have a "repo" parameter
  * specifying the repository to install.
+ * @param context - The extension context for authentication.
  *
  * @returns A Promise that resolves when the installation is complete or cancelled.
  * The function doesn't return any value but may show information messages to the user
  * and perform the extension installation if confirmed.
  */
-export async function handleUriInstall(uri: vscode.Uri) {
-	return handleUriAction(uri, {
+export async function handleUriInstall(uri: vscode.Uri, context: vscode.ExtensionContext) {
+	return handleUriAction(uri, context, {
 		confirmMessage: (repo) => `Do you confirm the installation of "${repo}" extension?`,
 		progressMessage: (repo) => `Installing Quarto extension from ${repo} ...`,
-		executor: installQuartoExtension,
+		executor: (repo, workspaceFolder, auth) => installQuartoExtension(repo, workspaceFolder, auth),
 	});
 }
 
@@ -98,20 +109,19 @@ export async function handleUriInstall(uri: vscode.Uri) {
  *
  * @param uri - The VS Code URI containing query parameters, expected to have a "repo" parameter
  * specifying the repository to install and use.
- * @param context - The extension context used to access extension resources and state.
+ * @param context - The extension context for authentication.
  *
  * @returns A Promise that resolves when the installation and template copying is complete or cancelled.
  * The function installs the specified extension and copies template files to the workspace.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function handleUriUse(uri: vscode.Uri, _context: vscode.ExtensionContext) {
-	return handleUriAction(uri, {
+export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionContext) {
+	return handleUriAction(uri, context, {
 		confirmMessage: (repo) =>
 			`Do you confirm using the "${repo}" template extension? This will install the extension and copy template files to your project.`,
 		progressMessage: (repo) => `Using Quarto template from ${repo} ...`,
-		executor: async (repo, workspaceFolder) => {
+		executor: async (repo, workspaceFolder, auth) => {
 			const selectFiles = createFileSelectionCallback();
-			const result = await useQuartoExtension(repo, workspaceFolder, selectFiles);
+			const result = await useQuartoExtension(repo, workspaceFolder, selectFiles, auth);
 			return result !== null;
 		},
 	});

@@ -15,6 +15,7 @@ import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension }
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
+import { getAuthConfig } from "../utils/auth";
 
 /**
  * Represents a tree item for a workspace folder.
@@ -485,12 +486,14 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
 				const latestVersion = item.latestVersion?.replace(/^@/, "");
 				const latestSemver = latestVersion ? latestVersion.replace(/^v/, "") : undefined;
+				const auth = await getAuthConfig(context, { createIfNone: true });
 				const success = await withProgressNotification(
 					`Updating "${item.data?.repository ?? item.label}" to ${latestSemver} ...`,
 					async () => {
 						return installQuartoExtension(
 							`${item.data?.repository ?? item.label}${item.latestVersion}`,
 							item.workspaceFolder,
+							auth,
 						);
 					},
 				);
@@ -604,13 +607,14 @@ export class ExtensionsInstalled {
 					return;
 				}
 
+				const auth = await getAuthConfig(context, { createIfNone: true });
 				let successCount = 0;
 				let failedCount = 0;
 
 				await withProgressNotification(`Updating ${outdated.length} extension(s) ...`, async () => {
 					for (const ext of outdated) {
 						const source = ext.repository ? `${ext.repository}@${ext.latestVersion}` : `${ext.extensionId}@${ext.latestVersion}`;
-						const success = await installQuartoExtension(source, ext.workspaceFolder);
+						const success = await installQuartoExtension(source, ext.workspaceFolder, auth);
 						if (success) {
 							successCount++;
 						} else {

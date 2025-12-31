@@ -6,6 +6,7 @@ import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
+import { setManualToken, clearManualToken } from "./utils/auth";
 
 /**
  * This method is called when the extension is activated.
@@ -55,6 +56,32 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register command to fetch and display extension details from GitHub
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.getExtensionsDetails", () => getExtensionsDetails(context)),
+	);
+
+	// Register command to set a manual GitHub token
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.setGitHubToken", async () => {
+			const token = await vscode.window.showInputBox({
+				prompt: "Enter GitHub Personal Access Token",
+				password: true,
+				placeHolder: "ghp_xxxx or github_pat_xxxx",
+				ignoreFocusOut: true,
+			});
+			if (token) {
+				await setManualToken(context, token);
+				vscode.window.showInformationMessage(`GitHub token stored securely. ${showLogsCommand()}.`);
+			}
+		}),
+	);
+
+	// Register command to clear the manual GitHub token
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.clearGitHubToken", async () => {
+			await clearManualToken(context);
+			vscode.window.showInformationMessage(
+				`Manual token cleared. Will use VSCode GitHub session or environment variables. ${showLogsCommand()}.`,
+			);
+		}),
 	);
 
 	// Initialise the Extensions Installed tree view provider

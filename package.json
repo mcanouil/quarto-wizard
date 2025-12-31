@@ -221,6 +221,20 @@
 				"shortTitle": "Validate",
 				"icon": "$(check)",
 				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.setGitHubToken",
+				"title": "Set GitHub Token (Manual)",
+				"shortTitle": "Set Token",
+				"icon": "$(key)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.clearGitHubToken",
+				"title": "Clear GitHub Token (Manual)",
+				"shortTitle": "Clear Token",
+				"icon": "$(key)",
+				"category": "Quarto Wizard"
 			}
 		],
 		"submenus": [

@@ -7,15 +7,18 @@ import { askTrustAuthors, askConfirmInstall, createFileSelectionCallback } from 
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick, showTypeFilterQuickPick } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
+import { getAuthConfig } from "../utils/auth";
 
 /**
  * Installs or uses the selected Quarto extensions.
  *
+ * @param context - The extension context for accessing authentication.
  * @param selectedExtensions - The extensions selected by the user for installation.
  * @param workspaceFolder - The workspace folder where the extensions will be installed.
  * @param template - Whether to use the template functionality (copy template files).
  */
 async function installQuartoExtensions(
+	context: vscode.ExtensionContext,
 	selectedExtensions: readonly ExtensionQuickPickItem[],
 	workspaceFolder: string,
 	template = false,
@@ -24,6 +27,9 @@ async function installQuartoExtensions(
 
 	if ((await askTrustAuthors()) !== 0) return;
 	if ((await askConfirmInstall()) !== 0) return;
+
+	// Get authentication configuration (prompts sign-in if needed for private repos)
+	const auth = await getAuthConfig(context, { createIfNone: true });
 
 	const actionWord = template ? "Using" : "Installing";
 	const actionPast = template ? "used" : "installed";
@@ -67,11 +73,11 @@ async function installQuartoExtensions(
 				if (template) {
 					// Use template: install extension and copy template files
 					const selectFiles = createFileSelectionCallback();
-					const result = await useQuartoExtension(extensionSource, workspaceFolder, selectFiles);
+					const result = await useQuartoExtension(extensionSource, workspaceFolder, selectFiles, auth);
 					success = result !== null;
 				} else {
 					// Regular install: just install the extension
-					success = await installQuartoExtension(extensionSource, workspaceFolder);
+					success = await installQuartoExtension(extensionSource, workspaceFolder, auth);
 				}
 
 				// Track installation results for user feedback
@@ -160,7 +166,7 @@ export async function installQuartoExtensionFolderCommand(
 	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
 
 	if (selectedExtensions.length > 0) {
-		await installQuartoExtensions(selectedExtensions, workspaceFolder, template);
+		await installQuartoExtensions(context, selectedExtensions, workspaceFolder, template);
 		const selectedIDs = selectedExtensions.map((ext) => ext.id);
 		const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
 		await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
