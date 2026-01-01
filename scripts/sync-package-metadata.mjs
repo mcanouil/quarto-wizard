@@ -7,34 +7,34 @@
  * Keywords are merged (package-specific keywords are preserved).
  */
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const rootDir = join(__dirname, '..');
+const rootDir = join(__dirname, "..");
 
 /** Fields to copy directly from root to packages */
-const SYNC_FIELDS = ['author', 'license', 'bugs', 'homepage', 'version', 'sponsor'];
+const SYNC_FIELDS = ["author", "license", "bugs", "homepage", "version", "sponsor"];
 
 /** Fields to merge (package values are preserved, root values added if missing) */
 const MERGE_ARRAY_FIELDS = [];
 
 function readJson(filePath) {
-	return JSON.parse(readFileSync(filePath, 'utf-8'));
+	return JSON.parse(readFileSync(filePath, "utf-8"));
 }
 
 function writeJson(filePath, data) {
-	writeFileSync(filePath, JSON.stringify(data, null, '\t') + '\n');
+	writeFileSync(filePath, JSON.stringify(data, null, "\t") + "\n");
 }
 
 function getPackageDirs() {
-	const packagesDir = join(rootDir, 'packages');
+	const packagesDir = join(rootDir, "packages");
 	return readdirSync(packagesDir)
 		.map((name) => join(packagesDir, name))
 		.filter((dir) => {
 			try {
-				return statSync(dir).isDirectory() && statSync(join(dir, 'package.json')).isFile();
+				return statSync(dir).isDirectory() && statSync(join(dir, "package.json")).isFile();
 			} catch {
 				return false;
 			}
@@ -44,7 +44,7 @@ function getPackageDirs() {
 function syncRepository(rootRepo, pkgPath) {
 	if (!rootRepo) return undefined;
 
-	const relativePath = pkgPath.replace(rootDir + '/', '');
+	const relativePath = pkgPath.replace(rootDir + "/", "");
 	return {
 		...rootRepo,
 		directory: relativePath,
@@ -59,9 +59,9 @@ function syncRepository(rootRepo, pkgPath) {
 // }
 
 function syncPackage(rootPkg, pkgDir) {
-	const pkgPath = join(pkgDir, 'package.json');
+	const pkgPath = join(pkgDir, "package.json");
 	const pkg = readJson(pkgPath);
-	const relativePath = pkgDir.replace(rootDir + '/', '');
+	const relativePath = pkgDir.replace(rootDir + "/", "");
 
 	let changed = false;
 
@@ -101,10 +101,10 @@ function syncPackage(rootPkg, pkgDir) {
 }
 
 function main() {
-	const rootPkgPath = join(rootDir, 'package.json');
+	const rootPkgPath = join(rootDir, "package.json");
 	const rootPkg = readJson(rootPkgPath);
 
-	console.log('Syncing package metadata from root package.json...\n');
+	console.log("Syncing package metadata from root package.json...\n");
 
 	const packageDirs = getPackageDirs();
 	let updatedCount = 0;

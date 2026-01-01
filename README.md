@@ -256,7 +256,6 @@ gh attestation verify quarto-wizard-<version>.vsix --repo mcanouil/quarto-wizard
    ```
 
 4. Launch the extension:
-
    - Press `F5` to open a new Visual Studio Code window with the extension loaded.
 
 ## Contributing
