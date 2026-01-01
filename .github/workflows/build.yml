@@ -60,7 +60,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          # cache: "npm"
 
       - name: Install dependencies
         shell: bash
@@ -123,7 +123,7 @@ jobs:
         run: vsce package --pre-release --out quarto-wizard.vsix
 
       - name: Upload VSIX as workflow artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: quarto-wizard-${{ github.sha }}-${{ matrix.os }}-${{ matrix.node-version }}
           path: quarto-wizard.vsix
@@ -156,7 +156,7 @@ jobs:
 
       - name: Upload job summary
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: job-summary-${{ matrix.os }}-${{ matrix.node-version }}
           path: job-summary.txt
@@ -168,7 +168,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all job summaries
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: job-summary-*
           path: job-summaries
