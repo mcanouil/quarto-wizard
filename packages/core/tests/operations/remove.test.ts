@@ -77,6 +77,21 @@ describe("remove", () => {
 		const ownerDir = path.join(tempDir, "_extensions", "owner");
 		expect(fs.existsSync(ownerDir)).toBe(true);
 	});
+
+	it("should remove an extension without owner", async () => {
+		// Setup extension directly under _extensions/name (no owner)
+		const extDir = path.join(tempDir, "_extensions", "standalone-ext");
+		fs.mkdirSync(extDir, { recursive: true });
+		fs.writeFileSync(path.join(extDir, "_extension.yml"), "title: standalone\nversion: 1.0.0\n");
+		fs.writeFileSync(path.join(extDir, "filter.lua"), "-- filter");
+
+		const result = await remove({ owner: null, name: "standalone-ext" }, { projectDir: tempDir });
+
+		expect(result.success).toBe(true);
+		expect(result.extension.id.name).toBe("standalone-ext");
+		expect(result.extension.id.owner).toBeNull();
+		expect(fs.existsSync(extDir)).toBe(false);
+	});
 });
 
 describe("removeMultiple", () => {

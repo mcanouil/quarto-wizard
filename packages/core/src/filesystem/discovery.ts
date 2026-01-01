@@ -57,8 +57,9 @@ export function hasExtensionsDir(projectDir: string): boolean {
 /**
  * Discover all installed extensions in a project.
  *
- * Scans the _extensions directory for extensions in the format:
- * _extensions/owner/name/_extension.yml
+ * Scans the _extensions directory for extensions in both formats:
+ * - _extensions/owner/name/_extension.yml (with owner)
+ * - _extensions/name/_extension.yml (without owner)
  *
  * @param projectDir - Project root directory
  * @param options - Discovery options
@@ -77,17 +78,31 @@ export async function discoverInstalledExtensions(
 	const results: InstalledExtension[] = [];
 
 	try {
-		const ownerEntries = await fs.promises.readdir(extensionsDir, {
+		const topEntries = await fs.promises.readdir(extensionsDir, {
 			withFileTypes: true,
 		});
 
-		for (const ownerEntry of ownerEntries) {
-			if (!ownerEntry.isDirectory()) {
+		for (const topEntry of topEntries) {
+			if (!topEntry.isDirectory()) {
 				continue;
 			}
 
-			const ownerPath = path.join(extensionsDir, ownerEntry.name);
-			const extEntries = await fs.promises.readdir(ownerPath, {
+			const topPath = path.join(extensionsDir, topEntry.name);
+
+			// Check if this is an extension without owner (has manifest directly)
+			const directManifest = readManifest(topPath);
+			if (directManifest) {
+				results.push({
+					id: { owner: null, name: topEntry.name },
+					manifest: directManifest.manifest,
+					manifestPath: directManifest.manifestPath,
+					directory: topPath,
+				});
+				continue;
+			}
+
+			// Otherwise, treat as owner directory and look for extensions inside
+			const extEntries = await fs.promises.readdir(topPath, {
 				withFileTypes: true,
 			});
 
@@ -96,21 +111,21 @@ export async function discoverInstalledExtensions(
 					continue;
 				}
 
-				const extPath = path.join(ownerPath, extEntry.name);
+				const extPath = path.join(topPath, extEntry.name);
 
 				try {
 					const manifestResult = readManifest(extPath);
 
 					if (manifestResult) {
 						results.push({
-							id: { owner: ownerEntry.name, name: extEntry.name },
+							id: { owner: topEntry.name, name: extEntry.name },
 							manifest: manifestResult.manifest,
 							manifestPath: manifestResult.manifestPath,
 							directory: extPath,
 						});
 					} else if (options.includeInvalid) {
 						results.push({
-							id: { owner: ownerEntry.name, name: extEntry.name },
+							id: { owner: topEntry.name, name: extEntry.name },
 							manifest: {
 								title: extEntry.name,
 								author: "",
@@ -124,7 +139,7 @@ export async function discoverInstalledExtensions(
 				} catch {
 					if (options.includeInvalid) {
 						results.push({
-							id: { owner: ownerEntry.name, name: extEntry.name },
+							id: { owner: topEntry.name, name: extEntry.name },
 							manifest: {
 								title: extEntry.name,
 								author: "",
@@ -165,36 +180,50 @@ export function discoverInstalledExtensionsSync(
 	const results: InstalledExtension[] = [];
 
 	try {
-		const ownerEntries = fs.readdirSync(extensionsDir, { withFileTypes: true });
+		const topEntries = fs.readdirSync(extensionsDir, { withFileTypes: true });
 
-		for (const ownerEntry of ownerEntries) {
-			if (!ownerEntry.isDirectory()) {
+		for (const topEntry of topEntries) {
+			if (!topEntry.isDirectory()) {
 				continue;
 			}
 
-			const ownerPath = path.join(extensionsDir, ownerEntry.name);
-			const extEntries = fs.readdirSync(ownerPath, { withFileTypes: true });
+			const topPath = path.join(extensionsDir, topEntry.name);
+
+			// Check if this is an extension without owner (has manifest directly)
+			const directManifest = readManifest(topPath);
+			if (directManifest) {
+				results.push({
+					id: { owner: null, name: topEntry.name },
+					manifest: directManifest.manifest,
+					manifestPath: directManifest.manifestPath,
+					directory: topPath,
+				});
+				continue;
+			}
+
+			// Otherwise, treat as owner directory and look for extensions inside
+			const extEntries = fs.readdirSync(topPath, { withFileTypes: true });
 
 			for (const extEntry of extEntries) {
 				if (!extEntry.isDirectory()) {
 					continue;
 				}
 
-				const extPath = path.join(ownerPath, extEntry.name);
+				const extPath = path.join(topPath, extEntry.name);
 
 				try {
 					const manifestResult = readManifest(extPath);
 
 					if (manifestResult) {
 						results.push({
-							id: { owner: ownerEntry.name, name: extEntry.name },
+							id: { owner: topEntry.name, name: extEntry.name },
 							manifest: manifestResult.manifest,
 							manifestPath: manifestResult.manifestPath,
 							directory: extPath,
 						});
 					} else if (options.includeInvalid) {
 						results.push({
-							id: { owner: ownerEntry.name, name: extEntry.name },
+							id: { owner: topEntry.name, name: extEntry.name },
 							manifest: {
 								title: extEntry.name,
 								author: "",
@@ -208,7 +237,7 @@ export function discoverInstalledExtensionsSync(
 				} catch {
 					if (options.includeInvalid) {
 						results.push({
-							id: { owner: ownerEntry.name, name: extEntry.name },
+							id: { owner: topEntry.name, name: extEntry.name },
 							manifest: {
 								title: extEntry.name,
 								author: "",
