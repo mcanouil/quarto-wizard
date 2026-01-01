@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as path from "path";
+import { parseInstallSource } from "@quarto-wizard/core";
 import { QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
@@ -203,15 +205,23 @@ export async function installQuartoExtensionFolderCommand(
 
 /**
  * Detect the source type for logging purposes.
+ * Uses parseInstallSource from core package for consistent detection.
  */
 function detectSourceTypeForLogging(source: string): string {
-	if (source.startsWith("http://") || source.startsWith("https://")) {
-		return "URL";
+	try {
+		const parsed = parseInstallSource(source);
+		switch (parsed.type) {
+			case "url":
+				return "URL";
+			case "local":
+				return "local path";
+			case "github":
+				return "GitHub";
+		}
+	} catch {
+		// Fallback for invalid sources
+		return "unknown";
 	}
-	if (source.startsWith("/") || source.startsWith("~") || /^[a-zA-Z]:[/\\]/.test(source)) {
-		return "local path";
-	}
-	return "GitHub";
 }
 
 /**
@@ -231,11 +241,23 @@ async function installFromSource(
 	if ((await askTrustAuthors()) !== 0) return;
 	if ((await askConfirmInstall()) !== 0) return;
 
+	// Resolve local paths relative to workspace folder for installation,
+	// but keep original source for logging/display
+	let resolvedSource = source;
+	try {
+		const parsed = parseInstallSource(source);
+		if (parsed.type === "local" && !path.isAbsolute(parsed.path)) {
+			resolvedSource = path.resolve(workspaceFolder, parsed.path);
+		}
+	} catch {
+		// Not a valid source format, pass through as-is
+	}
+
 	const auth = await getAuthConfig(context, { createIfNone: true });
 	const actionWord = template ? "Using" : "Installing";
 	const sourceType = detectSourceTypeForLogging(source);
 
-	// Log source and extension
+	// Log source and extension (use original source for display)
 	logMessage(`Source: ${sourceType}.`, "info");
 	logMessage(`Extension: ${source}.`, "info");
 	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
@@ -249,13 +271,15 @@ async function installFromSource(
 			cancellable: false,
 		},
 		async () => {
+			// Pass original source as sourceDisplay only if path was resolved (different from resolvedSource)
+			const sourceDisplay = resolvedSource !== source ? source : undefined;
 			let success: boolean;
 			if (template) {
 				const selectFiles = createFileSelectionCallback();
-				const result = await useQuartoExtension(source, workspaceFolder, selectFiles, auth);
+				const result = await useQuartoExtension(resolvedSource, workspaceFolder, selectFiles, auth, sourceDisplay);
 				success = result !== null;
 			} else {
-				success = await installQuartoExtension(source, workspaceFolder, auth);
+				success = await installQuartoExtension(resolvedSource, workspaceFolder, auth, sourceDisplay);
 			}
 
 			if (success) {
@@ -299,4 +323,118 @@ export async function useQuartoTemplateCommand(context: vscode.ExtensionContext)
 		return;
 	}
 	installQuartoExtensionFolderCommand(context, workspaceFolder, true);
+}
+
+/**
+ * Command to install Quarto extensions directly from the registry.
+ * Skips the type filter picker and goes directly to the extension picker.
+ *
+ * @param context - The extension context.
+ */
+export async function installExtensionFromRegistryCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+
+	const isConnected = await checkInternetConnection("https://github.com/");
+	if (!isConnected) {
+		return;
+	}
+
+	const extensionsList = await getExtensionsDetails(context);
+	const recentKey = QW_RECENTLY_INSTALLED;
+	const recentExtensions: string[] = context.globalState.get(recentKey, []);
+	const result = await showExtensionQuickPick(extensionsList, recentExtensions, false, null);
+
+	if (result.type === "cancelled") {
+		return;
+	}
+
+	if (result.type === "registry") {
+		if (result.items.length > 0) {
+			await installQuartoExtensions(context, result.items, workspaceFolder, false);
+			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
+			const updatedRecentExtensions = [
+				...selectedIDs,
+				...recentExtensions.filter((ext) => !selectedIDs.includes(ext)),
+			];
+			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+		}
+	} else {
+		// Alternative source installation (github, url, local)
+		await installFromSource(context, result.source, workspaceFolder, false);
+	}
+}
+
+/**
+ * Command to install a Quarto extension from a URL.
+ * Prompts the user to enter a URL and installs the extension.
+ *
+ * @param context - The extension context.
+ */
+export async function installExtensionFromURLCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+
+	const isConnected = await checkInternetConnection("https://github.com/");
+	if (!isConnected) {
+		return;
+	}
+
+	const url = await vscode.window.showInputBox({
+		prompt: "Enter the URL to the extension archive (zip or tar.gz)",
+		placeHolder: "https://github.com/owner/repo/archive/refs/heads/main.zip",
+		ignoreFocusOut: true,
+		validateInput: (value) => {
+			if (!value) {
+				return "URL is required.";
+			}
+			if (!value.startsWith("http://") && !value.startsWith("https://")) {
+				return "URL must start with http:// or https://";
+			}
+			return null;
+		},
+	});
+
+	if (!url) {
+		return;
+	}
+
+	await installFromSource(context, url, workspaceFolder, false);
+}
+
+/**
+ * Command to install a Quarto extension from a local path.
+ * Opens a file picker dialog to select a local directory, zip file, or tar.gz file.
+ *
+ * @param context - The extension context.
+ */
+export async function installExtensionFromLocalCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+
+	const uris = await vscode.window.showOpenDialog({
+		canSelectFiles: true,
+		canSelectFolders: true,
+		canSelectMany: false,
+		openLabel: "Select Extension",
+		filters: {
+			"Archive files": ["zip", "tar.gz", "tgz"],
+			"All files": ["*"],
+		},
+	});
+
+	if (!uris || uris.length === 0) {
+		return;
+	}
+
+	// Ensure we have an absolute path (resolve relative paths from workspace folder)
+	const localPath = uris[0].fsPath;
+	const absolutePath = path.isAbsolute(localPath) ? localPath : path.resolve(workspaceFolder, localPath);
+	await installFromSource(context, absolutePath, workspaceFolder, false);
 }

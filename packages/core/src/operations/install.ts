@@ -50,6 +50,8 @@ export interface InstallOptions extends RegistryOptions {
 	keepSourceDir?: boolean;
 	/** Dry run mode - resolve without installing. */
 	dryRun?: boolean;
+	/** Display source to record in manifest (for relative paths that were resolved). */
+	sourceDisplay?: string;
 }
 
 /**
@@ -113,6 +115,12 @@ export function parseInstallSource(input: string): InstallSource {
 
 	// Windows UNC paths (\\server\share)
 	if (input.startsWith("\\\\")) {
+		return { type: "local", path: input };
+	}
+
+	// Archive file extensions (zip, tar.gz, tgz) - treat as local paths
+	// This handles cases like "quarto-test-main.zip" or "subdirectory/extension.tar.gz"
+	if (/\.(zip|tar\.gz|tgz)$/i.test(input)) {
 		return { type: "local", path: input };
 	}
 
@@ -184,6 +192,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		force = false,
 		keepSourceDir = false,
 		dryRun = false,
+		sourceDisplay,
 	} = options;
 
 	let archivePath: string | undefined;
@@ -273,7 +282,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		const extensionId = resolveExtensionId(source, extensionRoot, manifestResult.manifest);
 		const targetDir = getExtensionInstallPath(projectDir, extensionId);
-		const sourceString = formatSourceString(source, tagName, commitSha);
+		// Use sourceDisplay if provided (for relative paths that were resolved), otherwise format from source
+		const sourceString = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
 		const alreadyExists = fs.existsSync(targetDir);
 
 		// In dry-run mode, return what would happen without making changes

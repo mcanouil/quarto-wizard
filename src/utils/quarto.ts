@@ -18,14 +18,16 @@ import { logMessage } from "./log";
  * @param extension - The name of the extension to install (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
  * @param auth - Optional authentication configuration for private repositories.
+ * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
  * @returns A promise that resolves to true if the extension is installed successfully, otherwise false.
  */
 export async function installQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
 	auth?: AuthConfig,
+	sourceDisplay?: string,
 ): Promise<boolean> {
-	const prefix = `[${extension}]`;
+	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
 	if (!workspaceFolder) {
@@ -40,6 +42,7 @@ export async function installQuartoExtension(
 			projectDir: workspaceFolder,
 			force: true,
 			auth,
+			sourceDisplay,
 			onProgress: (progress) => {
 				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
 			},
@@ -183,6 +186,7 @@ export async function removeQuartoExtensions(
  * @param workspaceFolder - The workspace folder path.
  * @param selectFiles - Callback for interactive file selection.
  * @param auth - Optional authentication configuration for private repositories.
+ * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
  * @returns A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
@@ -190,8 +194,9 @@ export async function useQuartoExtension(
 	workspaceFolder: string,
 	selectFiles?: FileSelectionCallback,
 	auth?: AuthConfig,
+	sourceDisplay?: string,
 ): Promise<UseResult | null> {
-	const prefix = `[${extension}]`;
+	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Using template ...`, "info");
 
 	if (!workspaceFolder) {
@@ -206,6 +211,7 @@ export async function useQuartoExtension(
 			projectDir: workspaceFolder,
 			selectFiles,
 			auth,
+			sourceDisplay,
 			onProgress: (progress) => {
 				if (progress.file) {
 					logMessage(`${prefix} [${progress.phase}] ${progress.message} (${progress.file})`, "debug");

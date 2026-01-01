@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { parseInstallSource } from "@quarto-wizard/core";
 import { ExtensionDetails } from "../utils/extensionDetails";
 
 /**
@@ -283,6 +284,7 @@ export type ExtensionPickerResult =
 
 /**
  * Detect the type of source from user input.
+ * Uses parseInstallSource from core package for consistent source detection.
  * @param input - The user's input string.
  * @param registryIds - Set of known registry extension IDs.
  * @returns The detected source type.
@@ -294,23 +296,26 @@ function detectSource(input: string, registryIds: Set<string>): DetectedSource {
 		return { type: "registry" };
 	}
 
-	// URL detection: starts with http:// or https://
-	if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-		return { type: "url", value: trimmed };
-	}
-
-	// Local path detection: starts with /, ~, or drive letter (Windows)
-	if (trimmed.startsWith("/") || trimmed.startsWith("~") || /^[a-zA-Z]:[/\\]/.test(trimmed)) {
-		return { type: "local", value: trimmed };
-	}
-
-	// GitHub detection: contains / but not in registry
-	// Handles: owner/repo, owner/repo@version, owner/repo@branch
-	if (trimmed.includes("/")) {
-		const baseId = trimmed.split("@")[0]; // Remove version/tag suffix
-		if (!registryIds.has(baseId)) {
-			return { type: "github", value: trimmed };
+	// Use core package's parseInstallSource for consistent detection
+	try {
+		const source = parseInstallSource(trimmed);
+		switch (source.type) {
+			case "url":
+				return { type: "url", value: source.url };
+			case "local":
+				return { type: "local", value: source.path };
+			case "github": {
+				// Check if it's in the registry first
+				const baseId = `${source.owner}/${source.repo}`;
+				if (registryIds.has(baseId)) {
+					return { type: "registry" };
+				}
+				return { type: "github", value: trimmed };
+			}
 		}
+	} catch {
+		// parseInstallSource throws for invalid GitHub references (e.g., single word)
+		// Fall through to registry search
 	}
 
 	// Default: search registry

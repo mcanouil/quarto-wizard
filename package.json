@@ -228,6 +228,27 @@
 				"shortTitle": "Clear Token",
 				"icon": "$(key)",
 				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.installExtensionFromRegistry",
+				"title": "Install Extension from Registry",
+				"shortTitle": "From Registry",
+				"icon": "$(cloud-download)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.installExtensionFromURL",
+				"title": "Install Extension from URL",
+				"shortTitle": "From URL",
+				"icon": "$(link)",
+				"category": "Quarto Wizard"
+			},
+			{
+				"command": "quartoWizard.installExtensionFromLocal",
+				"title": "Install Extension from Local",
+				"shortTitle": "From Local",
+				"icon": "$(folder)",
+				"category": "Quarto Wizard"
 			}
 		],
 		"submenus": [

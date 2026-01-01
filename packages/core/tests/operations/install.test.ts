@@ -156,6 +156,46 @@ describe("parseInstallSource", () => {
 				path: "//server/share/extension",
 			});
 		});
+
+		it("should parse bare zip filename as local", () => {
+			const result = parseInstallSource("quarto-test-main.zip");
+			expect(result).toEqual({
+				type: "local",
+				path: "quarto-test-main.zip",
+			});
+		});
+
+		it("should parse subdirectory zip path as local", () => {
+			const result = parseInstallSource("subdirectory/quarto-test-main.zip");
+			expect(result).toEqual({
+				type: "local",
+				path: "subdirectory/quarto-test-main.zip",
+			});
+		});
+
+		it("should parse bare tar.gz filename as local", () => {
+			const result = parseInstallSource("extension.tar.gz");
+			expect(result).toEqual({
+				type: "local",
+				path: "extension.tar.gz",
+			});
+		});
+
+		it("should parse subdirectory tar.gz path as local", () => {
+			const result = parseInstallSource("path/to/extension.tar.gz");
+			expect(result).toEqual({
+				type: "local",
+				path: "path/to/extension.tar.gz",
+			});
+		});
+
+		it("should parse tgz filename as local", () => {
+			const result = parseInstallSource("extension.tgz");
+			expect(result).toEqual({
+				type: "local",
+				path: "extension.tgz",
+			});
+		});
 	});
 });
 

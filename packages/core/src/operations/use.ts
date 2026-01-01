@@ -174,6 +174,8 @@ export interface UseOptions {
 	onProgress?: (info: { phase: string; message: string; file?: string }) => void;
 	/** Dry run mode - resolve and validate without copying files. */
 	dryRun?: boolean;
+	/** Display source to record in manifest (for relative paths that were resolved). */
+	sourceDisplay?: string;
 }
 
 /**
@@ -213,6 +215,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		selectFiles,
 		onProgress,
 		dryRun = false,
+		sourceDisplay,
 	} = options;
 
 	const installSource = typeof source === "string" ? parseInstallSource(source) : source;
@@ -226,6 +229,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		force: true,
 		keepSourceDir: !noTemplate || dryRun,
 		dryRun,
+		sourceDisplay,
 		onProgress: (p) => {
 			onProgress?.({ phase: p.phase, message: p.message });
 		},

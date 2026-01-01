@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import { QW_LOG, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "./constants";
 import { showLogsCommand, logMessage } from "./utils/log";
-import { installQuartoExtensionCommand, useQuartoTemplateCommand } from "./commands/installQuartoExtension";
+import {
+	installQuartoExtensionCommand,
+	useQuartoTemplateCommand,
+	installExtensionFromRegistryCommand,
+	installExtensionFromURLCommand,
+	installExtensionFromLocalCommand,
+} from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
@@ -82,6 +88,23 @@ export function activate(context: vscode.ExtensionContext) {
 				`Manual token cleared. Will use VSCode GitHub session or environment variables. ${showLogsCommand()}.`,
 			);
 		}),
+	);
+
+	// Register direct source installation commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromRegistry", async () =>
+			installExtensionFromRegistryCommand(context),
+		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromURL", async () =>
+			installExtensionFromURLCommand(context),
+		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromLocal", async () =>
+			installExtensionFromLocalCommand(context),
+		),
 	);
 
 	// Initialise the Extensions Installed tree view provider
