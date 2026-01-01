@@ -115,9 +115,19 @@ export async function downloadArchive(
 ): Promise<string> {
 	const { auth, timeout = 60000, extension = ".zip", downloadDir, onProgress } = options;
 
+	let githubLikeHost = false;
+	try {
+		const parsedUrl = new URL(url);
+		const hostname = parsedUrl.hostname.toLowerCase();
+		githubLikeHost = hostname === "github.com" || hostname === "api.github.com";
+	} catch {
+		// If the URL is invalid, fall back to treating it as a non-GitHub host.
+		githubLikeHost = false;
+	}
+
 	const headers: Record<string, string> = {
 		"User-Agent": "quarto-wizard",
-		...getAuthHeaders(auth, url.includes("github.com") || url.includes("api.github.com")),
+		...getAuthHeaders(auth, githubLikeHost),
 	};
 
 	const controller = new AbortController();
