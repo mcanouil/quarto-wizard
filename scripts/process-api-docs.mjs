@@ -11,6 +11,7 @@
  * 6. Creates landing pages with Quarto listing.
  * 7. Generates the sidebar configuration files.
  * 8. Generates reference documentation from package.json.
+ * 9. Updates docs/_variables.yml with the current version from package.json.
  */
 
 import {
@@ -32,6 +33,7 @@ const docsApiDir = resolve(docsDir, "api");
 const docsRefDir = resolve(docsDir, "reference");
 const coreOutputDir = resolve(docsApiDir, "core");
 const packageJsonPath = resolve(rootDir, "package.json");
+const variablesYmlPath = resolve(docsDir, "_variables.yml");
 
 /**
  * Language to filename mapping for code blocks.
@@ -983,6 +985,29 @@ function processReferenceDocs() {
 	console.log("Reference documentation generated successfully.");
 }
 
+/**
+ * Update the _variables.yml file with the current version from package.json.
+ */
+function updateVariablesYml() {
+	console.log("\nUpdating _variables.yml...");
+
+	// Read package.json to get version
+	const pkg = readPackageJson();
+	const version = pkg.version;
+
+	if (!version) {
+		console.error("Error: No version found in package.json.");
+		return;
+	}
+
+	// Create _variables.yml content
+	const content = `version: ${version}\n`;
+
+	// Write the file
+	writeFileSync(variablesYmlPath, content, "utf-8");
+	console.log(`  Updated _variables.yml with version: ${version}`);
+}
+
 // =============================================================================
 // Main Processing
 // =============================================================================
@@ -1053,3 +1078,4 @@ function processApiDocs() {
 
 processApiDocs();
 processReferenceDocs();
+updateVariablesYml();

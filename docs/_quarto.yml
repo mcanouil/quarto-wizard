@@ -9,7 +9,7 @@ date-format: "dddd[, the] Do [of] MMMM, YYYY"
 highlight-style: github
 
 website:
-  title: "Quarto Wizard"
+  title: "Quarto Wizard {{< var version >}}"
   description: "A Visual Studio Code extension that helps you manage Quarto projects and extensions."
   favicon: "assets/logo/logo.svg"
   repo-url: https://github.com/mcanouil/quarto-wizard
