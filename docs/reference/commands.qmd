@@ -1,0 +1,192 @@
+---
+title: "Commands Reference"
+---
+
+This page documents all commands provided by Quarto Wizard.
+
+## Primary Commands
+
+These commands are available from the Command Palette.
+
+### Install Extensions
+
+**Command**: `Quarto Wizard: Install Extensions`
+
+Opens the extension browser to browse and install Quarto extensions from the registry.
+
+### Use Template
+
+**Command**: `Quarto Wizard: Use Template`
+
+Opens the template browser to select and install Quarto templates.
+
+### Quarto Reproducible Document
+
+**Command**: `Quarto Wizard: Quarto Reproducible Document`
+
+Creates a new reproducible example document for R, Python, or Julia.
+
+### Show Quarto Wizard Log Output
+
+**Command**: `Quarto Wizard: Show Quarto Wizard Log Output`
+
+Displays the extension's output log for debugging and troubleshooting.
+
+### Clear Recently Installed Extensions
+
+**Command**: `Quarto Wizard: Clear Recently Installed Extensions`
+
+Clears the list of recently installed extensions and templates.
+
+### Clear Extension Cache
+
+**Command**: `Quarto Wizard: Clear Extension Cache`
+
+Clears the cached registry data to force a fresh download.
+
+### Get Extensions Details
+
+**Command**: `Quarto Wizard: Get Extensions Details`
+
+Retrieves detailed information about extensions in the current workspace.
+
+## Installation Commands
+
+Commands for installing extensions from different sources.
+
+### Install Extension from Registry
+
+**Command**: `Quarto Wizard: Install Extension from Registry`
+
+Install an extension by entering its registry identifier.
+
+### Install Extension from URL
+
+**Command**: `Quarto Wizard: Install Extension from URL`
+
+Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.
+
+### Install Extension from Local
+
+**Command**: `Quarto Wizard: Install Extension from Local`
+
+Install an extension from a local directory or archive file.
+
+## Authentication Commands
+
+Commands for managing GitHub authentication.
+
+### Set GitHub Token (Manual)
+
+**Command**: `Quarto Wizard: Set GitHub Token (Manual)`
+
+Manually set a GitHub personal access token for authentication.
+
+### Clear GitHub Token (Manual)
+
+**Command**: `Quarto Wizard: Clear GitHub Token (Manual)`
+
+Remove the manually set GitHub token.
+
+## Explorer View Commands
+
+These commands are available from the Explorer View context menu or toolbar.
+
+### Refresh Installed Extensions
+
+**Command**: `Quarto Wizard: Refresh Installed Extensions`
+
+Reload the list of installed extensions in the Explorer View.
+
+### Update Extension
+
+**Command**: `Quarto Wizard: Update Extension`
+
+Update a specific extension to its latest version.
+
+### Update All Extensions
+
+**Command**: `Quarto Wizard: Update All Extensions`
+
+Update all outdated extensions in the workspace.
+
+### Remove Extension
+
+**Command**: `Quarto Wizard: Remove Extension`
+
+Remove a specific extension from the workspace.
+
+### Remove Multiple Extensions
+
+**Command**: `Quarto Wizard: Remove Multiple Extensions`
+
+Select and remove multiple extensions at once.
+
+### Open Extension Source
+
+**Command**: `Quarto Wizard: Open Extension Source`
+
+Open the extension's GitHub repository in a browser.
+
+### Reveal in Explorer View
+
+**Command**: `Quarto Wizard: Reveal in Explorer View`
+
+Open the extension's folder in the file explorer.
+
+## Keyboard Shortcuts
+
+By default, Quarto Wizard does not define keyboard shortcuts.
+You can add custom keybindings in VS Code's Keyboard Shortcuts settings.
+
+Example keybinding for installing extensions:
+
+```json
+{
+  "key": "ctrl+shift+q",
+  "command": "quartoWizard.installExtension"
+}
+```
+
+## Command Identifiers
+
+For scripting or keybinding purposes, here are the internal command identifiers:
+
+### Primary Commands
+
+| Display Name | Command ID |
+|--------------|------------|
+| Install Extensions | `quartoWizard.installExtension` |
+| Use Template | `quartoWizard.useTemplate` |
+| Quarto Reproducible Document | `quartoWizard.newQuartoReprex` |
+| Show Quarto Wizard Log Output | `quartoWizard.showOutput` |
+| Clear Recently Installed Extensions | `quartoWizard.clearRecent` |
+| Clear Extension Cache | `quartoWizard.clearCache` |
+| Get Extensions Details | `quartoWizard.getExtensionsDetails` |
+
+### Installation Commands
+
+| Display Name | Command ID |
+|--------------|------------|
+| Install Extension from Registry | `quartoWizard.installExtensionFromRegistry` |
+| Install Extension from URL | `quartoWizard.installExtensionFromURL` |
+| Install Extension from Local | `quartoWizard.installExtensionFromLocal` |
+
+### Authentication Commands
+
+| Display Name | Command ID |
+|--------------|------------|
+| Set GitHub Token (Manual) | `quartoWizard.setGitHubToken` |
+| Clear GitHub Token (Manual) | `quartoWizard.clearGitHubToken` |
+
+### Explorer View Commands
+
+| Display Name | Command ID |
+|--------------|------------|
+| Refresh Installed Extensions | `quartoWizard.extensionsInstalled.refresh` |
+| Update Extension | `quartoWizard.extensionsInstalled.update` |
+| Update All Extensions | `quartoWizard.extensionsInstalled.updateAll` |
+| Remove Extension | `quartoWizard.extensionsInstalled.remove` |
+| Remove Multiple Extensions | `quartoWizard.extensionsInstalled.removeMultiple` |
+| Open Extension Source | `quartoWizard.extensionsInstalled.openSource` |
+| Reveal in Explorer View | `quartoWizard.extensionsInstalled.revealInExplorer` |

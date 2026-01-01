@@ -1,0 +1,110 @@
+project:
+  type: website
+  output-dir: _site
+
+lang: en
+# date: today
+# date-modified: today
+date-format: "dddd[, the] Do [of] MMMM, YYYY"
+highlight-style: github
+
+website:
+  title: "Quarto Wizard"
+  description: "A Visual Studio Code extension that helps you manage Quarto projects and extensions."
+  favicon: "assets/logo/logo.svg"
+  repo-url: https://github.com/mcanouil/quarto-wizard
+  repo-actions: [source, issue]
+  repo-link-target: _blank
+  open-graph: true
+  twitter-card: true
+  page-navigation: true
+  back-to-top-navigation: true
+
+  page-footer:
+    border: true
+    left: |
+      Powered by [{{< iconify simple-icons:quarto title="Quarto Logo" label="Quarto Logo" >}} Quarto](https://quarto.org).
+    center: |
+      &copy; []{#current-year} Mickaël CANOUIL. [{{< iconify octicon:heart-fill-16 title="Heart" label="Heart" >}} Sponsor](https://github.com/sponsors/mcanouil?o=esb).
+    right: |
+      Licence: MIT.
+
+  navbar:
+    logo: "assets/logo/logo.png"
+    logo-alt: "Quarto Wizard"
+    background: dark
+    search: true
+    left:
+      - text: Home
+        href: index.qmd
+      - text: Getting Started
+        href: getting-started/index.qmd
+      - text: Guide
+        href: guide/index.qmd
+      - text: Reference
+        href: reference/index.qmd
+      - text: API
+        href: api/index.qmd
+    right:
+      - text: "{{< iconify octicon:mark-github-16 title='GitHub' label='GitHub' >}}"
+        href: https://github.com/mcanouil/quarto-wizard
+
+  sidebar:
+    - id: getting-started
+      style: docked
+      collapse-level: 2
+      contents:
+        - section: "Getting Started"
+          href: getting-started/index.qmd
+          contents:
+            - getting-started/installation.qmd
+            - getting-started/requirements.qmd
+
+    - id: guide
+      style: docked
+      collapse-level: 2
+      contents:
+        - section: "Guide"
+          href: guide/index.qmd
+          contents:
+            - guide/explorer-view.qmd
+            - guide/install-extensions.qmd
+            - guide/use-templates.qmd
+            - guide/reprex.qmd
+            - guide/troubleshooting.qmd
+
+metadata-files:
+  - _sidebar-reference.yml
+  - _sidebar-api.yml
+
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    code-copy: true
+    code-link: false
+    code-overflow: wrap
+    link-external-newwindow: true
+    fig-align: center
+    grid:
+      sidebar-width: 300px
+      body-width: 900px
+      margin-width: 300px
+    theme:
+      light:
+        - cosmo
+        - brand
+        - assets/stylesheets/theme.scss
+      dark:
+        - cosmo
+        - brand
+        - assets/stylesheets/theme.scss
+    include-after-body:
+      - text: |
+          <script>
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+          </script>
+
+execute:
+  freeze: auto
+  echo: false

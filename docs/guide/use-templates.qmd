@@ -1,0 +1,63 @@
+---
+title: "Using Templates"
+---
+
+Quarto Wizard allows you to quickly start new documents using pre-configured templates from the extension registry.
+
+## What are Templates?
+
+Templates are special Quarto extensions that include starter files for specific document types, such as:
+
+- Academic papers.
+- Presentation slides.
+- Letters and invoices.
+- Journal article formats.
+
+When you use a template, Quarto Wizard:
+
+1. Installs the extension.
+2. Copies the template files to your workspace.
+
+## Using the Template Browser
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Use Template` and select it.
+3. Browse the list of available templates.
+
+![Template Browser](../assets/images/use-template.png){fig-alt="The template browser interface showing available Quarto templates with their names, versions, and descriptions."}
+
+## Installing a Template
+
+1. Select the template you want to use.
+2. Choose the workspace folder where the template should be installed.
+3. Select which template files to copy (if multiple are available).
+4. Confirm any file overwrites if necessary.
+
+## Template Files
+
+Templates typically include:
+
+- A `.qmd` starter document.
+- Custom styling files (CSS, SCSS).
+- Configuration files.
+- Example content.
+
+:::: {.callout-note}
+The "Use Template" command only retrieves the Quarto document and basic resources.
+For templates with additional resources (such as bibliography files or complex directory structures), you may need to use `quarto use template` manually.
+:::
+
+## Recently Used Templates
+
+Quarto Wizard keeps track of your recently used templates for quick access.
+These appear at the top of the template browser.
+
+To clear this list, use `Quarto Wizard: Clear Recently Installed Extensions`.
+
+## Accessing Templates from Context Menu
+
+You can also access the template browser from:
+
+- The Explorer context menu (right-click in the file explorer).
+- The Editor context menu (right-click in an editor).
+- The Quarto Wizard Explorer View toolbar.

@@ -1,0 +1,56 @@
+---
+title: "Installation"
+---
+
+There are several ways to install Quarto Wizard in Visual Studio Code or Positron.
+
+## VS Code Marketplace
+
+The easiest way to install Quarto Wizard:
+
+1. Open Visual Studio Code or Positron.
+2. Go to the Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X` on macOS).
+3. Search for "Quarto Wizard".
+4. Click **Install** on the extension.
+
+## Command Line
+
+You can also install via the command line:
+
+:::: {.panel-tabset}
+
+### Visual Studio Code
+
+```{.bash filename="Terminal"}
+code --install-extension mcanouil.quarto-wizard
+```
+
+### Positron
+
+```{.bash filename="Terminal"}
+positron --install-extension mcanouil.quarto-wizard
+```
+
+:::
+
+## Manual Installation
+
+For manual installation from a release file:
+
+1. Download the latest `.vsix` file from the [GitHub Releases](https://github.com/mcanouil/quarto-wizard/releases).
+2. In VS Code, open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+3. Run `Extensions: Install from VSIX...`.
+4. Select the downloaded `.vsix` file.
+
+## Verifying Installation
+
+After installation, you can verify it worked by:
+
+1. Opening the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+2. Typing "Quarto Wizard".
+3. You should see the available Quarto Wizard commands.
+
+## Next Steps
+
+- Check the [Requirements](requirements.qmd) to ensure your system is properly configured.
+- Learn how to [install extensions](../guide/install-extensions.qmd).

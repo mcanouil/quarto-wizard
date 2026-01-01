@@ -23,7 +23,6 @@ node_modules
 package-lock.json
 
 assets/logo/logo-social.png
-assets/videos/**
 CITATION.cff
 TESTING.md
 test-fixtures

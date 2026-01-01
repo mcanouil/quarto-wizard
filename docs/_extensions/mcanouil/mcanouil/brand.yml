@@ -1,0 +1,543 @@
+meta:
+  name: Mickaël CANOUIL
+  license: CC BY-SA 4.0
+  link:
+    home: https://mickael.canouil.fr
+    github: https://github.com/mcanouil
+    bluesky: https://bsky.app/profile/mickael.canouil.fr
+    linkedin: https://www.linkedin.com/in/MickaelCanouil
+color:
+  background:
+    dark: "#333333"
+    light: "#fafafa"
+  foreground:
+    dark: "#fafafa"
+    light: "#333333"
+  dark:
+    dark: "#333333"
+    light: "#fafafa"
+  light:
+    dark: "#fafafa"
+    light: "#333333"
+typography:
+  fonts:
+    - family: Alegreya Sans
+      source: google
+  base: Alegreya Sans
+  headings: Alegreya Sans
+  link:
+    color: foreground
+defaults:
+  bootstrap:
+    defaults:
+      theme: mcanouil
+      tooltip-color: $background
+      tooltip-bg: $foreground
+      btn-close-color: $foreground
+    rules: |
+      @function body-mix($weight) {
+        @return mix($background, $foreground, $weight);
+      }
+
+      // Quarto Components
+      #quarto-back-to-top {
+        box-shadow: 0 .2rem .5rem body-mix(95%), 0 0 .05rem body-mix(95%);
+        color: body-mix(5%);
+        bottom: 80px;
+      }
+
+      .quarto-title-banner {
+        margin-bottom: 1em;
+        color: $foreground;
+        background-color: body-mix(99%);
+
+        a {
+          color: body-mix(50%);
+
+          &:hover {
+            color: $foreground;
+          }
+        }
+
+        .quarto-title .title {
+          color: $foreground;
+        }
+      }
+
+      .quarto-title-breadcrumbs .breadcrumb li:last-of-type a,
+      .quarto-secondary-nav nav.quarto-page-breadcrumbs .breadcrumb li:last-of-type a {
+        color: body-mix(50%);
+        font-weight: 600;
+      }
+
+      // Pagination & Forms
+      .page-item {
+        &.active .page-link,
+        .page-link:hover {
+          color: $background;
+          background-color: $foreground;
+          border-color: $background;
+        }
+
+        &.disabled .page-link {
+          color: $foreground;
+          background-color: $background;
+        }
+      }
+
+      .page-link:hover {
+        color: $background;
+        background-color: $foreground;
+        border-color: $background;
+      }
+
+      .input-group-text {
+        color: $background;
+        background-color: $foreground;
+      }
+
+      // Code Styling
+      code,
+      a > code {
+        color: $background;
+        background-color: $foreground;
+      }
+
+      a > code {
+        text-decoration: underline;
+      }
+
+      p code:not(.sourceCode),
+      li code:not(.sourceCode),
+      td code:not(.sourceCode) {
+        background-color: $foreground;
+      }
+
+      nav p code:not(.sourceCode),
+      nav li code:not(.sourceCode),
+      nav td code:not(.sourceCode) {
+        background-color: $foreground !important;
+      }
+
+      div.sourceCode {
+        background-color: body-mix(95%);
+        border: 1px solid body-mix(50%);
+      }
+
+      p code.sourceCode,
+      li code.sourceCode,
+      td code.sourceCode {
+        background-color: inherit;
+      }
+
+      .code-annotation-gutter {
+        background-color: body-mix(95%);
+      }
+
+      .code-annotated .code-copy-button {
+        margin-right: 1.5em;
+      }
+
+      /* TODO: remove when fixed in Quarto: https://github.com/quarto-dev/quarto-cli/pull/13429 */
+      #code-annotation-line-highlight {
+        margin-left: unset;
+        width: 100%;
+      }
+      #code-annotation-line-highlight-gutter,
+      .code-annotation-gutter-bg,
+      .code-annotation-gutter {
+        all: unset;
+      }
+
+      // List Groups
+      .list-group-item-action {
+        &:hover,
+        &:focus {
+          color: unset;
+          background-color: unset;
+        }
+      }
+
+      // About Section
+      img.about-image {
+        border-radius: 50%;
+        border-style: solid;
+        border-width: 2pt;
+        border-color: $foreground;
+        padding: 5pt;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: $foreground;
+          transition: .5s;
+          transform: scale(.9);
+          z-index: -1;
+        }
+
+        &:hover {
+          color: $foreground;
+          box-shadow: 0 0 10px $foreground;
+          text-shadow: 0 0 10px $foreground;
+
+          &::before {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px $foreground;
+          }
+        }
+      }
+
+      // About Entity Components
+      .about-entity {
+        #title-block-header.quarto-title-block.default .quarto-title .title:hover {
+          color: $foreground;
+          text-shadow: 0 0 10px $foreground;
+        }
+      }
+
+      .quarto-about-solana .about-entity {
+        .about-links {
+          column-gap: 0;
+          .about-link {
+            font-size: 1.5em;
+            border-style: none;
+            transition: all .35s ease;
+
+            &:hover {
+              transform: scale(1.25);
+            }
+          }
+
+          @media(max-width: 992px) {
+            flex-direction: row !important;
+            justify-content: center !important;
+            flex-wrap: wrap !important;
+          }
+        }
+      }
+
+      .quarto-about-trestles .about-entity {
+        .about-link {
+          color: mix($link-color, $background, 50%);
+          border: solid 1px $foreground;
+
+          &:hover {
+            color: $link-color;
+            font-weight: bold;
+          }
+        }
+      }
+
+      // Navbar
+      .navbar {
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        background-color: $background;
+        border-bottom: 1px solid body-mix(50%);
+
+        &.bg-primary {
+          border: 1px solid body-mix(50%);
+        }
+
+        &.bg-dark {
+          background-color: $background;
+          border: 1px solid body-mix(50%);
+        }
+
+        &.bg-light {
+          background-color: body-mix(16%);
+        }
+
+        &.fixed-top {
+          border-width: 0 0 1px;
+        }
+
+        &.fixed-bottom {
+          border-width: 1px 0 0;
+        }
+      }
+
+      // Navigation & Footer
+      .nav-footer {
+        border-top: 1px solid body-mix(50%);
+
+        a:hover {
+          color: $foreground;
+        }
+      }
+
+      .nav-footer-center {
+        min-height: unset;
+
+        p,
+        ol,
+        ul,
+        dl {
+          margin-bottom: 0;
+        }
+
+        .toc-actions {
+          ol,
+          ul {
+            padding-left: 0;
+          }
+        }
+      }
+
+      .navbar-logo {
+        max-height: 2em;
+      }
+
+      .navbar-nav {
+
+        .show>.nav-link,
+        .active>.nav-link,
+        .nav-link.active {
+          color: $foreground;
+        }
+
+        .nav-link:hover,
+        .nav-link:focus {
+          color: $foreground;
+        }
+
+        .nav-link {
+          color: body-mix(50%);
+        }
+
+        a.nav-link,
+        a.nav-link:after,
+        a.nav-link:before {
+          transition: all .75s;
+        }
+
+        a.nav-link {
+          position: relative;
+        }
+
+        a.nav-link:hover:after {
+          width: 80%;
+        }
+
+        a.nav-link.active:after,
+        a.nav-link.active:hover:after {
+          border-top: .2em solid $foreground;
+        }
+
+        a.nav-link:hover:after,
+        a.nav-link:after {
+          border-top: .1em solid $foreground;
+        }
+
+        a.nav-link:after {
+          position: absolute;
+          border-top: .1em solid body-mix(90%);
+          content: "";
+          bottom: 0;
+          left: 0;
+          right: 0;
+          margin: auto;
+          width: 0%;
+        }
+
+        .show>.nav-link,
+        .active>.nav-link,
+        .nav-link.active {
+          font-weight: bolder;
+        }
+
+        .nav-link:hover,
+        .nav-link:focus {
+          color: $foreground;
+        }
+      }
+
+      @media (max-width: 992px) {
+        .navbar-expand-lg {
+
+          a.nav-link.active:after,
+          a.nav-link.active:hover:after,
+          a.nav-link:hover:after,
+          a.nav-link:after {
+            border-top: 0 solid $foreground;
+          }
+        }
+      }
+
+      .navbar-brand {
+        color: $foreground;
+      }
+
+      .navbar-logo {
+        max-height: 2em;
+      }
+
+      // Navigation Tabs
+      .nav-tabs {
+        border-bottom: 1px solid $foreground;
+
+        .nav-link.active,
+        .nav-item.show .nav-link {
+          color: $foreground;
+          background-color: $background;
+          border-color: $foreground;
+        }
+
+        .nav-link,
+        .nav-pills .nav-link {
+          color: $foreground;
+        }
+      }
+
+      .navbar-title {
+        transition: all .35s ease;
+        display: inline-block;
+        padding: .25em .4em;
+        position: relative;
+        font-weight: bolder;
+
+        &::before,
+        &::after {
+          content: '';
+          height: 14px;
+          width: 14px;
+          position: absolute;
+          transition: all .35s ease;
+          opacity: 0;
+        }
+
+        &::before {
+          content: '';
+          right: 0;
+          top: 0;
+          border-top: 3px solid $foreground;
+          border-right: 3px solid $foreground;
+          transform: translate(-100%, 50%);
+        }
+
+        &:after {
+          content: '';
+          left: 0;
+          bottom: 0;
+          border-bottom: 3px solid $foreground;
+          border-left: 3px solid $foreground;
+          transform: translate(100%, -50%);
+        }
+
+        &:hover {
+          &:before,
+          &:after {
+            transform: translate(0, 0);
+            opacity: 1;
+          }
+        }
+
+        @media (max-width: 768px) {
+          display: none;
+        }
+      }
+
+      // Color Scheme Toggle Icons
+      .navbar .quarto-color-scheme-toggle {
+        &:not(.alternate) .bi::before {
+          background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($navbar-light-color)}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+        }
+
+        &.alternate .bi::before {
+          background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($navbar-light-color)}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+        }
+      }
+
+      .sidebar-navigation .quarto-color-scheme-toggle {
+        &:not(.alternate) .bi::before {
+          background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 10%))}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+        }
+
+        &.alternate .bi::before {
+          background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 10%))}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+        }
+      }
+
+      .top-right.quarto-color-scheme-toggle {
+        &:not(.alternate) .bi::before {
+          background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 35%))}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+        }
+
+        &.alternate .bi::before {
+          background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 20%))}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+        }
+      }
+
+      // Listing Components
+      .quarto-post .listing-categories .listing-category {
+        border: solid 1px $foreground;
+
+        &:hover {
+          color: $foreground;
+        }
+      }
+
+      .quarto-grid-item .listing-categories .listing-category:hover,
+      .quarto-listing-category .category:hover,
+      .quarto-title .quarto-categories .quarto-category a:hover {
+        color: $foreground;
+      }
+
+      .quarto-listing-category .category {
+        text-transform: uppercase;
+      }
+
+      .listing-description {
+        color: $foreground;
+      }
+
+      // Footer Link
+      .footer a:hover {
+        color: $link-color;
+      }
+
+      // Custom Styles
+
+      .picture {
+        border-style: solid;
+        border-width: 3pt;
+        border-color: $background;
+        border-radius: 50%;
+        padding: 5pt;
+        height: 50%;
+        width: auto;
+        max-width: 200px !important;
+        min-width: 100px;
+      }
+
+      @media (max-width: 768px) {
+        .quarto-layout-row {
+          flex-direction: column;
+        }
+
+        .quarto-layout-cell {
+          flex-basis: 100% !important;
+          margin-bottom: 1rem;
+        }
+
+        .quarto-figure-spacer {
+          display: none;
+        }
+      }
+
+      .quarto-alternate-formats,
+      .quarto-code-links,
+      .quarto-other-links {
+        h2 {
+          display: none;
+        }
+        
+        ul {
+          margin-bottom: 0;
+        }
+      }

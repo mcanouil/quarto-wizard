@@ -1,0 +1,73 @@
+---
+title: "Installing Extensions"
+---
+
+Quarto Wizard makes it easy to browse and install Quarto extensions from the official registry.
+
+## Using the Extension Browser
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Install Extensions` and select it.
+3. Browse the list of available extensions.
+
+![Extension Browser](../assets/images/install-extensions.png){fig-alt="The extension browser interface showing a list of available Quarto extensions with their names, versions, star ratings, and descriptions."}
+
+## Browsing Extensions
+
+The extension browser displays:
+
+- **Extension name**: The name of the extension.
+- **Author**: The extension's creator.
+- **Version**: The latest available version.
+- **Stars**: GitHub star count.
+- **Description**: A brief description of what the extension does.
+- **Licence**: The extension's licence type.
+
+You can:
+
+- **Search**: Type to filter extensions by name, author, or description.
+- **Sort**: Order by name, stars, or recently updated.
+- **Filter**: Show only specific types of extensions.
+
+## Installing an Extension
+
+1. Select the extension(s) you want to install.
+2. Press Enter or click to confirm your selection.
+3. Choose the workspace folder where the extension should be installed.
+4. Confirm the installation when prompted.
+
+The extension will be downloaded and installed to the `_extensions` directory in your chosen workspace folder.
+
+## Installation Sources
+
+Quarto Wizard supports installing extensions from multiple sources:
+
+### From Registry (Default)
+
+Use `Quarto Wizard: Install Extensions` to browse and install from the official registry.
+
+### From GitHub
+
+Use `Quarto Wizard: Install Extension from Registry` and enter a GitHub repository in the format `owner/repository`.
+
+### From URL
+
+Use `Quarto Wizard: Install Extension from URL` to install from a direct archive URL (`.zip` or `.tar.gz`).
+
+### From Local Path
+
+Use `Quarto Wizard: Install Extension from Local` to install from a local directory or archive file.
+
+## Trust and Confirmation
+
+By default, Quarto Wizard asks for confirmation before:
+
+- Trusting a new extension author.
+- Installing an extension.
+
+You can adjust these prompts in [Configuration](../reference/configuration.qmd).
+
+:::: {.callout-note}
+Quarto Wizard can only display information provided by extension authors.
+If an author has not provided a description, licence, or version tags, these fields will show "none".
+:::

@@ -6,6 +6,8 @@ export {
 	type GitHubRelease,
 	type GitHubTag,
 	type GitHubOptions,
+	type ResolvedVersion,
+	type ResolveVersionOptions,
 	fetchReleases,
 	fetchTags,
 	getLatestRelease,

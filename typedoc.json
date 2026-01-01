@@ -1,0 +1,18 @@
+{
+	"$schema": "https://typedoc.org/schema.json",
+	"entryPoints": ["packages/core/src"],
+	"entryPointStrategy": "expand",
+	"tsconfig": "packages/core/tsconfig.json",
+	"out": "docs/api",
+	"plugin": ["typedoc-plugin-markdown"],
+	"membersWithOwnFile": [],
+	"flattenOutputFiles": true,
+	"readme": "none",
+	"excludePrivate": true,
+	"excludeProtected": true,
+	"excludeInternal": true,
+	"hideGenerator": true,
+	"useCodeBlocks": true,
+	"parametersFormat": "table",
+	"interfacePropertiesFormat": "table"
+}

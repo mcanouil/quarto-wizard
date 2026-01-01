@@ -1,0 +1,216 @@
+---
+title: "Archive"
+---
+
+## Extract
+
+### Interfaces
+
+#### ExtractOptions
+
+Defined in: [packages/core/src/archive/extract.ts:15](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L15)
+
+Options for archive extraction.
+
+#### Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="maxsize"></a> `maxSize?` | `number` | Maximum total extraction size in bytes. | [packages/core/src/archive/extract.ts:17](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L17) |
+| <a id="onprogress"></a> `onProgress?` | (`file`) => `void` | Progress callback. | [packages/core/src/archive/extract.ts:19](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L19) |
+
+#### ExtractResult
+
+Defined in: [packages/core/src/archive/extract.ts:25](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L25)
+
+Result of archive extraction.
+
+#### Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="extractdir"></a> `extractDir` | `string` | Path to the extraction directory. | [packages/core/src/archive/extract.ts:27](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L27) |
+| <a id="files"></a> `files` | `string`[] | List of extracted file paths. | [packages/core/src/archive/extract.ts:29](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L29) |
+| <a id="format"></a> `format` | `"zip"` \| `"tarball"` | Detected archive format. | [packages/core/src/archive/extract.ts:31](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L31) |
+
+### Functions
+
+#### cleanupExtraction()
+
+```{.ts filename="TypeScript"}
+function cleanupExtraction(extractDir): Promise<void>;
+```
+
+Defined in: [packages/core/src/archive/extract.ts:138](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L138)
+
+Clean up a temporary extraction directory.
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `extractDir` | `string` | Directory to remove |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### detectArchiveFormat()
+
+```{.ts filename="TypeScript"}
+function detectArchiveFormat(archivePath): "zip" | "tarball" | null;
+```
+
+Defined in: [packages/core/src/archive/extract.ts:37](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L37)
+
+Detect archive format from file path.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `archivePath` | `string` |
+
+#### Returns
+
+`"zip"` \| `"tarball"` \| `null`
+
+#### extractArchive()
+
+```{.ts filename="TypeScript"}
+function extractArchive(archivePath, options): Promise<ExtractResult>;
+```
+
+Defined in: [packages/core/src/archive/extract.ts:58](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L58)
+
+Extract an archive to a temporary directory.
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `archivePath` | `string` | Path to the archive file |
+| `options` | [`ExtractOptions`](#extractoptions) | Extraction options |
+
+#### Returns
+
+`Promise`\<[`ExtractResult`](#extractresult)\>
+
+Extraction result
+
+#### findExtensionRoot()
+
+```{.ts filename="TypeScript"}
+function findExtensionRoot(extractDir): Promise<string | null>;
+```
+
+Defined in: [packages/core/src/archive/extract.ts:99](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/extract.ts#L99)
+
+Find the extension root in an extracted archive.
+
+GitHub archives typically have a top-level directory like "repo-tag/".
+This function finds the directory containing _extension.yml.
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `extractDir` | `string` | Extraction directory |
+
+#### Returns
+
+`Promise`\<`string` \| `null`\>
+
+Path to extension root or null if not found
+
+## Tar
+
+### Interfaces
+
+#### TarExtractOptions
+
+Defined in: [packages/core/src/archive/tar.ts:16](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/tar.ts#L16)
+
+Options for TAR extraction.
+
+#### Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="maxsize"></a> `maxSize?` | `number` | Maximum total extraction size in bytes. | [packages/core/src/archive/tar.ts:18](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/tar.ts#L18) |
+| <a id="onprogress"></a> `onProgress?` | (`file`) => `void` | Progress callback. | [packages/core/src/archive/tar.ts:20](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/tar.ts#L20) |
+
+### Functions
+
+#### extractTar()
+
+```{.ts filename="TypeScript"}
+function extractTar(
+   archivePath, 
+   destDir, 
+options): Promise<string[]>;
+```
+
+Defined in: [packages/core/src/archive/tar.ts:42](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/tar.ts#L42)
+
+Extract a TAR.GZ archive to a directory.
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `archivePath` | `string` | Path to the TAR.GZ file |
+| `destDir` | `string` | Destination directory |
+| `options` | [`TarExtractOptions`](#tarextractoptions) | Extraction options |
+
+#### Returns
+
+`Promise`\<`string`[]\>
+
+List of extracted file paths
+
+## Zip
+
+### Interfaces
+
+#### ZipExtractOptions
+
+Defined in: [packages/core/src/archive/zip.ts:19](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/zip.ts#L19)
+
+Options for ZIP extraction.
+
+#### Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="maxsize"></a> `maxSize?` | `number` | Maximum total extraction size in bytes. | [packages/core/src/archive/zip.ts:21](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/zip.ts#L21) |
+| <a id="onprogress"></a> `onProgress?` | (`file`) => `void` | Progress callback. | [packages/core/src/archive/zip.ts:23](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/zip.ts#L23) |
+
+### Functions
+
+#### extractZip()
+
+```{.ts filename="TypeScript"}
+function extractZip(
+   archivePath, 
+   destDir, 
+options): Promise<string[]>;
+```
+
+Defined in: [packages/core/src/archive/zip.ts:45](https://github.com/mcanouil/quarto-wizard/blob/16106ac7ce9731730337e4ee9214feac3bf90c7b/packages/core/src/archive/zip.ts#L45)
+
+Extract a ZIP archive to a directory.
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `archivePath` | `string` | Path to the ZIP file |
+| `destDir` | `string` | Destination directory |
+| `options` | [`ZipExtractOptions`](#zipextractoptions) | Extraction options |
+
+#### Returns
+
+`Promise`\<`string`[]\>
+
+List of extracted file paths

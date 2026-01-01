@@ -1,0 +1,90 @@
+---
+title: "Quarto Wizard"
+subtitle: "A Visual Studio Code Extension for Quarto Projects"
+description: "Easily manage Quarto extensions and templates with a user-friendly interface."
+title-prefix: ""
+author:
+  - name: "Mickaël CANOUIL, _Ph.D._"
+    degree: "Ph.D."
+    orcid: "0000-0002-3396-4549"
+    url: "https://mickael.canouil.fr"
+    affiliations:
+      - name: mickael.canouil.fr
+        url: "https://mickael.canouil.fr"
+---
+
+![](assets/logo/logo-social.png){
+  .img-fluid .img-thumbnail .rounded-3 .border-light
+  fig-align="center"
+  fig-alt="Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
+  width="75%"
+}
+
+**Quarto Wizard** is a Visual Studio Code extension that helps you manage your [Quarto](https://quarto.org) projects.
+Install Quarto extensions directly from the [Quarto Extensions](https://github.com/mcanouil/quarto-extensions) listing repository with just a few clicks.
+
+## Features
+
+Browse Extensions
+: View and search through hundreds of available Quarto extensions.
+Filter by type, author, or functionality.
+
+One-Click Install
+: Install selected extensions with a single click.
+Quarto Wizard handles downloading and setup automatically.
+
+Manage Extensions
+: View, update, and remove installed extensions from the Explorer view.
+Keep your extensions up to date effortlessly.
+
+Use Templates
+: Quick-start documents with pre-configured templates for papers, presentations, and more.
+
+## Quick Start
+
+1. **Install** the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard).
+2. **Open** a Quarto project in VS Code.
+3. **Press** `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) and type "Quarto Wizard".
+4. **Browse** and install extensions!
+
+## Installation
+
+Install from the VS Code Marketplace:
+
+:::: {.panel-tabset}
+
+### Visual Studio Code
+
+```{.bash filename="Terminal"}
+code --install-extension mcanouil.quarto-wizard
+```
+
+### Positron
+
+```{.bash filename="Terminal"}
+positron --install-extension mcanouil.quarto-wizard
+```
+
+:::
+
+Or search for "Quarto Wizard" in the Extensions view (`Ctrl+Shift+X`).
+
+See the [Installation Guide](getting-started/installation.qmd) for more options.
+
+## Documentation
+
+- [Getting Started](getting-started/index.qmd) - Installation and setup.
+- [User Guide](guide/index.qmd) - Learn all features.
+- [Reference](reference/index.qmd) - Commands and configuration.
+- [API Reference](api/index.qmd) - For developers.
+
+## Links
+
+- [GitHub Repository](https://github.com/mcanouil/quarto-wizard)
+- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard)
+- [Open VSX](https://open-vsx.org/extension/mcanouil/quarto-wizard)
+- [Report an Issue](https://github.com/mcanouil/quarto-wizard/issues)
+
+## Licence
+
+This project is licensed under the [MIT Licence](https://github.com/mcanouil/quarto-wizard/blob/main/LICENSE).

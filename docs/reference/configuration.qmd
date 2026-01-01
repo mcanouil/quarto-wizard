@@ -1,0 +1,127 @@
+---
+title: "Configuration Reference"
+---
+
+Quarto Wizard can be configured through VS Code settings.
+Access these through **File** > **Preferences** > **Settings** (or **Code** > **Preferences** > **Settings** on macOS) and search for "Quarto Wizard".
+
+## Installation Behaviour
+
+### Trust Authors
+
+**Setting**: `quartoWizard.ask.trustAuthors`
+
+Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again.
+
+| Value | Description |
+|-------|-------------|
+| `never` | Always trust authors without prompting. |
+| `ask` | Ask for confirmation each time (default). |
+
+```json
+{
+  "quartoWizard.ask.trustAuthors": "ask"
+}
+```
+
+### Confirm Installation
+
+**Setting**: `quartoWizard.ask.confirmInstall`
+
+Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again.
+
+| Value | Description |
+|-------|-------------|
+| `never` | Install without prompting. |
+| `ask` | Ask for confirmation each time (default). |
+
+```json
+{
+  "quartoWizard.ask.confirmInstall": "ask"
+}
+```
+
+## Cache Settings
+
+### Cache Duration
+
+**Setting**: `quartoWizard.cache.ttlMinutes`
+
+Cache duration for extension registry data in minutes. Lower values fetch fresher data but increase network requests. Default is 30 minutes.
+
+| Property | Value |
+|----------|-------|
+| Type | Number |
+| Default | `30` |
+| Minimum | `1` |
+| Maximum | `1440` (24 hours) |
+
+```json
+{
+  "quartoWizard.cache.ttlMinutes": 30
+}
+```
+
+## Registry Settings
+
+### Registry URL
+
+**Setting**: `quartoWizard.registry.url`
+
+URL to the Quarto extensions registry JSON file. Change this to use a custom registry. The registry must contain entries with at least `id`, `name`, and `owner` fields.
+
+| Property | Value |
+|----------|-------|
+| Type | String (URI) |
+| Default | `https://m.canouil.dev/quarto-extensions/extensions.json` |
+
+```json
+{
+  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
+}
+```
+
+## Logging
+
+### Log Level
+
+**Setting**: `quartoWizard.log.level`
+
+The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything.
+
+| Value | Description |
+|-------|-------------|
+| `error` | Only log errors. |
+| `warn` | Log warnings and errors. |
+| `info` | Log info, warnings, and errors (default). |
+| `debug` | Log everything, including debug information. |
+
+```json
+{
+  "quartoWizard.log.level": "info"
+}
+```
+
+## Workspace vs User Settings
+
+All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
+
+- **User level**: Applies to all workspaces.
+- **Workspace level**: Applies only to the current workspace.
+- **Folder level**: Applies only to a specific folder in a multi-root workspace.
+
+Folder settings override workspace settings, which override user settings.
+
+## Example Configuration
+
+Here is an example `settings.json` with all Quarto Wizard settings:
+
+```json
+{
+  "quartoWizard.ask.trustAuthors": "ask",
+  "quartoWizard.ask.confirmInstall": "ask",
+  "quartoWizard.cache.ttlMinutes": 30,
+  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json",
+  "quartoWizard.log.level": "info"
+}
+```
