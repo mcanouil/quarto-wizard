@@ -14,15 +14,7 @@
  * 9. Updates docs/_variables.yml with the current version from package.json.
  */
 
-import {
-	readFileSync,
-	writeFileSync,
-	unlinkSync,
-	existsSync,
-	readdirSync,
-	mkdirSync,
-	rmSync,
-} from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, rmSync } from "node:fs";
 import { resolve, dirname, basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -242,10 +234,7 @@ function updateLinks(content, moduleNames) {
 
 	// Fix cross-module links (e.g., archive.extract.qmd -> archive.qmd)
 	for (const mod of moduleNames) {
-		const subModulePattern = new RegExp(
-			`\\(${mod}\\.([^.]+)\\.qmd(#[^)]+)?\\)`,
-			"g",
-		);
+		const subModulePattern = new RegExp(`\\(${mod}\\.([^.]+)\\.qmd(#[^)]+)?\\)`, "g");
 		content = content.replace(subModulePattern, `(${mod}.qmd$2)`);
 	}
 
@@ -402,9 +391,7 @@ function mergeModuleFiles(moduleName, files, allModuleNames) {
  */
 function generateSidebar(moduleNames) {
 	const sortedModules = [...moduleNames].sort();
-	const moduleEntries = sortedModules
-		.map((mod) => `                - api/core/${mod}.qmd`)
-		.join("\n");
+	const moduleEntries = sortedModules.map((mod) => `                - api/core/${mod}.qmd`).join("\n");
 
 	const content = `website:
   sidebar:
@@ -462,16 +449,12 @@ const COMMAND_GROUPS = [
 		id: "authentication",
 		title: "Authentication Commands",
 		description: "Commands for managing GitHub authentication.",
-		commands: [
-			"quartoWizard.setGitHubToken",
-			"quartoWizard.clearGitHubToken",
-		],
+		commands: ["quartoWizard.setGitHubToken", "quartoWizard.clearGitHubToken"],
 	},
 	{
 		id: "explorer",
 		title: "Explorer View Commands",
-		description:
-			"These commands are available from the Explorer View context menu or toolbar.",
+		description: "These commands are available from the Explorer View context menu or toolbar.",
 		commands: [
 			"quartoWizard.extensionsInstalled.refresh",
 			"quartoWizard.extensionsInstalled.update",
@@ -592,15 +575,10 @@ function generateCommandsPage(pkg) {
 
 	// Add command identifiers table
 	lines.push("## Command Identifiers", "");
-	lines.push(
-		"For scripting or keybinding purposes, here are the internal command identifiers:",
-		"",
-	);
+	lines.push("For scripting or keybinding purposes, here are the internal command identifiers:", "");
 
 	for (const group of COMMAND_GROUPS) {
-		const groupCommands = group.commands
-			.map((id) => commands.get(id))
-			.filter(Boolean);
+		const groupCommands = group.commands.map((id) => commands.get(id)).filter(Boolean);
 		if (groupCommands.length === 0) continue;
 
 		lines.push(`### ${group.title}`, "");
@@ -627,41 +605,24 @@ function generateCommandDescription(cmd) {
 	const descriptions = {
 		"quartoWizard.installExtension":
 			"Opens the extension browser to browse and install Quarto extensions from the registry.",
-		"quartoWizard.useTemplate":
-			"Opens the template browser to select and install Quarto templates.",
-		"quartoWizard.newQuartoReprex":
-			"Creates a new reproducible example document for R, Python, or Julia.",
-		"quartoWizard.showOutput":
-			"Displays the extension's output log for debugging and troubleshooting.",
-		"quartoWizard.clearRecent":
-			"Clears the list of recently installed extensions and templates.",
-		"quartoWizard.clearCache":
-			"Clears the cached registry data to force a fresh download.",
-		"quartoWizard.getExtensionsDetails":
-			"Retrieves detailed information about extensions in the current workspace.",
-		"quartoWizard.installExtensionFromRegistry":
-			"Install an extension by entering its registry identifier.",
-		"quartoWizard.installExtensionFromURL":
-			"Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.",
-		"quartoWizard.installExtensionFromLocal":
-			"Install an extension from a local directory or archive file.",
-		"quartoWizard.setGitHubToken":
-			"Manually set a GitHub personal access token for authentication.",
+		"quartoWizard.useTemplate": "Opens the template browser to select and install Quarto templates.",
+		"quartoWizard.newQuartoReprex": "Creates a new reproducible example document for R, Python, or Julia.",
+		"quartoWizard.showOutput": "Displays the extension's output log for debugging and troubleshooting.",
+		"quartoWizard.clearRecent": "Clears the list of recently installed extensions and templates.",
+		"quartoWizard.clearCache": "Clears the cached registry data to force a fresh download.",
+		"quartoWizard.getExtensionsDetails": "Retrieves detailed information about extensions in the current workspace.",
+		"quartoWizard.installExtensionFromRegistry": "Install an extension by entering its registry identifier.",
+		"quartoWizard.installExtensionFromURL": "Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.",
+		"quartoWizard.installExtensionFromLocal": "Install an extension from a local directory or archive file.",
+		"quartoWizard.setGitHubToken": "Manually set a GitHub personal access token for authentication.",
 		"quartoWizard.clearGitHubToken": "Remove the manually set GitHub token.",
-		"quartoWizard.extensionsInstalled.refresh":
-			"Reload the list of installed extensions in the Explorer View.",
-		"quartoWizard.extensionsInstalled.update":
-			"Update a specific extension to its latest version.",
-		"quartoWizard.extensionsInstalled.updateAll":
-			"Update all outdated extensions in the workspace.",
-		"quartoWizard.extensionsInstalled.remove":
-			"Remove a specific extension from the workspace.",
-		"quartoWizard.extensionsInstalled.removeMultiple":
-			"Select and remove multiple extensions at once.",
-		"quartoWizard.extensionsInstalled.openSource":
-			"Open the extension's GitHub repository in a browser.",
-		"quartoWizard.extensionsInstalled.revealInExplorer":
-			"Open the extension's folder in the file explorer.",
+		"quartoWizard.extensionsInstalled.refresh": "Reload the list of installed extensions in the Explorer View.",
+		"quartoWizard.extensionsInstalled.update": "Update a specific extension to its latest version.",
+		"quartoWizard.extensionsInstalled.updateAll": "Update all outdated extensions in the workspace.",
+		"quartoWizard.extensionsInstalled.remove": "Remove a specific extension from the workspace.",
+		"quartoWizard.extensionsInstalled.removeMultiple": "Select and remove multiple extensions at once.",
+		"quartoWizard.extensionsInstalled.openSource": "Open the extension's GitHub repository in a browser.",
+		"quartoWizard.extensionsInstalled.revealInExplorer": "Open the extension's folder in the file explorer.",
 	};
 
 	return descriptions[cmd.command] || "";
@@ -685,9 +646,7 @@ function generateConfigurationPage(pkg) {
 
 	// Group properties by prefix
 	for (const group of CONFIG_GROUPS) {
-		const groupProps = Object.entries(properties).filter(([key]) =>
-			key.startsWith(group.prefix),
-		);
+		const groupProps = Object.entries(properties).filter(([key]) => key.startsWith(group.prefix));
 
 		if (groupProps.length === 0) continue;
 
@@ -726,8 +685,7 @@ function generateConfigurationPage(pkg) {
 					lines.push(`| Minimum | \`${prop.minimum}\` |`);
 				}
 				if (prop.maximum !== undefined) {
-					const maxLabel =
-						prop.maximum === 1440 ? `\`1440\` (24 hours)` : `\`${prop.maximum}\``;
+					const maxLabel = prop.maximum === 1440 ? `\`1440\` (24 hours)` : `\`${prop.maximum}\``;
 					lines.push(`| Maximum | ${maxLabel} |`);
 				}
 				lines.push("");
@@ -742,8 +700,7 @@ function generateConfigurationPage(pkg) {
 			}
 
 			// Add example JSON
-			const exampleValue =
-				prop.type === "string" ? `"${prop.default}"` : prop.default;
+			const exampleValue = prop.type === "string" ? `"${prop.default}"` : prop.default;
 			lines.push("```json", "{", `  "${key}": ${exampleValue}`, "}", "```", "");
 		}
 	}
@@ -764,15 +721,10 @@ function generateConfigurationPage(pkg) {
 
 	// Add example configuration
 	lines.push("## Example Configuration", "");
-	lines.push(
-		"Here is an example `settings.json` with all Quarto Wizard settings:",
-		"",
-	);
+	lines.push("Here is an example `settings.json` with all Quarto Wizard settings:", "");
 	lines.push("```json", "{");
 
-	const allProps = Object.entries(properties).sort(
-		([, a], [, b]) => (a.order || 99) - (b.order || 99),
-	);
+	const allProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	const lastIndex = allProps.length - 1;
 	allProps.forEach(([key, prop], index) => {
 		const value = prop.type === "string" ? `"${prop.default}"` : prop.default;
@@ -897,12 +849,9 @@ function generateReferenceIndex(pkg) {
 	);
 
 	// Add configuration quick reference
-	const sortedProps = Object.entries(properties).sort(
-		([, a], [, b]) => (a.order || 99) - (b.order || 99),
-	);
+	const sortedProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	for (const [key, prop] of sortedProps) {
-		const defaultVal =
-			key === "quartoWizard.registry.url" ? "(see docs)" : `\`${prop.default}\``;
+		const defaultVal = key === "quartoWizard.registry.url" ? "(see docs)" : `\`${prop.default}\``;
 		const desc = generateSettingQuickDesc(key);
 		lines.push(`| \`${key}\` | ${defaultVal} | ${desc} |`);
 	}
