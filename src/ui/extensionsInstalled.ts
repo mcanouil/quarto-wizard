@@ -3,12 +3,6 @@ import * as path from "path";
 import * as fs from "fs";
 import * as semver from "semver";
 import { debounce } from "lodash";
-import {
-	validateManifest,
-	formatValidationIssues,
-	type ValidationResult,
-	parseManifestFile,
-} from "@quarto-wizard/core";
 import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
@@ -41,7 +35,6 @@ class WorkspaceFolderTreeItem extends vscode.TreeItem {
 class ExtensionTreeItem extends vscode.TreeItem {
 	public latestVersion?: string;
 	public workspaceFolder: string;
-	public validationResult?: ValidationResult;
 
 	constructor(
 		public readonly label: string,
@@ -50,10 +43,11 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		public readonly data?: ExtensionData,
 		icon?: string,
 		latestVersion?: string,
-		validationResult?: ValidationResult,
+		hasIssue?: boolean,
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined;
+		const noSource = data && !data.source;
 		const baseContextValue = "quartoExtensionItem";
 		let contextValue = baseContextValue;
 
@@ -61,43 +55,31 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		// This determines which commands are available when right-clicking
 		if (needsUpdate) {
 			contextValue = baseContextValue + "Outdated"; // Shows "update" option
-		} else if (data && !this.data?.source) {
+		} else if (noSource) {
 			contextValue = baseContextValue + "NoSource"; // Cannot be updated, shows limited options
 		}
 
-		// Build tooltip with validation warnings if any
+		// Build tooltip with warning if there are issues
 		let tooltipText = `${this.label}`;
-		if (validationResult && validationResult.issues.length > 0) {
-			const warnings = validationResult.issues.filter((i) => i.severity === "warning");
-			const errors = validationResult.issues.filter((i) => i.severity === "error");
-			if (errors.length > 0 || warnings.length > 0) {
-				tooltipText += "\n\n";
-				if (errors.length > 0) {
-					tooltipText += `⛔ ${errors.length} error(s)\n`;
-					errors.forEach((e) => {
-						tooltipText += `  • ${e.field}: ${e.message}\n`;
-					});
-				}
-				if (warnings.length > 0) {
-					tooltipText += `⚠️ ${warnings.length} warning(s)\n`;
-					warnings.forEach((w) => {
-						tooltipText += `  • ${w.field}: ${w.message}\n`;
-					});
-				}
-			}
+		if (hasIssue) {
+			tooltipText += "\n\n⚠️ Could not parse extension manifest";
+		} else if (noSource) {
+			tooltipText += "\n\n⚠️ No source in manifest (cannot check for updates)";
 		}
 		this.tooltip = tooltipText;
 		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
 		this.contextValue = this.data ? contextValue : "quartoExtensionItemDetails";
 
-		if (icon) {
+		// Show warning icon if there are issues preventing full functionality
+		if (hasIssue || noSource) {
+			this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
+		} else if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
 
 		// Format version for installation commands
 		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
 		this.workspaceFolder = workspacePath;
-		this.validationResult = validationResult;
 
 		// Set resource URI for the extension directory to enable "Reveal in Explorer" functionality
 		if (this.data) {
@@ -119,7 +101,8 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	// Cache extension data and version information per workspace folder to avoid repeated file reads
 	private extensionsDataByFolder: Record<string, Record<string, ExtensionData>> = {};
 	private latestVersionsByFolder: Record<string, Record<string, string>> = {};
-	private validationResultsByFolder: Record<string, Record<string, ValidationResult>> = {};
+	// Track extensions with manifest parse errors
+	private parseErrorsByFolder: Record<string, Set<string>> = {};
 
 	constructor(private workspaceFolders: readonly vscode.WorkspaceFolder[]) {
 		this.refreshAllExtensionsData();
@@ -191,34 +174,9 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 					folderData[ext],
 					"package",
 					this.latestVersionsByFolder[workspacePath]?.[ext],
-					this.validationResultsByFolder[workspacePath]?.[ext],
+					this.parseErrorsByFolder[workspacePath]?.has(ext),
 				),
 		);
-	}
-
-	/**
-	 * Validates an extension manifest and returns the validation result.
-	 * @param workspacePath - The workspace folder path.
-	 * @param extensionName - The extension name (e.g., "owner/name").
-	 * @returns ValidationResult or null if manifest cannot be read.
-	 */
-	validateExtension(workspacePath: string, extensionName: string): ValidationResult | null {
-		const extensionPath = path.join(workspacePath, "_extensions", extensionName);
-		let manifestPath = path.join(extensionPath, "_extension.yml");
-		if (!fs.existsSync(manifestPath)) {
-			manifestPath = path.join(extensionPath, "_extension.yaml");
-		}
-		if (!fs.existsSync(manifestPath)) {
-			return null;
-		}
-
-		try {
-			const manifest = parseManifestFile(manifestPath);
-			return validateManifest(manifest, { requireContributions: true });
-		} catch (error) {
-			logMessage(`Failed to validate ${extensionName}: ${error}`, "error");
-			return null;
-		}
 	}
 
 	private getExtensionDetailItems(element: ExtensionTreeItem): ExtensionTreeItem[] {
@@ -274,7 +232,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 
 	private refreshAllExtensionsData(): void {
 		this.extensionsDataByFolder = {};
-		this.validationResultsByFolder = {};
+		this.parseErrorsByFolder = {};
 
 		for (const folder of this.workspaceFolders) {
 			const workspaceFolder = folder.uri.fsPath;
@@ -284,14 +242,16 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 				extensionsList = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
 			}
 
-			this.extensionsDataByFolder[workspaceFolder] = readExtensions(workspaceFolder, extensionsList);
+			const extensionsData = readExtensions(workspaceFolder, extensionsList);
+			this.extensionsDataByFolder[workspaceFolder] = extensionsData;
 
-			// Validate each extension and cache results
-			this.validationResultsByFolder[workspaceFolder] = {};
+			// Track extensions where we couldn't read essential data
+			this.parseErrorsByFolder[workspaceFolder] = new Set();
 			for (const ext of extensionsList) {
-				const result = this.validateExtension(workspaceFolder, ext);
-				if (result) {
-					this.validationResultsByFolder[workspaceFolder][ext] = result;
+				const data = extensionsData[ext];
+				// Mark as parse error if we couldn't read the manifest or essential fields are missing
+				if (!data || (!data.title && !data.version && !data.contributes)) {
+					this.parseErrorsByFolder[workspaceFolder].add(ext);
 				}
 			}
 		}
@@ -693,46 +653,6 @@ export class ExtensionsInstalled {
 			),
 		);
 
-		/**
-		 * Validates an extension and shows the validation results.
-		 */
-		context.subscriptions.push(
-			vscode.commands.registerCommand(
-				"quartoWizard.extensionsInstalled.validate",
-				async (item: ExtensionTreeItem) => {
-					const result = this.treeDataProvider.validateExtension(item.workspaceFolder, item.label);
-
-					if (!result) {
-						vscode.window.showErrorMessage(
-							`Could not validate extension "${item.label}". Manifest file not found.`,
-						);
-						return;
-					}
-
-					if (result.issues.length === 0) {
-						vscode.window.showInformationMessage(`Extension "${item.label}" passed validation with no issues.`);
-						return;
-					}
-
-					// Format and show validation results
-					const formattedResult = formatValidationIssues(result);
-					logMessage(`Validation results for ${item.label}:\n${formattedResult}`, "info");
-
-					const errors = result.issues.filter((i) => i.severity === "error");
-					const warnings = result.issues.filter((i) => i.severity === "warning");
-
-					if (errors.length > 0) {
-						vscode.window.showErrorMessage(
-							`Extension "${item.label}" has ${errors.length} error(s) and ${warnings.length} warning(s). ${showLogsCommand()}.`,
-						);
-					} else {
-						vscode.window.showWarningMessage(
-							`Extension "${item.label}" has ${warnings.length} warning(s). ${showLogsCommand()}.`,
-						);
-					}
-				},
-			),
-		);
 	}
 
 	constructor(context: vscode.ExtensionContext) {

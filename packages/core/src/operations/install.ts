@@ -14,7 +14,6 @@ import { copyDirectory, collectFiles } from "../filesystem/walk.js";
 import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import { extractArchive, findExtensionRoot, cleanupExtraction } from "../archive/extract.js";
-import { validateManifest, type ValidationResult, type ValidationOptions } from "../validation/manifest.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 
 /**
@@ -49,12 +48,8 @@ export interface InstallOptions extends RegistryOptions {
 	force?: boolean;
 	/** Keep source directory after installation (for template copying). */
 	keepSourceDir?: boolean;
-	/** Dry run mode - resolve and validate without installing. */
+	/** Dry run mode - resolve without installing. */
 	dryRun?: boolean;
-	/** Validate manifest before installation. */
-	validate?: boolean;
-	/** Options for manifest validation (only used if validate is true). */
-	validationOptions?: ValidationOptions;
 }
 
 /**
@@ -77,8 +72,6 @@ export interface InstallResult {
 	wouldCreate?: string[];
 	/** Whether the extension already exists (only relevant in dry run mode). */
 	alreadyExists?: boolean;
-	/** Validation result (only set if validate option was true). */
-	validation?: ValidationResult;
 }
 
 /**
@@ -163,8 +156,6 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		force = false,
 		keepSourceDir = false,
 		dryRun = false,
-		validate = false,
-		validationOptions,
 	} = options;
 
 	let archivePath: string | undefined;
@@ -250,22 +241,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			throw new ExtensionError("Failed to read extension manifest");
 		}
 
-		// Run validation if requested
-		let validationResult: ValidationResult | undefined;
-		if (validate) {
-			validationResult = validateManifest(manifestResult.manifest, validationOptions);
-			if (!validationResult.valid) {
-				throw new ExtensionError(
-					`Extension manifest validation failed with ${validationResult.summary.errors} error(s)`,
-					validationResult.issues
-						.filter((i) => i.severity === "error")
-						.map((i) => `${i.field}: ${i.message}`)
-						.join("; "),
-				);
-			}
-		}
-
-		onProgress?.({ phase: "installing", message: dryRun ? "Validating installation..." : "Installing extension..." });
+		onProgress?.({ phase: "installing", message: dryRun ? "Checking installation..." : "Installing extension..." });
 
 		const extensionId = resolveExtensionId(source, extensionRoot, manifestResult.manifest);
 		const targetDir = getExtensionInstallPath(projectDir, extensionId);
@@ -292,7 +268,6 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				dryRun: true,
 				wouldCreate,
 				alreadyExists,
-				validation: validationResult,
 			};
 		}
 
@@ -326,7 +301,6 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			filesCreated,
 			source: sourceString,
 			sourceRoot: keepSourceDir ? repoRoot : undefined,
-			validation: validationResult,
 		};
 	} finally {
 		if (archivePath && source.type !== "local" && fs.existsSync(archivePath)) {

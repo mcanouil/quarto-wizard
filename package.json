@@ -216,13 +216,6 @@
 				"category": "Quarto Wizard"
 			},
 			{
-				"command": "quartoWizard.extensionsInstalled.validate",
-				"title": "Validate Extension",
-				"shortTitle": "Validate",
-				"icon": "$(check)",
-				"category": "Quarto Wizard"
-			},
-			{
 				"command": "quartoWizard.setGitHubToken",
 				"title": "Set GitHub Token (Manual)",
 				"shortTitle": "Set Token",
@@ -364,11 +357,6 @@
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@4"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.validate",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
-					"group": "navigation@5"
 				}
 			],
 			"commandPalette": [
@@ -402,10 +390,6 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
-					"when": "false"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.validate",
 					"when": "false"
 				}
 			]
