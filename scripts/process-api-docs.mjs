@@ -868,7 +868,7 @@ function generateReferenceIndex(pkg) {
 		if (!cmd) continue;
 		const desc = generateCommandDescription(cmd);
 		if (desc) {
-			lines.push(`| ${cmd.title} | ${desc.replace(/\.$/, ".")} |`);
+			lines.push(`| ${cmd.title} | ${desc} |`);
 		}
 	}
 
@@ -879,7 +879,7 @@ function generateReferenceIndex(pkg) {
 		if (!cmd) continue;
 		const desc = generateCommandDescription(cmd);
 		if (desc) {
-			lines.push(`| ${cmd.title} | ${desc.replace(/\.$/, ".")} |`);
+			lines.push(`| ${cmd.title} | ${desc} |`);
 		}
 	}
 
