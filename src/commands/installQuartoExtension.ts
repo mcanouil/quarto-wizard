@@ -262,6 +262,11 @@ async function installFromSource(
 				const message = template ? "Template used successfully." : "Extension installed successfully.";
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+			} else {
+				const message = template
+					? `Failed to use template from ${source}.`
+					: `Failed to install extension from ${source}.`;
+				vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			}
 		},
 	);

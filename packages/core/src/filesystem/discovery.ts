@@ -273,9 +273,9 @@ export async function findInstalledExtension(
  * @returns Path where the extension should be installed
  */
 export function getExtensionInstallPath(projectDir: string, extensionId: ExtensionId): string {
-	if (!extensionId.owner) {
-		throw new Error("Extension ID must have an owner for installation");
+	if (extensionId.owner) {
+		return path.join(getExtensionsDir(projectDir), extensionId.owner, extensionId.name);
 	}
-
-	return path.join(getExtensionsDir(projectDir), extensionId.owner, extensionId.name);
+	// No owner - install directly under _extensions/name
+	return path.join(getExtensionsDir(projectDir), extensionId.name);
 }

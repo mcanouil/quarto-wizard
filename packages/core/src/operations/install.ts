@@ -81,14 +81,42 @@ export interface InstallResult {
  * @returns Parsed InstallSource
  */
 export function parseInstallSource(input: string): InstallSource {
+	// HTTP/HTTPS URLs
 	if (input.startsWith("http://") || input.startsWith("https://")) {
 		return { type: "url", url: input };
 	}
 
-	if (input.startsWith("/") || input.startsWith("./") || input.startsWith("../")) {
+	// file:// protocol - strip protocol and treat as local path
+	if (input.startsWith("file://")) {
+		return { type: "local", path: input.slice(7) };
+	}
+
+	// Unix absolute paths
+	if (input.startsWith("/")) {
 		return { type: "local", path: input };
 	}
 
+	// Unix relative paths
+	if (input.startsWith("./") || input.startsWith("../")) {
+		return { type: "local", path: input };
+	}
+
+	// Tilde expansion (Unix home directory)
+	if (input.startsWith("~/")) {
+		return { type: "local", path: input };
+	}
+
+	// Windows absolute paths (C:\, D:/, etc.)
+	if (/^[a-zA-Z]:[/\\]/.test(input)) {
+		return { type: "local", path: input };
+	}
+
+	// Windows UNC paths (\\server\share)
+	if (input.startsWith("\\\\")) {
+		return { type: "local", path: input };
+	}
+
+	// Filesystem existence check (fallback)
 	if (fs.existsSync(input)) {
 		return { type: "local", path: input };
 	}
@@ -316,22 +344,41 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 /**
  * Resolve extension ID from source and manifest.
+ * @internal Exported for testing purposes.
  */
-function resolveExtensionId(source: InstallSource, extensionRoot: string, manifest: ExtensionManifest): ExtensionId {
+export function resolveExtensionId(source: InstallSource, extensionRoot: string, _manifest: ExtensionManifest): ExtensionId {
 	if (source.type === "github") {
 		return { owner: source.owner, name: source.repo };
 	}
 
-	const dirName = path.basename(extensionRoot);
-	const parentName = path.basename(path.dirname(extensionRoot));
+	// Parse the path to find owner/name structure relative to _extensions
+	const pathParts = extensionRoot.split(path.sep);
+	const extensionsIndex = pathParts.lastIndexOf("_extensions");
 
-	if (parentName && !parentName.startsWith(".") && !parentName.includes("-")) {
-		return { owner: parentName, name: dirName };
+	if (extensionsIndex >= 0) {
+		const partsAfterExtensions = pathParts.slice(extensionsIndex + 1);
+
+		if (partsAfterExtensions.length >= 2) {
+			// Structure: _extensions/owner/name
+			const owner = partsAfterExtensions[0];
+			const name = partsAfterExtensions[partsAfterExtensions.length - 1];
+			if (owner && !owner.startsWith(".")) {
+				return { owner, name };
+			}
+		}
+
+		// Structure: _extensions/name (no owner)
+		if (partsAfterExtensions.length === 1) {
+			const name = partsAfterExtensions[0];
+			return { owner: null, name };
+		}
 	}
 
-	const title = manifest.title.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-
-	return { owner: "local", name: title || dirName };
+	// No _extensions in path - invalid extension source
+	throw new ExtensionError(
+		"Invalid extension structure: missing _extensions directory",
+		"Extension source must contain _extensions/owner/name or _extensions/name structure",
+	);
 }
 
 /**
