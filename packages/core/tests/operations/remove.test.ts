@@ -65,7 +65,7 @@ describe("remove", () => {
 
 	it("should throw for non-existent extension", async () => {
 		await expect(remove({ owner: "nonexistent", name: "extension" }, { projectDir: tempDir })).rejects.toThrow(
-			/Extension not found/
+			/Extension not found/,
 		);
 	});
 
@@ -121,7 +121,7 @@ describe("removeMultiple", () => {
 				{ owner: "quarto-ext", name: "fontawesome" },
 				{ owner: "quarto-ext", name: "lightbox" },
 			],
-			{ projectDir: tempDir }
+			{ projectDir: tempDir },
 		);
 
 		expect(results).toHaveLength(2);
@@ -140,7 +140,7 @@ describe("removeMultiple", () => {
 				{ owner: "quarto-ext", name: "fontawesome" },
 				{ owner: "nonexistent", name: "extension" },
 			],
-			{ projectDir: tempDir }
+			{ projectDir: tempDir },
 		);
 
 		expect(results).toHaveLength(2);

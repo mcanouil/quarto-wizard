@@ -31,6 +31,15 @@ export interface SearchOptions extends ListAvailableOptions {
  *
  * @param options - List options
  * @returns Array of registry entries
+ *
+ * @example
+ * ```typescript
+ * // List all filters
+ * const filters = await listAvailable({ type: "filter" });
+ *
+ * // List templates only
+ * const templates = await listAvailable({ templatesOnly: true, limit: 10 });
+ * ```
  */
 export async function listAvailable(options: ListAvailableOptions = {}): Promise<RegistryEntry[]> {
 	const { type, templatesOnly, limit, ...registryOptions } = options;
@@ -61,6 +70,15 @@ export async function listAvailable(options: ListAvailableOptions = {}): Promise
  * @param query - Search query (searches name, description, topics)
  * @param options - Search options
  * @returns Array of matching registry entries
+ *
+ * @example
+ * ```typescript
+ * // Search for table-related extensions
+ * const results = await search("table", { limit: 10 });
+ *
+ * // Search for popular filters only
+ * const filters = await search("code", { type: "filter", minStars: 50 });
+ * ```
  */
 export async function search(query: string, options: SearchOptions = {}): Promise<RegistryEntry[]> {
 	const { type, templatesOnly, limit = 20, minStars, ...registryOptions } = options;

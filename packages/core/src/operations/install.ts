@@ -81,6 +81,25 @@ export interface InstallResult {
  *
  * @param input - Source string (GitHub ref, URL, or local path)
  * @returns Parsed InstallSource
+ *
+ * @example
+ * ```typescript
+ * // GitHub reference
+ * parseInstallSource("quarto-ext/fontawesome");
+ * // { type: "github", owner: "quarto-ext", repo: "fontawesome", version: { type: "latest" } }
+ *
+ * // GitHub with version
+ * parseInstallSource("quarto-ext/lightbox@v1.0.0");
+ * // { type: "github", ..., version: { type: "tag", tag: "v1.0.0" } }
+ *
+ * // URL
+ * parseInstallSource("https://example.com/ext.zip");
+ * // { type: "url", url: "https://example.com/ext.zip" }
+ *
+ * // Local path
+ * parseInstallSource("./my-extension");
+ * // { type: "local", path: "./my-extension" }
+ * ```
  */
 export function parseInstallSource(input: string): InstallSource {
 	// HTTP/HTTPS URLs
@@ -183,17 +202,23 @@ export function formatInstallSource(source: InstallSource): string {
  * @param source - Installation source
  * @param options - Installation options
  * @returns Installation result
+ *
+ * @example
+ * ```typescript
+ * // Install from GitHub
+ * const source = parseInstallSource("quarto-ext/fontawesome");
+ * const result = await install(source, { projectDir: "." });
+ * console.log(`Installed ${result.extension.id.name}`);
+ *
+ * // Install with progress tracking
+ * await install(source, {
+ *   projectDir: ".",
+ *   onProgress: ({ phase, message }) => console.log(`[${phase}] ${message}`),
+ * });
+ * ```
  */
 export async function install(source: InstallSource, options: InstallOptions): Promise<InstallResult> {
-	const {
-		projectDir,
-		auth,
-		onProgress,
-		force = false,
-		keepSourceDir = false,
-		dryRun = false,
-		sourceDisplay,
-	} = options;
+	const { projectDir, auth, onProgress, force = false, keepSourceDir = false, dryRun = false, sourceDisplay } = options;
 
 	let archivePath: string | undefined;
 	let extractDir: string | undefined;
@@ -356,7 +381,11 @@ export async function install(source: InstallSource, options: InstallOptions): P
  * Resolve extension ID from source and manifest.
  * @internal Exported for testing purposes.
  */
-export function resolveExtensionId(source: InstallSource, extensionRoot: string, _manifest: ExtensionManifest): ExtensionId {
+export function resolveExtensionId(
+	source: InstallSource,
+	extensionRoot: string,
+	_manifest: ExtensionManifest,
+): ExtensionId {
 	if (source.type === "github") {
 		return { owner: source.owner, name: source.repo };
 	}

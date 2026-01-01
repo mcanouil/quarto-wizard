@@ -159,7 +159,9 @@ export async function removeQuartoExtensions(
 			.filter((r) => "error" in r)
 			.map((r) => {
 				const failed = r as { extensionId: { owner: string | null; name: string }; error: string };
-				return failed.extensionId.owner ? `${failed.extensionId.owner}/${failed.extensionId.name}` : failed.extensionId.name;
+				return failed.extensionId.owner
+					? `${failed.extensionId.owner}/${failed.extensionId.name}`
+					: failed.extensionId.name;
 			});
 
 		if (successCount > 0) {

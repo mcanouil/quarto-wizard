@@ -38,7 +38,10 @@ async function installQuartoExtensions(
 
 	// Log source and extensions
 	logMessage("Source: registry.", "info");
-	logMessage(`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}.`, "info");
+	logMessage(
+		`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}.`,
+		"info",
+	);
 	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
 		logMessage("Authentication: none (public access).", "info");
 	}
@@ -191,10 +194,7 @@ export async function installQuartoExtensionFolderCommand(
 		if (result.items.length > 0) {
 			await installQuartoExtensions(context, result.items, workspaceFolder, template);
 			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-			const updatedRecentExtensions = [
-				...selectedIDs,
-				...recentExtensions.filter((ext) => !selectedIDs.includes(ext)),
-			];
+			const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
 			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
 		}
 	} else {
@@ -355,10 +355,7 @@ export async function installExtensionFromRegistryCommand(context: vscode.Extens
 		if (result.items.length > 0) {
 			await installQuartoExtensions(context, result.items, workspaceFolder, false);
 			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-			const updatedRecentExtensions = [
-				...selectedIDs,
-				...recentExtensions.filter((ext) => !selectedIDs.includes(ext)),
-			];
+			const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
 			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
 		}
 	} else {

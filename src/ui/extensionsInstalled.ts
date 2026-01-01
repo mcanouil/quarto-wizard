@@ -573,7 +573,9 @@ export class ExtensionsInstalled {
 
 				await withProgressNotification(`Updating ${outdated.length} extension(s) ...`, async () => {
 					for (const ext of outdated) {
-						const source = ext.repository ? `${ext.repository}@${ext.latestVersion}` : `${ext.extensionId}@${ext.latestVersion}`;
+						const source = ext.repository
+							? `${ext.repository}@${ext.latestVersion}`
+							: `${ext.extensionId}@${ext.latestVersion}`;
 						const success = await installQuartoExtension(source, ext.workspaceFolder, auth);
 						if (success) {
 							successCount++;
@@ -652,7 +654,6 @@ export class ExtensionsInstalled {
 				},
 			),
 		);
-
 	}
 
 	constructor(context: vscode.ExtensionContext) {

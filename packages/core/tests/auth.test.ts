@@ -89,7 +89,7 @@ describe("createAuthConfig", () => {
 
 	it("throws on invalid header format", () => {
 		expect(() => createAuthConfig({ httpHeaders: ["invalid-header"] })).toThrow(
-			'Invalid header format: "invalid-header"'
+			'Invalid header format: "invalid-header"',
 		);
 	});
 

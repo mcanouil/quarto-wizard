@@ -6,7 +6,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { parseInstallSource, formatInstallSource, resolveExtensionId, type InstallSource } from "../../src/operations/install.js";
+import {
+	parseInstallSource,
+	formatInstallSource,
+	resolveExtensionId,
+	type InstallSource,
+} from "../../src/operations/install.js";
 
 describe("parseInstallSource", () => {
 	describe("GitHub sources", () => {
@@ -314,9 +319,7 @@ describe("resolveExtensionId", () => {
 		it("should throw error when no _extensions in path", () => {
 			const extensionRoot = "/tmp/extract/some/other/path";
 
-			expect(() => resolveExtensionId(urlSource, extensionRoot, mockManifest)).toThrow(
-				/Invalid extension structure/,
-			);
+			expect(() => resolveExtensionId(urlSource, extensionRoot, mockManifest)).toThrow(/Invalid extension structure/);
 		});
 	});
 
@@ -344,9 +347,7 @@ describe("resolveExtensionId", () => {
 		it("should throw error when no _extensions in path", () => {
 			const extensionRoot = "/project/myext";
 
-			expect(() => resolveExtensionId(localSource, extensionRoot, mockManifest)).toThrow(
-				/Invalid extension structure/,
-			);
+			expect(() => resolveExtensionId(localSource, extensionRoot, mockManifest)).toThrow(/Invalid extension structure/);
 		});
 	});
 });

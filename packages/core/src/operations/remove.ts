@@ -40,6 +40,15 @@ export interface RemoveResult {
  * @param extensionId - Extension to remove
  * @param options - Removal options
  * @returns Removal result
+ *
+ * @example
+ * ```typescript
+ * const result = await remove(
+ *   { owner: "quarto-ext", name: "fontawesome" },
+ *   { projectDir: ".", cleanupEmpty: true }
+ * );
+ * console.log(`Removed ${result.filesRemoved.length} files`);
+ * ```
  */
 export async function remove(extensionId: ExtensionId, options: RemoveOptions): Promise<RemoveResult> {
 	const { projectDir, cleanupEmpty = true } = options;

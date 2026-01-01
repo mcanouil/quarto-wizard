@@ -50,7 +50,13 @@ vi.mock("../src/registry/http.js", () => ({
 	}),
 }));
 
-import { fetchReleases, fetchTags, getLatestRelease, resolveVersion, constructArchiveUrl } from "../src/github/releases.js";
+import {
+	fetchReleases,
+	fetchTags,
+	getLatestRelease,
+	resolveVersion,
+	constructArchiveUrl,
+} from "../src/github/releases.js";
 
 describe("fetchReleases", () => {
 	beforeEach(() => {
@@ -158,7 +164,7 @@ describe("resolveVersion", () => {
 			"owner",
 			"repo",
 			{ type: "latest" },
-			{ defaultBranch: "develop", latestCommit: "abc1234567890" }
+			{ defaultBranch: "develop", latestCommit: "abc1234567890" },
 		);
 
 		expect(result.tagName).toBe("abc1234");

@@ -442,9 +442,9 @@ export async function showExtensionQuickPick(
 
 	// Create base items (cached for reuse during input changes)
 	const recentItems = createExtensionItems(filteredExtensions.filter((ext) => recentlyInstalled.includes(ext.id)));
-	const allItems = createExtensionItems(
-		filteredExtensions.filter((ext) => !recentlyInstalled.includes(ext.id)),
-	).sort((a, b) => a.label.localeCompare(b.label));
+	const allItems = createExtensionItems(filteredExtensions.filter((ext) => !recentlyInstalled.includes(ext.id))).sort(
+		(a, b) => a.label.localeCompare(b.label),
+	);
 
 	const quickPick = vscode.window.createQuickPick<ExtensionQuickPickItem>();
 	quickPick.placeholder = template

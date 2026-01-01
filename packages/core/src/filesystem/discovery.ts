@@ -64,6 +64,14 @@ export function hasExtensionsDir(projectDir: string): boolean {
  * @param projectDir - Project root directory
  * @param options - Discovery options
  * @returns Array of installed extensions
+ *
+ * @example
+ * ```typescript
+ * const extensions = await discoverInstalledExtensions("./my-project");
+ * for (const ext of extensions) {
+ *   console.log(`${ext.id.owner ?? ""}/${ext.id.name}: ${ext.manifest.version}`);
+ * }
+ * ```
  */
 export async function discoverInstalledExtensions(
 	projectDir: string,
