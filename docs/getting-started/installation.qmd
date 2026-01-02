@@ -13,6 +13,13 @@ The easiest way to install Quarto Wizard:
 3. Search for "Quarto Wizard".
 4. Click **Install** on the extension.
 
+::: {#fig-marketplace-install}
+
+{{< placeholder 600 400 >}}
+
+The Extensions view showing Quarto Wizard in the search results with the Install button.
+:::
+
 ## Command Line
 
 You can also install via the command line:
@@ -49,6 +56,13 @@ After installation, you can verify it worked by:
 1. Opening the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
 2. Typing "Quarto Wizard".
 3. You should see the available Quarto Wizard commands.
+
+::: {#fig-verify-install}
+
+{{< placeholder 600 400 >}}
+
+The Command Palette showing available Quarto Wizard commands after successful installation.
+:::
 
 ## Next Steps
 

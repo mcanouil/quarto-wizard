@@ -27,6 +27,13 @@ For accessing private repositories or avoiding rate limits, you can configure Gi
 2. Run `Quarto Wizard: Set GitHub Token (Manual)`.
 3. Enter your GitHub personal access token.
 
+::: {#fig-github-token}
+
+{{< placeholder 600 400 >}}
+
+The input dialog for entering a GitHub personal access token.
+:::
+
 Alternatively, Quarto Wizard can use:
 
 - VS Code's built-in GitHub authentication.

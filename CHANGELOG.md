@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 1.0.2 (2025-12-06)
 
 - fix: ensure Quarto path validation properly awaits version check, add clear error messages with actionable buttons when Quarto CLI is not found, and implement detailed diagnostic logging for troubleshooting configuration issues.

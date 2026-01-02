@@ -12,6 +12,20 @@ These are useful for bug reports, feature requests, or sharing code examples.
 3. Choose the language: R, Python, or Julia.
 4. Select the destination folder for the new document.
 
+::: {#fig-reprex-command}
+
+{{< placeholder 600 400 >}}
+
+The Command Palette showing the Quarto Wizard reproducible document command.
+:::
+
+::: {#fig-reprex-language}
+
+{{< placeholder 600 400 >}}
+
+The language selection dialog for choosing between R, Python, or Julia.
+:::
+
 ## Available Templates
 
 ### R Template

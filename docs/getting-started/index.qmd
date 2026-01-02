@@ -23,6 +23,13 @@ It enhances your Quarto development experience by making extension management si
 2. Open a Quarto project in VS Code.
 3. Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) and type "Quarto Wizard" to see available commands.
 
+::: {#fig-quick-start}
+
+{{< placeholder 600 400 >}}
+
+The Command Palette showing Quarto Wizard commands ready to use.
+:::
+
 ## Next Steps
 
 - [Installation Guide](installation.qmd) - Detailed installation instructions.

@@ -74,3 +74,9 @@ Right-click on an extension to access additional options:
 - Remove.
 - Open Source (GitHub repository).
 - Reveal in Explorer.
+
+![Explorer Context Menu](../assets/images/explorer-context.png){#fig-explorer-context fig-alt="The context menu shown when right-clicking on an extension in the Explorer View, displaying options for Update, Remove, Open Source, and Reveal in Explorer."}
+
+You can also access Quarto Wizard commands from the editor context menu:
+
+![Editor Context Menu](../assets/images/editor-context.png){#fig-editor-context fig-alt="The editor context menu showing Quarto Wizard options for installing extensions and using templates."}
