@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+- removed: `quartoWizard.quarto.path` setting is no longer available.
+- removed: Quarto CLI is no longer required; extension management is now handled natively.
+
+### New Features
+
+- feat: add `@quarto-wizard/core` package with platform-agnostic extension management logic.
+- feat: add proxy support via environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`).
+- feat: add `Quarto Wizard: Clear Extension Cache` command to force registry refresh.
+- feat: add `Quarto Wizard: Update All Extensions` command to batch update outdated extensions.
+- feat: add `Quarto Wizard: Remove Multiple Extensions` command for batch removal.
+- feat: add `Quarto Wizard: Set GitHub Token (Manual)` command for explicit token configuration.
+- feat: add `Quarto Wizard: Clear GitHub Token` command to remove stored token.
+- feat: add `Quarto Wizard: Install Extension from Registry` command for direct registry installation.
+- feat: add `Quarto Wizard: Install Extension from URL` command for archive URL installation.
+- feat: add `Quarto Wizard: Install Extension from Local` command for local path installation.
+- feat: add `quartoWizard.cache.ttlMinutes` setting to configure cache duration.
+- feat: add `quartoWizard.registry.url` setting to configure custom registry URL.
+- feat: add command descriptions to all commands for improved discoverability.
+
+### Documentation
+
+- docs: add Quarto-based documentation website with user guide and API reference.
+- docs: add API reference documentation generated from TypeDoc.
+- docs: add reference pages for commands, configuration, and environment variables.
+
+### Refactoring
+
+- refactor: migrate extension lifecycle operations (install, update, remove) to `@quarto-wizard/core`.
+- refactor: replace Quarto CLI calls with native archive extraction and GitHub API integration.
+- refactor: improve authentication priority (manual token > VSCode session > environment variables).
+- refactor: centralise error handling with typed error classes.
+
 ## 1.0.2 (2025-12-06)
 
 - fix: ensure Quarto path validation properly awaits version check, add clear error messages with actionable buttons when Quarto CLI is not found, and implement detailed diagnostic logging for troubleshooting configuration issues.
