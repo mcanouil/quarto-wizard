@@ -15,18 +15,32 @@
  */
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, rmSync } from "node:fs";
-import { dirname, basename, join } from "node:path";
+import { basename, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-	packages,
-	languageFilenames,
-	envVarSources,
-	commandGroups,
-	configGroups,
-	paths,
-} from "./docs-config.mjs";
 
+// Resolve paths from JSON config
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = resolve(__dirname, "..");
+
+const rawConfig = JSON.parse(readFileSync(resolve(__dirname, "docs-config.json"), "utf-8"));
+
+const config = {
+	...rawConfig,
+	packages: rawConfig.packages.map((pkg) => ({
+		...pkg,
+		sourceDir: resolve(rootDir, pkg.sourceDir),
+		outputDir: resolve(rootDir, pkg.outputDir),
+	})),
+	envVarSources: rawConfig.envVarSources.map((src) => ({
+		...src,
+		path: resolve(rootDir, src.path),
+	})),
+	paths: Object.fromEntries(Object.entries(rawConfig.paths).map(([key, value]) => [key, resolve(rootDir, value)])),
+};
+config.paths.rootDir = rootDir;
+
+const { packages, languageFilenames, envVarSources, commandGroups, configGroups, paths } = config;
+
 const {
 	docsDir,
 	docsApiDir,
@@ -70,38 +84,6 @@ function writeFromTemplate(templateName, outputPath, replacements = {}) {
 	}
 	writeFileSync(outputPath, content, "utf-8");
 }
-
-/**
- * Parse @description tag from a TypeScript source file's module-level JSDoc.
- *
- * @param {string} filePath - Path to the TypeScript file
- * @returns {string|null} Description text or null if not found
- */
-function parseDescriptionFromSource(filePath) {
-	if (!existsSync(filePath)) {
-		return null;
-	}
-
-	const content = readFileSync(filePath, "utf-8");
-
-	// Extract the module-level JSDoc comment
-	const jsdocMatch = content.match(/^\/\*\*[\s\S]*?\*\//m);
-	if (!jsdocMatch) {
-		return null;
-	}
-
-	const jsdoc = jsdocMatch[0];
-
-	// Extract @description tag
-	const descMatch = jsdoc.match(/@description\s+([^\n@]+)/);
-	if (descMatch) {
-		return descMatch[1].trim();
-	}
-
-	return null;
-}
-
-// ENV_VAR_SOURCES is now imported from docs-config.mjs as envVarSources
 
 /**
  * Parse environment variable documentation from a TypeScript source file.
@@ -287,8 +269,6 @@ function generateEnvironmentVariablesPage() {
 	console.log("  Created reference/environment-variables.qmd");
 }
 
-// LANGUAGE_FILENAMES is now imported from docs-config.mjs as languageFilenames
-
 /**
  * Create a package index page with Quarto listing.
  * @param {object} pkg - Package configuration from docs-config.mjs.
@@ -455,14 +435,19 @@ function removeReferencesSection(content) {
  * Extracts title and description, removes their sections, and demotes headings.
  *
  * @param {string} content - The raw TypeDoc content.
+ * @param {string} packageName - The package name (e.g., "@quarto-wizard/core").
  * @returns {{title: string, description: string, content: string}} Transformed result.
  */
-function transformSubmoduleContent(content) {
+function transformSubmoduleContent(content, packageName) {
+	// Escape special regex characters in package name
+	const escapedPkg = packageName.replace(/[.*+?^${}()|[\]\\/@-]/g, "\\$&");
+
 	// Remove breadcrumb header (link to package + horizontal rule + breadcrumb path)
-	content = content.replace(
-		/^\[?\*?\*?@quarto-wizard\/core\*?\*?\]?\([^)]*\)\n+\*{3}\n+(?:\[@quarto-wizard\/core\]\([^)]+\) \/ [^\n]+\n+)?/,
+	const breadcrumbPattern = new RegExp(
+		`^\\[?\\*?\\*?${escapedPkg}\\*?\\*?\\]?\\([^)]*\\)\\n+\\*{3}\\n+(?:\\[${escapedPkg}\\]\\([^)]+\\) / [^\\n]+\\n+)?`,
 		"",
 	);
+	content = content.replace(breadcrumbPattern, "");
 
 	// Remove standalone horizontal rules
 	content = content.replace(/^\*{3}\n+/gm, "\n");
@@ -512,14 +497,11 @@ function updateLinks(content, moduleNames) {
 	// Update README.md/README.qmd references to index.qmd
 	content = content.replace(/README\.qmd/g, "index.qmd");
 
-	// Fix cross-module links with dot separator (e.g., archive.extract.qmd -> archive.qmd)
+	// Fix cross-module links: dot separator (archive.extract.qmd) and hyphen suffix (github-1.qmd)
 	for (const mod of moduleNames) {
 		const subModulePattern = new RegExp(`\\(${mod}\\.([^.]+)\\.qmd(#[^)]+)?\\)`, "g");
 		content = content.replace(subModulePattern, `(${mod}.qmd$2)`);
-	}
 
-	// Fix cross-module links with hyphen-number suffix (e.g., github-1.qmd -> github.qmd)
-	for (const mod of moduleNames) {
 		const hyphenPattern = new RegExp(`\\(${mod}-\\d+\\.qmd(#[^)]+)?\\)`, "g");
 		content = content.replace(hyphenPattern, `(${mod}.qmd$1)`);
 	}
@@ -595,9 +577,10 @@ function groupFilesByModule(files) {
  * @param {string} moduleName - The module name.
  * @param {string[]} files - Files to merge.
  * @param {string[]} allModuleNames - All module names for link fixing.
+ * @param {string} packageName - The package name for breadcrumb removal.
  * @returns {string} The merged content.
  */
-function mergeModuleFiles(moduleName, files, allModuleNames) {
+function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 	// Sort files: main module first, then submodules alphabetically
 	files.sort((a, b) => {
 		const nameA = basename(a, ".md");
@@ -617,7 +600,7 @@ function mergeModuleFiles(moduleName, files, allModuleNames) {
 		const rawContent = readFileSync(file, "utf-8");
 
 		// Transform the content - extract title, description, and clean content
-		const transformed = transformSubmoduleContent(rawContent);
+		const transformed = transformSubmoduleContent(rawContent, packageName);
 
 		// Process the content
 		let content = transformed.content;
@@ -655,10 +638,11 @@ function mergeModuleFiles(moduleName, files, allModuleNames) {
 /**
  * Generate the sidebar configuration file.
  * @param {string[]} moduleNames - List of module names.
+ * @param {object} pkg - Package configuration from docs-config.mjs.
  */
-function generateSidebar(moduleNames) {
+function generateSidebar(moduleNames, pkg) {
 	const sortedModules = [...moduleNames].sort();
-	const moduleEntries = sortedModules.map((mod) => `                - api/core/${mod}.qmd`).join("\n");
+	const moduleEntries = sortedModules.map((mod) => `                - api/${pkg.shortName}/${mod}.qmd`).join("\n");
 
 	const content = `website:
   sidebar:
@@ -669,8 +653,8 @@ function generateSidebar(moduleNames) {
         - section: "API Reference"
           href: api/index.qmd
           contents:
-            - section: "@quarto-wizard/core"
-              href: api/core/index.qmd
+            - section: "${pkg.name}"
+              href: api/${pkg.shortName}/index.qmd
               contents:
 ${moduleEntries}
 `;
@@ -682,8 +666,6 @@ ${moduleEntries}
 // =============================================================================
 // Reference Documentation Generation
 // =============================================================================
-
-// commandGroups and configGroups are now imported from docs-config.mjs as commandGroups and configGroups
 
 /**
  * Read and parse package.json.
@@ -768,30 +750,7 @@ function generateCommandsPage(pkg) {
  * @returns {string} Generated description.
  */
 function generateCommandDescription(cmd) {
-	const descriptions = {
-		"quartoWizard.installExtension":
-			"Opens the extension browser to browse and install Quarto extensions from the registry.",
-		"quartoWizard.useTemplate": "Opens the template browser to select and install Quarto templates.",
-		"quartoWizard.newQuartoReprex": "Creates a new reproducible example document for R, Python, or Julia.",
-		"quartoWizard.showOutput": "Displays the extension's output log for debugging and troubleshooting.",
-		"quartoWizard.clearRecent": "Clears the list of recently installed extensions and templates.",
-		"quartoWizard.clearCache": "Clears the cached registry data to force a fresh download.",
-		"quartoWizard.getExtensionsDetails": "Retrieves detailed information about extensions in the current workspace.",
-		"quartoWizard.installExtensionFromRegistry": "Install an extension by entering its registry identifier.",
-		"quartoWizard.installExtensionFromURL": "Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.",
-		"quartoWizard.installExtensionFromLocal": "Install an extension from a local directory or archive file.",
-		"quartoWizard.setGitHubToken": "Manually set a GitHub personal access token for authentication.",
-		"quartoWizard.clearGitHubToken": "Remove the manually set GitHub token.",
-		"quartoWizard.extensionsInstalled.refresh": "Reload the list of installed extensions in the Explorer View.",
-		"quartoWizard.extensionsInstalled.update": "Update a specific extension to its latest version.",
-		"quartoWizard.extensionsInstalled.updateAll": "Update all outdated extensions in the workspace.",
-		"quartoWizard.extensionsInstalled.remove": "Remove a specific extension from the workspace.",
-		"quartoWizard.extensionsInstalled.removeMultiple": "Select and remove multiple extensions at once.",
-		"quartoWizard.extensionsInstalled.openSource": "Open the extension's GitHub repository in a browser.",
-		"quartoWizard.extensionsInstalled.revealInExplorer": "Open the extension's folder in the file explorer.",
-	};
-
-	return descriptions[cmd.command] || "";
+	return cmd.description || "";
 }
 
 /**
@@ -811,7 +770,7 @@ function generateConfigurationPage(pkg) {
 		sectionLines.push(`## ${group.title}`, "");
 
 		for (const [key, prop] of groupProps) {
-			const title = generateSettingTitle(key);
+			const title = generateSettingTitle(key, prop);
 			sectionLines.push(`### ${title}`, "");
 			sectionLines.push(`**Setting**: \`${key}\``, "");
 
@@ -826,8 +785,9 @@ function generateConfigurationPage(pkg) {
 			if (prop.enum) {
 				sectionLines.push("| Value | Description |");
 				sectionLines.push("|-------|-------------|");
-				for (const value of prop.enum) {
-					const valueDesc = generateEnumDescription(key, value, prop.default);
+				for (let i = 0; i < prop.enum.length; i++) {
+					const value = prop.enum[i];
+					const valueDesc = generateEnumDescription(value, prop.default, prop.enumDescriptions?.[i]);
 					sectionLines.push(`| \`${value}\` | ${valueDesc} |`);
 				}
 				sectionLines.push("");
@@ -883,49 +843,28 @@ function generateConfigurationPage(pkg) {
 /**
  * Generate a human-readable title from a setting key.
  * @param {string} key - Setting key (e.g., "quartoWizard.ask.trustAuthors").
+ * @param {object} prop - Property object from package.json.
  * @returns {string} Human-readable title.
  */
-function generateSettingTitle(key) {
-	const titles = {
-		"quartoWizard.ask.trustAuthors": "Trust Authors",
-		"quartoWizard.ask.confirmInstall": "Confirm Installation",
-		"quartoWizard.cache.ttlMinutes": "Cache Duration",
-		"quartoWizard.registry.url": "Registry URL",
-		"quartoWizard.log.level": "Log Level",
-	};
-
-	return titles[key] || key.split(".").pop();
+function generateSettingTitle(key, prop) {
+	return prop.title || key.split(".").pop();
 }
 
 /**
  * Generate a description for an enum value.
- * @param {string} key - Setting key.
  * @param {string} value - Enum value.
  * @param {string} defaultValue - Default value for the setting.
+ * @param {string} description - Description from enumDescriptions array.
  * @returns {string} Description for the enum value.
  */
-function generateEnumDescription(key, value, defaultValue) {
+function generateEnumDescription(value, defaultValue, description) {
 	const isDefault = value === defaultValue;
 	const defaultSuffix = isDefault ? " (default)." : ".";
 
-	const descriptions = {
-		"quartoWizard.ask.trustAuthors": {
-			ask: `Ask for confirmation each time${defaultSuffix}`,
-			never: `Always trust authors without prompting${defaultSuffix}`,
-		},
-		"quartoWizard.ask.confirmInstall": {
-			ask: `Ask for confirmation each time${defaultSuffix}`,
-			never: `Install without prompting${defaultSuffix}`,
-		},
-		"quartoWizard.log.level": {
-			error: `Only log errors${defaultSuffix}`,
-			warn: `Log warnings and errors${defaultSuffix}`,
-			info: `Log info, warnings, and errors${defaultSuffix}`,
-			debug: `Log everything, including debug information${defaultSuffix}`,
-		},
-	};
-
-	return descriptions[key]?.[value] || capitalise(value) + defaultSuffix;
+	if (description) {
+		return description + defaultSuffix;
+	}
+	return capitalise(value) + defaultSuffix;
 }
 
 /**
@@ -965,8 +904,8 @@ function generateReferenceIndex(pkg) {
 	const configLines = ["| Setting | Default | Description |", "|---------|---------|-------------|"];
 	const sortedProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	for (const [key, prop] of sortedProps) {
-		const defaultVal = key === "quartoWizard.registry.url" ? "(see docs)" : `\`${prop.default}\``;
-		const desc = generateSettingQuickDesc(key);
+		const defaultVal = key === "quartoWizard.registry.url" ? "[see docs](configuration.qmd#registry-url)" : `\`${prop.default}\``;
+		const desc = generateSettingQuickDesc(prop);
 		configLines.push(`| \`${key}\` | ${defaultVal} | ${desc} |`);
 	}
 
@@ -979,19 +918,11 @@ function generateReferenceIndex(pkg) {
 
 /**
  * Generate a quick description for a setting.
- * @param {string} key - Setting key.
+ * @param {object} prop - Property object from package.json.
  * @returns {string} Quick description.
  */
-function generateSettingQuickDesc(key) {
-	const descriptions = {
-		"quartoWizard.ask.trustAuthors": "Prompt before trusting authors.",
-		"quartoWizard.ask.confirmInstall": "Prompt before installing.",
-		"quartoWizard.cache.ttlMinutes": "Cache duration in minutes.",
-		"quartoWizard.registry.url": "Custom registry URL.",
-		"quartoWizard.log.level": "Logging verbosity.",
-	};
-
-	return descriptions[key] || "";
+function generateSettingQuickDesc(prop) {
+	return prop.description || "";
 }
 
 /**
@@ -1018,17 +949,15 @@ function generateReferenceSidebar() {
 
 /**
  * Process reference documentation.
+ * @param {object} pkg - Parsed package.json content.
  */
-function processReferenceDocs() {
+function processReferenceDocs(pkg) {
 	console.log("\nGenerating reference documentation...");
 
 	// Create reference output directory if it doesn't exist
 	if (!existsSync(docsRefDir)) {
 		mkdirSync(docsRefDir, { recursive: true });
 	}
-
-	// Read package.json
-	const pkg = readPackageJson();
 
 	// Generate reference pages
 	generateCommandsPage(pkg);
@@ -1044,12 +973,10 @@ function processReferenceDocs() {
 
 /**
  * Update the _variables.yml file with the current version from package.json.
+ * @param {object} pkg - Parsed package.json content.
  */
-function updateVariablesYml() {
+function updateVariablesYml(pkg) {
 	console.log("\nUpdating _variables.yml...");
-
-	// Read package.json to get version
-	const pkg = readPackageJson();
 	const version = pkg.version;
 
 	if (!version) {
@@ -1174,7 +1101,7 @@ function processApiDocs() {
 	// Process each module
 	const moduleNames = [];
 	for (const [moduleName, files] of moduleGroups) {
-		const merged = mergeModuleFiles(moduleName, files, allModuleNames);
+		const merged = mergeModuleFiles(moduleName, files, allModuleNames, corePackage.name);
 		const outputPath = join(coreOutputDir, `${moduleName}.qmd`);
 		writeFileSync(outputPath, merged, "utf-8");
 		moduleNames.push(moduleName);
@@ -1186,7 +1113,7 @@ function processApiDocs() {
 	createApiIndex();
 
 	// Generate sidebar
-	generateSidebar(moduleNames);
+	generateSidebar(moduleNames, corePackage);
 
 	// Clean up original markdown files
 	console.log("\nCleaning up original files...");
@@ -1204,6 +1131,7 @@ function processApiDocs() {
 }
 
 processApiDocs();
-processReferenceDocs();
-updateVariablesYml();
+const pkg = readPackageJson();
+processReferenceDocs(pkg);
+updateVariablesYml(pkg);
 generateChangelog();

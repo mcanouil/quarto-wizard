@@ -64,7 +64,7 @@ Install an extension by entering its registry identifier.
 
 **Command**: `Quarto Wizard: Install Extension from URL`
 
-Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.
+Install an extension from a direct URL to a .zip or .tar.gz archive.
 
 ### Install Extension from Local
 

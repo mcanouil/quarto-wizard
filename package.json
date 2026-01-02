@@ -118,7 +118,8 @@
 				"title": "Install Extensions",
 				"shortTitle": "Install",
 				"icon": "$(add)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Opens the extension browser to browse and install Quarto extensions from the registry."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.install",
@@ -132,7 +133,8 @@
 				"title": "Use Template",
 				"shortTitle": "Quarto Use Template",
 				"icon": "$(new-file)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Opens the template browser to select and install Quarto templates."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.useTemplate",
@@ -146,116 +148,133 @@
 				"title": "Show Quarto Wizard Log Output",
 				"shortTitle": "Show Log",
 				"icon": "$(output)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Displays the extension's output log for debugging and troubleshooting."
 			},
 			{
 				"command": "quartoWizard.clearRecent",
 				"title": "Clear Recently Installed Extensions",
 				"shortTitle": "Clear Recent",
 				"icon": "$(clear-all)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Clears the list of recently installed extensions and templates."
 			},
 			{
 				"command": "quartoWizard.clearCache",
 				"title": "Clear Extension Cache",
 				"shortTitle": "Clear Cache",
 				"icon": "$(trash)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Clears the cached registry data to force a fresh download."
 			},
 			{
 				"command": "quartoWizard.newQuartoReprex",
 				"title": "Quarto Reproducible Document",
 				"icon": "$(new-file)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Creates a new reproducible example document for R, Python, or Julia."
 			},
 			{
 				"command": "quartoWizard.getExtensionsDetails",
 				"title": "Get Extensions Details",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Retrieves detailed information about extensions in the current workspace."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.refresh",
 				"title": "Refresh Installed Extensions",
 				"shortTitle": "Refresh",
 				"icon": "$(refresh)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Reload the list of installed extensions in the Explorer View."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.openSource",
 				"title": "Open Extension Source",
 				"shortTitle": "Open Source",
 				"icon": "$(github)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Open the extension's GitHub repository in a browser."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.update",
 				"title": "Update Extension",
 				"shortTitle": "Update",
 				"icon": "$(cloud-download)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Update a specific extension to its latest version."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.remove",
 				"title": "Remove Extension",
 				"shortTitle": "Remove",
 				"icon": "$(remove)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Remove a specific extension from the workspace."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 				"title": "Reveal in Explorer View",
 				"shortTitle": "Reveal in Explorer",
 				"icon": "$(folder-opened)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Open the extension's folder in the file explorer."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.updateAll",
 				"title": "Update All Extensions",
 				"shortTitle": "Update All",
 				"icon": "$(sync)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Update all outdated extensions in the workspace."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.removeMultiple",
 				"title": "Remove Multiple Extensions",
 				"shortTitle": "Remove Multiple",
 				"icon": "$(trash)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Select and remove multiple extensions at once."
 			},
 			{
 				"command": "quartoWizard.setGitHubToken",
 				"title": "Set GitHub Token (Manual)",
 				"shortTitle": "Set Token",
 				"icon": "$(key)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Manually set a GitHub personal access token for authentication."
 			},
 			{
 				"command": "quartoWizard.clearGitHubToken",
 				"title": "Clear GitHub Token (Manual)",
 				"shortTitle": "Clear Token",
 				"icon": "$(key)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Remove the manually set GitHub token."
 			},
 			{
 				"command": "quartoWizard.installExtensionFromRegistry",
 				"title": "Install Extension from Registry",
 				"shortTitle": "From Registry",
 				"icon": "$(cloud-download)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Install an extension by entering its registry identifier."
 			},
 			{
 				"command": "quartoWizard.installExtensionFromURL",
 				"title": "Install Extension from URL",
 				"shortTitle": "From URL",
 				"icon": "$(link)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Install an extension from a direct URL to a .zip or .tar.gz archive."
 			},
 			{
 				"command": "quartoWizard.installExtensionFromLocal",
 				"title": "Install Extension from Local",
 				"shortTitle": "From Local",
 				"icon": "$(folder)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Install an extension from a local directory or archive file."
 			}
 		],
 		"submenus": [
@@ -536,8 +555,14 @@
 						"never",
 						"ask"
 					],
+					"enumDescriptions": [
+						"Always trust authors without prompting",
+						"Ask for confirmation each time"
+					],
 					"default": "ask",
-					"markdownDescription": "Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again."
+					"markdownDescription": "Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again.",
+					"title": "Trust Authors",
+					"description": "Prompt before trusting authors."
 				},
 				"quartoWizard.ask.confirmInstall": {
 					"order": 2,
@@ -547,8 +572,14 @@
 						"never",
 						"ask"
 					],
+					"enumDescriptions": [
+						"Install without prompting",
+						"Ask for confirmation each time"
+					],
 					"default": "ask",
-					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
+					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again.",
+					"title": "Confirm Installation",
+					"description": "Prompt before installing."
 				},
 				"quartoWizard.log.level": {
 					"order": 20,
@@ -560,8 +591,16 @@
 						"info",
 						"debug"
 					],
+					"enumDescriptions": [
+						"Only log errors",
+						"Log warnings and errors",
+						"Log info, warnings, and errors",
+						"Log everything, including debug information"
+					],
 					"default": "info",
-					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything."
+					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything.",
+					"title": "Log Level",
+					"description": "Logging verbosity."
 				},
 				"quartoWizard.cache.ttlMinutes": {
 					"order": 10,
@@ -570,7 +609,9 @@
 					"minimum": 1,
 					"maximum": 1440,
 					"default": 30,
-					"markdownDescription": "Cache duration for extension registry data in minutes. Lower values fetch fresher data but increase network requests. Default is 30 minutes."
+					"markdownDescription": "Cache duration for extension registry data in minutes. Lower values fetch fresher data but increase network requests. Default is 30 minutes.",
+					"title": "Cache Duration",
+					"description": "Cache duration in minutes."
 				},
 				"quartoWizard.registry.url": {
 					"order": 11,
@@ -578,7 +619,9 @@
 					"type": "string",
 					"format": "uri",
 					"default": "https://m.canouil.dev/quarto-extensions/extensions.json",
-					"markdownDescription": "URL to the Quarto extensions registry JSON file. Change this to use a custom registry. The registry must contain entries with at least `id`, `name`, and `owner` fields."
+					"markdownDescription": "URL to the Quarto extensions registry JSON file. Change this to use a custom registry. The registry must contain entries with at least `id`, `name`, and `owner` fields.",
+					"title": "Registry URL",
+					"description": "Custom registry URL."
 				}
 			}
 		}

@@ -1,0 +1,117 @@
+{
+	"packages": [
+		{
+			"name": "@quarto-wizard/core",
+			"shortName": "core",
+			"sourceDir": "packages/core/src",
+			"outputDir": "docs/api/core",
+			"description": "Core library for Quarto extension management.",
+			"overview": "The `@quarto-wizard/core` package provides the core functionality for managing Quarto extensions.\nIt handles archive extraction, filesystem operations, GitHub integration, registry access, and extension lifecycle operations."
+		}
+	],
+	"languageFilenames": {
+		"ts": "TypeScript",
+		"typescript": "TypeScript",
+		"js": "JavaScript",
+		"javascript": "JavaScript",
+		"json": "JSON",
+		"yaml": "YAML",
+		"yml": "YAML",
+		"bash": "Terminal",
+		"sh": "Terminal",
+		"shell": "Terminal"
+	},
+	"envVarSources": [
+		{
+			"path": "packages/core/src/types/auth.ts",
+			"section": "Authentication",
+			"id": "auth"
+		},
+		{
+			"path": "packages/core/src/proxy/config.ts",
+			"section": "Proxy",
+			"id": "proxy"
+		}
+	],
+	"commandGroups": [
+		{
+			"id": "primary",
+			"title": "Primary Commands",
+			"description": "These commands are available from the Command Palette.",
+			"commands": [
+				"quartoWizard.installExtension",
+				"quartoWizard.useTemplate",
+				"quartoWizard.newQuartoReprex",
+				"quartoWizard.showOutput",
+				"quartoWizard.clearRecent",
+				"quartoWizard.clearCache",
+				"quartoWizard.getExtensionsDetails"
+			]
+		},
+		{
+			"id": "installation",
+			"title": "Installation Commands",
+			"description": "Commands for installing extensions from different sources.",
+			"commands": [
+				"quartoWizard.installExtensionFromRegistry",
+				"quartoWizard.installExtensionFromURL",
+				"quartoWizard.installExtensionFromLocal"
+			]
+		},
+		{
+			"id": "authentication",
+			"title": "Authentication Commands",
+			"description": "Commands for managing GitHub authentication.",
+			"commands": [
+				"quartoWizard.setGitHubToken",
+				"quartoWizard.clearGitHubToken"
+			]
+		},
+		{
+			"id": "explorer",
+			"title": "Explorer View Commands",
+			"description": "These commands are available from the Explorer View context menu or toolbar.",
+			"commands": [
+				"quartoWizard.extensionsInstalled.refresh",
+				"quartoWizard.extensionsInstalled.update",
+				"quartoWizard.extensionsInstalled.updateAll",
+				"quartoWizard.extensionsInstalled.remove",
+				"quartoWizard.extensionsInstalled.removeMultiple",
+				"quartoWizard.extensionsInstalled.openSource",
+				"quartoWizard.extensionsInstalled.revealInExplorer"
+			]
+		}
+	],
+	"configGroups": [
+		{
+			"id": "installation",
+			"title": "Installation Behaviour",
+			"prefix": "quartoWizard.ask."
+		},
+		{
+			"id": "cache",
+			"title": "Cache Settings",
+			"prefix": "quartoWizard.cache."
+		},
+		{
+			"id": "registry",
+			"title": "Registry Settings",
+			"prefix": "quartoWizard.registry."
+		},
+		{
+			"id": "logging",
+			"title": "Logging",
+			"prefix": "quartoWizard.log."
+		}
+	],
+	"paths": {
+		"docsDir": "docs",
+		"docsApiDir": "docs/api",
+		"docsRefDir": "docs/reference",
+		"templatesDir": "docs/_templates",
+		"packageJsonPath": "package.json",
+		"variablesYmlPath": "docs/_variables.yml",
+		"changelogMdPath": "CHANGELOG.md",
+		"changelogQmdPath": "docs/changelog.qmd"
+	}
+}
