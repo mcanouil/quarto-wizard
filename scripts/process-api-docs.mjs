@@ -323,6 +323,26 @@ function fixArrayTypes(content) {
 }
 
 /**
+ * Convert linked array types to raw HTML to prevent markdown table corruption.
+ * TypeDoc outputs [`Type`](url)[] which can corrupt markdown tables.
+ * Converts to Quarto raw HTML: `<code>...</code>`{=html}
+ *
+ * @param {string} content - The file content.
+ * @returns {string} The processed content.
+ */
+function fixLinkedArrayTypes(content) {
+	// Match patterns like [`Type`](url)[] in table cells
+	// The pattern: [`TypeName`](url)[]
+	const linkedArrayPattern = /\[`([^`]+)`\]\(([^)]+)\)\[\]/g;
+
+	return content.replace(linkedArrayPattern, (_match, typeName, url) => {
+		const linkStyle =
+			"text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;";
+		return `\`<code><a href="${url}" style="${linkStyle}">${typeName}</a>[]</code>\`{=html}`;
+	});
+}
+
+/**
  * Add blank lines before and after lists for proper markdown formatting.
  * @param {string} content - The file content.
  * @returns {string} The processed content.
@@ -495,7 +515,9 @@ function updateLinks(content, moduleNames) {
 
 	// Fix cross-module links: dot separator (archive.extract.qmd) and hyphen suffix (github-1.qmd)
 	for (const mod of moduleNames) {
-		const subModulePattern = new RegExp(`\\(${mod}\\.([^.]+)\\.qmd(#[^)]+)?\\)`, "g");
+		// Match submodule links like (archive.extract.qmd#anchor)
+		// Use [^.\s)]+ to prevent matching across lines or multiple parentheses
+		const subModulePattern = new RegExp(`\\(${mod}\\.([^.\\s)]+)\\.qmd(#[^)]+)?\\)`, "g");
 		content = content.replace(subModulePattern, `(${mod}.qmd$2)`);
 
 		const hyphenPattern = new RegExp(`\\(${mod}-\\d+\\.qmd(#[^)]+)?\\)`, "g");
@@ -604,6 +626,7 @@ function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 		let content = transformed.content;
 		content = convertCodeBlocks(content);
 		content = fixArrayTypes(content);
+		content = fixLinkedArrayTypes(content);
 		content = updateLinks(content, allModuleNames);
 		content = cleanTypeExpressions(content);
 		content = addBlankLinesAroundLists(content);
