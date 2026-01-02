@@ -52,10 +52,6 @@ const {
 	changelogQmdPath,
 } = paths;
 
-// Get the first (core) package output directory
-const corePackage = packages[0];
-const coreOutputDir = corePackage.outputDir;
-
 /**
  * Read a template file from the templates directory.
  *
@@ -523,17 +519,19 @@ title: "${title}"
 }
 
 /**
- * Find all markdown files in the docs/api directory.
+ * Find all markdown files in a directory.
+ *
+ * @param {string} [dir=docsApiDir] - Directory to search for markdown files.
  * @returns {string[]} Array of file paths.
  */
-function findMarkdownFiles() {
-	if (!existsSync(docsApiDir)) {
+function findMarkdownFiles(dir = docsApiDir) {
+	if (!existsSync(dir)) {
 		return [];
 	}
 
-	return readdirSync(docsApiDir)
+	return readdirSync(dir)
 		.filter((f) => f.endsWith(".md"))
-		.map((f) => join(docsApiDir, f));
+		.map((f) => join(dir, f));
 }
 
 /**
@@ -636,13 +634,26 @@ function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 }
 
 /**
- * Generate the sidebar configuration file.
- * @param {string[]} moduleNames - List of module names.
- * @param {object} pkg - Package configuration from docs-config.mjs.
+ * Generate the sidebar configuration file for all packages.
+ *
+ * @param {Array<{pkg: object, moduleNames: string[]}>} packagesWithModules - Array of packages with their module names.
  */
-function generateSidebar(moduleNames, pkg) {
-	const sortedModules = [...moduleNames].sort();
-	const moduleEntries = sortedModules.map((mod) => `                - api/${pkg.shortName}/${mod}.qmd`).join("\n");
+function generateSidebar(packagesWithModules) {
+	// Sort packages alphabetically by name
+	const sortedPackages = [...packagesWithModules].sort((a, b) => a.pkg.name.localeCompare(b.pkg.name));
+
+	// Build package sections
+	const packageSections = sortedPackages
+		.map(({ pkg, moduleNames }) => {
+			const sortedModules = [...moduleNames].sort();
+			const moduleEntries = sortedModules.map((mod) => `                - api/${pkg.shortName}/${mod}.qmd`).join("\n");
+
+			return `            - section: "${pkg.name}"
+              href: api/${pkg.shortName}/index.qmd
+              contents:
+${moduleEntries}`;
+		})
+		.join("\n");
 
 	const content = `website:
   sidebar:
@@ -653,10 +664,7 @@ function generateSidebar(moduleNames, pkg) {
         - section: "API Reference"
           href: api/index.qmd
           contents:
-            - section: "${pkg.name}"
-              href: api/${pkg.shortName}/index.qmd
-              contents:
-${moduleEntries}
+${packageSections}
 `;
 
 	writeFileSync(join(docsDir, "_sidebar-api.yml"), content, "utf-8");
@@ -1068,6 +1076,9 @@ function generateChangelog() {
 
 /**
  * Main processing function.
+ *
+ * Processes TypeDoc-generated markdown files for all configured packages,
+ * creates landing pages, and generates the sidebar configuration.
  */
 function processApiDocs() {
 	if (!existsSync(docsApiDir)) {
@@ -1076,58 +1087,80 @@ function processApiDocs() {
 		process.exit(1);
 	}
 
-	const mdFiles = findMarkdownFiles();
+	// Collect results for all packages
+	const packagesWithModules = [];
+	let totalModules = 0;
 
-	if (mdFiles.length === 0) {
-		console.error("Error: No markdown files found in docs/api.");
+	for (const pkg of packages) {
+		console.log(`\nProcessing package: ${pkg.name}`);
+
+		// Find markdown files for this package
+		// Currently, TypeDoc outputs all files to docsApiDir
+		// When multiple packages are configured, TypeDoc would output to separate directories
+		const mdFiles = findMarkdownFiles(docsApiDir);
+
+		if (mdFiles.length === 0) {
+			console.log(`  Skipping ${pkg.name}: no markdown files found.`);
+			continue;
+		}
+
+		console.log(`  Found ${mdFiles.length} TypeDoc-generated files.`);
+
+		// Group files by module
+		const moduleGroups = groupFilesByModule(mdFiles);
+		const allModuleNames = [...moduleGroups.keys()];
+
+		console.log(`  Merging into ${moduleGroups.size} module pages...`);
+
+		// Create package output directory
+		if (existsSync(pkg.outputDir)) {
+			rmSync(pkg.outputDir, { recursive: true });
+		}
+		mkdirSync(pkg.outputDir, { recursive: true });
+
+		// Process each module
+		const moduleNames = [];
+		for (const [moduleName, files] of moduleGroups) {
+			const merged = mergeModuleFiles(moduleName, files, allModuleNames, pkg.name);
+			const outputPath = join(pkg.outputDir, `${moduleName}.qmd`);
+			writeFileSync(outputPath, merged, "utf-8");
+			moduleNames.push(moduleName);
+			console.log(`    ${moduleName}.qmd (merged ${files.length} files)`);
+		}
+
+		// Create package index
+		createPackageIndex(pkg);
+
+		// Collect for sidebar generation
+		packagesWithModules.push({ pkg, moduleNames });
+		totalModules += moduleGroups.size;
+
+		// Clean up original markdown files
+		console.log("  Cleaning up original files...");
+		for (const file of mdFiles) {
+			unlinkSync(file);
+		}
+
+		// Also remove README.md if it exists
+		const readmePath = join(docsApiDir, "README.md");
+		if (existsSync(readmePath)) {
+			unlinkSync(readmePath);
+		}
+	}
+
+	if (packagesWithModules.length === 0) {
+		console.error("Error: No markdown files found for any package.");
 		console.error("Run 'npm run docs:api' first to generate TypeDoc output.");
 		process.exit(1);
 	}
 
-	console.log(`Found ${mdFiles.length} TypeDoc-generated files.`);
-
-	// Group files by module
-	const moduleGroups = groupFilesByModule(mdFiles);
-	const allModuleNames = [...moduleGroups.keys()];
-
-	console.log(`Merging into ${moduleGroups.size} module pages...`);
-
-	// Create core output directory
-	if (existsSync(coreOutputDir)) {
-		rmSync(coreOutputDir, { recursive: true });
-	}
-	mkdirSync(coreOutputDir, { recursive: true });
-
-	// Process each module
-	const moduleNames = [];
-	for (const [moduleName, files] of moduleGroups) {
-		const merged = mergeModuleFiles(moduleName, files, allModuleNames, corePackage.name);
-		const outputPath = join(coreOutputDir, `${moduleName}.qmd`);
-		writeFileSync(outputPath, merged, "utf-8");
-		moduleNames.push(moduleName);
-		console.log(`  ${moduleName}.qmd (merged ${files.length} files)`);
-	}
-
-	// Create landing pages
-	createPackageIndex(corePackage);
+	// Create API index (once, after all packages)
 	createApiIndex();
 
-	// Generate sidebar
-	generateSidebar(moduleNames, corePackage);
+	// Generate sidebar with all packages
+	generateSidebar(packagesWithModules);
 
-	// Clean up original markdown files
-	console.log("\nCleaning up original files...");
-	for (const file of mdFiles) {
-		unlinkSync(file);
-	}
-
-	// Also remove README.md if it exists
-	const readmePath = join(docsApiDir, "README.md");
-	if (existsSync(readmePath)) {
-		unlinkSync(readmePath);
-	}
-
-	console.log(`\nProcessed ${moduleGroups.size} modules successfully.`);
+	console.log(`\nProcessed ${totalModules} modules across ${packagesWithModules.length} package(s) successfully.`);
 }
 
 processApiDocs();

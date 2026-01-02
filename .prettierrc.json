@@ -1,4 +1,13 @@
 {
 	"useTabs": true,
-	"printWidth": 120
+	"printWidth": 120,
+	"overrides": [
+		{
+			"files": ["**/*.md", "**/*.qmd", "**/*.scss"],
+			"options": {
+				"useTabs": false,
+				"tabWidth": 2
+			}
+		}
+	]
 }
