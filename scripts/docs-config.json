@@ -62,10 +62,7 @@
 			"id": "authentication",
 			"title": "Authentication Commands",
 			"description": "Commands for managing GitHub authentication.",
-			"commands": [
-				"quartoWizard.setGitHubToken",
-				"quartoWizard.clearGitHubToken"
-			]
+			"commands": ["quartoWizard.setGitHubToken", "quartoWizard.clearGitHubToken"]
 		},
 		{
 			"id": "explorer",

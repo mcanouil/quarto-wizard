@@ -42,8 +42,8 @@ Used when converting markdown code blocks to Quarto format with filename headers
 
 ```json
 {
-	"ts": "TypeScript",
-	"bash": "Terminal"
+  "ts": "TypeScript",
+  "bash": "Terminal"
 }
 ```
 

@@ -12,13 +12,18 @@
  * 7. Generates the sidebar configuration files.
  * 8. Generates reference documentation from package.json.
  * 9. Updates docs/_variables.yml with the current version from package.json.
+ *
+ * @module process-api-docs
  */
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, rmSync } from "node:fs";
 import { basename, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Resolve paths from JSON config
+// =============================================================================
+// Configuration
+// =============================================================================
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, "..");
 
@@ -40,7 +45,6 @@ const config = {
 config.paths.rootDir = rootDir;
 
 const { packages, languageFilenames, envVarSources, commandGroups, configGroups, paths } = config;
-
 const {
 	docsDir,
 	docsApiDir,
@@ -52,239 +56,13 @@ const {
 	changelogQmdPath,
 } = paths;
 
-/**
- * Read a template file from the templates directory.
- *
- * @param {string} templateName - Name of the template file (e.g., "api-index.qmd")
- * @returns {string} Template content
- */
-function readTemplate(templateName) {
-	const templatePath = join(templatesDir, templateName);
-	if (!existsSync(templatePath)) {
-		throw new Error(`Template not found: ${templatePath}`);
-	}
-	return readFileSync(templatePath, "utf-8");
-}
+/** Shared style for HTML links in generated documentation. */
+const HTML_LINK_STYLE =
+	"text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;";
 
-/**
- * Write content from a template with placeholder replacements.
- *
- * @param {string} templateName - Name of the template file
- * @param {string} outputPath - Path to write the output file
- * @param {Record<string, string>} replacements - Placeholder replacements
- */
-function writeFromTemplate(templateName, outputPath, replacements = {}) {
-	let content = readTemplate(templateName);
-	for (const [placeholder, value] of Object.entries(replacements)) {
-		content = content.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, "g"), value);
-	}
-	writeFileSync(outputPath, content, "utf-8");
-}
-
-/**
- * Parse environment variable documentation from a TypeScript source file.
- * Extracts @envvar, @example, @pattern, and @note tags from JSDoc.
- *
- * @param {string} filePath - Path to the TypeScript file
- * @returns {object|null} Parsed documentation or null if not found
- */
-function parseEnvVarDocumentation(filePath) {
-	const content = readFileSync(filePath, "utf-8");
-
-	// Extract the module-level JSDoc comment
-	const jsdocMatch = content.match(/^\/\*\*[\s\S]*?\*\//m);
-	if (!jsdocMatch) {
-		return null;
-	}
-
-	const jsdoc = jsdocMatch[0];
-
-	// Extract description (lines before first @tag)
-	const descLines = [];
-	const lines = jsdoc.split("\n");
-	for (const line of lines) {
-		const trimmed = line.replace(/^\s*\*\s?/, "").trim();
-		if (trimmed.startsWith("@") || trimmed === "/**" || trimmed === "*/") continue;
-		if (trimmed) descLines.push(trimmed);
-	}
-	const description = descLines.slice(0, 2).join(" "); // First two meaningful lines
-
-	// Extract @envvar tags
-	const envvars = [];
-	const envvarRegex = /@envvar\s+(\S+)\s+-\s+(.+)/g;
-	let match;
-	while ((match = envvarRegex.exec(jsdoc)) !== null) {
-		envvars.push({ name: match[1], description: match[2].trim() });
-	}
-
-	// Extract @example tags with their code blocks
-	const examples = [];
-	const exampleRegex = /@example\s+([^\n]+)\n\s*\*\s*```(\w+)\n([\s\S]*?)\n\s*\*\s*```/g;
-	while ((match = exampleRegex.exec(jsdoc)) !== null) {
-		examples.push({
-			title: match[1].trim(),
-			language: match[2],
-			code: match[3]
-				.split("\n")
-				.map((l) => l.replace(/^\s*\*\s?/, ""))
-				.join("\n")
-				.trim(),
-		});
-	}
-
-	// Extract @pattern tags
-	const patterns = [];
-	const patternRegex = /@pattern\s+(\S+)\s+-\s+(.+)/g;
-	while ((match = patternRegex.exec(jsdoc)) !== null) {
-		patterns.push({ pattern: match[1], description: match[2].trim() });
-	}
-
-	// Extract @note tags
-	const notes = [];
-	const noteRegex = /@note\s+(.+)/g;
-	while ((match = noteRegex.exec(jsdoc)) !== null) {
-		notes.push(match[1].trim());
-	}
-
-	// Extract precedence note (standalone line mentioning precedence)
-	const precedencePatterns = [/\b\w+\s+takes precedence[^@]*/, /The uppercase variants[^@]*/];
-	let precedenceNote = "";
-	for (const pattern of precedencePatterns) {
-		const precedenceMatch = jsdoc.match(pattern);
-		if (precedenceMatch) {
-			precedenceNote = precedenceMatch[0].replace(/\s*\*\s*/g, " ").trim();
-			break;
-		}
-	}
-
-	return { description, envvars, examples, patterns, notes, precedenceNote };
-}
-
-/**
- * Generate a section for a single environment variable source.
- *
- * @param {object} source - Source configuration { path, section, id }
- * @returns {string[]} Lines of markdown documentation
- */
-function generateEnvVarSection(source) {
-	const doc = parseEnvVarDocumentation(source.path);
-	if (!doc || doc.envvars.length === 0) {
-		return [];
-	}
-
-	const lines = [`## ${source.section}`, ""];
-
-	// Description
-	if (doc.description) {
-		lines.push(doc.description, "");
-	}
-
-	// Environment variables table
-	lines.push("### Variables", "");
-	lines.push("| Variable | Description |");
-	lines.push("|----------|-------------|");
-
-	// Group by base name for case variants (HTTP_PROXY/http_proxy, etc.)
-	const grouped = new Map();
-	for (const env of doc.envvars) {
-		const baseName = env.name.toUpperCase();
-		if (!grouped.has(baseName)) {
-			grouped.set(baseName, { upper: null, lower: null, description: "" });
-		}
-		const entry = grouped.get(baseName);
-		if (env.name === env.name.toUpperCase()) {
-			entry.upper = env.name;
-			entry.description = env.description;
-		} else {
-			entry.lower = env.name;
-		}
-	}
-
-	for (const [, entry] of grouped) {
-		const varName = entry.lower ? `\`${entry.upper}\` or \`${entry.lower}\`` : `\`${entry.upper}\``;
-		lines.push(`| ${varName} | ${entry.description} |`);
-	}
-	lines.push("");
-
-	// Precedence note
-	if (doc.precedenceNote) {
-		lines.push(doc.precedenceNote, "");
-	}
-
-	// Examples
-	if (doc.examples.length > 0) {
-		lines.push("### Examples", "");
-		lines.push(`\`\`\`${doc.examples[0].language}`);
-		for (const example of doc.examples) {
-			lines.push(`# ${example.title}`);
-			lines.push(example.code);
-			lines.push("");
-		}
-		// Remove trailing empty line inside code block
-		if (lines[lines.length - 1] === "") {
-			lines.pop();
-		}
-		lines.push("```", "");
-	}
-
-	// Patterns table (for proxy NO_PROXY patterns)
-	if (doc.patterns.length > 0) {
-		lines.push("### NO_PROXY Patterns", "");
-		lines.push("The `NO_PROXY` variable supports several pattern formats.", "");
-		lines.push("| Pattern | Matches |");
-		lines.push("|---------|---------|");
-		for (const p of doc.patterns) {
-			lines.push(`| \`${p.pattern}\` | ${p.description} |`);
-		}
-		lines.push("");
-	}
-
-	// Notes as callouts
-	for (const note of doc.notes) {
-		lines.push("::: {.callout-note}");
-		lines.push(note);
-		lines.push(":::", "");
-	}
-
-	return lines;
-}
-
-/**
- * Generate the environment variables reference page.
- */
-function generateEnvironmentVariablesPage() {
-	// Generate sections from each source
-	const sectionLines = [];
-	for (const source of envVarSources) {
-		sectionLines.push(...generateEnvVarSection(source));
-	}
-
-	writeFromTemplate("reference-environment-variables.qmd", join(docsRefDir, "environment-variables.qmd"), {
-		ENV_VAR_SECTIONS: sectionLines.join("\n"),
-	});
-	console.log("  Created reference/environment-variables.qmd");
-}
-
-/**
- * Create a package index page with Quarto listing.
- * @param {object} pkg - Package configuration from docs-config.mjs.
- */
-function createPackageIndex(pkg) {
-	writeFromTemplate("api-package-index.qmd", join(pkg.outputDir, "index.qmd"), {
-		PACKAGE_NAME: pkg.name,
-		PACKAGE_DESCRIPTION: pkg.description,
-		PACKAGE_OVERVIEW: pkg.overview,
-	});
-	console.log(`  Created ${pkg.shortName}/index.qmd`);
-}
-
-/**
- * Create the API landing page with Quarto listing.
- */
-function createApiIndex() {
-	writeFromTemplate("api-index.qmd", join(docsApiDir, "index.qmd"), {});
-	console.log("  Created api/index.qmd");
-}
+// =============================================================================
+// Utility Functions
+// =============================================================================
 
 /**
  * Capitalise a string (first letter uppercase).
@@ -297,17 +75,53 @@ function capitalise(str) {
 }
 
 /**
- * Convert a code block from standard markdown to Quarto format.
+ * Read a template file from the templates directory.
+ * @param {string} templateName - Name of the template file (e.g., "api-index.qmd").
+ * @returns {string} Template content.
+ */
+function readTemplate(templateName) {
+	const templatePath = join(templatesDir, templateName);
+	if (!existsSync(templatePath)) {
+		throw new Error(`Template not found: ${templatePath}`);
+	}
+	return readFileSync(templatePath, "utf-8");
+}
+
+/**
+ * Write content from a template with placeholder replacements.
+ * @param {string} templateName - Name of the template file.
+ * @param {string} outputPath - Path to write the output file.
+ * @param {Record<string, string>} replacements - Placeholder replacements.
+ */
+function writeFromTemplate(templateName, outputPath, replacements = {}) {
+	let content = readTemplate(templateName);
+	for (const [placeholder, value] of Object.entries(replacements)) {
+		content = content.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, "g"), value);
+	}
+	writeFileSync(outputPath, content, "utf-8");
+}
+
+/**
+ * Read and parse package.json.
+ * @returns {object} Parsed package.json content.
+ */
+function readPackageJson() {
+	return JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+}
+
+// =============================================================================
+// Content Transformation Functions
+// =============================================================================
+
+/**
+ * Convert code blocks from standard markdown to Quarto format.
  * @param {string} content - The file content.
  * @returns {string} The processed content.
  */
 function convertCodeBlocks(content) {
 	return content.replace(/```(\w+)\n/g, (match, lang) => {
 		const filename = languageFilenames[lang.toLowerCase()];
-		if (filename) {
-			return `\`\`\`{.${lang} filename="${filename}"}\n`;
-		}
-		return match;
+		return filename ? `\`\`\`{.${lang} filename="${filename}"}\n` : match;
 	});
 }
 
@@ -318,27 +132,83 @@ function convertCodeBlocks(content) {
  * @returns {string} The processed content.
  */
 function fixArrayTypes(content) {
-	// Fix patterns like `Type`[] to `Type[]`
 	return content.replace(/`([^`]+)`\[\]/g, "`$1[]`");
 }
 
 /**
  * Convert linked array types to raw HTML to prevent markdown table corruption.
  * TypeDoc outputs [`Type`](url)[] which can corrupt markdown tables.
- * Converts to Quarto raw HTML: `<code>...</code>`{=html}
- *
+ * Converts to Quarto raw HTML: `<code>...</code>`{=html}.
  * @param {string} content - The file content.
  * @returns {string} The processed content.
  */
 function fixLinkedArrayTypes(content) {
-	// Match patterns like [`Type`](url)[] in table cells
-	// The pattern: [`TypeName`](url)[]
 	const linkedArrayPattern = /\[`([^`]+)`\]\(([^)]+)\)\[\]/g;
-
 	return content.replace(linkedArrayPattern, (_match, typeName, url) => {
-		const linkStyle =
-			"text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;";
-		return `\`<code><a href="${url}" style="${linkStyle}">${typeName}</a>[]</code>\`{=html}`;
+		return `\`<code><a href="${url}" style="${HTML_LINK_STYLE}">${typeName}</a>[]</code>\`{=html}`;
+	});
+}
+
+/**
+ * Update internal links from .md to .qmd and fix cross-module paths.
+ * Handles both dot-separated (archive.extract.qmd) and hyphen-numbered (archive-1.qmd) patterns.
+ * @param {string} content - The file content.
+ * @param {string[]} moduleNames - List of known module names.
+ * @returns {string} The processed content.
+ */
+function updateLinks(content, moduleNames) {
+	// Update .md extensions to .qmd
+	content = content.replace(/\.md([)#])/g, ".qmd$1");
+
+	// Update README references to index.qmd
+	content = content.replace(/README\.qmd/g, "index.qmd");
+
+	// Fix cross-module links
+	for (const mod of moduleNames) {
+		// Match submodule links like (archive.extract.qmd#anchor)
+		// Use [^.\s)]+ to prevent matching across lines or multiple parentheses
+		const subModulePattern = new RegExp(`\\(${mod}\\.([^.\\s)]+)\\.qmd(#[^)]+)?\\)`, "g");
+		content = content.replace(subModulePattern, `(${mod}.qmd$2)`);
+
+		// Match hyphen-numbered links like (github-1.qmd#anchor)
+		const hyphenPattern = new RegExp(`\\(${mod}-\\d+\\.qmd(#[^)]+)?\\)`, "g");
+		content = content.replace(hyphenPattern, `(${mod}.qmd$1)`);
+	}
+
+	return content;
+}
+
+/**
+ * Convert escaped TypeDoc type expressions to cleaner format.
+ * Handles both simple types and types with links.
+ *
+ * Examples:
+ * - `Promise`\<`void`\> -> `Promise<void>`
+ * - `Promise`\<[`Registry`](types.qmd#registry)\> -> HTML with proper link.
+ *
+ * @param {string} content - The file content.
+ * @returns {string} The processed content.
+ */
+function cleanTypeExpressions(content) {
+	const typePattern = /`([A-Za-z]+)`\\<(.+?)\\>/g;
+
+	return content.replace(typePattern, (_match, typeName, innerContent) => {
+		const hasLinks = innerContent.includes("](");
+
+		if (!hasLinks) {
+			// Simple case: clean up escapes
+			const cleaned = innerContent.replace(/`([^`]+)`/g, "$1").replace(/\\/g, "");
+			return `\`${typeName}<${cleaned}>\``;
+		}
+
+		// Complex case with links: convert to HTML
+		const htmlContent = innerContent
+			.replace(/\[`([^`]+)`\]\(([^)]+)\)/g, `<a href="$2" style="${HTML_LINK_STYLE}">$1</a>`)
+			.replace(/`([^`]+)`/g, "$1")
+			.replace(/\s*\\\|\s*/g, " | ")
+			.replace(/\\/g, "");
+
+		return "```{=html}\n<code>" + typeName + "&lt;" + htmlContent + "&gt;</code>\n```";
 	});
 }
 
@@ -359,25 +229,19 @@ function addBlankLinesAroundLists(content) {
 		const isListItem = /^[-*+]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed);
 		const currentLineEmpty = trimmed === "";
 
-		// Entering a list
 		if (isListItem && !inList) {
-			// Add blank line before list if previous line wasn't empty
 			if (output.length > 0 && !prevLineEmpty) {
 				output.push("");
 			}
 			inList = true;
 		}
 
-		// Exiting a list
 		if (!isListItem && !currentLineEmpty && inList) {
-			// Add blank line after list
 			output.push("");
 			inList = false;
 		}
 
-		// Reset list state on empty line (but keep going)
 		if (currentLineEmpty && inList) {
-			// Check if next line is also a list item
 			const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : "";
 			const nextIsListItem = /^[-*+]\s/.test(nextLine) || /^\d+\.\s/.test(nextLine);
 			if (!nextIsListItem) {
@@ -393,72 +257,45 @@ function addBlankLinesAroundLists(content) {
 }
 
 /**
- * Convert escaped TypeDoc type expressions to cleaner format.
- * Handles both simple types and types with links.
- *
- * Examples:
- * - `Promise`\<`void`\> -> `Promise<void>`
- * - `Promise`\<[`Registry`](types.qmd#registry)\> -> HTML with proper link
- *
- * @param {string} content - The file content.
- * @returns {string} The processed content.
- */
-function cleanTypeExpressions(content) {
-	// Pattern for escaped generic types with potential links
-	// Matches: `TypeName`\<...\>
-	const typePattern = /`([A-Za-z]+)`\\<(.+?)\\>/g;
-
-	return content.replace(typePattern, (_match, typeName, innerContent) => {
-		// Check if inner content has markdown links
-		const hasLinks = innerContent.includes("](");
-
-		if (!hasLinks) {
-			// Simple case: just clean up the escapes
-			// Convert `void` to void, remove \ escapes
-			let cleaned = innerContent.replace(/`([^`]+)`/g, "$1").replace(/\\/g, "");
-			return `\`${typeName}<${cleaned}>\``;
-		}
-
-		// Complex case with links: convert to HTML
-		// Parse the inner content for links and types
-		let htmlContent = innerContent
-			// Convert markdown links to HTML: [`Type`](url) -> <a href="url">Type</a>
-			.replace(/\[`([^`]+)`\]\(([^)]+)\)/g, '<a href="$2" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">$1</a>')
-			// Convert remaining backtick types to plain text
-			.replace(/`([^`]+)`/g, "$1")
-			// Convert escaped pipes to HTML entity
-			.replace(/\s*\\\|\s*/g, " | ")
-			// Remove remaining backslashes
-			.replace(/\\/g, "")
-
-		// Escape < and > for HTML
-		return "```{=html}\n<code>" + typeName + "&lt;" + htmlContent + "&gt;</code>\n```";
-	});
-}
-
-/**
  * Remove the "References" section (re-exports) from content.
  * @param {string} content - The file content.
  * @returns {string} The cleaned content.
  */
 function removeReferencesSection(content) {
-	// Remove the entire "## References" section including all its ### subsections
 	return content.replace(/^## References\n+(?:###[^\n]+\n+Re-exports[^\n]+\n+)+/m, "");
 }
 
 /**
+ * Apply all content transformations in sequence.
+ * @param {string} content - The raw content.
+ * @param {string[]} moduleNames - List of known module names for link fixing.
+ * @returns {string} The transformed content.
+ */
+function applyContentTransformations(content, moduleNames) {
+	content = convertCodeBlocks(content);
+	content = fixArrayTypes(content);
+	content = fixLinkedArrayTypes(content);
+	content = updateLinks(content, moduleNames);
+	content = cleanTypeExpressions(content);
+	content = addBlankLinesAroundLists(content);
+	return content;
+}
+
+// =============================================================================
+// TypeDoc Content Processing
+// =============================================================================
+
+/**
  * Transform TypeDoc content for a submodule.
- * Extracts title and description, removes their sections, and demotes headings.
- *
+ * Extracts title and description, removes their sections, and cleans up formatting.
  * @param {string} content - The raw TypeDoc content.
  * @param {string} packageName - The package name (e.g., "@quarto-wizard/core").
  * @returns {{title: string, description: string, content: string}} Transformed result.
  */
 function transformSubmoduleContent(content, packageName) {
-	// Escape special regex characters in package name
 	const escapedPkg = packageName.replace(/[.*+?^${}()|[\]\\/@-]/g, "\\$&");
 
-	// Remove breadcrumb header (link to package + horizontal rule + breadcrumb path)
+	// Remove breadcrumb header
 	const breadcrumbPattern = new RegExp(
 		`^\\[?\\*?\\*?${escapedPkg}\\*?\\*?\\]?\\([^)]*\\)\\n+\\*{3}\\n+(?:\\[${escapedPkg}\\]\\([^)]+\\) / [^\\n]+\\n+)?`,
 		"",
@@ -471,21 +308,19 @@ function transformSubmoduleContent(content, packageName) {
 	// Remove H1 heading (module name goes to YAML title)
 	content = content.replace(/^# [^\n]+\n+/m, "");
 
-	// Extract ## Title content
+	// Extract and remove ## Title
 	let title = "";
 	const titleMatch = content.match(/^## Title\n+([^\n]+)/m);
 	if (titleMatch) {
 		title = titleMatch[1].trim();
-		// Remove the ## Title section
 		content = content.replace(/^## Title\n+[^\n]+\n+/m, "");
 	}
 
-	// Extract ## Description content (may be multiple paragraphs until next ##)
+	// Extract and remove ## Description
 	let description = "";
 	const descMatch = content.match(/^## Description\n+([\s\S]*?)(?=^##|\n*$)/m);
 	if (descMatch) {
 		description = descMatch[1].trim();
-		// Remove the ## Description section
 		content = content.replace(/^## Description\n+[\s\S]*?(?=^##|\n*$)/m, "");
 	}
 
@@ -499,58 +334,23 @@ function transformSubmoduleContent(content, packageName) {
 }
 
 /**
- * Update internal links from .md to .qmd and fix paths.
- * Handles both dot-separated (archive.extract.qmd) and hyphen-numbered (archive-1.qmd) patterns.
- *
- * @param {string} content - The file content.
- * @param {string[]} moduleNames - List of known module names.
- * @returns {string} The processed content.
- */
-function updateLinks(content, moduleNames) {
-	// Update .md extensions to .qmd
-	content = content.replace(/\.md([)#])/g, ".qmd$1");
-
-	// Update README.md/README.qmd references to index.qmd
-	content = content.replace(/README\.qmd/g, "index.qmd");
-
-	// Fix cross-module links: dot separator (archive.extract.qmd) and hyphen suffix (github-1.qmd)
-	for (const mod of moduleNames) {
-		// Match submodule links like (archive.extract.qmd#anchor)
-		// Use [^.\s)]+ to prevent matching across lines or multiple parentheses
-		const subModulePattern = new RegExp(`\\(${mod}\\.([^.\\s)]+)\\.qmd(#[^)]+)?\\)`, "g");
-		content = content.replace(subModulePattern, `(${mod}.qmd$2)`);
-
-		const hyphenPattern = new RegExp(`\\(${mod}-\\d+\\.qmd(#[^)]+)?\\)`, "g");
-		content = content.replace(hyphenPattern, `(${mod}.qmd$1)`);
-	}
-
-	return content;
-}
-
-/**
- * Generate frontmatter for a module page.
+ * Generate YAML frontmatter for a module page.
  * @param {string} title - The module title.
  * @returns {string} The YAML frontmatter.
  */
 function generateFrontmatter(title) {
-	return `---
-title: "${title}"
----
-
-`;
+	return `---\ntitle: "${title}"\n---\n\n`;
 }
 
 /**
  * Find all markdown files in a directory.
- *
- * @param {string} [dir=docsApiDir] - Directory to search for markdown files.
+ * @param {string} [dir=docsApiDir] - Directory to search.
  * @returns {string[]} Array of file paths.
  */
 function findMarkdownFiles(dir = docsApiDir) {
 	if (!existsSync(dir)) {
 		return [];
 	}
-
 	return readdirSync(dir)
 		.filter((f) => f.endsWith(".md"))
 		.map((f) => join(dir, f));
@@ -558,9 +358,7 @@ function findMarkdownFiles(dir = docsApiDir) {
 
 /**
  * Group files by top-level module.
- * Handles both dot-separated names (archive.extract.md) and
- * hyphen-numbered names (archive-1.md) from TypeDoc's flattenOutputFiles.
- *
+ * Handles both dot-separated (archive.extract.md) and hyphen-numbered (archive-1.md) patterns.
  * @param {string[]} files - Array of file paths.
  * @returns {Map<string, string[]>} Map of module name to file paths.
  */
@@ -570,17 +368,12 @@ function groupFilesByModule(files) {
 	for (const file of files) {
 		const name = basename(file, ".md");
 
-		// Skip README and index - handled separately
 		if (name === "README" || name === "index") {
 			continue;
 		}
 
-		// Extract top-level module name:
-		// - "archive.extract" -> "archive" (dot separator)
-		// - "archive-1" -> "archive" (hyphen-number suffix from flattenOutputFiles)
-		// - "archive" -> "archive" (plain name)
+		// Extract top-level module name
 		let topLevel = name.split(".")[0];
-		// Remove -N suffix if present (e.g., "archive-1" -> "archive")
 		topLevel = topLevel.replace(/-\d+$/, "");
 
 		if (!groups.has(topLevel)) {
@@ -605,31 +398,19 @@ function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 	files.sort((a, b) => {
 		const nameA = basename(a, ".md");
 		const nameB = basename(b, ".md");
-
-		// Main module file comes first
 		if (nameA === moduleName) return -1;
 		if (nameB === moduleName) return 1;
-
 		return nameA.localeCompare(nameB);
 	});
 
 	const sections = [];
-	let moduleTitle = capitalise(moduleName);
+	const moduleTitle = capitalise(moduleName);
 
 	for (const file of files) {
 		const rawContent = readFileSync(file, "utf-8");
-
-		// Transform the content - extract title, description, and clean content
 		const transformed = transformSubmoduleContent(rawContent, packageName);
 
-		// Process the content
-		let content = transformed.content;
-		content = convertCodeBlocks(content);
-		content = fixArrayTypes(content);
-		content = fixLinkedArrayTypes(content);
-		content = updateLinks(content, allModuleNames);
-		content = cleanTypeExpressions(content);
-		content = addBlankLinesAroundLists(content);
+		let content = applyContentTransformations(transformed.content, allModuleNames);
 
 		if (content.trim()) {
 			// Demote all headings by one level (must replace in reverse order)
@@ -639,11 +420,9 @@ function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 
 			// Build section with H2 title and description
 			const sectionTitle = transformed.title || capitalise(moduleName);
-			const sectionDesc = transformed.description;
-
 			let sectionContent = `## ${sectionTitle}\n\n`;
-			if (sectionDesc) {
-				sectionContent += `${sectionDesc}\n\n`;
+			if (transformed.description) {
+				sectionContent += `${transformed.description}\n\n`;
 			}
 			sectionContent += content;
 
@@ -651,21 +430,41 @@ function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 		}
 	}
 
-	// Generate frontmatter and combine sections
-	const frontmatter = generateFrontmatter(moduleTitle);
-	return frontmatter + sections.join("\n\n") + "\n";
+	return generateFrontmatter(moduleTitle) + sections.join("\n\n") + "\n";
+}
+
+// =============================================================================
+// API Documentation Generation
+// =============================================================================
+
+/**
+ * Create the API landing page with Quarto listing.
+ */
+function createApiIndex() {
+	writeFromTemplate("api-index.qmd", join(docsApiDir, "index.qmd"), {});
+	console.log("  Created api/index.qmd");
 }
 
 /**
- * Generate the sidebar configuration file for all packages.
- *
- * @param {Array<{pkg: object, moduleNames: string[]}>} packagesWithModules - Array of packages with their module names.
+ * Create a package index page with Quarto listing.
+ * @param {object} pkg - Package configuration.
  */
-function generateSidebar(packagesWithModules) {
-	// Sort packages alphabetically by name
+function createPackageIndex(pkg) {
+	writeFromTemplate("api-package-index.qmd", join(pkg.outputDir, "index.qmd"), {
+		PACKAGE_NAME: pkg.name,
+		PACKAGE_DESCRIPTION: pkg.description,
+		PACKAGE_OVERVIEW: pkg.overview,
+	});
+	console.log(`  Created ${pkg.shortName}/index.qmd`);
+}
+
+/**
+ * Generate the API sidebar configuration.
+ * @param {Array<{pkg: object, moduleNames: string[]}>} packagesWithModules - Packages with their modules.
+ */
+function generateApiSidebar(packagesWithModules) {
 	const sortedPackages = [...packagesWithModules].sort((a, b) => a.pkg.name.localeCompare(b.pkg.name));
 
-	// Build package sections
 	const packageSections = sortedPackages
 		.map(({ pkg, moduleNames }) => {
 			const sortedModules = [...moduleNames].sort();
@@ -694,18 +493,82 @@ ${packageSections}
 	console.log("  Created _sidebar-api.yml");
 }
 
+/**
+ * Main API documentation processing function.
+ */
+function processApiDocs() {
+	if (!existsSync(docsApiDir)) {
+		console.error(`Error: ${docsApiDir} not found.`);
+		console.error("Run 'npm run docs:api' first to generate TypeDoc output.");
+		process.exit(1);
+	}
+
+	const packagesWithModules = [];
+	let totalModules = 0;
+
+	for (const pkg of packages) {
+		console.log(`\nProcessing package: ${pkg.name}`);
+
+		const mdFiles = findMarkdownFiles(docsApiDir);
+
+		if (mdFiles.length === 0) {
+			console.log(`  Skipping ${pkg.name}: no markdown files found.`);
+			continue;
+		}
+
+		console.log(`  Found ${mdFiles.length} TypeDoc-generated files.`);
+
+		const moduleGroups = groupFilesByModule(mdFiles);
+		const allModuleNames = [...moduleGroups.keys()];
+
+		console.log(`  Merging into ${moduleGroups.size} module pages...`);
+
+		// Create package output directory
+		if (existsSync(pkg.outputDir)) {
+			rmSync(pkg.outputDir, { recursive: true });
+		}
+		mkdirSync(pkg.outputDir, { recursive: true });
+
+		// Process each module
+		const moduleNames = [];
+		for (const [moduleName, files] of moduleGroups) {
+			const merged = mergeModuleFiles(moduleName, files, allModuleNames, pkg.name);
+			writeFileSync(join(pkg.outputDir, `${moduleName}.qmd`), merged, "utf-8");
+			moduleNames.push(moduleName);
+			console.log(`    ${moduleName}.qmd (merged ${files.length} files)`);
+		}
+
+		createPackageIndex(pkg);
+
+		packagesWithModules.push({ pkg, moduleNames });
+		totalModules += moduleGroups.size;
+
+		// Clean up original markdown files
+		console.log("  Cleaning up original files...");
+		for (const file of mdFiles) {
+			unlinkSync(file);
+		}
+		const readmePath = join(docsApiDir, "README.md");
+		if (existsSync(readmePath)) {
+			unlinkSync(readmePath);
+		}
+	}
+
+	if (packagesWithModules.length === 0) {
+		console.error("Error: No markdown files found for any package.");
+		console.error("Run 'npm run docs:api' first to generate TypeDoc output.");
+		process.exit(1);
+	}
+
+	createApiIndex();
+	generateApiSidebar(packagesWithModules);
+
+	console.log(`\nProcessed ${totalModules} modules across ${packagesWithModules.length} package(s) successfully.`);
+}
+
 // =============================================================================
 // Reference Documentation Generation
 // =============================================================================
-
-/**
- * Read and parse package.json.
- * @returns {object} Parsed package.json content.
- */
-function readPackageJson() {
-	const content = readFileSync(packageJsonPath, "utf-8");
-	return JSON.parse(content);
-}
 
 /**
  * Get all commands from package.json.
@@ -714,13 +577,51 @@ function readPackageJson() {
  */
 function getDocumentedCommands(pkg) {
 	const commands = new Map();
-
-	// Build map of all commands
 	for (const cmd of pkg.contributes?.commands || []) {
 		commands.set(cmd.command, cmd);
 	}
-
 	return commands;
+}
+
+/**
+ * Generate a description for a command.
+ * @param {object} cmd - Command object from package.json.
+ * @returns {string} Generated description.
+ */
+function generateCommandDescription(cmd) {
+	return cmd.description || "";
+}
+
+/**
+ * Generate a human-readable title from a setting key.
+ * @param {string} key - Setting key.
+ * @param {object} prop - Property object.
+ * @returns {string} Human-readable title.
+ */
+function generateSettingTitle(key, prop) {
+	return prop.title || key.split(".").pop();
+}
+
+/**
+ * Generate a quick description for a setting.
+ * @param {object} prop - Property object.
+ * @returns {string} Quick description.
+ */
+function generateSettingQuickDesc(prop) {
+	return prop.description || "";
+}
+
+/**
+ * Generate a description for an enum value.
+ * @param {string} value - Enum value.
+ * @param {string} defaultValue - Default value.
+ * @param {string} description - Description from enumDescriptions.
+ * @returns {string} Description.
+ */
+function generateEnumDescription(value, defaultValue, description) {
+	const isDefault = value === defaultValue;
+	const defaultSuffix = isDefault ? " (default)." : ".";
+	return description ? description + defaultSuffix : capitalise(value) + defaultSuffix;
 }
 
 /**
@@ -776,26 +677,15 @@ function generateCommandsPage(pkg) {
 }
 
 /**
- * Generate a description for a command based on its metadata.
- * @param {object} cmd - Command object from package.json.
- * @returns {string} Generated description.
- */
-function generateCommandDescription(cmd) {
-	return cmd.description || "";
-}
-
-/**
  * Generate the configuration reference page.
  * @param {object} pkg - Parsed package.json.
  */
 function generateConfigurationPage(pkg) {
 	const properties = pkg.contributes?.configuration?.properties || {};
 
-	// Generate config sections
 	const sectionLines = [];
 	for (const group of configGroups) {
 		const groupProps = Object.entries(properties).filter(([key]) => key.startsWith(group.prefix));
-
 		if (groupProps.length === 0) continue;
 
 		sectionLines.push(`## ${group.title}`, "");
@@ -805,17 +695,14 @@ function generateConfigurationPage(pkg) {
 			sectionLines.push(`### ${title}`, "");
 			sectionLines.push(`**Setting**: \`${key}\``, "");
 
-			// Add description
 			const desc = prop.markdownDescription || prop.description || "";
 			if (desc) {
-				const cleanDesc = desc.replace(/`([^`]+)`/g, "`$1`");
-				sectionLines.push(cleanDesc, "");
+				sectionLines.push(desc.replace(/`([^`]+)`/g, "`$1`"), "");
 			}
 
 			// Generate property table based on type
 			if (prop.enum) {
-				sectionLines.push("| Value | Description |");
-				sectionLines.push("|-------|-------------|");
+				sectionLines.push("| Value | Description |", "|-------|-------------|");
 				for (let i = 0; i < prop.enum.length; i++) {
 					const value = prop.enum[i];
 					const valueDesc = generateEnumDescription(value, prop.default, prop.enumDescriptions?.[i]);
@@ -823,27 +710,19 @@ function generateConfigurationPage(pkg) {
 				}
 				sectionLines.push("");
 			} else if (prop.type === "number") {
-				sectionLines.push("| Property | Value |");
-				sectionLines.push("|----------|-------|");
+				sectionLines.push("| Property | Value |", "|----------|-------|");
 				sectionLines.push(`| Type | Number |`);
-				if (prop.default !== undefined) {
-					sectionLines.push(`| Default | \`${prop.default}\` |`);
-				}
-				if (prop.minimum !== undefined) {
-					sectionLines.push(`| Minimum | \`${prop.minimum}\` |`);
-				}
+				if (prop.default !== undefined) sectionLines.push(`| Default | \`${prop.default}\` |`);
+				if (prop.minimum !== undefined) sectionLines.push(`| Minimum | \`${prop.minimum}\` |`);
 				if (prop.maximum !== undefined) {
 					const maxLabel = prop.maximum === 1440 ? `\`1440\` (24 hours)` : `\`${prop.maximum}\``;
 					sectionLines.push(`| Maximum | ${maxLabel} |`);
 				}
 				sectionLines.push("");
 			} else if (prop.type === "string" && prop.format === "uri") {
-				sectionLines.push("| Property | Value |");
-				sectionLines.push("|----------|-------|");
+				sectionLines.push("| Property | Value |", "|----------|-------|");
 				sectionLines.push(`| Type | String (URI) |`);
-				if (prop.default) {
-					sectionLines.push(`| Default | \`${prop.default}\` |`);
-				}
+				if (prop.default) sectionLines.push(`| Default | \`${prop.default}\` |`);
 				sectionLines.push("");
 			}
 
@@ -859,8 +738,7 @@ function generateConfigurationPage(pkg) {
 	const lastIndex = allProps.length - 1;
 	allProps.forEach(([key, prop], index) => {
 		const value = prop.type === "string" ? `"${prop.default}"` : prop.default;
-		const comma = index < lastIndex ? "," : "";
-		exampleLines.push(`  "${key}": ${value}${comma}`);
+		exampleLines.push(`  "${key}": ${value}${index < lastIndex ? "," : ""}`);
 	});
 	exampleLines.push("}", "```", "");
 
@@ -869,33 +747,6 @@ function generateConfigurationPage(pkg) {
 		EXAMPLE_CONFIG: exampleLines.join("\n"),
 	});
 	console.log("  Created reference/configuration.qmd");
-}
-
-/**
- * Generate a human-readable title from a setting key.
- * @param {string} key - Setting key (e.g., "quartoWizard.ask.trustAuthors").
- * @param {object} prop - Property object from package.json.
- * @returns {string} Human-readable title.
- */
-function generateSettingTitle(key, prop) {
-	return prop.title || key.split(".").pop();
-}
-
-/**
- * Generate a description for an enum value.
- * @param {string} value - Enum value.
- * @param {string} defaultValue - Default value for the setting.
- * @param {string} description - Description from enumDescriptions array.
- * @returns {string} Description for the enum value.
- */
-function generateEnumDescription(value, defaultValue, description) {
-	const isDefault = value === defaultValue;
-	const defaultSuffix = isDefault ? " (default)." : ".";
-
-	if (description) {
-		return description + defaultSuffix;
-	}
-	return capitalise(value) + defaultSuffix;
 }
 
 /**
@@ -908,26 +759,14 @@ function generateReferenceIndex(pkg) {
 
 	// Generate commands table
 	const commandsLines = ["| Command | Description |", "|---------|-------------|"];
-
-	// Add quick reference for primary commands
-	const primaryCommands = commandGroups[0].commands;
-	for (const cmdId of primaryCommands) {
-		const cmd = commands.get(cmdId);
-		if (!cmd) continue;
-		const desc = generateCommandDescription(cmd);
-		if (desc) {
-			commandsLines.push(`| ${cmd.title} | ${desc} |`);
-		}
-	}
-
-	// Add installation commands
-	const installCommands = commandGroups[1].commands;
-	for (const cmdId of installCommands) {
-		const cmd = commands.get(cmdId);
-		if (!cmd) continue;
-		const desc = generateCommandDescription(cmd);
-		if (desc) {
-			commandsLines.push(`| ${cmd.title} | ${desc} |`);
+	for (const group of [commandGroups[0], commandGroups[1]]) {
+		for (const cmdId of group.commands) {
+			const cmd = commands.get(cmdId);
+			if (!cmd) continue;
+			const desc = generateCommandDescription(cmd);
+			if (desc) {
+				commandsLines.push(`| ${cmd.title} | ${desc} |`);
+			}
 		}
 	}
 
@@ -935,9 +774,9 @@ function generateReferenceIndex(pkg) {
 	const configLines = ["| Setting | Default | Description |", "|---------|---------|-------------|"];
 	const sortedProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	for (const [key, prop] of sortedProps) {
-		const defaultVal = key === "quartoWizard.registry.url" ? "[see docs](configuration.qmd#registry-url)" : `\`${prop.default}\``;
-		const desc = generateSettingQuickDesc(prop);
-		configLines.push(`| \`${key}\` | ${defaultVal} | ${desc} |`);
+		const defaultVal =
+			key === "quartoWizard.registry.url" ? "[see docs](configuration.qmd#registry-url)" : `\`${prop.default}\``;
+		configLines.push(`| \`${key}\` | ${defaultVal} | ${generateSettingQuickDesc(prop)} |`);
 	}
 
 	writeFromTemplate("reference-index.qmd", join(docsRefDir, "index.qmd"), {
@@ -945,15 +784,6 @@ function generateReferenceIndex(pkg) {
 		CONFIGURATION_TABLE: configLines.join("\n"),
 	});
 	console.log("  Created reference/index.qmd");
-}
-
-/**
- * Generate a quick description for a setting.
- * @param {object} prop - Property object from package.json.
- * @returns {string} Quick description.
- */
-function generateSettingQuickDesc(prop) {
-	return prop.description || "";
 }
 
 /**
@@ -978,55 +808,212 @@ function generateReferenceSidebar() {
 	console.log("  Created _sidebar-reference.yml");
 }
 
+// =============================================================================
+// Environment Variables Documentation
+// =============================================================================
+
 /**
- * Process reference documentation.
+ * Parse environment variable documentation from a TypeScript source file.
+ * Extracts @envvar, @example, @pattern, and @note tags from JSDoc.
+ * @param {string} filePath - Path to the TypeScript file.
+ * @returns {object|null} Parsed documentation or null if not found.
+ */
+function parseEnvVarDocumentation(filePath) {
+	const content = readFileSync(filePath, "utf-8");
+
+	const jsdocMatch = content.match(/^\/\*\*[\s\S]*?\*\//m);
+	if (!jsdocMatch) return null;
+
+	const jsdoc = jsdocMatch[0];
+
+	// Extract description (lines before first @tag)
+	const descLines = [];
+	for (const line of jsdoc.split("\n")) {
+		const trimmed = line.replace(/^\s*\*\s?/, "").trim();
+		if (trimmed.startsWith("@") || trimmed === "/**" || trimmed === "*/") continue;
+		if (trimmed) descLines.push(trimmed);
+	}
+	const description = descLines.slice(0, 2).join(" ");
+
+	// Extract @envvar tags
+	const envvars = [];
+	const envvarRegex = /@envvar\s+(\S+)\s+-\s+(.+)/g;
+	let match;
+	while ((match = envvarRegex.exec(jsdoc)) !== null) {
+		envvars.push({ name: match[1], description: match[2].trim() });
+	}
+
+	// Extract @example tags with code blocks
+	const examples = [];
+	const exampleRegex = /@example\s+([^\n]+)\n\s*\*\s*```(\w+)\n([\s\S]*?)\n\s*\*\s*```/g;
+	while ((match = exampleRegex.exec(jsdoc)) !== null) {
+		examples.push({
+			title: match[1].trim(),
+			language: match[2],
+			code: match[3]
+				.split("\n")
+				.map((l) => l.replace(/^\s*\*\s?/, ""))
+				.join("\n")
+				.trim(),
+		});
+	}
+
+	// Extract @pattern tags
+	const patterns = [];
+	const patternRegex = /@pattern\s+(\S+)\s+-\s+(.+)/g;
+	while ((match = patternRegex.exec(jsdoc)) !== null) {
+		patterns.push({ pattern: match[1], description: match[2].trim() });
+	}
+
+	// Extract @note tags
+	const notes = [];
+	const noteRegex = /@note\s+(.+)/g;
+	while ((match = noteRegex.exec(jsdoc)) !== null) {
+		notes.push(match[1].trim());
+	}
+
+	// Extract precedence note
+	let precedenceNote = "";
+	for (const pattern of [/\b\w+\s+takes precedence[^@]*/, /The uppercase variants[^@]*/]) {
+		const precedenceMatch = jsdoc.match(pattern);
+		if (precedenceMatch) {
+			precedenceNote = precedenceMatch[0].replace(/\s*\*\s*/g, " ").trim();
+			break;
+		}
+	}
+
+	return { description, envvars, examples, patterns, notes, precedenceNote };
+}
+
+/**
+ * Generate a section for a single environment variable source.
+ * @param {object} source - Source configuration { path, section, id }.
+ * @returns {string[]} Lines of markdown documentation.
+ */
+function generateEnvVarSection(source) {
+	const doc = parseEnvVarDocumentation(source.path);
+	if (!doc || doc.envvars.length === 0) return [];
+
+	const lines = [`## ${source.section}`, ""];
+
+	if (doc.description) {
+		lines.push(doc.description, "");
+	}
+
+	// Environment variables table
+	lines.push("### Variables", "", "| Variable | Description |", "|----------|-------------|");
+
+	// Group by base name for case variants
+	const grouped = new Map();
+	for (const env of doc.envvars) {
+		const baseName = env.name.toUpperCase();
+		if (!grouped.has(baseName)) {
+			grouped.set(baseName, { upper: null, lower: null, description: "" });
+		}
+		const entry = grouped.get(baseName);
+		if (env.name === env.name.toUpperCase()) {
+			entry.upper = env.name;
+			entry.description = env.description;
+		} else {
+			entry.lower = env.name;
+		}
+	}
+
+	for (const [, entry] of grouped) {
+		const varName = entry.lower ? `\`${entry.upper}\` or \`${entry.lower}\`` : `\`${entry.upper}\``;
+		lines.push(`| ${varName} | ${entry.description} |`);
+	}
+	lines.push("");
+
+	if (doc.precedenceNote) {
+		lines.push(doc.precedenceNote, "");
+	}
+
+	// Examples
+	if (doc.examples.length > 0) {
+		lines.push("### Examples", "", `\`\`\`${doc.examples[0].language}`);
+		for (const example of doc.examples) {
+			lines.push(`# ${example.title}`, example.code, "");
+		}
+		if (lines[lines.length - 1] === "") lines.pop();
+		lines.push("```", "");
+	}
+
+	// Patterns table
+	if (doc.patterns.length > 0) {
+		lines.push("### NO_PROXY Patterns", "", "The `NO_PROXY` variable supports several pattern formats.", "");
+		lines.push("| Pattern | Matches |", "|---------|---------|");
+		for (const p of doc.patterns) {
+			lines.push(`| \`${p.pattern}\` | ${p.description} |`);
+		}
+		lines.push("");
+	}
+
+	// Notes as callouts
+	for (const note of doc.notes) {
+		lines.push("::: {.callout-note}", note, ":::", "");
+	}
+
+	return lines;
+}
+
+/**
+ * Generate the environment variables reference page.
+ */
+function generateEnvironmentVariablesPage() {
+	const sectionLines = [];
+	for (const source of envVarSources) {
+		sectionLines.push(...generateEnvVarSection(source));
+	}
+
+	writeFromTemplate("reference-environment-variables.qmd", join(docsRefDir, "environment-variables.qmd"), {
+		ENV_VAR_SECTIONS: sectionLines.join("\n"),
+	});
+	console.log("  Created reference/environment-variables.qmd");
+}
+
+/**
+ * Main reference documentation processing function.
  * @param {object} pkg - Parsed package.json content.
  */
 function processReferenceDocs(pkg) {
 	console.log("\nGenerating reference documentation...");
 
-	// Create reference output directory if it doesn't exist
 	if (!existsSync(docsRefDir)) {
 		mkdirSync(docsRefDir, { recursive: true });
 	}
 
-	// Generate reference pages
 	generateCommandsPage(pkg);
 	generateConfigurationPage(pkg);
 	generateEnvironmentVariablesPage();
 	generateReferenceIndex(pkg);
-
-	// Generate sidebar
 	generateReferenceSidebar();
 
 	console.log("Reference documentation generated successfully.");
 }
 
+// =============================================================================
+// Changelog and Variables
+// =============================================================================
+
 /**
- * Update the _variables.yml file with the current version from package.json.
+ * Update the _variables.yml file with the current version.
  * @param {object} pkg - Parsed package.json content.
  */
 function updateVariablesYml(pkg) {
 	console.log("\nUpdating _variables.yml...");
-	const version = pkg.version;
 
-	if (!version) {
+	if (!pkg.version) {
 		console.error("Error: No version found in package.json.");
 		return;
 	}
 
-	// Create _variables.yml content
-	const content = `version: ${version}\n`;
-
-	// Write the file
-	writeFileSync(variablesYmlPath, content, "utf-8");
-	console.log(`  Updated _variables.yml with version: ${version}`);
+	writeFileSync(variablesYmlPath, `version: ${pkg.version}\n`, "utf-8");
+	console.log(`  Updated _variables.yml with version: ${pkg.version}`);
 }
 
 /**
  * Generate changelog.qmd from CHANGELOG.md with nested version headers.
- * Converts version headers to nested structure:
- * - ## X.Y.Z -> # X, ## X.Y, ### X.Y.Z
  */
 function generateChangelog() {
 	console.log("\nGenerating changelog.qmd...");
@@ -1038,13 +1025,7 @@ function generateChangelog() {
 
 	const content = readFileSync(changelogMdPath, "utf-8");
 	const lines = content.split("\n");
-	const output = [];
-
-	// Add frontmatter
-	output.push("---");
-	output.push('title: "Changelog"');
-	output.push("---");
-	output.push("");
+	const output = ["---", 'title: "Changelog"', "---", ""];
 
 	let currentMajor = null;
 	let currentMinor = null;
@@ -1053,9 +1034,7 @@ function generateChangelog() {
 		const line = lines[i];
 
 		// Skip the main "# Changelog" heading
-		if (i === 0 && line === "# Changelog") {
-			continue;
-		}
+		if (i === 0 && line === "# Changelog") continue;
 
 		// Match version headers like "## 1.0.2 (2025-12-06)"
 		const versionMatch = line.match(/^## (\d+)\.(\d+)\.(\d+)\s*\(.*\)/);
@@ -1063,128 +1042,31 @@ function generateChangelog() {
 			const major = versionMatch[1];
 			const minor = `${major}.${versionMatch[2]}`;
 
-			// Add major version header if it's new
 			if (currentMajor !== major) {
-				output.push("");
-				output.push(`# ${major}`);
-				output.push("");
+				output.push("", `# ${major}`, "");
 				currentMajor = major;
 				currentMinor = null;
 			}
 
-			// Add minor version header if it's new
 			if (currentMinor !== minor) {
-				output.push(`## ${minor}`);
-				output.push("");
+				output.push(`## ${minor}`, "");
 				currentMinor = minor;
 			}
 
-			// Add patch version header
-			output.push(`### ${line.substring(3)}`); // Remove "## " prefix
+			output.push(`### ${line.substring(3)}`);
 			continue;
 		}
 
-		// Pass through all other lines
 		output.push(line);
 	}
 
-	// Write the file
 	writeFileSync(changelogQmdPath, output.join("\n"), "utf-8");
 	console.log("  Created changelog.qmd");
 }
 
 // =============================================================================
-// Main Processing
+// Main Entry Point
 // =============================================================================
-
-/**
- * Main processing function.
- *
- * Processes TypeDoc-generated markdown files for all configured packages,
- * creates landing pages, and generates the sidebar configuration.
- */
-function processApiDocs() {
-	if (!existsSync(docsApiDir)) {
-		console.error(`Error: ${docsApiDir} not found.`);
-		console.error("Run 'npm run docs:api' first to generate TypeDoc output.");
-		process.exit(1);
-	}
-
-	// Collect results for all packages
-	const packagesWithModules = [];
-	let totalModules = 0;
-
-	for (const pkg of packages) {
-		console.log(`\nProcessing package: ${pkg.name}`);
-
-		// Find markdown files for this package
-		// Currently, TypeDoc outputs all files to docsApiDir
-		// When multiple packages are configured, TypeDoc would output to separate directories
-		const mdFiles = findMarkdownFiles(docsApiDir);
-
-		if (mdFiles.length === 0) {
-			console.log(`  Skipping ${pkg.name}: no markdown files found.`);
-			continue;
-		}
-
-		console.log(`  Found ${mdFiles.length} TypeDoc-generated files.`);
-
-		// Group files by module
-		const moduleGroups = groupFilesByModule(mdFiles);
-		const allModuleNames = [...moduleGroups.keys()];
-
-		console.log(`  Merging into ${moduleGroups.size} module pages...`);
-
-		// Create package output directory
-		if (existsSync(pkg.outputDir)) {
-			rmSync(pkg.outputDir, { recursive: true });
-		}
-		mkdirSync(pkg.outputDir, { recursive: true });
-
-		// Process each module
-		const moduleNames = [];
-		for (const [moduleName, files] of moduleGroups) {
-			const merged = mergeModuleFiles(moduleName, files, allModuleNames, pkg.name);
-			const outputPath = join(pkg.outputDir, `${moduleName}.qmd`);
-			writeFileSync(outputPath, merged, "utf-8");
-			moduleNames.push(moduleName);
-			console.log(`    ${moduleName}.qmd (merged ${files.length} files)`);
-		}
-
-		// Create package index
-		createPackageIndex(pkg);
-
-		// Collect for sidebar generation
-		packagesWithModules.push({ pkg, moduleNames });
-		totalModules += moduleGroups.size;
-
-		// Clean up original markdown files
-		console.log("  Cleaning up original files...");
-		for (const file of mdFiles) {
-			unlinkSync(file);
-		}
-
-		// Also remove README.md if it exists
-		const readmePath = join(docsApiDir, "README.md");
-		if (existsSync(readmePath)) {
-			unlinkSync(readmePath);
-		}
-	}
-
-	if (packagesWithModules.length === 0) {
-		console.error("Error: No markdown files found for any package.");
-		console.error("Run 'npm run docs:api' first to generate TypeDoc output.");
-		process.exit(1);
-	}
-
-	// Create API index (once, after all packages)
-	createApiIndex();
-
-	// Generate sidebar with all packages
-	generateSidebar(packagesWithModules);
-
-	console.log(`\nProcessed ${totalModules} modules across ${packagesWithModules.length} package(s) successfully.`);
-}
 
 processApiDocs();
 const pkg = readPackageJson();
