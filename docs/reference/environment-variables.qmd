@@ -7,7 +7,7 @@ These are read automatically when the extension starts.
 
 ## Authentication
 
-Authentication configuration types. Quarto Wizard supports GitHub authentication via environment variables.
+Quarto Wizard supports GitHub authentication via environment variables. This is useful for accessing private repositories or increasing API rate limits.
 
 ### Variables
 
@@ -34,7 +34,7 @@ Tokens can also be set via VS Code settings or the extension's authentication UI
 
 ## Proxy
 
-Proxy configuration from environment variables. Quarto Wizard respects standard proxy environment variables for network requests.
+Quarto Wizard respects standard proxy environment variables for network requests. This is useful when working behind a corporate proxy.
 
 ### Variables
 
@@ -74,3 +74,4 @@ The `NO_PROXY` variable supports several pattern formats.
 ::: {.callout-note}
 CIDR notation (e.g., 192.168.1.0/24) is not supported.
 :::
+

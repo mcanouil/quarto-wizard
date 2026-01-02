@@ -1,5 +1,9 @@
 /**
- * Extension installation operations.
+ * @description Extension installation operations.
+ *
+ * Handles installing extensions from GitHub, URLs, and local sources.
+ *
+ * @module operations
  */
 
 import * as fs from "node:fs";

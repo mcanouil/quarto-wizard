@@ -1,5 +1,9 @@
 /**
- * GitHub archive download functionality.
+ * @description GitHub archive download functionality.
+ *
+ * Handles downloading release archives from GitHub repositories.
+ *
+ * @module github
  */
 
 import * as fs from "node:fs";

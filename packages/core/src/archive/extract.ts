@@ -1,5 +1,9 @@
 /**
- * Unified archive extraction.
+ * @description Unified archive extraction for ZIP and TAR.GZ formats.
+ *
+ * Provides format detection, extraction, and cleanup utilities for archive files.
+ *
+ * @module archive
  */
 
 import * as fs from "node:fs";

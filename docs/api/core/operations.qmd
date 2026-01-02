@@ -1,14 +1,19 @@
 ---
 title: "Operations"
+description: "Extension installation operations."
 ---
 
-## Install
+## Description
 
-### Interfaces
+Extension installation operations.
 
-#### InstallOptions
+Handles installing extensions from GitHub, URLs, and local sources.
 
-Defined in: [packages/core/src/operations/install.ts:40](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L40)
+## Interfaces
+
+### InstallOptions
+
+Defined in: [packages/core/src/operations/install.ts:44](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L44)
 
 Options for extension installation.
 
@@ -20,22 +25,22 @@ Options for extension installation.
 
 | Property | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`RegistryOptions`](registry.qmd#registryoptions).[`auth`](registry.qmd#auth) | - | [packages/core/src/operations/install.ts:44](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L44) |
-| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | - | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheDir`](registry.qmd#cachedir) | [packages/core/src/registry/fetcher.ts:25](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L25) |
-| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | - | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheTtl`](registry.qmd#cachettl) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L29) |
-| <a id="dryrun"></a> `dryRun?` | `boolean` | Dry run mode - resolve without installing. | - | - | [packages/core/src/operations/install.ts:52](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L52) |
-| <a id="force"></a> `force?` | `boolean` | Force reinstall if already installed. | - | - | [packages/core/src/operations/install.ts:48](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L48) |
-| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | - | [`RegistryOptions`](registry.qmd#registryoptions).[`forceRefresh`](registry.qmd#forcerefresh) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L27) |
-| <a id="keepsourcedir"></a> `keepSourceDir?` | `boolean` | Keep source directory after installation (for template copying). | - | - | [packages/core/src/operations/install.ts:50](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L50) |
-| <a id="onprogress"></a> `onProgress?` | [`InstallProgressCallback`](#installprogresscallback) | Progress callback. | - | - | [packages/core/src/operations/install.ts:46](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L46) |
-| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | - | - | [packages/core/src/operations/install.ts:42](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L42) |
-| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | - | [`RegistryOptions`](registry.qmd#registryoptions).[`registryUrl`](registry.qmd#registryurl) | [packages/core/src/registry/fetcher.ts:23](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L23) |
-| <a id="sourcedisplay"></a> `sourceDisplay?` | `string` | Display source to record in manifest (for relative paths that were resolved). | - | - | [packages/core/src/operations/install.ts:54](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L54) |
-| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | - | [`RegistryOptions`](registry.qmd#registryoptions).[`timeout`](registry.qmd#timeout) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L33) |
+| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`RegistryOptions`](registry.qmd#registryoptions).[`auth`](registry.qmd#auth) | - | [packages/core/src/operations/install.ts:48](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L48) |
+| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | - | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheDir`](registry.qmd#cachedir) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L29) |
+| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | - | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheTtl`](registry.qmd#cachettl) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L33) |
+| <a id="dryrun"></a> `dryRun?` | `boolean` | Dry run mode - resolve without installing. | - | - | [packages/core/src/operations/install.ts:56](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L56) |
+| <a id="force"></a> `force?` | `boolean` | Force reinstall if already installed. | - | - | [packages/core/src/operations/install.ts:52](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L52) |
+| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | - | [`RegistryOptions`](registry.qmd#registryoptions).[`forceRefresh`](registry.qmd#forcerefresh) | [packages/core/src/registry/fetcher.ts:31](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L31) |
+| <a id="keepsourcedir"></a> `keepSourceDir?` | `boolean` | Keep source directory after installation (for template copying). | - | - | [packages/core/src/operations/install.ts:54](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L54) |
+| <a id="onprogress"></a> `onProgress?` | [`InstallProgressCallback`](#installprogresscallback) | Progress callback. | - | - | [packages/core/src/operations/install.ts:50](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L50) |
+| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | - | - | [packages/core/src/operations/install.ts:46](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L46) |
+| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | - | [`RegistryOptions`](registry.qmd#registryoptions).[`registryUrl`](registry.qmd#registryurl) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L27) |
+| <a id="sourcedisplay"></a> `sourceDisplay?` | `string` | Display source to record in manifest (for relative paths that were resolved). | - | - | [packages/core/src/operations/install.ts:58](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L58) |
+| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | - | [`RegistryOptions`](registry.qmd#registryoptions).[`timeout`](registry.qmd#timeout) | [packages/core/src/registry/fetcher.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L37) |
 
-#### InstallResult
+### InstallResult
 
-Defined in: [packages/core/src/operations/install.ts:60](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L60)
+Defined in: [packages/core/src/operations/install.ts:64](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L64)
 
 Result of installation.
 
@@ -43,34 +48,34 @@ Result of installation.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="alreadyexists"></a> `alreadyExists?` | `boolean` | Whether the extension already exists (only relevant in dry run mode). | [packages/core/src/operations/install.ts:76](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L76) |
-| <a id="dryrun-1"></a> `dryRun?` | `boolean` | Whether this was a dry run (no files were actually created). | [packages/core/src/operations/install.ts:72](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L72) |
-| <a id="extension"></a> `extension` | [`InstalledExtension`](filesystem.qmd#installedextension) | Installed extension details. | [packages/core/src/operations/install.ts:64](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L64) |
-| <a id="filescreated"></a> `filesCreated` | `string[]` | Files created during installation. | [packages/core/src/operations/install.ts:66](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L66) |
-| <a id="source"></a> `source` | `string` | Source string for the manifest. | [packages/core/src/operations/install.ts:68](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L68) |
-| <a id="sourceroot"></a> `sourceRoot?` | `string` | Path to extracted source root (only set if keepSourceDir was true). | [packages/core/src/operations/install.ts:70](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L70) |
-| <a id="success"></a> `success` | `boolean` | Whether installation succeeded. | [packages/core/src/operations/install.ts:62](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L62) |
-| <a id="wouldcreate"></a> `wouldCreate?` | `string[]` | Files that would be created (only set in dry run mode). | [packages/core/src/operations/install.ts:74](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L74) |
+| <a id="alreadyexists"></a> `alreadyExists?` | `boolean` | Whether the extension already exists (only relevant in dry run mode). | [packages/core/src/operations/install.ts:80](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L80) |
+| <a id="dryrun-1"></a> `dryRun?` | `boolean` | Whether this was a dry run (no files were actually created). | [packages/core/src/operations/install.ts:76](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L76) |
+| <a id="extension"></a> `extension` | [`InstalledExtension`](filesystem.qmd#installedextension) | Installed extension details. | [packages/core/src/operations/install.ts:68](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L68) |
+| <a id="filescreated"></a> `filesCreated` | `string[]` | Files created during installation. | [packages/core/src/operations/install.ts:70](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L70) |
+| <a id="source"></a> `source` | `string` | Source string for the manifest. | [packages/core/src/operations/install.ts:72](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L72) |
+| <a id="sourceroot"></a> `sourceRoot?` | `string` | Path to extracted source root (only set if keepSourceDir was true). | [packages/core/src/operations/install.ts:74](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L74) |
+| <a id="success"></a> `success` | `boolean` | Whether installation succeeded. | [packages/core/src/operations/install.ts:66](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L66) |
+| <a id="wouldcreate"></a> `wouldCreate?` | `string[]` | Files that would be created (only set in dry run mode). | [packages/core/src/operations/install.ts:78](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L78) |
 
-### Type Aliases
+## Type Aliases
 
-#### InstallPhase
+### InstallPhase
 
 ```{.ts filename="TypeScript"}
 type InstallPhase = "resolving" | "downloading" | "extracting" | "installing" | "finalizing";
 ```
 
-Defined in: [packages/core/src/operations/install.ts:30](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L30)
+Defined in: [packages/core/src/operations/install.ts:34](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L34)
 
 Progress phases for installation.
 
-#### InstallProgressCallback()
+### InstallProgressCallback()
 
 ```{.ts filename="TypeScript"}
 type InstallProgressCallback = (progress) => void;
 ```
 
-Defined in: [packages/core/src/operations/install.ts:35](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L35)
+Defined in: [packages/core/src/operations/install.ts:39](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L39)
 
 Progress callback for installation.
 
@@ -87,7 +92,7 @@ Progress callback for installation.
 
 `void`
 
-#### InstallSource
+### InstallSource
 
 ```{.ts filename="TypeScript"}
 type InstallSource = 
@@ -107,19 +112,19 @@ type InstallSource =
 };
 ```
 
-Defined in: [packages/core/src/operations/install.ts:22](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L22)
+Defined in: [packages/core/src/operations/install.ts:26](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L26)
 
 Source for extension installation.
 
-### Functions
+## Functions
 
-#### formatInstallSource()
+### formatInstallSource()
 
 ```{.ts filename="TypeScript"}
 function formatInstallSource(source): string;
 ```
 
-Defined in: [packages/core/src/operations/install.ts:171](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L171)
+Defined in: [packages/core/src/operations/install.ts:175](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L175)
 
 Format an install source as a string.
 
@@ -133,13 +138,13 @@ Format an install source as a string.
 
 `string`
 
-#### install()
+### install()
 
 ```{.ts filename="TypeScript"}
 function install(source, options): Promise<InstallResult>;
 ```
 
-Defined in: [packages/core/src/operations/install.ts:220](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L220)
+Defined in: [packages/core/src/operations/install.ts:224](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L224)
 
 Install an extension from a source.
 
@@ -152,7 +157,9 @@ Install an extension from a source.
 
 #### Returns
 
-`Promise`\<[`InstallResult`](#installresult)\>
+```{=html}
+<code>Promise&lt;<a href="#installresult" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">InstallResult</a>&gt;</code>
+```
 
 Installation result
 
@@ -171,13 +178,13 @@ await install(source, {
 });
 ```
 
-#### parseInstallSource()
+### parseInstallSource()
 
 ```{.ts filename="TypeScript"}
 function parseInstallSource(input): InstallSource;
 ```
 
-Defined in: [packages/core/src/operations/install.ts:104](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/install.ts#L104)
+Defined in: [packages/core/src/operations/install.ts:108](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/install.ts#L108)
 
 Parse an install source string.
 
@@ -213,13 +220,19 @@ parseInstallSource("./my-extension");
 // { type: "local", path: "./my-extension" }
 ```
 
-## Remove
+## Extension removal operations
+
+### Description
+
+Extension removal operations.
+
+Handles removing installed extensions from a project.
 
 ### Interfaces
 
 #### RemoveOptions
 
-Defined in: [packages/core/src/operations/remove.ts:16](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L16)
+Defined in: [packages/core/src/operations/remove.ts:20](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L20)
 
 Options for removal.
 
@@ -227,12 +240,12 @@ Options for removal.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="cleanupempty"></a> `cleanupEmpty?` | `boolean` | Clean up empty parent directories. | [packages/core/src/operations/remove.ts:20](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L20) |
-| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | [packages/core/src/operations/remove.ts:18](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L18) |
+| <a id="cleanupempty"></a> `cleanupEmpty?` | `boolean` | Clean up empty parent directories. | [packages/core/src/operations/remove.ts:24](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L24) |
+| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | [packages/core/src/operations/remove.ts:22](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L22) |
 
 #### RemoveResult
 
-Defined in: [packages/core/src/operations/remove.ts:26](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L26)
+Defined in: [packages/core/src/operations/remove.ts:30](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L30)
 
 Result of removal.
 
@@ -240,10 +253,10 @@ Result of removal.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="directoriesremoved"></a> `directoriesRemoved` | `string[]` | Directories cleaned up. | [packages/core/src/operations/remove.ts:34](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L34) |
-| <a id="extension"></a> `extension` | [`InstalledExtension`](filesystem.qmd#installedextension) | Removed extension details. | [packages/core/src/operations/remove.ts:30](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L30) |
-| <a id="filesremoved"></a> `filesRemoved` | `string[]` | Files removed. | [packages/core/src/operations/remove.ts:32](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L32) |
-| <a id="success"></a> `success` | `boolean` | Whether removal succeeded. | [packages/core/src/operations/remove.ts:28](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L28) |
+| <a id="directoriesremoved"></a> `directoriesRemoved` | `string[]` | Directories cleaned up. | [packages/core/src/operations/remove.ts:38](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L38) |
+| <a id="extension"></a> `extension` | [`InstalledExtension`](filesystem.qmd#installedextension) | Removed extension details. | [packages/core/src/operations/remove.ts:34](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L34) |
+| <a id="filesremoved"></a> `filesRemoved` | `string[]` | Files removed. | [packages/core/src/operations/remove.ts:36](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L36) |
+| <a id="success"></a> `success` | `boolean` | Whether removal succeeded. | [packages/core/src/operations/remove.ts:32](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L32) |
 
 ### Functions
 
@@ -253,7 +266,7 @@ Result of removal.
 function remove(extensionId, options): Promise<RemoveResult>;
 ```
 
-Defined in: [packages/core/src/operations/remove.ts:53](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L53)
+Defined in: [packages/core/src/operations/remove.ts:57](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L57)
 
 Remove an installed extension.
 
@@ -266,7 +279,9 @@ Remove an installed extension.
 
 #### Returns
 
-`Promise`\<[`RemoveResult`](#removeresult)\>
+```{=html}
+<code>Promise&lt;<a href="#removeresult" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">RemoveResult</a>&gt;</code>
+```
 
 Removal result
 
@@ -291,7 +306,7 @@ function removeMultiple(extensionIds, options): Promise<(
 })[]>;
 ```
 
-Defined in: [packages/core/src/operations/remove.ts:92](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/remove.ts#L92)
+Defined in: [packages/core/src/operations/remove.ts:96](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/remove.ts#L96)
 
 Remove multiple extensions.
 
@@ -299,27 +314,24 @@ Remove multiple extensions.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `extensionIds` | [`ExtensionId`](types.qmd#extensionid)[] | Extensions to remove |
-| `options` | [`RemoveOptions`](#removeoptions) | Removal options |
-
-#### Returns
-
-`Promise`\<(
-  \| [`RemoveResult`](#removeresult)
-  \| \{
-  `error`: `string`;
-  `extensionId`: [`ExtensionId`](types.qmd#extensionid);
+| `extensionIds` | [`ExtensionId`](types.qmd#extensionid);
 \})[]\>
 
 Array of removal results
 
-## Update
+## Extension update operations
+
+### Description
+
+Extension update operations.
+
+Handles checking for and applying updates to installed extensions.
 
 ### Interfaces
 
 #### UpdateCheckOptions
 
-Defined in: [packages/core/src/operations/update.ts:37](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L37)
+Defined in: [packages/core/src/operations/update.ts:41](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L41)
 
 Options for checking updates.
 
@@ -335,18 +347,18 @@ Options for checking updates.
 
 | Property | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`RegistryOptions`](registry.qmd#registryoptions).[`auth`](registry.qmd#auth) | [packages/core/src/registry/fetcher.ts:31](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L31) |
-| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheDir`](registry.qmd#cachedir) | [packages/core/src/registry/fetcher.ts:25](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L25) |
-| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheTtl`](registry.qmd#cachettl) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L29) |
-| <a id="extension"></a> `extension?` | [`ExtensionId`](types.qmd#extensionid) | Specific extension to check (all if omitted). | - | [packages/core/src/operations/update.ts:41](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L41) |
-| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [`RegistryOptions`](registry.qmd#registryoptions).[`forceRefresh`](registry.qmd#forcerefresh) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L27) |
-| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | - | [packages/core/src/operations/update.ts:39](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L39) |
-| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | [`RegistryOptions`](registry.qmd#registryoptions).[`registryUrl`](registry.qmd#registryurl) | [packages/core/src/registry/fetcher.ts:23](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L23) |
-| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | [`RegistryOptions`](registry.qmd#registryoptions).[`timeout`](registry.qmd#timeout) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L33) |
+| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`RegistryOptions`](registry.qmd#registryoptions).[`auth`](registry.qmd#auth) | [packages/core/src/registry/fetcher.ts:35](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L35) |
+| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheDir`](registry.qmd#cachedir) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L29) |
+| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheTtl`](registry.qmd#cachettl) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L33) |
+| <a id="extension"></a> `extension?` | [`ExtensionId`](types.qmd#extensionid) | Specific extension to check (all if omitted). | - | [packages/core/src/operations/update.ts:45](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L45) |
+| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [`RegistryOptions`](registry.qmd#registryoptions).[`forceRefresh`](registry.qmd#forcerefresh) | [packages/core/src/registry/fetcher.ts:31](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L31) |
+| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | - | [packages/core/src/operations/update.ts:43](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L43) |
+| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | [`RegistryOptions`](registry.qmd#registryoptions).[`registryUrl`](registry.qmd#registryurl) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L27) |
+| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | [`RegistryOptions`](registry.qmd#registryoptions).[`timeout`](registry.qmd#timeout) | [packages/core/src/registry/fetcher.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L37) |
 
 #### UpdateInfo
 
-Defined in: [packages/core/src/operations/update.ts:21](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L21)
+Defined in: [packages/core/src/operations/update.ts:25](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L25)
 
 Information about an available update.
 
@@ -354,15 +366,15 @@ Information about an available update.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="currentversion"></a> `currentVersion` | `string` | Current installed version. | [packages/core/src/operations/update.ts:25](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L25) |
-| <a id="extension-1"></a> `extension` | [`InstalledExtension`](filesystem.qmd#installedextension) | Extension with update available. | [packages/core/src/operations/update.ts:23](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L23) |
-| <a id="latestversion"></a> `latestVersion` | `string` | Latest available version. | [packages/core/src/operations/update.ts:27](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L27) |
-| <a id="releaseurl"></a> `releaseUrl` | `string` \| `null` | URL to the release. | [packages/core/src/operations/update.ts:29](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L29) |
-| <a id="source"></a> `source` | `string` | Source reference for updating. | [packages/core/src/operations/update.ts:31](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L31) |
+| <a id="currentversion"></a> `currentVersion` | `string` | Current installed version. | [packages/core/src/operations/update.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L29) |
+| <a id="extension-1"></a> `extension` | [`InstalledExtension`](filesystem.qmd#installedextension) | Extension with update available. | [packages/core/src/operations/update.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L27) |
+| <a id="latestversion"></a> `latestVersion` | `string` | Latest available version. | [packages/core/src/operations/update.ts:31](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L31) |
+| <a id="releaseurl"></a> `releaseUrl` | `string` \| `null` | URL to the release. | [packages/core/src/operations/update.ts:33](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L33) |
+| <a id="source"></a> `source` | `string` | Source reference for updating. | [packages/core/src/operations/update.ts:35](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L35) |
 
 #### UpdateOptions
 
-Defined in: [packages/core/src/operations/update.ts:47](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L47)
+Defined in: [packages/core/src/operations/update.ts:51](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L51)
 
 Options for applying updates.
 
@@ -374,19 +386,19 @@ Options for applying updates.
 
 | Property | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="auth-1"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`UpdateCheckOptions`](#updatecheckoptions).[`auth`](#auth) | - | [packages/core/src/operations/update.ts:49](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L49) |
-| <a id="cachedir-1"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | - | [`UpdateCheckOptions`](#updatecheckoptions).[`cacheDir`](#cachedir) | [packages/core/src/registry/fetcher.ts:25](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L25) |
-| <a id="cachettl-1"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | - | [`UpdateCheckOptions`](#updatecheckoptions).[`cacheTtl`](#cachettl) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L29) |
-| <a id="extension-2"></a> `extension?` | [`ExtensionId`](types.qmd#extensionid) | Specific extension to check (all if omitted). | - | [`UpdateCheckOptions`](#updatecheckoptions).[`extension`](#extension) | [packages/core/src/operations/update.ts:41](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L41) |
-| <a id="forcerefresh-1"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`forceRefresh`](#forcerefresh) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L27) |
-| <a id="onprogress"></a> `onProgress?` | (`info`) => `void` | Progress callback. | - | - | [packages/core/src/operations/update.ts:51](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L51) |
-| <a id="projectdir-1"></a> `projectDir` | `string` | Project directory. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`projectDir`](#projectdir) | [packages/core/src/operations/update.ts:39](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L39) |
-| <a id="registryurl-1"></a> `registryUrl?` | `string` | Custom registry URL. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`registryUrl`](#registryurl) | [packages/core/src/registry/fetcher.ts:23](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L23) |
-| <a id="timeout-1"></a> `timeout?` | `number` | Request timeout in milliseconds. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`timeout`](#timeout) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/registry/fetcher.ts#L33) |
+| <a id="auth-1"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`UpdateCheckOptions`](#updatecheckoptions).[`auth`](#auth) | - | [packages/core/src/operations/update.ts:53](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L53) |
+| <a id="cachedir-1"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | - | [`UpdateCheckOptions`](#updatecheckoptions).[`cacheDir`](#cachedir) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L29) |
+| <a id="cachettl-1"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | - | [`UpdateCheckOptions`](#updatecheckoptions).[`cacheTtl`](#cachettl) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L33) |
+| <a id="extension-2"></a> `extension?` | [`ExtensionId`](types.qmd#extensionid) | Specific extension to check (all if omitted). | - | [`UpdateCheckOptions`](#updatecheckoptions).[`extension`](#extension) | [packages/core/src/operations/update.ts:45](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L45) |
+| <a id="forcerefresh-1"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`forceRefresh`](#forcerefresh) | [packages/core/src/registry/fetcher.ts:31](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L31) |
+| <a id="onprogress"></a> `onProgress?` | (`info`) => `void` | Progress callback. | - | - | [packages/core/src/operations/update.ts:55](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L55) |
+| <a id="projectdir-1"></a> `projectDir` | `string` | Project directory. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`projectDir`](#projectdir) | [packages/core/src/operations/update.ts:43](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L43) |
+| <a id="registryurl-1"></a> `registryUrl?` | `string` | Custom registry URL. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`registryUrl`](#registryurl) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L27) |
+| <a id="timeout-1"></a> `timeout?` | `number` | Request timeout in milliseconds. | - | [`UpdateCheckOptions`](#updatecheckoptions).[`timeout`](#timeout) | [packages/core/src/registry/fetcher.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L37) |
 
 #### UpdateResult
 
-Defined in: [packages/core/src/operations/update.ts:57](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L57)
+Defined in: [packages/core/src/operations/update.ts:61](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L61)
 
 Result of update operation.
 
@@ -394,9 +406,9 @@ Result of update operation.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="failed"></a> `failed` | `object[]` | Failed updates with errors. | [packages/core/src/operations/update.ts:70](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L70) |
-| <a id="skipped"></a> `skipped` | `object[]` | Skipped extensions with reasons. | [packages/core/src/operations/update.ts:65](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L65) |
-| <a id="updated"></a> `updated` | `object[]` | Successfully updated extensions. | [packages/core/src/operations/update.ts:59](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L59) |
+| <a id="failed"></a> `failed` | `object[]` | Failed updates with errors. | [packages/core/src/operations/update.ts:74](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L74) |
+| <a id="skipped"></a> `skipped` | `object[]` | Skipped extensions with reasons. | [packages/core/src/operations/update.ts:69](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L69) |
+| <a id="updated"></a> `updated` | `object[]` | Successfully updated extensions. | [packages/core/src/operations/update.ts:63](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L63) |
 
 ### Functions
 
@@ -406,7 +418,7 @@ Result of update operation.
 function applyUpdates(updates, options): Promise<UpdateResult>;
 ```
 
-Defined in: [packages/core/src/operations/update.ts:172](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L172)
+Defined in: [packages/core/src/operations/update.ts:176](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L176)
 
 Apply updates to extensions.
 
@@ -419,7 +431,9 @@ Apply updates to extensions.
 
 #### Returns
 
-`Promise`\<[`UpdateResult`](#updateresult)\>
+```{=html}
+<code>Promise&lt;<a href="#updateresult" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">UpdateResult</a>&gt;</code>
+```
 
 Update result
 
@@ -429,7 +443,7 @@ Update result
 function checkForUpdates(options): Promise<UpdateInfo[]>;
 ```
 
-Defined in: [packages/core/src/operations/update.ts:82](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L82)
+Defined in: [packages/core/src/operations/update.ts:86](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L86)
 
 Check for available updates.
 
@@ -441,7 +455,9 @@ Check for available updates.
 
 #### Returns
 
-`Promise`\<[`UpdateInfo`](#updateinfo)[]\>
+```{=html}
+<code>Promise&lt;<a href="#updateinfo" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">UpdateInfo</a>[]&gt;</code>
+```
 
 Array of available updates
 
@@ -451,7 +467,7 @@ Array of available updates
 function update(options): Promise<UpdateResult>;
 ```
 
-Defined in: [packages/core/src/operations/update.ts:228](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/update.ts#L228)
+Defined in: [packages/core/src/operations/update.ts:232](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/update.ts#L232)
 
 Check and apply updates in one operation.
 
@@ -463,17 +479,25 @@ Check and apply updates in one operation.
 
 #### Returns
 
-`Promise`\<[`UpdateResult`](#updateresult)\>
+```{=html}
+<code>Promise&lt;<a href="#updateresult" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">UpdateResult</a>&gt;</code>
+```
 
 Update result
 
-## Use
+## Use extension operation for installing and copying template files
+
+### Description
+
+Use extension operation for installing and copying template files.
+
+Combines installation with template file copying for starter templates.
 
 ### Interfaces
 
 #### FileSelectionResult
 
-Defined in: [packages/core/src/operations/use.ts:135](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L135)
+Defined in: [packages/core/src/operations/use.ts:139](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L139)
 
 Result of file selection callback.
 
@@ -481,12 +505,12 @@ Result of file selection callback.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="overwriteexisting"></a> `overwriteExisting` | `boolean` | Whether to overwrite existing files without prompting. | [packages/core/src/operations/use.ts:139](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L139) |
-| <a id="selectedfiles"></a> `selectedFiles` | `string[]` | Files selected for copying. | [packages/core/src/operations/use.ts:137](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L137) |
+| <a id="overwriteexisting"></a> `overwriteExisting` | `boolean` | Whether to overwrite existing files without prompting. | [packages/core/src/operations/use.ts:143](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L143) |
+| <a id="selectedfiles"></a> `selectedFiles` | `string[]` | Files selected for copying. | [packages/core/src/operations/use.ts:141](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L141) |
 
 #### UseOptions
 
-Defined in: [packages/core/src/operations/use.ts:156](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L156)
+Defined in: [packages/core/src/operations/use.ts:160](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L160)
 
 Options for "use extension" operation.
 
@@ -494,21 +518,21 @@ Options for "use extension" operation.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [packages/core/src/operations/use.ts:160](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L160) |
-| <a id="confirmoverwrite"></a> `confirmOverwrite?` | [`OverwriteCallback`](#overwritecallback) | Callback to confirm overwrites (per-file). Takes precedence if confirmOverwriteBatch is not provided. | [packages/core/src/operations/use.ts:168](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L168) |
-| <a id="confirmoverwritebatch"></a> `confirmOverwriteBatch?` | [`OverwriteBatchCallback`](#overwritebatchcallback) | Callback to confirm overwrites in batch. Receives all conflicting files upfront. Takes precedence over confirmOverwrite. | [packages/core/src/operations/use.ts:170](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L170) |
-| <a id="dryrun"></a> `dryRun?` | `boolean` | Dry run mode - resolve and validate without copying files. | [packages/core/src/operations/use.ts:176](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L176) |
-| <a id="exclude"></a> `exclude?` | `string[]` | Additional patterns to exclude. | [packages/core/src/operations/use.ts:166](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L166) |
-| <a id="include"></a> `include?` | `string[]` | File patterns to include (overrides defaults). | [packages/core/src/operations/use.ts:164](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L164) |
-| <a id="notemplate"></a> `noTemplate?` | `boolean` | Skip template copying. | [packages/core/src/operations/use.ts:162](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L162) |
-| <a id="onprogress"></a> `onProgress?` | (`info`) => `void` | Progress callback. | [packages/core/src/operations/use.ts:174](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L174) |
-| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | [packages/core/src/operations/use.ts:158](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L158) |
-| <a id="selectfiles"></a> `selectFiles?` | [`FileSelectionCallback`](#fileselectioncallback) | Callback for interactive file selection. Takes precedence over include/exclude/confirmOverwrite. | [packages/core/src/operations/use.ts:172](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L172) |
-| <a id="sourcedisplay"></a> `sourceDisplay?` | `string` | Display source to record in manifest (for relative paths that were resolved). | [packages/core/src/operations/use.ts:178](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L178) |
+| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [packages/core/src/operations/use.ts:164](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L164) |
+| <a id="confirmoverwrite"></a> `confirmOverwrite?` | [`OverwriteCallback`](#overwritecallback) | Callback to confirm overwrites (per-file). Takes precedence if confirmOverwriteBatch is not provided. | [packages/core/src/operations/use.ts:172](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L172) |
+| <a id="confirmoverwritebatch"></a> `confirmOverwriteBatch?` | [`OverwriteBatchCallback`](#overwritebatchcallback) | Callback to confirm overwrites in batch. Receives all conflicting files upfront. Takes precedence over confirmOverwrite. | [packages/core/src/operations/use.ts:174](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L174) |
+| <a id="dryrun"></a> `dryRun?` | `boolean` | Dry run mode - resolve and validate without copying files. | [packages/core/src/operations/use.ts:180](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L180) |
+| <a id="exclude"></a> `exclude?` | `string[]` | Additional patterns to exclude. | [packages/core/src/operations/use.ts:170](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L170) |
+| <a id="include"></a> `include?` | `string[]` | File patterns to include (overrides defaults). | [packages/core/src/operations/use.ts:168](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L168) |
+| <a id="notemplate"></a> `noTemplate?` | `boolean` | Skip template copying. | [packages/core/src/operations/use.ts:166](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L166) |
+| <a id="onprogress"></a> `onProgress?` | (`info`) => `void` | Progress callback. | [packages/core/src/operations/use.ts:178](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L178) |
+| <a id="projectdir"></a> `projectDir` | `string` | Project directory. | [packages/core/src/operations/use.ts:162](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L162) |
+| <a id="selectfiles"></a> `selectFiles?` | [`FileSelectionCallback`](#fileselectioncallback) | Callback for interactive file selection. Takes precedence over include/exclude/confirmOverwrite. | [packages/core/src/operations/use.ts:176](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L176) |
+| <a id="sourcedisplay"></a> `sourceDisplay?` | `string` | Display source to record in manifest (for relative paths that were resolved). | [packages/core/src/operations/use.ts:182](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L182) |
 
 #### UseResult
 
-Defined in: [packages/core/src/operations/use.ts:184](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L184)
+Defined in: [packages/core/src/operations/use.ts:188](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L188)
 
 Result of "use extension" operation.
 
@@ -516,12 +540,12 @@ Result of "use extension" operation.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="dryrun-1"></a> `dryRun?` | `boolean` | Whether this was a dry run (no files were actually copied). | [packages/core/src/operations/use.ts:192](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L192) |
-| <a id="install"></a> `install` | [`InstallResult`](operations.qmd#installresult) | Installation result. | [packages/core/src/operations/use.ts:186](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L186) |
-| <a id="skippedfiles"></a> `skippedFiles` | `string[]` | Files skipped due to existing. | [packages/core/src/operations/use.ts:190](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L190) |
-| <a id="templatefiles"></a> `templateFiles` | `string[]` | Template files copied. | [packages/core/src/operations/use.ts:188](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L188) |
-| <a id="wouldconflict"></a> `wouldConflict?` | `string[]` | Files that would conflict with existing files (only set in dry run mode). | [packages/core/src/operations/use.ts:196](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L196) |
-| <a id="wouldcopy"></a> `wouldCopy?` | `string[]` | Template files that would be copied (only set in dry run mode). | [packages/core/src/operations/use.ts:194](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L194) |
+| <a id="dryrun-1"></a> `dryRun?` | `boolean` | Whether this was a dry run (no files were actually copied). | [packages/core/src/operations/use.ts:196](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L196) |
+| <a id="install"></a> `install` | [`InstallResult`](operations.qmd#installresult) | Installation result. | [packages/core/src/operations/use.ts:190](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L190) |
+| <a id="skippedfiles"></a> `skippedFiles` | `string[]` | Files skipped due to existing. | [packages/core/src/operations/use.ts:194](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L194) |
+| <a id="templatefiles"></a> `templateFiles` | `string[]` | Template files copied. | [packages/core/src/operations/use.ts:192](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L192) |
+| <a id="wouldconflict"></a> `wouldConflict?` | `string[]` | Files that would conflict with existing files (only set in dry run mode). | [packages/core/src/operations/use.ts:200](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L200) |
+| <a id="wouldcopy"></a> `wouldCopy?` | `string[]` | Template files that would be copied (only set in dry run mode). | [packages/core/src/operations/use.ts:198](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L198) |
 
 ### Type Aliases
 
@@ -531,7 +555,7 @@ Result of "use extension" operation.
 type FileSelectionCallback = (availableFiles, existingFiles, defaultExcludePatterns) => Promise<FileSelectionResult | null>;
 ```
 
-Defined in: [packages/core/src/operations/use.ts:147](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L147)
+Defined in: [packages/core/src/operations/use.ts:151](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L151)
 
 Callback for interactive file selection.
 Receives all available template files and which ones already exist.
@@ -547,7 +571,9 @@ Returns which files to copy and whether to overwrite existing.
 
 #### Returns
 
-`Promise`\<[`FileSelectionResult`](#fileselectionresult) \| `null`\>
+```{=html}
+<code>Promise&lt;<a href="#fileselectionresult" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FileSelectionResult</a> | null&gt;</code>
+```
 
 #### OverwriteBatchCallback()
 
@@ -555,7 +581,7 @@ Returns which files to copy and whether to overwrite existing.
 type OverwriteBatchCallback = (files) => Promise<OverwriteBatchResult>;
 ```
 
-Defined in: [packages/core/src/operations/use.ts:130](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L130)
+Defined in: [packages/core/src/operations/use.ts:134](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L134)
 
 Callback for confirming file overwrites in batch.
 Receives all conflicting files upfront and returns which ones to overwrite.
@@ -568,7 +594,9 @@ Receives all conflicting files upfront and returns which ones to overwrite.
 
 #### Returns
 
-`Promise`\<[`OverwriteBatchResult`](#overwritebatchresult)\>
+```{=html}
+<code>Promise&lt;<a href="#overwritebatchresult" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">OverwriteBatchResult</a>&gt;</code>
+```
 
 #### OverwriteBatchResult
 
@@ -576,9 +604,10 @@ Receives all conflicting files upfront and returns which ones to overwrite.
 type OverwriteBatchResult = "all" | "none" | string[];
 ```
 
-Defined in: [packages/core/src/operations/use.ts:124](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L124)
+Defined in: [packages/core/src/operations/use.ts:128](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L128)
 
 Result of batch overwrite confirmation.
+
 - 'all': Overwrite all files.
 - 'none': Skip all files.
 - string[]: List of specific files to overwrite.
@@ -589,7 +618,7 @@ Result of batch overwrite confirmation.
 type OverwriteCallback = (file) => Promise<boolean>;
 ```
 
-Defined in: [packages/core/src/operations/use.ts:116](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L116)
+Defined in: [packages/core/src/operations/use.ts:120](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L120)
 
 Callback for confirming file overwrites (per-file).
 
@@ -601,7 +630,7 @@ Callback for confirming file overwrites (per-file).
 
 #### Returns
 
-`Promise`\<`boolean`\>
+`Promise<boolean>`
 
 ### Functions
 
@@ -611,7 +640,7 @@ Callback for confirming file overwrites (per-file).
 function getTemplateFiles(sourceRoot, exclude): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/operations/use.ts:454](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L454)
+Defined in: [packages/core/src/operations/use.ts:458](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L458)
 
 Get list of template files that would be copied from repo root.
 
@@ -624,7 +653,7 @@ Get list of template files that would be copied from repo root.
 
 #### Returns
 
-`Promise`\<`string[]`\>
+`Promise<string[]>`
 
 List of template file paths
 
@@ -634,7 +663,7 @@ List of template file paths
 function use(source, options): Promise<UseResult>;
 ```
 
-Defined in: [packages/core/src/operations/use.ts:206](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/operations/use.ts#L206)
+Defined in: [packages/core/src/operations/use.ts:210](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/operations/use.ts#L210)
 
 Install an extension and optionally copy template files.
 
@@ -647,6 +676,8 @@ Install an extension and optionally copy template files.
 
 #### Returns
 
-`Promise`\<[`UseResult`](#useresult)\>
+```{=html}
+<code>Promise&lt;<a href="#useresult" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">UseResult</a>&gt;</code>
+```
 
 Use result

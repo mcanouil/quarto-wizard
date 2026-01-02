@@ -134,6 +134,7 @@ Open the extension's GitHub repository in a browser.
 
 Open the extension's folder in the file explorer.
 
+
 ## Keyboard Shortcuts
 
 By default, Quarto Wizard does not define keyboard shortcuts.
@@ -190,3 +191,4 @@ For scripting or keybinding purposes, here are the internal command identifiers:
 | Remove Multiple Extensions | `quartoWizard.extensionsInstalled.removeMultiple` |
 | Open Extension Source | `quartoWizard.extensionsInstalled.openSource` |
 | Reveal in Explorer View | `quartoWizard.extensionsInstalled.revealInExplorer` |
+

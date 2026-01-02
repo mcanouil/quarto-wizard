@@ -1,5 +1,9 @@
 /**
- * Extension manifest types for parsing _extension.yml files.
+ * @description Extension manifest types for parsing _extension.yml files.
+ *
+ * Defines types for extension contributions and manifest structure.
+ *
+ * @module types
  */
 
 import type { ExtensionType } from "./extension.js";

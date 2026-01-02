@@ -1,5 +1,9 @@
 /**
- * ZIP archive extraction with security checks.
+ * @description ZIP archive extraction with security checks.
+ *
+ * Includes protection against path traversal and zip bomb attacks.
+ *
+ * @module archive
  */
 
 import * as fs from "node:fs";

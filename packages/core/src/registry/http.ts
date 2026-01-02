@@ -1,5 +1,9 @@
 /**
- * HTTP utilities with timeout and retry support.
+ * @description HTTP utilities with timeout and retry support.
+ *
+ * Provides robust fetch operations with configurable timeouts and retries.
+ *
+ * @module registry
  */
 
 import { NetworkError } from "../errors.js";

@@ -1,5 +1,9 @@
 /**
- * TAR.GZ archive extraction with security checks.
+ * @description TAR.GZ archive extraction with security checks.
+ *
+ * Includes protection against path traversal and oversized archives.
+ *
+ * @module archive
  */
 
 import * as fs from "node:fs";

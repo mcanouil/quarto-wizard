@@ -1,5 +1,9 @@
 /**
- * GitHub releases API client.
+ * @description GitHub releases API client.
+ *
+ * Provides functions to query and resolve GitHub release versions.
+ *
+ * @module github
  */
 
 import type { AuthConfig } from "../types/auth.js";

@@ -1,5 +1,9 @@
 /**
- * Extension removal operations.
+ * @description Extension removal operations.
+ *
+ * Handles removing installed extensions from a project.
+ *
+ * @module operations
  */
 
 import * as fs from "node:fs";

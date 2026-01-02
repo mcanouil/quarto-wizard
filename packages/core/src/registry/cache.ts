@@ -1,5 +1,9 @@
 /**
- * Registry caching with TTL support.
+ * @description Registry caching with TTL support.
+ *
+ * Provides filesystem-based caching for the extensions registry.
+ *
+ * @module registry
  */
 
 import * as fs from "node:fs";

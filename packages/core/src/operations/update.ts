@@ -1,5 +1,9 @@
 /**
- * Extension update operations.
+ * @description Extension update operations.
+ *
+ * Handles checking for and applying updates to installed extensions.
+ *
+ * @module operations
  */
 
 import * as semver from "semver";

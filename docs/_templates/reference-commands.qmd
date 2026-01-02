@@ -1,0 +1,27 @@
+---
+title: "Commands Reference"
+---
+
+This page documents all commands provided by Quarto Wizard.
+
+{{COMMAND_SECTIONS}}
+
+## Keyboard Shortcuts
+
+By default, Quarto Wizard does not define keyboard shortcuts.
+You can add custom keybindings in VS Code's Keyboard Shortcuts settings.
+
+Example keybinding for installing extensions:
+
+```json
+{
+  "key": "ctrl+shift+q",
+  "command": "quartoWizard.installExtension"
+}
+```
+
+## Command Identifiers
+
+For scripting or keybinding purposes, here are the internal command identifiers:
+
+{{COMMAND_IDENTIFIERS_TABLE}}

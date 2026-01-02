@@ -102,6 +102,7 @@ The level of logging to use. `error` to only log errors, `warn` to log warnings 
 }
 ```
 
+
 ## Workspace vs User Settings
 
 All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
@@ -125,3 +126,4 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.log.level": "info"
 }
 ```
+

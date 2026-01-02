@@ -23,6 +23,7 @@ const rootDir = resolve(__dirname, "..");
 const docsDir = resolve(rootDir, "docs");
 const docsApiDir = resolve(docsDir, "api");
 const docsRefDir = resolve(docsDir, "reference");
+const templatesDir = resolve(docsDir, "_templates");
 const coreOutputDir = resolve(docsApiDir, "core");
 const packageJsonPath = resolve(rootDir, "package.json");
 const variablesYmlPath = resolve(docsDir, "_variables.yml");
@@ -30,6 +31,65 @@ const proxyConfigPath = resolve(rootDir, "packages/core/src/proxy/config.ts");
 const authConfigPath = resolve(rootDir, "packages/core/src/types/auth.ts");
 const changelogMdPath = resolve(rootDir, "CHANGELOG.md");
 const changelogQmdPath = resolve(docsDir, "changelog.qmd");
+
+/**
+ * Read a template file from the templates directory.
+ *
+ * @param {string} templateName - Name of the template file (e.g., "api-index.qmd")
+ * @returns {string} Template content
+ */
+function readTemplate(templateName) {
+	const templatePath = join(templatesDir, templateName);
+	if (!existsSync(templatePath)) {
+		throw new Error(`Template not found: ${templatePath}`);
+	}
+	return readFileSync(templatePath, "utf-8");
+}
+
+/**
+ * Write content from a template with placeholder replacements.
+ *
+ * @param {string} templateName - Name of the template file
+ * @param {string} outputPath - Path to write the output file
+ * @param {Record<string, string>} replacements - Placeholder replacements
+ */
+function writeFromTemplate(templateName, outputPath, replacements = {}) {
+	let content = readTemplate(templateName);
+	for (const [placeholder, value] of Object.entries(replacements)) {
+		content = content.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, "g"), value);
+	}
+	writeFileSync(outputPath, content, "utf-8");
+}
+
+/**
+ * Parse @description tag from a TypeScript source file's module-level JSDoc.
+ *
+ * @param {string} filePath - Path to the TypeScript file
+ * @returns {string|null} Description text or null if not found
+ */
+function parseDescriptionFromSource(filePath) {
+	if (!existsSync(filePath)) {
+		return null;
+	}
+
+	const content = readFileSync(filePath, "utf-8");
+
+	// Extract the module-level JSDoc comment
+	const jsdocMatch = content.match(/^\/\*\*[\s\S]*?\*\//m);
+	if (!jsdocMatch) {
+		return null;
+	}
+
+	const jsdoc = jsdocMatch[0];
+
+	// Extract @description tag
+	const descMatch = jsdoc.match(/@description\s+([^\n@]+)/);
+	if (descMatch) {
+		return descMatch[1].trim();
+	}
+
+	return null;
+}
 
 /**
  * Environment variable source files configuration.
@@ -212,24 +272,15 @@ function generateEnvVarSection(source) {
  * Generate the environment variables reference page.
  */
 function generateEnvironmentVariablesPage() {
-	const lines = [
-		"---",
-		'title: "Environment Variables"',
-		"---",
-		"",
-		"Quarto Wizard supports configuration through environment variables.",
-		"These are read automatically when the extension starts.",
-		"",
-	];
-
 	// Generate sections from each source
+	const sectionLines = [];
 	for (const source of ENV_VAR_SOURCES) {
-		const sectionLines = generateEnvVarSection(source);
-		lines.push(...sectionLines);
+		sectionLines.push(...generateEnvVarSection(source));
 	}
 
-	const content = lines.join("\n");
-	writeFileSync(join(docsRefDir, "environment-variables.qmd"), content, "utf-8");
+	writeFromTemplate("reference-environment-variables.qmd", join(docsRefDir, "environment-variables.qmd"), {
+		ENV_VAR_SECTIONS: sectionLines.join("\n"),
+	});
 	console.log("  Created reference/environment-variables.qmd");
 }
 
@@ -253,29 +304,17 @@ const LANGUAGE_FILENAMES = {
  * Create the core package index page with Quarto listing.
  */
 function createCoreIndex() {
-	const content = `---
-title: "@quarto-wizard/core"
-description: "Core library for Quarto extension management."
-listing:
-  - id: modules
-    contents: "*.qmd"
-    type: table
-    fields: [title, description]
-    sort: title
-    filter-ui: false
-    sort-ui: false
----
+	const packageName = "@quarto-wizard/core";
+	const packageDescription = "Core library for Quarto extension management.";
+	const packageOverview =
+		"The `@quarto-wizard/core` package provides the core functionality for managing Quarto extensions.\n" +
+		"It handles archive extraction, filesystem operations, GitHub integration, registry access, and extension lifecycle operations.";
 
-The \`@quarto-wizard/core\` package provides the core functionality for managing Quarto extensions.
-It handles archive extraction, filesystem operations, GitHub integration, registry access, and extension lifecycle operations.
-
-## Modules
-
-::: {#modules}
-:::
-`;
-
-	writeFileSync(join(coreOutputDir, "index.qmd"), content, "utf-8");
+	writeFromTemplate("api-package-index.qmd", join(coreOutputDir, "index.qmd"), {
+		PACKAGE_NAME: packageName,
+		PACKAGE_DESCRIPTION: packageDescription,
+		PACKAGE_OVERVIEW: packageOverview,
+	});
 	console.log("  Created core/index.qmd");
 }
 
@@ -283,27 +322,7 @@ It handles archive extraction, filesystem operations, GitHub integration, regist
  * Create the API landing page with Quarto listing.
  */
 function createApiIndex() {
-	const content = `---
-title: "API Reference"
-description: "Complete API reference for the Quarto Wizard packages."
-listing:
-  - id: packages
-    contents: "*/index.qmd"
-    type: table
-    fields: [title, description]
-    filter-ui: false
-    sort-ui: false
----
-
-This section contains the API documentation for the Quarto Wizard packages.
-
-## Packages
-
-::: {#packages}
-:::
-`;
-
-	writeFileSync(join(docsApiDir, "index.qmd"), content, "utf-8");
+	writeFromTemplate("api-index.qmd", join(docsApiDir, "index.qmd"), {});
 	console.log("  Created api/index.qmd");
 }
 
@@ -338,36 +357,52 @@ function extractMetadata(content) {
 	const parts = title.split("/");
 	title = capitalise(parts[parts.length - 1]);
 
-	// Extract first paragraph after H1 as description (if any)
-	// Skip lines that are not meaningful descriptions
+	// Extract description - TypeDoc puts it under "## Description" heading
 	let description = "";
-	const afterH1 = content.replace(/^[\s\S]*?^# [^\n]+\n+/m, "");
-	const lines = afterH1.split("\n");
-	for (const line of lines) {
-		const trimmed = line.trim();
-		// Skip empty lines, headings, markdown links, re-export lines, and markers
-		if (
-			!trimmed ||
-			trimmed.startsWith("#") ||
-			trimmed.startsWith("[") ||
-			trimmed.startsWith("Re-exports") ||
-			trimmed.startsWith("Defined in:") ||
-			trimmed.startsWith("***") ||
-			trimmed.startsWith("---") ||
-			trimmed.startsWith("|") ||
-			trimmed.startsWith("```")
-		) {
-			continue;
-		}
-		// Found a potential description line - must be actual text
-		if (trimmed.length > 10) {
-			description = trimmed;
-			// Truncate long descriptions
-			if (description.length > 100) {
-				description = description.slice(0, 97) + "...";
+
+	// First try to extract from "## Description" section
+	const descSectionMatch = content.match(/^## Description\n+([^#]+?)(?=^##|\n*$)/m);
+	if (descSectionMatch) {
+		description = descSectionMatch[1]
+			.split("\n")
+			.map((l) => l.trim())
+			.filter((l) => l && !l.startsWith("[") && !l.startsWith("Defined in:"))
+			.join(" ")
+			.trim();
+	} else {
+		// Fallback: collect text lines after H1 until first ##
+		const afterH1 = content.replace(/^[\s\S]*?^# [^\n]+\n+/m, "");
+		const lines = afterH1.split("\n");
+		const descLines = [];
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+
+			// Stop at first heading or marker
+			if (
+				trimmed.startsWith("##") ||
+				trimmed.startsWith("Re-exports") ||
+				trimmed.startsWith("Defined in:") ||
+				trimmed.startsWith("***") ||
+				trimmed.startsWith("---") ||
+				trimmed.startsWith("|") ||
+				trimmed.startsWith("```")
+			) {
+				break;
 			}
-			break;
+
+			// Skip markdown links and non-description lines
+			if (trimmed.startsWith("[")) {
+				continue;
+			}
+
+			// Collect meaningful description lines
+			if (trimmed) {
+				descLines.push(trimmed);
+			}
 		}
+
+		description = descLines.join(" ");
 	}
 
 	return { title, description };
@@ -400,6 +435,102 @@ function fixArrayTypes(content) {
 }
 
 /**
+ * Add blank lines before and after lists for proper markdown formatting.
+ * @param {string} content - The file content.
+ * @returns {string} The processed content.
+ */
+function addBlankLinesAroundLists(content) {
+	const lines = content.split("\n");
+	const output = [];
+	let inList = false;
+	let prevLineEmpty = false;
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const trimmed = line.trim();
+		const isListItem = /^[-*+]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed);
+		const currentLineEmpty = trimmed === "";
+
+		// Entering a list
+		if (isListItem && !inList) {
+			// Add blank line before list if previous line wasn't empty
+			if (output.length > 0 && !prevLineEmpty) {
+				output.push("");
+			}
+			inList = true;
+		}
+
+		// Exiting a list
+		if (!isListItem && !currentLineEmpty && inList) {
+			// Add blank line after list
+			output.push("");
+			inList = false;
+		}
+
+		// Reset list state on empty line (but keep going)
+		if (currentLineEmpty && inList) {
+			// Check if next line is also a list item
+			const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : "";
+			const nextIsListItem = /^[-*+]\s/.test(nextLine) || /^\d+\.\s/.test(nextLine);
+			if (!nextIsListItem) {
+				inList = false;
+			}
+		}
+
+		output.push(line);
+		prevLineEmpty = currentLineEmpty;
+	}
+
+	return output.join("\n");
+}
+
+/**
+ * Convert escaped TypeDoc type expressions to cleaner format.
+ * Handles both simple types and types with links.
+ *
+ * Examples:
+ * - `Promise`\<`void`\> -> `Promise<void>`
+ * - `Promise`\<[`Registry`](types.qmd#registry)\> -> HTML with proper link
+ *
+ * @param {string} content - The file content.
+ * @returns {string} The processed content.
+ */
+function cleanTypeExpressions(content) {
+	// Pattern for escaped generic types with potential links
+	// Matches: `TypeName`\<...\>
+	const typePattern = /`([A-Za-z]+)`\\<(.+?)\\>/g;
+
+	return content.replace(typePattern, (_match, typeName, innerContent) => {
+		// Check if inner content has markdown links
+		const hasLinks = innerContent.includes("](");
+
+		if (!hasLinks) {
+			// Simple case: just clean up the escapes
+			// Convert `void` to void, remove \ escapes
+			let cleaned = innerContent.replace(/`([^`]+)`/g, "$1").replace(/\\/g, "");
+			return `\`${typeName}<${cleaned}>\``;
+		}
+
+		// Complex case with links: convert to HTML
+		// Parse the inner content for links and types
+		let htmlContent = innerContent
+			// Convert markdown links to HTML: [`Type`](url) -> <a href="url">Type</a>
+			.replace(/\[`([^`]+)`\]\(([^)]+)\)/g, '<a href="$2" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">$1</a>')
+			// Convert remaining backtick types to plain text
+			.replace(/`([^`]+)`/g, "$1")
+			// Convert escaped pipes to HTML entity
+			.replace(/\s*\\\|\s*/g, " | ")
+			// Remove remaining backslashes
+			.replace(/\\/g, "")
+			// Convert [] at end (array notation) to proper format
+			.replace(/\[\]$/, "[]");
+
+		// Escape < and > for HTML
+		return "```{=html}\n<code>" + typeName + "&lt;" + htmlContent + "&gt;</code>\n```";
+	});
+}
+
+/**
  * Remove the "References" section (re-exports) from content.
  * @param {string} content - The file content.
  * @returns {string} The cleaned content.
@@ -424,8 +555,10 @@ function removeClutter(content) {
 	// Remove standalone horizontal rules
 	content = content.replace(/^\*{3}\n+/gm, "\n");
 
-	// Remove H1 heading (we use frontmatter title instead)
-	content = content.replace(/^# [^\n]+\n+/, "");
+	// Remove H1 heading and description paragraph (both will be in frontmatter)
+	// Match everything from H1 to the first ## heading (non-greedy)
+	// The positive lookahead (?=^##) ensures we don't consume the ## heading
+	content = content.replace(/^# [^\n]+\n+[\s\S]*?(?=^##)/m, "");
 
 	// Remove References section (re-exports)
 	content = removeReferencesSection(content);
@@ -438,6 +571,8 @@ function removeClutter(content) {
 
 /**
  * Update internal links from .md to .qmd and fix paths.
+ * Handles both dot-separated (archive.extract.qmd) and hyphen-numbered (archive-1.qmd) patterns.
+ *
  * @param {string} content - The file content.
  * @param {string[]} moduleNames - List of known module names.
  * @returns {string} The processed content.
@@ -449,10 +584,16 @@ function updateLinks(content, moduleNames) {
 	// Update README.md/README.qmd references to index.qmd
 	content = content.replace(/README\.qmd/g, "index.qmd");
 
-	// Fix cross-module links (e.g., archive.extract.qmd -> archive.qmd)
+	// Fix cross-module links with dot separator (e.g., archive.extract.qmd -> archive.qmd)
 	for (const mod of moduleNames) {
 		const subModulePattern = new RegExp(`\\(${mod}\\.([^.]+)\\.qmd(#[^)]+)?\\)`, "g");
 		content = content.replace(subModulePattern, `(${mod}.qmd$2)`);
+	}
+
+	// Fix cross-module links with hyphen-number suffix (e.g., github-1.qmd -> github.qmd)
+	for (const mod of moduleNames) {
+		const hyphenPattern = new RegExp(`\\(${mod}-\\d+\\.qmd(#[^)]+)?\\)`, "g");
+		content = content.replace(hyphenPattern, `(${mod}.qmd$1)`);
 	}
 
 	return content;
@@ -497,6 +638,9 @@ function findMarkdownFiles() {
 
 /**
  * Group files by top-level module.
+ * Handles both dot-separated names (archive.extract.md) and
+ * hyphen-numbered names (archive-1.md) from TypeDoc's flattenOutputFiles.
+ *
  * @param {string[]} files - Array of file paths.
  * @returns {Map<string, string[]>} Map of module name to file paths.
  */
@@ -511,8 +655,13 @@ function groupFilesByModule(files) {
 			continue;
 		}
 
-		// Extract top-level module (e.g., "archive" from "archive.extract")
-		const topLevel = name.split(".")[0];
+		// Extract top-level module name:
+		// - "archive.extract" -> "archive" (dot separator)
+		// - "archive-1" -> "archive" (hyphen-number suffix from flattenOutputFiles)
+		// - "archive" -> "archive" (plain name)
+		let topLevel = name.split(".")[0];
+		// Remove -N suffix if present (e.g., "archive-1" -> "archive")
+		topLevel = topLevel.replace(/-\d+$/, "");
 
 		if (!groups.has(topLevel)) {
 			groups.set(topLevel, []);
@@ -525,6 +674,8 @@ function groupFilesByModule(files) {
 
 /**
  * Get submodule header for a file.
+ * Uses the @description content as the heading for better clarity.
+ *
  * @param {string} fileName - The file name without extension.
  * @param {string} moduleName - The parent module name.
  * @param {string} content - The raw file content (for extracting title).
@@ -532,13 +683,37 @@ function groupFilesByModule(files) {
  */
 function getSubmoduleInfo(fileName, moduleName, content) {
 	// Main module file has no submodule header
+	// The main file is the one without suffix (e.g., "archive" not "archive-1")
 	if (fileName === moduleName) {
 		return { header: null, title: "" };
 	}
 
-	// Extract title from TypeDoc H1
-	const { title } = extractMetadata(content);
-	const displayName = title || capitalise(fileName.split(".").pop());
+	// Extract metadata from TypeDoc output
+	const { title, description } = extractMetadata(content);
+
+	// Prefer the first sentence of description as the heading
+	// This gives better context than just the module name
+	let displayName = title;
+	if (description) {
+		// Get first sentence - split on period followed by space or end of string
+		// This avoids splitting on abbreviations like "TAR.GZ"
+		const sentenceMatch = description.match(/^(.+?)\.\s|^(.+?)$/);
+		let firstSentence = (sentenceMatch[1] || sentenceMatch[2] || "").trim();
+		// Remove trailing period from heading
+		firstSentence = firstSentence.replace(/\.$/, "");
+		if (firstSentence && firstSentence.length > 10 && firstSentence.length < 80) {
+			displayName = firstSentence;
+		}
+	}
+
+	// Fallback to title or file name
+	if (!displayName) {
+		if (fileName.includes(".")) {
+			displayName = capitalise(fileName.split(".").pop());
+		} else {
+			displayName = capitalise(fileName);
+		}
+	}
 
 	return { header: `## ${displayName}`, title: displayName };
 }
@@ -583,6 +758,8 @@ function mergeModuleFiles(moduleName, files, allModuleNames) {
 		content = convertCodeBlocks(content);
 		content = fixArrayTypes(content);
 		content = updateLinks(content, allModuleNames);
+		content = cleanTypeExpressions(content);
+		content = addBlankLinesAroundLists(content);
 
 		if (content.trim()) {
 			const { header } = getSubmoduleInfo(fileName, moduleName, rawContent);
@@ -742,75 +919,49 @@ function getDocumentedCommands(pkg) {
  */
 function generateCommandsPage(pkg) {
 	const commands = getDocumentedCommands(pkg);
-	const lines = [
-		"---",
-		'title: "Commands Reference"',
-		"---",
-		"",
-		"This page documents all commands provided by Quarto Wizard.",
-		"",
-	];
 
-	// Generate sections for each command group
+	// Generate command sections
+	const sectionLines = [];
 	for (const group of COMMAND_GROUPS) {
-		lines.push(`## ${group.title}`, "");
+		sectionLines.push(`## ${group.title}`, "");
 		if (group.description) {
-			lines.push(group.description, "");
+			sectionLines.push(group.description, "");
 		}
 
 		for (const cmdId of group.commands) {
 			const cmd = commands.get(cmdId);
 			if (!cmd) continue;
 
-			lines.push(`### ${cmd.title}`, "");
-			lines.push(`**Command**: \`${cmd.category}: ${cmd.title}\``, "");
+			sectionLines.push(`### ${cmd.title}`, "");
+			sectionLines.push(`**Command**: \`${cmd.category}: ${cmd.title}\``, "");
 
-			// Generate description from command metadata
 			const desc = generateCommandDescription(cmd);
 			if (desc) {
-				lines.push(desc, "");
+				sectionLines.push(desc, "");
 			}
 		}
 	}
 
-	// Add keyboard shortcuts section
-	lines.push(
-		"## Keyboard Shortcuts",
-		"",
-		"By default, Quarto Wizard does not define keyboard shortcuts.",
-		"You can add custom keybindings in VS Code's Keyboard Shortcuts settings.",
-		"",
-		"Example keybinding for installing extensions:",
-		"",
-		"```json",
-		"{",
-		'  "key": "ctrl+shift+q",',
-		'  "command": "quartoWizard.installExtension"',
-		"}",
-		"```",
-		"",
-	);
-
-	// Add command identifiers table
-	lines.push("## Command Identifiers", "");
-	lines.push("For scripting or keybinding purposes, here are the internal command identifiers:", "");
-
+	// Generate command identifiers table
+	const identifierLines = [];
 	for (const group of COMMAND_GROUPS) {
 		const groupCommands = group.commands.map((id) => commands.get(id)).filter(Boolean);
 		if (groupCommands.length === 0) continue;
 
-		lines.push(`### ${group.title}`, "");
-		lines.push("| Display Name | Command ID |");
-		lines.push("|--------------|------------|");
+		identifierLines.push(`### ${group.title}`, "");
+		identifierLines.push("| Display Name | Command ID |");
+		identifierLines.push("|--------------|------------|");
 
 		for (const cmd of groupCommands) {
-			lines.push(`| ${cmd.title} | \`${cmd.command}\` |`);
+			identifierLines.push(`| ${cmd.title} | \`${cmd.command}\` |`);
 		}
-		lines.push("");
+		identifierLines.push("");
 	}
 
-	const content = lines.join("\n");
-	writeFileSync(join(docsRefDir, "commands.qmd"), content, "utf-8");
+	writeFromTemplate("reference-commands.qmd", join(docsRefDir, "commands.qmd"), {
+		COMMAND_SECTIONS: sectionLines.join("\n"),
+		COMMAND_IDENTIFIERS_TABLE: identifierLines.join("\n"),
+	});
 	console.log("  Created reference/commands.qmd");
 }
 
@@ -852,108 +1003,83 @@ function generateCommandDescription(cmd) {
  */
 function generateConfigurationPage(pkg) {
 	const properties = pkg.contributes?.configuration?.properties || {};
-	const lines = [
-		"---",
-		'title: "Configuration Reference"',
-		"---",
-		"",
-		"Quarto Wizard can be configured through VS Code settings.",
-		'Access these through **File** > **Preferences** > **Settings** (or **Code** > **Preferences** > **Settings** on macOS) and search for "Quarto Wizard".',
-		"",
-	];
 
-	// Group properties by prefix
+	// Generate config sections
+	const sectionLines = [];
 	for (const group of CONFIG_GROUPS) {
 		const groupProps = Object.entries(properties).filter(([key]) => key.startsWith(group.prefix));
 
 		if (groupProps.length === 0) continue;
 
-		lines.push(`## ${group.title}`, "");
+		sectionLines.push(`## ${group.title}`, "");
 
 		for (const [key, prop] of groupProps) {
 			const title = generateSettingTitle(key);
-			lines.push(`### ${title}`, "");
-			lines.push(`**Setting**: \`${key}\``, "");
+			sectionLines.push(`### ${title}`, "");
+			sectionLines.push(`**Setting**: \`${key}\``, "");
 
 			// Add description
 			const desc = prop.markdownDescription || prop.description || "";
 			if (desc) {
-				// Clean up markdown description
 				const cleanDesc = desc.replace(/`([^`]+)`/g, "`$1`");
-				lines.push(cleanDesc, "");
+				sectionLines.push(cleanDesc, "");
 			}
 
 			// Generate property table based on type
 			if (prop.enum) {
-				lines.push("| Value | Description |");
-				lines.push("|-------|-------------|");
+				sectionLines.push("| Value | Description |");
+				sectionLines.push("|-------|-------------|");
 				for (const value of prop.enum) {
 					const valueDesc = generateEnumDescription(key, value, prop.default);
-					lines.push(`| \`${value}\` | ${valueDesc} |`);
+					sectionLines.push(`| \`${value}\` | ${valueDesc} |`);
 				}
-				lines.push("");
+				sectionLines.push("");
 			} else if (prop.type === "number") {
-				lines.push("| Property | Value |");
-				lines.push("|----------|-------|");
-				lines.push(`| Type | Number |`);
+				sectionLines.push("| Property | Value |");
+				sectionLines.push("|----------|-------|");
+				sectionLines.push(`| Type | Number |`);
 				if (prop.default !== undefined) {
-					lines.push(`| Default | \`${prop.default}\` |`);
+					sectionLines.push(`| Default | \`${prop.default}\` |`);
 				}
 				if (prop.minimum !== undefined) {
-					lines.push(`| Minimum | \`${prop.minimum}\` |`);
+					sectionLines.push(`| Minimum | \`${prop.minimum}\` |`);
 				}
 				if (prop.maximum !== undefined) {
 					const maxLabel = prop.maximum === 1440 ? `\`1440\` (24 hours)` : `\`${prop.maximum}\``;
-					lines.push(`| Maximum | ${maxLabel} |`);
+					sectionLines.push(`| Maximum | ${maxLabel} |`);
 				}
-				lines.push("");
+				sectionLines.push("");
 			} else if (prop.type === "string" && prop.format === "uri") {
-				lines.push("| Property | Value |");
-				lines.push("|----------|-------|");
-				lines.push(`| Type | String (URI) |`);
+				sectionLines.push("| Property | Value |");
+				sectionLines.push("|----------|-------|");
+				sectionLines.push(`| Type | String (URI) |`);
 				if (prop.default) {
-					lines.push(`| Default | \`${prop.default}\` |`);
+					sectionLines.push(`| Default | \`${prop.default}\` |`);
 				}
-				lines.push("");
+				sectionLines.push("");
 			}
 
 			// Add example JSON
 			const exampleValue = prop.type === "string" ? `"${prop.default}"` : prop.default;
-			lines.push("```json", "{", `  "${key}": ${exampleValue}`, "}", "```", "");
+			sectionLines.push("```json", "{", `  "${key}": ${exampleValue}`, "}", "```", "");
 		}
 	}
 
-	// Add workspace vs user settings section
-	lines.push(
-		"## Workspace vs User Settings",
-		"",
-		'All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:',
-		"",
-		"- **User level**: Applies to all workspaces.",
-		"- **Workspace level**: Applies only to the current workspace.",
-		"- **Folder level**: Applies only to a specific folder in a multi-root workspace.",
-		"",
-		"Folder settings override workspace settings, which override user settings.",
-		"",
-	);
-
-	// Add example configuration
-	lines.push("## Example Configuration", "");
-	lines.push("Here is an example `settings.json` with all Quarto Wizard settings:", "");
-	lines.push("```json", "{");
-
+	// Generate example configuration
+	const exampleLines = ["```json", "{"];
 	const allProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	const lastIndex = allProps.length - 1;
 	allProps.forEach(([key, prop], index) => {
 		const value = prop.type === "string" ? `"${prop.default}"` : prop.default;
 		const comma = index < lastIndex ? "," : "";
-		lines.push(`  "${key}": ${value}${comma}`);
+		exampleLines.push(`  "${key}": ${value}${comma}`);
 	});
+	exampleLines.push("}", "```", "");
 
-	lines.push("}", "```", "");
-
-	const content = lines.join("\n");
-	writeFileSync(join(docsRefDir, "configuration.qmd"), content, "utf-8");
+	writeFromTemplate("reference-configuration.qmd", join(docsRefDir, "configuration.qmd"), {
+		CONFIG_SECTIONS: sectionLines.join("\n"),
+		EXAMPLE_CONFIG: exampleLines.join("\n"),
+	});
 	console.log("  Created reference/configuration.qmd");
 }
 
@@ -1013,23 +1139,8 @@ function generateReferenceIndex(pkg) {
 	const commands = getDocumentedCommands(pkg);
 	const properties = pkg.contributes?.configuration?.properties || {};
 
-	const lines = [
-		"---",
-		'title: "Reference"',
-		"---",
-		"",
-		"This section provides detailed reference documentation for Quarto Wizard.",
-		"",
-		"## Commands",
-		"",
-		"Quarto Wizard provides a comprehensive set of commands for managing Quarto extensions.",
-		"See [Commands Reference](commands.qmd) for the complete list.",
-		"",
-		"### Quick Reference",
-		"",
-		"| Command | Description |",
-		"|---------|-------------|",
-	];
+	// Generate commands table
+	const commandsLines = ["| Command | Description |", "|---------|-------------|"];
 
 	// Add quick reference for primary commands
 	const primaryCommands = COMMAND_GROUPS[0].commands;
@@ -1038,7 +1149,7 @@ function generateReferenceIndex(pkg) {
 		if (!cmd) continue;
 		const desc = generateCommandDescription(cmd);
 		if (desc) {
-			lines.push(`| ${cmd.title} | ${desc} |`);
+			commandsLines.push(`| ${cmd.title} | ${desc} |`);
 		}
 	}
 
@@ -1049,41 +1160,23 @@ function generateReferenceIndex(pkg) {
 		if (!cmd) continue;
 		const desc = generateCommandDescription(cmd);
 		if (desc) {
-			lines.push(`| ${cmd.title} | ${desc} |`);
+			commandsLines.push(`| ${cmd.title} | ${desc} |`);
 		}
 	}
 
-	lines.push(
-		"",
-		"## Configuration",
-		"",
-		"Customise Quarto Wizard's behaviour through VS Code settings.",
-		"See [Configuration Reference](configuration.qmd) for all available options.",
-		"",
-		"### Quick Reference",
-		"",
-		"| Setting | Default | Description |",
-		"|---------|---------|-------------|",
-	);
-
-	// Add configuration quick reference
+	// Generate configuration table
+	const configLines = ["| Setting | Default | Description |", "|---------|---------|-------------|"];
 	const sortedProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	for (const [key, prop] of sortedProps) {
 		const defaultVal = key === "quartoWizard.registry.url" ? "(see docs)" : `\`${prop.default}\``;
 		const desc = generateSettingQuickDesc(key);
-		lines.push(`| \`${key}\` | ${defaultVal} | ${desc} |`);
+		configLines.push(`| \`${key}\` | ${defaultVal} | ${desc} |`);
 	}
 
-	lines.push(
-		"",
-		"## API Reference",
-		"",
-		"For developers integrating with the `@quarto-wizard/core` package, see the [API Reference](../api/index.qmd).",
-		"",
-	);
-
-	const content = lines.join("\n");
-	writeFileSync(join(docsRefDir, "index.qmd"), content, "utf-8");
+	writeFromTemplate("reference-index.qmd", join(docsRefDir, "index.qmd"), {
+		COMMANDS_TABLE: commandsLines.join("\n"),
+		CONFIGURATION_TABLE: configLines.join("\n"),
+	});
 	console.log("  Created reference/index.qmd");
 }
 

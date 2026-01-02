@@ -1,5 +1,9 @@
 /**
- * "Use extension" operation - install + copy template files.
+ * @description Use extension operation for installing and copying template files.
+ *
+ * Combines installation with template file copying for starter templates.
+ *
+ * @module operations
  */
 
 import * as fs from "node:fs";

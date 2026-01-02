@@ -1,5 +1,9 @@
 /**
- * Directory walking utilities.
+ * @description Directory walking and file collection utilities.
+ *
+ * Provides recursive directory traversal and file copying operations.
+ *
+ * @module filesystem
  */
 
 import * as fs from "node:fs";

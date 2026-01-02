@@ -1,5 +1,9 @@
 /**
- * Registry fetching and parsing.
+ * @description Registry fetching and parsing.
+ *
+ * Handles loading the Quarto extensions registry with caching support.
+ *
+ * @module registry
  */
 
 import type { Registry, RawRegistryEntry } from "../types/registry.js";

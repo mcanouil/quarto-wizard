@@ -1,0 +1,24 @@
+---
+title: "Configuration Reference"
+---
+
+Quarto Wizard can be configured through VS Code settings.
+Access these through **File** > **Preferences** > **Settings** (or **Code** > **Preferences** > **Settings** on macOS) and search for "Quarto Wizard".
+
+{{CONFIG_SECTIONS}}
+
+## Workspace vs User Settings
+
+All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
+
+- **User level**: Applies to all workspaces.
+- **Workspace level**: Applies only to the current workspace.
+- **Folder level**: Applies only to a specific folder in a multi-root workspace.
+
+Folder settings override workspace settings, which override user settings.
+
+## Example Configuration
+
+Here is an example `settings.json` with all Quarto Wizard settings:
+
+{{EXAMPLE_CONFIG}}

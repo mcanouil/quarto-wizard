@@ -1,5 +1,9 @@
 /**
- * Manifest parsing for _extension.yml files.
+ * @description Manifest parsing for _extension.yml files.
+ *
+ * Provides functions to read, parse, and write Quarto extension manifests.
+ *
+ * @module filesystem
  */
 
 import * as fs from "node:fs";

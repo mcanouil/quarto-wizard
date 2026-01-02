@@ -1,5 +1,9 @@
 /**
- * Registry search and listing functions.
+ * @description Registry search and listing functions.
+ *
+ * Provides search and filtering capabilities for the extensions registry.
+ *
+ * @module registry
  */
 
 import type { Registry, RegistryEntry } from "../types/registry.js";

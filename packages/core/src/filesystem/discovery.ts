@@ -1,5 +1,9 @@
 /**
- * Extension discovery from the filesystem.
+ * @description Extension discovery from the filesystem.
+ *
+ * Scans the _extensions directory to find installed Quarto extensions.
+ *
+ * @module filesystem
  */
 
 import * as fs from "node:fs";

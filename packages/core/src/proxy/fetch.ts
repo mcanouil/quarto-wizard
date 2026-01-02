@@ -1,5 +1,9 @@
 /**
- * Proxy-aware fetch wrapper using undici.
+ * @description Proxy-aware fetch wrapper using undici.
+ *
+ * Automatically routes requests through configured proxy servers.
+ *
+ * @module proxy
  */
 
 import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from "undici";
