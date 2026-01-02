@@ -134,7 +134,6 @@ Open the extension's GitHub repository in a browser.
 
 Open the extension's folder in the file explorer.
 
-
 ## Keyboard Shortcuts
 
 By default, Quarto Wizard does not define keyboard shortcuts.
@@ -155,40 +154,39 @@ For scripting or keybinding purposes, here are the internal command identifiers:
 
 ### Primary Commands
 
-| Display Name | Command ID |
-|--------------|------------|
-| Install Extensions | `quartoWizard.installExtension` |
-| Use Template | `quartoWizard.useTemplate` |
-| Quarto Reproducible Document | `quartoWizard.newQuartoReprex` |
-| Show Quarto Wizard Log Output | `quartoWizard.showOutput` |
-| Clear Recently Installed Extensions | `quartoWizard.clearRecent` |
-| Clear Extension Cache | `quartoWizard.clearCache` |
-| Get Extensions Details | `quartoWizard.getExtensionsDetails` |
+| Display Name                        | Command ID                          |
+| ----------------------------------- | ----------------------------------- |
+| Install Extensions                  | `quartoWizard.installExtension`     |
+| Use Template                        | `quartoWizard.useTemplate`          |
+| Quarto Reproducible Document        | `quartoWizard.newQuartoReprex`      |
+| Show Quarto Wizard Log Output       | `quartoWizard.showOutput`           |
+| Clear Recently Installed Extensions | `quartoWizard.clearRecent`          |
+| Clear Extension Cache               | `quartoWizard.clearCache`           |
+| Get Extensions Details              | `quartoWizard.getExtensionsDetails` |
 
 ### Installation Commands
 
-| Display Name | Command ID |
-|--------------|------------|
+| Display Name                    | Command ID                                  |
+| ------------------------------- | ------------------------------------------- |
 | Install Extension from Registry | `quartoWizard.installExtensionFromRegistry` |
-| Install Extension from URL | `quartoWizard.installExtensionFromURL` |
-| Install Extension from Local | `quartoWizard.installExtensionFromLocal` |
+| Install Extension from URL      | `quartoWizard.installExtensionFromURL`      |
+| Install Extension from Local    | `quartoWizard.installExtensionFromLocal`    |
 
 ### Authentication Commands
 
-| Display Name | Command ID |
-|--------------|------------|
-| Set GitHub Token (Manual) | `quartoWizard.setGitHubToken` |
+| Display Name                | Command ID                      |
+| --------------------------- | ------------------------------- |
+| Set GitHub Token (Manual)   | `quartoWizard.setGitHubToken`   |
 | Clear GitHub Token (Manual) | `quartoWizard.clearGitHubToken` |
 
 ### Explorer View Commands
 
-| Display Name | Command ID |
-|--------------|------------|
-| Refresh Installed Extensions | `quartoWizard.extensionsInstalled.refresh` |
-| Update Extension | `quartoWizard.extensionsInstalled.update` |
-| Update All Extensions | `quartoWizard.extensionsInstalled.updateAll` |
-| Remove Extension | `quartoWizard.extensionsInstalled.remove` |
-| Remove Multiple Extensions | `quartoWizard.extensionsInstalled.removeMultiple` |
-| Open Extension Source | `quartoWizard.extensionsInstalled.openSource` |
-| Reveal in Explorer View | `quartoWizard.extensionsInstalled.revealInExplorer` |
-
+| Display Name                 | Command ID                                          |
+| ---------------------------- | --------------------------------------------------- |
+| Refresh Installed Extensions | `quartoWizard.extensionsInstalled.refresh`          |
+| Update Extension             | `quartoWizard.extensionsInstalled.update`           |
+| Update All Extensions        | `quartoWizard.extensionsInstalled.updateAll`        |
+| Remove Extension             | `quartoWizard.extensionsInstalled.remove`           |
+| Remove Multiple Extensions   | `quartoWizard.extensionsInstalled.removeMultiple`   |
+| Open Extension Source        | `quartoWizard.extensionsInstalled.openSource`       |
+| Reveal in Explorer View      | `quartoWizard.extensionsInstalled.revealInExplorer` |

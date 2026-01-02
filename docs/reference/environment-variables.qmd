@@ -11,9 +11,9 @@ Quarto Wizard supports GitHub authentication via environment variables. This is 
 
 ### Variables
 
-| Variable | Description |
-|----------|-------------|
-| `GITHUB_TOKEN` | GitHub personal access token for API authentication. |
+| Variable              | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `GITHUB_TOKEN`        | GitHub personal access token for API authentication.              |
 | `QUARTO_WIZARD_TOKEN` | Alternative token variable (fallback if GITHUB_TOKEN is not set). |
 
 GITHUB_TOKEN takes precedence over QUARTO_WIZARD_TOKEN if both are set.
@@ -38,11 +38,11 @@ Quarto Wizard respects standard proxy environment variables for network requests
 
 ### Variables
 
-| Variable | Description |
-|----------|-------------|
-| `HTTP_PROXY` or `http_proxy` | Proxy URL for HTTP requests. |
-| `HTTPS_PROXY` or `https_proxy` | Proxy URL for HTTPS requests. |
-| `NO_PROXY` or `no_proxy` | Comma or space-separated list of hosts to bypass the proxy. |
+| Variable                       | Description                                                 |
+| ------------------------------ | ----------------------------------------------------------- |
+| `HTTP_PROXY` or `http_proxy`   | Proxy URL for HTTP requests.                                |
+| `HTTPS_PROXY` or `https_proxy` | Proxy URL for HTTPS requests.                               |
+| `NO_PROXY` or `no_proxy`       | Comma or space-separated list of hosts to bypass the proxy. |
 
 The uppercase variants take precedence over lowercase if both are set.
 
@@ -63,15 +63,14 @@ export NO_PROXY=localhost,127.0.0.1,.internal.corp
 
 The `NO_PROXY` variable supports several pattern formats.
 
-| Pattern | Matches |
-|---------|---------|
-| `*` | Matches all hosts (disables proxy). |
-| `example.com` | Matches exactly example.com and subdomains like api.example.com. |
-| `.example.com` | Matches domain example.com and all subdomains. |
-| `localhost` | Matches the literal hostname localhost. |
-| `127.0.0.1` | Matches the literal IP address. |
+| Pattern        | Matches                                                          |
+| -------------- | ---------------------------------------------------------------- |
+| `*`            | Matches all hosts (disables proxy).                              |
+| `example.com`  | Matches exactly example.com and subdomains like api.example.com. |
+| `.example.com` | Matches domain example.com and all subdomains.                   |
+| `localhost`    | Matches the literal hostname localhost.                          |
+| `127.0.0.1`    | Matches the literal IP address.                                  |
 
 ::: {.callout-note}
 CIDR notation (e.g., 192.168.1.0/24) is not supported.
 :::
-

@@ -14,10 +14,10 @@ author:
 ---
 
 ![](assets/logo/logo-social.png){
-  .img-fluid .img-thumbnail .rounded-3 .border-light
-  fig-align="center"
-  fig-alt="Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
-  width="75%"
+.img-fluid .img-thumbnail .rounded-3 .border-light
+fig-align="center"
+fig-alt="Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
+width="75%"
 }
 
 **Quarto Wizard** is a Visual Studio Code extension that helps you manage your [Quarto](https://quarto.org) projects.

@@ -32,12 +32,12 @@ Right-click in the Explorer or Editor to access Quarto Wizard commands from the 
 
 ## Quick Actions
 
-| Action | Command |
-|--------|---------|
-| Install extensions | `Quarto Wizard: Install Extensions` |
-| Use a template | `Quarto Wizard: Use Template` |
-| Create a reprex | `Quarto Wizard: Quarto Reproducible Document` |
-| View logs | `Quarto Wizard: Show Quarto Wizard Log Output` |
+| Action             | Command                                        |
+| ------------------ | ---------------------------------------------- |
+| Install extensions | `Quarto Wizard: Install Extensions`            |
+| Use a template     | `Quarto Wizard: Use Template`                  |
+| Create a reprex    | `Quarto Wizard: Quarto Reproducible Document`  |
+| View logs          | `Quarto Wizard: Show Quarto Wizard Log Output` |
 
 ## Next Steps
 

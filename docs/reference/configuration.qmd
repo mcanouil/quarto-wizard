@@ -13,10 +13,10 @@ Access these through **File** > **Preferences** > **Settings** (or **Code** > **
 
 Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again.
 
-| Value | Description |
-|-------|-------------|
-| `never` | Always trust authors without prompting. |
-| `ask` | Ask for confirmation each time (default). |
+| Value   | Description                               |
+| ------- | ----------------------------------------- |
+| `never` | Always trust authors without prompting.   |
+| `ask`   | Ask for confirmation each time (default). |
 
 ```json
 {
@@ -30,10 +30,10 @@ Ask for confirmation before trusting an extension author. `ask` to ask for confi
 
 Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again.
 
-| Value | Description |
-|-------|-------------|
-| `never` | Install without prompting. |
-| `ask` | Ask for confirmation each time (default). |
+| Value   | Description                               |
+| ------- | ----------------------------------------- |
+| `never` | Install without prompting.                |
+| `ask`   | Ask for confirmation each time (default). |
 
 ```json
 {
@@ -49,12 +49,12 @@ Ask for confirmation before installing an extension. `ask` to ask for confirmati
 
 Cache duration for extension registry data in minutes. Lower values fetch fresher data but increase network requests. Default is 30 minutes.
 
-| Property | Value |
-|----------|-------|
-| Type | Number |
-| Default | `30` |
-| Minimum | `1` |
-| Maximum | `1440` (24 hours) |
+| Property | Value             |
+| -------- | ----------------- |
+| Type     | Number            |
+| Default  | `30`              |
+| Minimum  | `1`               |
+| Maximum  | `1440` (24 hours) |
 
 ```json
 {
@@ -70,10 +70,10 @@ Cache duration for extension registry data in minutes. Lower values fetch freshe
 
 URL to the Quarto extensions registry JSON file. Change this to use a custom registry. The registry must contain entries with at least `id`, `name`, and `owner` fields.
 
-| Property | Value |
-|----------|-------|
-| Type | String (URI) |
-| Default | `https://m.canouil.dev/quarto-extensions/extensions.json` |
+| Property | Value                                                     |
+| -------- | --------------------------------------------------------- |
+| Type     | String (URI)                                              |
+| Default  | `https://m.canouil.dev/quarto-extensions/extensions.json` |
 
 ```json
 {
@@ -89,11 +89,11 @@ URL to the Quarto extensions registry JSON file. Change this to use a custom reg
 
 The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything.
 
-| Value | Description |
-|-------|-------------|
-| `error` | Only log errors. |
-| `warn` | Log warnings and errors. |
-| `info` | Log info, warnings, and errors (default). |
+| Value   | Description                                  |
+| ------- | -------------------------------------------- |
+| `error` | Only log errors.                             |
+| `warn`  | Log warnings and errors.                     |
+| `info`  | Log info, warnings, and errors (default).    |
 | `debug` | Log everything, including debug information. |
 
 ```json
@@ -101,7 +101,6 @@ The level of logging to use. `error` to only log errors, `warn` to log warnings 
   "quartoWizard.log.level": "info"
 }
 ```
-
 
 ## Workspace vs User Settings
 
@@ -126,4 +125,3 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.log.level": "info"
 }
 ```
-
