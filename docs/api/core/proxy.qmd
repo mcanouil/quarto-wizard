@@ -1,0 +1,237 @@
+---
+title: "Proxy"
+description: "Proxy configuration from environment variables."
+---
+
+Proxy configuration from environment variables.
+
+Quarto Wizard respects standard proxy environment variables for network requests.
+This is useful when working behind a corporate proxy.
+
+## Envvar
+
+HTTP_PROXY - Proxy URL for HTTP requests.
+
+## Envvar
+
+http_proxy - Proxy URL for HTTP requests (lowercase variant).
+
+## Envvar
+
+HTTPS_PROXY - Proxy URL for HTTPS requests.
+
+## Envvar
+
+https_proxy - Proxy URL for HTTPS requests (lowercase variant).
+
+## Envvar
+
+NO_PROXY - Comma or space-separated list of hosts to bypass the proxy.
+
+## Envvar
+
+no_proxy - Comma or space-separated list of hosts to bypass (lowercase variant).
+
+The uppercase variants take precedence over lowercase if both are set.
+
+## Examples
+
+```{.bash filename="Terminal"}
+export HTTPS_PROXY=http://proxy.example.com:8080
+```
+
+```{.bash filename="Terminal"}
+export HTTPS_PROXY=http://user:password@proxy.example.com:8080
+```
+
+```{.bash filename="Terminal"}
+export NO_PROXY=localhost,127.0.0.1,.internal.corp
+```
+
+## Pattern
+
+* - Matches all hosts (disables proxy).
+
+## Pattern
+
+example.com - Matches exactly example.com and subdomains like api.example.com.
+
+## Pattern
+
+.example.com - Matches domain example.com and all subdomains.
+
+## Pattern
+
+localhost - Matches the literal hostname localhost.
+
+## Pattern
+
+127.0.0.1 - Matches the literal IP address.
+
+## Note
+
+CIDR notation (e.g., 192.168.1.0/24) is not supported.
+
+## Interfaces
+
+### ProxyConfig
+
+Defined in: packages/core/src/proxy/config.ts:45
+
+Proxy configuration.
+
+#### Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="httpproxy"></a> `httpProxy?` | `string` | Proxy URL for HTTP requests. | packages/core/src/proxy/config.ts:47 |
+| <a id="httpsproxy"></a> `httpsProxy?` | `string` | Proxy URL for HTTPS requests. | packages/core/src/proxy/config.ts:49 |
+| <a id="noproxy"></a> `noProxy` | `string[]` | List of hosts/patterns to bypass the proxy. | packages/core/src/proxy/config.ts:51 |
+
+## Functions
+
+### getProxyConfig()
+
+```{.ts filename="TypeScript"}
+function getProxyConfig(): ProxyConfig;
+```
+
+Defined in: packages/core/src/proxy/config.ts:87
+
+Read proxy configuration from environment variables.
+
+#### Returns
+
+[`ProxyConfig`](#proxyconfig)
+
+Proxy configuration
+
+### getProxyForUrl()
+
+```{.ts filename="TypeScript"}
+function getProxyForUrl(url, config?): string | undefined;
+```
+
+Defined in: packages/core/src/proxy/config.ts:145
+
+Get the appropriate proxy URL for a given request URL.
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `url` | `string` | Request URL |
+| `config?` | [`ProxyConfig`](#proxyconfig) | Proxy configuration |
+
+#### Returns
+
+`string` \| `undefined`
+
+Proxy URL or undefined if no proxy should be used
+
+### shouldBypassProxy()
+
+```{.ts filename="TypeScript"}
+function shouldBypassProxy(hostname, noProxy): boolean;
+```
+
+Defined in: packages/core/src/proxy/config.ts:108
+
+Check if a hostname should bypass the proxy.
+
+Supports patterns:
+- "*" matches all hosts
+- ".example.com" matches example.com and all subdomains
+- "example.com" matches exactly example.com
+- "192.168.1.0/24" style CIDR is NOT supported (matched literally)
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `hostname` | `string` | Hostname to check |
+| `noProxy` | `string[]` | List of NO_PROXY patterns |
+
+#### Returns
+
+`boolean`
+
+True if the host should bypass the proxy
+
+## Fetch
+
+### Interfaces
+
+#### ProxyFetchOptions
+
+Defined in: packages/core/src/proxy/fetch.ts:11
+
+Options for proxy-aware fetch.
+
+#### Extends
+
+- `RequestInit`
+
+#### Properties
+
+| Property | Type | Description | Inherited from | Defined in |
+| ------ | ------ | ------ | ------ | ------ |
+| <a id="body"></a> `body?` | `BodyInit` | - | `RequestInit.body` | node\_modules/undici-types/fetch.d.ts:123 |
+| <a id="cache"></a> `cache?` | `RequestCache` | - | `RequestInit.cache` | node\_modules/undici-types/fetch.d.ts:124 |
+| <a id="credentials"></a> `credentials?` | `RequestCredentials` | - | `RequestInit.credentials` | node\_modules/undici-types/fetch.d.ts:125 |
+| <a id="dispatcher"></a> `dispatcher?` | `Dispatcher` | - | `RequestInit.dispatcher` | node\_modules/undici-types/fetch.d.ts:126 |
+| <a id="duplex"></a> `duplex?` | `"half"` | - | `RequestInit.duplex` | node\_modules/undici-types/fetch.d.ts:127 |
+| <a id="headers"></a> `headers?` | `HeadersInit` | - | `RequestInit.headers` | node\_modules/undici-types/fetch.d.ts:128 |
+| <a id="integrity"></a> `integrity?` | `string` | - | `RequestInit.integrity` | node\_modules/undici-types/fetch.d.ts:129 |
+| <a id="keepalive"></a> `keepalive?` | `boolean` | - | `RequestInit.keepalive` | node\_modules/undici-types/fetch.d.ts:130 |
+| <a id="method"></a> `method?` | `string` | - | `RequestInit.method` | node\_modules/undici-types/fetch.d.ts:131 |
+| <a id="mode"></a> `mode?` | `RequestMode` | - | `RequestInit.mode` | node\_modules/undici-types/fetch.d.ts:132 |
+| <a id="proxyconfig"></a> `proxyConfig?` | [`ProxyConfig`](proxy.qmd#proxyconfig) | Proxy configuration. If not provided, reads from environment. | - | packages/core/src/proxy/fetch.ts:13 |
+| <a id="redirect"></a> `redirect?` | `RequestRedirect` | - | `RequestInit.redirect` | node\_modules/undici-types/fetch.d.ts:133 |
+| <a id="referrer"></a> `referrer?` | `string` | - | `RequestInit.referrer` | node\_modules/undici-types/fetch.d.ts:134 |
+| <a id="referrerpolicy"></a> `referrerPolicy?` | `ReferrerPolicy` | - | `RequestInit.referrerPolicy` | node\_modules/undici-types/fetch.d.ts:135 |
+| <a id="signal"></a> `signal?` | `AbortSignal` \| `null` | - | `RequestInit.signal` | node\_modules/undici-types/fetch.d.ts:136 |
+| <a id="window"></a> `window?` | `null` | - | `RequestInit.window` | node\_modules/undici-types/fetch.d.ts:137 |
+
+### Functions
+
+#### clearProxyAgentCache()
+
+```{.ts filename="TypeScript"}
+function clearProxyAgentCache(): void;
+```
+
+Defined in: packages/core/src/proxy/fetch.ts:69
+
+Clear the proxy agent cache.
+Useful for testing or when proxy configuration changes.
+
+#### Returns
+
+`void`
+
+#### proxyFetch()
+
+```{.ts filename="TypeScript"}
+function proxyFetch(url, options): Promise<Response>;
+```
+
+Defined in: packages/core/src/proxy/fetch.ts:48
+
+Proxy-aware fetch function.
+
+Uses undici's fetch with ProxyAgent when a proxy is configured via
+environment variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY).
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `url` | `string` \| `URL` | URL to fetch |
+| `options` | [`ProxyFetchOptions`](#proxyfetchoptions) | Fetch options with optional proxy configuration |
+
+#### Returns
+
+`Promise`\<`Response`\>
+
+Response

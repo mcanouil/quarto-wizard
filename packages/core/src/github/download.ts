@@ -9,6 +9,7 @@ import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { NetworkError } from "../errors.js";
+import { proxyFetch } from "../proxy/index.js";
 import { resolveVersion, type ResolveVersionOptions } from "./releases.js";
 
 /**
@@ -134,7 +135,7 @@ export async function downloadArchive(
 	const timeoutId = setTimeout(() => controller.abort(), timeout);
 
 	try {
-		const response = await fetch(url, {
+		const response = await proxyFetch(url, {
 			headers,
 			redirect: "follow",
 			signal: controller.signal,

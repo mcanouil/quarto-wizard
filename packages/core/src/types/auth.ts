@@ -1,5 +1,27 @@
 /**
  * Authentication configuration types.
+ *
+ * Quarto Wizard supports GitHub authentication via environment variables.
+ * This is useful for accessing private repositories or increasing API rate limits.
+ *
+ * @module auth
+ *
+ * @envvar GITHUB_TOKEN - GitHub personal access token for API authentication.
+ * @envvar QUARTO_WIZARD_TOKEN - Alternative token variable (fallback if GITHUB_TOKEN is not set).
+ *
+ * GITHUB_TOKEN takes precedence over QUARTO_WIZARD_TOKEN if both are set.
+ *
+ * @example Setting GitHub token for private repository access
+ * ```bash
+ * export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ * ```
+ *
+ * @example Using the alternative token variable
+ * ```bash
+ * export QUARTO_WIZARD_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ * ```
+ *
+ * @note Tokens can also be set via VS Code settings or the extension's authentication UI.
  */
 
 /**

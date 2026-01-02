@@ -9,3 +9,4 @@ website:
           contents:
             - reference/commands.qmd
             - reference/configuration.qmd
+            - reference/environment-variables.qmd

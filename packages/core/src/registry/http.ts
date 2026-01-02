@@ -3,6 +3,7 @@
  */
 
 import { NetworkError } from "../errors.js";
+import { proxyFetch } from "../proxy/index.js";
 
 /**
  * Options for HTTP requests.
@@ -35,7 +36,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
 	const timeoutId = setTimeout(() => controller.abort(), timeout);
 
 	try {
-		const response = await fetch(url, {
+		const response = await proxyFetch(url, {
 			...options,
 			signal: controller.signal,
 		});

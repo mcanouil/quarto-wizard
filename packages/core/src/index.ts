@@ -40,3 +40,6 @@ export * from "./archive/index.js";
 
 // Operations exports
 export * from "./operations/index.js";
+
+// Proxy exports
+export * from "./proxy/index.js";

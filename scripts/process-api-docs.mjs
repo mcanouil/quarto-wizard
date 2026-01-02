@@ -26,6 +26,210 @@ const docsRefDir = resolve(docsDir, "reference");
 const coreOutputDir = resolve(docsApiDir, "core");
 const packageJsonPath = resolve(rootDir, "package.json");
 const variablesYmlPath = resolve(docsDir, "_variables.yml");
+const proxyConfigPath = resolve(rootDir, "packages/core/src/proxy/config.ts");
+const authConfigPath = resolve(rootDir, "packages/core/src/types/auth.ts");
+
+/**
+ * Environment variable source files configuration.
+ * Each entry specifies a TypeScript file and the section title for its env vars.
+ */
+const ENV_VAR_SOURCES = [
+	{ path: authConfigPath, section: "Authentication", id: "auth" },
+	{ path: proxyConfigPath, section: "Proxy", id: "proxy" },
+];
+
+/**
+ * Parse environment variable documentation from a TypeScript source file.
+ * Extracts @envvar, @example, @pattern, and @note tags from JSDoc.
+ *
+ * @param {string} filePath - Path to the TypeScript file
+ * @returns {object|null} Parsed documentation or null if not found
+ */
+function parseEnvVarDocumentation(filePath) {
+	const content = readFileSync(filePath, "utf-8");
+
+	// Extract the module-level JSDoc comment
+	const jsdocMatch = content.match(/^\/\*\*[\s\S]*?\*\//m);
+	if (!jsdocMatch) {
+		return null;
+	}
+
+	const jsdoc = jsdocMatch[0];
+
+	// Extract description (lines before first @tag)
+	const descLines = [];
+	const lines = jsdoc.split("\n");
+	for (const line of lines) {
+		const trimmed = line.replace(/^\s*\*\s?/, "").trim();
+		if (trimmed.startsWith("@") || trimmed === "/**" || trimmed === "*/") continue;
+		if (trimmed) descLines.push(trimmed);
+	}
+	const description = descLines.slice(0, 2).join(" "); // First two meaningful lines
+
+	// Extract @envvar tags
+	const envvars = [];
+	const envvarRegex = /@envvar\s+(\S+)\s+-\s+(.+)/g;
+	let match;
+	while ((match = envvarRegex.exec(jsdoc)) !== null) {
+		envvars.push({ name: match[1], description: match[2].trim() });
+	}
+
+	// Extract @example tags with their code blocks
+	const examples = [];
+	const exampleRegex = /@example\s+([^\n]+)\n\s*\*\s*```(\w+)\n([\s\S]*?)\n\s*\*\s*```/g;
+	while ((match = exampleRegex.exec(jsdoc)) !== null) {
+		examples.push({
+			title: match[1].trim(),
+			language: match[2],
+			code: match[3]
+				.split("\n")
+				.map((l) => l.replace(/^\s*\*\s?/, ""))
+				.join("\n")
+				.trim(),
+		});
+	}
+
+	// Extract @pattern tags
+	const patterns = [];
+	const patternRegex = /@pattern\s+(\S+)\s+-\s+(.+)/g;
+	while ((match = patternRegex.exec(jsdoc)) !== null) {
+		patterns.push({ pattern: match[1], description: match[2].trim() });
+	}
+
+	// Extract @note tags
+	const notes = [];
+	const noteRegex = /@note\s+(.+)/g;
+	while ((match = noteRegex.exec(jsdoc)) !== null) {
+		notes.push(match[1].trim());
+	}
+
+	// Extract precedence note (standalone line mentioning precedence)
+	const precedencePatterns = [/\b\w+\s+takes precedence[^@]*/, /The uppercase variants[^@]*/];
+	let precedenceNote = "";
+	for (const pattern of precedencePatterns) {
+		const precedenceMatch = jsdoc.match(pattern);
+		if (precedenceMatch) {
+			precedenceNote = precedenceMatch[0].replace(/\s*\*\s*/g, " ").trim();
+			break;
+		}
+	}
+
+	return { description, envvars, examples, patterns, notes, precedenceNote };
+}
+
+/**
+ * Generate a section for a single environment variable source.
+ *
+ * @param {object} source - Source configuration { path, section, id }
+ * @returns {string[]} Lines of markdown documentation
+ */
+function generateEnvVarSection(source) {
+	const doc = parseEnvVarDocumentation(source.path);
+	if (!doc || doc.envvars.length === 0) {
+		return [];
+	}
+
+	const lines = [`## ${source.section}`, ""];
+
+	// Description
+	if (doc.description) {
+		lines.push(doc.description, "");
+	}
+
+	// Environment variables table
+	lines.push("### Variables", "");
+	lines.push("| Variable | Description |");
+	lines.push("|----------|-------------|");
+
+	// Group by base name for case variants (HTTP_PROXY/http_proxy, etc.)
+	const grouped = new Map();
+	for (const env of doc.envvars) {
+		const baseName = env.name.toUpperCase();
+		if (!grouped.has(baseName)) {
+			grouped.set(baseName, { upper: null, lower: null, description: "" });
+		}
+		const entry = grouped.get(baseName);
+		if (env.name === env.name.toUpperCase()) {
+			entry.upper = env.name;
+			entry.description = env.description;
+		} else {
+			entry.lower = env.name;
+		}
+	}
+
+	for (const [, entry] of grouped) {
+		const varName = entry.lower ? `\`${entry.upper}\` or \`${entry.lower}\`` : `\`${entry.upper}\``;
+		lines.push(`| ${varName} | ${entry.description} |`);
+	}
+	lines.push("");
+
+	// Precedence note
+	if (doc.precedenceNote) {
+		lines.push(doc.precedenceNote, "");
+	}
+
+	// Examples
+	if (doc.examples.length > 0) {
+		lines.push("### Examples", "");
+		lines.push(`\`\`\`${doc.examples[0].language}`);
+		for (const example of doc.examples) {
+			lines.push(`# ${example.title}`);
+			lines.push(example.code);
+			lines.push("");
+		}
+		// Remove trailing empty line inside code block
+		if (lines[lines.length - 1] === "") {
+			lines.pop();
+		}
+		lines.push("```", "");
+	}
+
+	// Patterns table (for proxy NO_PROXY patterns)
+	if (doc.patterns.length > 0) {
+		lines.push("### NO_PROXY Patterns", "");
+		lines.push("The `NO_PROXY` variable supports several pattern formats.", "");
+		lines.push("| Pattern | Matches |");
+		lines.push("|---------|---------|");
+		for (const p of doc.patterns) {
+			lines.push(`| \`${p.pattern}\` | ${p.description} |`);
+		}
+		lines.push("");
+	}
+
+	// Notes as callouts
+	for (const note of doc.notes) {
+		lines.push("::: {.callout-note}");
+		lines.push(note);
+		lines.push(":::", "");
+	}
+
+	return lines;
+}
+
+/**
+ * Generate the environment variables reference page.
+ */
+function generateEnvironmentVariablesPage() {
+	const lines = [
+		"---",
+		'title: "Environment Variables"',
+		"---",
+		"",
+		"Quarto Wizard supports configuration through environment variables.",
+		"These are read automatically when the extension starts.",
+		"",
+	];
+
+	// Generate sections from each source
+	for (const source of ENV_VAR_SOURCES) {
+		const sectionLines = generateEnvVarSection(source);
+		lines.push(...sectionLines);
+	}
+
+	const content = lines.join("\n");
+	writeFileSync(join(docsRefDir, "environment-variables.qmd"), content, "utf-8");
+	console.log("  Created reference/environment-variables.qmd");
+}
 
 /**
  * Language to filename mapping for code blocks.
@@ -180,6 +384,17 @@ function convertCodeBlocks(content) {
 		}
 		return match;
 	});
+}
+
+/**
+ * Fix array type formatting from TypeDoc.
+ * TypeDoc outputs "`string`[]" but we want "`string[]`".
+ * @param {string} content - The file content.
+ * @returns {string} The processed content.
+ */
+function fixArrayTypes(content) {
+	// Fix patterns like `Type`[] to `Type[]`
+	return content.replace(/`([^`]+)`\[\]/g, "`$1[]`");
 }
 
 /**
@@ -364,6 +579,7 @@ function mergeModuleFiles(moduleName, files, allModuleNames) {
 		// Clean up the content
 		let content = removeClutter(rawContent);
 		content = convertCodeBlocks(content);
+		content = fixArrayTypes(content);
 		content = updateLinks(content, allModuleNames);
 
 		if (content.trim()) {
@@ -862,8 +1078,6 @@ function generateReferenceIndex(pkg) {
 		"",
 		"For developers integrating with the `@quarto-wizard/core` package, see the [API Reference](../api/index.qmd).",
 		"",
-		"The API documentation is generated from TypeScript source code using TypeDoc.",
-		"",
 	);
 
 	const content = lines.join("\n");
@@ -903,6 +1117,7 @@ function generateReferenceSidebar() {
           contents:
             - reference/commands.qmd
             - reference/configuration.qmd
+            - reference/environment-variables.qmd
 `;
 
 	writeFileSync(join(docsDir, "_sidebar-reference.yml"), content, "utf-8");
@@ -926,6 +1141,7 @@ function processReferenceDocs() {
 	// Generate reference pages
 	generateCommandsPage(pkg);
 	generateConfigurationPage(pkg);
+	generateEnvironmentVariablesPage();
 	generateReferenceIndex(pkg);
 
 	// Generate sidebar
