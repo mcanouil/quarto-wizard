@@ -17,6 +17,39 @@ export interface ExtensionData {
 }
 
 /**
+ * Raw YAML structure for a Quarto extension manifest.
+ * This represents the expected shape of _extension.yml files.
+ */
+interface RawExtensionManifest {
+	title?: unknown;
+	author?: unknown;
+	version?: unknown;
+	contributes?: unknown;
+	source?: unknown;
+}
+
+/**
+ * Type guard to validate that parsed YAML is a valid extension manifest object.
+ * Ensures the data is a non-null object before accessing properties.
+ *
+ * @param data - Parsed YAML data
+ * @returns True if data is a valid manifest object
+ */
+function isValidManifestObject(data: unknown): data is RawExtensionManifest {
+	return typeof data === "object" && data !== null && !Array.isArray(data);
+}
+
+/**
+ * Safely extract a string value from an unknown field.
+ *
+ * @param value - Unknown value from parsed YAML
+ * @returns String value or undefined if not a string
+ */
+function asOptionalString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+/**
  * Finds Quarto extensions in a directory.
  * @param {string} directory - The directory to search.
  * @returns {string[]} - An array of relative paths to the found extensions.
@@ -164,21 +197,32 @@ export function readExtensions(workspaceFolder: string, extensions: string[]): R
 /**
  * Reads a YAML file and returns its data as an ExtensionData object.
  * @param {string} filePath - The path to the YAML file.
- * @returns {ExtensionData | null} - The parsed data or null if the file does not exist.
+ * @returns {ExtensionData | null} - The parsed data or null if the file does not exist or is invalid.
  */
 function readYamlFile(filePath: string): ExtensionData | null {
 	if (!fs.existsSync(filePath)) {
 		return null;
 	}
 	const fileContent = fs.readFileSync(filePath, "utf8");
-	const data = yaml.load(fileContent) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+	const data: unknown = yaml.load(fileContent);
+
+	if (!isValidManifestObject(data)) {
+		return null;
+	}
+
+	const source = asOptionalString(data.source);
+	const contributes =
+		typeof data.contributes === "object" && data.contributes !== null
+			? Object.keys(data.contributes).join(", ")
+			: undefined;
+
 	return {
-		title: data.title,
-		author: data.author,
-		version: data.version,
-		contributes: data.contributes ? Object.keys(data.contributes).join(", ") : undefined,
-		source: data.source,
-		repository: data.source ? data.source.replace(/@.*$/, "") : undefined,
+		title: asOptionalString(data.title),
+		author: asOptionalString(data.author),
+		version: asOptionalString(data.version),
+		contributes,
+		source,
+		repository: source ? source.replace(/@.*$/, "") : undefined,
 	};
 }
 
@@ -193,15 +237,23 @@ export async function removeExtension(extension: string, root: string): Promise<
 	const extensionPath = path.join(root, extension);
 	if (fs.existsSync(extensionPath)) {
 		try {
-			fs.rmSync(extensionPath, { recursive: true, force: true });
+			await fs.promises.rm(extensionPath, { recursive: true, force: true });
 
+			// Try to remove parent directories if empty. Using rmdir (without recursive)
+			// will fail with ENOTEMPTY if the directory has contents, which is the
+			// desired behaviour. This avoids TOCTTOU race conditions where we check
+			// if empty then delete; instead we just try to delete and handle failure.
 			const ownerPath = path.dirname(extensionPath);
-			if (fs.readdirSync(ownerPath).length === 0) {
-				fs.rmdirSync(ownerPath);
+			try {
+				await fs.promises.rmdir(ownerPath);
+			} catch {
+				// Directory not empty or already removed; either is fine.
 			}
 
-			if (fs.readdirSync(root).length === 0) {
-				fs.rmdirSync(root);
+			try {
+				await fs.promises.rmdir(root);
+			} catch {
+				// Directory not empty or already removed; either is fine.
 			}
 			return true;
 		} catch (error) {

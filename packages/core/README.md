@@ -355,6 +355,87 @@ await install("private-org/private-ext", {
 | URL              | `https://.../ext.zip`    | Direct archive URL              |
 | Local            | `./path/to/ext`          | Local directory or archive      |
 
+## Security Considerations
+
+The library implements several security measures to protect against common vulnerabilities.
+
+### Path Traversal Protection
+
+All archive extraction and file operations validate paths to prevent directory traversal attacks.
+Attempting to extract files with paths like `../../../etc/passwd` will throw a `SecurityError`.
+
+```typescript
+import { install, SecurityError } from "@quarto-wizard/core";
+
+try {
+	await install("https://malicious-archive.zip", { projectDir: "." });
+} catch (error) {
+	if (error instanceof SecurityError) {
+		console.error("Blocked malicious archive:", error.message);
+	}
+}
+```
+
+### Archive Size Limits
+
+When downloading archives, the library enforces size limits to prevent denial-of-service attacks via zip bombs.
+Very large archives (>100MB uncompressed) may require explicit user consent in consuming applications.
+
+### Best Practices
+
+- **Verify Sources**: Only install extensions from trusted sources (official registry, known GitHub repositories).
+- **Use Specific Versions**: Pin to specific versions (`owner/repo@v1.0.0`) rather than branches for reproducibility.
+- **Review Permissions**: Extensions can include arbitrary Lua code; review before installing in production environments.
+- **Network Security**: When using proxies, ensure they are trusted as they can inspect traffic.
+
+## Performance Considerations
+
+### Registry Caching
+
+The registry is cached locally to reduce network requests.
+Default TTL is 1 hour; customise via `cacheTtl` option.
+
+```typescript
+import { fetchRegistry, clearRegistryCache } from "@quarto-wizard/core";
+
+// Force fresh fetch by clearing cache
+await clearRegistryCache();
+
+// Or use short TTL
+const registry = await fetchRegistry({ cacheTtl: 60000 }); // 1 minute
+```
+
+### Concurrent Operations
+
+Operations on different projects can run concurrently, but avoid parallel operations on the same project directory as this may cause file conflicts.
+
+```typescript
+// Safe: different projects
+await Promise.all([install("ext1", { projectDir: "./project-a" }), install("ext2", { projectDir: "./project-b" })]);
+
+// Unsafe: same project (may cause conflicts)
+// await Promise.all([
+//   install("ext1", { projectDir: "." }),
+//   install("ext2", { projectDir: "." }),
+// ]);
+```
+
+### Large Projects
+
+For projects with many extensions, use the async discovery functions to avoid blocking the event loop.
+
+```typescript
+import { discoverInstalledExtensions } from "@quarto-wizard/core";
+
+// Async (recommended for large projects)
+const extensions = await discoverInstalledExtensions("./large-project");
+```
+
+### Proxy Configuration
+
+The library automatically uses system proxy settings (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` environment variables).
+Proxy connections are pooled for efficiency.
+
 ## Requirements
 
 - Node.js >= 24.0.0

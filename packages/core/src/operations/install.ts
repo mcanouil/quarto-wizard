@@ -274,7 +274,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		onProgress?.({ phase: "extracting", message: "Extracting archive..." });
 
-		if (source.type === "local" && fs.statSync(archivePath).isDirectory()) {
+		const archiveStats = await fs.promises.stat(archivePath);
+		if (source.type === "local" && archiveStats.isDirectory()) {
 			extractDir = archivePath;
 		} else {
 			const extracted = await extractArchive(archivePath);
@@ -349,13 +350,24 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			await fs.promises.rm(targetDir, { recursive: true, force: true });
 		}
 
-		const filesCreated = await copyExtension(extensionRoot, targetDir);
+		// Transaction-like semantics: if manifest update fails after copying,
+		// we clean up the partially installed extension to avoid inconsistent state.
+		let filesCreated: string[];
+		try {
+			filesCreated = await copyExtension(extensionRoot, targetDir);
 
-		onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
+			onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
+
+			const manifestPath = path.join(targetDir, manifestResult.filename);
+			updateManifestSource(manifestPath, sourceString);
+		} catch (error) {
+			// Rollback: remove partially installed extension to maintain consistency.
+			// This ensures we don't leave an extension directory without proper metadata.
+			await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
+			throw error;
+		}
 
 		const manifestPath = path.join(targetDir, manifestResult.filename);
-		updateManifestSource(manifestPath, sourceString);
-
 		const finalManifest = readManifest(targetDir);
 
 		return {
@@ -372,6 +384,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		};
 	} finally {
 		if (archivePath && source.type !== "local" && fs.existsSync(archivePath)) {
+			// Cleanup is best-effort; archive deletion failure is non-critical since
+			// it's in a temp directory that will be cleaned up eventually by the OS
 			await fs.promises.unlink(archivePath).catch(() => {});
 		}
 

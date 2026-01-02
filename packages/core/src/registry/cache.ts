@@ -96,6 +96,9 @@ export async function readCachedRegistry(
 
 		return cached.registry;
 	} catch {
+		// Cache read/parse failed (corrupted JSON, partial write, permission issue).
+		// Return null to trigger fresh fetch; cache corruption is self-healing since
+		// successful registry fetches will overwrite the corrupted cache.
 		return null;
 	}
 }
@@ -122,7 +125,9 @@ export async function writeCachedRegistry(cacheDir: string, url: string, registr
 
 		await fs.promises.writeFile(cacheFile, JSON.stringify(cached), "utf-8");
 	} catch {
-		// Ignore cache write errors
+		// Cache write is best-effort; failure (permissions, disk full, etc.)
+		// doesn't affect core functionality since we can always re-fetch.
+		// No point notifying user about cache write failure.
 	}
 }
 
@@ -139,7 +144,9 @@ export async function clearRegistryCache(cacheDir?: string): Promise<void> {
 			await fs.promises.unlink(cacheFile);
 		}
 	} catch {
-		// Ignore errors
+		// Cache clear is best-effort; if file is locked or permissions changed,
+		// it doesn't affect functionality. The next cache write will overwrite it
+		// or the user can manually delete it if needed.
 	}
 }
 
@@ -168,6 +175,8 @@ export async function getCacheStatus(
 			url: cached.url,
 		};
 	} catch {
+		// Cache status check failed (corrupted, permission issue, etc.).
+		// Report as non-existent since we can't reliably use it anyway.
 		return { exists: false };
 	}
 }

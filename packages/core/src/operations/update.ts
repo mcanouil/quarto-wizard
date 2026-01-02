@@ -160,6 +160,9 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 				});
 			}
 		} catch {
+			// semver.gt throws if versions are invalid (e.g., "1.0" vs proper semver "1.0.0").
+			// Skip this extension rather than failing the entire update check since
+			// one malformed version shouldn't prevent checking other extensions.
 			continue;
 		}
 	}

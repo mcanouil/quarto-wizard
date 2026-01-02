@@ -150,6 +150,9 @@ export async function discoverInstalledExtensions(
 						});
 					}
 				} catch {
+					// Manifest parsing failed (invalid YAML, missing required fields, etc.).
+					// If includeInvalid is set, we still want to show the extension exists
+					// so users can see and potentially fix or remove it.
 					if (options.includeInvalid) {
 						results.push({
 							id: { owner: topEntry.name, name: extEntry.name },
@@ -167,6 +170,9 @@ export async function discoverInstalledExtensions(
 			}
 		}
 	} catch {
+		// Top-level directory read failed (permissions, deleted mid-scan, etc.).
+		// Return empty array rather than throwing since discovery is best-effort;
+		// a missing or inaccessible _extensions directory just means no extensions.
 		return [];
 	}
 
@@ -248,6 +254,9 @@ export function discoverInstalledExtensionsSync(
 						});
 					}
 				} catch {
+					// Manifest parsing failed (invalid YAML, missing required fields, etc.).
+					// If includeInvalid is set, we still want to show the extension exists
+					// so users can see and potentially fix or remove it.
 					if (options.includeInvalid) {
 						results.push({
 							id: { owner: topEntry.name, name: extEntry.name },
@@ -265,6 +274,9 @@ export function discoverInstalledExtensionsSync(
 			}
 		}
 	} catch {
+		// Top-level directory read failed (permissions, deleted mid-scan, etc.).
+		// Return empty array rather than throwing since discovery is best-effort;
+		// a missing or inaccessible _extensions directory just means no extensions.
 		return [];
 	}
 

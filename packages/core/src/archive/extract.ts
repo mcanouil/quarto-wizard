@@ -144,6 +144,8 @@ export async function cleanupExtraction(extractDir: string): Promise<void> {
 	try {
 		await fs.promises.rm(extractDir, { recursive: true, force: true });
 	} catch {
-		// Ignore cleanup errors
+		// Cleanup is best-effort; failures are non-critical since temp directories
+		// will be cleaned up eventually by the OS. Common causes: file locks on
+		// Windows, permission changes, or directory already deleted.
 	}
 }

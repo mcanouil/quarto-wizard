@@ -57,6 +57,13 @@ export async function proxyFetch(url: string | URL, options: ProxyFetchOptions =
 
 	if (proxyUrl) {
 		const dispatcher = getProxyAgent(proxyUrl);
+		// Type assertions are necessary due to undici/Fetch API type incompatibilities:
+		// 1. ProxyAgent extends Dispatcher, but undici's fetch expects Dispatcher from
+		//    its own module which may have subtle version-specific type differences.
+		// 2. undici's Response is a separate implementation of the Fetch API Response
+		//    interface. While compatible at runtime, TypeScript treats them as different
+		//    types. Using the global Response type provides better API compatibility.
+		// These assertions are safe because undici implements the Fetch API spec.
 		return undiciFetch(url, {
 			...fetchOptions,
 			dispatcher: dispatcher as unknown as Dispatcher,

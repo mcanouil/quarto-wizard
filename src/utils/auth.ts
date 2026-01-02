@@ -133,7 +133,9 @@ export async function hasGitHubAuth(context: vscode.ExtensionContext): Promise<b
 			return true;
 		}
 	} catch {
-		// Ignore errors in silent check
+		// Silent session check can fail for various reasons (no GitHub extension,
+		// user never signed in, network issues). This is expected; we just proceed
+		// to check environment variables as the final fallback.
 	}
 
 	// Check environment variables
