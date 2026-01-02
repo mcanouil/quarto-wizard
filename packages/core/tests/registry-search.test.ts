@@ -174,6 +174,27 @@ describe("search", () => {
 
 		expect(results[0]?.name).toBe("Lightbox");
 	});
+
+	it("ranks name starts-with matches appropriately", async () => {
+		const results = await search("light");
+
+		expect(results.length).toBeGreaterThan(0);
+		expect(results[0]?.name).toBe("Lightbox");
+	});
+
+	it("ranks partial name matches appropriately", async () => {
+		const results = await search("box");
+
+		expect(results.length).toBeGreaterThan(0);
+		expect(results.some((r) => r.name === "Lightbox")).toBe(true);
+	});
+
+	it("matches in fullName", async () => {
+		const results = await search("quarto-ext");
+
+		expect(results.length).toBeGreaterThan(0);
+		expect(results.every((r) => r.fullName.includes("quarto-ext"))).toBe(true);
+	});
 });
 
 describe("getExtension", () => {

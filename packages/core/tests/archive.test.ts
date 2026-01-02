@@ -154,6 +154,17 @@ describe("TAR extraction", () => {
 		expect(files.length).toBeGreaterThan(0);
 		expect(fs.existsSync(path.join(destDir, "_extension.yml"))).toBe(true);
 	});
+
+	it("reports progress", async () => {
+		const destDir = path.join(tempDir, "dest");
+		const progressFiles: string[] = [];
+
+		await extractTar(tarPath, destDir, {
+			onProgress: (file) => progressFiles.push(file),
+		});
+
+		expect(progressFiles.length).toBeGreaterThan(0);
+	});
 });
 
 describe("extractArchive", () => {
