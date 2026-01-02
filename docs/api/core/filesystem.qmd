@@ -8,7 +8,7 @@ title: "Filesystem"
 
 #### DiscoveryOptions
 
-Defined in: [packages/core/src/filesystem/discovery.ts:31](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L31)
+Defined in: [packages/core/src/filesystem/discovery.ts:31](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L31)
 
 Options for extension discovery.
 
@@ -16,11 +16,11 @@ Options for extension discovery.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="includeinvalid"></a> `includeInvalid?` | `boolean` | Include extensions without valid manifests. | [packages/core/src/filesystem/discovery.ts:33](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L33) |
+| <a id="includeinvalid"></a> `includeInvalid?` | `boolean` | Include extensions without valid manifests. | [packages/core/src/filesystem/discovery.ts:33](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L33) |
 
 #### InstalledExtension
 
-Defined in: [packages/core/src/filesystem/discovery.ts:17](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L17)
+Defined in: [packages/core/src/filesystem/discovery.ts:17](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L17)
 
 An installed extension discovered on the filesystem.
 
@@ -28,10 +28,10 @@ An installed extension discovered on the filesystem.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="directory"></a> `directory` | `string` | Full path to the extension directory. | [packages/core/src/filesystem/discovery.ts:25](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L25) |
-| <a id="id"></a> `id` | [`ExtensionId`](types.qmd#extensionid) | Extension identifier. | [packages/core/src/filesystem/discovery.ts:19](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L19) |
-| <a id="manifest"></a> `manifest` | [`ExtensionManifest`](types.qmd#extensionmanifest) | Parsed manifest data. | [packages/core/src/filesystem/discovery.ts:21](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L21) |
-| <a id="manifestpath"></a> `manifestPath` | `string` | Full path to the manifest file. | [packages/core/src/filesystem/discovery.ts:23](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L23) |
+| <a id="directory"></a> `directory` | `string` | Full path to the extension directory. | [packages/core/src/filesystem/discovery.ts:25](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L25) |
+| <a id="id"></a> `id` | [`ExtensionId`](types.qmd#extensionid) | Extension identifier. | [packages/core/src/filesystem/discovery.ts:19](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L19) |
+| <a id="manifest"></a> `manifest` | [`ExtensionManifest`](types.qmd#extensionmanifest) | Parsed manifest data. | [packages/core/src/filesystem/discovery.ts:21](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L21) |
+| <a id="manifestpath"></a> `manifestPath` | `string` | Full path to the manifest file. | [packages/core/src/filesystem/discovery.ts:23](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L23) |
 
 ### Functions
 
@@ -41,7 +41,7 @@ An installed extension discovered on the filesystem.
 function discoverInstalledExtensions(projectDir, options): Promise<InstalledExtension[]>;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:76](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L76)
+Defined in: [packages/core/src/filesystem/discovery.ts:76](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L76)
 
 Discover all installed extensions in a project.
 
@@ -77,7 +77,7 @@ for (const ext of extensions) {
 function discoverInstalledExtensionsSync(projectDir, options): InstalledExtension[];
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:178](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L178)
+Defined in: [packages/core/src/filesystem/discovery.ts:178](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L178)
 
 Synchronous version of discoverInstalledExtensions.
 
@@ -100,7 +100,7 @@ Array of installed extensions
 function findInstalledExtension(projectDir, extensionId): Promise<InstalledExtension | null>;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:276](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L276)
+Defined in: [packages/core/src/filesystem/discovery.ts:276](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L276)
 
 Find a specific installed extension by ID.
 
@@ -123,7 +123,7 @@ InstalledExtension or null if not found
 function getExtensionInstallPath(projectDir, extensionId): string;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:312](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L312)
+Defined in: [packages/core/src/filesystem/discovery.ts:312](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L312)
 
 Get the installation path for an extension.
 
@@ -146,7 +146,7 @@ Path where the extension should be installed
 function getExtensionsDir(projectDir): string;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:42](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L42)
+Defined in: [packages/core/src/filesystem/discovery.ts:42](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L42)
 
 Get the extensions directory path for a project.
 
@@ -168,7 +168,7 @@ Path to _extensions directory
 function hasExtensionsDir(projectDir): boolean;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:52](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/discovery.ts#L52)
+Defined in: [packages/core/src/filesystem/discovery.ts:52](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/discovery.ts#L52)
 
 Check if an extensions directory exists.
 
@@ -190,7 +190,7 @@ True if _extensions directory exists
 
 #### ManifestReadResult
 
-Defined in: [packages/core/src/filesystem/manifest.ts:18](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L18)
+Defined in: [packages/core/src/filesystem/manifest.ts:18](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L18)
 
 Result of reading a manifest file.
 
@@ -198,9 +198,9 @@ Result of reading a manifest file.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="filename"></a> `filename` | `string` | Filename used (e.g., "_extension.yml"). | [packages/core/src/filesystem/manifest.ts:24](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L24) |
-| <a id="manifest"></a> `manifest` | [`ExtensionManifest`](types.qmd#extensionmanifest) | Parsed manifest data. | [packages/core/src/filesystem/manifest.ts:20](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L20) |
-| <a id="manifestpath"></a> `manifestPath` | `string` | Full path to the manifest file. | [packages/core/src/filesystem/manifest.ts:22](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L22) |
+| <a id="filename"></a> `filename` | `string` | Filename used (e.g., "_extension.yml"). | [packages/core/src/filesystem/manifest.ts:24](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L24) |
+| <a id="manifest"></a> `manifest` | [`ExtensionManifest`](types.qmd#extensionmanifest) | Parsed manifest data. | [packages/core/src/filesystem/manifest.ts:20](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L20) |
+| <a id="manifestpath"></a> `manifestPath` | `string` | Full path to the manifest file. | [packages/core/src/filesystem/manifest.ts:22](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L22) |
 
 ### Functions
 
@@ -210,7 +210,7 @@ Result of reading a manifest file.
 function findManifestFile(directory): string | null;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:33](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L33)
+Defined in: [packages/core/src/filesystem/manifest.ts:33](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L33)
 
 Find the manifest file in a directory.
 
@@ -232,7 +232,7 @@ Path to manifest file or null if not found
 function hasManifest(directory): boolean;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:122](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L122)
+Defined in: [packages/core/src/filesystem/manifest.ts:122](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L122)
 
 Check if a directory contains a manifest file.
 
@@ -254,7 +254,7 @@ True if manifest exists
 function parseManifestContent(content, sourcePath?): ExtensionManifest;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:73](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L73)
+Defined in: [packages/core/src/filesystem/manifest.ts:73](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L73)
 
 Parse manifest content from a YAML string.
 
@@ -281,7 +281,7 @@ ManifestError if parsing fails
 function parseManifestFile(manifestPath): ExtensionManifest;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:50](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L50)
+Defined in: [packages/core/src/filesystem/manifest.ts:50](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L50)
 
 Parse a manifest file from a path.
 
@@ -307,7 +307,7 @@ ManifestError if parsing fails
 function readManifest(directory): ManifestReadResult | null;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:99](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L99)
+Defined in: [packages/core/src/filesystem/manifest.ts:99](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L99)
 
 Read a manifest from a directory.
 
@@ -329,7 +329,7 @@ ManifestReadResult or null if no manifest found
 function updateManifestSource(manifestPath, source): void;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:187](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L187)
+Defined in: [packages/core/src/filesystem/manifest.ts:187](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L187)
 
 Update the source field in an existing manifest file.
 
@@ -350,7 +350,7 @@ Update the source field in an existing manifest file.
 function writeManifest(manifestPath, manifest): void;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:132](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/manifest.ts#L132)
+Defined in: [packages/core/src/filesystem/manifest.ts:132](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/manifest.ts#L132)
 
 Write a manifest to a file.
 
@@ -371,7 +371,7 @@ Write a manifest to a file.
 
 #### WalkEntry
 
-Defined in: [packages/core/src/filesystem/walk.ts:11](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L11)
+Defined in: [packages/core/src/filesystem/walk.ts:11](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L11)
 
 Entry information for directory walking.
 
@@ -379,9 +379,9 @@ Entry information for directory walking.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="isdirectory"></a> `isDirectory` | `boolean` | Whether entry is a directory. | [packages/core/src/filesystem/walk.ts:17](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L17) |
-| <a id="name"></a> `name` | `string` | Entry name (basename). | [packages/core/src/filesystem/walk.ts:15](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L15) |
-| <a id="path"></a> `path` | `string` | Full path to the entry. | [packages/core/src/filesystem/walk.ts:13](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L13) |
+| <a id="isdirectory"></a> `isDirectory` | `boolean` | Whether entry is a directory. | [packages/core/src/filesystem/walk.ts:17](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L17) |
+| <a id="name"></a> `name` | `string` | Entry name (basename). | [packages/core/src/filesystem/walk.ts:15](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L15) |
+| <a id="path"></a> `path` | `string` | Full path to the entry. | [packages/core/src/filesystem/walk.ts:13](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L13) |
 
 ### Type Aliases
 
@@ -391,7 +391,7 @@ Entry information for directory walking.
 type WalkCallback = (entry) => boolean | void | Promise<boolean | void>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:24](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L24)
+Defined in: [packages/core/src/filesystem/walk.ts:24](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L24)
 
 Callback for directory walking.
 Return false to skip processing children of a directory.
@@ -414,7 +414,7 @@ Return false to skip processing children of a directory.
 function collectFiles(directory): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:57](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L57)
+Defined in: [packages/core/src/filesystem/walk.ts:57](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L57)
 
 Collect all file paths in a directory recursively.
 
@@ -436,7 +436,7 @@ Array of file paths
 function copyDirectory(sourceDir, targetDir): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:76](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L76)
+Defined in: [packages/core/src/filesystem/walk.ts:76](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L76)
 
 Copy a directory recursively.
 
@@ -459,7 +459,7 @@ Array of created file paths
 function walkDirectory(directory, callback): Promise<void>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:32](https://github.com/mcanouil/quarto-wizard/blob/e44874d73959a25b0573ad9b1a6153f3554efb10/packages/core/src/filesystem/walk.ts#L32)
+Defined in: [packages/core/src/filesystem/walk.ts:32](https://github.com/mcanouil/quarto-wizard/blob/6910c81488dbf5eb26054bbc3155b7eb499190ac/packages/core/src/filesystem/walk.ts#L32)
 
 Walk a directory recursively, calling the callback for each entry.
 

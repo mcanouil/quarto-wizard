@@ -28,6 +28,8 @@ const packageJsonPath = resolve(rootDir, "package.json");
 const variablesYmlPath = resolve(docsDir, "_variables.yml");
 const proxyConfigPath = resolve(rootDir, "packages/core/src/proxy/config.ts");
 const authConfigPath = resolve(rootDir, "packages/core/src/types/auth.ts");
+const changelogMdPath = resolve(rootDir, "CHANGELOG.md");
+const changelogQmdPath = resolve(docsDir, "changelog.qmd");
 
 /**
  * Environment variable source files configuration.
@@ -1173,6 +1175,76 @@ function updateVariablesYml() {
 	console.log(`  Updated _variables.yml with version: ${version}`);
 }
 
+/**
+ * Generate changelog.qmd from CHANGELOG.md with nested version headers.
+ * Converts version headers to nested structure:
+ * - ## X.Y.Z -> # X, ## X.Y, ### X.Y.Z
+ */
+function generateChangelog() {
+	console.log("\nGenerating changelog.qmd...");
+
+	if (!existsSync(changelogMdPath)) {
+		console.error(`Error: ${changelogMdPath} not found.`);
+		return;
+	}
+
+	const content = readFileSync(changelogMdPath, "utf-8");
+	const lines = content.split("\n");
+	const output = [];
+
+	// Add frontmatter
+	output.push("---");
+	output.push('title: "Changelog"');
+	output.push("---");
+	output.push("");
+
+	let currentMajor = null;
+	let currentMinor = null;
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+
+		// Skip the main "# Changelog" heading
+		if (i === 0 && line === "# Changelog") {
+			continue;
+		}
+
+		// Match version headers like "## 1.0.2 (2025-12-06)"
+		const versionMatch = line.match(/^## (\d+)\.(\d+)\.(\d+)\s*\(.*\)/);
+		if (versionMatch) {
+			const major = versionMatch[1];
+			const minor = `${major}.${versionMatch[2]}`;
+
+			// Add major version header if it's new
+			if (currentMajor !== major) {
+				output.push("");
+				output.push(`# ${major}`);
+				output.push("");
+				currentMajor = major;
+				currentMinor = null;
+			}
+
+			// Add minor version header if it's new
+			if (currentMinor !== minor) {
+				output.push(`## ${minor}`);
+				output.push("");
+				currentMinor = minor;
+			}
+
+			// Add patch version header
+			output.push(`### ${line.substring(3)}`); // Remove "## " prefix
+			continue;
+		}
+
+		// Pass through all other lines
+		output.push(line);
+	}
+
+	// Write the file
+	writeFileSync(changelogQmdPath, output.join("\n"), "utf-8");
+	console.log("  Created changelog.qmd");
+}
+
 // =============================================================================
 // Main Processing
 // =============================================================================
@@ -1244,3 +1316,4 @@ function processApiDocs() {
 processApiDocs();
 processReferenceDocs();
 updateVariablesYml();
+generateChangelog();

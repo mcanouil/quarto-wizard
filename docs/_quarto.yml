@@ -45,6 +45,8 @@ website:
         href: reference/index.qmd
       - text: API
         href: api/index.qmd
+      - text: Changelog
+        href: changelog.qmd
     right:
       - text: "{{< iconify octicon:mark-github-16 title='GitHub' label='GitHub' >}}"
         href: https://github.com/mcanouil/quarto-wizard

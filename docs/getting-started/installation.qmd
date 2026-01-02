@@ -4,7 +4,7 @@ title: "Installation"
 
 There are several ways to install Quarto Wizard in Visual Studio Code or Positron.
 
-## VS Code Marketplace
+## VS Code Marketplace / Open VSX
 
 The easiest way to install Quarto Wizard:
 
