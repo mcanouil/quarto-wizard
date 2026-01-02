@@ -59,11 +59,15 @@ Install from the VS Code Marketplace:
 code --install-extension mcanouil.quarto-wizard
 ```
 
+Via [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard).
+
 ### Positron
 
 ```{.bash filename="Terminal"}
 positron --install-extension mcanouil.quarto-wizard
 ```
+
+Via [Open VSX](https://open-vsx.org/extension/mcanouil/quarto-wizard).
 
 :::
 
