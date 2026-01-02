@@ -26,5 +26,5 @@ It enhances your Quarto development experience by making extension management si
 ## Next Steps
 
 - [Installation Guide](installation.qmd) - Detailed installation instructions.
-- [Requirements](requirements.qmd) - System requirements and prerequisites.
+- [Requirements](requirements.qmd) - System requirements.
 - [User Guide](../guide/index.qmd) - Learn how to use all features.
