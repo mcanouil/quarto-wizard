@@ -1,4 +1,5 @@
 /**
+ * @title Extension Update Module
  * @description Extension update operations.
  *
  * Handles checking for and applying updates to installed extensions.

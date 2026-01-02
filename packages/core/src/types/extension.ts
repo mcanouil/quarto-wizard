@@ -1,4 +1,5 @@
 /**
+ * @title Extension Types Module
  * @description Extension identification and reference types.
  *
  * Defines types for extension IDs, version specifications, and references.

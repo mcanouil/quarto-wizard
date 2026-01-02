@@ -1,4 +1,5 @@
 /**
+ * @title Registry Search Module
  * @description Registry search and listing functions.
  *
  * Provides search and filtering capabilities for the extensions registry.

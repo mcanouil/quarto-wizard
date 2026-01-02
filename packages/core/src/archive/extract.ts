@@ -1,4 +1,5 @@
 /**
+ * @title Archive Extraction Module
  * @description Unified archive extraction for ZIP and TAR.GZ formats.
  *
  * Provides format detection, extraction, and cleanup utilities for archive files.

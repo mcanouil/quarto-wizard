@@ -1,4 +1,5 @@
 /**
+ * @title Registry Cache Module
  * @description Registry caching with TTL support.
  *
  * Provides filesystem-based caching for the extensions registry.

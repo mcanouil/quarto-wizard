@@ -1,4 +1,5 @@
 /**
+ * @title Proxy Configuration Module
  * @description Proxy configuration from environment variables.
  *
  * Quarto Wizard respects standard proxy environment variables for network requests.

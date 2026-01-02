@@ -1,4 +1,5 @@
 /**
+ * @title Manifest Parsing Module
  * @description Manifest parsing for _extension.yml files.
  *
  * Provides functions to read, parse, and write Quarto extension manifests.

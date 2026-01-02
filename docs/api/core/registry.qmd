@@ -1,59 +1,58 @@
 ---
 title: "Registry"
-description: "Registry caching with TTL support."
 ---
 
-## Description
+## Registry Cache Module
 
 Registry caching with TTL support.
 
 Provides filesystem-based caching for the extensions registry.
 
-## Functions
+### Functions
 
-### clearRegistryCache()
+#### clearRegistryCache()
 
 ```{.ts filename="TypeScript"}
 function clearRegistryCache(cacheDir?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/registry/cache.ts:133](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/cache.ts#L133)
+Defined in: [packages/core/src/registry/cache.ts:134](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/cache.ts#L134)
 
 Clear the registry cache.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `cacheDir?` | `string` | Cache directory (uses default if not provided) |
 
-#### Returns
+##### Returns
 
 `Promise<void>`
 
-### getCacheFilePath()
+#### getCacheFilePath()
 
 ```{.ts filename="TypeScript"}
 function getCacheFilePath(cacheDir?): string;
 ```
 
-Defined in: [packages/core/src/registry/cache.ts:59](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/cache.ts#L59)
+Defined in: [packages/core/src/registry/cache.ts:60](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/cache.ts#L60)
 
 Get the cache file path.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `cacheDir?` | `string` | Cache directory (uses default if not provided) |
 
-#### Returns
+##### Returns
 
 `string`
 
 Path to cache file
 
-### getCacheStatus()
+#### getCacheStatus()
 
 ```{.ts filename="TypeScript"}
 function getCacheStatus(cacheDir?): Promise<
@@ -65,17 +64,17 @@ function getCacheStatus(cacheDir?): Promise<
 | null>;
 ```
 
-Defined in: [packages/core/src/registry/cache.ts:151](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/cache.ts#L151)
+Defined in: [packages/core/src/registry/cache.ts:152](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/cache.ts#L152)
 
 Get cache status information.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `cacheDir?` | `string` | Cache directory |
 
-#### Returns
+##### Returns
 
 `Promise`\<
   \| \{
@@ -87,23 +86,23 @@ Get cache status information.
 
 Cache status or null if no cache exists
 
-### getDefaultCacheDir()
+#### getDefaultCacheDir()
 
 ```{.ts filename="TypeScript"}
 function getDefaultCacheDir(): string;
 ```
 
-Defined in: [packages/core/src/registry/cache.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/cache.ts#L37)
+Defined in: [packages/core/src/registry/cache.ts:38](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/cache.ts#L38)
 
 Get the default cache directory.
 
-#### Returns
+##### Returns
 
 `string`
 
 Path to cache directory
 
-### readCachedRegistry()
+#### readCachedRegistry()
 
 ```{.ts filename="TypeScript"}
 function readCachedRegistry(
@@ -112,11 +111,11 @@ function readCachedRegistry(
 ttl): Promise<Registry | null>;
 ```
 
-Defined in: [packages/core/src/registry/cache.ts:72](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/cache.ts#L72)
+Defined in: [packages/core/src/registry/cache.ts:73](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/cache.ts#L73)
 
 Read cached registry if valid.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Default value | Description |
 | ------ | ------ | ------ | ------ |
@@ -124,7 +123,7 @@ Read cached registry if valid.
 | `url` | `string` | `undefined` | Expected registry URL |
 | `ttl` | `number` | `DEFAULT_TTL` | Cache TTL in milliseconds |
 
-#### Returns
+##### Returns
 
 ```{=html}
 <code>Promise&lt;<a href="types.qmd#registry" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">Registry</a> | null&gt;</code>
@@ -132,7 +131,7 @@ Read cached registry if valid.
 
 Cached registry or null if cache is invalid/expired
 
-### writeCachedRegistry()
+#### writeCachedRegistry()
 
 ```{.ts filename="TypeScript"}
 function writeCachedRegistry(
@@ -141,11 +140,11 @@ function writeCachedRegistry(
 registry): Promise<void>;
 ```
 
-Defined in: [packages/core/src/registry/cache.ts:109](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/cache.ts#L109)
+Defined in: [packages/core/src/registry/cache.ts:110](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/cache.ts#L110)
 
 Write registry to cache.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
@@ -153,13 +152,11 @@ Write registry to cache.
 | `url` | `string` | Registry URL |
 | `registry` | [`Registry`](types.qmd#registry) | Registry data to cache |
 
-#### Returns
+##### Returns
 
 `Promise<void>`
 
-## Registry fetching and parsing
-
-### Description
+## Registry Fetcher Module
 
 Registry fetching and parsing.
 
@@ -169,25 +166,25 @@ Handles loading the Quarto extensions registry with caching support.
 
 #### RegistryOptions
 
-Defined in: [packages/core/src/registry/fetcher.ts:25](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L25)
+Defined in: [packages/core/src/registry/fetcher.ts:26](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L26)
 
 Options for fetching the registry.
 
-#### Extended by
+##### Extended by
 
 - [`InstallOptions`](operations.qmd#updatecheckoptions)
 - [`ListAvailableOptions`](registry.qmd#listavailableoptions)
 
-#### Properties
+##### Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [packages/core/src/registry/fetcher.ts:35](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L35) |
-| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L29) |
-| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L33) |
-| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [packages/core/src/registry/fetcher.ts:31](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L31) |
-| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L27) |
-| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | [packages/core/src/registry/fetcher.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L37) |
+| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [packages/core/src/registry/fetcher.ts:36](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L36) |
+| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [packages/core/src/registry/fetcher.ts:30](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L30) |
+| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [packages/core/src/registry/fetcher.ts:34](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L34) |
+| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [packages/core/src/registry/fetcher.ts:32](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L32) |
+| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | [packages/core/src/registry/fetcher.ts:28](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L28) |
+| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | [packages/core/src/registry/fetcher.ts:38](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L38) |
 
 ### Functions
 
@@ -197,17 +194,17 @@ Options for fetching the registry.
 function fetchRegistry(options): Promise<Registry>;
 ```
 
-Defined in: [packages/core/src/registry/fetcher.ts:46](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L46)
+Defined in: [packages/core/src/registry/fetcher.ts:47](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L47)
 
 Fetch the extension registry.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `options` | [`RegistryOptions`](#registryoptions) | Registry options |
 
-#### Returns
+##### Returns
 
 ```{=html}
 <code>Promise&lt;<a href="types.qmd#registry" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">Registry</a>&gt;</code>
@@ -221,17 +218,15 @@ Parsed registry
 function getDefaultRegistryUrl(): string;
 ```
 
-Defined in: [packages/core/src/registry/fetcher.ts:82](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L82)
+Defined in: [packages/core/src/registry/fetcher.ts:83](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L83)
 
 Get the default registry URL.
 
-#### Returns
+##### Returns
 
 `string`
 
-## HTTP utilities with timeout and retry support
-
-### Description
+## HTTP Utilities Module
 
 HTTP utilities with timeout and retry support.
 
@@ -241,18 +236,18 @@ Provides robust fetch operations with configurable timeouts and retries.
 
 #### HttpOptions
 
-Defined in: [packages/core/src/registry/http.ts:15](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/http.ts#L15)
+Defined in: [packages/core/src/registry/http.ts:16](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/http.ts#L16)
 
 Options for HTTP requests.
 
-#### Properties
+##### Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="headers"></a> `headers?` | `Record<string, string>` | Custom headers to include. | [packages/core/src/registry/http.ts:23](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/http.ts#L23) |
-| <a id="retries"></a> `retries?` | `number` | Number of retry attempts (default: 3). | [packages/core/src/registry/http.ts:19](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/http.ts#L19) |
-| <a id="retrydelay"></a> `retryDelay?` | `number` | Base delay for exponential backoff in ms (default: 1000). | [packages/core/src/registry/http.ts:21](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/http.ts#L21) |
-| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds (default: 30000). | [packages/core/src/registry/http.ts:17](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/http.ts#L17) |
+| <a id="headers"></a> `headers?` | `Record<string, string>` | Custom headers to include. | [packages/core/src/registry/http.ts:24](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/http.ts#L24) |
+| <a id="retries"></a> `retries?` | `number` | Number of retry attempts (default: 3). | [packages/core/src/registry/http.ts:20](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/http.ts#L20) |
+| <a id="retrydelay"></a> `retryDelay?` | `number` | Base delay for exponential backoff in ms (default: 1000). | [packages/core/src/registry/http.ts:22](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/http.ts#L22) |
+| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds (default: 30000). | [packages/core/src/registry/http.ts:18](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/http.ts#L18) |
 
 ### Functions
 
@@ -262,24 +257,24 @@ Options for HTTP requests.
 function fetchJson<T>(url, options): Promise<T>;
 ```
 
-Defined in: [packages/core/src/registry/http.ts:86](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/http.ts#L86)
+Defined in: [packages/core/src/registry/http.ts:87](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/http.ts#L87)
 
 Fetch JSON with timeout and retry support.
 
-#### Type Parameters
+##### Type Parameters
 
 | Type Parameter |
 | ------ |
 | `T` |
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `url` | `string` | URL to fetch |
 | `options` | [`HttpOptions`](#httpoptions) | HTTP options |
 
-#### Returns
+##### Returns
 
 `Promise<T>`
 
@@ -291,26 +286,24 @@ Parsed JSON response
 function fetchText(url, options): Promise<string>;
 ```
 
-Defined in: [packages/core/src/registry/http.ts:139](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/http.ts#L139)
+Defined in: [packages/core/src/registry/http.ts:140](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/http.ts#L140)
 
 Fetch text with timeout and retry support.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `url` | `string` | URL to fetch |
 | `options` | [`HttpOptions`](#httpoptions) | HTTP options |
 
-#### Returns
+##### Returns
 
 `Promise<string>`
 
 Response text
 
-## Registry search and listing functions
-
-### Description
+## Registry Search Module
 
 Registry search and listing functions.
 
@@ -320,56 +313,56 @@ Provides search and filtering capabilities for the extensions registry.
 
 #### ListAvailableOptions
 
-Defined in: [packages/core/src/registry/search.ts:16](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L16)
+Defined in: [packages/core/src/registry/search.ts:17](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L17)
 
 Options for listing available extensions.
 
-#### Extends
+##### Extends
 
 - [`RegistryOptions`](registry.qmd#registryoptions)
 
-#### Extended by
+##### Extended by
 
 - [`SearchOptions`](#searchoptions)
 
-#### Properties
+##### Properties
 
 | Property | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`RegistryOptions`](registry.qmd#registryoptions).[`auth`](registry.qmd#auth) | [packages/core/src/registry/fetcher.ts:35](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L35) |
-| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheDir`](registry.qmd#cachedir) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L29) |
-| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheTtl`](registry.qmd#cachettl) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L33) |
-| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [`RegistryOptions`](registry.qmd#registryoptions).[`forceRefresh`](registry.qmd#forcerefresh) | [packages/core/src/registry/fetcher.ts:31](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L31) |
-| <a id="limit"></a> `limit?` | `number` | Maximum number of results. | - | [packages/core/src/registry/search.ts:22](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L22) |
-| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | [`RegistryOptions`](registry.qmd#registryoptions).[`registryUrl`](registry.qmd#registryurl) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L27) |
-| <a id="templatesonly"></a> `templatesOnly?` | `boolean` | Filter to templates only. | - | [packages/core/src/registry/search.ts:20](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L20) |
-| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | [`RegistryOptions`](registry.qmd#registryoptions).[`timeout`](registry.qmd#timeout) | [packages/core/src/registry/fetcher.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L37) |
-| <a id="type"></a> `type?` | [`ExtensionType`](types.qmd#extensiontype) | Filter by extension type (based on topics). | - | [packages/core/src/registry/search.ts:18](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L18) |
+| <a id="auth"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`RegistryOptions`](registry.qmd#registryoptions).[`auth`](registry.qmd#auth) | [packages/core/src/registry/fetcher.ts:36](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L36) |
+| <a id="cachedir"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheDir`](registry.qmd#cachedir) | [packages/core/src/registry/fetcher.ts:30](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L30) |
+| <a id="cachettl"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [`RegistryOptions`](registry.qmd#registryoptions).[`cacheTtl`](registry.qmd#cachettl) | [packages/core/src/registry/fetcher.ts:34](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L34) |
+| <a id="forcerefresh"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [`RegistryOptions`](registry.qmd#registryoptions).[`forceRefresh`](registry.qmd#forcerefresh) | [packages/core/src/registry/fetcher.ts:32](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L32) |
+| <a id="limit"></a> `limit?` | `number` | Maximum number of results. | - | [packages/core/src/registry/search.ts:23](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L23) |
+| <a id="registryurl"></a> `registryUrl?` | `string` | Custom registry URL. | [`RegistryOptions`](registry.qmd#registryoptions).[`registryUrl`](registry.qmd#registryurl) | [packages/core/src/registry/fetcher.ts:28](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L28) |
+| <a id="templatesonly"></a> `templatesOnly?` | `boolean` | Filter to templates only. | - | [packages/core/src/registry/search.ts:21](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L21) |
+| <a id="timeout"></a> `timeout?` | `number` | Request timeout in milliseconds. | [`RegistryOptions`](registry.qmd#registryoptions).[`timeout`](registry.qmd#timeout) | [packages/core/src/registry/fetcher.ts:38](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L38) |
+| <a id="type"></a> `type?` | [`ExtensionType`](types.qmd#extensiontype) | Filter by extension type (based on topics). | - | [packages/core/src/registry/search.ts:19](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L19) |
 
 #### SearchOptions
 
-Defined in: [packages/core/src/registry/search.ts:28](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L28)
+Defined in: [packages/core/src/registry/search.ts:29](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L29)
 
 Options for searching extensions.
 
-#### Extends
+##### Extends
 
 - [`ListAvailableOptions`](#listavailableoptions)
 
-#### Properties
+##### Properties
 
 | Property | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="auth-1"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`ListAvailableOptions`](#listavailableoptions).[`auth`](#auth) | [packages/core/src/registry/fetcher.ts:35](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L35) |
-| <a id="cachedir-1"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [`ListAvailableOptions`](#listavailableoptions).[`cacheDir`](#cachedir) | [packages/core/src/registry/fetcher.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L29) |
-| <a id="cachettl-1"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [`ListAvailableOptions`](#listavailableoptions).[`cacheTtl`](#cachettl) | [packages/core/src/registry/fetcher.ts:33](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L33) |
-| <a id="forcerefresh-1"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [`ListAvailableOptions`](#listavailableoptions).[`forceRefresh`](#forcerefresh) | [packages/core/src/registry/fetcher.ts:31](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L31) |
-| <a id="limit-1"></a> `limit?` | `number` | Maximum number of results. | [`ListAvailableOptions`](#listavailableoptions).[`limit`](#limit) | [packages/core/src/registry/search.ts:22](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L22) |
-| <a id="minstars"></a> `minStars?` | `number` | Minimum star count. | - | [packages/core/src/registry/search.ts:30](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L30) |
-| <a id="registryurl-1"></a> `registryUrl?` | `string` | Custom registry URL. | [`ListAvailableOptions`](#listavailableoptions).[`registryUrl`](#registryurl) | [packages/core/src/registry/fetcher.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L27) |
-| <a id="templatesonly-1"></a> `templatesOnly?` | `boolean` | Filter to templates only. | [`ListAvailableOptions`](#listavailableoptions).[`templatesOnly`](#templatesonly) | [packages/core/src/registry/search.ts:20](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L20) |
-| <a id="timeout-1"></a> `timeout?` | `number` | Request timeout in milliseconds. | [`ListAvailableOptions`](#listavailableoptions).[`timeout`](#timeout) | [packages/core/src/registry/fetcher.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/fetcher.ts#L37) |
-| <a id="type-1"></a> `type?` | [`ExtensionType`](types.qmd#extensiontype) | Filter by extension type (based on topics). | [`ListAvailableOptions`](#listavailableoptions).[`type`](#type) | [packages/core/src/registry/search.ts:18](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L18) |
+| <a id="auth-1"></a> `auth?` | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration. | [`ListAvailableOptions`](#listavailableoptions).[`auth`](#auth) | [packages/core/src/registry/fetcher.ts:36](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L36) |
+| <a id="cachedir-1"></a> `cacheDir?` | `string` | Cache directory (uses platform default if not provided). | [`ListAvailableOptions`](#listavailableoptions).[`cacheDir`](#cachedir) | [packages/core/src/registry/fetcher.ts:30](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L30) |
+| <a id="cachettl-1"></a> `cacheTtl?` | `number` | Cache TTL in milliseconds (default: 24 hours). | [`ListAvailableOptions`](#listavailableoptions).[`cacheTtl`](#cachettl) | [packages/core/src/registry/fetcher.ts:34](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L34) |
+| <a id="forcerefresh-1"></a> `forceRefresh?` | `boolean` | Force refresh, ignoring cache. | [`ListAvailableOptions`](#listavailableoptions).[`forceRefresh`](#forcerefresh) | [packages/core/src/registry/fetcher.ts:32](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L32) |
+| <a id="limit-1"></a> `limit?` | `number` | Maximum number of results. | [`ListAvailableOptions`](#listavailableoptions).[`limit`](#limit) | [packages/core/src/registry/search.ts:23](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L23) |
+| <a id="minstars"></a> `minStars?` | `number` | Minimum star count. | - | [packages/core/src/registry/search.ts:31](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L31) |
+| <a id="registryurl-1"></a> `registryUrl?` | `string` | Custom registry URL. | [`ListAvailableOptions`](#listavailableoptions).[`registryUrl`](#registryurl) | [packages/core/src/registry/fetcher.ts:28](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L28) |
+| <a id="templatesonly-1"></a> `templatesOnly?` | `boolean` | Filter to templates only. | [`ListAvailableOptions`](#listavailableoptions).[`templatesOnly`](#templatesonly) | [packages/core/src/registry/search.ts:21](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L21) |
+| <a id="timeout-1"></a> `timeout?` | `number` | Request timeout in milliseconds. | [`ListAvailableOptions`](#listavailableoptions).[`timeout`](#timeout) | [packages/core/src/registry/fetcher.ts:38](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/fetcher.ts#L38) |
+| <a id="type-1"></a> `type?` | [`ExtensionType`](types.qmd#extensiontype) | Filter by extension type (based on topics). | [`ListAvailableOptions`](#listavailableoptions).[`type`](#type) | [packages/core/src/registry/search.ts:19](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L19) |
 
 ### Functions
 
@@ -379,18 +372,18 @@ Options for searching extensions.
 function getExtension(id, options): Promise<RegistryEntry | null>;
 ```
 
-Defined in: [packages/core/src/registry/search.ts:132](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L132)
+Defined in: [packages/core/src/registry/search.ts:133](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L133)
 
 Get a specific extension by ID from the registry.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `id` | `string` | Extension ID (e.g., "quarto-ext/lightbox") |
 | `options` | [`RegistryOptions`](registry.qmd#registryoptions) | Registry options |
 
-#### Returns
+##### Returns
 
 ```{=html}
 <code>Promise&lt;<a href="types.qmd#registryentry" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">RegistryEntry</a> | null&gt;</code>
@@ -404,18 +397,18 @@ Registry entry or null if not found
 function getExtensionsByOwner(owner, options): Promise<RegistryEntry[]>;
 ```
 
-Defined in: [packages/core/src/registry/search.ts:144](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L144)
+Defined in: [packages/core/src/registry/search.ts:145](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L145)
 
 Get extensions by owner.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `owner` | `string` | Owner name |
 | `options` | [`RegistryOptions`](registry.qmd#registryoptions) | Registry options |
 
-#### Returns
+##### Returns
 
 ```{=html}
 <code>Promise&lt;<a href="types.qmd#registryentry" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">RegistryEntry</a>[]&gt;</code>
@@ -429,17 +422,17 @@ Array of registry entries
 function listAvailable(options): Promise<RegistryEntry[]>;
 ```
 
-Defined in: [packages/core/src/registry/search.ts:48](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L48)
+Defined in: [packages/core/src/registry/search.ts:49](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L49)
 
 List all available extensions from the registry.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `options` | [`ListAvailableOptions`](#listavailableoptions) | List options |
 
-#### Returns
+##### Returns
 
 ```{=html}
 <code>Promise&lt;<a href="types.qmd#registryentry" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">RegistryEntry</a>[]&gt;</code>
@@ -447,7 +440,7 @@ List all available extensions from the registry.
 
 Array of registry entries
 
-#### Example
+##### Example
 
 ```{.typescript filename="TypeScript"}
 // List all filters
@@ -463,18 +456,18 @@ const templates = await listAvailable({ templatesOnly: true, limit: 10 });
 function search(query, options): Promise<RegistryEntry[]>;
 ```
 
-Defined in: [packages/core/src/registry/search.ts:87](https://github.com/mcanouil/quarto-wizard/blob/c27e05c17d2330c3b4e8b12081d1931652635859/packages/core/src/registry/search.ts#L87)
+Defined in: [packages/core/src/registry/search.ts:88](https://github.com/mcanouil/quarto-wizard/blob/a738c610eb113a3908a20c25634965745b1b2b47/packages/core/src/registry/search.ts#L88)
 
 Search for extensions in the registry.
 
-#### Parameters
+##### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `query` | `string` | Search query (searches name, description, topics) |
 | `options` | [`SearchOptions`](#searchoptions) | Search options |
 
-#### Returns
+##### Returns
 
 ```{=html}
 <code>Promise&lt;<a href="types.qmd#registryentry" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">RegistryEntry</a>[]&gt;</code>
@@ -482,7 +475,7 @@ Search for extensions in the registry.
 
 Array of matching registry entries
 
-#### Example
+##### Example
 
 ```{.typescript filename="TypeScript"}
 // Search for table-related extensions

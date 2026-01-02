@@ -15,22 +15,32 @@
  */
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, rmSync } from "node:fs";
-import { resolve, dirname, basename, join } from "node:path";
+import { dirname, basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	packages,
+	languageFilenames,
+	envVarSources,
+	commandGroups,
+	configGroups,
+	paths,
+} from "./docs-config.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const rootDir = resolve(__dirname, "..");
-const docsDir = resolve(rootDir, "docs");
-const docsApiDir = resolve(docsDir, "api");
-const docsRefDir = resolve(docsDir, "reference");
-const templatesDir = resolve(docsDir, "_templates");
-const coreOutputDir = resolve(docsApiDir, "core");
-const packageJsonPath = resolve(rootDir, "package.json");
-const variablesYmlPath = resolve(docsDir, "_variables.yml");
-const proxyConfigPath = resolve(rootDir, "packages/core/src/proxy/config.ts");
-const authConfigPath = resolve(rootDir, "packages/core/src/types/auth.ts");
-const changelogMdPath = resolve(rootDir, "CHANGELOG.md");
-const changelogQmdPath = resolve(docsDir, "changelog.qmd");
+const {
+	docsDir,
+	docsApiDir,
+	docsRefDir,
+	templatesDir,
+	packageJsonPath,
+	variablesYmlPath,
+	changelogMdPath,
+	changelogQmdPath,
+} = paths;
+
+// Get the first (core) package output directory
+const corePackage = packages[0];
+const coreOutputDir = corePackage.outputDir;
 
 /**
  * Read a template file from the templates directory.
@@ -91,14 +101,7 @@ function parseDescriptionFromSource(filePath) {
 	return null;
 }
 
-/**
- * Environment variable source files configuration.
- * Each entry specifies a TypeScript file and the section title for its env vars.
- */
-const ENV_VAR_SOURCES = [
-	{ path: authConfigPath, section: "Authentication", id: "auth" },
-	{ path: proxyConfigPath, section: "Proxy", id: "proxy" },
-];
+// ENV_VAR_SOURCES is now imported from docs-config.mjs as envVarSources
 
 /**
  * Parse environment variable documentation from a TypeScript source file.
@@ -274,7 +277,7 @@ function generateEnvVarSection(source) {
 function generateEnvironmentVariablesPage() {
 	// Generate sections from each source
 	const sectionLines = [];
-	for (const source of ENV_VAR_SOURCES) {
+	for (const source of envVarSources) {
 		sectionLines.push(...generateEnvVarSection(source));
 	}
 
@@ -284,38 +287,19 @@ function generateEnvironmentVariablesPage() {
 	console.log("  Created reference/environment-variables.qmd");
 }
 
-/**
- * Language to filename mapping for code blocks.
- */
-const LANGUAGE_FILENAMES = {
-	ts: "TypeScript",
-	typescript: "TypeScript",
-	js: "JavaScript",
-	javascript: "JavaScript",
-	json: "JSON",
-	yaml: "YAML",
-	yml: "YAML",
-	bash: "Terminal",
-	sh: "Terminal",
-	shell: "Terminal",
-};
+// LANGUAGE_FILENAMES is now imported from docs-config.mjs as languageFilenames
 
 /**
- * Create the core package index page with Quarto listing.
+ * Create a package index page with Quarto listing.
+ * @param {object} pkg - Package configuration from docs-config.mjs.
  */
-function createCoreIndex() {
-	const packageName = "@quarto-wizard/core";
-	const packageDescription = "Core library for Quarto extension management.";
-	const packageOverview =
-		"The `@quarto-wizard/core` package provides the core functionality for managing Quarto extensions.\n" +
-		"It handles archive extraction, filesystem operations, GitHub integration, registry access, and extension lifecycle operations.";
-
-	writeFromTemplate("api-package-index.qmd", join(coreOutputDir, "index.qmd"), {
-		PACKAGE_NAME: packageName,
-		PACKAGE_DESCRIPTION: packageDescription,
-		PACKAGE_OVERVIEW: packageOverview,
+function createPackageIndex(pkg) {
+	writeFromTemplate("api-package-index.qmd", join(pkg.outputDir, "index.qmd"), {
+		PACKAGE_NAME: pkg.name,
+		PACKAGE_DESCRIPTION: pkg.description,
+		PACKAGE_OVERVIEW: pkg.overview,
 	});
-	console.log("  Created core/index.qmd");
+	console.log(`  Created ${pkg.shortName}/index.qmd`);
 }
 
 /**
@@ -337,85 +321,13 @@ function capitalise(str) {
 }
 
 /**
- * Extract metadata from TypeDoc markdown content.
- * @param {string} content - The file content.
- * @returns {{title: string, description: string}} Extracted metadata.
- */
-function extractMetadata(content) {
-	// First, clean up breadcrumbs to find the actual H1
-	content = content.replace(
-		/^\[?\*?\*?@quarto-wizard\/core\*?\*?\]?\([^)]*\)\n+\*{3}\n+(?:\[@quarto-wizard\/core\]\([^)]+\) \/ [^\n]+\n+)?/,
-		"",
-	);
-
-	// Extract H1 title (e.g., "# archive" or "# archive/extract")
-	const titleMatch = content.match(/^# ([^\n]+)/m);
-	let title = titleMatch ? titleMatch[1].trim() : "";
-
-	// Clean up title: remove path separators and capitalise
-	// "archive/extract" -> "Extract", "archive" -> "Archive"
-	const parts = title.split("/");
-	title = capitalise(parts[parts.length - 1]);
-
-	// Extract description - TypeDoc puts it under "## Description" heading
-	let description = "";
-
-	// First try to extract from "## Description" section
-	const descSectionMatch = content.match(/^## Description\n+([^#]+?)(?=^##|\n*$)/m);
-	if (descSectionMatch) {
-		description = descSectionMatch[1]
-			.split("\n")
-			.map((l) => l.trim())
-			.filter((l) => l && !l.startsWith("[") && !l.startsWith("Defined in:"))
-			.join(" ")
-			.trim();
-	} else {
-		// Fallback: collect text lines after H1 until first ##
-		const afterH1 = content.replace(/^[\s\S]*?^# [^\n]+\n+/m, "");
-		const lines = afterH1.split("\n");
-		const descLines = [];
-
-		for (const line of lines) {
-			const trimmed = line.trim();
-
-			// Stop at first heading or marker
-			if (
-				trimmed.startsWith("##") ||
-				trimmed.startsWith("Re-exports") ||
-				trimmed.startsWith("Defined in:") ||
-				trimmed.startsWith("***") ||
-				trimmed.startsWith("---") ||
-				trimmed.startsWith("|") ||
-				trimmed.startsWith("```")
-			) {
-				break;
-			}
-
-			// Skip markdown links and non-description lines
-			if (trimmed.startsWith("[")) {
-				continue;
-			}
-
-			// Collect meaningful description lines
-			if (trimmed) {
-				descLines.push(trimmed);
-			}
-		}
-
-		description = descLines.join(" ");
-	}
-
-	return { title, description };
-}
-
-/**
  * Convert a code block from standard markdown to Quarto format.
  * @param {string} content - The file content.
  * @returns {string} The processed content.
  */
 function convertCodeBlocks(content) {
 	return content.replace(/```(\w+)\n/g, (match, lang) => {
-		const filename = LANGUAGE_FILENAMES[lang.toLowerCase()];
+		const filename = languageFilenames[lang.toLowerCase()];
 		if (filename) {
 			return `\`\`\`{.${lang} filename="${filename}"}\n`;
 		}
@@ -522,8 +434,6 @@ function cleanTypeExpressions(content) {
 			.replace(/\s*\\\|\s*/g, " | ")
 			// Remove remaining backslashes
 			.replace(/\\/g, "")
-			// Convert [] at end (array notation) to proper format
-			.replace(/\[\]$/, "[]");
 
 		// Escape < and > for HTML
 		return "```{=html}\n<code>" + typeName + "&lt;" + htmlContent + "&gt;</code>\n```";
@@ -541,11 +451,13 @@ function removeReferencesSection(content) {
 }
 
 /**
- * Remove breadcrumbs and clutter from content.
- * @param {string} content - The file content.
- * @returns {string} The cleaned content.
+ * Transform TypeDoc content for a submodule.
+ * Extracts title and description, removes their sections, and demotes headings.
+ *
+ * @param {string} content - The raw TypeDoc content.
+ * @returns {{title: string, description: string, content: string}} Transformed result.
  */
-function removeClutter(content) {
+function transformSubmoduleContent(content) {
 	// Remove breadcrumb header (link to package + horizontal rule + breadcrumb path)
 	content = content.replace(
 		/^\[?\*?\*?@quarto-wizard\/core\*?\*?\]?\([^)]*\)\n+\*{3}\n+(?:\[@quarto-wizard\/core\]\([^)]+\) \/ [^\n]+\n+)?/,
@@ -555,10 +467,26 @@ function removeClutter(content) {
 	// Remove standalone horizontal rules
 	content = content.replace(/^\*{3}\n+/gm, "\n");
 
-	// Remove H1 heading and description paragraph (both will be in frontmatter)
-	// Match everything from H1 to the first ## heading (non-greedy)
-	// The positive lookahead (?=^##) ensures we don't consume the ## heading
-	content = content.replace(/^# [^\n]+\n+[\s\S]*?(?=^##)/m, "");
+	// Remove H1 heading (module name goes to YAML title)
+	content = content.replace(/^# [^\n]+\n+/m, "");
+
+	// Extract ## Title content
+	let title = "";
+	const titleMatch = content.match(/^## Title\n+([^\n]+)/m);
+	if (titleMatch) {
+		title = titleMatch[1].trim();
+		// Remove the ## Title section
+		content = content.replace(/^## Title\n+[^\n]+\n+/m, "");
+	}
+
+	// Extract ## Description content (may be multiple paragraphs until next ##)
+	let description = "";
+	const descMatch = content.match(/^## Description\n+([\s\S]*?)(?=^##|\n*$)/m);
+	if (descMatch) {
+		description = descMatch[1].trim();
+		// Remove the ## Description section
+		content = content.replace(/^## Description\n+[\s\S]*?(?=^##|\n*$)/m, "");
+	}
 
 	// Remove References section (re-exports)
 	content = removeReferencesSection(content);
@@ -566,7 +494,7 @@ function removeClutter(content) {
 	// Clean up multiple consecutive blank lines
 	content = content.replace(/\n{3,}/g, "\n\n");
 
-	return content.trim();
+	return { title, description, content: content.trim() };
 }
 
 /**
@@ -602,19 +530,9 @@ function updateLinks(content, moduleNames) {
 /**
  * Generate frontmatter for a module page.
  * @param {string} title - The module title.
- * @param {string} description - The module description.
  * @returns {string} The YAML frontmatter.
  */
-function generateFrontmatter(title, description) {
-	if (description) {
-		return `---
-title: "${title}"
-description: "${description}"
----
-
-`;
-	}
-
+function generateFrontmatter(title) {
 	return `---
 title: "${title}"
 ---
@@ -673,52 +591,6 @@ function groupFilesByModule(files) {
 }
 
 /**
- * Get submodule header for a file.
- * Uses the @description content as the heading for better clarity.
- *
- * @param {string} fileName - The file name without extension.
- * @param {string} moduleName - The parent module name.
- * @param {string} content - The raw file content (for extracting title).
- * @returns {{header: string|null, title: string}} The header and extracted title.
- */
-function getSubmoduleInfo(fileName, moduleName, content) {
-	// Main module file has no submodule header
-	// The main file is the one without suffix (e.g., "archive" not "archive-1")
-	if (fileName === moduleName) {
-		return { header: null, title: "" };
-	}
-
-	// Extract metadata from TypeDoc output
-	const { title, description } = extractMetadata(content);
-
-	// Prefer the first sentence of description as the heading
-	// This gives better context than just the module name
-	let displayName = title;
-	if (description) {
-		// Get first sentence - split on period followed by space or end of string
-		// This avoids splitting on abbreviations like "TAR.GZ"
-		const sentenceMatch = description.match(/^(.+?)\.\s|^(.+?)$/);
-		let firstSentence = (sentenceMatch[1] || sentenceMatch[2] || "").trim();
-		// Remove trailing period from heading
-		firstSentence = firstSentence.replace(/\.$/, "");
-		if (firstSentence && firstSentence.length > 10 && firstSentence.length < 80) {
-			displayName = firstSentence;
-		}
-	}
-
-	// Fallback to title or file name
-	if (!displayName) {
-		if (fileName.includes(".")) {
-			displayName = capitalise(fileName.split(".").pop());
-		} else {
-			displayName = capitalise(fileName);
-		}
-	}
-
-	return { header: `## ${displayName}`, title: displayName };
-}
-
-/**
  * Merge multiple files into a single module page.
  * @param {string} moduleName - The module name.
  * @param {string[]} files - Files to merge.
@@ -740,21 +612,15 @@ function mergeModuleFiles(moduleName, files, allModuleNames) {
 
 	const sections = [];
 	let moduleTitle = capitalise(moduleName);
-	let moduleDescription = "";
 
 	for (const file of files) {
-		const fileName = basename(file, ".md");
 		const rawContent = readFileSync(file, "utf-8");
 
-		// Extract metadata from main module file
-		if (fileName === moduleName) {
-			const meta = extractMetadata(rawContent);
-			moduleTitle = meta.title || moduleTitle;
-			moduleDescription = meta.description;
-		}
+		// Transform the content - extract title, description, and clean content
+		const transformed = transformSubmoduleContent(rawContent);
 
-		// Clean up the content
-		let content = removeClutter(rawContent);
+		// Process the content
+		let content = transformed.content;
 		content = convertCodeBlocks(content);
 		content = fixArrayTypes(content);
 		content = updateLinks(content, allModuleNames);
@@ -762,21 +628,27 @@ function mergeModuleFiles(moduleName, files, allModuleNames) {
 		content = addBlankLinesAroundLists(content);
 
 		if (content.trim()) {
-			const { header } = getSubmoduleInfo(fileName, moduleName, rawContent);
-			if (header) {
-				// Add submodule header and indent existing headings
-				// Must replace in reverse order to avoid double replacement
-				content = content.replace(/^### /gm, "#### ");
-				content = content.replace(/^## /gm, "### ");
-				sections.push(`${header}\n\n${content}`);
-			} else {
-				sections.push(content);
+			// Demote all headings by one level (must replace in reverse order)
+			content = content.replace(/^#### /gm, "##### ");
+			content = content.replace(/^### /gm, "#### ");
+			content = content.replace(/^## /gm, "### ");
+
+			// Build section with H2 title and description
+			const sectionTitle = transformed.title || capitalise(moduleName);
+			const sectionDesc = transformed.description;
+
+			let sectionContent = `## ${sectionTitle}\n\n`;
+			if (sectionDesc) {
+				sectionContent += `${sectionDesc}\n\n`;
 			}
+			sectionContent += content;
+
+			sections.push(sectionContent);
 		}
 	}
 
 	// Generate frontmatter and combine sections
-	const frontmatter = generateFrontmatter(moduleTitle, moduleDescription);
+	const frontmatter = generateFrontmatter(moduleTitle);
 	return frontmatter + sections.join("\n\n") + "\n";
 }
 
@@ -811,82 +683,7 @@ ${moduleEntries}
 // Reference Documentation Generation
 // =============================================================================
 
-/**
- * Command grouping configuration.
- * Commands are grouped by their ID prefix patterns.
- */
-const COMMAND_GROUPS = [
-	{
-		id: "primary",
-		title: "Primary Commands",
-		description: "These commands are available from the Command Palette.",
-		commands: [
-			"quartoWizard.installExtension",
-			"quartoWizard.useTemplate",
-			"quartoWizard.newQuartoReprex",
-			"quartoWizard.showOutput",
-			"quartoWizard.clearRecent",
-			"quartoWizard.clearCache",
-			"quartoWizard.getExtensionsDetails",
-		],
-	},
-	{
-		id: "installation",
-		title: "Installation Commands",
-		description: "Commands for installing extensions from different sources.",
-		commands: [
-			"quartoWizard.installExtensionFromRegistry",
-			"quartoWizard.installExtensionFromURL",
-			"quartoWizard.installExtensionFromLocal",
-		],
-	},
-	{
-		id: "authentication",
-		title: "Authentication Commands",
-		description: "Commands for managing GitHub authentication.",
-		commands: ["quartoWizard.setGitHubToken", "quartoWizard.clearGitHubToken"],
-	},
-	{
-		id: "explorer",
-		title: "Explorer View Commands",
-		description: "These commands are available from the Explorer View context menu or toolbar.",
-		commands: [
-			"quartoWizard.extensionsInstalled.refresh",
-			"quartoWizard.extensionsInstalled.update",
-			"quartoWizard.extensionsInstalled.updateAll",
-			"quartoWizard.extensionsInstalled.remove",
-			"quartoWizard.extensionsInstalled.removeMultiple",
-			"quartoWizard.extensionsInstalled.openSource",
-			"quartoWizard.extensionsInstalled.revealInExplorer",
-		],
-	},
-];
-
-/**
- * Configuration grouping by setting prefix.
- */
-const CONFIG_GROUPS = [
-	{
-		id: "installation",
-		title: "Installation Behaviour",
-		prefix: "quartoWizard.ask.",
-	},
-	{
-		id: "cache",
-		title: "Cache Settings",
-		prefix: "quartoWizard.cache.",
-	},
-	{
-		id: "registry",
-		title: "Registry Settings",
-		prefix: "quartoWizard.registry.",
-	},
-	{
-		id: "logging",
-		title: "Logging",
-		prefix: "quartoWizard.log.",
-	},
-];
+// commandGroups and configGroups are now imported from docs-config.mjs as commandGroups and configGroups
 
 /**
  * Read and parse package.json.
@@ -922,7 +719,7 @@ function generateCommandsPage(pkg) {
 
 	// Generate command sections
 	const sectionLines = [];
-	for (const group of COMMAND_GROUPS) {
+	for (const group of commandGroups) {
 		sectionLines.push(`## ${group.title}`, "");
 		if (group.description) {
 			sectionLines.push(group.description, "");
@@ -944,7 +741,7 @@ function generateCommandsPage(pkg) {
 
 	// Generate command identifiers table
 	const identifierLines = [];
-	for (const group of COMMAND_GROUPS) {
+	for (const group of commandGroups) {
 		const groupCommands = group.commands.map((id) => commands.get(id)).filter(Boolean);
 		if (groupCommands.length === 0) continue;
 
@@ -1006,7 +803,7 @@ function generateConfigurationPage(pkg) {
 
 	// Generate config sections
 	const sectionLines = [];
-	for (const group of CONFIG_GROUPS) {
+	for (const group of configGroups) {
 		const groupProps = Object.entries(properties).filter(([key]) => key.startsWith(group.prefix));
 
 		if (groupProps.length === 0) continue;
@@ -1143,7 +940,7 @@ function generateReferenceIndex(pkg) {
 	const commandsLines = ["| Command | Description |", "|---------|-------------|"];
 
 	// Add quick reference for primary commands
-	const primaryCommands = COMMAND_GROUPS[0].commands;
+	const primaryCommands = commandGroups[0].commands;
 	for (const cmdId of primaryCommands) {
 		const cmd = commands.get(cmdId);
 		if (!cmd) continue;
@@ -1154,7 +951,7 @@ function generateReferenceIndex(pkg) {
 	}
 
 	// Add installation commands
-	const installCommands = COMMAND_GROUPS[1].commands;
+	const installCommands = commandGroups[1].commands;
 	for (const cmdId of installCommands) {
 		const cmd = commands.get(cmdId);
 		if (!cmd) continue;
@@ -1385,7 +1182,7 @@ function processApiDocs() {
 	}
 
 	// Create landing pages
-	createCoreIndex();
+	createPackageIndex(corePackage);
 	createApiIndex();
 
 	// Generate sidebar

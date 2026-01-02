@@ -1,4 +1,5 @@
 /**
+ * @title Registry Fetcher Module
  * @description Registry fetching and parsing.
  *
  * Handles loading the Quarto extensions registry with caching support.

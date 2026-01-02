@@ -1,4 +1,5 @@
 /**
+ * @title Extension Installation Module
  * @description Extension installation operations.
  *
  * Handles installing extensions from GitHub, URLs, and local sources.

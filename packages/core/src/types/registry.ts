@@ -1,4 +1,5 @@
 /**
+ * @title Registry Types Module
  * @description Registry types for the Quarto extensions registry.
  *
  * Defines types for registry entries and the registry data structure.

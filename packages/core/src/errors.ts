@@ -1,4 +1,5 @@
 /**
+ * @title Errors
  * @description Error types for @quarto-wizard/core.
  *
  * Provides typed error classes for handling various failure scenarios.

@@ -1,4 +1,5 @@
 /**
+ * @title Directory Walking Module
  * @description Directory walking and file collection utilities.
  *
  * Provides recursive directory traversal and file copying operations.

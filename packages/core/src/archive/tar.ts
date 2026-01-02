@@ -1,4 +1,5 @@
 /**
+ * @title TAR.GZ Archive Extraction Module
  * @description TAR.GZ archive extraction with security checks.
  *
  * Includes protection against path traversal and oversized archives.

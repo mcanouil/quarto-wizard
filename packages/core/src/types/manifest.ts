@@ -1,4 +1,5 @@
 /**
+ * @title Manifest Types Module
  * @description Extension manifest types for parsing _extension.yml files.
  *
  * Defines types for extension contributions and manifest structure.

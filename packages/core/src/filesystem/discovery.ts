@@ -1,4 +1,5 @@
 /**
+ * @title Extension Discovery Module
  * @description Extension discovery from the filesystem.
  *
  * Scans the _extensions directory to find installed Quarto extensions.

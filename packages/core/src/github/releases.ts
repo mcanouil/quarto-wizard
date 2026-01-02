@@ -1,4 +1,5 @@
 /**
+ * @title GitHub Releases Module
  * @description GitHub releases API client.
  *
  * Provides functions to query and resolve GitHub release versions.

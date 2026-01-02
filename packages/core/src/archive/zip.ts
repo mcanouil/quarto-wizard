@@ -1,4 +1,5 @@
 /**
+ * @title ZIP Archive Extraction Module
  * @description ZIP archive extraction with security checks.
  *
  * Includes protection against path traversal and zip bomb attacks.

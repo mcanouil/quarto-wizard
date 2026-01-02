@@ -1,5 +1,7 @@
 /**
+ * @title Auth
  * @description Authentication configuration types.
+ *
  * Quarto Wizard supports GitHub authentication via environment variables.
  * This is useful for accessing private repositories or increasing API rate limits.
  *

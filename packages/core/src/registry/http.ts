@@ -1,4 +1,5 @@
 /**
+ * @title HTTP Utilities Module
  * @description HTTP utilities with timeout and retry support.
  *
  * Provides robust fetch operations with configurable timeouts and retries.

@@ -1,4 +1,5 @@
 /**
+ * @title Extension Removal Module
  * @description Extension removal operations.
  *
  * Handles removing installed extensions from a project.

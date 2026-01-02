@@ -1,4 +1,5 @@
 /**
+ * @title Template Use Module
  * @description Use extension operation for installing and copying template files.
  *
  * Combines installation with template file copying for starter templates.

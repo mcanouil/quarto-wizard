@@ -1,4 +1,5 @@
 /**
+ * @title GitHub Download Module
  * @description GitHub archive download functionality.
  *
  * Handles downloading release archives from GitHub repositories.

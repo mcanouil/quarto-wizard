@@ -1,4 +1,5 @@
 /**
+ * @title Proxy-Aware Fetch Module
  * @description Proxy-aware fetch wrapper using undici.
  *
  * Automatically routes requests through configured proxy servers.
