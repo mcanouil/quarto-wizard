@@ -46,6 +46,14 @@ vi.mock("../src/registry/http.js", () => ({
 		if (url.includes("/tags")) {
 			return Promise.resolve(mockTags);
 		}
+		// Mock branch validation endpoint
+		if (url.includes("/branches/")) {
+			return Promise.resolve({ name: "main", commit: { sha: "abc123" } });
+		}
+		// Mock commit validation endpoint
+		if (url.includes("/commits/")) {
+			return Promise.resolve({ sha: "abc1234567890", commit: { message: "test" } });
+		}
 		return Promise.reject(new Error("Unknown URL"));
 	}),
 }));

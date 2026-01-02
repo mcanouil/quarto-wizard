@@ -147,7 +147,7 @@ export async function downloadArchive(
 		});
 
 		if (!response.ok) {
-			throw new NetworkError(`Failed to download: HTTP ${response.status}`, response.status);
+			throw new NetworkError(`Failed to download: HTTP ${response.status}`, { statusCode: response.status });
 		}
 
 		const contentLength = response.headers.get("content-length");
@@ -201,7 +201,7 @@ export async function downloadArchive(
 		return archivePath;
 	} catch (error) {
 		if (error instanceof Error && error.name === "AbortError") {
-			throw new NetworkError(`Download timed out after ${timeout}ms`);
+			throw new NetworkError(`Download timed out after ${timeout}ms`, { cause: error });
 		}
 		throw error;
 	} finally {

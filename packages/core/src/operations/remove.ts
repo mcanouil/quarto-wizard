@@ -61,10 +61,9 @@ export async function remove(extensionId: ExtensionId, options: RemoveOptions): 
 	const extension = await findInstalledExtension(projectDir, extensionId);
 
 	if (!extension) {
-		throw new ExtensionError(
-			`Extension not found: ${formatExtensionId(extensionId)}`,
-			"Use 'list' to see installed extensions",
-		);
+		throw new ExtensionError(`Extension not found: ${formatExtensionId(extensionId)}`, {
+			suggestion: "Use 'list' to see installed extensions",
+		});
 	}
 
 	const filesRemoved = await collectFiles(extension.directory);
@@ -97,8 +96,8 @@ export async function remove(extensionId: ExtensionId, options: RemoveOptions): 
 export async function removeMultiple(
 	extensionIds: ExtensionId[],
 	options: RemoveOptions,
-): Promise<Array<RemoveResult | { extensionId: ExtensionId; error: string }>> {
-	const results: Array<RemoveResult | { extensionId: ExtensionId; error: string }> = [];
+): Promise<(RemoveResult | { extensionId: ExtensionId; error: string })[]> {
+	const results: (RemoveResult | { extensionId: ExtensionId; error: string })[] = [];
 
 	for (const id of extensionIds) {
 		try {

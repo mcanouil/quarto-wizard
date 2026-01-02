@@ -64,10 +64,9 @@ export async function extractArchive(archivePath: string, options: ExtractOption
 	const format = detectArchiveFormat(archivePath);
 
 	if (!format) {
-		throw new ExtensionError(
-			`Unsupported archive format: ${path.basename(archivePath)}`,
-			"Supported formats: .zip, .tar.gz, .tgz",
-		);
+		throw new ExtensionError(`Unsupported archive format: ${path.basename(archivePath)}`, {
+			suggestion: "Supported formats: .zip, .tar.gz, .tgz",
+		});
 	}
 
 	const extractDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "quarto-ext-"));

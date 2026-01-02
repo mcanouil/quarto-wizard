@@ -11,6 +11,62 @@ import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from "undici";
 import { getProxyForUrl, type ProxyConfig } from "./config.js";
 
 /**
+ * Maximum number of proxy agents to cache.
+ * Prevents unbounded memory growth when many different proxy URLs are used.
+ */
+const MAX_PROXY_CACHE_SIZE = 10;
+
+/**
+ * Simple LRU cache for ProxyAgent instances.
+ * Uses Map's insertion order to track recency.
+ */
+class LRUProxyCache {
+	private cache = new Map<string, ProxyAgent>();
+	private readonly maxSize: number;
+
+	constructor(maxSize: number) {
+		this.maxSize = maxSize;
+	}
+
+	get(proxyUrl: string): ProxyAgent | undefined {
+		const agent = this.cache.get(proxyUrl);
+		if (agent) {
+			// Move to end (most recently used) by re-inserting
+			this.cache.delete(proxyUrl);
+			this.cache.set(proxyUrl, agent);
+		}
+		return agent;
+	}
+
+	set(proxyUrl: string, agent: ProxyAgent): void {
+		// If already exists, delete first to update position
+		if (this.cache.has(proxyUrl)) {
+			this.cache.delete(proxyUrl);
+		} else if (this.cache.size >= this.maxSize) {
+			// Evict least recently used (first entry)
+			const firstKey = this.cache.keys().next().value;
+			if (firstKey !== undefined) {
+				const evictedAgent = this.cache.get(firstKey);
+				evictedAgent?.close();
+				this.cache.delete(firstKey);
+			}
+		}
+		this.cache.set(proxyUrl, agent);
+	}
+
+	clear(): void {
+		for (const agent of this.cache.values()) {
+			agent.close();
+		}
+		this.cache.clear();
+	}
+
+	get size(): number {
+		return this.cache.size;
+	}
+}
+
+/**
  * Options for proxy-aware fetch.
  */
 export interface ProxyFetchOptions extends RequestInit {
@@ -19,9 +75,9 @@ export interface ProxyFetchOptions extends RequestInit {
 }
 
 /**
- * Cache for ProxyAgent instances by proxy URL.
+ * LRU cache for ProxyAgent instances by proxy URL.
  */
-const proxyAgentCache = new Map<string, ProxyAgent>();
+const proxyAgentCache = new LRUProxyCache(MAX_PROXY_CACHE_SIZE);
 
 /**
  * Get or create a ProxyAgent for a given proxy URL.
@@ -79,8 +135,5 @@ export async function proxyFetch(url: string | URL, options: ProxyFetchOptions =
  * Useful for testing or when proxy configuration changes.
  */
 export function clearProxyAgentCache(): void {
-	for (const agent of proxyAgentCache.values()) {
-		agent.close();
-	}
 	proxyAgentCache.clear();
 }

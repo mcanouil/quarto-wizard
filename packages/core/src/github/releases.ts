@@ -168,14 +168,72 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
 		}
 
 		if (status === 404) {
-			throw new RepositoryNotFoundError(
-				`Repository not found: ${owner}/${repo}`,
-				"Check if the repository exists and you have access to it",
-			);
+			throw new RepositoryNotFoundError(`Repository not found: ${owner}/${repo}`, {
+				suggestion: "Check if the repository exists and you have access to it",
+			});
 		}
 	}
 
 	throw error;
+}
+
+/**
+ * Validate that a branch exists in a repository.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param branch - Branch name
+ * @param options - GitHub options
+ * @throws VersionError if branch does not exist
+ */
+async function validateBranch(owner: string, repo: string, branch: string, options: GitHubOptions = {}): Promise<void> {
+	const { auth, timeout } = options;
+	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`;
+
+	try {
+		await fetchJson(url, {
+			headers: getGitHubHeaders(auth),
+			timeout,
+			retries: 1,
+		});
+	} catch (error) {
+		if (error instanceof NetworkError && error.statusCode === 404) {
+			throw new VersionError(`Branch "${branch}" not found for ${owner}/${repo}`, {
+				suggestion: `Check available branches at: https://github.com/${owner}/${repo}/branches`,
+			});
+		}
+		handleGitHubError(error, owner, repo);
+	}
+}
+
+/**
+ * Validate that a commit exists in a repository.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param commit - Commit SHA
+ * @param options - GitHub options
+ * @throws VersionError if commit does not exist
+ */
+async function validateCommit(owner: string, repo: string, commit: string, options: GitHubOptions = {}): Promise<void> {
+	const { auth, timeout } = options;
+	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${encodeURIComponent(commit)}`;
+
+	try {
+		await fetchJson(url, {
+			headers: getGitHubHeaders(auth),
+			timeout,
+			retries: 1,
+		});
+	} catch (error) {
+		if (error instanceof NetworkError && error.statusCode === 404) {
+			const shortCommit = commit.substring(0, 7);
+			throw new VersionError(`Commit "${shortCommit}" not found for ${owner}/${repo}`, {
+				suggestion: `Check commits at: https://github.com/${owner}/${repo}/commits`,
+			});
+		}
+		handleGitHubError(error, owner, repo);
+	}
 }
 
 /**
@@ -336,14 +394,15 @@ export async function resolveVersion(
 				};
 			}
 
-			throw new VersionError(
-				`Version "${tagName}" not found for ${owner}/${repo}`,
-				"Check available releases at: https://github.com/" + `${owner}/${repo}/releases`,
-			);
+			throw new VersionError(`Version "${tagName}" not found for ${owner}/${repo}`, {
+				suggestion: `Check available releases at: https://github.com/${owner}/${repo}/releases`,
+			});
 		}
 
 		case "commit": {
 			const commitRef = version.commit;
+			// Validate commit exists before constructing URL
+			await validateCommit(owner, repo, commitRef, options);
 			const shortCommit = commitRef.substring(0, 7);
 			return {
 				tagName: shortCommit,
@@ -355,6 +414,8 @@ export async function resolveVersion(
 
 		case "branch": {
 			const branchName = version.branch;
+			// Validate branch exists before constructing URL
+			await validateBranch(owner, repo, branchName, options);
 			return {
 				tagName: branchName,
 				zipballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "zip"),

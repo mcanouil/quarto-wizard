@@ -60,10 +60,10 @@ export function parseManifestFile(manifestPath: string): ExtensionManifest {
 		if (error instanceof ManifestError) {
 			throw error;
 		}
-		throw new ManifestError(
-			`Failed to read manifest file: ${error instanceof Error ? error.message : String(error)}`,
+		throw new ManifestError(`Failed to read manifest file: ${error instanceof Error ? error.message : String(error)}`, {
 			manifestPath,
-		);
+			cause: error,
+		});
 	}
 }
 
@@ -80,7 +80,7 @@ export function parseManifestContent(content: string, sourcePath?: string): Exte
 		const raw = yaml.load(content) as RawManifest;
 
 		if (!raw || typeof raw !== "object") {
-			throw new ManifestError("Manifest file is empty or invalid", sourcePath);
+			throw new ManifestError("Manifest file is empty or invalid", { manifestPath: sourcePath });
 		}
 
 		return normaliseManifest(raw);
@@ -88,10 +88,10 @@ export function parseManifestContent(content: string, sourcePath?: string): Exte
 		if (error instanceof ManifestError) {
 			throw error;
 		}
-		throw new ManifestError(
-			`Failed to parse manifest: ${error instanceof Error ? error.message : String(error)}`,
-			sourcePath,
-		);
+		throw new ManifestError(`Failed to parse manifest: ${error instanceof Error ? error.message : String(error)}`, {
+			manifestPath: sourcePath,
+			cause: error,
+		});
 	}
 }
 

@@ -48,7 +48,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
 		return response;
 	} catch (error) {
 		if (error instanceof Error && error.name === "AbortError") {
-			throw new NetworkError(`Request timed out after ${timeout}ms`);
+			throw new NetworkError(`Request timed out after ${timeout}ms`, { cause: error });
 		}
 		throw error;
 	} finally {
@@ -110,7 +110,7 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 			);
 
 			if (!response.ok) {
-				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, response.status);
+				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}
 
 			return (await response.json()) as T;
@@ -162,7 +162,7 @@ export async function fetchText(url: string, options: HttpOptions = {}): Promise
 			);
 
 			if (!response.ok) {
-				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, response.status);
+				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}
 
 			return await response.text();

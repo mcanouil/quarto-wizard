@@ -6,12 +6,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import {
-	parseInstallSource,
-	formatInstallSource,
-	resolveExtensionId,
-	type InstallSource,
-} from "../../src/operations/install.js";
+import { parseInstallSource, formatInstallSource, type InstallSource } from "../../src/operations/install.js";
+// Internal exports for testing only
+import { resolveExtensionId } from "../../src/operations/internal.js";
 
 describe("parseInstallSource", () => {
 	describe("GitHub sources", () => {

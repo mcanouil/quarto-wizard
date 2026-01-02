@@ -61,21 +61,21 @@ export interface UpdateOptions extends UpdateCheckOptions {
  */
 export interface UpdateResult {
 	/** Successfully updated extensions. */
-	updated: Array<{
+	updated: {
 		extension: InstalledExtension;
 		previousVersion: string;
 		newVersion: string;
-	}>;
+	}[];
 	/** Skipped extensions with reasons. */
-	skipped: Array<{
+	skipped: {
 		extension: InstalledExtension;
 		reason: string;
-	}>;
+	}[];
 	/** Failed updates with errors. */
-	failed: Array<{
+	failed: {
 		extension: InstalledExtension;
 		error: string;
-	}>;
+	}[];
 }
 
 /**

@@ -8,6 +8,16 @@
  */
 
 /**
+ * Options for constructing a QuartoWizardError.
+ */
+export interface QuartoWizardErrorOptions {
+	/** Suggestion for how to resolve the error. */
+	suggestion?: string;
+	/** Original error that caused this error. */
+	cause?: unknown;
+}
+
+/**
  * Base error class for all Quarto Wizard errors.
  */
 export class QuartoWizardError extends Error {
@@ -16,11 +26,11 @@ export class QuartoWizardError extends Error {
 	/** Suggestion for how to resolve the error. */
 	readonly suggestion?: string;
 
-	constructor(message: string, code: string, suggestion?: string) {
-		super(message);
+	constructor(message: string, code: string, options?: QuartoWizardErrorOptions) {
+		super(message, { cause: options?.cause });
 		this.name = "QuartoWizardError";
 		this.code = code;
-		this.suggestion = suggestion;
+		this.suggestion = options?.suggestion;
 
 		// Maintain proper stack trace in V8 environments
 		if (Error.captureStackTrace) {
@@ -44,8 +54,8 @@ export class QuartoWizardError extends Error {
  * Error related to extension operations (install, update, remove).
  */
 export class ExtensionError extends QuartoWizardError {
-	constructor(message: string, suggestion?: string) {
-		super(message, "EXTENSION_ERROR", suggestion);
+	constructor(message: string, options?: QuartoWizardErrorOptions) {
+		super(message, "EXTENSION_ERROR", options);
 		this.name = "ExtensionError";
 	}
 }
@@ -54,8 +64,11 @@ export class ExtensionError extends QuartoWizardError {
  * Error when authentication is required or failed.
  */
 export class AuthenticationError extends QuartoWizardError {
-	constructor(message: string) {
-		super(message, "AUTH_ERROR", "Provide a GitHub token via GITHUB_TOKEN environment variable or auth option");
+	constructor(message: string, options?: { cause?: unknown }) {
+		super(message, "AUTH_ERROR", {
+			suggestion: "Provide a GitHub token via GITHUB_TOKEN environment variable or auth option",
+			cause: options?.cause,
+		});
 		this.name = "AuthenticationError";
 	}
 }
@@ -64,8 +77,11 @@ export class AuthenticationError extends QuartoWizardError {
  * Error when a repository or resource is not found.
  */
 export class RepositoryNotFoundError extends QuartoWizardError {
-	constructor(message: string, hint?: string) {
-		super(message, "NOT_FOUND", hint ?? "Check if the repository exists and you have access to it");
+	constructor(message: string, options?: { suggestion?: string; cause?: unknown }) {
+		super(message, "NOT_FOUND", {
+			suggestion: options?.suggestion ?? "Check if the repository exists and you have access to it",
+			cause: options?.cause,
+		});
 		this.name = "RepositoryNotFoundError";
 	}
 }
@@ -77,10 +93,13 @@ export class NetworkError extends QuartoWizardError {
 	/** HTTP status code if available. */
 	readonly statusCode?: number;
 
-	constructor(message: string, statusCode?: number) {
-		super(message, "NETWORK_ERROR", "Check your internet connection and try again");
+	constructor(message: string, options?: { statusCode?: number; cause?: unknown }) {
+		super(message, "NETWORK_ERROR", {
+			suggestion: "Check your internet connection and try again",
+			cause: options?.cause,
+		});
 		this.name = "NetworkError";
-		this.statusCode = statusCode;
+		this.statusCode = options?.statusCode;
 	}
 }
 
@@ -88,8 +107,8 @@ export class NetworkError extends QuartoWizardError {
  * Error related to security issues (path traversal, zip bombs, etc.).
  */
 export class SecurityError extends QuartoWizardError {
-	constructor(message: string) {
-		super(message, "SECURITY_ERROR");
+	constructor(message: string, options?: { cause?: unknown }) {
+		super(message, "SECURITY_ERROR", { cause: options?.cause });
 		this.name = "SecurityError";
 	}
 }
@@ -101,10 +120,13 @@ export class ManifestError extends QuartoWizardError {
 	/** Path to the manifest file. */
 	readonly manifestPath?: string;
 
-	constructor(message: string, manifestPath?: string) {
-		super(message, "MANIFEST_ERROR", manifestPath ? `Check the manifest file at: ${manifestPath}` : undefined);
+	constructor(message: string, options?: { manifestPath?: string; cause?: unknown }) {
+		super(message, "MANIFEST_ERROR", {
+			suggestion: options?.manifestPath ? `Check the manifest file at: ${options.manifestPath}` : undefined,
+			cause: options?.cause,
+		});
 		this.name = "ManifestError";
-		this.manifestPath = manifestPath;
+		this.manifestPath = options?.manifestPath;
 	}
 }
 
@@ -112,8 +134,8 @@ export class ManifestError extends QuartoWizardError {
  * Error when a version cannot be resolved.
  */
 export class VersionError extends QuartoWizardError {
-	constructor(message: string, suggestion?: string) {
-		super(message, "VERSION_ERROR", suggestion);
+	constructor(message: string, options?: QuartoWizardErrorOptions) {
+		super(message, "VERSION_ERROR", options);
 		this.name = "VersionError";
 	}
 }

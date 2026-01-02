@@ -125,22 +125,34 @@ suite("Extensions QuickPick Test Suite", () => {
 		openExternalCalls = [];
 		mockQuickPick = new MockQuickPick();
 
-		// Mock VS Code APIs
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).createQuickPick = () => mockQuickPick;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.env as any).openExternal = async (uri: vscode.Uri) => {
-			openExternalCalls.push(uri);
-			return true;
-		};
+		// Mock VS Code APIs using Object.defineProperty to avoid 'any' casts
+		Object.defineProperty(vscode.window, "createQuickPick", {
+			value: () => mockQuickPick,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.env, "openExternal", {
+			value: async (uri: vscode.Uri) => {
+				openExternalCalls.push(uri);
+				return true;
+			},
+			writable: true,
+			configurable: true,
+		});
 	});
 
 	teardown(() => {
 		// Restore original methods
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).createQuickPick = originalCreateQuickPick;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.env as any).openExternal = originalOpenExternal;
+		Object.defineProperty(vscode.window, "createQuickPick", {
+			value: originalCreateQuickPick,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.env, "openExternal", {
+			value: originalOpenExternal,
+			writable: true,
+			configurable: true,
+		});
 	});
 
 	suite("createExtensionItems", () => {

@@ -156,10 +156,9 @@ export function parseInstallSource(input: string): InstallSource {
 	const ref = parseExtensionRef(input);
 
 	if (!ref.id.owner) {
-		throw new ExtensionError(
-			`Invalid extension reference: "${input}"`,
-			'Use format "owner/repo" or "owner/repo@version"',
-		);
+		throw new ExtensionError(`Invalid extension reference: "${input}"`, {
+			suggestion: 'Use format "owner/repo" or "owner/repo@version"',
+		});
 	}
 
 	return {
@@ -285,10 +284,9 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		const extensionRoot = await findExtensionRoot(extractDir);
 
 		if (!extensionRoot) {
-			throw new ExtensionError(
-				"No _extension.yml found in archive",
-				"Ensure the archive contains a valid Quarto extension",
-			);
+			throw new ExtensionError("No _extension.yml found in archive", {
+				suggestion: "Ensure the archive contains a valid Quarto extension",
+			});
 		}
 
 		// Compute repo root from extensionRoot
@@ -342,10 +340,9 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		if (alreadyExists) {
 			if (!force) {
-				throw new ExtensionError(
-					`Extension already installed: ${extensionId.owner}/${extensionId.name}`,
-					"Use force option to reinstall",
-				);
+				throw new ExtensionError(`Extension already installed: ${extensionId.owner}/${extensionId.name}`, {
+					suggestion: "Use force option to reinstall",
+				});
 			}
 			await fs.promises.rm(targetDir, { recursive: true, force: true });
 		}
@@ -398,7 +395,9 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 /**
  * Resolve extension ID from source and manifest.
- * @internal Exported for testing purposes.
+ *
+ * @internal
+ * Exported for testing purposes only. Not part of the public API.
  */
 export function resolveExtensionId(
 	source: InstallSource,
@@ -433,10 +432,9 @@ export function resolveExtensionId(
 	}
 
 	// No _extensions in path - invalid extension source
-	throw new ExtensionError(
-		"Invalid extension structure: missing _extensions directory",
-		"Extension source must contain _extensions/owner/name or _extensions/name structure",
-	);
+	throw new ExtensionError("Invalid extension structure: missing _extensions directory", {
+		suggestion: "Extension source must contain _extensions/owner/name or _extensions/name structure",
+	});
 }
 
 /**

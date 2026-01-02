@@ -1,31 +1,32 @@
+# Version control and CI
 .git
 .github
+.gitignore
+
+# Development environment
 .devcontainer
 .vscode
-.vscode-test
 .vscode-test.mjs
-.gitignore
-.DS_Store
 .prettierrc.json
+.markdownlint.yml
 
+# Build configuration
 tsconfig.json
 eslint.config.mjs
 eslint.config.js
 webpack.config.js
-.markdownlint.yml
-.eslintcache
+typedoc.config.mjs
 
+# Source files (bundled into dist)
 src
-out
+packages
 dist/**/*.map
-**/*.vsix
-node_modules
 package-lock.json
 
+# Documentation and testing
 assets/logo/logo-social.png
 CITATION.cff
 TESTING.md
 test-fixtures
-src/**/README.md
 scripts
 docs

@@ -252,10 +252,9 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		// Use sourceRoot (the GitHub repo root) for template copying
 		const sourceRoot = installResult.sourceRoot;
 		if (!sourceRoot) {
-			throw new ExtensionError(
-				"No source root available for template copying",
-				"This may be a bug in the extension installation",
-			);
+			throw new ExtensionError("No source root available for template copying", {
+				suggestion: "This may be a bug in the extension installation",
+			});
 		}
 
 		let filesToCopy: string[];

@@ -23,7 +23,7 @@ describe("QuartoWizardError", () => {
 	});
 
 	it("creates error with suggestion", () => {
-		const error = new QuartoWizardError("Test", "CODE", "Try this instead");
+		const error = new QuartoWizardError("Test", "CODE", { suggestion: "Try this instead" });
 
 		expect(error.suggestion).toBe("Try this instead");
 	});
@@ -35,7 +35,7 @@ describe("QuartoWizardError", () => {
 	});
 
 	it("formats error with suggestion", () => {
-		const error = new QuartoWizardError("Test message", "CODE", "Try this");
+		const error = new QuartoWizardError("Test message", "CODE", { suggestion: "Try this" });
 
 		expect(error.format()).toContain("Suggestion: Try this");
 	});
@@ -69,7 +69,7 @@ describe("AuthenticationError", () => {
 
 describe("RepositoryNotFoundError", () => {
 	it("creates error with custom hint", () => {
-		const error = new RepositoryNotFoundError("Not found", "Check spelling");
+		const error = new RepositoryNotFoundError("Not found", { suggestion: "Check spelling" });
 
 		expect(error.name).toBe("RepositoryNotFoundError");
 		expect(error.code).toBe("NOT_FOUND");
@@ -85,7 +85,7 @@ describe("RepositoryNotFoundError", () => {
 
 describe("NetworkError", () => {
 	it("creates error with status code", () => {
-		const error = new NetworkError("Request failed", 404);
+		const error = new NetworkError("Request failed", { statusCode: 404 });
 
 		expect(error.name).toBe("NetworkError");
 		expect(error.code).toBe("NETWORK_ERROR");
@@ -110,7 +110,7 @@ describe("SecurityError", () => {
 
 describe("ManifestError", () => {
 	it("creates error with manifest path", () => {
-		const error = new ManifestError("Invalid manifest", "/path/to/_extension.yml");
+		const error = new ManifestError("Invalid manifest", { manifestPath: "/path/to/_extension.yml" });
 
 		expect(error.name).toBe("ManifestError");
 		expect(error.code).toBe("MANIFEST_ERROR");
@@ -128,7 +128,7 @@ describe("ManifestError", () => {
 
 describe("VersionError", () => {
 	it("creates error with custom suggestion", () => {
-		const error = new VersionError("Version not found", "Try latest");
+		const error = new VersionError("Version not found", { suggestion: "Try latest" });
 
 		expect(error.name).toBe("VersionError");
 		expect(error.code).toBe("VERSION_ERROR");

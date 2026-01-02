@@ -16,10 +16,5 @@ node_modules
 # OS files
 .DS_Store
 
-# Temporary files
-dev-plans/
-.beads/
-.claude/
-
 # Quarto
 /.luarc.json
