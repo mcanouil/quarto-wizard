@@ -21,6 +21,7 @@ typedoc.config.mjs
 src
 packages
 dist/**/*.map
+node_modules
 package-lock.json
 
 # Documentation and testing

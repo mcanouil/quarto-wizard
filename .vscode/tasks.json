@@ -92,7 +92,7 @@
 		{
 			"label": "Package Quarto Wizard",
 			"type": "shell",
-			"command": "npx @vscode/vsce package --pre-release",
+			"command": "./.vscode/package.sh",
 			"group": "build"
 		},
 		{
