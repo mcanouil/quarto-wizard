@@ -199,8 +199,8 @@ Access these through:
 
 ```json
 {
-	"quartoWizard.ask.trustAuthors": "ask",
-	"quartoWizard.ask.confirmInstall": "ask"
+  "quartoWizard.ask.trustAuthors": "ask",
+  "quartoWizard.ask.confirmInstall": "ask"
 }
 ```
 
@@ -217,7 +217,7 @@ Access these through:
 
 ```json
 {
-	"quartoWizard.quarto.path": "/usr/local/bin/quarto"
+  "quartoWizard.quarto.path": "/usr/local/bin/quarto"
 }
 ```
 
