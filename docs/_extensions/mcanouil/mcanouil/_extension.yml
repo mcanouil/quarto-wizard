@@ -1,0 +1,9 @@
+title: Mickaël Canouil's Brand
+author: Mickaël Canouil
+version: 0.1.6
+quarto-required: ">=1.8.20"
+contributes:
+  metadata:
+    project:
+      brand: brand.yml
+source: mcanouil/quarto-mcanouil@0.1.6

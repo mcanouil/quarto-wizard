@@ -1,0 +1,76 @@
+---
+title: "Environment Variables"
+---
+
+Quarto Wizard supports configuration through environment variables.
+These are read automatically when the extension starts.
+
+## Authentication
+
+Quarto Wizard supports GitHub authentication via environment variables. This is useful for accessing private repositories or increasing API rate limits.
+
+### Variables
+
+| Variable              | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `GITHUB_TOKEN`        | GitHub personal access token for API authentication.              |
+| `QUARTO_WIZARD_TOKEN` | Alternative token variable (fallback if GITHUB_TOKEN is not set). |
+
+GITHUB_TOKEN takes precedence over QUARTO_WIZARD_TOKEN if both are set.
+
+### Examples
+
+```bash
+# Setting GitHub token for private repository access
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Using the alternative token variable
+export QUARTO_WIZARD_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+::: {.callout-note}
+Tokens can also be set via VS Code settings or the extension's authentication UI.
+:::
+
+## Proxy
+
+Quarto Wizard respects standard proxy environment variables for network requests. This is useful when working behind a corporate proxy.
+
+### Variables
+
+| Variable                       | Description                                                 |
+| ------------------------------ | ----------------------------------------------------------- |
+| `HTTP_PROXY` or `http_proxy`   | Proxy URL for HTTP requests.                                |
+| `HTTPS_PROXY` or `https_proxy` | Proxy URL for HTTPS requests.                               |
+| `NO_PROXY` or `no_proxy`       | Comma or space-separated list of hosts to bypass the proxy. |
+
+The uppercase variants take precedence over lowercase if both are set.
+
+### Examples
+
+```bash
+# Setting proxy for HTTPS requests
+export HTTPS_PROXY=http://proxy.example.com:8080
+
+# Setting proxy with authentication
+export HTTPS_PROXY=http://user:password@proxy.example.com:8080
+
+# Bypassing proxy for specific hosts
+export NO_PROXY=localhost,127.0.0.1,.internal.corp
+```
+
+### NO_PROXY Patterns
+
+The `NO_PROXY` variable supports several pattern formats.
+
+| Pattern        | Matches                                                          |
+| -------------- | ---------------------------------------------------------------- |
+| `*`            | Matches all hosts (disables proxy).                              |
+| `example.com`  | Matches exactly example.com and subdomains like api.example.com. |
+| `.example.com` | Matches domain example.com and all subdomains.                   |
+| `localhost`    | Matches the literal hostname localhost.                          |
+| `127.0.0.1`    | Matches the literal IP address.                                  |
+
+::: {.callout-note}
+CIDR notation (e.g., 192.168.1.0/24) is not supported.
+:::

@@ -5,10 +5,11 @@ import * as semver from "semver";
 import { debounce } from "lodash";
 import { logMessage, showLogsCommand } from "../utils/log";
 import { ExtensionData, findQuartoExtensions, readExtensions } from "../utils/extensions";
-import { removeQuartoExtension, installQuartoExtensionSource } from "../utils/quarto";
+import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
+import { getAuthConfig } from "../utils/auth";
 
 /**
  * Represents a tree item for a workspace folder.
@@ -16,7 +17,10 @@ import { installQuartoExtensionFolderCommand } from "../commands/installQuartoEx
 class WorkspaceFolderTreeItem extends vscode.TreeItem {
 	public workspaceFolder: string;
 
-	constructor(public readonly label: string, public readonly folderPath: string) {
+	constructor(
+		public readonly label: string,
+		public readonly folderPath: string,
+	) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
 		this.contextValue = "quartoExtensionWorkspaceFolder";
 		this.iconPath = new vscode.ThemeIcon("folder");
@@ -38,10 +42,12 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		public readonly workspacePath: string,
 		public readonly data?: ExtensionData,
 		icon?: string,
-		latestVersion?: string
+		latestVersion?: string,
+		hasIssue?: boolean,
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined;
+		const noSource = data && !data.source;
 		const baseContextValue = "quartoExtensionItem";
 		let contextValue = baseContextValue;
 
@@ -49,15 +55,25 @@ class ExtensionTreeItem extends vscode.TreeItem {
 		// This determines which commands are available when right-clicking
 		if (needsUpdate) {
 			contextValue = baseContextValue + "Outdated"; // Shows "update" option
-		} else if (data && !this.data?.source) {
+		} else if (noSource) {
 			contextValue = baseContextValue + "NoSource"; // Cannot be updated, shows limited options
 		}
 
-		this.tooltip = `${this.label}`;
+		// Build tooltip with warning if there are issues
+		let tooltipText = `${this.label}`;
+		if (hasIssue) {
+			tooltipText += "\n\n⚠️ Could not parse extension manifest";
+		} else if (noSource) {
+			tooltipText += "\n\n⚠️ No source in manifest (cannot check for updates)";
+		}
+		this.tooltip = tooltipText;
 		this.description = this.data ? `${this.data.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}` : "";
 		this.contextValue = this.data ? contextValue : "quartoExtensionItemDetails";
 
-		if (icon) {
+		// Show warning icon if there are issues preventing full functionality
+		if (hasIssue || noSource) {
+			this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
+		} else if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
 
@@ -85,6 +101,8 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	// Cache extension data and version information per workspace folder to avoid repeated file reads
 	private extensionsDataByFolder: Record<string, Record<string, ExtensionData>> = {};
 	private latestVersionsByFolder: Record<string, Record<string, string>> = {};
+	// Track extensions with manifest parse errors
+	private parseErrorsByFolder: Record<string, Set<string>> = {};
 
 	constructor(private workspaceFolders: readonly vscode.WorkspaceFolder[]) {
 		this.refreshAllExtensionsData();
@@ -95,7 +113,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	}
 
 	getChildren(
-		element?: WorkspaceFolderTreeItem | ExtensionTreeItem
+		element?: WorkspaceFolderTreeItem | ExtensionTreeItem,
 	): Thenable<(WorkspaceFolderTreeItem | ExtensionTreeItem)[]> {
 		if (!element) {
 			if (this.workspaceFolders.length === 0) {
@@ -105,7 +123,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 						vscode.TreeItemCollapsibleState.None,
 						"",
 						undefined,
-						"info"
+						"info",
 					),
 				]);
 			}
@@ -142,7 +160,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 					vscode.TreeItemCollapsibleState.None,
 					workspacePath,
 					undefined,
-					"info"
+					"info",
 				),
 			];
 		}
@@ -155,8 +173,9 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 					workspacePath,
 					folderData[ext],
 					"package",
-					this.latestVersionsByFolder[workspacePath]?.[ext]
-				)
+					this.latestVersionsByFolder[workspacePath]?.[ext],
+					this.parseErrorsByFolder[workspacePath]?.has(ext),
+				),
 		);
 	}
 
@@ -172,12 +191,12 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 			new ExtensionTreeItem(
 				`Contributes: ${data.contributes}`,
 				vscode.TreeItemCollapsibleState.None,
-				element.workspaceFolder
+				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
 				`Repository: ${data.repository}`,
 				vscode.TreeItemCollapsibleState.None,
-				element.workspaceFolder
+				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(`Source: ${data.source}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
 		];
@@ -205,7 +224,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	 */
 	refreshAfterAction(
 		context: vscode.ExtensionContext,
-		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>
+		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
 	): void {
 		this.checkUpdate(context, view);
 		this.forceRefresh();
@@ -213,6 +232,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 
 	private refreshAllExtensionsData(): void {
 		this.extensionsDataByFolder = {};
+		this.parseErrorsByFolder = {};
 
 		for (const folder of this.workspaceFolders) {
 			const workspaceFolder = folder.uri.fsPath;
@@ -222,8 +242,67 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 				extensionsList = findQuartoExtensions(path.join(workspaceFolder, "_extensions"));
 			}
 
-			this.extensionsDataByFolder[workspaceFolder] = readExtensions(workspaceFolder, extensionsList);
+			const extensionsData = readExtensions(workspaceFolder, extensionsList);
+			this.extensionsDataByFolder[workspaceFolder] = extensionsData;
+
+			// Track extensions where we couldn't read essential data
+			this.parseErrorsByFolder[workspaceFolder] = new Set();
+			for (const ext of extensionsList) {
+				const data = extensionsData[ext];
+				// Mark as parse error if we couldn't read the manifest or essential fields are missing
+				if (!data || (!data.title && !data.version && !data.contributes)) {
+					this.parseErrorsByFolder[workspaceFolder].add(ext);
+				}
+			}
 		}
+	}
+
+	/**
+	 * Gets all outdated extensions across all workspace folders.
+	 * @returns Array of objects with extension info and update details.
+	 */
+	getOutdatedExtensions(): {
+		extensionId: string;
+		workspaceFolder: string;
+		repository: string | undefined;
+		latestVersion: string;
+	}[] {
+		const outdated: {
+			extensionId: string;
+			workspaceFolder: string;
+			repository: string | undefined;
+			latestVersion: string;
+		}[] = [];
+
+		for (const folder of this.workspaceFolders) {
+			const workspacePath = folder.uri.fsPath;
+			const folderData = this.extensionsDataByFolder[workspacePath] || {};
+			const latestVersions = this.latestVersionsByFolder[workspacePath] || {};
+
+			for (const ext of Object.keys(latestVersions)) {
+				const version = latestVersions[ext];
+				if (version && version !== "unknown") {
+					outdated.push({
+						extensionId: ext,
+						workspaceFolder: workspacePath,
+						repository: folderData[ext]?.repository,
+						latestVersion: version,
+					});
+				}
+			}
+		}
+
+		return outdated;
+	}
+
+	/**
+	 * Gets all installed extensions in a workspace folder.
+	 * @param workspaceFolder - The workspace folder path.
+	 * @returns Array of extension IDs.
+	 */
+	getInstalledExtensions(workspaceFolder: string): string[] {
+		const folderData = this.extensionsDataByFolder[workspaceFolder] || {};
+		return Object.keys(folderData);
 	}
 
 	/**
@@ -236,7 +315,7 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 	async checkUpdate(
 		context: vscode.ExtensionContext,
 		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
-		silent = true
+		silent = true,
 	): Promise<number> {
 		const extensionsDetails = await getExtensionsDetails(context);
 		const updatesAvailable: string[] = [];
@@ -330,7 +409,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
 				this.treeDataProvider.refreshAfterAction(context, view);
-			})
+			}),
 		);
 
 		context.subscriptions.push(
@@ -339,14 +418,14 @@ export class ExtensionsInstalled {
 					const url = `https://github.com/${item.data?.repository}`;
 					vscode.env.openExternal(vscode.Uri.parse(url));
 				}
-			})
+			}),
 		);
 
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
 				await installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
 				this.treeDataProvider.refreshAfterAction(context, view);
-			})
+			}),
 		);
 
 		context.subscriptions.push(
@@ -355,8 +434,8 @@ export class ExtensionsInstalled {
 				async (item: ExtensionTreeItem) => {
 					await installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
 					this.treeDataProvider.refreshAfterAction(context, view);
-				}
-			)
+				},
+			),
 		);
 
 		/**
@@ -367,16 +446,16 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
 				const latestVersion = item.latestVersion?.replace(/^@/, "");
 				const latestSemver = latestVersion ? latestVersion.replace(/^v/, "") : undefined;
+				const auth = await getAuthConfig(context, { createIfNone: true });
 				const success = await withProgressNotification(
 					`Updating "${item.data?.repository ?? item.label}" to ${latestSemver} ...`,
 					async () => {
-						// Once source is supported in _extension.yml, the above line can be replaced with the following line
-						// return installQuartoExtension(item.data?.repository ?? item.label);
-						return installQuartoExtensionSource(
+						return installQuartoExtension(
 							`${item.data?.repository ?? item.label}${item.latestVersion}`,
-							item.workspaceFolder
+							item.workspaceFolder,
+							auth,
 						);
-					}
+					},
 				);
 				if (success) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
@@ -386,13 +465,13 @@ export class ExtensionsInstalled {
 						vscode.window.showErrorMessage(
 							`Failed to update extension "${item.label}". ` +
 								`Source not found in extension manifest. ` +
-								`${showLogsCommand()}.`
+								`${showLogsCommand()}.`,
 						);
 					} else {
 						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${showLogsCommand()}.`);
 					}
 				}
-			})
+			}),
 		);
 
 		/**
@@ -410,7 +489,7 @@ export class ExtensionsInstalled {
 				} else {
 					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
 				}
-			})
+			}),
 		);
 
 		/**
@@ -422,14 +501,14 @@ export class ExtensionsInstalled {
 				async (item: ExtensionTreeItem) => {
 					// Early return if resourceUri is not available
 					if (!item.resourceUri) {
-						logMessage(`Cannot reveal "${item.label}": resource URI not available.`, "warning");
+						logMessage(`Cannot reveal "${item.label}": resource URI not available.`, "warn");
 						vscode.window.showWarningMessage(`Cannot reveal extension "${item.label}" in Explorer.`);
 						return;
 					}
 
 					// Check if extension directory exists
 					if (!fs.existsSync(item.resourceUri.fsPath)) {
-						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}`, "warning");
+						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}`, "warn");
 						vscode.window.showWarningMessage(`Extension directory for "${item.label}" not found.`);
 						return;
 					}
@@ -447,7 +526,7 @@ export class ExtensionsInstalled {
 						// Fallback to directory if no extension file found
 						logMessage(
 							`No _extension.yml or _extension.yaml found for "${item.label}", showing directory instead.`,
-							"info"
+							"info",
 						);
 						targetUri = item.resourceUri;
 					}
@@ -459,11 +538,121 @@ export class ExtensionsInstalled {
 						const errorMessage = error instanceof Error ? error.message : String(error);
 						logMessage(`Failed to reveal "${item.label}" in Explorer: ${errorMessage}`, "error");
 						vscode.window.showErrorMessage(
-							`Failed to reveal extension "${item.label}" in Explorer. ${showLogsCommand()}.`
+							`Failed to reveal extension "${item.label}" in Explorer. ${showLogsCommand()}.`,
 						);
 					}
+				},
+			),
+		);
+
+		/**
+		 * Updates all outdated extensions to their latest versions.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.updateAll", async () => {
+				const outdated = this.treeDataProvider.getOutdatedExtensions();
+
+				if (outdated.length === 0) {
+					vscode.window.showInformationMessage("All extensions are up to date.");
+					return;
 				}
-			)
+
+				const confirm = await vscode.window.showWarningMessage(
+					`Update ${outdated.length} extension(s) to their latest versions?`,
+					{ modal: true },
+					"Update All",
+				);
+
+				if (confirm !== "Update All") {
+					return;
+				}
+
+				const auth = await getAuthConfig(context, { createIfNone: true });
+				let successCount = 0;
+				let failedCount = 0;
+
+				await withProgressNotification(`Updating ${outdated.length} extension(s) ...`, async () => {
+					for (const ext of outdated) {
+						const source = ext.repository
+							? `${ext.repository}@${ext.latestVersion}`
+							: `${ext.extensionId}@${ext.latestVersion}`;
+						const success = await installQuartoExtension(source, ext.workspaceFolder, auth);
+						if (success) {
+							successCount++;
+						} else {
+							failedCount++;
+						}
+					}
+					return successCount > 0;
+				});
+
+				if (successCount > 0) {
+					vscode.window.showInformationMessage(
+						`Successfully updated ${successCount} extension(s)${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
+					);
+				} else {
+					vscode.window.showErrorMessage(`Failed to update extensions. ${showLogsCommand()}.`);
+				}
+
+				this.treeDataProvider.refreshAfterAction(context, view);
+			}),
+		);
+
+		/**
+		 * Removes multiple selected extensions from a workspace folder.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.removeMultiple",
+				async (item: WorkspaceFolderTreeItem) => {
+					const extensions = this.treeDataProvider.getInstalledExtensions(item.workspaceFolder);
+
+					if (extensions.length === 0) {
+						vscode.window.showInformationMessage("No extensions to remove.");
+						return;
+					}
+
+					const selected = await vscode.window.showQuickPick(
+						extensions.map((ext) => ({ label: ext, picked: false })),
+						{
+							placeHolder: "Select extensions to remove",
+							canPickMany: true,
+						},
+					);
+
+					if (!selected || selected.length === 0) {
+						return;
+					}
+
+					const confirm = await vscode.window.showWarningMessage(
+						`Remove ${selected.length} extension(s)? This cannot be undone.`,
+						{ modal: true },
+						"Remove",
+					);
+
+					if (confirm !== "Remove") {
+						return;
+					}
+
+					const extensionNames = selected.map((s) => s.label);
+					const result = await withProgressNotification(
+						`Removing ${extensionNames.length} extension(s) ...`,
+						async () => {
+							return removeQuartoExtensions(extensionNames, item.workspaceFolder);
+						},
+					);
+
+					if (result.successCount > 0) {
+						vscode.window.showInformationMessage(
+							`Successfully removed ${result.successCount} extension(s)${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
+						);
+					} else {
+						vscode.window.showErrorMessage(`Failed to remove extensions. ${showLogsCommand()}.`);
+					}
+
+					this.treeDataProvider.refreshAfterAction(context, view);
+				},
+			),
 		);
 	}
 

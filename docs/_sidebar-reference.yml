@@ -1,0 +1,12 @@
+website:
+  sidebar:
+    - id: reference
+      style: docked
+      collapse-level: 2
+      contents:
+        - section: "Reference"
+          href: reference/index.qmd
+          contents:
+            - reference/commands.qmd
+            - reference/configuration.qmd
+            - reference/environment-variables.qmd

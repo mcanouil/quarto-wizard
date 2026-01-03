@@ -1,0 +1,8 @@
+---
+title: "Environment Variables"
+---
+
+Quarto Wizard supports configuration through environment variables.
+These are read automatically when the extension starts.
+
+{{ENV_VAR_SECTIONS}}

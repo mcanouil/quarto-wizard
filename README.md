@@ -23,13 +23,15 @@ Additionally, it offers a set of commands to create new Quarto documents that yo
   - [Quarto Wizard Explorer View](#quarto-wizard-explorer-view)
   - [Explorer/Editor Context Menu](#explorereditor-context-menu)
   - [Install Quarto Extensions](#install-quarto-extensions)
+  - [Install Extensions from Local Sources](#install-extensions-from-local-sources)
   - [Use Quarto Templates](#use-quarto-templates)
   - [Create a New Reproducible Document](#create-a-new-reproducible-document)
   - [Show Quarto Wizard Output](#show-quarto-wizard-output)
 - [Configuration](#configuration)
   - [Available Settings](#available-settings)
     - [Extension Installation Behaviour](#extension-installation-behaviour)
-    - [Quarto CLI Configuration](#quarto-cli-configuration)
+    - [Cache and Registry Configuration](#cache-and-registry-configuration)
+    - [Logging Configuration](#logging-configuration)
 - [Getting Help](#getting-help)
 - [Verifying Release Asset Build Provenance](#verifying-release-asset-build-provenance)
 - [Development](#development)
@@ -78,7 +80,7 @@ positron --install-extension mcanouil.quarto-wizard
   - **Browse Extensions**: View a list of available Quarto extensions.
     <p>
       <img
-        src="assets/images/install-extensions.png"
+        src="docs/assets/images/install-extensions.png"
         alt='This image displays a search results interface for Quarto extensions authored by the user "mcanouil". It lists various extensions, including their names, version numbers, star ratings, and brief descriptions. The search highlights extensions such as Animate, Div Reuse, Elevator, Github, Highlight Text, Iconify, Invoice, and Letter, showcasing diverse functionalities ranging from animated content to document styling and templates for invoices and letters. The purpose of the image is to present a concise overview of available extensions along with their popularity and license information for Quarto users.'
         width="400"
       />
@@ -88,7 +90,7 @@ positron --install-extension mcanouil.quarto-wizard
   - **Browse Templates**: View a list of available Quarto templates from Quarto Extensions.
     <p>
       <img
-        src="assets/images/use-template.png"
+        src="docs/assets/images/use-template.png"
         alt='This image showcases a menu of Quarto extension templates available for selection. It lists templates like "LETTER," "ACADEMIC TYPST," "ACM," "ACS," and others, each with details such as version, number of stars, repository link, and license type. The "LETTER" template is highlighted, suggesting recent usage. This visual serves as a practical guide for users looking to choose and apply specific Quarto templates effectively.'
         width="400"
       />
@@ -100,6 +102,12 @@ positron --install-extension mcanouil.quarto-wizard
   - [`R`](/assets/templates/r.qmd)
   - [`Python`](assets/templates/python.qmd)
   - [`Julia`](assets/templates/julia.qmd)
+- `Quarto Wizard: Clear Extension Cache`: Clears the cached registry data to force a fresh download.
+- `Quarto Wizard: Set GitHub Token (Manual)`: Manually set a GitHub personal access token for authentication.
+- `Quarto Wizard: Clear GitHub Token (Manual)`: Remove the manually set GitHub token.
+- `Quarto Wizard: Install Extension from Registry`: Install an extension by entering its registry identifier.
+- `Quarto Wizard: Install Extension from URL`: Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.
+- `Quarto Wizard: Install Extension from Local`: Install extension(s) from a local directory or archive file.
 - `Quarto Wizard: Focus on Extensions Installed View`: Opens the Quarto Wizard view to display and manage the Quarto extensions installed.
 
 ## Usage
@@ -111,7 +119,7 @@ positron --install-extension mcanouil.quarto-wizard
    Or click on the Quarto Wizard icon in the Activity Bar.
    <p align="center">
      <img
-       src="assets/images/explorer-view.png"
+       src="docs/assets/images/explorer-view.png"
        alt="This image showcases the Quarto Wizard extension interface within Visual Studio Code. It highlights features like the workspace view, extension management options for adding, removing, or updating extensions, as well as template usage and GitHub repository access. The interface also illustrates the Quarto Wizard Explorer section, with annotations using coloured arrows and text to explain specific functionalities. Two workspaces are displayed: one with installed extensions labelled wizard-dev, and another without installed extensions labelled quarto-playground. This visual guide serves users looking to manage Quarto extensions in Visual Studio Code effectively."
        width="600"
      />
@@ -119,7 +127,7 @@ positron --install-extension mcanouil.quarto-wizard
 
 Or click on the Quarto Wizard icon in the Activity Bar.
 
-*Quarto Wizard Explorer View in action:*
+_Quarto Wizard Explorer View in action:_
 
 <p align="center">
   <video
@@ -133,21 +141,24 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 </p>
 
 > [!IMPORTANT]
-> Quarto extensions can only be updated if installed by Quarto Wizard (*i.e.*, if `source: <owner>/<repository>` is present in `_extension.yml`).
+> Quarto extensions can only be updated if installed by Quarto Wizard (_i.e._, if `source: <owner>/<repository>` is present in `_extension.yml`).
 > You can manually add the source to the extension's `_extension.yml` file to enable updates.
 
 ### Explorer/Editor Context Menu
 
 - Right-click in the Explorer or Editor to access the following commands:
   - `Install Extensions`.
-  - `Use Template` (*Only retrieves the Quarto document. For other resources, please use `quarto use template` manually*).
+  - `Use Template` (_Only retrieves the Quarto document. For other resources, please use `quarto use template` manually_).
   - `Quarto Reproducible Document`.
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
+  - `Clear Extension Cache`.
+- Right-click on a **folder** or **archive file** (`.zip`/`.tar.gz`/`.tgz`) in the Explorer:
+  - `Install Extension from Local`: Install Quarto extension(s) from the selected source.
 
 <p align="center">
   <img
-    src="assets/images/explorer-context.png"
+    src="docs/assets/images/explorer-context.png"
     alt='This image presents a context menu within Visual Studio Code. The menu displays options such as "Install Extensions," "Use Template", "Quarto Reproducible Document", and more. The "Quarto Wizard" option is highlighted. This visual aids users in navigating and utilising Quarto tools effectively within their workspace.'
     width="400"
   />
@@ -162,7 +173,21 @@ Or click on the Quarto Wizard icon in the Activity Bar.
 5. Answer the prompts to confirm the installation.
 
 > [!NOTE]
-> Quarto Wizard can only display available information, *i.e.*, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+> Quarto Wizard can only display available information, _i.e._, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+
+### Install Extensions from Local Sources
+
+You can install Quarto extensions from local directories or archive files.
+
+1. Right-click on a folder or archive file (`.zip`, `.tar.gz`, `.tgz`) in the Explorer.
+2. Select `Quarto Wizard` > `Install Extension from Local`.
+3. If the source contains an `_extensions/` folder, select which extensions to install.
+4. Choose the target workspace folder (if multiple workspaces are open).
+5. For each conflicting extension, choose to overwrite or skip.
+
+> [!TIP]
+> If the source contains an `_extensions/` folder, you can select which extensions to install.
+> Otherwise, the source is treated as a single extension and installed directly.
 
 ### Use Quarto Templates
 
@@ -204,24 +229,39 @@ Access these through:
 }
 ```
 
-- `quartoWizard.ask.trustAuthors`: Control prompts for trusting extension authors
+- `quartoWizard.ask.trustAuthors`: Control prompts for trusting extension authors.
   - `"ask"`: Ask each time (default).
-  - `"yes"`: Always trust.
-  - `"never"`: Never ask.
-- `quartoWizard.ask.confirmInstall`: Control installation confirmation prompts
+  - `"never"`: Always trust without prompting.
+- `quartoWizard.ask.confirmInstall`: Control installation confirmation prompts.
   - `"ask"`: Ask each time (default).
-  - `"yes"`: Auto-confirm.
-  - `"never"`: Never ask.
+  - `"never"`: Always confirm without prompting.
 
-#### Quarto CLI Configuration
+#### Cache and Registry Configuration
 
 ```json
 {
-  "quartoWizard.quarto.path": "/usr/local/bin/quarto"
+  "quartoWizard.cache.ttlMinutes": 30,
+  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
 }
 ```
 
-- `quartoWizard.quarto.path`: Specify custom path to Quarto CLI executable.
+- `quartoWizard.cache.ttlMinutes`: Cache duration for extension registry data in minutes (1-1440, default: 30).
+- `quartoWizard.registry.url`: URL to the Quarto extensions registry JSON file.
+  Change this to use a custom registry.
+
+#### Logging Configuration
+
+```json
+{
+  "quartoWizard.log.level": "info"
+}
+```
+
+- `quartoWizard.log.level`: The level of logging verbosity.
+  - `"error"`: Only log errors.
+  - `"warn"`: Log warnings and errors.
+  - `"info"`: Log info, warnings, and errors (default).
+  - `"debug"`: Log everything, including debug information.
 
 ## Getting Help
 
@@ -256,7 +296,6 @@ gh attestation verify quarto-wizard-<version>.vsix --repo mcanouil/quarto-wizard
    ```
 
 4. Launch the extension:
-
    - Press `F5` to open a new Visual Studio Code window with the extension loaded.
 
 ## Contributing

@@ -24,6 +24,6 @@ export async function withProgressNotification<T>(title: string, expression: () 
 			});
 			// progress.report({ increment: 0 });
 			return await expression();
-		}
+		},
 	);
 }

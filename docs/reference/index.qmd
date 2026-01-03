@@ -1,0 +1,44 @@
+---
+title: "Reference"
+---
+
+This section provides detailed reference documentation for Quarto Wizard.
+
+## Commands
+
+Quarto Wizard provides a comprehensive set of commands for managing Quarto extensions.
+See [Commands Reference](commands.qmd) for the complete list.
+
+### Quick Reference
+
+| Command                             | Description                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| Install Extensions                  | Opens the extension browser to browse and install Quarto extensions from the registry. |
+| Use Template                        | Opens the template browser to select and install Quarto templates.                     |
+| Quarto Reproducible Document        | Creates a new reproducible example document for R, Python, or Julia.                   |
+| Show Quarto Wizard Log Output       | Displays the extension's output log for debugging and troubleshooting.                 |
+| Clear Recently Installed Extensions | Clears the list of recently installed extensions and templates.                        |
+| Clear Extension Cache               | Clears the cached registry data to force a fresh download.                             |
+| Get Extensions Details              | Retrieves detailed information about extensions in the current workspace.              |
+| Install Extension from Registry     | Install an extension by entering its registry identifier.                              |
+| Install Extension from URL          | Install an extension from a direct URL to a .zip or .tar.gz archive.                   |
+| Install Extension from Local        | Install extension(s) from a local directory or archive file.                           |
+
+## Configuration
+
+Customise Quarto Wizard's behaviour through VS Code settings.
+See [Configuration Reference](configuration.qmd) for all available options.
+
+### Quick Reference
+
+| Setting                           | Default                                    | Description                     |
+| --------------------------------- | ------------------------------------------ | ------------------------------- |
+| `quartoWizard.ask.trustAuthors`   | `ask`                                      | Prompt before trusting authors. |
+| `quartoWizard.ask.confirmInstall` | `ask`                                      | Prompt before installing.       |
+| `quartoWizard.cache.ttlMinutes`   | `30`                                       | Cache duration in minutes.      |
+| `quartoWizard.registry.url`       | [see docs](configuration.qmd#registry-url) | Custom registry URL.            |
+| `quartoWizard.log.level`          | `info`                                     | Logging verbosity.              |
+
+## API Reference
+
+For developers integrating with the `@quarto-wizard/core` package, see the [API Reference](../api/index.qmd).

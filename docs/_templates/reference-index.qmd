@@ -1,0 +1,27 @@
+---
+title: "Reference"
+---
+
+This section provides detailed reference documentation for Quarto Wizard.
+
+## Commands
+
+Quarto Wizard provides a comprehensive set of commands for managing Quarto extensions.
+See [Commands Reference](commands.qmd) for the complete list.
+
+### Quick Reference
+
+{{COMMANDS_TABLE}}
+
+## Configuration
+
+Customise Quarto Wizard's behaviour through VS Code settings.
+See [Configuration Reference](configuration.qmd) for all available options.
+
+### Quick Reference
+
+{{CONFIGURATION_TABLE}}
+
+## API Reference
+
+For developers integrating with the `@quarto-wizard/core` package, see the [API Reference](../api/index.qmd).

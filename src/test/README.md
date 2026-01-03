@@ -48,13 +48,13 @@ To debug tests in VS Code:
 Tests are located in `src/test/suite/` and use the Mocha test framework:
 
 ```typescript
-import * as assert from 'assert';
-import * as vscode from 'vscode';
+import * as assert from "assert";
+import * as vscode from "vscode";
 
-suite('Extension Test Suite', () => {
-    test('Basic test case', () => {
-        assert.strictEqual(1 + 1, 2);
-    });
+suite("Extension Test Suite", () => {
+	test("Basic test case", () => {
+		assert.strictEqual(1 + 1, 2);
+	});
 });
 ```
 
@@ -63,12 +63,12 @@ suite('Extension Test Suite', () => {
 Integration tests verify that the extension works properly within VS Code. These tests have access to the full VS Code API:
 
 ```typescript
-test('Extension loads correctly', async () => {
-    const extension = vscode.extensions.getExtension('mcanouil.quarto-wizard');
-    if (extension) {
-        await extension.activate();
-        assert.ok(extension.isActive, 'Extension should be active');
-    }
+test("Extension loads correctly", async () => {
+	const extension = vscode.extensions.getExtension("mcanouil.quarto-wizard");
+	if (extension) {
+		await extension.activate();
+		assert.ok(extension.isActive, "Extension should be active");
+	}
 });
 ```
 
@@ -77,12 +77,12 @@ test('Extension loads correctly', async () => {
 Unit tests focus on individual functions and don't require VS Code:
 
 ```typescript
-import { hashString } from '../../utils/hash';
+import { hashString } from "../../utils/hash";
 
-test('Creates consistent hash', () => {
-    const hash1 = hashString('test input');
-    const hash2 = hashString('test input');
-    assert.strictEqual(hash1, hash2);
+test("Creates consistent hash", () => {
+	const hash1 = hashString("test input");
+	const hash2 = hashString("test input");
+	assert.strictEqual(hash1, hash2);
 });
 ```
 
@@ -99,7 +99,7 @@ The main test configuration files:
 Tests run automatically on GitHub Actions for:
 
 - **Operating Systems**: Ubuntu, Windows, and macOS.
-- **Node.js versions**: 14.x.
+- **Node.js versions**: 25.x.
 
 ## Best Practices
 

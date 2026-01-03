@@ -1,0 +1,21 @@
+website:
+  sidebar:
+    - id: api
+      style: docked
+      collapse-level: 2
+      contents:
+        - section: "API Reference"
+          href: api/index.qmd
+          contents:
+            - section: "@quarto-wizard/core"
+              href: api/core/index.qmd
+              contents:
+                - api/core/archive.qmd
+                - api/core/auth.qmd
+                - api/core/errors.qmd
+                - api/core/filesystem.qmd
+                - api/core/github.qmd
+                - api/core/operations.qmd
+                - api/core/proxy.qmd
+                - api/core/registry.qmd
+                - api/core/types.qmd
