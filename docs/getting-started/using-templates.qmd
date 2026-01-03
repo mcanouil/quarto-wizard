@@ -33,6 +33,13 @@ When you use a template, Quarto Wizard:
 3. Select which template files to copy (if multiple are available).
 4. Confirm any file overwrites if necessary.
 
+::: {#fig-template-files}
+
+{{< placeholder 600 400 >}}
+
+The QuickPick dialog showing available template files to copy.
+:::
+
 ## Template Files
 
 Templates typically include:

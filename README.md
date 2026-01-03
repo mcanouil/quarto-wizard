@@ -23,6 +23,7 @@ Additionally, it offers a set of commands to create new Quarto documents that yo
   - [Quarto Wizard Explorer View](#quarto-wizard-explorer-view)
   - [Explorer/Editor Context Menu](#explorereditor-context-menu)
   - [Install Quarto Extensions](#install-quarto-extensions)
+  - [Install Extensions from Local Sources](#install-extensions-from-local-sources)
   - [Use Quarto Templates](#use-quarto-templates)
   - [Create a New Reproducible Document](#create-a-new-reproducible-document)
   - [Show Quarto Wizard Output](#show-quarto-wizard-output)
@@ -106,7 +107,7 @@ positron --install-extension mcanouil.quarto-wizard
 - `Quarto Wizard: Clear GitHub Token (Manual)`: Remove the manually set GitHub token.
 - `Quarto Wizard: Install Extension from Registry`: Install an extension by entering its registry identifier.
 - `Quarto Wizard: Install Extension from URL`: Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.
-- `Quarto Wizard: Install Extension from Local`: Install an extension from a local directory or archive file.
+- `Quarto Wizard: Install Extension from Local`: Install extension(s) from a local directory or archive file.
 - `Quarto Wizard: Focus on Extensions Installed View`: Opens the Quarto Wizard view to display and manage the Quarto extensions installed.
 
 ## Usage
@@ -152,6 +153,8 @@ _Quarto Wizard Explorer View in action:_
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
   - `Clear Extension Cache`.
+- Right-click on a **folder** or **archive file** (`.zip`/`.tar.gz`/`.tgz`) in the Explorer:
+  - `Install Extension from Local`: Install Quarto extension(s) from the selected source.
 
 <p align="center">
   <img
@@ -171,6 +174,20 @@ _Quarto Wizard Explorer View in action:_
 
 > [!NOTE]
 > Quarto Wizard can only display available information, _i.e._, if the author of an extension has not provided a description, license, and/or used tags for release versions, these fields will be populated with `none`.
+
+### Install Extensions from Local Sources
+
+You can install Quarto extensions from local directories or archive files.
+
+1. Right-click on a folder or archive file (`.zip`, `.tar.gz`, `.tgz`) in the Explorer.
+2. Select `Quarto Wizard` > `Install Extension from Local`.
+3. If the source contains an `_extensions/` folder, select which extensions to install.
+4. Choose the target workspace folder (if multiple workspaces are open).
+5. For each conflicting extension, choose to overwrite or skip.
+
+> [!TIP]
+> If the source contains an `_extensions/` folder, you can select which extensions to install.
+> Otherwise, the source is treated as a single extension and installed directly.
 
 ### Use Quarto Templates
 

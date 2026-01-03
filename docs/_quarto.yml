@@ -39,8 +39,6 @@ website:
         href: index.qmd
       - text: Getting Started
         href: getting-started/index.qmd
-      - text: Guide
-        href: guide/index.qmd
       - text: Reference
         href: reference/index.qmd
       - text: API
@@ -60,20 +58,11 @@ website:
           href: getting-started/index.qmd
           contents:
             - getting-started/installation.qmd
-            - getting-started/requirements.qmd
-
-    - id: guide
-      style: docked
-      collapse-level: 2
-      contents:
-        - section: "Guide"
-          href: guide/index.qmd
-          contents:
-            - guide/explorer-view.qmd
-            - guide/install-extensions.qmd
-            - guide/use-templates.qmd
-            - guide/reprex.qmd
-            - guide/troubleshooting.qmd
+            - getting-started/installing-extensions.qmd
+            - getting-started/explorer-view.qmd
+            - getting-started/using-templates.qmd
+            - getting-started/reproducible-docs.qmd
+            - getting-started/troubleshooting.qmd
 
 metadata-files:
   - _sidebar-reference.yml

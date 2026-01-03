@@ -72,7 +72,7 @@ Example of a rate limit error message in the output log.
 
 **Solutions**:
 
-1. Configure GitHub authentication (see [Requirements](../getting-started/requirements.qmd)).
+1. Configure GitHub authentication (see [Installation](installation.qmd#optional-github-authentication)).
 2. Wait for the rate limit to reset (usually one hour).
 3. Use `Quarto Wizard: Set GitHub Token (Manual)` to add a personal access token.
 

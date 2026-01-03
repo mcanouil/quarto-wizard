@@ -22,7 +22,7 @@ See [Commands Reference](commands.qmd) for the complete list.
 | Get Extensions Details              | Retrieves detailed information about extensions in the current workspace.              |
 | Install Extension from Registry     | Install an extension by entering its registry identifier.                              |
 | Install Extension from URL          | Install an extension from a direct URL to a .zip or .tar.gz archive.                   |
-| Install Extension from Local        | Install an extension from a local directory or archive file.                           |
+| Install Extension from Local        | Install extension(s) from a local directory or archive file.                           |
 
 ## Configuration
 

@@ -77,8 +77,7 @@ See the [Installation Guide](getting-started/installation.qmd) for more options.
 
 ## Documentation
 
-- [Getting Started](getting-started/index.qmd) - Installation and setup.
-- [User Guide](guide/index.qmd) - Learn all features.
+- [Getting Started](getting-started/index.qmd) - Installation, usage, and troubleshooting.
 - [Reference](reference/index.qmd) - Commands and configuration.
 - [API Reference](api/index.qmd) - For developers.
 

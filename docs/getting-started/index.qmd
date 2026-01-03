@@ -16,6 +16,7 @@ It enhances your Quarto development experience by making extension management si
 - **Use Templates**: Quick-start documents with pre-configured templates.
 - **Manage Extensions**: View, update, and remove installed extensions from the Explorer view.
 - **Create Reproducible Documents**: Generate reproducible examples for R, Python, or Julia.
+- **Install from Local Sources**: Install extensions from local directories or archive files.
 
 ## Quick Start
 
@@ -30,8 +31,11 @@ It enhances your Quarto development experience by making extension management si
 The Command Palette showing Quarto Wizard commands ready to use.
 :::
 
-## Next Steps
+## In This Section
 
-- [Installation Guide](installation.qmd) - Detailed installation instructions.
-- [Requirements](requirements.qmd) - System requirements.
-- [User Guide](../guide/index.qmd) - Learn how to use all features.
+- [Installation](installation.qmd) - How to install Quarto Wizard and system requirements.
+- [Installing Extensions](installing-extensions.qmd) - Browse and install extensions from multiple sources.
+- [Explorer View](explorer-view.qmd) - Manage installed extensions from the sidebar.
+- [Using Templates](using-templates.qmd) - Quick-start documents with templates.
+- [Reproducible Documents](reproducible-docs.qmd) - Create reproducible examples for R, Python, or Julia.
+- [Troubleshooting](troubleshooting.qmd) - Common issues and solutions.

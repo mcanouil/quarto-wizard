@@ -70,7 +70,7 @@ Install an extension from a direct URL to a .zip or .tar.gz archive.
 
 **Command**: `Quarto Wizard: Install Extension from Local`
 
-Install an extension from a local directory or archive file.
+Install extension(s) from a local directory or archive file.
 
 ## Authentication Commands
 
