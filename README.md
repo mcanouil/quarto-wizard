@@ -29,7 +29,8 @@ Additionally, it offers a set of commands to create new Quarto documents that yo
 - [Configuration](#configuration)
   - [Available Settings](#available-settings)
     - [Extension Installation Behaviour](#extension-installation-behaviour)
-    - [Quarto CLI Configuration](#quarto-cli-configuration)
+    - [Cache and Registry Configuration](#cache-and-registry-configuration)
+    - [Logging Configuration](#logging-configuration)
 - [Getting Help](#getting-help)
 - [Verifying Release Asset Build Provenance](#verifying-release-asset-build-provenance)
 - [Development](#development)
@@ -100,6 +101,12 @@ positron --install-extension mcanouil.quarto-wizard
   - [`R`](/assets/templates/r.qmd)
   - [`Python`](assets/templates/python.qmd)
   - [`Julia`](assets/templates/julia.qmd)
+- `Quarto Wizard: Clear Extension Cache`: Clears the cached registry data to force a fresh download.
+- `Quarto Wizard: Set GitHub Token (Manual)`: Manually set a GitHub personal access token for authentication.
+- `Quarto Wizard: Clear GitHub Token (Manual)`: Remove the manually set GitHub token.
+- `Quarto Wizard: Install Extension from Registry`: Install an extension by entering its registry identifier.
+- `Quarto Wizard: Install Extension from URL`: Install an extension from a direct URL to a `.zip` or `.tar.gz` archive.
+- `Quarto Wizard: Install Extension from Local`: Install an extension from a local directory or archive file.
 - `Quarto Wizard: Focus on Extensions Installed View`: Opens the Quarto Wizard view to display and manage the Quarto extensions installed.
 
 ## Usage
@@ -144,6 +151,7 @@ _Quarto Wizard Explorer View in action:_
   - `Quarto Reproducible Document`.
   - `Show Quarto Wizard Log Output`.
   - `Clear Recently Installed Extensions`.
+  - `Clear Extension Cache`.
 
 <p align="center">
   <img
@@ -204,24 +212,39 @@ Access these through:
 }
 ```
 
-- `quartoWizard.ask.trustAuthors`: Control prompts for trusting extension authors
+- `quartoWizard.ask.trustAuthors`: Control prompts for trusting extension authors.
   - `"ask"`: Ask each time (default).
-  - `"yes"`: Always trust.
-  - `"never"`: Never ask.
-- `quartoWizard.ask.confirmInstall`: Control installation confirmation prompts
+  - `"never"`: Always trust without prompting.
+- `quartoWizard.ask.confirmInstall`: Control installation confirmation prompts.
   - `"ask"`: Ask each time (default).
-  - `"yes"`: Auto-confirm.
-  - `"never"`: Never ask.
+  - `"never"`: Always confirm without prompting.
 
-#### Quarto CLI Configuration
+#### Cache and Registry Configuration
 
 ```json
 {
-  "quartoWizard.quarto.path": "/usr/local/bin/quarto"
+  "quartoWizard.cache.ttlMinutes": 30,
+  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
 }
 ```
 
-- `quartoWizard.quarto.path`: Specify custom path to Quarto CLI executable.
+- `quartoWizard.cache.ttlMinutes`: Cache duration for extension registry data in minutes (1-1440, default: 30).
+- `quartoWizard.registry.url`: URL to the Quarto extensions registry JSON file.
+  Change this to use a custom registry.
+
+#### Logging Configuration
+
+```json
+{
+  "quartoWizard.log.level": "info"
+}
+```
+
+- `quartoWizard.log.level`: The level of logging verbosity.
+  - `"error"`: Only log errors.
+  - `"warn"`: Log warnings and errors.
+  - `"info"`: Log info, warnings, and errors (default).
+  - `"debug"`: Log everything, including debug information.
 
 ## Getting Help
 
