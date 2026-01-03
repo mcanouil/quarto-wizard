@@ -72,9 +72,10 @@ export async function remove(extensionId: ExtensionId, options: RemoveOptions): 
 	await fs.promises.rm(extension.directory, { recursive: true, force: true });
 	directoriesRemoved.push(extension.directory);
 
-	if (cleanupEmpty && extension.id.owner) {
-		const ownerDir = path.dirname(extension.directory);
-		const cleaned = await cleanupEmptyDirectories(ownerDir, getExtensionsDir(projectDir));
+	if (cleanupEmpty) {
+		const extensionsDir = getExtensionsDir(projectDir);
+		const startDir = extension.id.owner ? path.dirname(extension.directory) : extensionsDir;
+		const cleaned = await cleanupEmptyDirectories(startDir, extensionsDir);
 		directoriesRemoved.push(...cleaned);
 	}
 
@@ -115,19 +116,23 @@ export async function removeMultiple(
 }
 
 /**
- * Clean up empty parent directories up to a limit.
+ * Clean up empty parent directories up to and including the stop directory.
  */
 async function cleanupEmptyDirectories(startDir: string, stopAt: string): Promise<string[]> {
 	const removed: string[] = [];
 	let currentDir = startDir;
 
-	while (currentDir !== stopAt && currentDir.startsWith(stopAt)) {
+	while (currentDir.startsWith(stopAt)) {
 		try {
 			const entries = await fs.promises.readdir(currentDir);
 
 			if (entries.length === 0) {
 				await fs.promises.rmdir(currentDir);
 				removed.push(currentDir);
+
+				if (currentDir === stopAt) {
+					break;
+				}
 				currentDir = path.dirname(currentDir);
 			} else {
 				break;

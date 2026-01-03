@@ -92,6 +92,31 @@ describe("remove", () => {
 		expect(result.extension.id.owner).toBeNull();
 		expect(fs.existsSync(extDir)).toBe(false);
 	});
+
+	it("should remove empty _extensions directory when last extension is removed", async () => {
+		setupExtension("only-owner", "only-ext");
+
+		const extensionsDir = path.join(tempDir, "_extensions");
+		expect(fs.existsSync(extensionsDir)).toBe(true);
+
+		await remove({ owner: "only-owner", name: "only-ext" }, { projectDir: tempDir, cleanupEmpty: true });
+
+		expect(fs.existsSync(extensionsDir)).toBe(false);
+	});
+
+	it("should remove empty _extensions directory when last standalone extension is removed", async () => {
+		// Setup extension directly under _extensions/name (no owner)
+		const extDir = path.join(tempDir, "_extensions", "standalone-ext");
+		fs.mkdirSync(extDir, { recursive: true });
+		fs.writeFileSync(path.join(extDir, "_extension.yml"), "title: standalone\nversion: 1.0.0\n");
+
+		const extensionsDir = path.join(tempDir, "_extensions");
+		expect(fs.existsSync(extensionsDir)).toBe(true);
+
+		await remove({ owner: null, name: "standalone-ext" }, { projectDir: tempDir, cleanupEmpty: true });
+
+		expect(fs.existsSync(extensionsDir)).toBe(false);
+	});
 });
 
 describe("removeMultiple", () => {
