@@ -299,6 +299,11 @@
 				{
 					"submenu": "quartoWizard.menu",
 					"group": "2_execution"
+				},
+				{
+					"command": "quartoWizard.installExtensionFromLocal",
+					"when": "explorerResourceIsFolder || resourceExtname == .zip || resourceExtname == .gz || resourceExtname == .tgz",
+					"group": "2_execution"
 				}
 			],
 			"editor/context": [
@@ -310,11 +315,6 @@
 			"quartoWizard.menu": [
 				{
 					"command": "quartoWizard.installExtension",
-					"group": "quartoWizard@1"
-				},
-				{
-					"command": "quartoWizard.installExtensionFromLocal",
-					"when": "explorerResourceIsFolder || resourceExtname == .zip || resourceExtname == .gz || resourceExtname == .tgz",
 					"group": "quartoWizard@1"
 				},
 				{
