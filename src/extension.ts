@@ -102,8 +102,8 @@ export function activate(context: vscode.ExtensionContext) {
 		),
 	);
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.installExtensionFromLocal", async () =>
-			installExtensionFromLocalCommand(context),
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromLocal", async (resource?: vscode.Uri) =>
+			installExtensionFromLocalCommand(context, resource),
 		),
 	);
 

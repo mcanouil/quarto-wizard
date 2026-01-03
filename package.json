@@ -275,7 +275,7 @@
 				"shortTitle": "From Local",
 				"icon": "$(folder)",
 				"category": "Quarto Wizard",
-				"description": "Install an extension from a local directory or archive file."
+				"description": "Install extension(s) from a local directory or archive file."
 			}
 		],
 		"submenus": [
@@ -310,6 +310,11 @@
 			"quartoWizard.menu": [
 				{
 					"command": "quartoWizard.installExtension",
+					"group": "quartoWizard@1"
+				},
+				{
+					"command": "quartoWizard.installExtensionFromLocal",
+					"when": "explorerResourceIsFolder || resourceExtname == .zip || resourceExtname == .gz || resourceExtname == .tgz",
 					"group": "quartoWizard@1"
 				},
 				{
