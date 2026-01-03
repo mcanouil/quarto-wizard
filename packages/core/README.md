@@ -438,7 +438,7 @@ Proxy connections are pooled for efficiency.
 
 ## Requirements
 
-- Node.js >= 24.0.0
+- Node.js >= 25.0.0
 
 ## Licence
 

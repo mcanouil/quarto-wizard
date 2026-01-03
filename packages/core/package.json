@@ -50,7 +50,7 @@
 		"vitest": "^4.0.16"
 	},
 	"engines": {
-		"node": ">=24.0.0"
+		"node": ">=25.0.0"
 	},
 	"bugs": {
 		"url": "https://github.com/mcanouil/quarto-wizard/issues"

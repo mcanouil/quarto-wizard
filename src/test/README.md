@@ -99,7 +99,7 @@ The main test configuration files:
 Tests run automatically on GitHub Actions for:
 
 - **Operating Systems**: Ubuntu, Windows, and macOS.
-- **Node.js versions**: 14.x.
+- **Node.js versions**: 25.x.
 
 ## Best Practices
 

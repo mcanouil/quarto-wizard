@@ -233,7 +233,7 @@ The configuration is in `packages/core/vitest.config.ts`.
 Tests run automatically on GitHub Actions via `.github/workflows/build.yml` for:
 
 - Ubuntu, Windows, and macOS.
-- Node.js version 24.x.
+- Node.js version 25.x.
 
 The workflow includes:
 
