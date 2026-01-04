@@ -9,6 +9,8 @@
 .vscode-test.mjs
 .prettierrc.json
 .markdownlint.yml
+.luarc.json
+.eslintcache
 
 # Build configuration
 tsconfig.json
@@ -20,6 +22,7 @@ typedoc.config.mjs
 # Source files (bundled into dist)
 src
 packages
+out
 dist/**/*.map
 node_modules
 package-lock.json
