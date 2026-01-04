@@ -204,11 +204,13 @@ jobs:
           git config --global user.name "${USER_NAME}"
           git config --global user.email "${USER_EMAIL}"
 
-      - name: Update branch
+      - name: Checkout PR branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BRANCH: ci/bump-version
         run: |
-          git fetch --all
-          git checkout main
-          git pull origin main
+          git fetch origin ${BRANCH}
+          git checkout ${BRANCH}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -292,11 +294,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Update branch
+      - name: Checkout PR branch
+        env:
+          BRANCH: ci/bump-version
         run: |
-          git fetch --all
-          git checkout main
-          git pull origin main
+          git fetch origin ${BRANCH}
+          git checkout ${BRANCH}
 
       - name: Set up Quarto CLI
         uses: quarto-dev/quarto-actions/setup@v2
