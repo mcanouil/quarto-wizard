@@ -454,6 +454,8 @@ export class ExtensionsInstalled {
 							`${item.data?.repository ?? item.label}${item.latestVersion}`,
 							item.workspaceFolder,
 							auth,
+							undefined,
+							true, // skipOverwritePrompt - updates are expected to overwrite
 						);
 					},
 				);
@@ -576,7 +578,13 @@ export class ExtensionsInstalled {
 						const source = ext.repository
 							? `${ext.repository}@${ext.latestVersion}`
 							: `${ext.extensionId}@${ext.latestVersion}`;
-						const success = await installQuartoExtension(source, ext.workspaceFolder, auth);
+						const success = await installQuartoExtension(
+							source,
+							ext.workspaceFolder,
+							auth,
+							undefined,
+							true, // skipOverwritePrompt - updates are expected to overwrite
+						);
 						if (success) {
 							successCount++;
 						} else {

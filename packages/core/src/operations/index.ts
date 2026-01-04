@@ -6,6 +6,7 @@ export {
 	type InstallSource,
 	type InstallPhase,
 	type InstallProgressCallback,
+	type ExtensionSelectionCallback,
 	type InstallOptions,
 	type InstallResult,
 	parseInstallSource,

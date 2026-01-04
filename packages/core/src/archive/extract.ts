@@ -135,6 +135,82 @@ export async function findExtensionRoot(extractDir: string): Promise<string | nu
 }
 
 /**
+ * Information about a discovered extension in an archive.
+ */
+export interface DiscoveredExtension {
+	/** Path to the extension root (directory containing _extension.yml). */
+	path: string;
+	/** Extension ID derived from directory structure. */
+	id: { owner: string | null; name: string };
+}
+
+/**
+ * Derive extension ID from the extension path relative to extraction directory.
+ *
+ * @param extensionPath - Path to extension root
+ * @param extractDir - Base extraction directory
+ * @returns Extension ID with owner and name
+ */
+function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): { owner: string | null; name: string } {
+	const relativePath = path.relative(extractDir, extensionPath);
+	const parts = relativePath.split(path.sep);
+	const extensionsIndex = parts.lastIndexOf("_extensions");
+
+	if (extensionsIndex >= 0 && parts.length > extensionsIndex + 1) {
+		const afterExtensions = parts.slice(extensionsIndex + 1);
+		if (afterExtensions.length >= 2) {
+			return { owner: afterExtensions[0], name: afterExtensions[afterExtensions.length - 1] };
+		}
+		if (afterExtensions.length === 1) {
+			return { owner: null, name: afterExtensions[0] };
+		}
+	}
+
+	// Fallback: use last directory name
+	return { owner: null, name: parts[parts.length - 1] };
+}
+
+/**
+ * Find all extension roots in an extracted archive.
+ *
+ * Unlike findExtensionRoot which returns the first match, this function
+ * finds all extensions in the archive, useful for repositories that
+ * contain multiple extensions.
+ *
+ * @param extractDir - Extraction directory
+ * @returns Array of discovered extensions
+ */
+export async function findAllExtensionRoots(extractDir: string): Promise<DiscoveredExtension[]> {
+	const results: DiscoveredExtension[] = [];
+	const manifestNames = ["_extension.yml", "_extension.yaml"];
+
+	async function searchDirectory(dir: string): Promise<void> {
+		// Check for manifest in current directory
+		for (const name of manifestNames) {
+			const manifestPath = path.join(dir, name);
+			if (fs.existsSync(manifestPath)) {
+				// Found an extension, derive its ID from path
+				const id = deriveExtensionIdFromPath(dir, extractDir);
+				results.push({ path: dir, id });
+				// Don't search subdirectories of an extension
+				return;
+			}
+		}
+
+		// Search subdirectories
+		const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+		for (const entry of entries) {
+			if (entry.isDirectory()) {
+				await searchDirectory(path.join(dir, entry.name));
+			}
+		}
+	}
+
+	await searchDirectory(extractDir);
+	return results;
+}
+
+/**
  * Clean up a temporary extraction directory.
  *
  * @param extractDir - Directory to remove

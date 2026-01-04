@@ -13,6 +13,7 @@ import {
 import { logMessage } from "./log";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
+import { showExtensionSelectionQuickPick } from "../ui/extensionSelectionQuickPick";
 
 /**
  * Installs a Quarto extension using the core library.
@@ -21,6 +22,7 @@ import { validateQuartoRequirement } from "./versionValidation";
  * @param workspaceFolder - The workspace folder path.
  * @param auth - Optional authentication configuration for private repositories.
  * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
+ * @param skipOverwritePrompt - If true, skip the overwrite confirmation prompt (used by update commands).
  * @returns A promise that resolves to true if the extension is installed successfully, otherwise false.
  */
 export async function installQuartoExtension(
@@ -28,6 +30,7 @@ export async function installQuartoExtension(
 	workspaceFolder: string,
 	auth?: AuthConfig,
 	sourceDisplay?: string,
+	skipOverwritePrompt?: boolean,
 ): Promise<boolean> {
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
@@ -41,6 +44,7 @@ export async function installQuartoExtension(
 		const source = parseInstallSource(extension);
 
 		// First, do a dry-run to get the manifest and validate version requirements
+		// Don't pass selectExtension here - we only want to show the picker once during actual install
 		const dryRunResult = await install(source, {
 			projectDir: workspaceFolder,
 			force: true,
@@ -55,6 +59,22 @@ export async function installQuartoExtension(
 		if (!dryRunResult.success) {
 			logMessage(`${prefix} Failed to resolve extension.`, "error");
 			return false;
+		}
+
+		// Check if extension already exists and prompt for overwrite
+		if (dryRunResult.alreadyExists && !skipOverwritePrompt) {
+			const extId = dryRunResult.extension.id.owner
+				? `${dryRunResult.extension.id.owner}/${dryRunResult.extension.id.name}`
+				: dryRunResult.extension.id.name;
+			const action = await vscode.window.showWarningMessage(
+				`Extension "${extId}" already exists. Overwrite?`,
+				{ modal: true },
+				"Overwrite",
+			);
+			if (action !== "Overwrite") {
+				logMessage(`${prefix} Installation cancelled - extension already exists.`, "info");
+				return false;
+			}
 		}
 
 		// Validate Quarto version requirement
@@ -88,6 +108,7 @@ export async function installQuartoExtension(
 			force: true,
 			auth,
 			sourceDisplay,
+			selectExtension: showExtensionSelectionQuickPick,
 			onProgress: (progress) => {
 				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
 			},
@@ -234,6 +255,7 @@ export async function removeQuartoExtensions(
  * @param selectFiles - Callback for interactive file selection.
  * @param auth - Optional authentication configuration for private repositories.
  * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
+ * @param skipOverwritePrompt - If true, skip the overwrite confirmation prompt.
  * @returns A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
@@ -242,6 +264,7 @@ export async function useQuartoExtension(
 	selectFiles?: FileSelectionCallback,
 	auth?: AuthConfig,
 	sourceDisplay?: string,
+	skipOverwritePrompt?: boolean,
 ): Promise<UseResult | null> {
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Using template ...`, "info");
@@ -254,10 +277,45 @@ export async function useQuartoExtension(
 	try {
 		const source = parseInstallSource(extension);
 
+		// First, do a dry-run to check if extension already exists
+		// Don't pass selectExtension here - we only want to show the picker once during actual use
+		const dryRunResult = await install(source, {
+			projectDir: workspaceFolder,
+			force: true,
+			auth,
+			sourceDisplay,
+			dryRun: true,
+			onProgress: (progress) => {
+				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
+			},
+		});
+
+		if (!dryRunResult.success) {
+			logMessage(`${prefix} Failed to resolve extension.`, "error");
+			return null;
+		}
+
+		// Check if extension already exists and prompt for overwrite
+		if (dryRunResult.alreadyExists && !skipOverwritePrompt) {
+			const extId = dryRunResult.extension.id.owner
+				? `${dryRunResult.extension.id.owner}/${dryRunResult.extension.id.name}`
+				: dryRunResult.extension.id.name;
+			const action = await vscode.window.showWarningMessage(
+				`Extension "${extId}" already exists. Overwrite?`,
+				{ modal: true },
+				"Overwrite",
+			);
+			if (action !== "Overwrite") {
+				logMessage(`${prefix} Template usage cancelled - extension already exists.`, "info");
+				return null;
+			}
+		}
+
 		const result = await use(source, {
 			projectDir: workspaceFolder,
 			selectFiles,
 			selectFilesFirst: true,
+			selectExtension: showExtensionSelectionQuickPick,
 			auth,
 			sourceDisplay,
 			onProgress: (progress) => {

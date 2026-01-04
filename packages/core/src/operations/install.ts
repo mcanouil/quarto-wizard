@@ -18,7 +18,13 @@ import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/
 import { copyDirectory, collectFiles } from "../filesystem/walk.js";
 import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
-import { extractArchive, findExtensionRoot, cleanupExtraction } from "../archive/extract.js";
+import {
+	extractArchive,
+	findExtensionRoot,
+	findAllExtensionRoots,
+	cleanupExtraction,
+	type DiscoveredExtension,
+} from "../archive/extract.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 
 /**
@@ -40,6 +46,15 @@ export type InstallPhase = "resolving" | "downloading" | "extracting" | "install
 export type InstallProgressCallback = (progress: { phase: InstallPhase; message: string; percentage?: number }) => void;
 
 /**
+ * Callback for selecting which extension(s) to install from a multi-extension source.
+ * Called when a repository contains multiple extensions.
+ *
+ * @param extensions - Array of discovered extensions in the source
+ * @returns Selected extensions to install, or null to cancel
+ */
+export type ExtensionSelectionCallback = (extensions: DiscoveredExtension[]) => Promise<DiscoveredExtension[] | null>;
+
+/**
  * Options for extension installation.
  */
 export interface InstallOptions extends RegistryOptions {
@@ -57,6 +72,11 @@ export interface InstallOptions extends RegistryOptions {
 	dryRun?: boolean;
 	/** Display source to record in manifest (for relative paths that were resolved). */
 	sourceDisplay?: string;
+	/**
+	 * Callback for selecting extensions when source contains multiple.
+	 * If not provided and source contains multiple extensions, the first one is installed (legacy behaviour).
+	 */
+	selectExtension?: ExtensionSelectionCallback;
 }
 
 /**
@@ -79,6 +99,8 @@ export interface InstallResult {
 	wouldCreate?: string[];
 	/** Whether the extension already exists (only relevant in dry run mode). */
 	alreadyExists?: boolean;
+	/** Additional extensions installed when multiple were selected (only set when using selectExtension callback). */
+	additionalInstalls?: InstallResult[];
 }
 
 /**
@@ -281,13 +303,39 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			extractDir = extracted.extractDir;
 		}
 
-		const extensionRoot = await findExtensionRoot(extractDir);
+		// Find all extensions in the archive
+		const allExtensions = await findAllExtensionRoots(extractDir);
 
-		if (!extensionRoot) {
+		if (allExtensions.length === 0) {
 			throw new ExtensionError("No _extension.yml found in archive", {
 				suggestion: "Ensure the archive contains a valid Quarto extension",
 			});
 		}
+
+		// When installing from GitHub, use the GitHub owner for all extensions
+		// This matches Quarto CLI behaviour where all extensions from a repo
+		// are installed under the repository owner's namespace
+		if (source.type === "github") {
+			for (const ext of allExtensions) {
+				ext.id.owner = source.owner;
+			}
+		}
+
+		// Handle multiple extensions
+		let selectedExtensions: DiscoveredExtension[];
+		if (allExtensions.length > 1 && options.selectExtension) {
+			const selected = await options.selectExtension(allExtensions);
+			if (!selected || selected.length === 0) {
+				throw new ExtensionError("Extension selection cancelled by user");
+			}
+			selectedExtensions = selected;
+		} else {
+			// Single extension or no callback - use all found extensions (for single, just the one)
+			selectedExtensions = allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+		}
+
+		// Use the first selected extension as the primary one
+		const extensionRoot = selectedExtensions[0].path;
 
 		// Compute repo root from extensionRoot
 		// extensionRoot is like /tmp/xxx/owner-repo-tag/_extensions/owner/name
@@ -309,7 +357,9 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		onProgress?.({ phase: "installing", message: dryRun ? "Checking installation..." : "Installing extension..." });
 
-		const extensionId = resolveExtensionId(source, extensionRoot, manifestResult.manifest);
+		// Use the pre-computed ID from the discovered extension
+		// This ensures consistency with additional extensions and respects the directory structure
+		const extensionId: ExtensionId = selectedExtensions[0].id;
 		const targetDir = getExtensionInstallPath(projectDir, extensionId);
 		// Use sourceDisplay if provided (for relative paths that were resolved), otherwise format from source
 		const sourceString = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
@@ -367,6 +417,28 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		const manifestPath = path.join(targetDir, manifestResult.filename);
 		const finalManifest = readManifest(targetDir);
 
+		// Install additional extensions if multiple were selected
+		const additionalInstalls: InstallResult[] = [];
+		if (selectedExtensions.length > 1) {
+			for (let i = 1; i < selectedExtensions.length; i++) {
+				const additionalExt = selectedExtensions[i];
+				try {
+					const additionalResult = await installSingleExtension(
+						additionalExt,
+						projectDir,
+						sourceDisplay ?? formatSourceString(source, tagName, commitSha),
+						force,
+						onProgress,
+					);
+					additionalInstalls.push(additionalResult);
+				} catch (error) {
+					// Log error but continue with other extensions
+					const message = error instanceof Error ? error.message : String(error);
+					onProgress?.({ phase: "installing", message: `Failed to install additional extension: ${message}` });
+				}
+			}
+		}
+
 		return {
 			success: true,
 			extension: {
@@ -378,6 +450,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			filesCreated,
 			source: sourceString,
 			sourceRoot: keepSourceDir ? repoRoot : undefined,
+			additionalInstalls: additionalInstalls.length > 0 ? additionalInstalls : undefined,
 		};
 	} finally {
 		if (archivePath && source.type !== "local" && fs.existsSync(archivePath)) {
@@ -467,4 +540,73 @@ async function copyExtension(sourceDir: string, targetDir: string): Promise<stri
 async function collectExtensionFiles(sourceDir: string): Promise<string[]> {
 	const absolutePaths = await collectFiles(sourceDir);
 	return absolutePaths.map((p) => path.relative(sourceDir, p));
+}
+
+/**
+ * Install a single extension from an already-extracted directory.
+ * Used for installing additional extensions when multiple are selected.
+ *
+ * @param extension - Discovered extension with path and pre-computed ID
+ * @param projectDir - Project directory to install to
+ * @param sourceString - Source string to record in manifest
+ * @param force - Whether to force reinstall
+ * @param onProgress - Progress callback
+ * @returns Installation result
+ */
+async function installSingleExtension(
+	extension: DiscoveredExtension,
+	projectDir: string,
+	sourceString: string,
+	force: boolean,
+	onProgress?: InstallProgressCallback,
+): Promise<InstallResult> {
+	const manifestResult = readManifest(extension.path);
+
+	if (!manifestResult) {
+		throw new ExtensionError("Failed to read extension manifest");
+	}
+
+	// Use the pre-computed ID from the discovered extension
+	const extensionId: ExtensionId = extension.id;
+
+	const targetDir = getExtensionInstallPath(projectDir, extensionId);
+	const alreadyExists = fs.existsSync(targetDir);
+
+	if (alreadyExists) {
+		if (!force) {
+			throw new ExtensionError(`Extension already installed: ${extensionId.owner}/${extensionId.name}`, {
+				suggestion: "Use force option to reinstall",
+			});
+		}
+		await fs.promises.rm(targetDir, { recursive: true, force: true });
+	}
+
+	const extIdString = extensionId.owner ? `${extensionId.owner}/${extensionId.name}` : extensionId.name;
+	onProgress?.({ phase: "installing", message: `Installing ${extIdString}...` });
+
+	let filesCreated: string[];
+	try {
+		filesCreated = await copyExtension(extension.path, targetDir);
+
+		const manifestPath = path.join(targetDir, manifestResult.filename);
+		updateManifestSource(manifestPath, sourceString);
+	} catch (error) {
+		await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
+		throw error;
+	}
+
+	const manifestPath = path.join(targetDir, manifestResult.filename);
+	const finalManifest = readManifest(targetDir);
+
+	return {
+		success: true,
+		extension: {
+			id: extensionId,
+			manifest: finalManifest?.manifest ?? manifestResult.manifest,
+			manifestPath,
+			directory: targetDir,
+		},
+		filesCreated,
+		source: sourceString,
+	};
 }

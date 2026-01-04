@@ -13,7 +13,13 @@ import { glob } from "glob";
 import { minimatch } from "minimatch";
 import type { AuthConfig } from "../types/auth.js";
 import { ExtensionError } from "../errors.js";
-import { install, parseInstallSource, type InstallSource, type InstallResult } from "./install.js";
+import {
+	install,
+	parseInstallSource,
+	type InstallSource,
+	type InstallResult,
+	type ExtensionSelectionCallback,
+} from "./install.js";
 import { cleanupExtraction } from "../archive/extract.js";
 
 /**
@@ -187,6 +193,11 @@ export interface UseOptions {
 	dryRun?: boolean;
 	/** Display source to record in manifest (for relative paths that were resolved). */
 	sourceDisplay?: string;
+	/**
+	 * Callback for selecting extensions when source contains multiple.
+	 * If not provided and source contains multiple extensions, the first one is installed.
+	 */
+	selectExtension?: ExtensionSelectionCallback;
 }
 
 /**
@@ -220,7 +231,7 @@ export interface UseResult {
  * @returns Use result with cancelled flag if user cancelled
  */
 async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<UseResult> {
-	const { projectDir, auth, exclude = [], selectFiles, onProgress, sourceDisplay } = options;
+	const { projectDir, auth, selectFiles, selectExtension, onProgress, sourceDisplay } = options;
 
 	if (!selectFiles) {
 		throw new ExtensionError("selectFiles callback is required for twoPhaseUse");
@@ -239,6 +250,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			keepSourceDir: true,
 			dryRun: true,
 			sourceDisplay,
+			selectExtension,
 			onProgress: (p) => {
 				onProgress?.({ phase: p.phase, message: p.message });
 			},
@@ -304,6 +316,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			force: true,
 			keepSourceDir: true,
 			sourceDisplay,
+			selectExtension,
 			onProgress: (p) => {
 				onProgress?.({ phase: p.phase, message: p.message });
 			},
@@ -355,6 +368,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		confirmOverwriteBatch,
 		selectFiles,
 		selectFilesFirst = false,
+		selectExtension,
 		onProgress,
 		dryRun = false,
 		sourceDisplay,
@@ -378,6 +392,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		keepSourceDir: !noTemplate || dryRun,
 		dryRun,
 		sourceDisplay,
+		selectExtension,
 		onProgress: (p) => {
 			onProgress?.({ phase: p.phase, message: p.message });
 		},
