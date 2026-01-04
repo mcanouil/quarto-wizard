@@ -22,7 +22,7 @@ export async function showExtensionSelectionQuickPick(
 		const label = ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name;
 		return {
 			label,
-			description: ext.path,
+			description: ext.relativePath,
 			picked: false,
 			extension: ext,
 		};

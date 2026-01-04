@@ -476,6 +476,10 @@ export function createFileSelectionCallback(): (
 		}
 
 		return new Promise<FileSelectionResult | null>((resolve) => {
+			// Track whether onDidAccept was triggered to prevent onDidHide from
+			// resolving to null when hide() is called during accept processing
+			let acceptTriggered = false;
+
 			quickPick.onDidTriggerButton((button) => {
 				if (button.tooltip === "Select All") {
 					// Select all items (including hidden ones in collapsed dirs)
@@ -549,6 +553,9 @@ export function createFileSelectionCallback(): (
 			});
 
 			quickPick.onDidAccept(async () => {
+				// Mark that accept was triggered so onDidHide doesn't resolve to null
+				acceptTriggered = true;
+
 				try {
 					// Get only file selections (not directories) from selectedPaths
 					const selectedFiles = availableFiles.filter((f) => selectedPaths.has(f));
@@ -573,7 +580,7 @@ export function createFileSelectionCallback(): (
 						);
 
 						if (result === undefined) {
-							// User cancelled
+							// User cancelled overwrite dialog
 							resolve(null);
 							return;
 						}
@@ -598,8 +605,11 @@ export function createFileSelectionCallback(): (
 
 			quickPick.onDidHide(() => {
 				quickPick.dispose();
-				// If not resolved yet, user cancelled
-				resolve(null);
+				// Only resolve to null if user cancelled (pressed Escape) without accepting
+				// If accept was triggered, onDidAccept will handle the resolution
+				if (!acceptTriggered) {
+					resolve(null);
+				}
 			});
 
 			quickPick.show();

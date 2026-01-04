@@ -9,6 +9,7 @@ import {
 	type UseResult,
 	type FileSelectionCallback,
 	type AuthConfig,
+	type DiscoveredExtension,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
@@ -248,14 +249,51 @@ export async function removeQuartoExtensions(
 }
 
 /**
+ * Callback to confirm overwriting existing extensions.
+ * Shows a VS Code dialog for each extension that already exists.
+ *
+ * @param extensions - Extensions that already exist in the project.
+ * @returns Extensions to overwrite, or null to cancel.
+ */
+async function showExtensionOverwriteConfirmation(
+	extensions: DiscoveredExtension[],
+): Promise<DiscoveredExtension[] | null> {
+	if (extensions.length === 0) {
+		return [];
+	}
+
+	const extNames = extensions.map((ext) => (ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name)).join(", ");
+
+	const message =
+		extensions.length === 1
+			? `Extension "${extNames}" already exists. Overwrite?`
+			: `${extensions.length} extensions already exist: ${extNames}. Overwrite all?`;
+
+	const action = await vscode.window.showWarningMessage(message, { modal: true }, "Overwrite", "Skip");
+
+	if (action === "Overwrite") {
+		return extensions;
+	} else if (action === "Skip") {
+		return [];
+	}
+	// User cancelled (dismissed the dialog)
+	return null;
+}
+
+/**
  * Uses a Quarto template extension: installs it and copies template files to the project.
+ *
+ * The flow is:
+ * 1. File selection dialog (which files to copy from template).
+ * 2. Extension selection dialog (if source contains multiple extensions).
+ * 3. Overwrite confirmation (for extensions that already exist).
+ * 4. Install selected extensions and copy selected files.
  *
  * @param extension - The name of the extension to use (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
  * @param selectFiles - Callback for interactive file selection.
  * @param auth - Optional authentication configuration for private repositories.
  * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
- * @param skipOverwritePrompt - If true, skip the overwrite confirmation prompt.
  * @returns A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
@@ -264,7 +302,6 @@ export async function useQuartoExtension(
 	selectFiles?: FileSelectionCallback,
 	auth?: AuthConfig,
 	sourceDisplay?: string,
-	skipOverwritePrompt?: boolean,
 ): Promise<UseResult | null> {
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Using template ...`, "info");
@@ -277,45 +314,12 @@ export async function useQuartoExtension(
 	try {
 		const source = parseInstallSource(extension);
 
-		// First, do a dry-run to check if extension already exists
-		// Don't pass selectExtension here - we only want to show the picker once during actual use
-		const dryRunResult = await install(source, {
-			projectDir: workspaceFolder,
-			force: true,
-			auth,
-			sourceDisplay,
-			dryRun: true,
-			onProgress: (progress) => {
-				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
-			},
-		});
-
-		if (!dryRunResult.success) {
-			logMessage(`${prefix} Failed to resolve extension.`, "error");
-			return null;
-		}
-
-		// Check if extension already exists and prompt for overwrite
-		if (dryRunResult.alreadyExists && !skipOverwritePrompt) {
-			const extId = dryRunResult.extension.id.owner
-				? `${dryRunResult.extension.id.owner}/${dryRunResult.extension.id.name}`
-				: dryRunResult.extension.id.name;
-			const action = await vscode.window.showWarningMessage(
-				`Extension "${extId}" already exists. Overwrite?`,
-				{ modal: true },
-				"Overwrite",
-			);
-			if (action !== "Overwrite") {
-				logMessage(`${prefix} Template usage cancelled - extension already exists.`, "info");
-				return null;
-			}
-		}
-
 		const result = await use(source, {
 			projectDir: workspaceFolder,
 			selectFiles,
 			selectFilesFirst: true,
 			selectExtension: showExtensionSelectionQuickPick,
+			confirmExtensionOverwrite: showExtensionOverwriteConfirmation,
 			auth,
 			sourceDisplay,
 			onProgress: (progress) => {
@@ -327,7 +331,7 @@ export async function useQuartoExtension(
 			},
 		});
 
-		// Check if user cancelled file selection
+		// Check if user cancelled file selection or extension selection
 		if (result.cancelled) {
 			logMessage(`${prefix} Template usage cancelled by user.`, "info");
 			return null;

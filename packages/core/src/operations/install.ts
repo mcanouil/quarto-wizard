@@ -544,7 +544,8 @@ async function collectExtensionFiles(sourceDir: string): Promise<string[]> {
 
 /**
  * Install a single extension from an already-extracted directory.
- * Used for installing additional extensions when multiple are selected.
+ * Used for installing additional extensions when multiple are selected,
+ * or when installing extensions directly with pre-computed IDs (e.g., from twoPhaseUse).
  *
  * @param extension - Discovered extension with path and pre-computed ID
  * @param projectDir - Project directory to install to
@@ -553,7 +554,7 @@ async function collectExtensionFiles(sourceDir: string): Promise<string[]> {
  * @param onProgress - Progress callback
  * @returns Installation result
  */
-async function installSingleExtension(
+export async function installSingleExtension(
 	extension: DiscoveredExtension,
 	projectDir: string,
 	sourceString: string,

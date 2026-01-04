@@ -15,12 +15,15 @@ import type { AuthConfig } from "../types/auth.js";
 import { ExtensionError } from "../errors.js";
 import {
 	install,
+	installSingleExtension,
 	parseInstallSource,
+	formatInstallSource,
 	type InstallSource,
 	type InstallResult,
 	type ExtensionSelectionCallback,
 } from "./install.js";
-import { cleanupExtraction } from "../archive/extract.js";
+import { cleanupExtraction, findAllExtensionRoots, type DiscoveredExtension } from "../archive/extract.js";
+import { getExtensionInstallPath } from "../filesystem/discovery.js";
 
 /**
  * Options for globbing files.
@@ -198,6 +201,12 @@ export interface UseOptions {
 	 * If not provided and source contains multiple extensions, the first one is installed.
 	 */
 	selectExtension?: ExtensionSelectionCallback;
+	/**
+	 * Callback to confirm overwriting existing extensions.
+	 * Called with extensions that already exist in the project.
+	 * Returns the extensions to overwrite, or null to cancel.
+	 */
+	confirmExtensionOverwrite?: (extensions: DiscoveredExtension[]) => Promise<DiscoveredExtension[] | null>;
 }
 
 /**
@@ -223,24 +232,34 @@ export interface UseResult {
 /**
  * Two-phase use: show file selection before installing.
  *
- * Phase 1: Dry-run to download/extract and get available files, show selection dialog.
- * Phase 2: If user confirms, install extension and copy selected files.
+ * New flow:
+ * 1. Download/extract source (dry-run without extension selection).
+ * 2. Show file selection dialog.
+ * 3. Show extension selection dialog.
+ * 4. Show overwrite prompts (for extensions that already exist).
+ * 5. Install selected extensions and copy selected files.
  *
  * @param source - Extension source
  * @param options - Use options (must include selectFiles callback)
  * @returns Use result with cancelled flag if user cancelled
  */
 async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<UseResult> {
-	const { projectDir, auth, selectFiles, selectExtension, onProgress, sourceDisplay } = options;
+	const { projectDir, auth, selectFiles, selectExtension, confirmExtensionOverwrite, onProgress, sourceDisplay } =
+		options;
 
 	if (!selectFiles) {
 		throw new ExtensionError("selectFiles callback is required for twoPhaseUse");
 	}
 
+	// Compute effective source display from original source if not provided.
+	// This ensures the original GitHub/URL reference is preserved when Phase 2
+	// uses a local path pointing to the extracted temporary directory.
+	const effectiveSourceDisplay = sourceDisplay ?? formatInstallSource(source);
+
 	let dryRunResult: InstallResult | null = null;
 
 	try {
-		// PHASE 1: Dry-run to get available files
+		// STEP 1: Download/extract source (dry-run WITHOUT extension selection)
 		onProgress?.({ phase: "preparing", message: "Preparing template preview..." });
 
 		dryRunResult = await install(source, {
@@ -249,8 +268,8 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			force: true,
 			keepSourceDir: true,
 			dryRun: true,
-			sourceDisplay,
-			selectExtension,
+			sourceDisplay: effectiveSourceDisplay,
+			// Do NOT pass selectExtension here - we'll handle it after file selection
 			onProgress: (p) => {
 				onProgress?.({ phase: p.phase, message: p.message });
 			},
@@ -262,6 +281,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 
 		const sourceRoot = dryRunResult.sourceRoot;
 
+		// STEP 2: File selection
 		// Get all available files from extracted source
 		const allFiles = await globFiles(sourceRoot, {
 			includeHidden: true,
@@ -277,7 +297,6 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			}
 		}
 
-		// Call the selection callback
 		onProgress?.({ phase: "selecting", message: "Awaiting file selection..." });
 
 		const selectionResult = await selectFiles(
@@ -287,14 +306,14 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		);
 
 		if (!selectionResult) {
-			// User cancelled - clean up and return
+			// User cancelled file selection
 			await cleanupExtraction(sourceRoot);
 			return {
 				install: {
 					success: false,
 					extension: dryRunResult.extension,
 					filesCreated: [],
-					source: dryRunResult.source,
+					source: effectiveSourceDisplay,
 				},
 				templateFiles: [],
 				skippedFiles: allFiles,
@@ -302,31 +321,114 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			};
 		}
 
-		// PHASE 2: Actual installation using the extracted source as local path
-		onProgress?.({ phase: "installing", message: "Installing extension..." });
+		// STEP 3: Extension selection
+		// Find all extensions in the extracted source
+		const allExtensions = await findAllExtensionRoots(sourceRoot);
 
-		const localSource: InstallSource = {
-			type: "local",
-			path: sourceRoot,
-		};
-
-		const installResult = await install(localSource, {
-			projectDir,
-			auth,
-			force: true,
-			keepSourceDir: true,
-			sourceDisplay,
-			selectExtension,
-			onProgress: (p) => {
-				onProgress?.({ phase: p.phase, message: p.message });
-			},
-		});
-
-		if (!installResult.success) {
-			throw new ExtensionError("Failed to install extension");
+		if (allExtensions.length === 0) {
+			throw new ExtensionError("No extensions found in source", {
+				suggestion: "Ensure the source contains a valid Quarto extension with _extension.yml",
+			});
 		}
 
-		// Copy selected template files
+		// Apply GitHub owner to extensions if source is from GitHub
+		if (source.type === "github") {
+			for (const ext of allExtensions) {
+				ext.id.owner = source.owner;
+			}
+		}
+
+		let selectedExtensions: DiscoveredExtension[];
+		if (allExtensions.length > 1 && selectExtension) {
+			onProgress?.({ phase: "selecting", message: "Awaiting extension selection..." });
+			const selected = await selectExtension(allExtensions);
+			if (!selected || selected.length === 0) {
+				// User cancelled extension selection
+				await cleanupExtraction(sourceRoot);
+				return {
+					install: {
+						success: false,
+						extension: dryRunResult.extension,
+						filesCreated: [],
+						source: effectiveSourceDisplay,
+					},
+					templateFiles: [],
+					skippedFiles: allFiles,
+					cancelled: true,
+				};
+			}
+			selectedExtensions = selected;
+		} else {
+			// Single extension or no callback - use all (for single, just the one)
+			selectedExtensions = allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+		}
+
+		// STEP 4: Check for existing extensions and prompt for overwrite
+		const existingExtensions: DiscoveredExtension[] = [];
+		for (const ext of selectedExtensions) {
+			const targetDir = getExtensionInstallPath(projectDir, ext.id);
+			if (fs.existsSync(targetDir)) {
+				existingExtensions.push(ext);
+			}
+		}
+
+		let extensionsToInstall = selectedExtensions;
+		if (existingExtensions.length > 0 && confirmExtensionOverwrite) {
+			onProgress?.({ phase: "confirming", message: "Awaiting overwrite confirmation..." });
+			const confirmed = await confirmExtensionOverwrite(existingExtensions);
+			if (confirmed === null) {
+				// User cancelled overwrite confirmation
+				await cleanupExtraction(sourceRoot);
+				return {
+					install: {
+						success: false,
+						extension: dryRunResult.extension,
+						filesCreated: [],
+						source: effectiveSourceDisplay,
+					},
+					templateFiles: [],
+					skippedFiles: allFiles,
+					cancelled: true,
+				};
+			}
+			// Filter to only install: non-existing + confirmed overwrites
+			const confirmedIds = new Set(confirmed.map((e) => `${e.id.owner}/${e.id.name}`));
+			extensionsToInstall = selectedExtensions.filter((ext) => {
+				const extId = `${ext.id.owner}/${ext.id.name}`;
+				const exists = existingExtensions.some((e) => `${e.id.owner}/${e.id.name}` === extId);
+				return !exists || confirmedIds.has(extId);
+			});
+		}
+
+		// STEP 5: Install selected extensions and copy files
+		// Install each extension directly using installSingleExtension to preserve owner info
+		let primaryInstallResult: InstallResult | null = null;
+		const allFilesCreated: string[] = [];
+
+		if (extensionsToInstall.length > 0) {
+			onProgress?.({ phase: "installing", message: "Installing extension(s)..." });
+
+			for (const ext of extensionsToInstall) {
+				const extIdString = ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name;
+				onProgress?.({ phase: "installing", message: `Installing ${extIdString}...` });
+
+				const result = await installSingleExtension(
+					ext,
+					projectDir,
+					effectiveSourceDisplay,
+					true, // force
+					(p) => onProgress?.({ phase: p.phase, message: p.message }),
+				);
+
+				if (!primaryInstallResult) {
+					primaryInstallResult = result;
+				}
+				allFilesCreated.push(...result.filesCreated);
+			}
+		}
+
+		// Copy selected template files (ONCE, after all extensions installed)
+		// This happens even if no extensions were installed (all skipped)
 		onProgress?.({ phase: "copying", message: "Copying template files..." });
 
 		const { templateFiles, skippedFiles } = await copyTemplateFiles(sourceRoot, projectDir, {
@@ -337,8 +439,16 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			},
 		});
 
+		// Use primary install result or create a success result if no extensions installed
+		const installResult: InstallResult = primaryInstallResult ?? {
+			success: true,
+			extension: dryRunResult.extension,
+			filesCreated: [],
+			source: effectiveSourceDisplay,
+		};
+
 		return {
-			install: installResult,
+			install: { ...installResult, filesCreated: allFilesCreated },
 			templateFiles,
 			skippedFiles,
 		};

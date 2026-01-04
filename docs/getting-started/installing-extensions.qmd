@@ -131,54 +131,55 @@ fig-alt='{{< meta alt-text.context-menu-local >}}'
 
 ### How It Works
 
-1. If the source contains multiple extensions in an `_extensions/` folder, you will be prompted to select which ones to install.
-2. Choose the target workspace folder (if multiple workspaces are open).
-3. If an extension already exists, you will be asked to confirm before overwriting.
+1. Choose the target workspace folder (if multiple workspaces are open).
+2. If the source contains multiple extensions, you will be prompted to select which ones to install (see [Extension Selection](#extension-selection)).
+3. If an extension already exists, you will be asked to confirm before overwriting (see [Conflict Resolution](#conflict-resolution)).
 
 For archives, Quarto Wizard will extract the contents and look for an `_extensions/` folder.
 If the source is a single extension (no `_extensions/` folder), it will be installed directly.
 
-### Extension Selection
+## Extension Selection {#extension-selection}
 
-When a source contains multiple extensions (in an `_extensions/` folder), you can select which extensions to install:
+When a source contains multiple extensions (in an `_extensions/` folder), you can select which extensions to install.
+This applies to all installation sources: Registry, GitHub, URL, and local.
 
 ::: {style="text-align: center;"}
-![](images/extension-selection-dark.png "Explorer Context Menu"){
+![](images/extension-selection-dark.png "Extension Selection Dialog"){
 .dark-content
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-selection >}}'
 }
-![](images/extension-selection-light.png "Explorer Context Menu"){
+![](images/extension-selection-light.png "Extension Selection Dialog"){
 .light-content
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-selection >}}'
-}
-:::
-
-### Conflict Resolution
-
-If an extension already exists in the target location, you will be asked to confirm before overwriting:
-
-::: {style="text-align: center;"}
-![](images/conflict-resolution-dark.png "Extensions View: Marketplace"){
-.dark-content
-.img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
-fig-alt='{{< meta alt-text.conflict-resolution >}}'
-}
-![](images/conflict-resolution-light.png "Extensions View: Marketplace"){
-.light-content
-.img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
-fig-alt='{{< meta alt-text.conflict-resolution >}}'
 }
 :::
 
 ::: {.callout-tip}
-Multi-extension selection is available when installing from any source (GitHub, URL, or local) that contains multiple extensions in an `_extensions/` folder.
-If the source contains a single extension, it is installed directly.
+If the source contains a single extension, it is installed directly without prompting.
+:::
+
+## Conflict Resolution {#conflict-resolution}
+
+If an extension already exists in the target location, you will be asked to confirm before overwriting.
+This applies to all installation sources: Registry, GitHub, URL, and local.
+
+::: {style="text-align: center;"}
+![](images/conflict-resolution-dark.png "Conflict Resolution Dialog"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.conflict-resolution >}}'
+}
+![](images/conflict-resolution-light.png "Conflict Resolution Dialog"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.conflict-resolution >}}'
+}
 :::
 
 ## Quarto Version Validation

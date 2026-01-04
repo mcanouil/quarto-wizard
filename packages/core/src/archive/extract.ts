@@ -138,8 +138,10 @@ export async function findExtensionRoot(extractDir: string): Promise<string | nu
  * Information about a discovered extension in an archive.
  */
 export interface DiscoveredExtension {
-	/** Path to the extension root (directory containing _extension.yml). */
+	/** Absolute path to the extension root (directory containing _extension.yml). */
 	path: string;
+	/** Path relative to the extraction root (for display purposes). */
+	relativePath: string;
 	/** Extension ID derived from directory structure. */
 	id: { owner: string | null; name: string };
 }
@@ -191,7 +193,8 @@ export async function findAllExtensionRoots(extractDir: string): Promise<Discove
 			if (fs.existsSync(manifestPath)) {
 				// Found an extension, derive its ID from path
 				const id = deriveExtensionIdFromPath(dir, extractDir);
-				results.push({ path: dir, id });
+				const relativePath = path.relative(extractDir, dir);
+				results.push({ path: dir, relativePath, id });
 				// Don't search subdirectories of an extension
 				return;
 			}

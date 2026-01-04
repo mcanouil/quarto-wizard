@@ -12,6 +12,7 @@ export {
 	parseInstallSource,
 	formatInstallSource,
 	install,
+	installSingleExtension,
 } from "./install.js";
 
 export {
