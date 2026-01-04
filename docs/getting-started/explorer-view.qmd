@@ -1,5 +1,12 @@
 ---
 title: "Explorer View"
+alt-text:
+  explorer-view: |
+    The Quarto Wizard Explorer View showing workspace folders and installed extensions with action buttons for installing, using templates, and managing extensions.
+  reprex-command-2: |
+    The context menu showing Quarto Wizard options for installing extensions and using templates.
+  editor-context: |
+    The editor context menu showing Quarto Wizard options for installing extensions and using templates.
 ---
 
 The Quarto Wizard Explorer View provides a dedicated interface for managing installed Quarto extensions across your workspace folders.
@@ -13,7 +20,20 @@ There are two ways to open the Explorer View:
 
 ## Interface Overview
 
-![Explorer View Interface](../assets/images/explorer-view.png){fig-alt="The Quarto Wizard Explorer View showing workspace folders and installed extensions with action buttons for installing, using templates, and managing extensions."}
+::: {style="text-align: center;"}
+![](images/explorer-view-dark.png "Explorer View Interface"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.explorer-view >}}'
+}
+![](images/explorer-view-light.png "Explorer View Interface"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.explorer-view >}}'
+}
+:::
 
 The Explorer View displays:
 
@@ -75,8 +95,34 @@ Right-click on an extension to access additional options:
 - Open Source (GitHub repository).
 - Reveal in Explorer.
 
-![Explorer Context Menu](../assets/images/explorer-context.png){#fig-explorer-context fig-alt="The context menu shown when right-clicking on an extension in the Explorer View, displaying options for Update, Remove, Open Source, and Reveal in Explorer."}
+::: {style="text-align: center;"}
+![](images/reprex-command-2-dark.png "Explorer Context Menu"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+![](images/reprex-command-2-light.png "Explorer Context Menu"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+:::
 
 You can also access Quarto Wizard commands from the editor context menu:
 
-![Editor Context Menu](../assets/images/editor-context.png){#fig-editor-context fig-alt="The editor context menu showing Quarto Wizard options for installing extensions and using templates."}
+::: {style="text-align: center;"}
+![](images/editor-context-dark.png "Editor Context Menu"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.editor-context >}}'
+}
+![](images/editor-context-light.png "Editor Context Menu"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.editor-context >}}'
+}
+:::
