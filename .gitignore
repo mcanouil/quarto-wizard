@@ -5,7 +5,7 @@ dist
 
 # Dependencies
 node_modules
-package-lock.json
+# package-lock.json
 
 # Cache files
 .eslintcache
@@ -16,5 +16,5 @@ package-lock.json
 # OS files
 .DS_Store
 
-# Assets
-/assets/videos
+# Quarto
+/.luarc.json

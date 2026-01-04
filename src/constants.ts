@@ -18,17 +18,9 @@ export const QW_RECENTLY_USED = "recentlyUsedTemplates";
 /**
  * URL to the Quarto extensions CSV file.
  */
-export const QW_EXTENSIONS =
-	"https://raw.githubusercontent.com/mcanouil/quarto-extensions/refs/heads/quarto-wizard/quarto-extensions.json";
+export const QW_EXTENSIONS = "https://m.canouil.dev/quarto-extensions/extensions.json";
 
 /**
  * Key for caching the Quarto extensions JSON.
  */
 export const QW_EXTENSIONS_CACHE = "quarto_wizard_extensions";
-
-/**
- * Cache duration for the Quarto extensions JSON in milliseconds.
- * Set to 30 minutes to balance performance and freshness of extension data.
- * This reduces network requests while ensuring reasonably up-to-date information.
- */
-export const QW_EXTENSIONS_CACHE_TIME = 30 * 60 * 1000;

@@ -1,11 +1,18 @@
 import * as vscode from "vscode";
 import { QW_LOG, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "./constants";
 import { showLogsCommand, logMessage } from "./utils/log";
-import { installQuartoExtensionCommand, useQuartoTemplateCommand } from "./commands/installQuartoExtension";
+import {
+	installQuartoExtensionCommand,
+	useQuartoTemplateCommand,
+	installExtensionFromRegistryCommand,
+	installExtensionFromURLCommand,
+	installExtensionFromLocalCommand,
+} from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
-import { getExtensionsDetails } from "./utils/extensionDetails";
+import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
+import { setManualToken, clearManualToken } from "./utils/auth";
 
 /**
  * This method is called when the extension is activated.
@@ -17,7 +24,7 @@ import { handleUri } from "./utils/handleUri";
 export function activate(context: vscode.ExtensionContext) {
 	// Register command to show the extension's output log
 	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
-	QW_LOG.appendLine("Quarto Wizard, your magical assistant, is now active!");
+	logMessage("Quarto Wizard, your magical assistant, is now active!", "info");
 
 	// Register command to clear the recently installed/used extensions cache
 	context.subscriptions.push(
@@ -27,27 +34,77 @@ export function activate(context: vscode.ExtensionContext) {
 			const message = "Recently installed Quarto extensions have been cleared.";
 			logMessage(message, "info");
 			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
-		})
+		}),
+	);
+
+	// Register command to clear all cached extension data (registry + recent lists)
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.clearCache", () => clearExtensionsCache(context)),
 	);
 
 	// Register main extension installation command
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.installExtension", async () => installQuartoExtensionCommand(context))
+		vscode.commands.registerCommand("quartoWizard.installExtension", async () =>
+			installQuartoExtensionCommand(context),
+		),
 	);
 
 	// Register template installation command
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.useTemplate", async () => useQuartoTemplateCommand(context))
+		vscode.commands.registerCommand("quartoWizard.useTemplate", async () => useQuartoTemplateCommand(context)),
 	);
 
 	// Register reproducible document creation command
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () => newQuartoReprexCommand(context))
+		vscode.commands.registerCommand("quartoWizard.newQuartoReprex", () => newQuartoReprexCommand(context)),
 	);
 
 	// Register command to fetch and display extension details from GitHub
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.getExtensionsDetails", () => getExtensionsDetails(context))
+		vscode.commands.registerCommand("quartoWizard.getExtensionsDetails", () => getExtensionsDetails(context)),
+	);
+
+	// Register command to set a manual GitHub token
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.setGitHubToken", async () => {
+			const token = await vscode.window.showInputBox({
+				prompt: "Enter GitHub Personal Access Token",
+				password: true,
+				placeHolder: "ghp_xxxx or github_pat_xxxx",
+				ignoreFocusOut: true,
+			});
+			if (token) {
+				await setManualToken(context, token);
+				vscode.window.showInformationMessage(`GitHub token stored securely. ${showLogsCommand()}.`);
+			}
+		}),
+	);
+
+	// Register command to clear the manual GitHub token
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.clearGitHubToken", async () => {
+			await clearManualToken(context);
+			vscode.window.showInformationMessage(
+				`Manual token cleared. Will use VSCode GitHub session or environment variables. ${showLogsCommand()}.`,
+			);
+		}),
+	);
+
+	// Register direct source installation commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromRegistry", async () =>
+			installExtensionFromRegistryCommand(context),
+		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromURL", async () =>
+			installExtensionFromURLCommand(context),
+		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromLocal", async (resource?: vscode.Uri) =>
+			installExtensionFromLocalCommand(context, resource),
+		),
 	);
 
 	// Initialise the Extensions Installed tree view provider

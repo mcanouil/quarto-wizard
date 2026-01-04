@@ -1,0 +1,143 @@
+---
+title: "Installation"
+alt-text:
+  marketplace: |
+    The Extensions view showing Quarto Wizard in the search results with the Install button.
+  quick-start: |
+    The Command Palette showing Quarto Wizard commands ready to use.
+  github-token: |
+    The input dialog for entering a GitHub personal access token.
+---
+
+There are several ways to install Quarto Wizard in Visual Studio Code or Positron.
+
+## VS Code Marketplace / Open VSX
+
+The easiest way to install Quarto Wizard:
+
+1. Open Visual Studio Code or Positron.
+2. Go to the Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X` on macOS).
+3. Search for "Quarto Wizard".
+4. Click **Install** on the extension.
+
+::: {style="text-align: center;"}
+![](images/marketplace-dark.png "Extensions View: Marketplace"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.marketplace >}}'
+}
+![](images/marketplace-light.png "Extensions View: Marketplace"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.marketplace >}}'
+}
+:::
+
+## Command Line
+
+You can also install via the command line:
+
+::: {.panel-tabset}
+
+### Visual Studio Code
+
+```{.bash filename="Terminal"}
+code --install-extension mcanouil.quarto-wizard
+```
+
+Via [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard).
+
+### Positron
+
+```{.bash filename="Terminal"}
+positron --install-extension mcanouil.quarto-wizard
+```
+
+Via [Open VSX](https://open-vsx.org/extension/mcanouil/quarto-wizard).
+
+:::
+
+## Manual Installation
+
+For manual installation from a release file:
+
+1. Download the latest `.vsix` file from the [GitHub Releases](https://github.com/mcanouil/quarto-wizard/releases).
+2. In VS Code, open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+3. Run `Extensions: Install from VSIX...`.
+4. Select the downloaded `.vsix` file.
+
+## Verifying Installation
+
+After installation, you can verify it worked by:
+
+1. Opening the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+2. Typing "Quarto Wizard".
+3. You should see the available Quarto Wizard commands.
+
+::: {style="text-align: center;"}
+![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
+![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
+:::
+
+## System Requirements
+
+### Visual Studio Code
+
+- VS Code version 1.96.0 or later.
+- Alternatively, Positron IDE is also supported.
+
+### Internet Connection
+
+An active internet connection is required for:
+
+- Fetching the extension registry.
+- Downloading and installing extensions from GitHub.
+- Checking for extension updates.
+
+## Optional: GitHub Authentication
+
+For accessing private repositories or avoiding rate limits, you can configure GitHub authentication:
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+2. Run `Quarto Wizard: Set GitHub Token (Manual)`.
+3. Enter your GitHub personal access token.
+
+::: {style="text-align: center;"}
+![](images/github-token-dark.png "Command Palette: GitHub Token Input"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.github-token >}}'
+}
+![](images/github-token-light.png "Command Palette: GitHub Token Input"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.github-token >}}'
+}
+:::
+
+Alternatively, Quarto Wizard can use:
+
+- VS Code's built-in GitHub authentication.
+- Environment variables (`GITHUB_TOKEN` or `QUARTO_WIZARD_TOKEN`).
+
+## Getting Help
+
+If you encounter issues during installation:
+
+1. Check the output log: Run `Quarto Wizard: Show Quarto Wizard Log Output` from the Command Palette.
+2. Verify your internet connection.
+3. See [Troubleshooting](troubleshooting.qmd) for common issues and solutions.

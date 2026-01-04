@@ -1,0 +1,52 @@
+---
+title: "Getting Started"
+alt-text:
+  quick-start: |
+    The Command Palette showing Quarto Wizard commands ready to use.
+---
+
+Welcome to Quarto Wizard, a Visual Studio Code extension that helps you manage your Quarto projects and extensions.
+
+## What is Quarto Wizard?
+
+Quarto Wizard provides a user-friendly interface to browse, select, and install Quarto extensions directly from the [Quarto Extensions](https://github.com/mcanouil/quarto-extensions) listing repository.
+It enhances your Quarto development experience by making extension management simple and intuitive.
+
+## Key Features
+
+- **Browse Extensions**: View a comprehensive list of available Quarto extensions.
+- **Install Extensions**: Install selected Quarto extensions with a single click.
+- **Use Templates**: Quick-start documents with pre-configured templates.
+- **Manage Extensions**: View, update, and remove installed extensions from the Explorer view.
+- **Create Reproducible Documents**: Generate reproducible examples for R, Python, or Julia.
+- **Install from Local Sources**: Install extensions from local directories or archive files.
+
+## Quick Start
+
+1. [Install the extension](installation.qmd) from the VS Code Marketplace.
+2. Open a Quarto project in VS Code.
+3. Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) and type "Quarto Wizard" to see available commands.
+
+::: {style="text-align: center;"}
+![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
+![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
+:::
+
+## In This Section
+
+- [Installation](installation.qmd) - How to install Quarto Wizard and system requirements.
+- [Installing Extensions](installing-extensions.qmd) - Browse and install extensions from multiple sources.
+- [Explorer View](explorer-view.qmd) - Manage installed extensions from the sidebar.
+- [Using Templates](using-templates.qmd) - Quick-start documents with templates.
+- [Reproducible Documents](reproducible-docs.qmd) - Create reproducible examples for R, Python, or Julia.
+- [Troubleshooting](troubleshooting.qmd) - Common issues and solutions.

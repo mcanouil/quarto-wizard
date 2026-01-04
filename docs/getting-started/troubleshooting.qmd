@@ -1,0 +1,118 @@
+---
+title: "Troubleshooting"
+alt-text:
+  output-log: |
+    The Output panel showing Quarto Wizard log messages with timestamps and log levels.
+  rate-limit-error: |
+    Example of a rate limit error message in the output log.
+---
+
+This guide helps you resolve common issues with Quarto Wizard.
+
+## Viewing the Output Log
+
+The first step in troubleshooting is to check the output log:
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Run `Quarto Wizard: Show Quarto Wizard Log Output`.
+3. Review the log for error messages or warnings.
+
+::: {style="text-align: center;"}
+![](images/output-log-dark.png "Output Log: Quarto Wizard"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.output-log >}}'
+}
+![](images/output-log-light.png "Output Log: Quarto Wizard"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.output-log >}}'
+}
+:::
+
+You can adjust the log level in [Configuration](../reference/configuration.qmd) to see more detailed information.
+
+## Common Issues
+
+### Extensions Not Loading
+
+**Symptoms**: The extension browser is empty or shows an error.
+
+**Solutions**:
+
+1. Check your internet connection.
+2. Verify the registry URL in settings is correct.
+3. Clear the extension cache: `Quarto Wizard: Clear Extension Cache`.
+4. Check the output log for specific error messages.
+
+### Installation Fails
+
+**Symptoms**: Extension installation reports an error.
+
+**Solutions**:
+
+1. Check the output log for the specific error.
+2. Verify you have write permissions to the workspace folder.
+3. Ensure the `_extensions` directory is not locked by another process.
+4. For GitHub-hosted extensions, check if the repository exists and is accessible.
+
+### Update Detection Not Working
+
+**Symptoms**: Extensions don't show as having updates available.
+
+**Causes**:
+
+- The extension was not installed by Quarto Wizard.
+- The extension's `_extension.yml` lacks a `source` field.
+
+**Solutions**:
+
+1. Manually add `source: owner/repository` to the extension's `_extension.yml`.
+2. Reinstall the extension using Quarto Wizard.
+
+### GitHub Rate Limiting
+
+**Symptoms**: "Rate limit exceeded" errors.
+
+**Solutions**:
+
+1. Configure GitHub authentication (see [Installation](installation.qmd#optional-github-authentication)).
+2. Wait for the rate limit to reset (usually one hour).
+3. Use `Quarto Wizard: Set GitHub Token (Manual)` to add a personal access token.
+
+### Extensions Not Appearing in Explorer View
+
+**Symptoms**: Installed extensions don't show in the Explorer View.
+
+**Solutions**:
+
+1. Click the Refresh button in the Explorer View toolbar.
+2. Ensure the extensions are in the `_extensions` directory.
+3. Check that each extension has a valid `_extension.yml` file.
+
+## Getting Help
+
+If you cannot resolve your issue:
+
+1. Search existing discussions and issues on [GitHub Discussions](https://github.com/mcanouil/quarto-wizard/discussions) and [GitHub Issues](https://github.com/mcanouil/quarto-wizard/issues).
+2. Ask a question or share feedback using the [Discussion chooser](https://github.com/mcanouil/quarto-wizard/discussions/new/choose) to select the appropriate category.
+3. Report a bug using the [Issue chooser](https://github.com/mcanouil/quarto-wizard/issues/new/choose) and provide the following details:
+   - A description of the problem.
+   - Steps to reproduce.
+   - The output log.
+   - Your VS Code and Quarto versions.
+
+::: {.callout-tip}
+Please use the chooser menus to select the right place for your request.
+This ensures efficient handling and helps maintainers respond appropriately.
+:::
+
+## Verifying Release Integrity
+
+To verify the authenticity of a downloaded release:
+
+```{.bash filename="Terminal"}
+gh attestation verify quarto-wizard-<version>.vsix --repo mcanouil/quarto-wizard
+```

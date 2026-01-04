@@ -1,5 +1,67 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- removed: `quartoWizard.quarto.path` setting is no longer available.
+- removed: Quarto CLI is no longer required; extension management is now handled natively.
+
+### New Features
+
+#### Core
+
+- feat: add `@quarto-wizard/core` package with platform-agnostic extension management logic.
+- feat: add proxy support via environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`).
+
+#### Templates
+
+- feat: add interactive file selection for templates with tree view, allowing users to select which files to copy.
+- feat: add target subdirectory option for template files when using `Quarto Wizard: Use Template` functionality.
+  Users can now specify a subdirectory within the project where template files should be copied, while extensions always install to the project root.
+
+#### Extensions
+
+- feat: add multi-extension selection when installing from sources containing multiple extensions.
+- feat: add extension type filtering in the picker UI for easier browsing.
+- feat: add Quarto version requirement validation using the `quarto.quarto` extension API.
+- feat: support discovery and removal of extensions without owner in path (e.g., `_extensions/myext`).
+
+#### Commands
+
+- feat: add `Quarto Wizard: Install Extension from Registry` command for direct registry installation.
+- feat: add `Quarto Wizard: Install Extension from URL` command for archive URL installation.
+- feat: add `Quarto Wizard: Install Extension from Local` command for local path installation.
+- feat: add `Quarto Wizard: Update All Extensions` command to batch update outdated extensions.
+- feat: add `Quarto Wizard: Remove Multiple Extensions` command for batch removal.
+- feat: add `Quarto Wizard: Clear Extension Cache` command to force registry refresh.
+- feat: add `Quarto Wizard: Set GitHub Token (Manual)` command for explicit token configuration.
+- feat: add `Quarto Wizard: Clear GitHub Token` command to remove stored token.
+- feat: add command descriptions to all commands for improved discoverability.
+
+#### Settings
+
+- feat: add `quartoWizard.cache.ttlMinutes` setting to configure cache duration.
+- feat: add `quartoWizard.registry.url` setting to configure custom registry URL.
+
+### Documentation
+
+- docs: add Quarto-based documentation website with user guide and API reference.
+- docs: add API reference documentation generated from TypeDoc.
+- docs: add reference pages for commands, configuration, and environment variables.
+
+### Refactoring
+
+- refactor: replace Quarto CLI calls with native archive extraction and GitHub API integration.
+- refactor: migrate extension lifecycle operations (install, update, remove) to `@quarto-wizard/core`.
+- refactor: add single-pass installation with callbacks for overwrite confirmation and version validation.
+- refactor: improve authentication priority (manual token > VSCode session > environment variables).
+- refactor: centralise error handling with typed error classes.
+- refactor: use `InstalledExtension` type from core library instead of custom `ExtensionData` interface.
+- refactor: consolidate tree provider caching into single structured cache object.
+- refactor: extract reusable path resolution and source type detection utilities.
+- refactor: remove sync/async function duplication in extensions utilities.
+
 ## 1.0.2 (2025-12-06)
 
 - fix: ensure Quarto path validation properly awaits version check, add clear error messages with actionable buttons when Quarto CLI is not found, and implement detailed diagnostic logging for troubleshooting configuration issues.

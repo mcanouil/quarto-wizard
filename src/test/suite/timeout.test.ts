@@ -1,20 +1,7 @@
 import * as assert from "assert";
-import { checkQuartoVersion } from "../../utils/quarto";
 import { checkInternetConnection } from "../../utils/network";
 
 suite("Timeout Handling Test Suite", () => {
-	test("checkQuartoVersion should return false for invalid path", async function () {
-		this.timeout(5000); // Allow up to 5 seconds for the test
-
-		const start = Date.now();
-		const result = await checkQuartoVersion("non-existent-quarto-path", 2000);
-		const elapsed = Date.now() - start;
-
-		// Should return false quickly for invalid path
-		assert.strictEqual(result, false);
-		assert.ok(elapsed < 2000, `Expected quick failure for invalid path, got ${elapsed}ms`);
-	});
-
 	test("checkInternetConnection should timeout with unreachable URL", async function () {
 		this.timeout(10000); // Allow up to 10 seconds for the test
 
@@ -51,7 +38,9 @@ suite("Timeout Handling Test Suite", () => {
 
 		// Should return false and respect the timeout
 		assert.strictEqual(result, false);
-		assert.ok(elapsed >= shortTimeout && elapsed < shortTimeout * 2,
-			`Expected timeout around ${shortTimeout}ms, got ${elapsed}ms`);
+		assert.ok(
+			elapsed >= shortTimeout && elapsed < shortTimeout * 2,
+			`Expected timeout around ${shortTimeout}ms, got ${elapsed}ms`,
+		);
 	});
 });

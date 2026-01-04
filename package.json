@@ -3,6 +3,10 @@
 	"displayName": "Quarto Wizard",
 	"description": "A Visual Studio Code extension that helps you manage Quarto projects.",
 	"version": "1.0.2",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
 	"publisher": "mcanouil",
 	"author": {
 		"name": "Mickaël CANOUIL",
@@ -56,43 +60,57 @@
 	],
 	"main": "./dist/extension",
 	"scripts": {
-		"vscode:prepublish": "webpack --mode production",
-		"webpack": "webpack --mode development --stats-error-details",
-		"watch": "webpack --watch --mode development --stats-error-details",
-		"test-compile": "tsc -p ./",
+		"build:core": "cd packages/core && npm run build",
+		"vscode:prepublish": "npm run format && npm run build:core && npx webpack --mode production",
+		"webpack": "npm run format && npm run build:core && npx webpack --mode development --stats-error-details",
+		"watch": "npm run format && npm run build:core && npx webpack --watch --mode development --stats-error-details",
+		"test-compile": "npm run format && npm run build:core && npx tsc -p ./",
 		"pretest": "npm run test-compile && npm run lint",
 		"test": "vscode-test",
 		"test:watch": "npm run test-compile && vscode-test",
 		"test:manual": "node ./out/test/runTest.js",
-		"lint": "eslint --fix --cache --format unix \"src/**/*.{ts,tsx}\""
-	},
-	"devDependencies": {
-		"@eslint/js": "^9.23.0",
-		"@types/js-yaml": "^4.0.9",
-		"@types/mocha": "^10.0.10",
-		"@types/node": "^24.6.1",
-		"@types/semver": "^7.7.0",
-		"@types/vscode": "^1.96.0",
-		"@vscode/test-cli": "^0.0.11",
-		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.6.2",
-		"eslint": "^9.39.0",
-		"eslint-formatter-unix": "^8.40.0",
-		"eslint-plugin-tsdoc": "^0.4.0",
-		"glob": "^11.1.0",
-		"lru-cache": "^11.2.2",
-		"mocha": "^11.7.4",
-		"ts-loader": "^9.5.4",
-		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.48.1",
-		"webpack": "^5.103.0",
-		"webpack-cli": "^6.0.1"
+		"lint": "eslint --fix --cache --format unix \"src/**/*.{ts,tsx}\"",
+		"format": "prettier --write \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
+		"format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
+		"sync-metadata": "node scripts/sync-package-metadata.mjs",
+		"docs:api": "typedoc --options typedoc.config.mjs && node scripts/process-api-docs.mjs && npm run docs:format",
+		"docs:build": "npm run docs:api && cd docs && quarto render",
+		"docs:preview": "npm run docs:api && cd docs && quarto preview",
+		"docs:clean": "rm -rf docs/api docs/_site",
+		"docs:format": "prettier --write \"docs/**/*.{qmd,yml}\"",
+		"update:deps": "npx npm-check-updates -u --reject @types/vscode && npm install"
 	},
 	"dependencies": {
-		"@types/lodash": "^4.17.16",
+		"@quarto-wizard/core": "*",
+		"@types/lodash": "^4.17.21",
 		"js-yaml": "^4.1.1",
 		"lodash": "^4.17.21",
 		"semver": "^7.7.3"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.2",
+		"@types/js-yaml": "^4.0.9",
+		"@types/mocha": "^10.0.10",
+		"@types/node": "^25.0.3",
+		"@types/semver": "^7.7.1",
+		"@types/vscode": "^1.96.0",
+		"@vscode/test-cli": "^0.0.12",
+		"@vscode/test-electron": "^2.5.2",
+		"@vscode/vsce": "^3.7.1",
+		"eslint": "^9.39.2",
+		"eslint-formatter-unix": "^9.0.1",
+		"eslint-plugin-tsdoc": "^0.5.0",
+		"glob": "^13.0.0",
+		"lru-cache": "^11.2.4",
+		"mocha": "^11.7.5",
+		"prettier": "^3.7.4",
+		"ts-loader": "^9.5.4",
+		"typedoc": "^0.28.15",
+		"typedoc-plugin-markdown": "^4.9.0",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.51.0",
+		"webpack": "^5.104.1",
+		"webpack-cli": "^6.0.1"
 	},
 	"contributes": {
 		"commands": [
@@ -101,7 +119,8 @@
 				"title": "Install Extensions",
 				"shortTitle": "Install",
 				"icon": "$(add)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Opens the extension browser to browse and install Quarto extensions from the registry."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.install",
@@ -115,7 +134,8 @@
 				"title": "Use Template",
 				"shortTitle": "Quarto Use Template",
 				"icon": "$(new-file)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Opens the template browser to select and install Quarto templates."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.useTemplate",
@@ -129,60 +149,133 @@
 				"title": "Show Quarto Wizard Log Output",
 				"shortTitle": "Show Log",
 				"icon": "$(output)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Displays the extension's output log for debugging and troubleshooting."
 			},
 			{
 				"command": "quartoWizard.clearRecent",
 				"title": "Clear Recently Installed Extensions",
 				"shortTitle": "Clear Recent",
 				"icon": "$(clear-all)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Clears the list of recently installed extensions and templates."
+			},
+			{
+				"command": "quartoWizard.clearCache",
+				"title": "Clear Extension Cache",
+				"shortTitle": "Clear Cache",
+				"icon": "$(trash)",
+				"category": "Quarto Wizard",
+				"description": "Clears the cached registry data to force a fresh download."
 			},
 			{
 				"command": "quartoWizard.newQuartoReprex",
 				"title": "Quarto Reproducible Document",
 				"icon": "$(new-file)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Creates a new reproducible example document for R, Python, or Julia."
 			},
 			{
 				"command": "quartoWizard.getExtensionsDetails",
 				"title": "Get Extensions Details",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Retrieves detailed information about extensions in the current workspace."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.refresh",
 				"title": "Refresh Installed Extensions",
 				"shortTitle": "Refresh",
 				"icon": "$(refresh)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Reload the list of installed extensions in the Explorer View."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.openSource",
 				"title": "Open Extension Source",
 				"shortTitle": "Open Source",
 				"icon": "$(github)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Open the extension's GitHub repository in a browser."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.update",
 				"title": "Update Extension",
 				"shortTitle": "Update",
 				"icon": "$(cloud-download)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Update a specific extension to its latest version."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.remove",
 				"title": "Remove Extension",
 				"shortTitle": "Remove",
 				"icon": "$(remove)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Remove a specific extension from the workspace."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 				"title": "Reveal in Explorer View",
 				"shortTitle": "Reveal in Explorer",
 				"icon": "$(folder-opened)",
-				"category": "Quarto Wizard"
+				"category": "Quarto Wizard",
+				"description": "Open the extension's folder in the file explorer."
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.updateAll",
+				"title": "Update All Extensions",
+				"shortTitle": "Update All",
+				"icon": "$(cloud-download)",
+				"category": "Quarto Wizard",
+				"description": "Update all outdated extensions in the workspace."
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.removeMultiple",
+				"title": "Remove Multiple Extensions",
+				"shortTitle": "Remove Multiple",
+				"icon": "$(trash)",
+				"category": "Quarto Wizard",
+				"description": "Select and remove multiple extensions at once."
+			},
+			{
+				"command": "quartoWizard.setGitHubToken",
+				"title": "Set GitHub Token (Manual)",
+				"shortTitle": "Set Token",
+				"icon": "$(key)",
+				"category": "Quarto Wizard",
+				"description": "Manually set a GitHub personal access token for authentication."
+			},
+			{
+				"command": "quartoWizard.clearGitHubToken",
+				"title": "Clear GitHub Token (Manual)",
+				"shortTitle": "Clear Token",
+				"icon": "$(key)",
+				"category": "Quarto Wizard",
+				"description": "Remove the manually set GitHub token."
+			},
+			{
+				"command": "quartoWizard.installExtensionFromRegistry",
+				"title": "Install Extension from Registry",
+				"shortTitle": "From Registry",
+				"icon": "$(cloud-download)",
+				"category": "Quarto Wizard",
+				"description": "Install an extension by entering its registry identifier."
+			},
+			{
+				"command": "quartoWizard.installExtensionFromURL",
+				"title": "Install Extension from URL",
+				"shortTitle": "From URL",
+				"icon": "$(link)",
+				"category": "Quarto Wizard",
+				"description": "Install an extension from a direct URL to a .zip or .tar.gz archive."
+			},
+			{
+				"command": "quartoWizard.installExtensionFromLocal",
+				"title": "Install Extension from Local",
+				"shortTitle": "From Local",
+				"icon": "$(folder)",
+				"category": "Quarto Wizard",
+				"description": "Install extension(s) from a local directory or archive file."
 			}
 		],
 		"submenus": [
@@ -205,6 +298,11 @@
 			"explorer/context": [
 				{
 					"submenu": "quartoWizard.menu",
+					"group": "2_execution"
+				},
+				{
+					"command": "quartoWizard.installExtensionFromLocal",
+					"when": "explorerResourceIsFolder || resourceExtname == .zip || resourceExtname == .gz || resourceExtname == .tgz",
 					"group": "2_execution"
 				}
 			],
@@ -234,6 +332,10 @@
 				{
 					"command": "quartoWizard.clearRecent",
 					"group": "quartoWizard@5"
+				},
+				{
+					"command": "quartoWizard.clearCache",
+					"group": "quartoWizard@6"
 				}
 			],
 			"view/title": [
@@ -248,9 +350,14 @@
 					"group": "navigation@2"
 				},
 				{
-					"command": "quartoWizard.extensionsInstalled.refresh",
+					"command": "quartoWizard.extensionsInstalled.updateAll",
 					"when": "view == quartoWizard.extensionsInstalled",
 					"group": "navigation@3"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.refresh",
+					"when": "view == quartoWizard.extensionsInstalled",
+					"group": "navigation@4"
 				}
 			],
 			"view/item/context": [
@@ -263,6 +370,11 @@
 					"command": "quartoWizard.extensionsInstalled.useTemplate",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
 					"group": "inline@2"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.removeMultiple",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
+					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
@@ -422,7 +534,7 @@
 		"viewsWelcome": [
 			{
 				"view": "quartoWizard.extensionsInstalled",
-				"contents": "No Quarto extensions installed ([browse extensions](https://m.canouil.dev/quarto-extensions/)).\n[Install Extensions](command:quartoWizard.installExtension)\nTo learn more about Quarto and Quarto extensions [read the documentation](https://quarto.org/)."
+				"contents": "No Quarto extensions installed.\n[Install Extensions](command:quartoWizard.installExtension)\n[Use Template](command:quartoWizard.useTemplate)\n[Browse Extensions Directory](https://m.canouil.dev/quarto-extensions/)\n\nLearn more: [Documentation](https://m.canouil.dev/quarto-wizard/) | [Credits](https://m.canouil.dev/quarto-wizard/credits.html)"
 			}
 		],
 		"views": {
@@ -441,14 +553,24 @@
 		"configuration": {
 			"title": "Quarto Wizard",
 			"properties": {
-				"quartoWizard.quarto.path": {
-					"order": 1,
-					"scope": "window",
-					"type": "string",
-					"default": null,
-					"markdownDescription": "A path to the Quarto CLI executable. By default, the extension looks for Quarto CLI in the `PATH` and in `#quarto.path#`, but if set, will use the path specified instead."
-				},
 				"quartoWizard.ask.trustAuthors": {
+					"order": 1,
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"never",
+						"ask"
+					],
+					"enumDescriptions": [
+						"Always trust authors without prompting",
+						"Ask for confirmation each time"
+					],
+					"default": "ask",
+					"markdownDescription": "Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again.",
+					"title": "Trust Authors",
+					"description": "Prompt before trusting authors."
+				},
+				"quartoWizard.ask.confirmInstall": {
 					"order": 2,
 					"scope": "resource",
 					"type": "string",
@@ -456,19 +578,14 @@
 						"never",
 						"ask"
 					],
-					"default": "ask",
-					"markdownDescription": "Ask for confirmation before trusting an extension author. `ask` to ask for confirmation, `never` to always confirm and never ask again."
-				},
-				"quartoWizard.ask.confirmInstall": {
-					"order": 3,
-					"scope": "resource",
-					"type": "string",
-					"enum": [
-						"never",
-						"ask"
+					"enumDescriptions": [
+						"Install without prompting",
+						"Ask for confirmation each time"
 					],
 					"default": "ask",
-					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again."
+					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again.",
+					"title": "Confirm Installation",
+					"description": "Prompt before installing."
 				},
 				"quartoWizard.log.level": {
 					"order": 20,
@@ -480,8 +597,37 @@
 						"info",
 						"debug"
 					],
+					"enumDescriptions": [
+						"Only log errors",
+						"Log warnings and errors",
+						"Log info, warnings, and errors",
+						"Log everything, including debug information"
+					],
 					"default": "info",
-					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything."
+					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything.",
+					"title": "Log Level",
+					"description": "Logging verbosity."
+				},
+				"quartoWizard.cache.ttlMinutes": {
+					"order": 10,
+					"scope": "resource",
+					"type": "number",
+					"minimum": 1,
+					"maximum": 1440,
+					"default": 30,
+					"markdownDescription": "Cache duration for extension registry data in minutes. Lower values fetch fresher data but increase network requests. Default is 30 minutes.",
+					"title": "Cache Duration",
+					"description": "Cache duration in minutes."
+				},
+				"quartoWizard.registry.url": {
+					"order": 11,
+					"scope": "resource",
+					"type": "string",
+					"format": "uri",
+					"default": "https://m.canouil.dev/quarto-extensions/extensions.json",
+					"markdownDescription": "URL to the Quarto extensions registry JSON file. Change this to use a custom registry. The registry must contain entries with at least `id`, `name`, and `owner` fields.",
+					"title": "Registry URL",
+					"description": "Custom registry URL."
 				}
 			}
 		}

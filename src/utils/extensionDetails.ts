@@ -1,7 +1,32 @@
 import * as vscode from "vscode";
-import { QW_EXTENSIONS, QW_EXTENSIONS_CACHE, QW_EXTENSIONS_CACHE_TIME } from "../constants";
-import { logMessage, debouncedLogMessage } from "./log";
+import { fetchRegistry, type RegistryEntry } from "@quarto-wizard/core";
+import { QW_EXTENSIONS, QW_EXTENSIONS_CACHE, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
+import { logMessage, debouncedLogMessage, showLogsCommand } from "./log";
 import { generateHashKey } from "./hash";
+
+/**
+ * Default cache TTL in minutes.
+ */
+const DEFAULT_CACHE_TTL_MINUTES = 30;
+
+/**
+ * Gets the configured cache TTL in milliseconds.
+ * @returns Cache TTL in milliseconds.
+ */
+function getCacheTTL(): number {
+	const config = vscode.workspace.getConfiguration("quartoWizard");
+	const ttlMinutes = config.get<number>("cache.ttlMinutes", DEFAULT_CACHE_TTL_MINUTES);
+	return ttlMinutes * 60 * 1000;
+}
+
+/**
+ * Gets the configured registry URL.
+ * @returns The registry URL from settings or the default.
+ */
+function getRegistryUrl(): string {
+	const config = vscode.workspace.getConfiguration("quartoWizard");
+	return config.get<string>("registry.url", QW_EXTENSIONS);
+}
 
 /**
  * Interface representing the details of a Quarto extension.
@@ -18,87 +43,66 @@ export interface ExtensionDetails {
 	version: string; // Current version (without 'v' prefix)
 	tag: string; // Release tag
 	template: boolean; // Whether this extension is a template
-	templateContent: string; // Content of the template if applicable
+	contributes: string[]; // What the extension contributes (filters, formats, shortcodes, etc.)
 }
 
 /**
- * Fetches the list of Quarto extensions, using cached data if available.
+ * Converts a RegistryEntry from core library to ExtensionDetails.
+ */
+function convertRegistryEntry(entry: RegistryEntry): ExtensionDetails {
+	return {
+		id: entry.id,
+		name: entry.name,
+		full_name: entry.fullName,
+		owner: entry.owner,
+		description: entry.description ?? "",
+		stars: entry.stars,
+		license: entry.licence ?? "",
+		html_url: entry.htmlUrl,
+		version: entry.latestVersion ?? "",
+		tag: entry.latestTag ?? "",
+		template: entry.template,
+		contributes: entry.contributes ?? [],
+	};
+}
+
+/**
+ * Fetches the list of Quarto extensions using the core library, with VSCode caching.
  * @param {vscode.ExtensionContext} context - The extension context used for caching.
  * @param {number} timeoutMs - Timeout in milliseconds (default: 10000ms).
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
  */
 async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 10000): Promise<ExtensionDetails[]> {
-	const url = QW_EXTENSIONS;
+	const url = getRegistryUrl();
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
 	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
 
-	if (cachedData && Date.now() - cachedData.timestamp < QW_EXTENSIONS_CACHE_TIME) {
-		debouncedLogMessage(`Using cached extensions: ${new Date(cachedData.timestamp).toISOString()}`, "info");
+	if (cachedData && Date.now() - cachedData.timestamp < getCacheTTL()) {
+		debouncedLogMessage(`Using cached registry: ${new Date(cachedData.timestamp).toISOString()}`, "debug");
 		return cachedData.data;
 	}
 
-	debouncedLogMessage(`Fetching extensions: ${url}`, "info");
-	let message = `Error fetching list of extensions from ${url}.`;
+	debouncedLogMessage(`Fetching registry: ${url}`, "info");
 
 	try {
-		// Create AbortController for timeout handling
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => {
-			controller.abort();
-		}, timeoutMs);
-
-		const response: Response = await fetch(url, {
-			signal: controller.signal,
+		const registry = await fetchRegistry({
+			registryUrl: url,
+			timeout: timeoutMs,
+			forceRefresh: true, // Use VSCode cache, not filesystem cache
 		});
 
-		clearTimeout(timeoutId);
+		const extensionDetailsList: ExtensionDetails[] = Object.values(registry).map((entry) =>
+			convertRegistryEntry(entry),
+		);
 
-		if (!response.ok) {
-			message = `${message}. ${response.statusText}`;
-			throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
-		}
-		const data = await response.text();
-		const extensionsDetailsList = await parseExtensionsDetails(data);
-		await context.globalState.update(cacheKey, { data: extensionsDetailsList, timestamp: Date.now() });
-		return extensionsDetailsList;
-	} catch (error) {
-		if (error instanceof Error && error.name === 'AbortError') {
-			logMessage(`${message} Request timed out after ${timeoutMs}ms`, "error");
-		} else {
-			logMessage(`${message} ${error}`, "error");
-		}
-		return [];
-	}
-}
-
-/**
- * Parses the details of Quarto extensions from JSON data.
- * @param {string} data - The extensions details as JSON with extension keys and metadata.
- * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
- */
-async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]> {
-	try {
-		const parsedData = JSON.parse(data);
-		const extensionDetailsList: ExtensionDetails[] = Object.keys(parsedData).map((key) => {
-			const extension = parsedData[key];
-			return {
-				id: key,
-				name: extension.title,
-				full_name: extension.nameWithOwner,
-				owner: extension.owner,
-				description: extension.description,
-				stars: extension.stargazerCount,
-				license: extension.licenseInfo,
-				html_url: extension.url,
-				version: extension.latestRelease.replace(/^v/, ""),
-				tag: extension.latestRelease,
-				template: extension.template,
-				templateContent: extension.templateContent,
-			};
+		await context.globalState.update(cacheKey, {
+			data: extensionDetailsList,
+			timestamp: Date.now(),
 		});
+
 		return extensionDetailsList;
 	} catch (error) {
-		const message = "Error parsing extension details.";
+		const message = `Error fetching list of extensions from ${url}.`;
 		logMessage(`${message} ${error}`, "error");
 		return [];
 	}
@@ -110,8 +114,93 @@ async function parseExtensionsDetails(data: string): Promise<ExtensionDetails[]>
  * @param {number} timeoutMs - Timeout in milliseconds (default: 10000ms).
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of validated extension details.
  */
-export async function getExtensionsDetails(context: vscode.ExtensionContext, timeoutMs = 10000): Promise<ExtensionDetails[]> {
+export async function getExtensionsDetails(
+	context: vscode.ExtensionContext,
+	timeoutMs = 10000,
+): Promise<ExtensionDetails[]> {
 	const extensions = await fetchExtensions(context, timeoutMs);
 
 	return extensions.filter((extension): extension is ExtensionDetails => extension !== undefined);
+}
+
+/**
+ * Searches for extensions matching a query using the core library.
+ * @param {vscode.ExtensionContext} context - The extension context.
+ * @param {string} query - The search query.
+ * @param {number} limit - Maximum number of results (default: 50).
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to matching extensions.
+ */
+export async function searchExtensionsDetails(
+	context: vscode.ExtensionContext,
+	query: string,
+	limit = 50,
+): Promise<ExtensionDetails[]> {
+	const extensions = await fetchExtensions(context);
+
+	if (!query.trim()) {
+		return extensions.slice(0, limit);
+	}
+
+	// Simple search: filter by query matching name, description, or owner
+	const queryLower = query.toLowerCase();
+	const results = extensions.filter((ext) => {
+		const searchable = [ext.name, ext.full_name, ext.owner, ext.description].filter(Boolean).join(" ").toLowerCase();
+		return searchable.includes(queryLower);
+	});
+
+	// Sort by stars (descending) and limit
+	results.sort((a, b) => b.stars - a.stars);
+	return results.slice(0, limit);
+}
+
+/**
+ * Lists available extensions filtered by type.
+ * @param {vscode.ExtensionContext} context - The extension context.
+ * @param {object} options - Filter options.
+ * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to filtered extensions.
+ */
+export async function listExtensionsByType(
+	context: vscode.ExtensionContext,
+	options: {
+		templatesOnly?: boolean;
+		extensionsOnly?: boolean;
+		limit?: number;
+	} = {},
+): Promise<ExtensionDetails[]> {
+	const extensions = await fetchExtensions(context);
+
+	let filtered = extensions;
+
+	if (options.templatesOnly) {
+		filtered = filtered.filter((ext) => ext.template);
+	} else if (options.extensionsOnly) {
+		filtered = filtered.filter((ext) => !ext.template);
+	}
+
+	if (options.limit) {
+		filtered = filtered.slice(0, options.limit);
+	}
+
+	return filtered;
+}
+
+/**
+ * Clears all cached extension data and recently used/installed lists.
+ * @param {vscode.ExtensionContext} context - The extension context.
+ * @returns {Promise<void>}
+ */
+export async function clearExtensionsCache(context: vscode.ExtensionContext): Promise<void> {
+	const url = getRegistryUrl();
+	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
+
+	// Clear extension registry cache
+	await context.globalState.update(cacheKey, undefined);
+
+	// Clear recently installed/used lists
+	await context.globalState.update(QW_RECENTLY_INSTALLED, []);
+	await context.globalState.update(QW_RECENTLY_USED, []);
+
+	const message = "Extension cache and recent lists cleared successfully.";
+	logMessage(message, "info");
+	vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 }

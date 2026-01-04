@@ -1,0 +1,120 @@
+---
+title: "Reproducible Documents"
+alt-text:
+  reprex-command-1: |
+    The Command Palette showing the Quarto Wizard reproducible document command.
+  reprex-command-2: |
+    The context menu showing the Quarto Wizard reproducible document command.
+  reprex-language: |
+    The language selection dialog for choosing between R, Python, or Julia.
+---
+
+Quarto Wizard can create reproducible example documents (reprex) for R, Python, and Julia.
+These are useful for bug reports, feature requests, or sharing code examples.
+
+## Creating a Reproducible Document
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
+2. Type `Quarto Wizard: Quarto Reproducible Document` and select it.
+3. Choose the language: R, Python, or Julia.
+4. Select the destination folder for the new document.
+
+::: {layout="[[1, 1], [-0.25, 0.5, -0.25]]"}
+
+::: {style="text-align: center;"}
+![](images/reprex-command-1-dark.png "Command Palette"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-command-1 >}}'
+}
+![](images/reprex-command-1-light.png "Command Palette"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-command-1 >}}'
+}
+:::
+
+::: {style="text-align: center;"}
+![](images/reprex-command-2-dark.png "Explorer Context Menu"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+![](images/reprex-command-2-light.png "Explorer Context Menu"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+:::
+
+::: {style="text-align: center;"}
+![](images/reprex-language-dark.png "Language Selection Dialog"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-language >}}'
+}
+![](images/reprex-language-light.png "Language Selection Dialog"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-language >}}'
+}
+:::
+
+:::
+
+## Available Templates
+
+### R Template
+
+Creates a Quarto document with:
+
+- R code chunks.
+- Session information.
+- Reproducibility metadata.
+
+### Python Template
+
+Creates a Quarto document with:
+
+- Python code blocks.
+- Package version information.
+- System details.
+
+### Julia Template
+
+Creates a Quarto document with:
+
+- Julia code blocks.
+- Package environment information.
+- Version details.
+
+## Use Cases
+
+Reproducible documents are helpful for:
+
+- **Bug reports**: Share a minimal example that reproduces an issue.
+- **Feature requests**: Demonstrate a desired behaviour.
+- **Stack Overflow questions**: Provide complete, runnable code.
+- **Documentation**: Create examples that others can verify.
+
+## Best Practices
+
+When creating a reproducible example:
+
+1. **Keep it minimal**: Include only the code necessary to demonstrate the issue.
+2. **Use built-in datasets**: Avoid dependencies on external data files.
+3. **Include package versions**: The templates automatically capture this information.
+4. **Test your example**: Ensure it runs from start to finish without errors (unless the error is what you're demonstrating).
+
+## Accessing from Other Locations
+
+You can also create reproducible documents from:
+
+- **File > New File** menu: Select "Quarto Reproducible Document".
+- **Context menu**: Right-click and select Quarto Wizard > Quarto Reproducible Document.

@@ -1,0 +1,128 @@
+---
+title: "Explorer View"
+alt-text:
+  explorer-view: |
+    The Quarto Wizard Explorer View showing workspace folders and installed extensions with action buttons for installing, using templates, and managing extensions.
+  reprex-command-2: |
+    The context menu showing Quarto Wizard options for installing extensions and using templates.
+  editor-context: |
+    The editor context menu showing Quarto Wizard options for installing extensions and using templates.
+---
+
+The Quarto Wizard Explorer View provides a dedicated interface for managing installed Quarto extensions across your workspace folders.
+
+## Opening the Explorer View
+
+There are two ways to open the Explorer View:
+
+1. Click the Quarto Wizard icon in the Activity Bar (sidebar).
+2. Use the Command Palette: `Quarto Wizard: Focus on Extensions Installed View`.
+
+## Interface Overview
+
+::: {style="text-align: center;"}
+![](images/explorer-view-dark.png "Explorer View Interface"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.explorer-view >}}'
+}
+![](images/explorer-view-light.png "Explorer View Interface"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.explorer-view >}}'
+}
+:::
+
+The Explorer View displays:
+
+- **Workspace folders**: Each folder in your workspace that can contain extensions.
+- **Installed extensions**: Extensions found in the `_extensions` directory.
+- **Version information**: Current version and available updates.
+- **Action buttons**: Quick access to common operations.
+
+## Extension Status Indicators
+
+Extensions may display different indicators:
+
+- **Update available**: A cloud icon indicates a newer version is available.
+- **No source**: A warning icon indicates the extension lacks source information (cannot check for updates).
+
+## Available Actions
+
+### Workspace Folder Actions
+
+For each workspace folder, you can:
+
+- **Install Extensions**: Add new extensions to the folder.
+- **Use Template**: Install a template and copy its files.
+- **Remove Multiple**: Select and remove multiple extensions at once.
+
+### Extension Actions
+
+For each installed extension, you can:
+
+- **Update**: Download and install the latest version (if outdated).
+- **Remove**: Delete the extension from the `_extensions` directory.
+- **Open Source**: View the extension's GitHub repository.
+- **Reveal in Explorer**: Open the extension folder in the file explorer.
+
+## Toolbar Actions
+
+The view toolbar provides:
+
+- **Install Extensions**: Open the extension browser.
+- **Use Template**: Open the template browser.
+- **Update All**: Update all outdated extensions in the workspace.
+- **Refresh**: Reload the list of installed extensions.
+
+## Update Detection
+
+Quarto Wizard can detect when updates are available for your installed extensions.
+
+::: {.callout-important}
+Extensions can only be updated if they were installed by Quarto Wizard or have `source: <owner>/<repository>` in their `_extension.yml` file.
+You can manually add the source field to enable update detection.
+:::
+
+## Context Menu
+
+Right-click on an extension to access additional options:
+
+- Update (if available).
+- Remove.
+- Open Source (GitHub repository).
+- Reveal in Explorer.
+
+::: {style="text-align: center;"}
+![](images/reprex-command-2-dark.png "Explorer Context Menu"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+![](images/reprex-command-2-light.png "Explorer Context Menu"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+:::
+
+You can also access Quarto Wizard commands from the editor context menu:
+
+::: {style="text-align: center;"}
+![](images/editor-context-dark.png "Editor Context Menu"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.editor-context >}}'
+}
+![](images/editor-context-light.png "Editor Context Menu"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.editor-context >}}'
+}
+:::

@@ -1,0 +1,3000 @@
+/*-- scss:defaults --*/
+
+/*-- scss:rules --*/
+
+// ===========================
+// UTILITY FUNCTIONS
+// ===========================
+// Helper function to mix background and foreground colors
+@function body-mix($weight) {
+  @return mix($background, $foreground, $weight);
+}
+
+// ===========================
+// BASE STYLES & ANIMATIONS
+// ===========================
+// Smooth scrolling for the entire page
+html {
+  scroll-behavior: smooth;
+}
+
+// Page fade-in animation on load
+body {
+  animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+// Enhanced focus states for accessibility
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid $foreground;
+  outline-offset: 2px;
+  transition: outline-offset 0.2s ease;
+}
+
+// Hide empty divs and paragraphs to reduce visual clutter
+div:empty,
+p:empty {
+  display: none;
+}
+
+// ===========================
+// QUARTO UI COMPONENTS
+// ===========================
+
+// Back to top button
+#quarto-back-to-top {
+  box-shadow: 0 .2rem .5rem body-mix(95%), 0 0 .05rem body-mix(95%);
+  color: body-mix(5%);
+  bottom: 80px;
+}
+
+// Title banner styling
+.quarto-title-banner {
+  margin-bottom: 1em;
+  color: $foreground;
+  background-color: body-mix(99%);
+
+  a {
+    color: body-mix(50%);
+
+    &:hover {
+      color: $foreground;
+    }
+  }
+
+  .quarto-title .title {
+    color: $foreground;
+  }
+}
+
+// Breadcrumb last item styling
+.quarto-title-breadcrumbs .breadcrumb li:last-of-type a,
+.quarto-secondary-nav nav.quarto-page-breadcrumbs .breadcrumb li:last-of-type a {
+  color: body-mix(50%);
+  font-weight: 600;
+}
+
+// ===========================
+// FORMS & PAGINATION
+// ===========================
+.page-item {
+
+  &.active .page-link,
+  .page-link:hover {
+    color: $background;
+    background-color: $foreground;
+    border-color: $background;
+  }
+
+  &.disabled .page-link {
+    color: $foreground;
+    background-color: $background;
+  }
+}
+
+.page-link:hover {
+  color: $background;
+  background-color: $foreground;
+  border-color: $background;
+}
+
+.input-group-text {
+  color: $background;
+  background-color: $foreground;
+}
+
+// ===========================
+// CODE STYLING
+// ===========================
+code,
+a>code {
+  color: $background;
+  background-color: $foreground;
+}
+
+a>code {
+  text-decoration: underline;
+}
+
+div.sourceCode {
+  background-color: body-mix(95%);
+  border: 1px solid body-mix(50%);
+}
+
+p code.sourceCode,
+li code.sourceCode,
+td code.sourceCode {
+  background-color: inherit;
+}
+
+.code-annotation-gutter {
+  background-color: body-mix(95%);
+}
+
+.code-annotated .code-copy-button {
+  margin-right: 1.5em;
+}
+
+// Code annotation workaround
+/* TODO: remove when fixed in Quarto: https://github.com/quarto-dev/quarto-cli/pull/13429 */
+#code-annotation-line-highlight {
+  margin-left: unset;
+  width: 100%;
+}
+
+#code-annotation-line-highlight-gutter,
+.code-annotation-gutter-bg,
+.code-annotation-gutter {
+  all: unset;
+}
+
+// ===========================
+// BOOTSTRAP COMPONENTS
+// ===========================
+
+// List Groups
+.list-group-item-action {
+
+  &:hover,
+  &:focus {
+    color: unset;
+    background-color: unset;
+  }
+}
+
+// Navigation Tabs
+.nav-tabs {
+  border-bottom: 1px solid $foreground;
+
+  .nav-link.active,
+  .nav-item.show .nav-link {
+    color: $foreground;
+    background-color: $background;
+    border-color: $foreground;
+  }
+
+  .nav-link,
+  .nav-pills .nav-link {
+    color: $foreground;
+  }
+}
+
+// Tooltips
+.tooltip {
+  animation: fadeIn 0.2s ease;
+}
+
+// ===========================
+// ABOUT PAGE COMPONENTS
+// ===========================
+
+// Profile image with glow effect
+img.about-image {
+  border-radius: 50%;
+  border-style: solid;
+  border-width: 2pt;
+  border-color: $foreground;
+  padding: 5pt;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: $foreground;
+    transition: .5s;
+    transform: scale(.9);
+    z-index: -1;
+  }
+
+  &:hover {
+    color: $foreground;
+    box-shadow: 0 0 10px $foreground;
+    text-shadow: 0 0 10px $foreground;
+
+    &::before {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px $foreground;
+    }
+  }
+}
+
+// About entity title hover effect
+.about-entity {
+  #title-block-header.quarto-title-block.default .quarto-title .title:hover {
+    color: $foreground;
+    text-shadow: 0 0 10px $foreground;
+  }
+}
+
+// Solana template about links
+.quarto-about-solana .about-entity {
+  .about-links {
+    column-gap: 0;
+
+    .about-link {
+      font-size: 1.5em;
+      border-style: none;
+      transition: all .35s ease;
+
+      &:hover {
+        transform: scale(1.25);
+      }
+    }
+
+    @media(max-width: 992px) {
+      flex-direction: row !important;
+      justify-content: center !important;
+      flex-wrap: wrap !important;
+    }
+  }
+}
+
+// Trestles template about links
+.quarto-about-trestles .about-entity {
+  .about-link {
+    color: mix($link-color, $background, 50%);
+    border: solid 1px $foreground;
+
+    &:hover {
+      color: $link-color;
+      font-weight: bold;
+    }
+  }
+}
+
+// ===========================
+// NAVIGATION & HEADER
+// ===========================
+
+// Main navbar styling
+.navbar {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background-color: $background;
+  border-bottom: 1px solid body-mix(50%);
+
+  &.bg-primary {
+    border: 1px solid body-mix(50%);
+  }
+
+  &.bg-dark {
+    background-color: $background;
+    border: 1px solid body-mix(50%);
+  }
+
+  &.bg-light {
+    background-color: body-mix(16%);
+  }
+
+  &.fixed-top {
+    border-width: 0 0 1px;
+  }
+
+  &.fixed-bottom {
+    border-width: 1px 0 0;
+  }
+}
+
+// Footer navigation
+.nav-footer {
+  border-top: 1px solid body-mix(50%);
+
+  a:hover {
+    color: $foreground;
+  }
+}
+
+.nav-footer-center {
+  min-height: unset;
+
+  p,
+  ol,
+  ul,
+  dl {
+    margin-bottom: 0;
+  }
+
+  .toc-actions {
+
+    ol,
+    ul {
+      padding-left: 0;
+    }
+  }
+}
+
+.navbar-logo {
+  max-height: 2em;
+}
+
+// Navbar navigation items with animated underlines
+.navbar-nav {
+
+  .show>.nav-link,
+  .active>.nav-link,
+  .nav-link.active {
+    color: $foreground;
+  }
+
+  .nav-link:hover,
+  .nav-link:focus {
+    color: $foreground;
+  }
+
+  .nav-link {
+    color: body-mix(50%);
+  }
+
+  a.nav-link,
+  a.nav-link:after,
+  a.nav-link:before {
+    transition: all .75s;
+  }
+
+  a.nav-link {
+    position: relative;
+  }
+
+  a.nav-link:hover:after {
+    width: 80%;
+  }
+
+  a.nav-link.active:after,
+  a.nav-link.active:hover:after {
+    border-top: .2em solid $foreground;
+  }
+
+  a.nav-link:hover:after,
+  a.nav-link:after {
+    border-top: .1em solid $foreground;
+  }
+
+  a.nav-link:after {
+    position: absolute;
+    border-top: .1em solid body-mix(90%);
+    content: "";
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    width: 0%;
+  }
+
+  .show>.nav-link,
+  .active>.nav-link,
+  .nav-link.active {
+    font-weight: bolder;
+  }
+
+  .nav-link:hover,
+  .nav-link:focus {
+    color: $foreground;
+  }
+}
+
+// Responsive navbar adjustments
+@media (max-width: 992px) {
+  .navbar-expand-lg {
+
+    a.nav-link.active:after,
+    a.nav-link.active:hover:after,
+    a.nav-link:hover:after,
+    a.nav-link:after {
+      border-top: 0 solid $foreground;
+    }
+  }
+}
+
+.navbar-brand {
+  color: $foreground;
+}
+
+.navbar-logo {
+  max-height: 2em;
+}
+
+// Navbar title with corner brackets animation
+.navbar-title {
+  transition: all .35s ease;
+  display: inline-block;
+  padding: .25em .4em;
+  position: relative;
+  font-weight: bolder;
+
+  &::before,
+  &::after {
+    content: '';
+    height: 14px;
+    width: 14px;
+    position: absolute;
+    transition: all .35s ease;
+    opacity: 0;
+  }
+
+  &::before {
+    content: '';
+    right: 0;
+    top: 0;
+    border-top: 3px solid $foreground;
+    border-right: 3px solid $foreground;
+    transform: translate(-100%, 50%);
+  }
+
+  &:after {
+    content: '';
+    left: 0;
+    bottom: 0;
+    border-bottom: 3px solid $foreground;
+    border-left: 3px solid $foreground;
+    transform: translate(100%, -50%);
+  }
+
+  &:hover {
+
+    &:before,
+    &:after {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+// ===========================
+// THEME TOGGLE ICONS
+// ===========================
+
+// Navbar theme toggle
+.navbar .quarto-color-scheme-toggle {
+  &:not(.alternate) .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($navbar-light-color)}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+  }
+
+  &.alternate .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($navbar-light-color)}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+  }
+}
+
+.sidebar-navigation .quarto-color-scheme-toggle {
+  &:not(.alternate) .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 10%))}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+  }
+
+  &.alternate .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 10%))}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+  }
+}
+
+.top-right.quarto-color-scheme-toggle {
+  &:not(.alternate) .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 35%))}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+  }
+
+  &.alternate .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($foreground, 20%))}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+  }
+}
+
+// ===========================
+// LISTING & BLOG COMPONENTS
+// ===========================
+
+// Listing category tags
+.quarto-post .listing-categories .listing-category {
+  border: solid 1px $foreground;
+
+  &:hover {
+    color: $foreground;
+  }
+}
+
+.quarto-grid-item .listing-categories .listing-category:hover,
+.quarto-listing-category .category:hover,
+.quarto-title .quarto-categories .quarto-category a:hover {
+  color: $foreground;
+}
+
+.quarto-listing-category .category {
+  text-transform: uppercase;
+}
+
+.listing-description {
+  color: $foreground;
+}
+
+// Footer link hover
+.footer a:hover {
+  color: $link-color;
+}
+
+// ===========================
+// CUSTOM UTILITY STYLES
+// ===========================
+
+// Rounded picture style
+.picture {
+  border-style: solid;
+  border-width: 3pt;
+  border-color: $foreground;
+  border-radius: 50%;
+  padding: 5pt;
+  height: 50%;
+  width: auto;
+  max-width: 200px !important;
+  min-width: 100px;
+}
+
+@media (max-width: 768px) {
+  .quarto-layout-row {
+    flex-direction: column;
+  }
+
+  .quarto-layout-cell {
+    flex-basis: 100% !important;
+    margin-bottom: 1rem;
+  }
+
+  .quarto-figure-spacer {
+    display: none;
+  }
+}
+
+.quarto-alternate-formats,
+.quarto-code-links,
+.quarto-other-links {
+  h2 {
+    display: none;
+  }
+
+  ul {
+    margin-bottom: 0;
+  }
+}
+
+// ===========================
+// LINK ANIMATIONS & EFFECTS
+// ===========================
+
+// Main content links with subtle underline animation
+main a:not(.nav-link):not(.btn):not(.about-link):not(.listing-category):not(.quarto-grid-link):not(:has(img)):not(.code-annotation-anchor):not(.toc-action):not(#quarto-back-to-top) {
+  position: relative;
+  text-decoration: underline;
+  text-decoration-color: rgba($foreground, 0.3);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    text-decoration-color: $foreground;
+    text-decoration-thickness: 2px;
+  }
+}
+
+// ===========================
+// CARD & GRID ENHANCEMENTS
+// ===========================
+
+// Blog listing cards with hover effects
+.quarto-post {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 1rem;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba($foreground, 0.1);
+  }
+
+  .listing-title {
+    transition: color 0.3s ease;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .listing-image {
+    transition: transform 0.4s ease;
+    overflow: hidden;
+
+    img {
+      transition: transform 0.4s ease;
+    }
+  }
+
+  &:hover .listing-image img {
+    transform: scale(1.05);
+  }
+}
+
+// Grid items
+.quarto-grid-item {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba($foreground, 0.1);
+  }
+
+  .card-img-top {
+    transition: transform 0.4s ease;
+  }
+
+  .card-title {
+    font-weight: 700;
+  }
+
+  &:hover .card-img-top {
+    transform: scale(1.05);
+  }
+}
+
+.card {
+  border-color: $foreground !important;
+}
+
+// ===========================
+// BUTTON & FORM CONTROLS
+// ===========================
+
+// Buttons and pagination links
+.btn,
+.page-link {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  position: relative;
+
+  // Remove any inherited underline animations from main links
+  &::after {
+    display: none !important;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba($foreground, 0.15);
+    text-decoration: none;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// ===========================
+// Category Tags
+// ===========================
+
+.listing-category,
+.quarto-category {
+  transition: all 0.25s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba($foreground, 0.1);
+  }
+}
+
+// ===========================
+// ABOUT PAGE - HERO BANNER
+// ===========================
+
+// Hero banner styling for Solana about template with gradient orbs
+.quarto-about-solana {
+  position: relative;
+  padding: 3rem 0;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+  margin-top: -2rem;
+  margin-bottom: 2rem;
+  background:
+    radial-gradient(ellipse at top left, rgba($foreground, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba($foreground, 0.06) 0%, transparent 50%),
+    linear-gradient(135deg, rgba($foreground, 0.02) 0%, rgba($foreground, 0.05) 100%);
+  border-radius: 0;
+  box-shadow: 0 4px 16px rgba($foreground, 0.08);
+  overflow: hidden;
+
+  // Gradient orbs overlay
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    right: -50%;
+    bottom: -50%;
+    background:
+      radial-gradient(circle at 30% 40%, rgba($foreground, 0.12) 0%, transparent 30%),
+      radial-gradient(circle at 70% 60%, rgba($foreground, 0.1) 0%, transparent 30%),
+      radial-gradient(circle at 50% 20%, rgba($foreground, 0.08) 0%, transparent 20%);
+    pointer-events: none;
+    opacity: 0.6;
+    animation: orbsMove 20s ease-in-out infinite alternate;
+  }
+
+  .about-entity {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 2rem;
+
+    .entity-contents {
+      .quarto-title-block {
+        text-align: center;
+
+        .quarto-title {
+          .title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, $foreground 0%, rgba($foreground, 0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+
+            @media (max-width: 768px) {
+              font-size: 2rem;
+            }
+          }
+
+          .subtitle {
+            font-size: 1.2rem;
+            color: rgba($foreground, 0.8);
+            font-weight: 400;
+            margin-bottom: 1.5rem;
+
+            @media (max-width: 768px) {
+              font-size: 1rem;
+            }
+          }
+        }
+      }
+
+      .about-links {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+
+        .about-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.6rem 1rem;
+          background-color: rgba($foreground, 0.08);
+          border: 1px solid rgba($foreground, 0.15);
+          border-radius: 8px;
+          color: rgba($foreground, 0.85);
+          text-decoration: none;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          font-size: 1.1rem;
+          min-width: 2.5rem;
+
+          .about-link-text {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+
+          &:hover {
+            background-color: rgba($foreground, 0.12);
+            border-color: rgba($foreground, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba($foreground, 0.15);
+            color: $foreground;
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+
+          // Special styling for sponsor link
+          &:has(iconify-icon[icon*="heart"]) {
+            background-color: rgba(255, 105, 180, 0.1);
+            border-color: rgba(255, 105, 180, 0.3);
+            color: rgb(255, 105, 180);
+
+            &:hover {
+              background-color: rgba(255, 105, 180, 0.2);
+              border-color: rgba(255, 105, 180, 0.5);
+              color: rgb(255, 80, 150);
+            }
+          }
+        }
+      }
+    }
+
+    // Profile image styling (override existing)
+    .about-image {
+      border: 4px solid rgba($foreground, 0.1);
+      box-shadow: 0 8px 24px rgba($foreground, 0.15);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+      &:hover {
+        transform: scale(1.05);
+        box-shadow: 0 12px 32px rgba($foreground, 0.2);
+        border-color: rgba($foreground, 0.2);
+      }
+    }
+  }
+
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    padding: 2rem 0;
+    margin-top: -1rem;
+    margin-bottom: 1.5rem;
+
+    .about-entity {
+      padding: 0 1.5rem;
+    }
+  }
+}
+
+// ===========================
+// ABOUT PAGE - CONTENT SECTIONS
+// ===========================
+
+// About entity links (outside hero section)
+.about-entity {
+  .about-link {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      filter: brightness(1.2);
+    }
+  }
+}
+
+// About body styling
+.about-body {
+  margin: 2.5rem 0;
+  max-width: 800px;
+
+  p {
+    font-size: 1.1rem;
+    line-height: 1.75;
+    margin-bottom: 1.5rem;
+    color: rgba($foreground, 0.85);
+
+    @media (max-width: 768px) {
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+
+    strong {
+      color: $foreground;
+      font-weight: 600;
+    }
+
+    em {
+      color: rgba($foreground, 0.75);
+    }
+  }
+}
+
+// Subtle image styling class
+// Targets figures containing img.img-styled
+figure:has(img.img-styled) {
+  display: block;
+  margin: 2rem auto;
+  padding: 1rem;
+  background: linear-gradient(135deg,
+      rgba($foreground, 0.02) 0%,
+      rgba($foreground, 0.04) 100%);
+  border: 1px solid rgba($foreground, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba($foreground, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+  position: relative;
+
+  // Remove default paragraph margin around image
+  p {
+    margin: 0;
+  }
+
+  // Round the image corners
+  img.img-styled {
+    border-radius: 6px;
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-bottom: 0;
+  }
+
+  // Figcaption styling - hidden by default, expands on hover
+  figcaption {
+    display: block;
+    max-height: 0;
+    margin-top: 0;
+    padding-right: 0;
+    font-size: 0.8em;
+    color: rgba($foreground, 0.6);
+    text-align: right;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    line-height: 1.4;
+    font-style: italic;
+
+    a {
+      color: rgba($foreground, 0.7);
+      text-decoration: underline;
+
+      &:hover {
+        color: $foreground;
+      }
+    }
+  }
+
+  &:hover {
+    background: linear-gradient(135deg,
+        rgba($foreground, 0.04) 0%,
+        rgba($foreground, 0.06) 100%);
+    border-color: rgba($foreground, 0.12);
+    box-shadow: 0 4px 12px rgba($foreground, 0.1);
+
+    // Show and expand figcaption on hover
+    figcaption {
+      max-height: 100px;
+      margin-top: 0.75rem;
+      opacity: 1;
+    }
+  }
+
+  // Responsive
+  @media (max-width: 768px) {
+    padding: 0.75rem;
+    margin: 1.5rem auto;
+    border-radius: 10px;
+
+    img.img-styled {
+      border-radius: 5px;
+    }
+
+    figcaption {
+      font-size: 0.75em;
+    }
+  }
+}
+
+// Highlight callout box - minimal dotted border style
+.highlight {
+  position: relative;
+  margin: 2rem auto;
+  padding: 1.5rem 2rem;
+  width: 65%;
+  background: transparent;
+  border: 2px dashed rgba($foreground, 0.25);
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  // Corner accents
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 2px solid $foreground;
+    transition: all 0.3s ease;
+  }
+
+  // Top-left corner
+  &::before {
+    top: -2px;
+    left: -2px;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 8px 0 0 0;
+  }
+
+  // Bottom-right corner
+  &::after {
+    bottom: -2px;
+    right: -2px;
+    border-left: none;
+    border-top: none;
+    border-radius: 0 0 8px 0;
+  }
+
+  &:hover {
+    border-color: rgba($foreground, 0.4);
+    background: rgba($foreground, 0.02);
+
+    &::before,
+    &::after {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: $foreground;
+
+    @media (max-width: 768px) {
+      font-size: 1rem;
+    }
+
+    strong {
+      color: $foreground;
+      position: relative;
+      padding: 0 0.2em;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0.1em;
+        left: 0;
+        right: 0;
+        height: 0.35em;
+        background: rgba($foreground, 0.12);
+        z-index: -1;
+        transition: background 0.3s ease;
+      }
+    }
+
+    em {
+      font-style: italic;
+      color: $foreground;
+    }
+  }
+
+  &:hover p strong::after {
+    background: rgba($foreground, 0.2);
+  }
+
+  // Multiple paragraphs in highlight
+  p+p {
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.25rem 1.5rem;
+  }
+
+  // Reduced motion support
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &::before,
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+// Thanks callout box - solid border with subtle background
+.thanks {
+  position: relative;
+  margin: 2rem auto;
+  padding: 1.5rem 2rem;
+  width: 90%;
+  background: linear-gradient(135deg,
+      rgba($foreground, 0.03) 0%,
+      rgba($foreground, 0.05) 100%);
+  border: 2px solid rgba($foreground, 0.2);
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba($foreground, 0.06);
+
+  // Corner accents - filled style
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: $foreground;
+    transition: all 0.3s ease;
+    opacity: 0.3;
+  }
+
+  // Top-left corner
+  &::before {
+    top: -1px;
+    left: -1px;
+    border-radius: 8px 0 0 0;
+  }
+
+  // Bottom-right corner
+  &::after {
+    bottom: -1px;
+    right: -1px;
+    border-radius: 0 0 8px 0;
+  }
+
+  &:hover {
+    border-color: rgba($foreground, 0.35);
+    background: linear-gradient(135deg,
+        rgba($foreground, 0.05) 0%,
+        rgba($foreground, 0.08) 100%);
+    box-shadow: 0 4px 12px rgba($foreground, 0.1);
+
+    &::before,
+    &::after {
+      width: 16px;
+      height: 16px;
+      opacity: 0.5;
+    }
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.08rem;
+    line-height: 1.8;
+    color: $foreground;
+    font-weight: 500;
+    font-style: italic;
+    letter-spacing: 0.01em;
+
+    @media (max-width: 768px) {
+      font-size: 1.02rem;
+    }
+
+    strong {
+      color: $foreground;
+      font-weight: 700;
+      font-style: normal;
+      position: relative;
+      padding: 0 0.15em;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0.05em;
+        left: 0;
+        right: 0;
+        height: 0.4em;
+        background: rgba($foreground, 0.15);
+        z-index: -1;
+        border-radius: 2px;
+        transition: all 0.3s ease;
+      }
+    }
+
+    em {
+      font-style: italic;
+      color: rgba($foreground, 0.85);
+      font-weight: 600;
+    }
+
+    // Links inside thanks box
+    a {
+      color: $foreground;
+      font-weight: 600;
+      text-decoration-thickness: 2px;
+      text-decoration-color: rgba($foreground, 0.4);
+      transition: all 0.3s ease;
+
+      &:hover {
+        text-decoration-color: $foreground;
+        text-decoration-thickness: 2.5px;
+      }
+    }
+  }
+
+  &:hover p strong::after {
+    background: rgba($foreground, 0.25);
+    height: 0.45em;
+  }
+
+  // Multiple paragraphs in thanks
+  p+p {
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.25rem 1.5rem;
+    width: 80%;
+  }
+
+  // Reduced motion support
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &::before,
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+// Index page content styling
+body.quarto-about-solana,
+#quarto-content:has(.quarto-about-solana) {
+  overflow-x: hidden;
+
+  // Introduction paragraphs after hero
+  >div:not(.quarto-about-solana) {
+    p {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      margin-bottom: 1.25rem;
+      color: rgba($foreground, 0.85);
+
+      strong {
+        color: $foreground;
+        font-weight: 600;
+      }
+    }
+  }
+
+  // Education and Interests sections
+  section.level2 {
+    padding-top: 0;
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: $foreground;
+      position: relative;
+      padding-bottom: 0.75rem;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 60px;
+        height: 3px;
+        background: linear-gradient(90deg, $foreground 0%, rgba($foreground, 0.3) 100%);
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      &:hover::after {
+        width: 100px;
+      }
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+
+      li {
+        position: relative;
+        padding: 0.75rem 0 0.75rem 2rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+
+        &::before {
+          content: '▸';
+          position: absolute;
+          left: 0.5rem;
+          color: rgba($foreground, 0.5);
+          font-size: 1rem;
+          transition: all 0.3s ease;
+        }
+
+        &:hover {
+          padding-left: 2.25rem;
+          color: $foreground;
+
+          &::before {
+            color: $foreground;
+            left: 0.25rem;
+          }
+        }
+
+        p {
+          margin: 0;
+
+          strong {
+            color: $foreground;
+            font-weight: 600;
+          }
+
+          em {
+            color: rgba($foreground, 0.7);
+          }
+        }
+      }
+    }
+  }
+
+  // Education section specific styling
+  .education {
+    ul li {
+      background-color: rgba($foreground, 0.02);
+      border-left: 2px solid rgba($foreground, 0.15);
+      border-radius: 0 6px 6px 0;
+      padding: 1rem 1rem 1rem 2rem;
+
+      &:hover {
+        background-color: rgba($foreground, 0.05);
+        border-left-color: rgba($foreground, 0.3);
+      }
+
+      strong:last-of-type {
+        color: rgba($foreground, 0.7);
+        font-size: 0.95em;
+      }
+    }
+  }
+
+  // Interests section - more compact styling
+  .interests {
+    ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.5rem;
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+      }
+
+      li {
+        padding: 0.5rem 1rem 0.5rem 1.75rem;
+        background-color: rgba($foreground, 0.04);
+        border-radius: 6px;
+        font-size: 0.95rem;
+
+        &::before {
+          left: 0.5rem;
+          font-size: 0.85rem;
+        }
+
+        &:hover {
+          background-color: rgba($foreground, 0.08);
+          padding-left: 2rem;
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments for index page
+@media (max-width: 768px) {
+
+  body.quarto-about-solana,
+  #quarto-content:has(.quarto-about-solana) {
+    >div:not(.quarto-about-solana) p {
+      font-size: 1rem;
+    }
+
+    section.level2 {
+      margin-top: 0;
+      padding-top: 0;
+
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  }
+}
+
+// ===========================
+// CODE ENHANCEMENTS
+// ===========================
+
+code:not(.sourceCode) {
+  color: $background !important;
+  background-color: $foreground !important;
+}
+
+// Inline code styling with hover effects
+p code:not(.sourceCode),
+li code:not(.sourceCode),
+td code:not(.sourceCode),
+span code:not(.sourceCode),
+div code:not(.sourceCode),
+h1 code:not(.sourceCode),
+h2 code:not(.sourceCode),
+h3 code:not(.sourceCode),
+h4 code:not(.sourceCode),
+h5 code:not(.sourceCode),
+h6 code:not(.sourceCode) {
+  // Improved padding and spacing
+  padding: 0.15em 0.4em;
+  margin: 0 0.1em;
+
+  // Rounded corners for modern look
+  border-radius: 4px;
+
+  // Smooth transitions
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  // Subtle border for definition
+  border: 1px solid rgba($foreground, 0.12);
+
+  // Font styling
+  font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+
+  // Subtle shadow for depth
+  box-shadow: 0 1px 2px rgba($foreground, 0.05);
+
+  // Hover effect
+  &:hover {
+    border-color: rgba($foreground, 0.25);
+    box-shadow: 0 2px 4px rgba($foreground, 0.1);
+    transform: translateY(-1px);
+  }
+}
+
+// Code within links
+a>code:not(.sourceCode) {
+  // Maintain underline from brand.yml
+  // Add hover effect
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 2px 6px rgba($foreground, 0.15);
+  }
+}
+
+// Code within headings - slightly larger
+h1 code:not(.sourceCode),
+h2 code:not(.sourceCode),
+h3 code:not(.sourceCode) {
+  font-size: 0.85em;
+  padding: 0.2em 0.5em;
+  font-weight: 600;
+}
+
+// Code within smaller headings
+h4 code:not(.sourceCode),
+h5 code:not(.sourceCode),
+h6 code:not(.sourceCode) {
+  font-size: 0.88em;
+  padding: 0.18em 0.45em;
+  font-weight: 600;
+}
+
+// Code in navigation (from brand.yml) - ensure consistency
+nav p code:not(.sourceCode),
+nav li code:not(.sourceCode),
+nav td code:not(.sourceCode),
+nav div code:not(.sourceCode),
+nav span code:not(.sourceCode) {
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  border: 1px solid rgba($foreground, 0.12);
+}
+
+// Code blocks with hover shadow
+div.sourceCode {
+  transition: box-shadow 0.3s ease;
+  border-radius: 6px;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba($foreground, 0.08);
+  }
+}
+
+// Code with filename wrapper
+.code-with-filename {
+  margin: 1em 0;
+
+  // Filename header
+  .code-with-filename-file {
+    background-color: rgba($foreground, 0.05);
+    border: 1px solid rgba($foreground, 0.5);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 0.5em 1em;
+    margin: 0;
+    transition: all 0.3s ease;
+
+    pre {
+      margin: 0;
+      padding: 0;
+      background-color: transparent;
+      border: none;
+      font-size: 0.9em;
+      font-weight: 600;
+      color: rgba($foreground, 0.85);
+
+      strong {
+        font-weight: 600;
+        color: $foreground;
+      }
+    }
+  }
+
+  // Code block immediately after filename
+  .code-copy-outer-scaffold,
+  div.sourceCode {
+    margin-top: 0;
+    border-radius: 0 0 6px 6px;
+  }
+
+  // Hover effect for the entire wrapper
+  &:hover {
+    .code-with-filename-file {
+      background-color: rgba($foreground, 0.08);
+      border-color: rgba($foreground, 0.6);
+    }
+
+    div.sourceCode {
+      box-shadow: 0 4px 12px rgba($foreground, 0.08);
+    }
+  }
+}
+
+.code-copy-button {
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+// ===========================
+// SEARCH & INTERACTION
+// ===========================
+
+// Navbar navigation items
+.navbar-nav .nav-item {
+  .nav-link {
+    &::after {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+}
+
+// Search form focus effect
+#quarto-search {
+  .aa-Form {
+    transition: all 0.3s ease;
+
+    &:focus-within {
+      box-shadow: 0 4px 12px rgba($foreground, 0.1);
+    }
+  }
+}
+
+// ===========================
+// LISTING PAGE ANIMATIONS
+// ===========================
+
+// Staggered fade-in for listing items
+.quarto-listing {
+  .list {
+
+    .quarto-grid-item,
+    .quarto-post {
+      animation: fadeInUp 0.6s ease-out;
+      animation-fill-mode: both;
+
+      @for $i from 1 through 20 {
+        &:nth-child(#{$i}) {
+          animation-delay: #{$i * 0.05}s;
+        }
+      }
+    }
+  }
+}
+
+// ===========================
+// LISTING TABLES
+// ===========================
+
+// Modern table styling with rounded corners and shadows
+.quarto-listing-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin: 1.5em 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba($foreground, 0.08);
+  transition: box-shadow 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba($foreground, 0.12);
+  }
+
+  // Table header
+  thead {
+    background: linear-gradient(180deg,
+        rgba($foreground, 0.08) 0%,
+        rgba($foreground, 0.05) 100%);
+    border-bottom: 2px solid rgba($foreground, 0.15);
+
+    tr {
+      transition: background-color 0.3s ease;
+    }
+
+    th {
+      padding: 1rem 1.25rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      color: rgba($foreground, 0.85);
+      text-align: left;
+      border-bottom: 2px solid rgba($foreground, 0.15);
+      position: relative;
+      transition: all 0.3s ease;
+
+      // First column
+      &:first-child {
+        padding-left: 1.5rem;
+        border-top-left-radius: 8px;
+      }
+
+      // Last column
+      &:last-child {
+        padding-right: 1.5rem;
+        border-top-right-radius: 8px;
+      }
+
+      // Sort links
+      a.sort {
+        color: rgba($foreground, 0.85);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: color 0.3s ease;
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+
+        // Remove any inherited underline animations
+        &::before {
+          display: none;
+        }
+
+        // Sort indicator
+        &::after {
+          content: '⇅';
+          font-size: 0.9em;
+          opacity: 0.5;
+          transition: all 0.3s ease;
+          flex-shrink: 0;
+        }
+
+        &:hover {
+          color: $foreground;
+
+          &::after {
+            opacity: 1;
+            transform: scale(1.2);
+          }
+        }
+
+        // Active sort states
+        &.sort-asc::after {
+          content: '↑';
+          opacity: 1;
+          color: $foreground;
+        }
+
+        &.sort-desc::after {
+          content: '↓';
+          opacity: 1;
+          color: $foreground;
+        }
+      }
+
+      &:hover {
+        background-color: rgba($foreground, 0.06);
+      }
+    }
+  }
+
+  // Table body
+  tbody {
+    tr {
+      border-bottom: 1px solid rgba($foreground, 0.08);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background-color: transparent;
+
+      &:hover {
+        background-color: rgba($foreground, 0.04);
+        transform: scale(1.005);
+        box-shadow: 0 2px 8px rgba($foreground, 0.08);
+        position: relative;
+        z-index: 1;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      // Fade in animation for rows
+      animation: fadeInUp 0.5s ease-out;
+      animation-fill-mode: both;
+
+      @for $i from 1 through 20 {
+        &:nth-child(#{$i}) {
+          animation-delay: #{$i * 0.03}s;
+        }
+      }
+    }
+
+    td {
+      padding: 1rem 1.25rem;
+      vertical-align: middle;
+      transition: all 0.3s ease;
+
+      // First column
+      &:first-child {
+        padding-left: 1.5rem;
+        font-weight: 600;
+      }
+
+      // Last column
+      &:last-child {
+        padding-right: 1.5rem;
+      }
+    }
+  }
+
+  // Listing-specific elements
+  .listing-date {
+    font-size: 0.9em;
+    color: rgba($foreground, 0.75);
+    font-weight: 600;
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .listing-title {
+    color: $foreground;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: inline-block;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg,
+          $foreground 0%,
+          rgba($foreground, 0.4) 100%);
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 1px;
+    }
+
+    &:hover {
+      color: $foreground;
+      transform: translateX(2px);
+
+      &::after {
+        width: 100%;
+      }
+    }
+  }
+
+  .listing-journal-title {
+    color: rgba($foreground, 0.8);
+    font-size: 0.95em;
+    font-style: italic;
+
+    em {
+      font-style: italic;
+    }
+  }
+
+  .listing-first,
+  .listing-last {
+    font-size: 0.9em;
+    color: rgba($foreground, 0.7);
+    font-weight: 500;
+    text-align: center;
+    display: inline-block;
+    transition: all 0.2s ease;
+
+    &:not(:empty) {
+      padding: 0.25em 0.75em;
+      background-color: rgba($foreground, 0.05);
+      border-radius: 4px;
+      border: 1px solid rgba($foreground, 0.12);
+
+      &:hover {
+        background-color: rgba($foreground, 0.08);
+        border-color: rgba($foreground, 0.2);
+        transform: scale(1.05);
+      }
+    }
+  }
+}
+
+// Listing actions group (filter and sort controls)
+.listing-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  // Input groups (both sort and filter)
+  .input-group {
+    flex: 1;
+    min-width: 200px;
+
+    @media (max-width: 768px) {
+      min-width: 100%;
+    }
+  }
+
+  .input-group-text {
+    background-color: rgba($foreground, 0.08);
+    border: 1px solid rgba($foreground, 0.15);
+    border-right: none;
+    color: rgba($foreground, 0.7);
+    border-radius: 6px 0 0 6px;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.3s ease;
+
+    i {
+      font-size: 1em;
+    }
+  }
+
+  // Sort dropdown
+  .quarto-listing-sort {
+    .form-select {
+      border: 1px solid rgba($foreground, 0.15);
+      border-left: none;
+      border-radius: 0 6px 6px 0;
+      padding: 0.5rem 2.5rem 0.5rem 1rem;
+      background-color: $background;
+      color: rgba($foreground, 0.85);
+      font-size: 0.95em;
+      transition: all 0.3s ease;
+      cursor: pointer;
+
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 16px 12px;
+
+      &:hover {
+        border-color: rgba($foreground, 0.3);
+        background-color: rgba($foreground, 0.02);
+        box-shadow: 0 2px 4px rgba($foreground, 0.05);
+      }
+
+      &:focus {
+        border-color: rgba($foreground, 0.4);
+        box-shadow: 0 0 0 3px rgba($foreground, 0.08);
+        outline: none;
+      }
+
+      option {
+        padding: 0.5rem;
+        background-color: $background;
+        color: $foreground;
+
+        &:hover {
+          background-color: rgba($foreground, 0.08);
+        }
+      }
+    }
+  }
+}
+
+// Listing filter input
+.quarto-listing-filter {
+  .form-control {
+    border: 1px solid rgba($foreground, 0.15);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    padding: 0.5rem 1rem;
+    background-color: $background;
+    color: rgba($foreground, 0.85);
+    transition: all 0.3s ease;
+
+    &::placeholder {
+      color: rgba($foreground, 0.4);
+      font-style: italic;
+    }
+
+    &:hover {
+      border-color: rgba($foreground, 0.3);
+      background-color: rgba($foreground, 0.02);
+      box-shadow: 0 2px 4px rgba($foreground, 0.05);
+    }
+
+    &:focus {
+      border-color: rgba($foreground, 0.4);
+      box-shadow: 0 0 0 3px rgba($foreground, 0.08);
+      outline: none;
+      background-color: $background;
+    }
+  }
+}
+
+// Pagination styling
+.listing-pagination,
+.pagination {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+
+  .page-link {
+    border: 1px solid rgba($foreground, 0.15);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    color: rgba($foreground, 0.85);
+    background-color: $background;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    position: relative;
+    display: inline-block;
+
+    // Ensure no underline animations
+    &::after,
+    &::before {
+      display: none !important;
+    }
+
+    &:hover {
+      background-color: rgba($foreground, 0.08);
+      border-color: rgba($foreground, 0.25);
+      transform: translateY(-2px);
+      text-decoration: none;
+      color: $foreground;
+    }
+
+    &:focus {
+      outline: 2px solid $foreground;
+      outline-offset: 2px;
+      text-decoration: none;
+    }
+
+    &.active {
+      background-color: $foreground;
+      color: $background;
+      border-color: $foreground;
+      font-weight: 600;
+      text-decoration: none;
+
+      &:hover {
+        color: $background;
+        background-color: rgba($foreground, 0.9);
+      }
+    }
+
+    &:disabled,
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+
+      &:hover {
+        transform: none;
+        background-color: $background;
+        border-color: rgba($foreground, 0.15);
+      }
+    }
+  }
+
+  // Page item wrapper
+  .page-item {
+    &.active .page-link {
+      background-color: $foreground;
+      color: $background;
+      border-color: $foreground;
+    }
+
+    &.disabled .page-link {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Listing category section
+.quarto-listing-category-title {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: default;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+
+  // Remove default border for animated version
+  border-bottom: none !important;
+
+  // Animated underline effect on hover
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, $foreground 0%, rgba($foreground, 0.4) 100%);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &:hover::after {
+    width: 50px;
+  }
+
+  // Enhanced section number styling if present
+  .header-section-number {
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    margin-right: 0.5em;
+  }
+
+  &:hover .header-section-number {
+    opacity: 1;
+    transform: translateX(-2px);
+  }
+}
+
+.quarto-listing-category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 1rem;
+  max-height: none;
+  overflow: visible;
+
+  .category {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25em 0.25em;
+    background-color: transparent;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: rgba($foreground, 0.75);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 0.5em;
+
+    &:hover {
+      background-color: rgba($foreground, 0.05);
+      color: rgba($foreground, 0.9);
+
+      .quarto-category-count {
+        background-color: rgba($foreground, 0.1);
+        color: rgba($foreground, 0.8);
+      }
+    }
+
+    &:active {
+      background-color: rgba($foreground, 0.08);
+    }
+
+    // Active/selected state
+    &.active,
+    &[aria-current="true"] {
+      background-color: rgba($foreground, 0.1);
+      color: $foreground;
+      font-weight: 600;
+
+      .quarto-category-count {
+        background-color: rgba($foreground, 0.15);
+        color: $foreground;
+      }
+
+      &:hover {
+        background-color: rgba($foreground, 0.12);
+      }
+    }
+
+    // Focus state for accessibility
+    &:focus {
+      outline: 2px solid rgba($foreground, 0.3);
+      outline-offset: 2px;
+    }
+
+    .quarto-category-count {
+      padding: 0.1em 0.4em;
+      background-color: rgba($foreground, 0.08);
+      border-radius: 8px;
+      font-size: 0.8em;
+      font-weight: 500;
+      color: rgba($foreground, 0.6);
+      transition: all 0.2s ease;
+      min-width: 1.8em;
+      text-align: center;
+    }
+  }
+
+  // Special styling for "All" category
+  .category[data-category=""] {
+    font-weight: 600;
+    color: rgba($foreground, 0.8);
+  }
+
+  // Reduced motion support
+  @media (prefers-reduced-motion: reduce) {
+    .category {
+      transition: none;
+    }
+  }
+}
+
+// Responsive adjustments for categories
+@media (max-width: 768px) {
+  .quarto-listing-category {
+    gap: 0.2rem;
+
+    .category {
+      font-size: 0.8em;
+      padding: 0.2em 0.4em;
+
+      .quarto-category-count {
+        font-size: 0.75em;
+        padding: 0.08em 0.35em;
+      }
+    }
+  }
+
+  .quarto-listing-category-title {
+    font-size: 0.85rem;
+  }
+}
+
+// Responsive table adjustments
+@media (max-width: 991px) {
+  .quarto-listing-table {
+    font-size: 0.9em;
+
+    thead th,
+    tbody td {
+      padding: 0.75rem 1rem;
+
+      &:first-child {
+        padding-left: 1rem;
+      }
+
+      &:last-child {
+        padding-right: 1rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .quarto-listing-table {
+    font-size: 0.85em;
+    border-radius: 6px;
+
+    thead th,
+    tbody td {
+      padding: 0.6rem 0.75rem;
+
+      &:first-child {
+        padding-left: 0.75rem;
+      }
+
+      &:last-child {
+        padding-right: 0.75rem;
+      }
+    }
+
+    thead th {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ===========================
+// MEDIA & IMAGES
+// ===========================
+
+// Footer link animations
+.nav-footer {
+  a {
+    transition: all 0.3s ease;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      width: 0;
+      height: 1px;
+      background: $foreground;
+      transition: all 0.3s ease;
+      transform: translateX(-50%);
+    }
+
+    &:hover::after {
+      width: 100%;
+    }
+  }
+}
+
+// Figure images with hover zoom
+figure {
+  img {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+      transform: scale(1.02);
+      box-shadow: 0 8px 16px rgba($foreground, 0.1);
+    }
+  }
+}
+
+// ===========================
+// TABLE OF CONTENTS (TOC)
+// ===========================
+
+// TOC navigation with animated indicators
+nav#TOC {
+  position: relative;
+  transition: all 0.3s ease;
+
+  // TOC Title styling
+  #toc-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    position: relative;
+    color: rgba($foreground, 0.85);
+
+    // Animated underline
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background: linear-gradient(90deg,
+          $foreground 0%,
+          rgba($foreground, 0.3) 100%);
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 2px;
+    }
+
+    &:hover::after {
+      width: 80px;
+    }
+  }
+
+  // TOC list styling
+  ul {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 0.5rem;
+
+    // Nested lists
+    ul {
+      padding-left: 1rem;
+      margin-top: 0.25rem;
+      margin-bottom: 0.25rem;
+      position: relative;
+
+      // Vertical line for nested items
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: linear-gradient(180deg,
+            rgba($foreground, 0.15) 0%,
+            rgba($foreground, 0.05) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      &:hover::before {
+        opacity: 1;
+      }
+    }
+
+    li {
+      margin-bottom: 0.25rem;
+      position: relative;
+    }
+  }
+
+  // TOC link styling
+  .nav-link {
+    padding: 0.15rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: rgba($foreground, 0.75);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: block;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+
+    // Section numbers
+    .header-section-number {
+      font-weight: 600;
+      margin-right: 0.5rem;
+      opacity: 0.6;
+      transition: opacity 0.25s ease;
+      font-size: 0.8em;
+    }
+
+    // Hover effect background
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: $foreground;
+      transform: scaleY(0);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 0 2px 2px 0;
+    }
+
+    // Hover state
+    &:hover {
+      color: rgba($foreground, 0.95);
+      background-color: rgba($foreground, 0.04);
+      transform: translateX(2px);
+      padding-left: 0.85rem;
+
+      .header-section-number {
+        opacity: 1;
+      }
+
+      &::before {
+        transform: scaleY(1);
+      }
+    }
+
+    // Active state
+    &.active {
+      color: $foreground;
+      background-color: rgba($foreground, 0.08);
+      font-weight: 600;
+      padding-left: 0.85rem;
+
+      .header-section-number {
+        opacity: 1;
+        font-weight: 700;
+      }
+
+      &::before {
+        transform: scaleY(1);
+        width: 4px;
+      }
+
+      // Subtle pulse animation for active item
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        background: $foreground;
+        border-radius: 50%;
+        transform: translateY(-50%);
+        opacity: 0;
+        animation: tocPulse 2s ease-in-out infinite;
+      }
+    }
+
+    // Focus state for accessibility
+    &:focus-visible {
+      outline: 2px solid $foreground;
+      outline-offset: 2px;
+      background-color: rgba($foreground, 0.06);
+    }
+  }
+
+  // Collapsed nested items
+  ul.collapse {
+    .nav-link {
+      font-size: 0.8125rem;
+      padding: 0.3rem 0.75rem;
+      color: rgba($foreground, 0.65);
+
+      &:hover {
+        color: rgba($foreground, 0.9);
+      }
+    }
+  }
+
+  // TOC actions (Edit/Report buttons)
+  .toc-actions {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba($foreground, 0.1);
+
+    ul {
+      padding-left: 0;
+      margin-bottom: 0;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    .toc-action {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      color: rgba($foreground, 0.7);
+      text-decoration: none;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      background-color: rgba($foreground, 0.02);
+      border: 1px solid rgba($foreground, 0.08);
+
+      i,
+      .bi {
+        margin-right: 0.5rem;
+        font-size: 1rem;
+        transition: transform 0.3s ease;
+      }
+
+      &:hover {
+        color: $foreground;
+        background-color: rgba($foreground, 0.06);
+        border-color: rgba($foreground, 0.15);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba($foreground, 0.08);
+
+        i,
+        .bi {
+          transform: scale(1.1);
+        }
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+
+  // Sticky behavior enhancement
+  &.toc-active {
+
+    // Add subtle shadow when scrolling
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: linear-gradient(180deg,
+          rgba($foreground, 0.03) 0%,
+          transparent 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+  }
+}
+
+// Animation for active item pulse
+@keyframes tocPulse {
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: translateY(-50%) scale(1.5);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 991px) {
+  nav#TOC {
+    #toc-title {
+      font-size: 0.8125rem;
+    }
+
+    .nav-link {
+      font-size: 0.8125rem;
+      padding: 0.15rem 0.5rem;
+    }
+  }
+}
+
+// ===========================
+// SIDEBAR & BREADCRUMBS
+// ===========================
+
+// Sidebar navigation hover effects
+.sidebar-navigation {
+  .sidebar-item {
+    transition: all 0.2s ease;
+
+    &:hover {
+      padding-left: 0.2rem;
+    }
+  }
+}
+
+// Breadcrumb link animations
+.breadcrumb {
+  .breadcrumb-item {
+    a {
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateX(2px);
+      }
+    }
+  }
+}
+
+// ===========================
+// TITLE BLOCK & HEADERS
+// ===========================
+
+// Page title block with gradient effects
+body>header#title-block-header {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  margin-bottom: 2rem;
+
+  // Subtle background gradient effect
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg,
+        rgba($foreground, 0.02) 0%,
+        rgba($foreground, 0.01) 50%,
+        rgba($foreground, 0.02) 100%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  // Animated accent line
+  /* border-bottom: 2px solid rgba($foreground, 0.1);
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      $foreground 20%,
+      $foreground 80%,
+      transparent 100%
+    );
+    opacity: 0.3;
+    animation: shimmer 3s ease-in-out infinite;
+  } */
+
+  // Enhanced title styling
+  .quarto-title .title {
+    position: relative;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    text-shadow: 0 1px 2px rgba($background, 0.1);
+
+    // Animated underline effect on hover
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg,
+          $foreground 0%,
+          rgba($foreground, 0.5) 100%);
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 2px;
+    }
+
+    &:hover::after {
+      width: 100px;
+    }
+  }
+
+  // Enhanced subtitle styling
+  .quarto-title .subtitle {
+    font-size: 1.15rem;
+    line-height: 1.5;
+    color: rgba($foreground, 0.85);
+    font-weight: 400;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    animation: fadeInUp 0.8s ease-out 0.2s both;
+
+    a {
+      transition: all 0.3s ease;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+
+      &:hover {
+        border-bottom-color: rgba($foreground, 0.85);
+        transform: translateY(-1px);
+      }
+    }
+  }
+
+  // Enhanced title metadata
+  .quarto-title-meta {
+    position: relative;
+    margin-top: 0;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    animation: fadeIn 0.8s ease-out 0.4s both;
+
+    .quarto-title-meta-heading {
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.75rem;
+      color: rgba($foreground, 0.7);
+    }
+
+    .quarto-title-meta-contents {
+      font-size: 0.95rem;
+      color: rgba($foreground, 0.9);
+    }
+  }
+
+  // Banner-specific enhancements (when .quarto-title-banner exists)
+  &:has(.quarto-title-banner) {
+
+    // Enhanced gradient overlay for banners
+    &::before {
+      background: linear-gradient(135deg,
+          rgba($foreground, 0.03) 0%,
+          rgba($foreground, 0.01) 50%,
+          rgba($foreground, 0.03) 100%);
+    }
+  }
+
+  .quarto-title-banner {
+    padding-top: 1.5rem;
+    padding-bottom: 1rem;
+    margin-bottom: 0;
+    position: relative;
+
+    // Animated separator line at bottom of banner
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg,
+          transparent 0%,
+          rgba($foreground, 0.2) 10%,
+          rgba($foreground, 0.3) 50%,
+          rgba($foreground, 0.2) 90%,
+          transparent 100%);
+      opacity: 0;
+      animation: fadeInBorder 1s ease-out 0.3s forwards, pulseBorder 4s ease-in-out 1.3s infinite;
+    }
+
+    .quarto-title {
+      position: relative;
+      z-index: 1;
+
+      .title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+
+        // Enhanced hover effect for banners
+        &::after {
+          height: 4px;
+          bottom: 0;
+        }
+
+        &:hover::after {
+          width: 150px;
+        }
+
+        @media (max-width: 768px) {
+          font-size: 2rem;
+        }
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+      }
+    }
+  }
+
+  .abstract {
+    padding-bottom: 1rem;
+  }
+}
+
+// ===========================
+// SECTION HEADINGS (H2-H6)
+// ===========================
+
+// Override default heading borders with theme variables
+h1,
+.h1,
+h2,
+.h2,
+h3,
+.h3,
+h4,
+.h4,
+h5,
+.h5,
+h6,
+.h6 {
+
+  // Override any default border colors with theme variables
+  &[style*="border-bottom"],
+  &:not(:where(.nav-footer *, .navbar *, .sidebar *, nav#TOC *)) {
+    border-bottom-color: rgba($foreground, 0.15) !important;
+  }
+}
+
+// Default h2 border override (Quarto adds border-bottom to h2 by default)
+h2,
+.h2 {
+  &:not(:where(.nav-footer *, .navbar *, .sidebar *, nav#TOC *, .card-title)) {
+    border-bottom-color: rgba($foreground, 0.15);
+  }
+}
+
+// Animated underlines for section headings in main content
+main {
+
+  h2.anchored,
+  h3.anchored,
+  h4.anchored,
+  h5.anchored {
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: default;
+
+    // Remove default border for animated version
+    border-bottom: none !important;
+
+    // Animated underline effect on hover
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg,
+          $foreground 0%,
+          rgba($foreground, 0.4) 100%);
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 1px;
+    }
+
+    &:hover::after {
+      width: 80px;
+    }
+  }
+
+  // Different widths for different heading levels
+  h2.anchored:hover::after {
+    width: 100px;
+  }
+
+  h3.anchored:hover::after {
+    width: 80px;
+  }
+
+  h4.anchored:hover::after {
+    width: 60px;
+  }
+
+  h5.anchored:hover::after {
+    width: 50px;
+  }
+
+  // Enhance section number styling
+  h2.anchored,
+  h3.anchored,
+  h4.anchored,
+  h5.anchored {
+    .header-section-number {
+      transition: all 0.3s ease;
+      opacity: 0.7;
+      margin-right: 0.5em;
+    }
+
+    &:hover .header-section-number {
+      opacity: 1;
+      transform: translateX(-2px);
+    }
+  }
+}
+
+// ===========================
+// KEYFRAME ANIMATIONS
+// ===========================
+
+// Shimmer animation for banner accent
+@keyframes shimmer {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scaleX(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scaleX(0.95);
+  }
+}
+
+// Fade in animation for separator border
+@keyframes fadeInBorder {
+  from {
+    opacity: 0;
+    transform: scaleX(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+// Pulse animation for separator border
+@keyframes pulseBorder {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+// Gradient orbs movement
+@keyframes orbsMove {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+
+  33% {
+    transform: translate(8%, 5%) rotate(120deg) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-5%, 8%) rotate(240deg) scale(0.9);
+  }
+
+  100% {
+    transform: translate(0, 0) rotate(360deg) scale(1);
+  }
+}
+
+// ===========================
+// ACCESSIBILITY & REDUCED MOTION
+// ===========================
+
+// Disable all animations for users who prefer reduced motion
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  // Disable title-block animations for reduced motion
+  header#title-block-header {
+    &::after {
+      animation: none !important;
+    }
+
+    .quarto-title .title::after {
+      transition: none !important;
+    }
+
+    .quarto-title-meta::before {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+  }
+
+  // Disable TOC animations for reduced motion
+  nav#TOC {
+    .nav-link.active::after {
+      animation: none !important;
+      opacity: 0 !important;
+    }
+  }
+}

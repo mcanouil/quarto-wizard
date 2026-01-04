@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2025 Mickaël CANOUIL
+# Copyright (c) 2026 Mickaël CANOUIL
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -136,7 +136,10 @@ jobs:
           else
             DATE=${DATE}
           fi
+
           vsce package ${BUMP_VERSION} -m "${COMMIT}"
+          npm run sync-metadata
+
           VERSION=$(jq -r .version package.json)
           RELEASE_DATE="${VERSION} (${DATE})"
           sed -i "s/Unreleased/${RELEASE_DATE}/" CHANGELOG.md
@@ -144,6 +147,11 @@ jobs:
           sed -i "s/^date-released:.*/date-released: \"${DATE}\"/" CITATION.cff
           git add CHANGELOG.md || echo "No changes to add"
           git add CITATION.cff || echo "No changes to add"
+          git add packages/*/package.json || echo "No changes to add"
+
+          npm run docs:build
+          git add docs/ || echo "No changes to add"
+
           git commit -m "${COMMIT}" || echo "No changes to commit"
           git push --force origin ${BRANCH} || echo "No changes to push"
 

@@ -16,3 +16,5 @@ Quarto Wizard simplifies working with [Quarto](https://quarto.org) by providing 
 Follow the steps in this walkthrough to learn how to use Quarto Wizard's key features.
 
 [Open Quarto Wizard Explorer](command:workbench.view.extension.quarto-wizard-explorer)
+
+[Full Documentation](https://m.canouil.dev/quarto-wizard/) | [Credits](https://m.canouil.dev/quarto-wizard/credits.html)

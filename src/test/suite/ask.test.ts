@@ -42,23 +42,41 @@ suite("Ask Utils Test Suite", () => {
 			},
 		};
 
-		// Mock VS Code APIs
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.workspace as any).getConfiguration = () => mockConfig;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).showQuickPick = async () => quickPickResult;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).showInformationMessage = async () => undefined;
+		// Mock VS Code APIs using Object.defineProperty to avoid 'any' casts
+		Object.defineProperty(vscode.workspace, "getConfiguration", {
+			value: () => mockConfig,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.window, "showQuickPick", {
+			value: async () => quickPickResult,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.window, "showInformationMessage", {
+			value: async () => undefined,
+			writable: true,
+			configurable: true,
+		});
 	});
 
 	teardown(() => {
 		// Restore original methods
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.workspace as any).getConfiguration = originalGetConfiguration;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).showQuickPick = originalShowQuickPick;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).showInformationMessage = originalShowInformationMessage;
+		Object.defineProperty(vscode.workspace, "getConfiguration", {
+			value: originalGetConfiguration,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.window, "showQuickPick", {
+			value: originalShowQuickPick,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.window, "showInformationMessage", {
+			value: originalShowInformationMessage,
+			writable: true,
+			configurable: true,
+		});
 	});
 
 	suite("askTrustAuthors", () => {
@@ -131,9 +149,9 @@ suite("Ask Utils Test Suite", () => {
 			assert.strictEqual(updateCalls.length, 0);
 		});
 
-		test("Should return 0 and update config when user selects 'Yes, always trust'", async () => {
+		test("Should return 0 and update config when user selects 'Yes, always install'", async () => {
 			configValues["confirmInstall"] = "ask";
-			quickPickResult = { label: "Yes, always trust", description: "Change setting to always trust." };
+			quickPickResult = { label: "Yes, always install", description: "Change setting to always install." };
 
 			const result = await askConfirmInstall();
 
@@ -182,9 +200,9 @@ suite("Ask Utils Test Suite", () => {
 			assert.strictEqual(updateCalls.length, 0);
 		});
 
-		test("Should return 0 and update config when user selects 'Yes, always trust'", async () => {
+		test("Should return 0 and update config when user selects 'Yes, always remove'", async () => {
 			configValues["confirmRemove"] = "always";
-			quickPickResult = { label: "Yes, always trust", description: "Change setting to always trust." };
+			quickPickResult = { label: "Yes, always remove", description: "Change setting to always remove." };
 
 			const result = await askConfirmRemove();
 

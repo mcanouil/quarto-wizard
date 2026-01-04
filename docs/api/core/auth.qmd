@@ -1,0 +1,127 @@
+---
+title: "Auth"
+---
+
+## Auth
+
+Authentication configuration types.
+
+Quarto Wizard supports GitHub authentication via environment variables.
+This is useful for accessing private repositories or increasing API rate limits.
+
+### Envvar
+
+GITHUB_TOKEN - GitHub personal access token for API authentication.
+
+### Envvar
+
+QUARTO_WIZARD_TOKEN - Alternative token variable (fallback if GITHUB_TOKEN is not set).
+
+GITHUB_TOKEN takes precedence over QUARTO_WIZARD_TOKEN if both are set.
+
+### Examples
+
+```{.bash filename="Terminal"}
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+```{.bash filename="Terminal"}
+export QUARTO_WIZARD_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+### Note
+
+Tokens can also be set via VS Code settings or the extension's authentication UI.
+
+### Interfaces
+
+#### AuthConfig
+
+Defined in: [packages/core/src/types/auth.ts:41](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L41)
+
+Authentication configuration for API requests.
+
+##### Properties
+
+| Property                                | Type                                                                                                                                                                                                      | Description                                                    | Defined in                                                                                                                                                        |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="githubtoken"></a> `githubToken?` | `string`                                                                                                                                                                                                  | GitHub personal access token for GitHub API and private repos. | [packages/core/src/types/auth.ts:43](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L43) |
+| <a id="httpheaders"></a> `httpHeaders`  | `<code><a href="#httpheader" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">HttpHeader</a>[]</code>`{=html} | Custom HTTP headers for URL downloads.                         | [packages/core/src/types/auth.ts:45](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L45) |
+
+#### AuthConfigOptions
+
+Defined in: [packages/core/src/types/auth.ts:51](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L51)
+
+Options for creating an AuthConfig.
+
+##### Properties
+
+| Property                                  | Type       | Description                           | Defined in                                                                                                                                                        |
+| ----------------------------------------- | ---------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="githubtoken-1"></a> `githubToken?` | `string`   | GitHub personal access token.         | [packages/core/src/types/auth.ts:53](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L53) |
+| <a id="httpheaders-1"></a> `httpHeaders?` | `string[]` | HTTP headers in "Name: Value" format. | [packages/core/src/types/auth.ts:55](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L55) |
+
+#### HttpHeader
+
+Defined in: [packages/core/src/types/auth.ts:31](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L31)
+
+HTTP header for custom authentication.
+
+##### Properties
+
+| Property                   | Type     | Description                             | Defined in                                                                                                                                                        |
+| -------------------------- | -------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="name"></a> `name`   | `string` | Header name (e.g., "Authorization").    | [packages/core/src/types/auth.ts:33](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L33) |
+| <a id="value"></a> `value` | `string` | Header value (e.g., "Bearer token123"). | [packages/core/src/types/auth.ts:35](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L35) |
+
+### Functions
+
+#### createAuthConfig()
+
+```{.ts filename="TypeScript"}
+function createAuthConfig(options): AuthConfig;
+```
+
+Defined in: [packages/core/src/types/auth.ts:66](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L66)
+
+Create an AuthConfig from options.
+Automatically reads from environment variables if not provided.
+
+##### Parameters
+
+| Parameter | Type                                      | Description           |
+| --------- | ----------------------------------------- | --------------------- |
+| `options` | [`AuthConfigOptions`](#authconfigoptions) | Configuration options |
+
+##### Returns
+
+[`AuthConfig`](#authconfig)
+
+AuthConfig object
+
+##### Throws
+
+Error if header format is invalid
+
+#### getAuthHeaders()
+
+```{.ts filename="TypeScript"}
+function getAuthHeaders(auth, isGitHub): Record<string, string>;
+```
+
+Defined in: [packages/core/src/types/auth.ts:97](https://github.com/mcanouil/quarto-wizard/blob/aa3d9a0c8548c85d07ef5c87fdd89061349baa26/packages/core/src/types/auth.ts#L97)
+
+Get authorization headers for a request.
+
+##### Parameters
+
+| Parameter  | Type                                       | Description                          |
+| ---------- | ------------------------------------------ | ------------------------------------ |
+| `auth`     | [`AuthConfig`](#authconfig) \| `undefined` | Authentication configuration         |
+| `isGitHub` | `boolean`                                  | Whether this is a GitHub API request |
+
+##### Returns
+
+`Record<string, string>`
+
+Headers object for fetch

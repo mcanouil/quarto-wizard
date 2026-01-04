@@ -146,7 +146,7 @@ suite("Activate Utils Test Suite", () => {
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			assert.strictEqual(logMessages.length, 2);
-			assert.ok(logMessages[0].includes(`Failed to activate ${extensionId}.`));
+			assert.ok(logMessages[0].includes(`${extensionId} not found.`));
 			// Should have prompted for installation
 			assert.strictEqual(informationMessages.length, 1);
 			assert.ok(informationMessages[0].message.includes(`Extension '${extensionId}' is not installed`));
@@ -183,7 +183,7 @@ suite("Activate Utils Test Suite", () => {
 
 			// Should have logs for activation and failure
 			const activationLogs = logMessages.filter((msg) => msg.includes("activated"));
-			const failureLogs = logMessages.filter((msg) => msg.includes("Failed to activate"));
+			const failureLogs = logMessages.filter((msg) => msg.includes("not found"));
 
 			assert.strictEqual(activationLogs.length, 1);
 			assert.strictEqual(failureLogs.length, 1);
@@ -277,7 +277,7 @@ suite("Activate Utils Test Suite", () => {
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			// Should still log failure but not show prompt
-			const failureLogs = logMessages.filter((msg) => msg.includes("Failed to activate"));
+			const failureLogs = logMessages.filter((msg) => msg.includes("not found"));
 			assert.strictEqual(failureLogs.length, 1);
 			assert.strictEqual(informationMessages.length, 0);
 		});

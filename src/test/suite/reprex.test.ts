@@ -111,7 +111,7 @@ suite("Reprex Utils Test Suite", () => {
 					assert.fail(
 						`Function should not throw for unsupported language '${lang}': ${
 							error instanceof Error ? error.message : String(error)
-						}`
+						}`,
 					);
 				}
 			}
@@ -133,7 +133,7 @@ suite("Reprex Utils Test Suite", () => {
 					assert.fail(
 						`Function should not throw for invalid language '${lang}': ${
 							error instanceof Error ? error.message : String(error)
-						}`
+						}`,
 					);
 				}
 			}
@@ -174,7 +174,7 @@ suite("Reprex Utils Test Suite", () => {
 					assert.fail(
 						`Function should not throw for incorrect case '${lang}': ${
 							error instanceof Error ? error.message : String(error)
-						}`
+						}`,
 					);
 				}
 			}
@@ -231,7 +231,7 @@ suite("Reprex Utils Test Suite", () => {
 					const content = fs.readFileSync(templatePath, "utf8");
 					assert.ok(
 						content.includes(`engine: ${expectedEngine}`),
-						`${lang} template should use ${expectedEngine} engine`
+						`${lang} template should use ${expectedEngine} engine`,
 					);
 				}
 			});
@@ -251,7 +251,7 @@ suite("Reprex Utils Test Suite", () => {
 			const result = newQuartoReprex("R", extensionContext);
 			assert.ok(
 				result === undefined || (result && typeof result.then === "function"),
-				"newQuartoReprex should return undefined or a Promise"
+				"newQuartoReprex should return undefined or a Promise",
 			);
 		});
 

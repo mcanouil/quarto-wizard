@@ -1,0 +1,19 @@
+---
+title: "{{PACKAGE_NAME}}"
+description: "{{PACKAGE_DESCRIPTION}}"
+listing:
+  - id: modules
+    contents: "*.qmd"
+    type: table
+    fields: [title, description]
+    sort: title
+    filter-ui: false
+    sort-ui: false
+---
+
+{{PACKAGE_OVERVIEW}}
+
+## Modules
+
+::: {#modules}
+:::

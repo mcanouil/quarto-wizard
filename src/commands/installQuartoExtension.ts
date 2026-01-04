@@ -1,29 +1,60 @@
 import * as vscode from "vscode";
+import * as path from "path";
+import { parseInstallSource } from "@quarto-wizard/core";
 import { QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
-import { getQuartoPath, checkQuartoPath, installQuartoExtensionSource } from "../utils/quarto";
-import { askTrustAuthors, askConfirmInstall } from "../utils/ask";
+import { installQuartoExtension, useQuartoExtension } from "../utils/quarto";
+import {
+	askTrustAuthors,
+	askConfirmInstall,
+	createFileSelectionCallback,
+	createTargetSubdirCallback,
+} from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
-import { ExtensionQuickPickItem, showExtensionQuickPick } from "../ui/extensionsQuickPick";
+import { ExtensionQuickPickItem, showExtensionQuickPick, showTypeFilterQuickPick } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
+import { getAuthConfig } from "../utils/auth";
 
 /**
- * Installs the selected Quarto extensions.
+ * Installs or uses the selected Quarto extensions.
  *
+ * @param context - The extension context for accessing authentication.
  * @param selectedExtensions - The extensions selected by the user for installation.
  * @param workspaceFolder - The workspace folder where the extensions will be installed.
+ * @param template - Whether to use the template functionality (copy template files).
  */
-async function installQuartoExtensions(selectedExtensions: readonly ExtensionQuickPickItem[], workspaceFolder: string) {
+async function installQuartoExtensions(
+	context: vscode.ExtensionContext,
+	selectedExtensions: readonly ExtensionQuickPickItem[],
+	workspaceFolder: string,
+	template = false,
+) {
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
 	if ((await askTrustAuthors()) !== 0) return;
 	if ((await askConfirmInstall()) !== 0) return;
 
+	// Get authentication configuration (prompts sign-in if needed for private repos)
+	const auth = await getAuthConfig(context, { createIfNone: true });
+
+	const actionWord = template ? "Using" : "Installing";
+	const actionPast = template ? "used" : "installed";
+
+	// Log source and extensions
+	logMessage("Source: registry.", "info");
+	logMessage(
+		`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}.`,
+		"info",
+	);
+	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
+		logMessage("Authentication: none (public access).", "info");
+	}
+
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: `Installing selected extension(s) (${showLogsCommand()})`,
+			title: `${actionWord} selected extension(s) (${showLogsCommand()})`,
 			cancellable: true,
 		},
 		async (progress, token) => {
@@ -55,11 +86,23 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 					extensionSource = `${selectedExtension.id}@${selectedExtension.tag}`;
 				}
 
-				// Install extension and automatically add source information to _extension.yml
-				// This enables future updates through the extension's tree view
-				const success = await installQuartoExtensionSource(extensionSource, workspaceFolder);
-				// TODO: Once Quarto CLI natively supports source records, replace with:
-				// const success = await installQuartoExtension(extensionSource, workspaceFolder);
+				let success: boolean;
+				if (template) {
+					// Use template: install extension and copy template files
+					const selectFiles = createFileSelectionCallback();
+					const selectTargetSubdir = createTargetSubdirCallback();
+					const result = await useQuartoExtension(
+						extensionSource,
+						workspaceFolder,
+						selectFiles,
+						selectTargetSubdir,
+						auth,
+					);
+					success = result !== null;
+				} else {
+					// Regular install: just install the extension
+					success = await installQuartoExtension(extensionSource, workspaceFolder, auth);
+				}
 
 				// Track installation results for user feedback
 				if (success) {
@@ -76,29 +119,35 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 			});
 
 			if (installedExtensions.length > 0) {
-				logMessage(`Successfully installed extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
+				logMessage(`Successfully ${actionPast} extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
 				installedExtensions.map((ext) => logMessage(` - ${ext}`, "info"));
 			}
 
 			if (failedExtensions.length > 0) {
-				logMessage(`Failed to install extension${failedExtensions.length > 1 ? "s" : ""}:`, "error");
+				logMessage(
+					`Failed to ${template ? "use" : "install"} extension${failedExtensions.length > 1 ? "s" : ""}:`,
+					"error",
+				);
 				failedExtensions.map((ext) => logMessage(` - ${ext}`, "error"));
 				const message = [
 					"The following extension",
 					failedExtensions.length > 1 ? "s were" : " was",
-					" not installed, try installing ",
+					` not ${actionPast}, try ${template ? "using" : "installing"} `,
 					failedExtensions.length > 1 ? "them" : "it",
-					" manually with `quarto add <extension>`:",
+					` manually with \`quarto ${template ? "use" : "add"} <extension>\`:`,
 				].join("");
 				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${showLogsCommand()}.`);
 			} else {
-				const message = [installedCount, " extension", installedCount > 1 ? "s" : "", " installed successfully."].join(
-					""
-				);
+				const message = [
+					installedCount,
+					" extension",
+					installedCount > 1 ? "s" : "",
+					` ${actionPast} successfully.`,
+				].join("");
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}
-		}
+		},
 	);
 }
 
@@ -113,16 +162,10 @@ async function installQuartoExtensions(selectedExtensions: readonly ExtensionQui
 export async function installQuartoExtensionFolderCommand(
 	context: vscode.ExtensionContext,
 	workspaceFolder: string,
-	template = false
+	template = false,
 ) {
 	const isConnected = await checkInternetConnection("https://github.com/");
 	if (!isConnected) {
-		return;
-	}
-	try {
-		const quartoPath = getQuartoPath();
-		await checkQuartoPath(quartoPath);
-	} catch {
 		return;
 	}
 
@@ -130,19 +173,150 @@ export async function installQuartoExtensionFolderCommand(
 	if (template) {
 		extensionsList = extensionsList.filter((ext) => ext.template);
 	}
+
+	// Show type filter picker (skip for template mode as it's already filtered)
+	let typeFilter: string | null = null;
+	if (!template) {
+		const filterResult = await showTypeFilterQuickPick(extensionsList);
+
+		if (filterResult.type === "cancelled") {
+			return;
+		}
+
+		// If user selected an alternative source at the filter stage, install directly
+		if (filterResult.type === "github" || filterResult.type === "url" || filterResult.type === "local") {
+			await installFromSource(context, filterResult.source, workspaceFolder, template);
+			return;
+		}
+
+		// User selected a filter
+		typeFilter = filterResult.value;
+	}
+
 	const recentKey = template ? QW_RECENTLY_USED : QW_RECENTLY_INSTALLED;
 	const recentExtensions: string[] = context.globalState.get(recentKey, []);
-	const selectedExtensions = await showExtensionQuickPick(extensionsList, recentExtensions, template);
+	const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
 
-	if (selectedExtensions.length > 0) {
-		await installQuartoExtensions(selectedExtensions, workspaceFolder);
-		if (template) {
-			await useQuartoTemplate(selectedExtensions);
-		}
-		const selectedIDs = selectedExtensions.map((ext) => ext.id);
-		const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
-		await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+	if (result.type === "cancelled") {
+		return;
 	}
+
+	if (result.type === "registry") {
+		// Registry installation flow
+		if (result.items.length > 0) {
+			await installQuartoExtensions(context, result.items, workspaceFolder, template);
+			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
+			const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
+			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+		}
+	} else {
+		// Alternative source installation (github, url, local)
+		await installFromSource(context, result.source, workspaceFolder, template);
+	}
+}
+
+/**
+ * Source type display names for logging.
+ */
+const SOURCE_TYPE_NAMES: Record<string, string> = {
+	url: "URL",
+	local: "local path",
+	github: "GitHub",
+};
+
+/**
+ * Resolve a source path relative to the workspace folder if needed.
+ *
+ * @param source - The source string (might be relative path).
+ * @param workspaceFolder - The workspace folder for resolving relative paths.
+ * @returns Object with resolved source path and original source for display.
+ */
+function resolveSourcePath(
+	source: string,
+	workspaceFolder: string,
+): { resolved: string; display: string | undefined; type: string } {
+	try {
+		const parsed = parseInstallSource(source);
+		const type = SOURCE_TYPE_NAMES[parsed.type] ?? "unknown";
+
+		if (parsed.type === "local" && !path.isAbsolute(parsed.path)) {
+			// Resolve relative path to absolute
+			const resolved = path.resolve(workspaceFolder, parsed.path);
+			return { resolved, display: source, type };
+		}
+
+		return { resolved: source, display: undefined, type };
+	} catch {
+		return { resolved: source, display: undefined, type: "unknown" };
+	}
+}
+
+/**
+ * Install extension from an alternative source (GitHub, URL, or local path).
+ *
+ * @param context - The extension context for authentication.
+ * @param source - The source string (GitHub repo, URL, or local path).
+ * @param workspaceFolder - The workspace folder where the extension will be installed.
+ * @param template - Whether to use the template functionality.
+ */
+async function installFromSource(
+	context: vscode.ExtensionContext,
+	source: string,
+	workspaceFolder: string,
+	template: boolean,
+) {
+	if ((await askTrustAuthors()) !== 0) return;
+	if ((await askConfirmInstall()) !== 0) return;
+
+	// Resolve local paths relative to workspace folder
+	const { resolved, display, type } = resolveSourcePath(source, workspaceFolder);
+
+	const auth = await getAuthConfig(context, { createIfNone: true });
+	const actionWord = template ? "Using" : "Installing";
+
+	// Log source and extension (use original source for display)
+	logMessage(`Source: ${type}.`, "info");
+	logMessage(`Extension: ${source}.`, "info");
+	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
+		logMessage("Authentication: none (public access).", "info");
+	}
+
+	await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: `${actionWord} extension from ${source} (${showLogsCommand()})`,
+			cancellable: false,
+		},
+		async () => {
+			let success: boolean;
+			if (template) {
+				const selectFiles = createFileSelectionCallback();
+				const selectTargetSubdir = createTargetSubdirCallback();
+				const result = await useQuartoExtension(
+					resolved,
+					workspaceFolder,
+					selectFiles,
+					selectTargetSubdir,
+					auth,
+					display,
+				);
+				success = result !== null;
+			} else {
+				success = await installQuartoExtension(resolved, workspaceFolder, auth, display);
+			}
+
+			if (success) {
+				const message = template ? "Template used successfully." : "Extension installed successfully.";
+				logMessage(message, "info");
+				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+			} else {
+				const message = template
+					? `Failed to use template from ${source}.`
+					: `Failed to install extension from ${source}.`;
+				vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+			}
+		},
+	);
 }
 
 /**
@@ -160,57 +334,6 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 }
 
 /**
- * Opens a Quarto template in the editor.
- *
- * @param id - The ID of the extension containing the template
- * @param templateContent - The base64-encoded template content
- * @returns A Promise that resolves to a boolean indicating success or failure
- */
-export async function openTemplate(id: string, templateContent: string): Promise<boolean> {
-	try {
-		const decodedContent = Buffer.from(templateContent, "base64").toString("utf-8");
-		await vscode.workspace.openTextDocument({ content: decodedContent, language: "quarto" }).then((document) => {
-			vscode.window.showTextDocument(document);
-		});
-		const message = `Template from "${id}" opened successfully.`;
-		logMessage(message, "info");
-		return true;
-	} catch (error) {
-		const message =
-			error instanceof Error
-				? `Failed to open the template from "${id}": ${error.message}.`
-				: `An unknown error occurred retrieving the template content from "${id}".`;
-		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
-		return false;
-	}
-}
-
-/**
- * Use the selected Quarto extension template.
- *
- * @param selectedExtension - The extension template selected by the user for use.
- */
-async function useQuartoTemplate(selectedExtension: readonly ExtensionQuickPickItem[]) {
-	if (selectedExtension.length === 0 || !selectedExtension[0].templateContent) {
-		const message = "No template content found for the selected extension.";
-		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
-		return;
-	}
-
-	const extensionId = selectedExtension[0].id;
-	const extensionTemplate = selectedExtension[0].templateContent;
-	if (!extensionId || !extensionTemplate) {
-		const message = "Invalid extension ID or template content.";
-		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
-		return;
-	}
-	await openTemplate(extensionId, extensionTemplate);
-}
-
-/**
  * Executes the command to use a Quarto template.
  * This function prompts the user to select a workspace folder, then installs a Quarto extension configured as a template.
  *
@@ -223,4 +346,136 @@ export async function useQuartoTemplateCommand(context: vscode.ExtensionContext)
 		return;
 	}
 	installQuartoExtensionFolderCommand(context, workspaceFolder, true);
+}
+
+/**
+ * Command to install Quarto extensions directly from the registry.
+ * Skips the type filter picker and goes directly to the extension picker.
+ *
+ * @param context - The extension context.
+ */
+export async function installExtensionFromRegistryCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+
+	const isConnected = await checkInternetConnection("https://github.com/");
+	if (!isConnected) {
+		return;
+	}
+
+	const extensionsList = await getExtensionsDetails(context);
+	const recentKey = QW_RECENTLY_INSTALLED;
+	const recentExtensions: string[] = context.globalState.get(recentKey, []);
+	const result = await showExtensionQuickPick(extensionsList, recentExtensions, false, null);
+
+	if (result.type === "cancelled") {
+		return;
+	}
+
+	if (result.type === "registry") {
+		if (result.items.length > 0) {
+			await installQuartoExtensions(context, result.items, workspaceFolder, false);
+			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
+			const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
+			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+		}
+	} else {
+		// Alternative source installation (github, url, local)
+		await installFromSource(context, result.source, workspaceFolder, false);
+	}
+}
+
+/**
+ * Command to install a Quarto extension from a URL.
+ * Prompts the user to enter a URL and installs the extension.
+ *
+ * @param context - The extension context.
+ */
+export async function installExtensionFromURLCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+
+	const isConnected = await checkInternetConnection("https://github.com/");
+	if (!isConnected) {
+		return;
+	}
+
+	const url = await vscode.window.showInputBox({
+		prompt: "Enter the URL to the extension archive (zip or tar.gz)",
+		placeHolder: "https://github.com/owner/repo/archive/refs/heads/main.zip",
+		ignoreFocusOut: true,
+		validateInput: (value) => {
+			if (!value) {
+				return "URL is required.";
+			}
+			if (!value.startsWith("http://") && !value.startsWith("https://")) {
+				return "URL must start with http:// or https://";
+			}
+			return null;
+		},
+	});
+
+	if (!url) {
+		return;
+	}
+
+	await installFromSource(context, url, workspaceFolder, false);
+}
+
+/**
+ * Command to install a Quarto extension from a local path.
+ * Opens a file picker dialog to select a local directory, zip file, or tar.gz file.
+ * Can also be invoked from context menu with a pre-selected resource.
+ *
+ * @param context - The extension context.
+ * @param resource - Optional URI from context menu selection.
+ */
+export async function installExtensionFromLocalCommand(context: vscode.ExtensionContext, resource?: vscode.Uri) {
+	let localPath: string;
+
+	if (resource) {
+		// Called from context menu with a resource
+		localPath = resource.fsPath;
+	} else {
+		// Called from command palette - show file picker
+		const uris = await vscode.window.showOpenDialog({
+			canSelectFiles: true,
+			canSelectFolders: true,
+			canSelectMany: false,
+			openLabel: "Select Extension",
+			filters: {
+				"Archive files": ["zip", "tar.gz", "tgz"],
+				"All files": ["*"],
+			},
+		});
+
+		if (!uris || uris.length === 0) {
+			return;
+		}
+
+		localPath = uris[0].fsPath;
+	}
+
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+
+	const absolutePath = path.isAbsolute(localPath) ? localPath : path.resolve(workspaceFolder, localPath);
+
+	// Convert to relative path if within workspace folder
+	let sourcePath = absolutePath;
+	if (absolutePath.startsWith(workspaceFolder + path.sep)) {
+		const relativePath = path.relative(workspaceFolder, absolutePath);
+		// Ensure relative path starts with ./ for proper source detection
+		sourcePath = relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
+	}
+
+	logMessage(`Installing extension from local source: ${sourcePath}.`, "info");
+
+	await installFromSource(context, sourcePath, workspaceFolder, false);
 }

@@ -1,0 +1,323 @@
+# MIT License
+#
+# Copyright (c) 2026 Mickaël CANOUIL
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+name: Dry Run - Test Release and Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        type: choice
+        description: Type
+        options:
+          - release
+          - pre-release
+        default: release
+      date:
+        type: string
+        description: 'Date ("YYYY-MM-DD" or "today")'
+        default: today
+      version:
+        type: string
+        description: "Version"
+        default: "minor"
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    env:
+      BRANCH: ci/bump-version
+      COMMIT: "ci: bump version for release :rocket:"
+      BUMP_VERSION: ${{ inputs.version }}
+
+    outputs:
+      version: ${{ steps.bump-version.outputs.version }}
+      release_title: ${{ steps.bump-version.outputs.release_title }}
+      summary: ${{ steps.bump-version.outputs.summary }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Create GitHub App token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - name: Get GitHub App User ID
+        id: get-user-id
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure Environment for Git User
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          USER_ID: ${{ steps.get-user-id.outputs.user-id }}
+        run: |
+          if [ -z "${APP_SLUG}" ]; then
+            USER_NAME="github-actions[bot]"
+            USER_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+          else
+            USER_NAME="${APP_SLUG}[bot]"
+            USER_EMAIL="${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          fi
+          git config --global user.name "${USER_NAME}"
+          git config --global user.email "${USER_EMAIL}"
+
+      - name: Check for "unreleased" in CHANGELOG.md
+        id: check_unreleased
+        shell: bash
+        run: |
+          if grep -q "Unreleased" CHANGELOG.md; then
+            echo "UNRELEASED_FOUND=true" >> ${GITHUB_OUTPUT}
+          else
+            echo "UNRELEASED_FOUND=false" >> ${GITHUB_OUTPUT}
+          fi
+
+      - name: Set up Node.js
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        uses: actions/setup-node@v6
+
+      - name: Install dependencies
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        shell: bash
+        run: npm install
+
+      - name: Install Visual Studio Code Extension Manager
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        shell: bash
+        run: npm install -g @vscode/vsce
+
+      - name: Bump Version / Commit / Push CHANGELOG.md
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          COMMIT: "ci: bump version for release :rocket:"
+          DATE: ${{ github.event.inputs.date }}
+        shell: bash
+        run: |
+          if git show-ref --quiet refs/heads/${BRANCH}; then
+            echo "Branch ${BRANCH} already exists."
+            git branch -D "${BRANCH}"
+            git push origin --delete "${BRANCH}"
+          fi
+          git checkout -b "${BRANCH}"
+          if [ "${DATE}" = "today" ]; then
+            DATE=$(date +%Y-%m-%d)
+          else
+            DATE=${DATE}
+          fi
+
+          vsce package ${BUMP_VERSION} -m "${COMMIT}"
+          npm run sync-metadata
+
+          VERSION=$(jq -r .version package.json)
+          RELEASE_DATE="${VERSION} (${DATE})"
+          sed -i "s/Unreleased/${RELEASE_DATE}/" CHANGELOG.md
+          sed -i "s/^version:.*/version: ${VERSION}/" CITATION.cff
+          sed -i "s/^date-released:.*/date-released: \"${DATE}\"/" CITATION.cff
+          git add CHANGELOG.md || echo "No changes to add"
+          git add CITATION.cff || echo "No changes to add"
+          git add packages/*/package.json || echo "No changes to add"
+
+          npm run docs:build
+          git add docs/ || echo "No changes to add"
+
+          git commit -m "${COMMIT}" || echo "No changes to commit"
+          git push --force origin ${BRANCH} || echo "No changes to push"
+
+          sleep 5
+          gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:"
+          # DRY RUN: Skip auto-merge
+          # gh pr merge --auto --squash --delete-branch
+
+  build-package:
+    runs-on: ubuntu-latest
+
+    needs: bump-version
+
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Create GitHub App token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - name: Get GitHub App User ID
+        id: get-user-id
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure Environment for Git User
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          USER_ID: ${{ steps.get-user-id.outputs.user-id }}
+        run: |
+          if [ -z "${APP_SLUG}" ]; then
+            USER_NAME="github-actions[bot]"
+            USER_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+          else
+            USER_NAME="${APP_SLUG}[bot]"
+            USER_EMAIL="${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          fi
+          git config --global user.name "${USER_NAME}"
+          git config --global user.email "${USER_EMAIL}"
+
+      - name: Update branch
+        run: |
+          git fetch --all
+          git checkout main
+          git pull origin main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+
+      - name: Install dependencies
+        shell: bash
+        run: npm install
+
+      - name: Install Visual Studio Code Extension Manager
+        shell: bash
+        run: npm install -g @vscode/vsce
+
+      - name: Set version
+        shell: bash
+        run: |
+          current_version=$(jq -r .version package.json)
+          version_line=$(grep -n '"version"' package.json | cut -d: -f1)
+          echo "VERSION=${current_version}" >> ${GITHUB_ENV}
+          echo "::notice file=package.json,line=${version_line}::${current_version}"
+
+      - name: Set changelog
+        env:
+          VERSION: ${{ env.VERSION }}
+        shell: bash
+        run: |
+          awk -v version="^## ${VERSION}.*" '
+            $0 ~ version {flag=1; next}
+            /^## / && flag {flag=0}
+            flag
+          ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
+          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> ${GITHUB_ENV}
+
+      - name: Package extension
+        env:
+          TYPE: ${{ github.event.inputs.type }}
+        shell: bash
+        run: |
+          if [ "${TYPE}" = "pre-release" ]; then
+            vsce package --pre-release
+          else
+            vsce package
+          fi
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "${{ github.workspace }}/quarto-wizard-${{ env.VERSION }}.vsix"
+
+      # DRY RUN: Skip GitHub release creation
+      # - name: Release extension on GitHub
+
+      # DRY RUN: Skip VS Marketplace publish
+      # - name: Publish extension to Visual Studio Marketplace
+
+      # DRY RUN: Skip Open VSX publish
+      # - name: Publish extension to Open VSX Registry
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    needs: build-package
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update branch
+        run: |
+          git fetch --all
+          git checkout main
+          git pull origin main
+
+      - name: Set up Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
+
+      - name: Render Quarto Project
+        shell: bash
+        working-directory: ./docs
+        run: |
+          quarto render .
+          touch _site/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: "./docs/_site"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

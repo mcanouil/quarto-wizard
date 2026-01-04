@@ -17,13 +17,24 @@ suite("Extensions QuickPick Test Suite", () => {
 		public placeholder = "";
 		public canSelectMany = false;
 		public matchOnDescription = false;
+		public matchOnDetail = false;
 		public selectedItems: readonly ExtensionQuickPickItem[] = [];
 
 		private _onDidAcceptHandlers: (() => void)[] = [];
+		private _onDidHideHandlers: (() => void)[] = [];
+		private _onDidChangeValueHandlers: ((value: string) => void)[] = [];
 		private _onDidTriggerItemButtonHandlers: ((e: { item: ExtensionQuickPickItem }) => void)[] = [];
 
 		onDidAccept(handler: () => void): void {
 			this._onDidAcceptHandlers.push(handler);
+		}
+
+		onDidHide(handler: () => void): void {
+			this._onDidHideHandlers.push(handler);
+		}
+
+		onDidChangeValue(handler: (value: string) => void): void {
+			this._onDidChangeValueHandlers.push(handler);
 		}
 
 		onDidTriggerItemButton(handler: (e: { item: ExtensionQuickPickItem }) => void): void {
@@ -41,6 +52,14 @@ suite("Extensions QuickPick Test Suite", () => {
 		// Test helper methods
 		triggerAccept(): void {
 			this._onDidAcceptHandlers.forEach((handler) => handler());
+		}
+
+		triggerHide(): void {
+			this._onDidHideHandlers.forEach((handler) => handler());
+		}
+
+		triggerValueChange(value: string): void {
+			this._onDidChangeValueHandlers.forEach((handler) => handler(value));
 		}
 
 		triggerItemButton(item: ExtensionQuickPickItem): void {
@@ -65,7 +84,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "1.0.0",
 			tag: "v1.0.0",
 			template: false,
-			templateContent: "",
+			contributes: ["filters"],
 		},
 		{
 			id: "ext2",
@@ -79,7 +98,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "2.1.0",
 			tag: "v2.1.0",
 			template: true,
-			templateContent: "Template content here",
+			contributes: ["formats"],
 		},
 		{
 			id: "ext3",
@@ -93,7 +112,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			version: "0.5.0",
 			tag: "v0.5.0",
 			template: false,
-			templateContent: "",
+			contributes: ["shortcodes"],
 		},
 	];
 
@@ -106,22 +125,34 @@ suite("Extensions QuickPick Test Suite", () => {
 		openExternalCalls = [];
 		mockQuickPick = new MockQuickPick();
 
-		// Mock VS Code APIs
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).createQuickPick = () => mockQuickPick;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.env as any).openExternal = async (uri: vscode.Uri) => {
-			openExternalCalls.push(uri);
-			return true;
-		};
+		// Mock VS Code APIs using Object.defineProperty to avoid 'any' casts
+		Object.defineProperty(vscode.window, "createQuickPick", {
+			value: () => mockQuickPick,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.env, "openExternal", {
+			value: async (uri: vscode.Uri) => {
+				openExternalCalls.push(uri);
+				return true;
+			},
+			writable: true,
+			configurable: true,
+		});
 	});
 
 	teardown(() => {
 		// Restore original methods
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.window as any).createQuickPick = originalCreateQuickPick;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(vscode.env as any).openExternal = originalOpenExternal;
+		Object.defineProperty(vscode.window, "createQuickPick", {
+			value: originalCreateQuickPick,
+			writable: true,
+			configurable: true,
+		});
+		Object.defineProperty(vscode.env, "openExternal", {
+			value: originalOpenExternal,
+			writable: true,
+			configurable: true,
+		});
 	});
 
 	suite("createExtensionItems", () => {
@@ -130,22 +161,29 @@ suite("Extensions QuickPick Test Suite", () => {
 
 			assert.strictEqual(items.length, 3);
 
-			// Test first item
+			// Test first item (contributes filters)
 			const firstItem = items[0];
 			assert.strictEqual(firstItem.label, "Extension One");
-			assert.strictEqual(firstItem.description, "$(tag) 1.0.0 $(star) 100 $(repo) author1/ext1 $(law) MIT");
-			assert.strictEqual(firstItem.detail, "First test extension");
+			assert.ok(firstItem.description?.includes("$(filter) Filter"));
+			assert.ok(firstItem.description?.includes("$(star) 100"));
+			assert.ok(firstItem.description?.includes("$(repo) author1/ext1"));
+			assert.ok(firstItem.detail?.includes("First test extension"));
+			assert.ok(firstItem.detail?.includes("(v1.0.0)"));
 			assert.strictEqual(firstItem.url, "https://github.com/author1/ext1");
 			assert.strictEqual(firstItem.id, "ext1");
 			assert.strictEqual(firstItem.tag, "v1.0.0");
 			assert.strictEqual(firstItem.template, false);
-			assert.strictEqual(firstItem.templateContent, "");
 
-			// Test template item
+			// Test template item (contributes formats, is template)
 			const templateItem = items[1];
 			assert.strictEqual(templateItem.label, "Extension Two");
 			assert.strictEqual(templateItem.template, true);
-			assert.strictEqual(templateItem.templateContent, "Template content here");
+			assert.ok(templateItem.description?.includes("$(file-code) Template"));
+			assert.ok(templateItem.description?.includes("$(file-text) Format"));
+
+			// Test shortcode item (contributes shortcodes)
+			const shortcodeItem = items[2];
+			assert.ok(shortcodeItem.description?.includes("$(code) Shortcode"));
 
 			// Verify all items have GitHub button
 			items.forEach((item) => {
@@ -172,7 +210,7 @@ suite("Extensions QuickPick Test Suite", () => {
 				version: "1.0.0",
 				tag: "v1.0.0",
 				template: false,
-				templateContent: "",
+				contributes: [],
 			};
 
 			const items = createExtensionItems([minimalExtension]);
@@ -187,7 +225,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyInstalled, false);
 
 			// Verify QuickPick configuration
-			assert.strictEqual(mockQuickPick.placeholder, "Select Quarto extensions to install");
+			assert.ok(mockQuickPick.placeholder.includes("Search registry"));
 			assert.strictEqual(mockQuickPick.canSelectMany, true);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 
@@ -207,8 +245,11 @@ suite("Extensions QuickPick Test Suite", () => {
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.strictEqual(result.length, 2);
-			assert.strictEqual(result[0].label, "Extension One");
+			assert.strictEqual(result.type, "registry");
+			if (result.type === "registry") {
+				assert.strictEqual(result.items.length, 2);
+				assert.strictEqual(result.items[0].label, "Extension One");
+			}
 		});
 
 		test("Should configure QuickPick for template selection", async () => {
@@ -216,7 +257,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyUsed, true);
 
 			// Verify QuickPick configuration for templates
-			assert.strictEqual(mockQuickPick.placeholder, "Select Quarto extension template to use");
+			assert.ok(mockQuickPick.placeholder.includes("Search registry"));
 			assert.strictEqual(mockQuickPick.canSelectMany, false);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 
@@ -229,8 +270,11 @@ suite("Extensions QuickPick Test Suite", () => {
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.strictEqual(result.length, 1);
-			assert.strictEqual(result[0].id, "ext2");
+			assert.strictEqual(result.type, "registry");
+			if (result.type === "registry") {
+				assert.strictEqual(result.items.length, 1);
+				assert.strictEqual(result.items[0].id, "ext2");
+			}
 		});
 
 		test("Should sort non-recently used extensions alphabetically", async () => {
@@ -252,10 +296,10 @@ suite("Extensions QuickPick Test Suite", () => {
 		test("Should handle empty recently installed list", async () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, [], false);
 
-			// Should have separator + 0 recently installed + separator + 3 all extensions = 5 items
-			assert.strictEqual(mockQuickPick.items.length, 5);
-			assert.strictEqual(mockQuickPick.items[0].label, "Recently Installed");
-			assert.strictEqual(mockQuickPick.items[1].label, "All Extensions");
+			// Should have separator + 3 all extensions = 4 items (no "Recently Installed" when empty)
+			assert.strictEqual(mockQuickPick.items.length, 4);
+			assert.strictEqual(mockQuickPick.items[0].label, "All Extensions");
+			assert.strictEqual(mockQuickPick.items[0].kind, vscode.QuickPickItemKind.Separator);
 
 			mockQuickPick.triggerAccept();
 			await promise;
@@ -300,14 +344,17 @@ suite("Extensions QuickPick Test Suite", () => {
 			await promise;
 		});
 
-		test("Should resolve with empty array when no items selected", async () => {
+		test("Should resolve with empty items when no items selected", async () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, [], false);
 
 			// Don't set any selected items, just trigger accept
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.strictEqual(result.length, 0);
+			assert.strictEqual(result.type, "registry");
+			if (result.type === "registry") {
+				assert.strictEqual(result.items.length, 0);
+			}
 		});
 
 		test("Should filter out recently installed from all extensions section", async () => {
@@ -347,7 +394,7 @@ suite("Extensions QuickPick Test Suite", () => {
 					version: "1.0.0-beta",
 					tag: "v1.0.0-beta",
 					template: true,
-					templateContent: "# Special Template\n\n```r\nprint('Hello World')\n```",
+					contributes: ["formats", "revealjs"],
 				},
 			];
 
@@ -360,9 +407,8 @@ suite("Extensions QuickPick Test Suite", () => {
 			const specialItem = extensionItems[0];
 			assert.strictEqual(specialItem.label, "Special Extension");
 			assert.ok(specialItem.description?.includes("9999"));
-			assert.ok(specialItem.description?.includes("Custom License"));
-			assert.strictEqual(specialItem.detail, "Extension with special characters: <>&\"'");
-			assert.strictEqual(specialItem.templateContent, "# Special Template\n\n```r\nprint('Hello World')\n```");
+			assert.ok(specialItem.detail?.includes("Extension with special characters: <>&\"'"));
+			assert.strictEqual(specialItem.template, true);
 
 			mockQuickPick.triggerAccept();
 			await promise;
@@ -387,7 +433,8 @@ suite("Extensions QuickPick Test Suite", () => {
 			mockQuickPick.triggerAccept();
 
 			const result = await promise;
-			assert.ok(Array.isArray(result));
+			assert.ok(typeof result === "object");
+			assert.ok("type" in result);
 		});
 	});
 });

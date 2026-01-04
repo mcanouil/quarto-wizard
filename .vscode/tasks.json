@@ -4,10 +4,113 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "npm: build:core",
+			"type": "npm",
+			"script": "build:core",
+			"group": "build",
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"label": "npm: webpack",
+			"type": "npm",
+			"script": "webpack",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": ["$tsc-watch"]
+		},
+		{
+			"label": "npm: watch",
+			"type": "npm",
+			"script": "watch",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": ["$tsc-watch"]
+		},
+		{
+			"label": "npm: test-compile",
+			"type": "npm",
+			"script": "test-compile",
+			"group": "build",
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"label": "npm: test",
+			"type": "npm",
+			"script": "test",
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "npm: test:watch",
+			"type": "npm",
+			"script": "test:watch",
+			"group": "test",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "npm: lint",
+			"type": "npm",
+			"script": "lint",
+			"group": "build",
+			"problemMatcher": ["$eslint-stylish"]
+		},
+		{
+			"label": "npm: format",
+			"type": "npm",
+			"script": "format",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "npm: format:check",
+			"type": "npm",
+			"script": "format:check",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "npm: docs:build",
+			"type": "npm",
+			"script": "docs:build",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "npm: docs:preview",
+			"type": "npm",
+			"script": "docs:preview",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
 			"label": "Package Quarto Wizard",
 			"type": "shell",
-			"command": "npx @vscode/vsce package --pre-release",
+			"command": "./.vscode/package.sh",
 			"group": "build"
+		},
+		{
+			"label": "Core: test",
+			"type": "npm",
+			"script": "test",
+			"path": "packages/core",
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Core: test:watch",
+			"type": "npm",
+			"script": "test:watch",
+			"path": "packages/core",
+			"group": "test",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }
