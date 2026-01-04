@@ -111,8 +111,8 @@ Templates typically include:
 - Example content.
 
 ::: {.callout-note}
-The "Use Template" command only retrieves the Quarto document and basic resources.
-For templates with additional resources (such as bibliography files or complex directory structures), you may need to use `quarto use template` manually.
+The "Use Template" command retrieves all files from the template repository and allows you to select which ones to copy.
+Common repository files (such as README, LICENSE, and Git configuration) are excluded by default, but you can include them if needed.
 :::
 
 ## Recently Used Templates
