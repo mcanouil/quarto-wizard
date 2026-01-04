@@ -11,14 +11,13 @@ import * as semver from "semver";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId } from "../types/extension.js";
 import { formatExtensionId } from "../types/extension.js";
-import { ExtensionError } from "../errors.js";
 import {
 	discoverInstalledExtensions,
 	findInstalledExtension,
 	type InstalledExtension,
 } from "../filesystem/discovery.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
-import { install, parseInstallSource, type InstallResult } from "./install.js";
+import { install, parseInstallSource } from "./install.js";
 
 /**
  * Information about an available update.

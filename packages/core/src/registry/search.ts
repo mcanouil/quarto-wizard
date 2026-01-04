@@ -7,7 +7,7 @@
  * @module registry
  */
 
-import type { Registry, RegistryEntry } from "../types/registry.js";
+import type { RegistryEntry } from "../types/registry.js";
 import type { ExtensionType } from "../types/extension.js";
 import { fetchRegistry, type RegistryOptions } from "./fetcher.js";
 

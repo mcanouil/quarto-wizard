@@ -12,7 +12,7 @@ import * as path from "node:path";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest } from "../types/manifest.js";
-import { parseExtensionId, parseExtensionRef } from "../types/extension.js";
+import { parseExtensionRef } from "../types/extension.js";
 import { ExtensionError } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
 import { copyDirectory, collectFiles } from "../filesystem/walk.js";
@@ -20,7 +20,6 @@ import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
 	extractArchive,
-	findExtensionRoot,
 	findAllExtensionRoots,
 	cleanupExtraction,
 	type DiscoveredExtension,
@@ -486,6 +485,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		} catch (error) {
 			// Rollback: remove partially installed extension to maintain consistency.
 			// This ensures we don't leave an extension directory without proper metadata.
+			// eslint-disable-next-line @typescript-eslint/no-empty-function
 			await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
 			throw error;
 		}
@@ -533,6 +533,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		if (archivePath && source.type !== "local" && fs.existsSync(archivePath)) {
 			// Cleanup is best-effort; archive deletion failure is non-critical since
 			// it's in a temp directory that will be cleaned up eventually by the OS
+			// eslint-disable-next-line @typescript-eslint/no-empty-function
 			await fs.promises.unlink(archivePath).catch(() => {});
 		}
 
@@ -552,7 +553,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 export function resolveExtensionId(
 	source: InstallSource,
 	extensionRoot: string,
-	_manifest: ExtensionManifest,
+	_manifest: ExtensionManifest, // eslint-disable-line @typescript-eslint/no-unused-vars
 ): ExtensionId {
 	if (source.type === "github") {
 		return { owner: source.owner, name: source.repo };
@@ -691,6 +692,7 @@ export async function installSingleExtension(
 		const manifestPath = path.join(targetDir, manifestResult.filename);
 		updateManifestSource(manifestPath, sourceString);
 	} catch (error) {
+		// eslint-disable-next-line @typescript-eslint/no-empty-function
 		await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
 		throw error;
 	}

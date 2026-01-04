@@ -11,8 +11,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { ExtensionError } from "../errors.js";
-import { extractZip, type ZipExtractOptions } from "./zip.js";
-import { extractTar, type TarExtractOptions } from "./tar.js";
+import { extractZip } from "./zip.js";
+import { extractTar } from "./tar.js";
 
 /**
  * Options for archive extraction.
