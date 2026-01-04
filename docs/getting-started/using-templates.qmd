@@ -1,5 +1,10 @@
 ---
 title: "Using Templates"
+alt-text:
+  template-browser: |
+    The template browser interface showing available Quarto templates with their names, versions, and descriptions.
+  template-files: |
+    The QuickPick dialog showing available template files to copy.
 ---
 
 Quarto Wizard allows you to quickly start new documents using pre-configured templates from the extension registry.
@@ -24,20 +29,41 @@ When you use a template, Quarto Wizard:
 2. Type `Quarto Wizard: Use Template` and select it.
 3. Browse the list of available templates.
 
-![Template Browser](../assets/images/use-template.png){fig-alt="The template browser interface showing available Quarto templates with their names, versions, and descriptions."}
+::: {style="text-align: center;"}
+![](images/template-browser-dark.png "Template Browser"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.template-browser >}}'
+}
+![](images/template-browser-light.png "Template Browser"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.template-browser >}}'
+}
+:::
 
 ## Installing a Template
 
 1. Select the template you want to use.
-2. Choose the workspace folder where the template should be installed.
+2. Choose the workspace folder where the template should be installed (if multiple are available).
 3. Select which template files to copy (if multiple are available).
 4. Confirm any file overwrites if necessary.
 
-::: {#fig-template-files}
-
-{{< placeholder 600 400 >}}
-
-The QuickPick dialog showing available template files to copy.
+::: {style="text-align: center;"}
+![](images/template-files-dark.png "QuickPick Dialog: Template Files"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.template-files >}}'
+}
+![](images/template-files-light.png "QuickPick Dialog: Template Files"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.template-files >}}'
+}
 :::
 
 ## Template Files
@@ -49,7 +75,7 @@ Templates typically include:
 - Configuration files.
 - Example content.
 
-:::: {.callout-note}
+::: {.callout-note}
 The "Use Template" command only retrieves the Quarto document and basic resources.
 For templates with additional resources (such as bibliography files or complex directory structures), you may need to use `quarto use template` manually.
 :::

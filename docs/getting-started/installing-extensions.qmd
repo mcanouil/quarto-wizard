@@ -109,7 +109,7 @@ If an extension already exists in the target location, you will be asked whether
 The modal dialog asking whether to overwrite or skip a conflicting extension.
 :::
 
-:::: {.callout-tip}
+::: {.callout-tip}
 If the source contains an `_extensions/` folder, you can select which extensions to install.
 Otherwise, the source is treated as a single extension and installed directly.
 :::
@@ -128,13 +128,13 @@ Quarto Wizard validates this requirement before installation if the [Quarto VS C
    - Your current version.
    - Options to "Install Anyway" or "Cancel".
 
-:::: {.callout-note}
+::: {.callout-note}
 The Quarto VS Code extension is optional.
 If it is not installed, version validation is silently skipped and the installation proceeds normally.
 Quarto Wizard will never prompt you to install the Quarto extension.
 :::
 
-:::: {.callout-warning}
+::: {.callout-warning}
 Installing an extension with an unmet version requirement may result in the extension not working correctly.
 Consider updating your Quarto CLI to the required version for best results.
 :::
@@ -148,7 +148,7 @@ By default, Quarto Wizard asks for confirmation before:
 
 You can adjust these prompts in [Configuration](../reference/configuration.qmd).
 
-:::: {.callout-note}
+::: {.callout-note}
 Quarto Wizard can only display information provided by extension authors.
 If an author has not provided a description, licence, or version tags, these fields will show "none".
 :::

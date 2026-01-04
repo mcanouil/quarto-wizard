@@ -1,5 +1,8 @@
 ---
 title: "Getting Started"
+alt-text:
+  quick-start: |
+    The Command Palette showing Quarto Wizard commands ready to use.
 ---
 
 Welcome to Quarto Wizard, a Visual Studio Code extension that helps you manage your Quarto projects and extensions.
@@ -24,11 +27,19 @@ It enhances your Quarto development experience by making extension management si
 2. Open a Quarto project in VS Code.
 3. Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) and type "Quarto Wizard" to see available commands.
 
-::: {#fig-quick-start}
-
-{{< placeholder 600 400 >}}
-
-The Command Palette showing Quarto Wizard commands ready to use.
+::: {style="text-align: center;"}
+![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
+![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
 :::
 
 ## In This Section

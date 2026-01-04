@@ -51,7 +51,7 @@ Use Templates
 
 Install from the VS Code Marketplace:
 
-:::: {.panel-tabset}
+::: {.panel-tabset}
 
 ### Visual Studio Code
 

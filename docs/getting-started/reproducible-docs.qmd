@@ -1,5 +1,12 @@
 ---
 title: "Reproducible Documents"
+alt-text:
+  reprex-command-1: |
+    The Command Palette showing the Quarto Wizard reproducible document command.
+  reprex-command-2: |
+    The context menu showing the Quarto Wizard reproducible document command.
+  reprex-language: |
+    The language selection dialog for choosing between R, Python, or Julia.
 ---
 
 Quarto Wizard can create reproducible example documents (reprex) for R, Python, and Julia.
@@ -12,18 +19,53 @@ These are useful for bug reports, feature requests, or sharing code examples.
 3. Choose the language: R, Python, or Julia.
 4. Select the destination folder for the new document.
 
-::: {#fig-reprex-command}
+::: {layout="[[1, 1], [-0.25, 0.5, -0.25]]"}
 
-{{< placeholder 600 400 >}}
-
-The Command Palette showing the Quarto Wizard reproducible document command.
+::: {style="text-align: center;"}
+![](images/reprex-command-1-dark.png "Command Palette"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-command-1 >}}'
+}
+![](images/reprex-command-1-light.png "Command Palette"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-command-1 >}}'
+}
 :::
 
-::: {#fig-reprex-language}
+::: {style="text-align: center;"}
+![](images/reprex-command-2-dark.png "Explorer Context Menu"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+![](images/reprex-command-2-light.png "Explorer Context Menu"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+}
+:::
 
-{{< placeholder 600 400 >}}
+::: {style="text-align: center;"}
+![](images/reprex-language-dark.png "Language Selection Dialog"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.reprex-language >}}'
+}
+![](images/reprex-language-light.png "Language Selection Dialog"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.reprex-language >}}'
+}
+:::
 
-The language selection dialog for choosing between R, Python, or Julia.
 :::
 
 ## Available Templates

@@ -1,5 +1,12 @@
 ---
 title: "Installation"
+alt-text:
+  marketplace: |
+    The Extensions view showing Quarto Wizard in the search results with the Install button.
+  quick-start: |
+    The Command Palette showing Quarto Wizard commands ready to use.
+  github-token: |
+    The input dialog for entering a GitHub personal access token.
 ---
 
 There are several ways to install Quarto Wizard in Visual Studio Code or Positron.
@@ -13,18 +20,26 @@ The easiest way to install Quarto Wizard:
 3. Search for "Quarto Wizard".
 4. Click **Install** on the extension.
 
-::: {#fig-marketplace}
-
-{{< placeholder 600 400 >}}
-
-The Extensions view showing Quarto Wizard in the search results with the Install button.
+::: {style="text-align: center;"}
+![](images/marketplace-dark.png "Extensions View: Marketplace"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.marketplace >}}'
+}
+![](images/marketplace-light.png "Extensions View: Marketplace"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.marketplace >}}'
+}
 :::
 
 ## Command Line
 
 You can also install via the command line:
 
-:::: {.panel-tabset}
+::: {.panel-tabset}
 
 ### Visual Studio Code
 
@@ -61,11 +76,19 @@ After installation, you can verify it worked by:
 2. Typing "Quarto Wizard".
 3. You should see the available Quarto Wizard commands.
 
-::: {#fig-activity-bar}
-
-{{< placeholder 600 400 >}}
-
-The VS Code Activity Bar with the Quarto Wizard icon highlighted, and the Command Palette showing available commands.
+::: {style="text-align: center;"}
+![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
+![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.quick-start >}}'
+}
 :::
 
 ## System Requirements
@@ -91,11 +114,19 @@ For accessing private repositories or avoiding rate limits, you can configure Gi
 2. Run `Quarto Wizard: Set GitHub Token (Manual)`.
 3. Enter your GitHub personal access token.
 
-::: {#fig-github-token}
-
-{{< placeholder 600 400 >}}
-
-The input dialog for entering a GitHub personal access token.
+::: {style="text-align: center;"}
+![](images/github-token-dark.png "Command Palette: GitHub Token Input"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.github-token >}}'
+}
+![](images/github-token-light.png "Command Palette: GitHub Token Input"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.github-token >}}'
+}
 :::
 
 Alternatively, Quarto Wizard can use:

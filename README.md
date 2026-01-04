@@ -265,11 +265,16 @@ Access these through:
 
 ## Getting Help
 
-If you experience issues:
+If you experience issues or have questions:
 
-1. **Check the output log**: `Quarto Wizard: Show Quarto Wizard Log Output`
-2. **Search existing issues**: [GitHub Issues](https://github.com/mcanouil/quarto-wizard/issues)
-3. [**Report a bug**](https://github.com/mcanouil/quarto-wizard/issues/new?template=bug.yml): Create a new issue following the provided template.
+1. **Check the output log**: `Quarto Wizard: Show Quarto Wizard Log Output`.
+2. **Search existing discussions and issues**: [GitHub Discussions](https://github.com/mcanouil/quarto-wizard/discussions) and [GitHub Issues](https://github.com/mcanouil/quarto-wizard/issues).
+3. **Ask a question or share feedback**: Use the [Discussion chooser](https://github.com/mcanouil/quarto-wizard/discussions/new/choose) to select the appropriate category.
+4. **Report a bug**: Use the [Issue chooser](https://github.com/mcanouil/quarto-wizard/issues/new/choose) to create a bug report with the provided template.
+
+> [!TIP]
+> Please use the chooser menus to select the right place for your request.
+> This ensures efficient handling and helps maintainers respond appropriately.
 
 ## Verifying Release Asset Build Provenance
 

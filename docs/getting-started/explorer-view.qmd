@@ -61,7 +61,7 @@ The view toolbar provides:
 
 Quarto Wizard can detect when updates are available for your installed extensions.
 
-:::: {.callout-important}
+::: {.callout-important}
 Extensions can only be updated if they were installed by Quarto Wizard or have `source: <owner>/<repository>` in their `_extension.yml` file.
 You can manually add the source field to enable update detection.
 :::
