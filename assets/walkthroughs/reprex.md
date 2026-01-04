@@ -18,3 +18,5 @@ Quarto Wizard includes templates for creating reproducible examples for bug repo
 [Create Reproducible Document](command:quartoWizard.newQuartoReprex)
 
 Perfect for sharing minimal reproducible examples in issues or forums.
+
+[Full guide](https://m.canouil.dev/quarto-wizard/getting-started/reproducible-docs.html)

@@ -38,6 +38,11 @@ title: "Changelog"
 - refactor: replace Quarto CLI calls with native archive extraction and GitHub API integration.
 - refactor: improve authentication priority (manual token > VSCode session > environment variables).
 - refactor: centralise error handling with typed error classes.
+- refactor: add single-pass installation with callbacks for overwrite confirmation and version validation.
+- refactor: remove sync/async function duplication in extensions utilities.
+- refactor: use `InstalledExtension` type from core library instead of custom `ExtensionData` interface.
+- refactor: consolidate tree provider caching into single structured cache object.
+- refactor: extract reusable path resolution and source type detection utilities.
 
 # 1
 

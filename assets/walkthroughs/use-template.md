@@ -13,3 +13,5 @@ Templates help you quickly start new documents with pre-configured formats.
 [Use Template](command:quartoWizard.useTemplate)
 
 Templates include formats for journals, presentations, academic papers, and more.
+
+[Full guide](https://m.canouil.dev/quarto-wizard/getting-started/using-templates.html)

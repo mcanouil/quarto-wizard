@@ -17,3 +17,5 @@ Click the Quarto Wizard icon in the Activity Bar to access the Explorer view.
 ![Quarto Wizard Explorer View showing installed extensions with options to add, remove, update extensions, use templates, and open GitHub repository](../images/explorer-view.png)
 
 Extensions installed via Quarto Wizard include source tracking for seamless updates.
+
+[Full guide](https://m.canouil.dev/quarto-wizard/getting-started/explorer-view.html)

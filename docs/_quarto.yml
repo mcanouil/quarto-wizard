@@ -46,6 +46,8 @@ website:
       - text: Changelog
         href: changelog.qmd
     right:
+      - text: "{{< iconify octicon:person-16 title='Person' label='Credits' >}} Credits"
+        href: credits.qmd
       - text: "{{< iconify octicon:mark-github-16 title='GitHub' label='GitHub' >}}"
         href: https://github.com/mcanouil/quarto-wizard
 

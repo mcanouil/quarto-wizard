@@ -13,3 +13,5 @@ Explore the full catalogue of Quarto extensions on the web with advanced filteri
 [Browse Extensions Directory: https://m.canouil.dev/quarto-extensions/](https://m.canouil.dev/quarto-extensions/)
 
 Each extension page includes installation options for command line, VS Code, Positron, and VSCodium.
+
+[Learn more about installing extensions](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html)

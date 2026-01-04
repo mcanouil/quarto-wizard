@@ -18,6 +18,7 @@ This extension provides a user-friendly interface to browse, select, and install
 - Use Quarto templates to quick-start projects.
 - Create reproducible documents for R, Python, or Julia.
 - Install extensions from local directories or archives.
+- Support for private GitHub repositories with authentication.
 
 ## Installation
 
@@ -29,9 +30,9 @@ For other installation methods, see the [Installation Guide](https://m.canouil.d
 
 Full documentation is available at **[m.canouil.dev/quarto-wizard](https://m.canouil.dev/quarto-wizard/)**.
 
-- [Getting Started](https://m.canouil.dev/quarto-wizard/getting-started/).
-- [Commands Reference](https://m.canouil.dev/quarto-wizard/reference/commands.html).
-- [Configuration](https://m.canouil.dev/quarto-wizard/reference/configuration.html).
+- [Getting Started](https://m.canouil.dev/quarto-wizard/getting-started/) - Installation, usage, and troubleshooting.
+- [Commands Reference](https://m.canouil.dev/quarto-wizard/reference/commands.html) - Commands.
+- [Configuration](https://m.canouil.dev/quarto-wizard/reference/configuration.html) - configuration options.
 
 ## Getting Help
 
@@ -77,6 +78,16 @@ gh attestation verify quarto-wizard-<version>.vsix --repo mcanouil/quarto-wizard
 
 Contributions are welcome!
 Please open an issue or submit a pull request on the [GitHub repository](https://github.com/mcanouil/quarto-wizard).
+
+## Credits
+
+Quarto Wizard is developed by [Mickaël CANOUIL](https://github.com/mcanouil) ([mickael.canouil.fr](https://mickael.canouil.fr)).
+
+- Built for the [Quarto CLI](https://quarto.org) ecosystem.
+- Extension registry: [Quarto Extensions](https://m.canouil.dev/quarto-extensions/).
+- [All contributors](https://github.com/mcanouil/quarto-wizard/graphs/contributors).
+
+[Full credits](https://m.canouil.dev/quarto-wizard/credits.html).
 
 ## License
 

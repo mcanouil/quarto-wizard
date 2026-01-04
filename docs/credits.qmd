@@ -1,0 +1,39 @@
+---
+title: Credits
+---
+
+Quarto Wizard is developed and maintained by [Mickaël CANOUIL](https://github.com/mcanouil) ([mickael.canouil.fr](https://mickael.canouil.fr))
+
+## Contributors
+
+Thank you to all the contributors who have helped improve Quarto Wizard.
+
+[View all contributors on GitHub](https://github.com/mcanouil/quarto-wizard/graphs/contributors).
+
+## Acknowledgements
+
+### Quarto CLI
+
+Quarto Wizard is built for the [Quarto CLI](https://quarto.org) ecosystem.
+Special thanks to the Quarto team for creating such a powerful publishing system.
+
+### Extension Registry
+
+The extension registry is powered by [Quarto Extensions](https://m.canouil.dev/quarto-extensions/), which aggregates metadata from Quarto extensions across GitHub.
+
+### Libraries and Tools
+
+Quarto Wizard uses the following open-source libraries:
+
+- [lodash](https://lodash.com/) - Utility library.
+- [js-yaml](https://github.com/nodeca/js-yaml) - YAML parser.
+- [semver](https://github.com/npm/node-semver) - Semantic versioning utilities.
+- [VS Code Extension API](https://code.visualstudio.com/api) - Extension development framework.
+
+## Sponsor
+
+If you find Quarto Wizard useful, consider [sponsoring the project](https://github.com/sponsors/mcanouil).
+
+## Licence
+
+Quarto Wizard is released under the [MIT Licence](https://github.com/mcanouil/quarto-wizard/blob/main/LICENSE).

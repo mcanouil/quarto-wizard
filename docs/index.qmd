@@ -3,6 +3,8 @@ title: "Quarto Wizard"
 subtitle: "A Visual Studio Code Extension for Quarto Projects"
 description: "Easily manage Quarto extensions and templates with a user-friendly interface."
 title-prefix: ""
+language: 
+  title-block-affiliation-single: "Homepage"
 author:
   - name: "Mickaël CANOUIL, _Ph.D._"
     degree: "Ph.D."
@@ -87,6 +89,21 @@ See the [Installation Guide](getting-started/installation.qmd) for more options.
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard)
 - [Open VSX](https://open-vsx.org/extension/mcanouil/quarto-wizard)
 - [Report an Issue](https://github.com/mcanouil/quarto-wizard/issues)
+
+## Contributing
+
+Contributions are welcome!
+Please open an issue or submit a pull request on the [GitHub repository](https://github.com/mcanouil/quarto-wizard).
+
+## Credits
+
+Quarto Wizard is developed by [Mickaël CANOUIL](https://github.com/mcanouil) ([mickael.canouil.fr](https://mickael.canouil.fr)).
+
+- Built for the [Quarto CLI](https://quarto.org) ecosystem.
+- Extension registry: [Quarto Extensions](https://m.canouil.dev/quarto-extensions/).
+- [All contributors](https://github.com/mcanouil/quarto-wizard/graphs/contributors).
+
+[Full credits](credits.qmd).
 
 ## Licence
 
