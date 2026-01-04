@@ -71,7 +71,6 @@ export async function installQuartoExtension(
 					`${validation.message}`,
 					{ modal: true, detail: "The extension may not work correctly with your current Quarto version." },
 					"Install Anyway",
-					"Cancel",
 				);
 
 				if (action !== "Install Anyway") {
