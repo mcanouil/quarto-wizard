@@ -137,7 +137,8 @@ jobs:
             DATE=${DATE}
           fi
 
-          vsce package ${BUMP_VERSION} -m "${COMMIT}"
+          # vsce package ${BUMP_VERSION} -m "${COMMIT}"
+          npm version ${BUMP_VERSION} --no-git-tag-version
           npm run sync-metadata
 
           VERSION=$(jq -r .version package.json)
@@ -154,6 +155,8 @@ jobs:
 
           git commit -m "${COMMIT}" || echo "No changes to commit"
           git push --force origin ${BRANCH} || echo "No changes to push"
+
+          git status
 
           sleep 5
           gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:"

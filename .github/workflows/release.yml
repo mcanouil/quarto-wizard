@@ -137,7 +137,8 @@ jobs:
             DATE=${DATE}
           fi
 
-          vsce package ${BUMP_VERSION} -m "${COMMIT}"
+          # vsce package ${BUMP_VERSION} -m "${COMMIT}"
+          npm version ${BUMP_VERSION} --no-git-tag-version
           npm run sync-metadata
 
           VERSION=$(jq -r .version package.json)
