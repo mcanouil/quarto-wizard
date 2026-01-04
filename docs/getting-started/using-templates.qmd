@@ -9,7 +9,7 @@ alt-text:
     The QuickPick dialog showing available template files to copy.
 ---
 
-Quarto Wizard allows you to quickly start new documents using pre-configured templates from the extension registry.
+Quarto Wizard allows you to quickly start new documents using pre-configured templates from the extension registry, GitHub repositories, URLs, or local paths.
 
 ## What are Templates?
 
@@ -51,7 +51,7 @@ fig-alt='{{< meta alt-text.template-browser >}}'
 1. Select the template you want to use.
 2. Choose the workspace folder where the template should be installed (if multiple are available).
 3. Specify a target subdirectory for template files (optional).
-4. Select which template files to copy (if multiple are available).
+4. Select which template files to copy.
 5. Confirm any file overwrites if necessary.
 
 ::: {layout-ncol="2"}
