@@ -154,6 +154,8 @@ jobs:
           git add CHANGELOG.md || echo "No changes to add"
           git add CITATION.cff || echo "No changes to add"
           git add packages/*/package.json || echo "No changes to add"
+          git add package.json || echo "No changes to add"
+          git add package-lock.json || echo "No changes to add"
 
           npm run docs:build
           git add docs/ || echo "No changes to add"
