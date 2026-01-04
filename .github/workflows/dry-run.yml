@@ -63,6 +63,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
+
       - name: Create GitHub App token
         uses: actions/create-github-app-token@v2
         id: app-token
@@ -296,6 +301,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Set up Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
 
       - name: Checkout PR branch
         env:
