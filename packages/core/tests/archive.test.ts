@@ -2,11 +2,45 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { execSync } from "node:child_process";
+import archiver from "archiver";
+import * as tar from "tar";
 import { detectArchiveFormat, extractArchive, findExtensionRoot, cleanupExtraction } from "../src/archive/extract.js";
 import { extractZip } from "../src/archive/zip.js";
 import { extractTar } from "../src/archive/tar.js";
 import { SecurityError } from "../src/errors.js";
+
+/**
+ * Create a ZIP archive from a source directory.
+ * Cross-platform alternative to execSync('zip ...').
+ */
+async function createZipArchive(sourceDir: string, zipPath: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const output = fs.createWriteStream(zipPath);
+		const archive = archiver("zip", { zlib: { level: 9 } });
+
+		output.on("close", () => resolve());
+		archive.on("error", (err) => reject(err));
+
+		archive.pipe(output);
+		archive.directory(sourceDir, false);
+		archive.finalize();
+	});
+}
+
+/**
+ * Create a TAR.GZ archive from a source directory.
+ * Cross-platform alternative to execSync('tar ...').
+ */
+async function createTarArchive(sourceDir: string, tarPath: string): Promise<void> {
+	await tar.create(
+		{
+			gzip: true,
+			file: tarPath,
+			cwd: sourceDir,
+		},
+		["."],
+	);
+}
 
 describe("detectArchiveFormat", () => {
 	it("detects zip format", () => {
@@ -98,7 +132,7 @@ describe("ZIP extraction", () => {
 		await fs.promises.writeFile(path.join(sourceDir, "filter.lua"), "-- filter code");
 
 		zipPath = path.join(tempDir, "test.zip");
-		execSync(`cd "${sourceDir}" && zip -r "${zipPath}" .`);
+		await createZipArchive(sourceDir, zipPath);
 	});
 
 	afterEach(async () => {
@@ -139,7 +173,7 @@ describe("TAR extraction", () => {
 		await fs.promises.writeFile(path.join(sourceDir, "filter.lua"), "-- filter code");
 
 		tarPath = path.join(tempDir, "test.tar.gz");
-		execSync(`tar -czf "${tarPath}" -C "${sourceDir}" .`);
+		await createTarArchive(sourceDir, tarPath);
 	});
 
 	afterEach(async () => {
@@ -179,7 +213,7 @@ describe("extractArchive", () => {
 		await fs.promises.writeFile(path.join(sourceDir, "_extension.yml"), "title: Test");
 
 		zipPath = path.join(tempDir, "test.zip");
-		execSync(`cd "${sourceDir}" && zip -r "${zipPath}" .`);
+		await createZipArchive(sourceDir, zipPath);
 	});
 
 	afterEach(async () => {
@@ -217,7 +251,7 @@ describe("security checks", () => {
 		await fs.promises.writeFile(path.join(sourceDir, "large.txt"), largeContent);
 
 		const zipPath = path.join(tempDir, "large.zip");
-		execSync(`cd "${sourceDir}" && zip -r "${zipPath}" .`);
+		await createZipArchive(sourceDir, zipPath);
 
 		const destDir = path.join(tempDir, "dest");
 

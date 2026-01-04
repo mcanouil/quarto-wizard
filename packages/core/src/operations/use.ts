@@ -49,6 +49,7 @@ async function globFiles(cwd: string, options: GlobFilesOptions = {}): Promise<s
 		nodir: true,
 		dot: includeHidden,
 		ignore,
+		posix: true, // Ensure consistent forward slashes on all platforms
 	});
 }
 

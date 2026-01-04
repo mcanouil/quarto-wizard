@@ -559,8 +559,10 @@ export function resolveExtensionId(
 		return { owner: source.owner, name: source.repo };
 	}
 
-	// Parse the path to find owner/name structure relative to _extensions
-	const pathParts = extensionRoot.split(path.sep);
+	// Normalise path separators for cross-platform compatibility
+	// This handles both Unix (/) and Windows (\) paths
+	const normalisedPath = extensionRoot.replace(/[/\\]/g, path.sep);
+	const pathParts = normalisedPath.split(path.sep);
 	const extensionsIndex = pathParts.lastIndexOf("_extensions");
 
 	if (extensionsIndex >= 0) {
