@@ -2,7 +2,11 @@
 title: "Changelog"
 ---
 
-## Unreleased
+# 1
+
+## 1.1
+
+### 1.1.0 (2026-01-04)
 
 ### Breaking Changes
 
@@ -63,8 +67,6 @@ title: "Changelog"
 - refactor: consolidate tree provider caching into single structured cache object.
 - refactor: extract reusable path resolution and source type detection utilities.
 - refactor: remove sync/async function duplication in extensions utilities.
-
-# 1
 
 ## 1.0
 
