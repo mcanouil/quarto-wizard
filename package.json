@@ -225,7 +225,7 @@
 				"command": "quartoWizard.extensionsInstalled.updateAll",
 				"title": "Update All Extensions",
 				"shortTitle": "Update All",
-				"icon": "$(sync)",
+				"icon": "$(cloud-download)",
 				"category": "Quarto Wizard",
 				"description": "Update all outdated extensions in the workspace."
 			},
