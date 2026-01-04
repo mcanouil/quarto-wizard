@@ -165,6 +165,12 @@ export type FileSelectionCallback = (
 ) => Promise<FileSelectionResult | null>;
 
 /**
+ * Callback for selecting target subdirectory.
+ * Returns the subdirectory path or null/empty string for project root.
+ */
+export type SelectTargetSubdirCallback = () => Promise<string | null>;
+
+/**
  * Options for "use extension" operation.
  */
 export interface UseOptions {
@@ -207,6 +213,18 @@ export interface UseOptions {
 	 * Returns the extensions to overwrite, or null to cancel.
 	 */
 	confirmExtensionOverwrite?: (extensions: DiscoveredExtension[]) => Promise<DiscoveredExtension[] | null>;
+	/**
+	 * Subdirectory within projectDir where template files should be copied.
+	 * If selectTargetSubdir callback is provided and selectFilesFirst is true,
+	 * the callback takes precedence.
+	 */
+	targetSubdir?: string;
+	/**
+	 * Callback for interactive target subdirectory selection.
+	 * Called before file selection in two-phase flow.
+	 * Returns subdirectory path, or null/empty string for project root.
+	 */
+	selectTargetSubdir?: SelectTargetSubdirCallback;
 }
 
 /**
@@ -244,8 +262,17 @@ export interface UseResult {
  * @returns Use result with cancelled flag if user cancelled
  */
 async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<UseResult> {
-	const { projectDir, auth, selectFiles, selectExtension, confirmExtensionOverwrite, onProgress, sourceDisplay } =
-		options;
+	const {
+		projectDir,
+		auth,
+		selectFiles,
+		selectExtension,
+		confirmExtensionOverwrite,
+		onProgress,
+		sourceDisplay,
+		targetSubdir: staticTargetSubdir,
+		selectTargetSubdir,
+	} = options;
 
 	if (!selectFiles) {
 		throw new ExtensionError("selectFiles callback is required for twoPhaseUse");
@@ -281,6 +308,20 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 
 		const sourceRoot = dryRunResult.sourceRoot;
 
+		// STEP 1.5: Target subdirectory selection (before file selection)
+		let effectiveTargetSubdir: string | undefined;
+		if (selectTargetSubdir) {
+			onProgress?.({ phase: "selecting", message: "Awaiting target directory selection..." });
+			const selectedSubdir = await selectTargetSubdir();
+			// null or empty string means project root
+			effectiveTargetSubdir = selectedSubdir || undefined;
+		} else {
+			effectiveTargetSubdir = staticTargetSubdir;
+		}
+
+		// Compute effective target directory for existing file checks
+		const effectiveTargetDir = effectiveTargetSubdir ? path.join(projectDir, effectiveTargetSubdir) : projectDir;
+
 		// STEP 2: File selection
 		// Get all available files from extracted source
 		const allFiles = await globFiles(sourceRoot, {
@@ -288,10 +329,10 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			ignore: ["_extensions/**"],
 		});
 
-		// Find which files already exist in the project
+		// Find which files already exist in the target directory
 		const existingFiles: string[] = [];
 		for (const file of allFiles) {
-			const targetPath = path.join(projectDir, file);
+			const targetPath = path.join(effectiveTargetDir, file);
 			if (fs.existsSync(targetPath)) {
 				existingFiles.push(file);
 			}
@@ -434,6 +475,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		const { templateFiles, skippedFiles } = await copyTemplateFiles(sourceRoot, projectDir, {
 			filesToCopy: selectionResult.selectedFiles,
 			overwriteAll: selectionResult.overwriteExisting,
+			targetSubdir: effectiveTargetSubdir,
 			onProgress: (file) => {
 				onProgress?.({ phase: "copying", message: `Copying ${file}...`, file });
 			},
@@ -482,6 +524,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		onProgress,
 		dryRun = false,
 		sourceDisplay,
+		targetSubdir,
 	} = options;
 
 	const installSource = typeof source === "string" ? parseInstallSource(source) : source;
@@ -525,6 +568,9 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			});
 		}
 
+		// Compute effective target directory for template files
+		const effectiveTargetDir = targetSubdir ? path.join(projectDir, targetSubdir) : projectDir;
+
 		let filesToCopy: string[];
 		let overwriteAll = false;
 
@@ -538,10 +584,10 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 				ignore: ["_extensions/**"],
 			});
 
-			// Find which files already exist in the project
+			// Find which files already exist in the target directory
 			const existingFiles: string[] = [];
 			for (const file of allFiles) {
-				const targetPath = path.join(projectDir, file);
+				const targetPath = path.join(effectiveTargetDir, file);
 				if (fs.existsSync(targetPath)) {
 					existingFiles.push(file);
 				}
@@ -578,10 +624,10 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 
 		// In dry-run mode, return what would happen without copying
 		if (dryRun) {
-			// Find which files would conflict
+			// Find which files would conflict in the target directory
 			const wouldConflict: string[] = [];
 			for (const file of filesToCopy) {
-				const targetPath = path.join(projectDir, file);
+				const targetPath = path.join(effectiveTargetDir, file);
 				if (fs.existsSync(targetPath)) {
 					wouldConflict.push(file);
 				}
@@ -602,6 +648,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		const { templateFiles, skippedFiles } = await copyTemplateFiles(sourceRoot, projectDir, {
 			filesToCopy,
 			overwriteAll,
+			targetSubdir,
 			confirmOverwrite: selectFiles ? undefined : confirmOverwrite,
 			confirmOverwriteBatch: selectFiles ? undefined : confirmOverwriteBatch,
 			onProgress: (file) => {
@@ -636,6 +683,8 @@ interface CopyTemplateOptions {
 	confirmOverwriteBatch?: OverwriteBatchCallback;
 	/** Progress callback. */
 	onProgress?: (file: string) => void;
+	/** Subdirectory within projectDir where files should be copied. */
+	targetSubdir?: string;
 }
 
 /**
@@ -646,11 +695,14 @@ async function copyTemplateFiles(
 	projectDir: string,
 	options: CopyTemplateOptions,
 ): Promise<{ templateFiles: string[]; skippedFiles: string[] }> {
-	const { filesToCopy, overwriteAll, confirmOverwrite, confirmOverwriteBatch, onProgress } = options;
+	const { filesToCopy, overwriteAll, confirmOverwrite, confirmOverwriteBatch, onProgress, targetSubdir } = options;
 
 	if (filesToCopy.length === 0) {
 		return { templateFiles: [], skippedFiles: [] };
 	}
+
+	// Compute effective target directory
+	const effectiveTargetDir = targetSubdir ? path.join(projectDir, targetSubdir) : projectDir;
 
 	const templateFiles: string[] = [];
 	const skippedFiles: string[] = [];
@@ -658,7 +710,7 @@ async function copyTemplateFiles(
 	// Collect all conflicting files first
 	const conflictingFiles: string[] = [];
 	for (const file of filesToCopy) {
-		const targetPath = path.join(projectDir, file);
+		const targetPath = path.join(effectiveTargetDir, file);
 		if (fs.existsSync(targetPath)) {
 			conflictingFiles.push(file);
 		}
@@ -697,7 +749,7 @@ async function copyTemplateFiles(
 	// Copy files
 	for (const file of filesToCopy) {
 		const sourcePath = path.join(sourceRoot, file);
-		const targetPath = path.join(projectDir, file);
+		const targetPath = path.join(effectiveTargetDir, file);
 
 		if (fs.existsSync(targetPath)) {
 			if (!filesToOverwrite.has(file)) {

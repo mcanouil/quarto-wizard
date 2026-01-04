@@ -5,7 +5,12 @@ import { QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { installQuartoExtension, useQuartoExtension } from "../utils/quarto";
-import { askTrustAuthors, askConfirmInstall, createFileSelectionCallback } from "../utils/ask";
+import {
+	askTrustAuthors,
+	askConfirmInstall,
+	createFileSelectionCallback,
+	createTargetSubdirCallback,
+} from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import { ExtensionQuickPickItem, showExtensionQuickPick, showTypeFilterQuickPick } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
@@ -85,7 +90,14 @@ async function installQuartoExtensions(
 				if (template) {
 					// Use template: install extension and copy template files
 					const selectFiles = createFileSelectionCallback();
-					const result = await useQuartoExtension(extensionSource, workspaceFolder, selectFiles, auth);
+					const selectTargetSubdir = createTargetSubdirCallback();
+					const result = await useQuartoExtension(
+						extensionSource,
+						workspaceFolder,
+						selectFiles,
+						selectTargetSubdir,
+						auth,
+					);
 					success = result !== null;
 				} else {
 					// Regular install: just install the extension
@@ -279,7 +291,15 @@ async function installFromSource(
 			let success: boolean;
 			if (template) {
 				const selectFiles = createFileSelectionCallback();
-				const result = await useQuartoExtension(resolved, workspaceFolder, selectFiles, auth, display);
+				const selectTargetSubdir = createTargetSubdirCallback();
+				const result = await useQuartoExtension(
+					resolved,
+					workspaceFolder,
+					selectFiles,
+					selectTargetSubdir,
+					auth,
+					display,
+				);
 				success = result !== null;
 			} else {
 				success = await installQuartoExtension(resolved, workspaceFolder, auth, display);

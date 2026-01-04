@@ -592,3 +592,34 @@ export function createFileSelectionCallback(): (
 		});
 	};
 }
+
+/**
+ * Creates a callback for selecting target subdirectory.
+ * Shows an input box where users can specify a subdirectory for template files.
+ *
+ * @returns A function that prompts for subdirectory and returns the path or null.
+ */
+export function createTargetSubdirCallback(): () => Promise<string | null> {
+	return async (): Promise<string | null> => {
+		const result = await vscode.window.showInputBox({
+			title: "Target Subdirectory",
+			prompt: "Enter subdirectory for template files (leave empty for project root)",
+			placeHolder: "e.g., templates/starter",
+			validateInput: (value) => {
+				if (value && (value.startsWith("/") || value.startsWith("\\"))) {
+					return "Path must be relative (no leading slash)";
+				}
+				if (value && value.includes("..")) {
+					return "Path cannot contain '..'";
+				}
+				return null;
+			},
+		});
+
+		// undefined means cancelled (Escape), empty string means project root
+		if (result === undefined) {
+			return null; // Treat cancel as "use project root"
+		}
+		return result || null;
+	};
+}

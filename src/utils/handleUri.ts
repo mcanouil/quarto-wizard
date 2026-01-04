@@ -4,7 +4,7 @@ import { installQuartoExtension, useQuartoExtension } from "./quarto";
 import { showLogsCommand, logMessage } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
-import { createFileSelectionCallback } from "../utils/ask";
+import { createFileSelectionCallback, createTargetSubdirCallback } from "../utils/ask";
 import { getAuthConfig } from "../utils/auth";
 
 /**
@@ -128,7 +128,8 @@ export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionCon
 		progressMessage: (repo) => `Using Quarto template from ${repo} ...`,
 		executor: async (repo, workspaceFolder, auth) => {
 			const selectFiles = createFileSelectionCallback();
-			const result = await useQuartoExtension(repo, workspaceFolder, selectFiles, auth);
+			const selectTargetSubdir = createTargetSubdirCallback();
+			const result = await useQuartoExtension(repo, workspaceFolder, selectFiles, selectTargetSubdir, auth);
 			return result !== null;
 		},
 	});

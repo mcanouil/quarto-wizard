@@ -35,6 +35,7 @@ export {
 	type OverwriteBatchCallback,
 	type FileSelectionResult,
 	type FileSelectionCallback,
+	type SelectTargetSubdirCallback,
 	type UseOptions,
 	type UseResult,
 	use,

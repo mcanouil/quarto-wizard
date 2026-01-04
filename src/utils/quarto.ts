@@ -8,6 +8,7 @@ import {
 	parseExtensionId,
 	type UseResult,
 	type FileSelectionCallback,
+	type SelectTargetSubdirCallback,
 	type AuthConfig,
 	type DiscoveredExtension,
 	type ExtensionManifest,
@@ -305,6 +306,7 @@ async function showExtensionOverwriteConfirmation(
  * @param extension - The name of the extension to use (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
  * @param selectFiles - Callback for interactive file selection.
+ * @param selectTargetSubdir - Callback for interactive target subdirectory selection.
  * @param auth - Optional authentication configuration for private repositories.
  * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
  * @returns A promise that resolves to the use result, or null on failure.
@@ -313,6 +315,7 @@ export async function useQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
 	selectFiles?: FileSelectionCallback,
+	selectTargetSubdir?: SelectTargetSubdirCallback,
 	auth?: AuthConfig,
 	sourceDisplay?: string,
 ): Promise<UseResult | null> {
@@ -330,6 +333,7 @@ export async function useQuartoExtension(
 		const result = await use(source, {
 			projectDir: workspaceFolder,
 			selectFiles,
+			selectTargetSubdir,
 			selectFilesFirst: true,
 			selectExtension: showExtensionSelectionQuickPick,
 			confirmExtensionOverwrite: showExtensionOverwriteConfirmation,
