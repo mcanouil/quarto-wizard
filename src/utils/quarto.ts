@@ -10,6 +10,7 @@ import {
 	type FileSelectionCallback,
 	type AuthConfig,
 	type DiscoveredExtension,
+	type ExtensionManifest,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
@@ -17,7 +18,71 @@ import { validateQuartoRequirement } from "./versionValidation";
 import { showExtensionSelectionQuickPick } from "../ui/extensionSelectionQuickPick";
 
 /**
+ * Creates a callback for confirming extension overwrite.
+ *
+ * @param prefix - Log prefix for messages
+ * @param skipPrompt - If true, return true without prompting
+ * @returns Callback function
+ */
+function createConfirmOverwriteCallback(
+	prefix: string,
+	skipPrompt: boolean,
+): (extension: DiscoveredExtension) => Promise<boolean> {
+	return async (extension: DiscoveredExtension): Promise<boolean> => {
+		if (skipPrompt) {
+			return true;
+		}
+		const extId = extension.id.owner ? `${extension.id.owner}/${extension.id.name}` : extension.id.name;
+		const action = await vscode.window.showWarningMessage(
+			`Extension "${extId}" already exists. Overwrite?`,
+			{ modal: true },
+			"Overwrite",
+		);
+		if (action !== "Overwrite") {
+			logMessage(`${prefix} Installation cancelled - extension already exists.`, "info");
+			return false;
+		}
+		return true;
+	};
+}
+
+/**
+ * Creates a callback for validating Quarto version requirements.
+ *
+ * @param prefix - Log prefix for messages
+ * @returns Callback function
+ */
+function createValidateQuartoVersionCallback(
+	prefix: string,
+): (required: string, manifest: ExtensionManifest) => Promise<boolean> {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	return async (required: string, _manifest: ExtensionManifest): Promise<boolean> => {
+		const quartoInfo = await getQuartoVersionInfo();
+		const validation = validateQuartoRequirement(required, quartoInfo.version);
+
+		if (!validation.valid) {
+			logMessage(`${prefix} Version requirement not met: ${validation.message}`, "warn");
+
+			const action = await vscode.window.showWarningMessage(
+				`${validation.message}`,
+				{ modal: true, detail: "The extension may not work correctly with your current Quarto version." },
+				"Install Anyway",
+			);
+
+			if (action !== "Install Anyway") {
+				logMessage(`${prefix} Installation cancelled by user due to version mismatch.`, "info");
+				return false;
+			}
+
+			logMessage(`${prefix} User chose to install despite version mismatch.`, "info");
+		}
+		return true;
+	};
+}
+
+/**
  * Installs a Quarto extension using the core library.
+ * Uses single-pass installation with interactive callbacks for overwrite and version validation.
  *
  * @param extension - The name of the extension to install (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
@@ -44,76 +109,24 @@ export async function installQuartoExtension(
 	try {
 		const source = parseInstallSource(extension);
 
-		// First, do a dry-run to get the manifest and validate version requirements
-		// Don't pass selectExtension here - we only want to show the picker once during actual install
-		const dryRunResult = await install(source, {
-			projectDir: workspaceFolder,
-			force: true,
-			auth,
-			sourceDisplay,
-			dryRun: true,
-			onProgress: (progress) => {
-				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
-			},
-		});
-
-		if (!dryRunResult.success) {
-			logMessage(`${prefix} Failed to resolve extension.`, "error");
-			return false;
-		}
-
-		// Check if extension already exists and prompt for overwrite
-		if (dryRunResult.alreadyExists && !skipOverwritePrompt) {
-			const extId = dryRunResult.extension.id.owner
-				? `${dryRunResult.extension.id.owner}/${dryRunResult.extension.id.name}`
-				: dryRunResult.extension.id.name;
-			const action = await vscode.window.showWarningMessage(
-				`Extension "${extId}" already exists. Overwrite?`,
-				{ modal: true },
-				"Overwrite",
-			);
-			if (action !== "Overwrite") {
-				logMessage(`${prefix} Installation cancelled - extension already exists.`, "info");
-				return false;
-			}
-		}
-
-		// Validate Quarto version requirement
-		const quartoRequired = dryRunResult.extension.manifest.quartoRequired;
-		if (quartoRequired) {
-			const quartoInfo = await getQuartoVersionInfo();
-			const validation = validateQuartoRequirement(quartoRequired, quartoInfo.version);
-
-			if (!validation.valid) {
-				logMessage(`${prefix} Version requirement not met: ${validation.message}`, "warn");
-
-				// Show warning dialog with option to proceed or cancel
-				const action = await vscode.window.showWarningMessage(
-					`${validation.message}`,
-					{ modal: true, detail: "The extension may not work correctly with your current Quarto version." },
-					"Install Anyway",
-				);
-
-				if (action !== "Install Anyway") {
-					logMessage(`${prefix} Installation cancelled by user due to version mismatch.`, "info");
-					return false;
-				}
-
-				logMessage(`${prefix} User chose to install despite version mismatch.`, "info");
-			}
-		}
-
-		// Proceed with actual installation
+		// Single-pass installation with interactive callbacks
 		const result = await install(source, {
 			projectDir: workspaceFolder,
 			force: true,
 			auth,
 			sourceDisplay,
 			selectExtension: showExtensionSelectionQuickPick,
+			confirmOverwrite: createConfirmOverwriteCallback(prefix, skipOverwritePrompt ?? false),
+			validateQuartoVersion: createValidateQuartoVersionCallback(prefix),
 			onProgress: (progress) => {
 				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
 			},
 		});
+
+		if (result.cancelled) {
+			// User cancelled via callback (overwrite or version mismatch)
+			return false;
+		}
 
 		if (result.success) {
 			logMessage(`${prefix} Successfully installed.`, "info");

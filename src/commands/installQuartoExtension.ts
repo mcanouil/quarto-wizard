@@ -204,23 +204,38 @@ export async function installQuartoExtensionFolderCommand(
 }
 
 /**
- * Detect the source type for logging purposes.
- * Uses parseInstallSource from core package for consistent detection.
+ * Source type display names for logging.
  */
-function detectSourceTypeForLogging(source: string): string {
+const SOURCE_TYPE_NAMES: Record<string, string> = {
+	url: "URL",
+	local: "local path",
+	github: "GitHub",
+};
+
+/**
+ * Resolve a source path relative to the workspace folder if needed.
+ *
+ * @param source - The source string (might be relative path).
+ * @param workspaceFolder - The workspace folder for resolving relative paths.
+ * @returns Object with resolved source path and original source for display.
+ */
+function resolveSourcePath(
+	source: string,
+	workspaceFolder: string,
+): { resolved: string; display: string | undefined; type: string } {
 	try {
 		const parsed = parseInstallSource(source);
-		switch (parsed.type) {
-			case "url":
-				return "URL";
-			case "local":
-				return "local path";
-			case "github":
-				return "GitHub";
+		const type = SOURCE_TYPE_NAMES[parsed.type] ?? "unknown";
+
+		if (parsed.type === "local" && !path.isAbsolute(parsed.path)) {
+			// Resolve relative path to absolute
+			const resolved = path.resolve(workspaceFolder, parsed.path);
+			return { resolved, display: source, type };
 		}
+
+		return { resolved: source, display: undefined, type };
 	} catch {
-		// Fallback for invalid sources
-		return "unknown";
+		return { resolved: source, display: undefined, type: "unknown" };
 	}
 }
 
@@ -241,24 +256,14 @@ async function installFromSource(
 	if ((await askTrustAuthors()) !== 0) return;
 	if ((await askConfirmInstall()) !== 0) return;
 
-	// Resolve local paths relative to workspace folder for installation,
-	// but keep original source for logging/display
-	let resolvedSource = source;
-	try {
-		const parsed = parseInstallSource(source);
-		if (parsed.type === "local" && !path.isAbsolute(parsed.path)) {
-			resolvedSource = path.resolve(workspaceFolder, parsed.path);
-		}
-	} catch {
-		// Not a valid source format, pass through as-is
-	}
+	// Resolve local paths relative to workspace folder
+	const { resolved, display, type } = resolveSourcePath(source, workspaceFolder);
 
 	const auth = await getAuthConfig(context, { createIfNone: true });
 	const actionWord = template ? "Using" : "Installing";
-	const sourceType = detectSourceTypeForLogging(source);
 
 	// Log source and extension (use original source for display)
-	logMessage(`Source: ${sourceType}.`, "info");
+	logMessage(`Source: ${type}.`, "info");
 	logMessage(`Extension: ${source}.`, "info");
 	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
 		logMessage("Authentication: none (public access).", "info");
@@ -271,15 +276,13 @@ async function installFromSource(
 			cancellable: false,
 		},
 		async () => {
-			// Pass original source as sourceDisplay only if path was resolved (different from resolvedSource)
-			const sourceDisplay = resolvedSource !== source ? source : undefined;
 			let success: boolean;
 			if (template) {
 				const selectFiles = createFileSelectionCallback();
-				const result = await useQuartoExtension(resolvedSource, workspaceFolder, selectFiles, auth, sourceDisplay);
+				const result = await useQuartoExtension(resolved, workspaceFolder, selectFiles, auth, display);
 				success = result !== null;
 			} else {
-				success = await installQuartoExtension(resolvedSource, workspaceFolder, auth, sourceDisplay);
+				success = await installQuartoExtension(resolved, workspaceFolder, auth, display);
 			}
 
 			if (success) {

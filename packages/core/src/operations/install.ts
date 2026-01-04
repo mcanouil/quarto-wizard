@@ -55,6 +55,23 @@ export type InstallProgressCallback = (progress: { phase: InstallPhase; message:
 export type ExtensionSelectionCallback = (extensions: DiscoveredExtension[]) => Promise<DiscoveredExtension[] | null>;
 
 /**
+ * Callback for confirming overwrite when extension already exists.
+ *
+ * @param extension - The extension that already exists
+ * @returns True to overwrite, false to skip/cancel
+ */
+export type ConfirmOverwriteCallback = (extension: DiscoveredExtension) => Promise<boolean>;
+
+/**
+ * Callback for validating Quarto version requirement.
+ *
+ * @param required - The required Quarto version string from the manifest
+ * @param manifest - The extension manifest
+ * @returns True to proceed with installation, false to cancel
+ */
+export type ValidateQuartoVersionCallback = (required: string, manifest: ExtensionManifest) => Promise<boolean>;
+
+/**
  * Options for extension installation.
  */
 export interface InstallOptions extends RegistryOptions {
@@ -77,6 +94,18 @@ export interface InstallOptions extends RegistryOptions {
 	 * If not provided and source contains multiple extensions, the first one is installed (legacy behaviour).
 	 */
 	selectExtension?: ExtensionSelectionCallback;
+	/**
+	 * Callback for confirming overwrite when extension already exists.
+	 * Only called when force is true. If not provided, overwrites silently.
+	 * Return true to overwrite, false to cancel.
+	 */
+	confirmOverwrite?: ConfirmOverwriteCallback;
+	/**
+	 * Callback for validating Quarto version requirement.
+	 * Called when the manifest specifies a quartoRequired field.
+	 * Return true to proceed, false to cancel.
+	 */
+	validateQuartoVersion?: ValidateQuartoVersionCallback;
 }
 
 /**
@@ -101,6 +130,8 @@ export interface InstallResult {
 	alreadyExists?: boolean;
 	/** Additional extensions installed when multiple were selected (only set when using selectExtension callback). */
 	additionalInstalls?: InstallResult[];
+	/** Whether the installation was cancelled by user (via callbacks). */
+	cancelled?: boolean;
 }
 
 /**
@@ -355,6 +386,31 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			throw new ExtensionError("Failed to read extension manifest");
 		}
 
+		// Validate Quarto version requirement if callback provided
+		const quartoRequired = manifestResult.manifest.quartoRequired;
+		if (quartoRequired && options.validateQuartoVersion) {
+			const proceed = await options.validateQuartoVersion(quartoRequired, manifestResult.manifest);
+			if (!proceed) {
+				// User cancelled due to version mismatch
+				const manifestPath = path.join(
+					getExtensionInstallPath(projectDir, selectedExtensions[0].id),
+					manifestResult.filename,
+				);
+				return {
+					success: false,
+					cancelled: true,
+					extension: {
+						id: selectedExtensions[0].id,
+						manifest: manifestResult.manifest,
+						manifestPath,
+						directory: getExtensionInstallPath(projectDir, selectedExtensions[0].id),
+					},
+					filesCreated: [],
+					source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
+				};
+			}
+		}
+
 		onProgress?.({ phase: "installing", message: dryRun ? "Checking installation..." : "Installing extension..." });
 
 		// Use the pre-computed ID from the discovered extension
@@ -393,6 +449,26 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				throw new ExtensionError(`Extension already installed: ${extensionId.owner}/${extensionId.name}`, {
 					suggestion: "Use force option to reinstall",
 				});
+			}
+			// If confirmOverwrite callback is provided, ask for confirmation
+			if (options.confirmOverwrite) {
+				const proceed = await options.confirmOverwrite(selectedExtensions[0]);
+				if (!proceed) {
+					// User cancelled overwrite
+					return {
+						success: false,
+						cancelled: true,
+						extension: {
+							id: extensionId,
+							manifest: manifestResult.manifest,
+							manifestPath: path.join(targetDir, manifestResult.filename),
+							directory: targetDir,
+						},
+						filesCreated: [],
+						source: sourceString,
+						alreadyExists: true,
+					};
+				}
 			}
 			await fs.promises.rm(targetDir, { recursive: true, force: true });
 		}

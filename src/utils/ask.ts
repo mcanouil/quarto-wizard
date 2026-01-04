@@ -115,33 +115,84 @@ export const askConfirmRemove = createConfirmationDialog({
  * Quick pick item for file/directory selection with tree metadata.
  */
 interface TreeQuickPickItem extends vscode.QuickPickItem {
-	/** Full path for files, directory path for directories. */
 	path: string;
-	/** Whether this is a directory. */
 	isDirectory: boolean;
-	/** Tree depth for indentation. */
 	depth: number;
-	/** Whether this file exists in the target. */
 	isExisting: boolean;
-	/** Whether this item is excluded by default patterns. */
 	isExcludedByDefault: boolean;
-	/** Child file paths (for directories). */
 	childPaths: string[];
-	/** Whether this directory has children (files or subdirectories). */
 	hasChildren: boolean;
 }
 
 /**
- * Builds a tree structure from flat file paths.
+ * Node in the file tree structure.
  */
 interface TreeNode {
 	name: string;
 	path: string;
-	isDirectory: boolean;
 	children: Map<string, TreeNode>;
 	files: string[];
-	isExisting: boolean;
 	isExcludedByDefault: boolean;
+}
+
+/**
+ * Build a tree structure from flat file paths.
+ */
+function buildFileTree(files: string[], isExcluded: (path: string, isDir: boolean) => boolean): TreeNode {
+	const root: TreeNode = { name: "", path: "", children: new Map(), files: [], isExcludedByDefault: false };
+
+	for (const filePath of [...files].sort()) {
+		const parts = filePath.split("/");
+		let current = root;
+
+		for (let i = 0; i < parts.length - 1; i++) {
+			const dirName = parts[i];
+			const dirPath = parts.slice(0, i + 1).join("/");
+
+			if (!current.children.has(dirName)) {
+				current.children.set(dirName, {
+					name: dirName,
+					path: dirPath,
+					children: new Map(),
+					files: [],
+					isExcludedByDefault: isExcluded(dirPath, true),
+				});
+			}
+			current = current.children.get(dirName)!;
+		}
+		current.files.push(filePath);
+	}
+
+	return root;
+}
+
+/**
+ * Get all file paths under a node (cached).
+ */
+function getAllNodeFiles(node: TreeNode, cache: Map<string, string[]>): string[] {
+	const cached = cache.get(node.path);
+	if (cached) return cached;
+
+	const files = [...node.files];
+	for (const child of node.children.values()) {
+		files.push(...getAllNodeFiles(child, cache));
+	}
+	cache.set(node.path, files);
+	return files;
+}
+
+/**
+ * Collect all directory paths from the tree.
+ */
+function collectDirectoryPaths(node: TreeNode): string[] {
+	const paths: string[] = [];
+	if (node.path && (node.children.size > 0 || node.files.length > 0)) {
+		paths.push(node.path);
+	}
+	for (const child of node.children.values()) {
+		paths.push(...collectDirectoryPaths(child));
+	}
+	return paths;
 }
 
 /**
@@ -201,94 +252,19 @@ export function createFileSelectionCallback(): (
 			return result;
 		}
 
-		// Pre-populate cache for all file paths
-		for (const filePath of availableFiles) {
-			isExcludedByPatterns(filePath);
-		}
+		// Build tree using extracted utility
+		const isExcluded = (p: string, isDir: boolean) => (isDir ? isDirExcludedByPatterns(p) : isExcludedByPatterns(p));
+		const root = buildFileTree(availableFiles, isExcluded);
 
-		// Build tree structure from file paths
-		const root: TreeNode = {
-			name: "",
-			path: "",
-			isDirectory: true,
-			children: new Map(),
-			files: [],
-			isExisting: false,
-			isExcludedByDefault: false,
-		};
-
-		// Sort files to ensure consistent tree building
-		const sortedFiles = [...availableFiles].sort();
-
-		for (const filePath of sortedFiles) {
-			const parts = filePath.split("/");
-			let current = root;
-
-			// Navigate/create directory nodes
-			for (let i = 0; i < parts.length - 1; i++) {
-				const dirName = parts[i];
-				const dirPath = parts.slice(0, i + 1).join("/");
-
-				if (!current.children.has(dirName)) {
-					current.children.set(dirName, {
-						name: dirName,
-						path: dirPath,
-						isDirectory: true,
-						children: new Map(),
-						files: [],
-						isExisting: false,
-						isExcludedByDefault: isDirExcludedByPatterns(dirPath),
-					});
-				}
-				current = current.children.get(dirName)!;
-			}
-
-			// Add file to current directory
-			current.files.push(filePath);
-		}
+		// Cache for file lookups
+		const nodeFilesCache = new Map<string, string[]>();
+		const getNodeFiles = (node: TreeNode) => getAllNodeFiles(node, nodeFilesCache);
 
 		// Track collapsed directories (start collapsed by default)
-		const collapsedDirs = new Set<string>();
+		const collapsedDirs = new Set<string>(collectDirectoryPaths(root));
 
 		// Track selected paths (persists across rebuilds)
 		const selectedPaths = new Set<string>();
-
-		// Cache for getAllFilesInNode results (memoisation)
-		const nodeFilesCache = new Map<string, string[]>();
-
-		/**
-		 * Collect all directory paths from the tree for initial collapse.
-		 */
-		function collectAllDirectoryPaths(node: TreeNode): string[] {
-			const paths: string[] = [];
-			if (node.path !== "" && (node.children.size > 0 || node.files.length > 0)) {
-				paths.push(node.path);
-			}
-			for (const child of node.children.values()) {
-				paths.push(...collectAllDirectoryPaths(child));
-			}
-			return paths;
-		}
-
-		// Start with all directories collapsed
-		for (const dirPath of collectAllDirectoryPaths(root)) {
-			collapsedDirs.add(dirPath);
-		}
-
-		function getAllFilesInNode(node: TreeNode): string[] {
-			const cached = nodeFilesCache.get(node.path);
-			if (cached !== undefined) {
-				return cached;
-			}
-
-			const files: string[] = [...node.files];
-			for (const child of node.children.values()) {
-				files.push(...getAllFilesInNode(child));
-			}
-
-			nodeFilesCache.set(node.path, files);
-			return files;
-		}
 
 		// Pre-populate selectedPaths with files that should be selected by default
 		// (This ensures selection is preserved even when directories are collapsed)
@@ -302,7 +278,7 @@ export function createFileSelectionCallback(): (
 		 * Check if all files in a directory are selected.
 		 */
 		function areAllChildrenSelected(node: TreeNode): boolean {
-			const allFiles = getAllFilesInNode(node);
+			const allFiles = getNodeFiles(node);
 			return allFiles.length > 0 && allFiles.every((f) => selectedPaths.has(f));
 		}
 
@@ -341,7 +317,7 @@ export function createFileSelectionCallback(): (
 
 				// Add directory items (except root)
 				if (node.path !== "") {
-					const allChildFiles = getAllFilesInNode(node);
+					const allChildFiles = getNodeFiles(node);
 					const hasExisting = allChildFiles.some((f) => existingSet.has(f));
 					const allExcluded = allChildFiles.every((f) => isExcludedByPatterns(f));
 					const hasChildren = nodeHasChildren(node);

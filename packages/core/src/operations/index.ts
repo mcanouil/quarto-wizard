@@ -7,6 +7,8 @@ export {
 	type InstallPhase,
 	type InstallProgressCallback,
 	type ExtensionSelectionCallback,
+	type ConfirmOverwriteCallback,
+	type ValidateQuartoVersionCallback,
 	type InstallOptions,
 	type InstallResult,
 	parseInstallSource,
