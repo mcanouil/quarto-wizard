@@ -505,6 +505,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 						sourceDisplay ?? formatSourceString(source, tagName, commitSha),
 						force,
 						onProgress,
+						options.confirmOverwrite,
 					);
 					additionalInstalls.push(additionalResult);
 				} catch (error) {
@@ -628,6 +629,7 @@ async function collectExtensionFiles(sourceDir: string): Promise<string[]> {
  * @param sourceString - Source string to record in manifest
  * @param force - Whether to force reinstall
  * @param onProgress - Progress callback
+ * @param confirmOverwrite - Callback to confirm overwrite when extension exists
  * @returns Installation result
  */
 export async function installSingleExtension(
@@ -636,6 +638,7 @@ export async function installSingleExtension(
 	sourceString: string,
 	force: boolean,
 	onProgress?: InstallProgressCallback,
+	confirmOverwrite?: ConfirmOverwriteCallback,
 ): Promise<InstallResult> {
 	const manifestResult = readManifest(extension.path);
 
@@ -654,6 +657,26 @@ export async function installSingleExtension(
 			throw new ExtensionError(`Extension already installed: ${extensionId.owner}/${extensionId.name}`, {
 				suggestion: "Use force option to reinstall",
 			});
+		}
+		// If confirmOverwrite callback is provided, ask for confirmation
+		if (confirmOverwrite) {
+			const proceed = await confirmOverwrite(extension);
+			if (!proceed) {
+				// User cancelled overwrite
+				return {
+					success: false,
+					cancelled: true,
+					extension: {
+						id: extensionId,
+						manifest: manifestResult.manifest,
+						manifestPath: path.join(targetDir, manifestResult.filename),
+						directory: targetDir,
+					},
+					filesCreated: [],
+					source: sourceString,
+					alreadyExists: true,
+				};
+			}
 		}
 		await fs.promises.rm(targetDir, { recursive: true, force: true });
 	}
