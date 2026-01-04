@@ -11,6 +11,8 @@ import {
 	type AuthConfig,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
+import { getQuartoVersionInfo } from "../services/quartoVersion";
+import { validateQuartoRequirement } from "./versionValidation";
 
 /**
  * Installs a Quarto extension using the core library.
@@ -38,6 +40,50 @@ export async function installQuartoExtension(
 	try {
 		const source = parseInstallSource(extension);
 
+		// First, do a dry-run to get the manifest and validate version requirements
+		const dryRunResult = await install(source, {
+			projectDir: workspaceFolder,
+			force: true,
+			auth,
+			sourceDisplay,
+			dryRun: true,
+			onProgress: (progress) => {
+				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
+			},
+		});
+
+		if (!dryRunResult.success) {
+			logMessage(`${prefix} Failed to resolve extension.`, "error");
+			return false;
+		}
+
+		// Validate Quarto version requirement
+		const quartoRequired = dryRunResult.extension.manifest.quartoRequired;
+		if (quartoRequired) {
+			const quartoInfo = await getQuartoVersionInfo();
+			const validation = validateQuartoRequirement(quartoRequired, quartoInfo.version);
+
+			if (!validation.valid) {
+				logMessage(`${prefix} Version requirement not met: ${validation.message}`, "warn");
+
+				// Show warning dialog with option to proceed or cancel
+				const action = await vscode.window.showWarningMessage(
+					`${validation.message}`,
+					{ modal: true, detail: "The extension may not work correctly with your current Quarto version." },
+					"Install Anyway",
+					"Cancel",
+				);
+
+				if (action !== "Install Anyway") {
+					logMessage(`${prefix} Installation cancelled by user due to version mismatch.`, "info");
+					return false;
+				}
+
+				logMessage(`${prefix} User chose to install despite version mismatch.`, "info");
+			}
+		}
+
+		// Proceed with actual installation
 		const result = await install(source, {
 			projectDir: workspaceFolder,
 			force: true,

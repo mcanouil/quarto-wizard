@@ -114,6 +114,31 @@ If the source contains an `_extensions/` folder, you can select which extensions
 Otherwise, the source is treated as a single extension and installed directly.
 :::
 
+## Quarto Version Validation
+
+Some extensions specify a minimum Quarto version requirement in their `_extension.yml` file using the `quarto-required` field.
+Quarto Wizard validates this requirement before installation if the [Quarto VS Code extension](https://marketplace.visualstudio.com/items?itemName=quarto.quarto) is installed.
+
+### How It Works
+
+1. Before installing, Quarto Wizard checks if the extension specifies a `quarto-required` version.
+2. If the Quarto VS Code extension is available, it retrieves your current Quarto CLI version.
+3. If your version does not meet the requirement, a warning dialog appears with:
+   - The required version.
+   - Your current version.
+   - Options to "Install Anyway" or "Cancel".
+
+:::: {.callout-note}
+The Quarto VS Code extension is optional.
+If it is not installed, version validation is silently skipped and the installation proceeds normally.
+Quarto Wizard will never prompt you to install the Quarto extension.
+:::
+
+:::: {.callout-warning}
+Installing an extension with an unmet version requirement may result in the extension not working correctly.
+Consider updating your Quarto CLI to the required version for best results.
+:::
+
 ## Trust and Confirmation
 
 By default, Quarto Wizard asks for confirmation before:

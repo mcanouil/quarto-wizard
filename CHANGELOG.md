@@ -22,6 +22,7 @@
 - feat: add `quartoWizard.cache.ttlMinutes` setting to configure cache duration.
 - feat: add `quartoWizard.registry.url` setting to configure custom registry URL.
 - feat: add command descriptions to all commands for improved discoverability.
+- feat: add Quarto version requirement validation using the `quarto.quarto` extension API.
 
 ### Documentation
 
