@@ -436,7 +436,7 @@ export function createFileSelectionCallback(): (
 		// Create QuickPick
 		const quickPick = vscode.window.createQuickPick<TreeQuickPickItem>();
 		quickPick.title = "Select Template Files to Copy";
-		quickPick.placeholder = "Select files/folders to copy (Space to toggle, Enter to confirm)";
+		quickPick.placeholder = "Select files/folders to copy (Space to toggle, Enter to confirm, Escape to cancel)";
 		quickPick.canSelectMany = true;
 		quickPick.items = items;
 		quickPick.selectedItems = items.filter((item) => item.picked);

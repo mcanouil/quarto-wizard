@@ -175,6 +175,12 @@ export interface UseOptions {
 	confirmOverwriteBatch?: OverwriteBatchCallback;
 	/** Callback for interactive file selection. Takes precedence over include/exclude/confirmOverwrite. */
 	selectFiles?: FileSelectionCallback;
+	/**
+	 * Show file selection before installing extension (default: false).
+	 * When true, the extension is only installed if the user confirms file selection.
+	 * When false, the extension is installed immediately and then files are selected.
+	 */
+	selectFilesFirst?: boolean;
 	/** Progress callback. */
 	onProgress?: (info: { phase: string; message: string; file?: string }) => void;
 	/** Dry run mode - resolve and validate without copying files. */
@@ -199,6 +205,136 @@ export interface UseResult {
 	wouldCopy?: string[];
 	/** Files that would conflict with existing files (only set in dry run mode). */
 	wouldConflict?: string[];
+	/** Whether the user cancelled the file selection (only set when selectFilesFirst is true). */
+	cancelled?: boolean;
+}
+
+/**
+ * Two-phase use: show file selection before installing.
+ *
+ * Phase 1: Dry-run to download/extract and get available files, show selection dialog.
+ * Phase 2: If user confirms, install extension and copy selected files.
+ *
+ * @param source - Extension source
+ * @param options - Use options (must include selectFiles callback)
+ * @returns Use result with cancelled flag if user cancelled
+ */
+async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<UseResult> {
+	const { projectDir, auth, exclude = [], selectFiles, onProgress, sourceDisplay } = options;
+
+	if (!selectFiles) {
+		throw new ExtensionError("selectFiles callback is required for twoPhaseUse");
+	}
+
+	let dryRunResult: InstallResult | null = null;
+
+	try {
+		// PHASE 1: Dry-run to get available files
+		onProgress?.({ phase: "preparing", message: "Preparing template preview..." });
+
+		dryRunResult = await install(source, {
+			projectDir,
+			auth,
+			force: true,
+			keepSourceDir: true,
+			dryRun: true,
+			sourceDisplay,
+			onProgress: (p) => {
+				onProgress?.({ phase: p.phase, message: p.message });
+			},
+		});
+
+		if (!dryRunResult.success || !dryRunResult.sourceRoot) {
+			throw new ExtensionError("Failed to prepare template preview");
+		}
+
+		const sourceRoot = dryRunResult.sourceRoot;
+
+		// Get all available files from extracted source
+		const allFiles = await globFiles(sourceRoot, {
+			includeHidden: true,
+			ignore: ["_extensions/**"],
+		});
+
+		// Find which files already exist in the project
+		const existingFiles: string[] = [];
+		for (const file of allFiles) {
+			const targetPath = path.join(projectDir, file);
+			if (fs.existsSync(targetPath)) {
+				existingFiles.push(file);
+			}
+		}
+
+		// Call the selection callback
+		onProgress?.({ phase: "selecting", message: "Awaiting file selection..." });
+
+		const selectionResult = await selectFiles(
+			allFiles,
+			existingFiles,
+			DEFAULT_EXCLUDE_PATTERNS.filter((p) => p !== "_extensions/**"),
+		);
+
+		if (!selectionResult) {
+			// User cancelled - clean up and return
+			await cleanupExtraction(sourceRoot);
+			return {
+				install: {
+					success: false,
+					extension: dryRunResult.extension,
+					filesCreated: [],
+					source: dryRunResult.source,
+				},
+				templateFiles: [],
+				skippedFiles: allFiles,
+				cancelled: true,
+			};
+		}
+
+		// PHASE 2: Actual installation using the extracted source as local path
+		onProgress?.({ phase: "installing", message: "Installing extension..." });
+
+		const localSource: InstallSource = {
+			type: "local",
+			path: sourceRoot,
+		};
+
+		const installResult = await install(localSource, {
+			projectDir,
+			auth,
+			force: true,
+			keepSourceDir: true,
+			sourceDisplay,
+			onProgress: (p) => {
+				onProgress?.({ phase: p.phase, message: p.message });
+			},
+		});
+
+		if (!installResult.success) {
+			throw new ExtensionError("Failed to install extension");
+		}
+
+		// Copy selected template files
+		onProgress?.({ phase: "copying", message: "Copying template files..." });
+
+		const { templateFiles, skippedFiles } = await copyTemplateFiles(sourceRoot, projectDir, {
+			filesToCopy: selectionResult.selectedFiles,
+			overwriteAll: selectionResult.overwriteExisting,
+			onProgress: (file) => {
+				onProgress?.({ phase: "copying", message: `Copying ${file}...`, file });
+			},
+		});
+
+		return {
+			install: installResult,
+			templateFiles,
+			skippedFiles,
+		};
+	} finally {
+		// Clean up the extracted source
+		if (dryRunResult?.sourceRoot) {
+			await cleanupExtraction(dryRunResult.sourceRoot);
+		}
+	}
 }
 
 /**
@@ -218,12 +354,19 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		confirmOverwrite,
 		confirmOverwriteBatch,
 		selectFiles,
+		selectFilesFirst = false,
 		onProgress,
 		dryRun = false,
 		sourceDisplay,
 	} = options;
 
 	const installSource = typeof source === "string" ? parseInstallSource(source) : source;
+
+	// Use two-phase flow when selectFilesFirst is enabled
+	// This shows file selection before installing, allowing full cancellation
+	if (selectFilesFirst && selectFiles && !noTemplate && !dryRun) {
+		return twoPhaseUse(installSource, options);
+	}
 
 	onProgress?.({ phase: "installing", message: "Installing extension..." });
 

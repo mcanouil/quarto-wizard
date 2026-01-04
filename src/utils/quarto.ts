@@ -257,6 +257,7 @@ export async function useQuartoExtension(
 		const result = await use(source, {
 			projectDir: workspaceFolder,
 			selectFiles,
+			selectFilesFirst: true,
 			auth,
 			sourceDisplay,
 			onProgress: (progress) => {
@@ -267,6 +268,12 @@ export async function useQuartoExtension(
 				}
 			},
 		});
+
+		// Check if user cancelled file selection
+		if (result.cancelled) {
+			logMessage(`${prefix} Template usage cancelled by user.`, "info");
+			return null;
+		}
 
 		if (result.install.success) {
 			logMessage(`${prefix} Successfully installed template.`, "info");
