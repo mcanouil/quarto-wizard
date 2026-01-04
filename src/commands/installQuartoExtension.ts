@@ -447,7 +447,9 @@ export async function installExtensionFromLocalCommand(context: vscode.Extension
 	// Convert to relative path if within workspace folder
 	let sourcePath = absolutePath;
 	if (absolutePath.startsWith(workspaceFolder + path.sep)) {
-		sourcePath = path.relative(workspaceFolder, absolutePath);
+		const relativePath = path.relative(workspaceFolder, absolutePath);
+		// Ensure relative path starts with ./ for proper source detection
+		sourcePath = relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
 	}
 
 	logMessage(`Installing extension from local source: ${sourcePath}.`, "info");
