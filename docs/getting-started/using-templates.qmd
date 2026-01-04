@@ -3,6 +3,8 @@ title: "Using Templates"
 alt-text:
   template-browser: |
     The template browser interface showing available Quarto templates with their names, versions, and descriptions.
+  target-subdir: |
+    The input box prompting for a target subdirectory where template files should be copied.
   template-files: |
     The QuickPick dialog showing available template files to copy.
 ---
@@ -48,8 +50,26 @@ fig-alt='{{< meta alt-text.template-browser >}}'
 
 1. Select the template you want to use.
 2. Choose the workspace folder where the template should be installed (if multiple are available).
-3. Select which template files to copy (if multiple are available).
-4. Confirm any file overwrites if necessary.
+3. Specify a target subdirectory for template files (optional).
+4. Select which template files to copy (if multiple are available).
+5. Confirm any file overwrites if necessary.
+
+::: {layout-ncol="2"}
+
+::: {style="text-align: center;"}
+![](images/target-subdir-dark.png "Target Subdirectory Input"){
+.dark-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.target-subdir >}}'
+}
+![](images/target-subdir-light.png "Target Subdirectory Input"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.target-subdir >}}'
+}
+:::
 
 ::: {style="text-align: center;"}
 ![](images/template-files-dark.png "QuickPick Dialog: Template Files"){
@@ -64,6 +84,21 @@ fig-alt='{{< meta alt-text.template-files >}}'
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.template-files >}}'
 }
+:::
+
+:::
+
+## Target Subdirectory
+
+When using a template, you can specify a subdirectory where the template files should be copied.
+This is useful when you want to organise your project or avoid overwriting existing files in the project root.
+
+- Leave the field empty to copy files directly to the project root.
+- Enter a relative path (e.g., `my-project` or `docs/templates`) to copy files to that subdirectory.
+
+::: {.callout-note}
+Extensions are always installed to the `_extensions/` directory at the project root, regardless of the target subdirectory setting.
+Only template files (e.g., `.qmd` documents, stylesheets) are affected by the target subdirectory.
 :::
 
 ## Template Files

@@ -3,7 +3,7 @@ title: "Quarto Wizard"
 subtitle: "A Visual Studio Code Extension for Quarto Projects"
 description: "Easily manage Quarto extensions and templates with a user-friendly interface."
 title-prefix: ""
-language: 
+language:
   title-block-affiliation-single: "Homepage"
 author:
   - name: "Mickaël CANOUIL, _Ph.D._"
