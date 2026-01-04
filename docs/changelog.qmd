@@ -11,7 +11,7 @@ title: "Changelog"
 
 ### New Features
 
-- feat: add target subdirectory option for template files when using `quarto use template` functionality.
+- feat: add target subdirectory option for template files when using `Quarto Wizard: Use Template` functionality.
   Users can now specify a subdirectory within the project where template files should be copied, while extensions always install to the project root.
 - feat: add `@quarto-wizard/core` package with platform-agnostic extension management logic.
 - feat: add proxy support via environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`).
