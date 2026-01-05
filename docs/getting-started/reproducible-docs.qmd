@@ -68,32 +68,6 @@ fig-alt='{{< meta alt-text.reprex-language >}}'
 
 :::
 
-## Available Templates
-
-### R Template
-
-Creates a Quarto document with:
-
-- R code chunks.
-- Session information.
-- Reproducibility metadata.
-
-### Python Template
-
-Creates a Quarto document with:
-
-- Python code blocks.
-- Package version information.
-- System details.
-
-### Julia Template
-
-Creates a Quarto document with:
-
-- Julia code blocks.
-- Package environment information.
-- Version details.
-
 ## Use Cases
 
 Reproducible documents are helpful for:
