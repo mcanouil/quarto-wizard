@@ -77,7 +77,7 @@ CIDR notation (e.g., 192.168.1.0/24) is not supported.
 
 #### ProxyConfig
 
-Defined in: [packages/core/src/proxy/config.ts:46](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/config.ts#L46)
+Defined in: [packages/core/src/proxy/config.ts:46](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/config.ts#L46)
 
 Proxy configuration.
 
@@ -85,9 +85,9 @@ Proxy configuration.
 
 | Property                              | Type       | Description                                 | Defined in                                                                                                                                                            |
 | ------------------------------------- | ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="httpproxy"></a> `httpProxy?`   | `string`   | Proxy URL for HTTP requests.                | [packages/core/src/proxy/config.ts:48](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/config.ts#L48) |
-| <a id="httpsproxy"></a> `httpsProxy?` | `string`   | Proxy URL for HTTPS requests.               | [packages/core/src/proxy/config.ts:50](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/config.ts#L50) |
-| <a id="noproxy"></a> `noProxy`        | `string[]` | List of hosts/patterns to bypass the proxy. | [packages/core/src/proxy/config.ts:52](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/config.ts#L52) |
+| <a id="httpproxy"></a> `httpProxy?`   | `string`   | Proxy URL for HTTP requests.                | [packages/core/src/proxy/config.ts:48](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/config.ts#L48) |
+| <a id="httpsproxy"></a> `httpsProxy?` | `string`   | Proxy URL for HTTPS requests.               | [packages/core/src/proxy/config.ts:50](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/config.ts#L50) |
+| <a id="noproxy"></a> `noProxy`        | `string[]` | List of hosts/patterns to bypass the proxy. | [packages/core/src/proxy/config.ts:52](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/config.ts#L52) |
 
 ### Functions
 
@@ -97,7 +97,7 @@ Proxy configuration.
 function getProxyConfig(): ProxyConfig;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:88](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/config.ts#L88)
+Defined in: [packages/core/src/proxy/config.ts:88](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/config.ts#L88)
 
 Read proxy configuration from environment variables.
 
@@ -113,7 +113,7 @@ Proxy configuration
 function getProxyForUrl(url, config?): string | undefined;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:146](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/config.ts#L146)
+Defined in: [packages/core/src/proxy/config.ts:146](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/config.ts#L146)
 
 Get the appropriate proxy URL for a given request URL.
 
@@ -136,7 +136,7 @@ Proxy URL or undefined if no proxy should be used
 function shouldBypassProxy(hostname, noProxy): boolean;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:109](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/config.ts#L109)
+Defined in: [packages/core/src/proxy/config.ts:109](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/config.ts#L109)
 
 Check if a hostname should bypass the proxy.
 
@@ -170,7 +170,7 @@ Automatically routes requests through configured proxy servers.
 
 #### ProxyFetchOptions
 
-Defined in: [packages/core/src/proxy/fetch.ts:72](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/fetch.ts#L72)
+Defined in: [packages/core/src/proxy/fetch.ts:72](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/fetch.ts#L72)
 
 Options for proxy-aware fetch.
 
@@ -192,7 +192,7 @@ Options for proxy-aware fetch.
 | <a id="keepalive"></a> `keepalive?`           | `boolean`                              | -                                                             | `RequestInit.keepalive`      | node_modules/undici-types/fetch.d.ts:130                                                                                                                            |
 | <a id="method"></a> `method?`                 | `string`                               | -                                                             | `RequestInit.method`         | node_modules/undici-types/fetch.d.ts:131                                                                                                                            |
 | <a id="mode"></a> `mode?`                     | `RequestMode`                          | -                                                             | `RequestInit.mode`           | node_modules/undici-types/fetch.d.ts:132                                                                                                                            |
-| <a id="proxyconfig"></a> `proxyConfig?`       | [`ProxyConfig`](proxy.qmd#proxyconfig) | Proxy configuration. If not provided, reads from environment. | -                            | [packages/core/src/proxy/fetch.ts:74](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/fetch.ts#L74) |
+| <a id="proxyconfig"></a> `proxyConfig?`       | [`ProxyConfig`](proxy.qmd#proxyconfig) | Proxy configuration. If not provided, reads from environment. | -                            | [packages/core/src/proxy/fetch.ts:74](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/fetch.ts#L74) |
 | <a id="redirect"></a> `redirect?`             | `RequestRedirect`                      | -                                                             | `RequestInit.redirect`       | node_modules/undici-types/fetch.d.ts:133                                                                                                                            |
 | <a id="referrer"></a> `referrer?`             | `string`                               | -                                                             | `RequestInit.referrer`       | node_modules/undici-types/fetch.d.ts:134                                                                                                                            |
 | <a id="referrerpolicy"></a> `referrerPolicy?` | `ReferrerPolicy`                       | -                                                             | `RequestInit.referrerPolicy` | node_modules/undici-types/fetch.d.ts:135                                                                                                                            |
@@ -207,7 +207,7 @@ Options for proxy-aware fetch.
 function clearProxyAgentCache(): void;
 ```
 
-Defined in: [packages/core/src/proxy/fetch.ts:137](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/fetch.ts#L137)
+Defined in: [packages/core/src/proxy/fetch.ts:137](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/fetch.ts#L137)
 
 Clear the proxy agent cache.
 Useful for testing or when proxy configuration changes.
@@ -222,7 +222,7 @@ Useful for testing or when proxy configuration changes.
 function proxyFetch(url, options): Promise<Response>;
 ```
 
-Defined in: [packages/core/src/proxy/fetch.ts:109](https://github.com/mcanouil/quarto-wizard/blob/1c16505676f6e675fc9db7f325e3c58da50d1c26/packages/core/src/proxy/fetch.ts#L109)
+Defined in: [packages/core/src/proxy/fetch.ts:109](https://github.com/mcanouil/quarto-wizard/blob/9696b0cb9f36325231fea228e8fd3f07a801c5f8/packages/core/src/proxy/fetch.ts#L109)
 
 Proxy-aware fetch function.
 
