@@ -275,10 +275,19 @@ jobs:
             vsce package
           fi
 
+      - name: Package core library
+        shell: bash
+        run: |
+          cd packages/core
+          npm pack
+          mv quarto-wizard-core-*.tgz "${GITHUB_WORKSPACE}/"
+
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: "${{ github.workspace }}/quarto-wizard-${{ env.VERSION }}.vsix"
+          subject-path: |
+            ${{ github.workspace }}/quarto-wizard-${{ env.VERSION }}.vsix
+            ${{ github.workspace }}/quarto-wizard-core-${{ env.VERSION }}.tgz
 
       - name: Release extension on GitHub
         env:
@@ -289,13 +298,17 @@ jobs:
         shell: bash
         run: |
           if [ "${TYPE}" = "pre-release" ]; then
-            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
+            gh release create ${VERSION} \
+              "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
+              "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)" \
               --prerelease \
               --title ${VERSION} \
               --notes-file ${CHANGELOG} \
               --generate-notes
           else
-            gh release create ${VERSION} "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
+            gh release create ${VERSION} \
+              "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
+              "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)" \
               --title ${VERSION} \
               --notes-file ${CHANGELOG} \
               --generate-notes
