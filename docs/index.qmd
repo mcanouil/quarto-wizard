@@ -116,4 +116,4 @@ Quarto Wizard is developed by [Mickaël CANOUIL](https://github.com/mcanouil) ([
 
 ## Licence
 
-This project is licensed under the [MIT Licence](https://github.com/mcanouil/quarto-wizard/blob/main/LICENSE).
+This project is licensed under the [MIT Licence](https://github.com/mcanouil/quarto-wizard?tab=MIT-1-ov-file#readme).
