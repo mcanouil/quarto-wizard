@@ -29,7 +29,7 @@ It enhances your Quarto development experience by making extension management si
 
 ::: {style="text-align: center;"}
 ![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'

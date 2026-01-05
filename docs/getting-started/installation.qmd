@@ -22,7 +22,7 @@ The easiest way to install Quarto Wizard:
 
 ::: {style="text-align: center;"}
 ![](images/marketplace-dark.png "Extensions View: Marketplace"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.marketplace >}}'
@@ -61,12 +61,40 @@ Via [Open VSX](https://open-vsx.org/extension/mcanouil/quarto-wizard).
 
 ## Manual Installation
 
-For manual installation from a release file:
+For manual installation from a GitHub release:
 
 1. Download the latest `.vsix` file from the [GitHub Releases](https://github.com/mcanouil/quarto-wizard/releases).
 2. In VS Code, open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
 3. Run `Extensions: Install from VSIX...`.
 4. Select the downloaded `.vsix` file.
+
+### Using GitHub CLI
+
+You can download, verify attestation, and install in one go using the [GitHub CLI](https://cli.github.com/).
+
+::: {.panel-tabset}
+
+### Visual Studio Code
+
+```{.bash filename="Terminal"}
+gh release download "{{< var version >}}" --repo mcanouil/quarto-wizard --pattern "*.vsix"
+gh attestation verify "quarto-wizard-{{< var version >}}.vsix" --repo mcanouil/quarto-wizard
+code --install-extension mcanouil.quarto-wizard
+```
+
+Via [GitHub Release](https://github.com/mcanouil/quarto-wizard/releases/latest).
+
+### Positron
+
+```{.bash filename="Terminal"}
+gh release download "{{< var version >}}" --repo mcanouil/quarto-wizard --pattern "*.vsix"
+gh attestation verify "quarto-wizard-{{< var version >}}.vsix" --repo mcanouil/quarto-wizard
+positron --install-extension mcanouil.quarto-wizard
+```
+
+Via [GitHub Release](https://github.com/mcanouil/quarto-wizard/releases/latest).
+
+:::
 
 ## Verifying Installation
 
@@ -78,7 +106,7 @@ After installation, you can verify it worked by:
 
 ::: {style="text-align: center;"}
 ![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
@@ -116,7 +144,7 @@ For accessing private repositories or avoiding rate limits, you can configure Gi
 
 ::: {style="text-align: center;"}
 ![](images/github-token-dark.png "Command Palette: GitHub Token Input"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.github-token >}}'

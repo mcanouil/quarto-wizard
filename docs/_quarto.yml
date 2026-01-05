@@ -13,7 +13,7 @@ website:
   description: "A Visual Studio Code extension that helps you manage Quarto projects and extensions."
   favicon: "assets/logo/logo.svg"
   repo-url: https://github.com/mcanouil/quarto-wizard
-  repo-actions: [source, issue]
+  repo-actions: none
   repo-link-target: _blank
   open-graph: true
   twitter-card: true
@@ -78,7 +78,6 @@ format:
     code-link: false
     code-overflow: wrap
     link-external-newwindow: true
-    lightbox: true
     fig-align: center
     grid:
       sidebar-width: 300px

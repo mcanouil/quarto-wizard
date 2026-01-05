@@ -33,7 +33,7 @@ When you use a template, Quarto Wizard:
 
 ::: {style="text-align: center;"}
 ![](images/template-browser-dark.png "Template Browser"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.template-browser >}}'
@@ -58,7 +58,7 @@ fig-alt='{{< meta alt-text.template-browser >}}'
 
 ::: {style="text-align: center;"}
 ![](images/target-subdir-dark.png "Target Subdirectory Input"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.target-subdir >}}'
@@ -73,7 +73,7 @@ fig-alt='{{< meta alt-text.target-subdir >}}'
 
 ::: {style="text-align: center;"}
 ![](images/template-files-dark.png "QuickPick Dialog: Template Files"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.template-files >}}'

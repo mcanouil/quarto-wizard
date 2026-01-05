@@ -25,7 +25,7 @@ Quarto Wizard makes it easy to browse and install Quarto extensions from multipl
 
 ::: {style="text-align: center;"}
 ![](images/extension-browser-1-dark.png "Extension Browser Interface"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-1 >}}'
@@ -40,7 +40,7 @@ fig-alt='{{< meta alt-text.extension-browser-1 >}}'
 
 ::: {style="text-align: center;"}
 ![](images/extension-browser-2-dark.png "Extension Browser Interface"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-2 >}}'
@@ -116,7 +116,7 @@ Right-click on a folder or archive file (`.zip`, `.tar.gz`, `.tgz`) in the Explo
 
 ::: {style="text-align: center;"}
 ![](images/context-menu-local-dark.png "Explorer Context Menu"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.context-menu-local >}}'
@@ -145,7 +145,7 @@ This applies to all installation sources: Registry, GitHub, URL, and local.
 
 ::: {style="text-align: center;"}
 ![](images/extension-selection-dark.png "Extension Selection Dialog"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-selection >}}'
@@ -169,7 +169,7 @@ This applies to all installation sources: Registry, GitHub, URL, and local.
 
 ::: {style="text-align: center;"}
 ![](images/conflict-resolution-dark.png "Conflict Resolution Dialog"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.conflict-resolution >}}'

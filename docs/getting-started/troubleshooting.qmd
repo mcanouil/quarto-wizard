@@ -19,7 +19,7 @@ The first step in troubleshooting is to check the output log:
 
 ::: {style="text-align: center;"}
 ![](images/output-log-dark.png "Output Log: Quarto Wizard"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.output-log >}}'

@@ -252,6 +252,18 @@ jobs:
           ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
           echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> ${GITHUB_ENV}
 
+      - name: Append installation instructions to changelog
+        env:
+          VERSION: ${{ env.VERSION }}
+          CHANGELOG: ${{ env.CHANGELOG }}
+          REPO: ${{ github.repository }}
+          DOCS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        shell: bash
+        run: |
+          envsubst '${VERSION} ${REPO} ${DOCS_URL}' \
+            < .github/workflows/assets/install-instructions.md \
+            >> "${CHANGELOG}"
+
       - name: Package extension
         env:
           TYPE: ${{ github.event.inputs.type }}
