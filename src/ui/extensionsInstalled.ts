@@ -487,7 +487,8 @@ export class ExtensionsInstalled {
 				const latestVersion = item.latestVersion?.replace(/^@/, "");
 				const latestSemver = latestVersion ? latestVersion.replace(/^v/, "") : undefined;
 				const auth = await getAuthConfig(context, { createIfNone: true });
-				const success = await withProgressNotification(
+				// result is true (success), false (failure), or null (cancelled)
+				const result = await withProgressNotification(
 					`Updating "${item.repository ?? item.label}" to ${latestSemver} ...`,
 					async () => {
 						return installQuartoExtension(
@@ -499,10 +500,11 @@ export class ExtensionsInstalled {
 						);
 					},
 				);
-				if (success) {
+				if (result === true) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
-				} else {
+				} else if (result === false) {
+					// Only show error for actual failures, not cancellations
 					if (!item.repository) {
 						vscode.window.showErrorMessage(
 							`Failed to update extension "${item.label}". ` +
@@ -513,6 +515,7 @@ export class ExtensionsInstalled {
 						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${showLogsCommand()}.`);
 					}
 				}
+				// result === null means cancelled by user, no message needed
 			}),
 		);
 
@@ -618,17 +621,21 @@ export class ExtensionsInstalled {
 						const source = ext.repository
 							? `${ext.repository}@${ext.latestVersion}`
 							: `${ext.extensionId}@${ext.latestVersion}`;
-						const success = await installQuartoExtension(
+						// result is true (success), false (failure), or null (cancelled)
+						const result = await installQuartoExtension(
 							source,
 							ext.workspaceFolder,
 							auth,
 							undefined,
 							true, // skipOverwritePrompt - updates are expected to overwrite
 						);
-						if (success) {
+						if (result === true) {
 							successCount++;
-						} else {
+						} else if (result === false) {
 							failedCount++;
+						} else {
+							// result === null means cancelled by user, stop processing
+							break;
 						}
 					}
 					return successCount > 0;

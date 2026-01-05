@@ -356,7 +356,19 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		if (allExtensions.length > 1 && options.selectExtension) {
 			const selected = await options.selectExtension(allExtensions);
 			if (!selected || selected.length === 0) {
-				throw new ExtensionError("Extension selection cancelled by user");
+				// User cancelled extension selection - return cancelled result instead of throwing
+				return {
+					success: false,
+					cancelled: true,
+					extension: {
+						id: allExtensions[0].id,
+						manifest: {} as ExtensionManifest,
+						manifestPath: "",
+						directory: "",
+					},
+					filesCreated: [],
+					source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
+				};
 			}
 			selectedExtensions = selected;
 		} else {

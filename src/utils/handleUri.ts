@@ -15,8 +15,13 @@ interface UriActionConfig {
 	confirmMessage: (repo: string) => string;
 	/** Function to generate the progress message from the repo name. */
 	progressMessage: (repo: string) => string;
-	/** The executor function that performs the action. */
-	executor: (repo: string, workspaceFolder: string, auth: AuthConfig) => Promise<boolean>;
+	/** The executor function that performs the action. Returns true (success), false (failure), or null (cancelled). */
+	executor: (
+		repo: string,
+		workspaceFolder: string,
+		auth: AuthConfig,
+		token: vscode.CancellationToken,
+	) => Promise<boolean | null>;
 }
 
 /**
@@ -26,13 +31,13 @@ interface UriActionConfig {
  * @param uri - The VS Code URI containing query parameters.
  * @param context - The extension context for authentication.
  * @param config - Configuration for the action.
- * @returns A Promise that resolves when the action is complete or cancelled.
+ * @returns A Promise that resolves to true (success), false (failure), null (cancelled), or undefined (aborted early).
  */
 async function handleUriAction(
 	uri: vscode.Uri,
 	context: vscode.ExtensionContext,
 	config: UriActionConfig,
-): Promise<boolean | undefined> {
+): Promise<boolean | null | undefined> {
 	const repo = new URLSearchParams(uri.query).get("repo");
 	const workspaceFolder = await selectWorkspaceFolder();
 	if (!repo || !workspaceFolder) {
@@ -63,8 +68,12 @@ async function handleUriAction(
 		logMessage("Authentication: none (public access).", "info");
 	}
 
-	return await withProgressNotification(config.progressMessage(repo), async () => {
-		return config.executor(repo, workspaceFolder, auth);
+	return await withProgressNotification(config.progressMessage(repo), async (token) => {
+		// Check if already cancelled before starting
+		if (token.isCancellationRequested) {
+			return null;
+		}
+		return config.executor(repo, workspaceFolder, auth, token);
 	});
 }
 
@@ -107,7 +116,15 @@ export async function handleUriInstall(uri: vscode.Uri, context: vscode.Extensio
 	return handleUriAction(uri, context, {
 		confirmMessage: (repo) => `Do you confirm the installation of "${repo}" extension?`,
 		progressMessage: (repo) => `Installing Quarto extension from ${repo} ...`,
-		executor: (repo, workspaceFolder, auth) => installQuartoExtension(repo, workspaceFolder, auth),
+		executor: (repo, workspaceFolder, auth, token) =>
+			installQuartoExtension(
+				repo,
+				workspaceFolder,
+				auth,
+				undefined, // sourceDisplay
+				undefined, // skipOverwritePrompt
+				token, // cancellationToken
+			),
 	});
 }
 
@@ -126,11 +143,21 @@ export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionCon
 		confirmMessage: (repo) =>
 			`Do you confirm using the "${repo}" template extension? This will install the extension and copy template files to your project.`,
 		progressMessage: (repo) => `Using Quarto template from ${repo} ...`,
-		executor: async (repo, workspaceFolder, auth) => {
+		executor: async (repo, workspaceFolder, auth, token) => {
 			const selectFiles = createFileSelectionCallback();
 			const selectTargetSubdir = createTargetSubdirCallback();
-			const result = await useQuartoExtension(repo, workspaceFolder, selectFiles, selectTargetSubdir, auth);
-			return result !== null;
+			const result = await useQuartoExtension(
+				repo,
+				workspaceFolder,
+				selectFiles,
+				selectTargetSubdir,
+				auth,
+				undefined, // sourceDisplay
+				token, // cancellationToken
+			);
+			// useQuartoExtension returns UseResult | null
+			// null means either failure or cancellation
+			return result !== null ? true : null;
 		},
 	});
 }

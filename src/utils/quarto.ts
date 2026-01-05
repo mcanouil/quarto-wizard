@@ -90,7 +90,8 @@ function createValidateQuartoVersionCallback(
  * @param auth - Optional authentication configuration for private repositories.
  * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
  * @param skipOverwritePrompt - If true, skip the overwrite confirmation prompt (used by update commands).
- * @returns A promise that resolves to true if the extension is installed successfully, otherwise false.
+ * @param cancellationToken - Optional cancellation token to check before showing dialogs.
+ * @returns A promise that resolves to true if successful, false if failed, or null if cancelled by user.
  */
 export async function installQuartoExtension(
 	extension: string,
@@ -98,7 +99,8 @@ export async function installQuartoExtension(
 	auth?: AuthConfig,
 	sourceDisplay?: string,
 	skipOverwritePrompt?: boolean,
-): Promise<boolean> {
+	cancellationToken?: vscode.CancellationToken,
+): Promise<boolean | null> {
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
@@ -110,13 +112,23 @@ export async function installQuartoExtension(
 	try {
 		const source = parseInstallSource(extension);
 
+		// Create a wrapper for extension selection that checks cancellation token
+		const selectExtensionWithCancellation = cancellationToken
+			? async (extensions: DiscoveredExtension[]) => {
+					if (cancellationToken.isCancellationRequested) {
+						return null; // Cancelled
+					}
+					return showExtensionSelectionQuickPick(extensions);
+				}
+			: showExtensionSelectionQuickPick;
+
 		// Single-pass installation with interactive callbacks
 		const result = await install(source, {
 			projectDir: workspaceFolder,
 			force: true,
 			auth,
 			sourceDisplay,
-			selectExtension: showExtensionSelectionQuickPick,
+			selectExtension: selectExtensionWithCancellation,
 			confirmOverwrite: createConfirmOverwriteCallback(prefix, skipOverwritePrompt ?? false),
 			validateQuartoVersion: createValidateQuartoVersionCallback(prefix),
 			onProgress: (progress) => {
@@ -125,8 +137,9 @@ export async function installQuartoExtension(
 		});
 
 		if (result.cancelled) {
-			// User cancelled via callback (overwrite or version mismatch)
-			return false;
+			// User cancelled via callback (extension selection, overwrite, or version mismatch)
+			logMessage(`${prefix} Installation cancelled by user.`, "info");
+			return null;
 		}
 
 		if (result.success) {
@@ -309,6 +322,7 @@ async function showExtensionOverwriteConfirmation(
  * @param selectTargetSubdir - Callback for interactive target subdirectory selection.
  * @param auth - Optional authentication configuration for private repositories.
  * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
+ * @param cancellationToken - Optional cancellation token to check before showing dialogs.
  * @returns A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
@@ -318,6 +332,7 @@ export async function useQuartoExtension(
 	selectTargetSubdir?: SelectTargetSubdirCallback,
 	auth?: AuthConfig,
 	sourceDisplay?: string,
+	cancellationToken?: vscode.CancellationToken,
 ): Promise<UseResult | null> {
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Using template ...`, "info");
@@ -330,12 +345,44 @@ export async function useQuartoExtension(
 	try {
 		const source = parseInstallSource(extension);
 
+		// Create wrappers for callbacks that check cancellation token before showing UI
+		const selectFilesWithCancellation = selectFiles
+			? cancellationToken
+				? async (availableFiles: string[], existingFiles: string[], defaultExcludePatterns: string[]) => {
+						if (cancellationToken.isCancellationRequested) {
+							return null; // Cancelled
+						}
+						return selectFiles(availableFiles, existingFiles, defaultExcludePatterns);
+					}
+				: selectFiles
+			: undefined;
+
+		const selectTargetSubdirWithCancellation = selectTargetSubdir
+			? cancellationToken
+				? async () => {
+						if (cancellationToken.isCancellationRequested) {
+							return undefined; // Cancelled - stop operation
+						}
+						return selectTargetSubdir();
+					}
+				: selectTargetSubdir
+			: undefined;
+
+		const selectExtensionWithCancellation = cancellationToken
+			? async (extensions: DiscoveredExtension[]) => {
+					if (cancellationToken.isCancellationRequested) {
+						return null; // Cancelled
+					}
+					return showExtensionSelectionQuickPick(extensions);
+				}
+			: showExtensionSelectionQuickPick;
+
 		const result = await use(source, {
 			projectDir: workspaceFolder,
-			selectFiles,
-			selectTargetSubdir,
+			selectFiles: selectFilesWithCancellation,
+			selectTargetSubdir: selectTargetSubdirWithCancellation,
 			selectFilesFirst: true,
-			selectExtension: showExtensionSelectionQuickPick,
+			selectExtension: selectExtensionWithCancellation,
 			confirmExtensionOverwrite: showExtensionOverwriteConfirmation,
 			auth,
 			sourceDisplay,

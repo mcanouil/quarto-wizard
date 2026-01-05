@@ -6,10 +6,13 @@ import { showLogsCommand, logMessage } from "./log";
  *
  * @template T The return type of the async expression.
  * @param {string} title - The title for the progress notification.
- * @param {() => Promise<T>} expression - The async function to execute (no arguments).
+ * @param {(token: vscode.CancellationToken) => Promise<T>} expression - The async function to execute with cancellation token.
  * @returns {Promise<T>} A promise that resolves to the result of the expression.
  */
-export async function withProgressNotification<T>(title: string, expression: () => Promise<T>): Promise<T> {
+export async function withProgressNotification<T>(
+	title: string,
+	expression: (token: vscode.CancellationToken) => Promise<T>,
+): Promise<T> {
 	return await vscode.window.withProgress<T>(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -23,7 +26,7 @@ export async function withProgressNotification<T>(title: string, expression: () 
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			});
 			// progress.report({ increment: 0 });
-			return await expression();
+			return await expression(token);
 		},
 	);
 }

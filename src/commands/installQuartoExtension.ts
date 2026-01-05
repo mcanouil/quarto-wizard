@@ -70,6 +70,11 @@ async function installQuartoExtensions(
 			let installedCount = 0;
 
 			for (const selectedExtension of mutableSelectedExtensions) {
+				// Check if user cancelled the operation
+				if (token.isCancellationRequested) {
+					break;
+				}
+
 				if (!selectedExtension.id) {
 					continue;
 				}
@@ -86,26 +91,42 @@ async function installQuartoExtensions(
 					extensionSource = `${selectedExtension.id}@${selectedExtension.tag}`;
 				}
 
-				let success: boolean;
+				// result is true (success), false (failure), or null (cancelled by user)
+				let result: boolean | null;
 				if (template) {
 					// Use template: install extension and copy template files
 					const selectFiles = createFileSelectionCallback();
 					const selectTargetSubdir = createTargetSubdirCallback();
-					const result = await useQuartoExtension(
+					const useResult = await useQuartoExtension(
 						extensionSource,
 						workspaceFolder,
 						selectFiles,
 						selectTargetSubdir,
 						auth,
+						undefined, // sourceDisplay
+						token, // cancellationToken
 					);
-					success = result !== null;
+					// useQuartoExtension returns UseResult | null
+					result = useResult !== null ? true : null;
 				} else {
 					// Regular install: just install the extension
-					success = await installQuartoExtension(extensionSource, workspaceFolder, auth);
+					result = await installQuartoExtension(
+						extensionSource,
+						workspaceFolder,
+						auth,
+						undefined, // sourceDisplay
+						undefined, // skipOverwritePrompt
+						token, // cancellationToken
+					);
+				}
+
+				// If user cancelled (e.g., extension selection dialog), stop processing
+				if (result === null) {
+					break;
 				}
 
 				// Track installation results for user feedback
-				if (success) {
+				if (result === true) {
 					installedExtensions.push(selectedExtension.id);
 				} else {
 					failedExtensions.push(selectedExtension.id);
@@ -137,7 +158,8 @@ async function installQuartoExtensions(
 					` manually with \`quarto ${template ? "use" : "add"} <extension>\`:`,
 				].join("");
 				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${showLogsCommand()}.`);
-			} else {
+			} else if (installedCount > 0) {
+				// Only show success message if at least one extension was processed
 				const message = [
 					installedCount,
 					" extension",
@@ -147,6 +169,7 @@ async function installQuartoExtensions(
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
 			}
+			// If installedCount === 0 and failedExtensions.length === 0, the operation was cancelled - no message needed
 		},
 	);
 }
@@ -285,36 +308,60 @@ async function installFromSource(
 		{
 			location: vscode.ProgressLocation.Notification,
 			title: `${actionWord} extension from ${source} (${showLogsCommand()})`,
-			cancellable: false,
+			cancellable: true,
 		},
-		async () => {
-			let success: boolean;
+		async (_progress, token) => {
+			token.onCancellationRequested(() => {
+				const message = "Operation cancelled by the user.";
+				logMessage(message, "info");
+				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+			});
+
+			// Check if already cancelled before starting
+			if (token.isCancellationRequested) {
+				return;
+			}
+
+			// result is true (success), false (failure), or null (cancelled by user)
+			let result: boolean | null;
 			if (template) {
 				const selectFiles = createFileSelectionCallback();
 				const selectTargetSubdir = createTargetSubdirCallback();
-				const result = await useQuartoExtension(
+				const useResult = await useQuartoExtension(
 					resolved,
 					workspaceFolder,
 					selectFiles,
 					selectTargetSubdir,
 					auth,
 					display,
+					token, // Pass cancellation token
 				);
-				success = result !== null;
+				// useQuartoExtension returns UseResult | null
+				// null means either failure or cancellation, but we treat both as non-success
+				result = useResult !== null ? true : null;
 			} else {
-				success = await installQuartoExtension(resolved, workspaceFolder, auth, display);
+				result = await installQuartoExtension(
+					resolved,
+					workspaceFolder,
+					auth,
+					display,
+					undefined, // skipOverwritePrompt
+					token, // Pass cancellation token
+				);
 			}
 
-			if (success) {
+			if (result === true) {
 				const message = template ? "Template used successfully." : "Extension installed successfully.";
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
-			} else {
+			} else if (result === false) {
+				// Only show error message for actual failures, not cancellations
 				const message = template
 					? `Failed to use template from ${source}.`
 					: `Failed to install extension from ${source}.`;
 				vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
 			}
+			// result === null means cancelled by user, no message needed
 		},
 	);
 }
