@@ -100,6 +100,7 @@ const DEFAULT_EXCLUDE_PATTERNS = [
 	"dist/**",
 	"build/**",
 	"_site/**",
+	"docs/**",
 
 	// Test/coverage
 	"coverage/**",
@@ -119,7 +120,6 @@ const DEFAULT_EXCLUDE_PATTERNS = [
 
 	// IDE files
 	".vscode/**",
-	".idea/**",
 
 	// LLM
 	".claude/**",
