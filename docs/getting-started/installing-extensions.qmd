@@ -91,7 +91,7 @@ Use `Quarto Wizard: Install Extensions` to browse and install from the official 
 
 ### From GitHub
 
-Use `Quarto Wizard: Install Extension from Registry` and enter a GitHub repository in the format `owner/repository`.
+Use `Quarto Wizard: Install Extension from Registry` and enter a GitHub repository in the format `owner/repository/subdirectory@reference`.
 
 ### From URL
 
