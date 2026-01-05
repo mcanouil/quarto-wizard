@@ -11,6 +11,9 @@ alt-text:
     The QuickPick dialog showing a list of discovered extensions with checkboxes for multi-selection.
   conflict-resolution: |
     The modal dialog asking whether to overwrite or skip a conflicting extension.
+  version-validation: |
+    The warning dialog indicating that the extension version requirement is not met, showing the required and current Quarto versions with options to "Install Anyway" or "Cancel".
+    Also shows the following note: the extension may not work correctly with your current Quarto version.
 ---
 
 Quarto Wizard makes it easy to browse and install Quarto extensions from multiple sources.
@@ -25,7 +28,7 @@ Quarto Wizard makes it easy to browse and install Quarto extensions from multipl
 
 ::: {style="text-align: center;"}
 ![](images/extension-browser-1-dark.png "Extension Browser Interface"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-1 >}}'
@@ -40,7 +43,7 @@ fig-alt='{{< meta alt-text.extension-browser-1 >}}'
 
 ::: {style="text-align: center;"}
 ![](images/extension-browser-2-dark.png "Extension Browser Interface"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-2 >}}'
@@ -91,7 +94,7 @@ Use `Quarto Wizard: Install Extensions` to browse and install from the official 
 
 ### From GitHub
 
-Use `Quarto Wizard: Install Extension from Registry` and enter a GitHub repository in the format `owner/repository`.
+Use `Quarto Wizard: Install Extension from Registry` and enter a GitHub repository in the format `owner/repository/subdirectory@reference`.
 
 ### From URL
 
@@ -116,7 +119,7 @@ Right-click on a folder or archive file (`.zip`, `.tar.gz`, `.tgz`) in the Explo
 
 ::: {style="text-align: center;"}
 ![](images/context-menu-local-dark.png "Explorer Context Menu"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.context-menu-local >}}'
@@ -145,7 +148,7 @@ This applies to all installation sources: Registry, GitHub, URL, and local.
 
 ::: {style="text-align: center;"}
 ![](images/extension-selection-dark.png "Extension Selection Dialog"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-selection >}}'
@@ -169,15 +172,15 @@ This applies to all installation sources: Registry, GitHub, URL, and local.
 
 ::: {style="text-align: center;"}
 ![](images/conflict-resolution-dark.png "Conflict Resolution Dialog"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+width="250px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.conflict-resolution >}}'
 }
 ![](images/conflict-resolution-light.png "Conflict Resolution Dialog"){
 .light-content
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+width="250px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.conflict-resolution >}}'
 }
 :::
@@ -195,6 +198,21 @@ Quarto Wizard validates this requirement before installation if the [Quarto VS C
    - The required version.
    - Your current version.
    - Options to "Install Anyway" or "Cancel".
+
+::: {style="text-align: center;"}
+![](images/version-validation-dark.png "Explorer Context Menu"){
+.dark-content .lightbox
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="250px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.version-validation >}}'
+}
+![](images/version-validation-light.png "Explorer Context Menu"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="250px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.version-validation >}}'
+}
+:::
 
 ::: {.callout-note}
 The Quarto VS Code extension is optional.

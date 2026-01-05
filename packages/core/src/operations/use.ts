@@ -100,6 +100,7 @@ const DEFAULT_EXCLUDE_PATTERNS = [
 	"dist/**",
 	"build/**",
 	"_site/**",
+	"docs/**",
 
 	// Test/coverage
 	"coverage/**",
@@ -119,7 +120,6 @@ const DEFAULT_EXCLUDE_PATTERNS = [
 
 	// IDE files
 	".vscode/**",
-	".idea/**",
 
 	// LLM
 	".claude/**",
@@ -167,9 +167,12 @@ export type FileSelectionCallback = (
 
 /**
  * Callback for selecting target subdirectory.
- * Returns the subdirectory path or null/empty string for project root.
+ * Returns:
+ *   - undefined: user cancelled (stop operation)
+ *   - null: user selected project root
+ *   - string: user entered a subdirectory path
  */
-export type SelectTargetSubdirCallback = () => Promise<string | null>;
+export type SelectTargetSubdirCallback = () => Promise<string | null | undefined>;
 
 /**
  * Options for "use extension" operation.
@@ -314,7 +317,22 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		if (selectTargetSubdir) {
 			onProgress?.({ phase: "selecting", message: "Awaiting target directory selection..." });
 			const selectedSubdir = await selectTargetSubdir();
-			// null or empty string means project root
+			// undefined means user cancelled (pressed Escape) - stop the operation
+			if (selectedSubdir === undefined) {
+				await cleanupExtraction(sourceRoot);
+				return {
+					install: {
+						success: false,
+						extension: dryRunResult.extension,
+						filesCreated: [],
+						source: effectiveSourceDisplay,
+					},
+					templateFiles: [],
+					skippedFiles: [],
+					cancelled: true,
+				};
+			}
+			// null means project root, string means subdirectory
 			effectiveTargetSubdir = selectedSubdir || undefined;
 		} else {
 			effectiveTargetSubdir = staticTargetSubdir;
@@ -551,6 +569,16 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			onProgress?.({ phase: p.phase, message: p.message });
 		},
 	});
+
+	// Check if user cancelled extension selection
+	if (installResult.cancelled) {
+		return {
+			install: installResult,
+			templateFiles: [],
+			skippedFiles: [],
+			cancelled: true,
+		};
+	}
 
 	if (noTemplate) {
 		return {

@@ -19,7 +19,7 @@ The first step in troubleshooting is to check the output log:
 
 ::: {style="text-align: center;"}
 ![](images/output-log-dark.png "Output Log: Quarto Wizard"){
-.dark-content
+.dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.output-log >}}'
@@ -69,7 +69,7 @@ You can adjust the log level in [Configuration](../reference/configuration.qmd) 
 
 **Solutions**:
 
-1. Manually add `source: owner/repository` to the extension's `_extension.yml`.
+1. Manually add `source: owner/repository` (full specification: `source: owner/repository/subdirectory@reference` where `reference` is a Git branch, tag, or commit SHA) to the extension's `_extension.yml`.
 2. Reinstall the extension using Quarto Wizard.
 
 ### GitHub Rate Limiting

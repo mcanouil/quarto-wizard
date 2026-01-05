@@ -597,10 +597,13 @@ export function createFileSelectionCallback(): (
  * Creates a callback for selecting target subdirectory.
  * Shows an input box where users can specify a subdirectory for template files.
  *
- * @returns A function that prompts for subdirectory and returns the path or null.
+ * @returns A function that prompts for subdirectory and returns:
+ *   - undefined: user cancelled (pressed Escape)
+ *   - null: user selected project root (empty string)
+ *   - string: user entered a subdirectory path
  */
-export function createTargetSubdirCallback(): () => Promise<string | null> {
-	return async (): Promise<string | null> => {
+export function createTargetSubdirCallback(): () => Promise<string | null | undefined> {
+	return async (): Promise<string | null | undefined> => {
 		const result = await vscode.window.showInputBox({
 			title: "Target Subdirectory",
 			prompt: "Enter subdirectory for template files (leave empty for project root)",
@@ -616,10 +619,11 @@ export function createTargetSubdirCallback(): () => Promise<string | null> {
 			},
 		});
 
-		// undefined means cancelled (Escape), empty string means project root
+		// undefined means cancelled (Escape) - stop the operation
 		if (result === undefined) {
-			return null; // Treat cancel as "use project root"
+			return undefined;
 		}
+		// empty string means project root
 		return result || null;
 	};
 }

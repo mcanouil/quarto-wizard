@@ -1,0 +1,10 @@
+other-links:
+  - text: "GitHub Release"
+    icon: box
+    href: https://github.com/mcanouil/quarto-wizard/releases/latest
+  - text: "Visual Studio Marketplace"
+    icon: box
+    href: https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard
+  - text: "Open VSX"
+    icon: box
+    href: https://open-vsx.org/extension/mcanouil/quarto-wizard
