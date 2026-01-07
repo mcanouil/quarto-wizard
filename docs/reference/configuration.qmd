@@ -68,7 +68,7 @@ Cache duration for extension registry data in minutes. Lower values fetch freshe
 
 **Setting**: `quartoWizard.registry.url`
 
-URL to the Quarto extensions registry JSON file. Change this to use a custom registry. The registry must contain entries with at least `id`, `name`, and `owner` fields.
+URL to the Quarto extensions registry JSON file. Change this to use a custom registry. See [`RawRegistryEntry`](/api/core/types.qmd#rawregistryentry) in the API reference for the expected JSON schema.
 
 | Property | Value                                                     |
 | -------- | --------------------------------------------------------- |

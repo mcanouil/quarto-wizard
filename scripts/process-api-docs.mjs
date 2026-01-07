@@ -697,7 +697,11 @@ function generateConfigurationPage(pkg) {
 
 			const desc = prop.markdownDescription || prop.description || "";
 			if (desc) {
-				sectionLines.push(desc.replace(/`([^`]+)`/g, "`$1`"), "");
+				// Convert absolute docs URLs to relative paths for generated documentation
+				const relativizedDesc = desc
+					.replace(/https:\/\/m\.canouil\.dev\/quarto-wizard/g, "")
+					.replace(/\.html([#)])/g, ".qmd$1");
+				sectionLines.push(relativizedDesc.replace(/`([^`]+)`/g, "`$1`"), "");
 			}
 
 			// Generate property table based on type
