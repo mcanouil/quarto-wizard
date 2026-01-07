@@ -12,7 +12,7 @@ Provides typed error classes for handling various failure scenarios.
 
 #### AuthenticationError
 
-Defined in: [packages/core/src/errors.ts:66](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L66)
+Defined in: [packages/core/src/errors.ts:66](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L66)
 
 Error when authentication is required or failed.
 
@@ -28,7 +28,7 @@ Error when authentication is required or failed.
 new AuthenticationError(message, options?): AuthenticationError;
 ```
 
-Defined in: [packages/core/src/errors.ts:67](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L67)
+Defined in: [packages/core/src/errors.ts:67](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L67)
 
 ###### Parameters
 
@@ -66,7 +66,7 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -116,7 +116,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -154,7 +154,7 @@ not capture any frames.
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -262,7 +262,7 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### ExtensionError
 
-Defined in: [packages/core/src/errors.ts:56](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L56)
+Defined in: [packages/core/src/errors.ts:56](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L56)
 
 Error related to extension operations (install, update, remove).
 
@@ -278,7 +278,7 @@ Error related to extension operations (install, update, remove).
 new ExtensionError(message, options?): ExtensionError;
 ```
 
-Defined in: [packages/core/src/errors.ts:57](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L57)
+Defined in: [packages/core/src/errors.ts:57](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L57)
 
 ###### Parameters
 
@@ -315,7 +315,7 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -365,7 +365,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -403,7 +403,7 @@ not capture any frames.
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -511,7 +511,7 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### ManifestError
 
-Defined in: [packages/core/src/errors.ts:119](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L119)
+Defined in: [packages/core/src/errors.ts:119](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L119)
 
 Error when parsing a manifest file fails.
 
@@ -527,7 +527,7 @@ Error when parsing a manifest file fails.
 new ManifestError(message, options?): ManifestError;
 ```
 
-Defined in: [packages/core/src/errors.ts:123](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L123)
+Defined in: [packages/core/src/errors.ts:123](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L123)
 
 ###### Parameters
 
@@ -566,7 +566,7 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -580,7 +580,7 @@ Error code for programmatic handling.
 readonly optional manifestPath: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:121](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L121)
+Defined in: [packages/core/src/errors.ts:121](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L121)
 
 Path to the manifest file.
 
@@ -626,7 +626,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -664,7 +664,7 @@ not capture any frames.
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -772,7 +772,7 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### NetworkError
 
-Defined in: [packages/core/src/errors.ts:92](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L92)
+Defined in: [packages/core/src/errors.ts:92](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L92)
 
 Error related to network operations.
 
@@ -788,7 +788,7 @@ Error related to network operations.
 new NetworkError(message, options?): NetworkError;
 ```
 
-Defined in: [packages/core/src/errors.ts:96](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L96)
+Defined in: [packages/core/src/errors.ts:96](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L96)
 
 ###### Parameters
 
@@ -827,7 +827,7 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -877,7 +877,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 readonly optional statusCode: number;
 ```
 
-Defined in: [packages/core/src/errors.ts:94](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L94)
+Defined in: [packages/core/src/errors.ts:94](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L94)
 
 HTTP status code if available.
 
@@ -887,7 +887,7 @@ HTTP status code if available.
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -925,7 +925,7 @@ not capture any frames.
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1033,7 +1033,7 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### QuartoWizardError
 
-Defined in: [packages/core/src/errors.ts:23](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L23)
+Defined in: [packages/core/src/errors.ts:23](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L23)
 
 Base error class for all Quarto Wizard errors.
 
@@ -1062,7 +1062,7 @@ new QuartoWizardError(
    options?): QuartoWizardError;
 ```
 
-Defined in: [packages/core/src/errors.ts:29](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L29)
+Defined in: [packages/core/src/errors.ts:29](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L29)
 
 ###### Parameters
 
@@ -1104,7 +1104,7 @@ Error.cause
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -1156,7 +1156,7 @@ Error.stack
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -1192,7 +1192,7 @@ Error.stackTraceLimit
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1300,7 +1300,7 @@ Error.prepareStackTrace
 
 #### RepositoryNotFoundError
 
-Defined in: [packages/core/src/errors.ts:79](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L79)
+Defined in: [packages/core/src/errors.ts:79](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L79)
 
 Error when a repository or resource is not found.
 
@@ -1316,7 +1316,7 @@ Error when a repository or resource is not found.
 new RepositoryNotFoundError(message, options?): RepositoryNotFoundError;
 ```
 
-Defined in: [packages/core/src/errors.ts:80](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L80)
+Defined in: [packages/core/src/errors.ts:80](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L80)
 
 ###### Parameters
 
@@ -1355,7 +1355,7 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -1405,7 +1405,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -1443,7 +1443,7 @@ not capture any frames.
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1551,7 +1551,7 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### SecurityError
 
-Defined in: [packages/core/src/errors.ts:109](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L109)
+Defined in: [packages/core/src/errors.ts:109](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L109)
 
 Error related to security issues (path traversal, zip bombs, etc.).
 
@@ -1567,7 +1567,7 @@ Error related to security issues (path traversal, zip bombs, etc.).
 new SecurityError(message, options?): SecurityError;
 ```
 
-Defined in: [packages/core/src/errors.ts:110](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L110)
+Defined in: [packages/core/src/errors.ts:110](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L110)
 
 ###### Parameters
 
@@ -1605,7 +1605,7 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -1655,7 +1655,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -1693,7 +1693,7 @@ not capture any frames.
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1801,7 +1801,7 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### VersionError
 
-Defined in: [packages/core/src/errors.ts:136](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L136)
+Defined in: [packages/core/src/errors.ts:136](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L136)
 
 Error when a version cannot be resolved.
 
@@ -1817,7 +1817,7 @@ Error when a version cannot be resolved.
 new VersionError(message, options?): VersionError;
 ```
 
-Defined in: [packages/core/src/errors.ts:137](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L137)
+Defined in: [packages/core/src/errors.ts:137](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L137)
 
 ###### Parameters
 
@@ -1854,7 +1854,7 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
@@ -1904,7 +1904,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
@@ -1942,7 +1942,7 @@ not capture any frames.
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -2052,7 +2052,7 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### QuartoWizardErrorOptions
 
-Defined in: [packages/core/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L13)
+Defined in: [packages/core/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L13)
 
 Options for constructing a QuartoWizardError.
 
@@ -2060,8 +2060,8 @@ Options for constructing a QuartoWizardError.
 
 | Property                                | Type      | Description                              | Defined in                                                                                                                                                |
 | --------------------------------------- | --------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="cause-8"></a> `cause?`           | `unknown` | Original error that caused this error.   | [packages/core/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L17) |
-| <a id="suggestion-8"></a> `suggestion?` | `string`  | Suggestion for how to resolve the error. | [packages/core/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L15) |
+| <a id="cause-8"></a> `cause?`           | `unknown` | Original error that caused this error.   | [packages/core/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L17) |
+| <a id="suggestion-8"></a> `suggestion?` | `string`  | Suggestion for how to resolve the error. | [packages/core/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L15) |
 
 ### Functions
 
@@ -2071,7 +2071,7 @@ Options for constructing a QuartoWizardError.
 function isQuartoWizardError(error): error is QuartoWizardError;
 ```
 
-Defined in: [packages/core/src/errors.ts:146](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L146)
+Defined in: [packages/core/src/errors.ts:146](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L146)
 
 Check if an error is a QuartoWizardError.
 
@@ -2091,7 +2091,7 @@ Check if an error is a QuartoWizardError.
 function wrapError(error, context?): QuartoWizardError;
 ```
 
-Defined in: [packages/core/src/errors.ts:153](https://github.com/mcanouil/quarto-wizard/blob/78eb5fd0b1ddc8a73ae4929ee3b3379a8352a2e9/packages/core/src/errors.ts#L153)
+Defined in: [packages/core/src/errors.ts:153](https://github.com/mcanouil/quarto-wizard/blob/2914543c51be495043377d55cd57f64f5b949079/packages/core/src/errors.ts#L153)
 
 Wrap an unknown error as a QuartoWizardError.
 
