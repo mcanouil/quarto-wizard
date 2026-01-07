@@ -625,7 +625,7 @@
 					"type": "string",
 					"format": "uri",
 					"default": "https://m.canouil.dev/quarto-extensions/extensions.json",
-					"markdownDescription": "URL to the Quarto extensions registry JSON file. Change this to use a custom registry. The registry must contain entries with at least `id`, `name`, and `owner` fields.",
+					"markdownDescription": "URL to the Quarto extensions registry JSON file. Change this to use a custom registry. See [`RawRegistryEntry`](https://m.canouil.dev/quarto-wizard/api/core/types.html#rawregistryentry) in the API reference for the expected JSON schema.",
 					"title": "Registry URL",
 					"description": "Custom registry URL."
 				}

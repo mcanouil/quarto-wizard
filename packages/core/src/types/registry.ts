@@ -52,21 +52,59 @@ export type Registry = Record<string, RegistryEntry>;
 
 /**
  * Raw registry entry as returned from the JSON API.
+ *
+ * This is the expected format for entries in custom registry JSON files.
+ * The registry JSON file should be an object mapping extension IDs (e.g., "owner/repo")
+ * to `RawRegistryEntry` objects.
+ *
+ * @example
+ * ```json
+ * {
+ *   "quarto-ext/lightbox": {
+ *     "owner": "quarto-ext",
+ *     "title": "Lightbox",
+ *     "nameWithOwner": "quarto-ext/lightbox",
+ *     "description": "Create lightbox treatments for images",
+ *     "repositoryTopics": ["quarto", "quarto-extension", "shortcode"],
+ *     "contributes": ["shortcode"],
+ *     "latestRelease": "v0.1.4",
+ *     "latestReleaseUrl": "https://github.com/quarto-ext/lightbox/releases/tag/v0.1.4",
+ *     "stargazerCount": 42,
+ *     "licenseInfo": "MIT",
+ *     "url": "https://github.com/quarto-ext/lightbox",
+ *     "template": false,
+ *     "defaultBranchRef": "main",
+ *     "latestCommit": "abc1234567890"
+ *   }
+ * }
+ * ```
  */
 export interface RawRegistryEntry {
+	/** Repository owner (GitHub username or organisation). Required. */
 	owner: string;
+	/** Display name/title of the extension. Required. */
 	title: string;
+	/** Full repository name in "owner/repo" format. Required. */
 	nameWithOwner: string;
+	/** Extension description. */
 	description?: string | null;
+	/** GitHub repository topics/tags for categorisation. */
 	repositoryTopics?: string[];
-	/** What the extension contributes (e.g., filters, formats, shortcodes). */
+	/** What the extension contributes (e.g., "filter", "shortcode", "format", "project", "revealjs-plugin", "metadata"). */
 	contributes?: string[];
+	/** Latest release tag (e.g., "v1.0.0"). */
 	latestRelease?: string | null;
+	/** URL to the latest release page on GitHub. */
 	latestReleaseUrl?: string | null;
+	/** GitHub star count. */
 	stargazerCount?: number;
+	/** SPDX licence identifier (e.g., "MIT", "GPL-3.0"). */
 	licenseInfo?: string | null;
+	/** GitHub repository URL. Required. */
 	url: string;
+	/** Whether this extension provides project templates. */
 	template?: boolean;
+	/** Default branch name (e.g., "main", "master"). */
 	defaultBranchRef?: string | null;
 	/** SHA of the latest commit on the default branch. */
 	latestCommit?: string | null;
