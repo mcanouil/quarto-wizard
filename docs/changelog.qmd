@@ -2,7 +2,11 @@
 title: "Changelog"
 ---
 
-## Unreleased
+# 2
+
+## 2.0
+
+### 2.0.0 (2026-01-09)
 
 ### Breaking Changes
 

@@ -37,7 +37,7 @@ Tokens can also be set via VS Code settings or the extension's authentication UI
 
 #### AuthConfig
 
-Defined in: [packages/core/src/types/auth.ts:41](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L41)
+Defined in: [packages/core/src/types/auth.ts:41](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L41)
 
 Authentication configuration for API requests.
 
@@ -45,12 +45,12 @@ Authentication configuration for API requests.
 
 | Property                                | Type                                                                                                                                                                                                      | Description                                                    | Defined in                                                                                                                                                        |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="githubtoken"></a> `githubToken?` | `string`                                                                                                                                                                                                  | GitHub personal access token for GitHub API and private repos. | [packages/core/src/types/auth.ts:43](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L43) |
-| <a id="httpheaders"></a> `httpHeaders`  | `<code><a href="#httpheader" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">HttpHeader</a>[]</code>`{=html} | Custom HTTP headers for URL downloads.                         | [packages/core/src/types/auth.ts:45](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L45) |
+| <a id="githubtoken"></a> `githubToken?` | `string`                                                                                                                                                                                                  | GitHub personal access token for GitHub API and private repos. | [packages/core/src/types/auth.ts:43](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L43) |
+| <a id="httpheaders"></a> `httpHeaders`  | `<code><a href="#httpheader" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">HttpHeader</a>[]</code>`{=html} | Custom HTTP headers for URL downloads.                         | [packages/core/src/types/auth.ts:45](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L45) |
 
 #### AuthConfigOptions
 
-Defined in: [packages/core/src/types/auth.ts:51](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L51)
+Defined in: [packages/core/src/types/auth.ts:51](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L51)
 
 Options for creating an AuthConfig.
 
@@ -58,12 +58,12 @@ Options for creating an AuthConfig.
 
 | Property                                  | Type       | Description                           | Defined in                                                                                                                                                        |
 | ----------------------------------------- | ---------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="githubtoken-1"></a> `githubToken?` | `string`   | GitHub personal access token.         | [packages/core/src/types/auth.ts:53](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L53) |
-| <a id="httpheaders-1"></a> `httpHeaders?` | `string[]` | HTTP headers in "Name: Value" format. | [packages/core/src/types/auth.ts:55](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L55) |
+| <a id="githubtoken-1"></a> `githubToken?` | `string`   | GitHub personal access token.         | [packages/core/src/types/auth.ts:53](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L53) |
+| <a id="httpheaders-1"></a> `httpHeaders?` | `string[]` | HTTP headers in "Name: Value" format. | [packages/core/src/types/auth.ts:55](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L55) |
 
 #### HttpHeader
 
-Defined in: [packages/core/src/types/auth.ts:31](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L31)
+Defined in: [packages/core/src/types/auth.ts:31](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L31)
 
 HTTP header for custom authentication.
 
@@ -71,8 +71,8 @@ HTTP header for custom authentication.
 
 | Property                   | Type     | Description                             | Defined in                                                                                                                                                        |
 | -------------------------- | -------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="name"></a> `name`   | `string` | Header name (e.g., "Authorization").    | [packages/core/src/types/auth.ts:33](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L33) |
-| <a id="value"></a> `value` | `string` | Header value (e.g., "Bearer token123"). | [packages/core/src/types/auth.ts:35](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L35) |
+| <a id="name"></a> `name`   | `string` | Header name (e.g., "Authorization").    | [packages/core/src/types/auth.ts:33](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L33) |
+| <a id="value"></a> `value` | `string` | Header value (e.g., "Bearer token123"). | [packages/core/src/types/auth.ts:35](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L35) |
 
 ### Functions
 
@@ -82,7 +82,7 @@ HTTP header for custom authentication.
 function createAuthConfig(options): AuthConfig;
 ```
 
-Defined in: [packages/core/src/types/auth.ts:66](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L66)
+Defined in: [packages/core/src/types/auth.ts:66](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L66)
 
 Create an AuthConfig from options.
 Automatically reads from environment variables if not provided.
@@ -109,7 +109,7 @@ Error if header format is invalid
 function getAuthHeaders(auth, isGitHub): Record<string, string>;
 ```
 
-Defined in: [packages/core/src/types/auth.ts:97](https://github.com/mcanouil/quarto-wizard/blob/b8e711184a52bf1c097c752357c86ad47e6d7c5f/packages/core/src/types/auth.ts#L97)
+Defined in: [packages/core/src/types/auth.ts:97](https://github.com/mcanouil/quarto-wizard/blob/bd2d48fa32ecf08b984156bdbf9d3cacb4c28281/packages/core/src/types/auth.ts#L97)
 
 Get authorization headers for a request.
 
