@@ -37,7 +37,7 @@
 		"minimatch": "^10.0.0",
 		"semver": "^7.7.3",
 		"tar": "^7.0.0",
-		"undici": "^7.0.0",
+		"undici": "^7.18.2",
 		"unzipper": "^0.12.0"
 	},
 	"devDependencies": {
