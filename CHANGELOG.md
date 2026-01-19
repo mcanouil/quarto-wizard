@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Dependency Updates
+
+- chore(deps): bump tar from 7.5.2 to 7.5.3 in the npm_and_yarn group across 1 directory (#234)
+- chore(deps): bump undici from 7.16.0 to 7.18.2 in the npm_and_yarn group across 1 directory (#233)
+
 ## 2.0.0 (2026-01-09)
 
 ### Breaking Changes
