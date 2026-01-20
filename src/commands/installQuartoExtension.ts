@@ -567,6 +567,31 @@ export async function installExtensionFromURLCommand(context: vscode.ExtensionCo
 }
 
 /**
+ * Command to install a Quarto extension from GitHub.
+ * Prompts the user to enter a GitHub reference and installs the extension.
+ *
+ * @param context - The extension context.
+ */
+export async function installExtensionFromGitHubCommand(context: vscode.ExtensionContext) {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+
+	const isConnected = await checkInternetConnection("https://github.com/");
+	if (!isConnected) {
+		return;
+	}
+
+	const ref = await promptForGitHubReference();
+	if (!ref) {
+		return;
+	}
+
+	await installFromSource(context, ref, workspaceFolder, false);
+}
+
+/**
  * Command to install a Quarto extension from a local path.
  * Opens a file picker dialog to select a local directory, zip file, or tar.gz file.
  * Can also be invoked from context menu with a pre-selected resource.

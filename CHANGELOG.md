@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- feat: add `Quarto Wizard: Install Extension from GitHub` command for direct GitHub installation with version specifiers (e.g., `owner/repo@v2` or `owner/repo@branch`).
+
 ### Changed
 
 - refactor: replace auto-detection with explicit source picker in "Install Extension" and "Use Template" commands.
