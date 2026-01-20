@@ -6,8 +6,9 @@ Quarto Wizard provides access to over 250 Quarto extensions from the community.
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
 2. Type **"Quarto Wizard: Install Extensions"**.
-3. Browse and select extensions.
-4. Confirm the installation.
+3. Select a source (Registry, GitHub, URL, or Local).
+4. Browse and select extensions.
+5. Confirm the installation.
 
 You can also click the **Install** button in the Quarto Wizard Explorer view.
 

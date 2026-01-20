@@ -1,6 +1,8 @@
 ---
 title: "Using Templates"
 alt-text:
+  extension-source-picker: |
+    The extension source picker interface showing options to install from Registry, GitHub, URL, or Local.
   template-browser: |
     The template browser interface showing available Quarto templates with their names, versions, and descriptions.
   target-subdir: |
@@ -29,7 +31,25 @@ When you use a template, Quarto Wizard:
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Use Template` and select it.
-3. Browse the list of available templates.
+3. Select an installation source (Registry, GitHub, URL, or Local).
+4. For Registry: browse the list of available templates.
+
+::: {layout-ncol="2"}
+
+::: {style="text-align: center;"}
+![](images/extension-source-picker-dark.png "Extension Source Picker"){
+.dark-content .lightbox
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.extension-source-picker >}}'
+}
+![](images/extension-source-picker-light.png "Extension Source Picker"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.extension-source-picker >}}'
+}
+:::
 
 ::: {style="text-align: center;"}
 ![](images/template-browser-dark.png "Template Browser"){
@@ -44,6 +64,8 @@ fig-alt='{{< meta alt-text.template-browser >}}'
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.template-browser >}}'
 }
+:::
+
 :::
 
 ## Installing a Template
