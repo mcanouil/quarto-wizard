@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- refactor: replace auto-detection with explicit source picker in "Install Extension" and "Use Template" commands.
+  Users now choose the installation source (Registry, GitHub, URL, or Local) as the first step, enabling direct GitHub installation with version specifiers (e.g., `owner/repo@v2` or `owner/repo@branch`) even for extensions in the registry.
+
 ## 2.0.1 (2026-01-19)
 
 ### Dependency Updates
