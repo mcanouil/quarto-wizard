@@ -225,7 +225,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyInstalled, false);
 
 			// Verify QuickPick configuration
-			assert.ok(mockQuickPick.placeholder.includes("Search registry"));
+			assert.ok(mockQuickPick.placeholder.includes("Search extensions"));
 			assert.strictEqual(mockQuickPick.canSelectMany, true);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 
@@ -257,7 +257,7 @@ suite("Extensions QuickPick Test Suite", () => {
 			const promise = showExtensionQuickPick(mockExtensionDetails, recentlyUsed, true);
 
 			// Verify QuickPick configuration for templates
-			assert.ok(mockQuickPick.placeholder.includes("Search registry"));
+			assert.ok(mockQuickPick.placeholder.includes("Search templates"));
 			assert.strictEqual(mockQuickPick.canSelectMany, false);
 			assert.strictEqual(mockQuickPick.matchOnDescription, true);
 

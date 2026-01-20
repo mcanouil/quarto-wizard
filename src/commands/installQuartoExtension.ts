@@ -12,7 +12,12 @@ import {
 	createTargetSubdirCallback,
 } from "../utils/ask";
 import { getExtensionsDetails } from "../utils/extensionDetails";
-import { ExtensionQuickPickItem, showExtensionQuickPick, showTypeFilterQuickPick } from "../ui/extensionsQuickPick";
+import {
+	ExtensionQuickPickItem,
+	showExtensionQuickPick,
+	showSourcePicker,
+	showTypeFilterQuickPick,
+} from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { getAuthConfig } from "../utils/auth";
 
@@ -175,8 +180,76 @@ async function installQuartoExtensions(
 }
 
 /**
+ * Prompts the user to enter a GitHub reference.
+ * @returns The entered reference or undefined if cancelled.
+ */
+async function promptForGitHubReference(): Promise<string | undefined> {
+	return vscode.window.showInputBox({
+		title: "GitHub Reference",
+		prompt: "Enter a GitHub reference",
+		placeHolder: "owner/repo or owner/repo@version",
+		ignoreFocusOut: true,
+		validateInput: (value) => {
+			if (!value?.trim()) {
+				return "GitHub reference is required.";
+			}
+			if (!value.includes("/")) {
+				return "Use format: owner/repo or owner/repo@version";
+			}
+			return null;
+		},
+	});
+}
+
+/**
+ * Prompts the user to enter a URL.
+ * @returns The entered URL or undefined if cancelled.
+ */
+async function promptForURL(): Promise<string | undefined> {
+	return vscode.window.showInputBox({
+		title: "URL",
+		prompt: "Enter URL to extension archive",
+		placeHolder: "https://example.com/extension.zip",
+		ignoreFocusOut: true,
+		validateInput: (value) => {
+			if (!value?.trim()) {
+				return "URL is required.";
+			}
+			if (!value.startsWith("http://") && !value.startsWith("https://")) {
+				return "URL must start with http:// or https://";
+			}
+			return null;
+		},
+	});
+}
+
+/**
+ * Prompts the user to select a local file or folder.
+ * @returns The selected path or undefined if cancelled.
+ */
+async function promptForLocalPath(): Promise<string | undefined> {
+	const uris = await vscode.window.showOpenDialog({
+		canSelectFiles: true,
+		canSelectFolders: true,
+		canSelectMany: false,
+		title: "Select Extension",
+		openLabel: "Install",
+		filters: {
+			"Archive files": ["zip", "tar.gz", "tgz"],
+			"All files": ["*"],
+		},
+	});
+
+	if (!uris || uris.length === 0) {
+		return undefined;
+	}
+
+	return uris[0].fsPath;
+}
+
+/**
  * Command to install Quarto extensions in a specified workspace folder.
- * Prompts the user to select extensions, installs them, and optionally handles templates.
+ * Shows source picker first, then proceeds based on selection.
  *
  * @param context - The extension context.
  * @param workspaceFolder - The target workspace folder for extension installation.
@@ -192,49 +265,74 @@ export async function installQuartoExtensionFolderCommand(
 		return;
 	}
 
-	let extensionsList = await getExtensionsDetails(context);
-	if (template) {
-		extensionsList = extensionsList.filter((ext) => ext.template);
-	}
-
-	// Show type filter picker (skip for template mode as it's already filtered)
-	let typeFilter: string | null = null;
-	if (!template) {
-		const filterResult = await showTypeFilterQuickPick(extensionsList);
-
-		if (filterResult.type === "cancelled") {
-			return;
-		}
-
-		// If user selected an alternative source at the filter stage, install directly
-		if (filterResult.type === "github" || filterResult.type === "url" || filterResult.type === "local") {
-			await installFromSource(context, filterResult.source, workspaceFolder, template);
-			return;
-		}
-
-		// User selected a filter
-		typeFilter = filterResult.value;
-	}
-
-	const recentKey = template ? QW_RECENTLY_USED : QW_RECENTLY_INSTALLED;
-	const recentExtensions: string[] = context.globalState.get(recentKey, []);
-	const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
-
-	if (result.type === "cancelled") {
+	// Step 1: Show source picker
+	const sourceResult = await showSourcePicker();
+	if (sourceResult.type === "cancelled") {
 		return;
 	}
 
-	if (result.type === "registry") {
-		// Registry installation flow
-		if (result.items.length > 0) {
-			await installQuartoExtensions(context, result.items, workspaceFolder, template);
-			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-			const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
-			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+	// Step 2: Handle based on source type
+	switch (sourceResult.type) {
+		case "registry": {
+			// Registry flow
+			let extensionsList = await getExtensionsDetails(context);
+			if (template) {
+				extensionsList = extensionsList.filter((ext) => ext.template);
+			}
+
+			// Show type filter picker (skip for template mode as it's already filtered)
+			let typeFilter: string | null = null;
+			if (!template) {
+				const filterResult = await showTypeFilterQuickPick(extensionsList);
+				if (filterResult.type === "cancelled") {
+					return;
+				}
+				typeFilter = filterResult.value;
+			}
+
+			const recentKey = template ? QW_RECENTLY_USED : QW_RECENTLY_INSTALLED;
+			const recentExtensions: string[] = context.globalState.get(recentKey, []);
+			const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
+
+			if (result.type === "cancelled") {
+				return;
+			}
+
+			if (result.items.length > 0) {
+				await installQuartoExtensions(context, result.items, workspaceFolder, template);
+				const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
+				const updatedRecentExtensions = [
+					...selectedIDs,
+					...recentExtensions.filter((ext) => !selectedIDs.includes(ext)),
+				];
+				await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+			}
+			break;
 		}
-	} else {
-		// Alternative source installation (github, url, local)
-		await installFromSource(context, result.source, workspaceFolder, template);
+
+		case "github": {
+			const ref = await promptForGitHubReference();
+			if (ref) {
+				await installFromSource(context, ref, workspaceFolder, template);
+			}
+			break;
+		}
+
+		case "url": {
+			const url = await promptForURL();
+			if (url) {
+				await installFromSource(context, url, workspaceFolder, template);
+			}
+			break;
+		}
+
+		case "local": {
+			const localPath = await promptForLocalPath();
+			if (localPath) {
+				await installFromSource(context, localPath, workspaceFolder, template);
+			}
+			break;
+		}
 	}
 }
 
@@ -397,7 +495,7 @@ export async function useQuartoTemplateCommand(context: vscode.ExtensionContext)
 
 /**
  * Command to install Quarto extensions directly from the registry.
- * Skips the type filter picker and goes directly to the extension picker.
+ * Skips the source picker and type filter picker, goes directly to the extension picker.
  *
  * @param context - The extension context.
  */
@@ -421,16 +519,11 @@ export async function installExtensionFromRegistryCommand(context: vscode.Extens
 		return;
 	}
 
-	if (result.type === "registry") {
-		if (result.items.length > 0) {
-			await installQuartoExtensions(context, result.items, workspaceFolder, false);
-			const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-			const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
-			await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
-		}
-	} else {
-		// Alternative source installation (github, url, local)
-		await installFromSource(context, result.source, workspaceFolder, false);
+	if (result.items.length > 0) {
+		await installQuartoExtensions(context, result.items, workspaceFolder, false);
+		const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
+		const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
+		await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
 	}
 }
 
