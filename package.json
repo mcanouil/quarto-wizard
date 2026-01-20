@@ -270,6 +270,14 @@
 				"description": "Install an extension from a direct URL to a .zip or .tar.gz archive."
 			},
 			{
+				"command": "quartoWizard.installExtensionFromGitHub",
+				"title": "Install Extension from GitHub",
+				"shortTitle": "From GitHub",
+				"icon": "$(github)",
+				"category": "Quarto Wizard",
+				"description": "Install an extension from a GitHub repository (owner/repo or owner/repo@version)."
+			},
+			{
 				"command": "quartoWizard.installExtensionFromLocal",
 				"title": "Install Extension from Local",
 				"shortTitle": "From Local",

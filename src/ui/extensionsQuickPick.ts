@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { parseInstallSource } from "@quarto-wizard/core";
 import { ExtensionDetails } from "../utils/extensionDetails";
 
 /**
@@ -36,74 +35,78 @@ const CONTRIBUTION_TYPES: Record<string, { icon: string; label: string }> = {
 };
 
 /**
+ * Result from the source picker.
+ */
+export type SourcePickerResult =
+	| { type: "registry" }
+	| { type: "github" }
+	| { type: "url" }
+	| { type: "local" }
+	| { type: "cancelled" };
+
+/**
+ * Interface for source picker items.
+ */
+interface SourcePickerItem extends vscode.QuickPickItem {
+	sourceType: "registry" | "github" | "url" | "local";
+}
+
+/**
+ * Shows a QuickPick for selecting the installation source.
+ * @returns The selected source type or cancelled.
+ */
+export async function showSourcePicker(): Promise<SourcePickerResult> {
+	const items: SourcePickerItem[] = [
+		{
+			label: "$(cloud-download) Registry",
+			description: "Browse the Quarto extensions registry",
+			sourceType: "registry",
+		},
+		{
+			label: "$(github) GitHub",
+			description: "Install from owner/repo or owner/repo@version",
+			sourceType: "github",
+		},
+		{
+			label: "$(link) URL",
+			description: "Install from a direct URL",
+			sourceType: "url",
+		},
+		{
+			label: "$(folder) Local",
+			description: "Install from a local path",
+			sourceType: "local",
+		},
+	];
+
+	const selected = await vscode.window.showQuickPick(items, {
+		title: "Install From",
+		placeHolder: "Select where to install from",
+	});
+
+	if (!selected) {
+		return { type: "cancelled" };
+	}
+
+	return { type: selected.sourceType };
+}
+
+/**
  * Interface for type filter items.
  */
 interface TypeFilterItem extends vscode.QuickPickItem {
 	filterValue: string | null;
-	/** Alternative source type (for non-registry items). */
-	_sourceType?: "github" | "url" | "local";
-	/** Alternative source value (for non-registry items). */
-	_sourceValue?: string;
 }
 
 /**
  * Result from the type filter QuickPick.
- * Either a filter selection or an alternative source.
  */
-export type TypeFilterPickerResult =
-	| { type: "filter"; value: string | null }
-	| { type: "github"; source: string }
-	| { type: "url"; source: string }
-	| { type: "local"; source: string }
-	| { type: "cancelled" };
-
-/**
- * Create a source item for the type filter picker.
- * @param detected - The detected source type.
- * @returns A TypeFilterItem for the source, or null if registry.
- */
-function createTypeFilterSourceItem(detected: DetectedSource): TypeFilterItem | null {
-	switch (detected.type) {
-		case "github":
-			return {
-				label: "$(github) Install from GitHub",
-				description: detected.value,
-				detail: "Press Enter to install this extension from GitHub",
-				alwaysShow: true,
-				filterValue: null,
-				_sourceType: "github",
-				_sourceValue: detected.value,
-			};
-		case "url":
-			return {
-				label: "$(link) Install from URL",
-				description: detected.value,
-				detail: "Press Enter to install this extension from URL",
-				alwaysShow: true,
-				filterValue: null,
-				_sourceType: "url",
-				_sourceValue: detected.value,
-			};
-		case "local":
-			return {
-				label: "$(folder) Install from Local",
-				description: detected.value,
-				detail: "Press Enter to install this extension from local path",
-				alwaysShow: true,
-				filterValue: null,
-				_sourceType: "local",
-				_sourceValue: detected.value,
-			};
-		default:
-			return null;
-	}
-}
+export type TypeFilterPickerResult = { type: "filter"; value: string | null } | { type: "cancelled" };
 
 /**
  * Shows a QuickPick for selecting extension type filter.
- * Supports smart input detection for alternative sources (GitHub, URL, local path).
  * @param extensionsList - List of all extensions to derive available types.
- * @returns The picker result (filter selection or alternative source).
+ * @returns The picker result (filter selection or cancelled).
  */
 export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]): Promise<TypeFilterPickerResult> {
 	// Count extensions by type
@@ -122,11 +125,8 @@ export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]
 		}
 	}
 
-	// Build registry ID set for source detection
-	const registryIds = new Set(extensionsList.map((ext) => ext.id));
-
-	// Build base filter items
-	const baseFilterItems: TypeFilterItem[] = [
+	// Build filter items
+	const filterItems: TypeFilterItem[] = [
 		{
 			label: "$(list-unordered) All Extensions",
 			description: `${extensionsList.length} extensions`,
@@ -139,7 +139,7 @@ export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]
 	for (const [type, count] of sortedTypes) {
 		const typeInfo = CONTRIBUTION_TYPES[type];
 		if (typeInfo) {
-			baseFilterItems.push({
+			filterItems.push({
 				label: `${typeInfo.icon} ${typeInfo.label}`,
 				description: `${count} extensions`,
 				filterValue: type,
@@ -149,74 +149,24 @@ export async function showTypeFilterQuickPick(extensionsList: ExtensionDetails[]
 
 	// Add template filter if templates exist
 	if (templateCount > 0) {
-		baseFilterItems.push({
+		filterItems.push({
 			label: "$(file-code) Template",
 			description: `${templateCount} extensions`,
 			filterValue: "template",
 		});
 	}
 
-	const quickPick = vscode.window.createQuickPick<TypeFilterItem>();
-	quickPick.placeholder = "Filter by type, or enter: owner/repo, URL, or local path";
-	quickPick.title = "Extension Type Filter";
-	quickPick.matchOnDescription = true;
-
-	// Function to rebuild items based on current input
-	const updateItems = (value: string) => {
-		const detected = detectSource(value, registryIds);
-		const sourceItem = createTypeFilterSourceItem(detected);
-
-		const items: TypeFilterItem[] = [];
-
-		// Add source item at top if detected
-		if (sourceItem) {
-			items.push(sourceItem);
-			items.push({ label: "", kind: vscode.QuickPickItemKind.Separator, filterValue: null });
-		}
-
-		// Add filter items
-		items.push(...baseFilterItems);
-
-		quickPick.items = items;
-	};
-
-	// Initial items
-	updateItems("");
-
-	// Update items on input change
-	quickPick.onDidChangeValue(updateItems);
-
-	return new Promise((resolve) => {
-		let resolved = false;
-
-		quickPick.onDidAccept(() => {
-			if (resolved) return;
-			resolved = true;
-
-			const selected = quickPick.selectedItems[0];
-
-			if (selected?._sourceType) {
-				// User selected an alternative source item
-				const sourceType = selected._sourceType;
-				resolve({
-					type: sourceType,
-					source: selected._sourceValue!,
-				} as TypeFilterPickerResult);
-			} else {
-				// User selected a filter item
-				resolve({ type: "filter", value: selected?.filterValue ?? null });
-			}
-			quickPick.hide();
-		});
-
-		quickPick.onDidHide(() => {
-			if (resolved) return;
-			resolved = true;
-			resolve({ type: "cancelled" });
-		});
-
-		quickPick.show();
+	const selected = await vscode.window.showQuickPick(filterItems, {
+		title: "Extension Type Filter",
+		placeHolder: "Filter by type",
+		matchOnDescription: true,
 	});
+
+	if (!selected) {
+		return { type: "cancelled" };
+	}
+
+	return { type: "filter", value: selected.filterValue };
 }
 
 /**
@@ -256,110 +206,14 @@ export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
 	tag?: string;
 	template?: boolean;
 	contributes?: string[];
-	/** Alternative source type (for non-registry items). */
-	_sourceType?: "github" | "url" | "local";
-	/** Alternative source value (for non-registry items). */
-	_sourceValue?: string;
 }
-
-/**
- * Detected input source type.
- */
-type DetectedSource =
-	| { type: "registry" }
-	| { type: "github"; value: string }
-	| { type: "url"; value: string }
-	| { type: "local"; value: string };
 
 /**
  * Result from the extension QuickPick.
- * Either selected extensions from registry, or an alternative source string.
  */
 export type ExtensionPickerResult =
 	| { type: "registry"; items: readonly ExtensionQuickPickItem[] }
-	| { type: "github"; source: string }
-	| { type: "url"; source: string }
-	| { type: "local"; source: string }
 	| { type: "cancelled" };
-
-/**
- * Detect the type of source from user input.
- * Uses parseInstallSource from core package for consistent source detection.
- * @param input - The user's input string.
- * @param registryIds - Set of known registry extension IDs.
- * @returns The detected source type.
- */
-function detectSource(input: string, registryIds: Set<string>): DetectedSource {
-	const trimmed = input.trim();
-
-	if (!trimmed) {
-		return { type: "registry" };
-	}
-
-	// Use core package's parseInstallSource for consistent detection
-	try {
-		const source = parseInstallSource(trimmed);
-		switch (source.type) {
-			case "url":
-				return { type: "url", value: source.url };
-			case "local":
-				return { type: "local", value: source.path };
-			case "github": {
-				// Check if it's in the registry first
-				const baseId = `${source.owner}/${source.repo}`;
-				if (registryIds.has(baseId)) {
-					return { type: "registry" };
-				}
-				return { type: "github", value: trimmed };
-			}
-		}
-	} catch {
-		// parseInstallSource throws for invalid GitHub references (e.g., single word)
-		// Fall through to registry search
-	}
-
-	// Default: search registry
-	return { type: "registry" };
-}
-
-/**
- * Create a QuickPick item for an alternative source.
- * @param detected - The detected source type.
- * @returns A QuickPick item for the source, or null if registry.
- */
-function createSourceItem(detected: DetectedSource): ExtensionQuickPickItem | null {
-	switch (detected.type) {
-		case "github":
-			return {
-				label: "$(github) Install from GitHub",
-				description: detected.value,
-				detail: "Press Enter to install this extension from GitHub",
-				alwaysShow: true,
-				_sourceType: "github",
-				_sourceValue: detected.value,
-			};
-		case "url":
-			return {
-				label: "$(link) Install from URL",
-				description: detected.value,
-				detail: "Press Enter to install this extension from URL",
-				alwaysShow: true,
-				_sourceType: "url",
-				_sourceValue: detected.value,
-			};
-		case "local":
-			return {
-				label: "$(folder) Install from Local",
-				description: detected.value,
-				detail: "Press Enter to install this extension from local path",
-				alwaysShow: true,
-				_sourceType: "local",
-				_sourceValue: detected.value,
-			};
-		default:
-			return null;
-	}
-}
 
 /**
  * Creates QuickPick items from extension details.
@@ -427,9 +281,6 @@ export async function showExtensionQuickPick(
 	// Apply type filter if specified
 	const filteredExtensions = filterExtensionsByType(extensionsList, typeFilter);
 
-	// Build registry ID set for source detection
-	const registryIds = new Set(filteredExtensions.map((ext) => ext.id));
-
 	// Get the type label for the placeholder
 	let filterLabel = "";
 	if (typeFilter) {
@@ -440,56 +291,35 @@ export async function showExtensionQuickPick(
 		}
 	}
 
-	// Create base items (cached for reuse during input changes)
+	// Create items
 	const recentItems = createExtensionItems(filteredExtensions.filter((ext) => recentlyInstalled.includes(ext.id)));
 	const allItems = createExtensionItems(filteredExtensions.filter((ext) => !recentlyInstalled.includes(ext.id))).sort(
 		(a, b) => a.label.localeCompare(b.label),
 	);
 
+	// Build the items list
+	const items: ExtensionQuickPickItem[] = [];
+
+	if (recentItems.length > 0) {
+		items.push({
+			label: template ? "Recently Used" : "Recently Installed",
+			kind: vscode.QuickPickItemKind.Separator,
+		});
+		items.push(...recentItems);
+	}
+
+	items.push({
+		label: typeFilter ? `${filterLabel.trim()} Extensions` : "All Extensions",
+		kind: vscode.QuickPickItemKind.Separator,
+	});
+	items.push(...allItems);
+
 	const quickPick = vscode.window.createQuickPick<ExtensionQuickPickItem>();
-	quickPick.placeholder = template
-		? `Search registry, or enter: owner/repo, URL, or local path${filterLabel}`
-		: `Search registry, or enter: owner/repo, URL, or local path${filterLabel}`;
+	quickPick.placeholder = template ? `Search templates${filterLabel}` : `Search extensions${filterLabel}`;
 	quickPick.canSelectMany = !template;
 	quickPick.matchOnDescription = true;
 	quickPick.matchOnDetail = true;
-
-	// Function to rebuild items based on current input
-	const updateItems = (value: string) => {
-		const detected = detectSource(value, registryIds);
-		const sourceItem = createSourceItem(detected);
-
-		const items: ExtensionQuickPickItem[] = [];
-
-		// Add source item at top if detected
-		if (sourceItem) {
-			items.push(sourceItem);
-			items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-		}
-
-		// Add registry items
-		if (recentItems.length > 0) {
-			items.push({
-				label: template ? "Recently Used" : "Recently Installed",
-				kind: vscode.QuickPickItemKind.Separator,
-			});
-			items.push(...recentItems);
-		}
-
-		items.push({
-			label: typeFilter ? `${filterLabel.trim()} Extensions` : "All Extensions",
-			kind: vscode.QuickPickItemKind.Separator,
-		});
-		items.push(...allItems);
-
-		quickPick.items = items;
-	};
-
-	// Initial items
-	updateItems("");
-
-	// Update items on input change
-	quickPick.onDidChangeValue(updateItems);
+	quickPick.items = items;
 
 	// Handle item button clicks (GitHub link)
 	quickPick.onDidTriggerItemButton((e) => {
@@ -507,20 +337,7 @@ export async function showExtensionQuickPick(
 			resolved = true;
 
 			const selected = quickPick.selectedItems;
-
-			if (selected.length === 1 && selected[0]._sourceType) {
-				// User selected an alternative source item
-				const item = selected[0];
-				const sourceType = item._sourceType;
-				resolve({
-					type: sourceType,
-					source: item._sourceValue!,
-				} as ExtensionPickerResult);
-			} else {
-				// User selected registry items
-				const registryItems = selected.filter((item) => !item._sourceType);
-				resolve({ type: "registry", items: registryItems });
-			}
+			resolve({ type: "registry", items: selected });
 			quickPick.hide();
 		});
 

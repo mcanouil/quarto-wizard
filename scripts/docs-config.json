@@ -54,6 +54,7 @@
 			"description": "Commands for installing extensions from different sources.",
 			"commands": [
 				"quartoWizard.installExtensionFromRegistry",
+				"quartoWizard.installExtensionFromGitHub",
 				"quartoWizard.installExtensionFromURL",
 				"quartoWizard.installExtensionFromLocal"
 			]

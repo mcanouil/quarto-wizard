@@ -21,6 +21,7 @@ See [Commands Reference](commands.qmd) for the complete list.
 | Clear Extension Cache               | Clears the cached registry data to force a fresh download.                             |
 | Get Extensions Details              | Retrieves detailed information about extensions in the current workspace.              |
 | Install Extension from Registry     | Install an extension by entering its registry identifier.                              |
+| Install Extension from GitHub       | Install an extension from a GitHub repository (owner/repo or owner/repo@version).      |
 | Install Extension from URL          | Install an extension from a direct URL to a .zip or .tar.gz archive.                   |
 | Install Extension from Local        | Install extension(s) from a local directory or archive file.                           |
 

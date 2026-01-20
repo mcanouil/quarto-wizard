@@ -1,6 +1,8 @@
 ---
 title: "Installing Extensions"
 alt-text:
+  extension-source-picker: |
+    The extension source picker interface showing options to install from Registry, GitHub, URL, or Local.
   extension-browser-1: |
     The extension browser interface showing extensions types filter with a search bar.
   extension-browser-2: |
@@ -22,9 +24,25 @@ Quarto Wizard makes it easy to browse and install Quarto extensions from multipl
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Install Extensions` and select it.
-3. Browse the list of available extensions.
+3. Select an installation source (Registry, GitHub, URL, or Local).
+4. For Registry: optionally filter by extension type, then browse the list.
 
-::: {layout-ncol="2"}
+::: {layout-ncol="3"}
+
+::: {style="text-align: center;"}
+![](images/extension-source-picker-dark.png "Extension Source Picker"){
+.dark-content .lightbox
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.extension-source-picker >}}'
+}
+![](images/extension-source-picker-light.png "Extension Source Picker"){
+.light-content
+.img-fluid .img-thumbnail .rounded-3 .border-light
+width="500px" fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.extension-source-picker >}}'
+}
+:::
 
 ::: {style="text-align: center;"}
 ![](images/extension-browser-1-dark.png "Extension Browser Interface"){
@@ -87,22 +105,34 @@ The extension will be downloaded and installed to the `_extensions` directory in
 ## Installation Sources
 
 Quarto Wizard supports installing extensions from multiple sources.
+When you run `Quarto Wizard: Install Extensions`, you first choose where to install from:
 
-### From Registry (Default)
+### From Registry
 
-Use `Quarto Wizard: Install Extensions` to browse and install from the official registry.
+Browse and install from the official Quarto extensions registry.
+After selecting Registry, you can filter by extension type (Filter, Shortcode, Format, etc.) before browsing.
 
 ### From GitHub
 
-Use `Quarto Wizard: Install Extension from Registry` and enter a GitHub repository in the format `owner/repository/subdirectory@reference`.
+Install from a GitHub repository using the format `owner/repo` or `owner/repo@version`.
+This allows installing specific versions or branches (e.g., `quarto-ext/lightbox@v0.1.6`).
 
 ### From URL
 
-Use `Quarto Wizard: Install Extension from URL` to install from a direct archive URL (`.zip` or `.tar.gz`).
+Install from a direct archive URL (`.zip` or `.tar.gz`).
 
 ### From Local Path
 
-Use `Quarto Wizard: Install Extension from Local` to install from a local directory or archive file.
+Install from a local directory or archive file.
+
+### Direct Commands
+
+You can also use dedicated commands to skip the source picker:
+
+- `Quarto Wizard: Install Extension from Registry` - Go directly to registry browser.
+- `Quarto Wizard: Install Extension from GitHub` - Prompt for GitHub reference.
+- `Quarto Wizard: Install Extension from URL` - Prompt for archive URL.
+- `Quarto Wizard: Install Extension from Local` - Open file picker dialog.
 
 ## Installing from Local Sources
 

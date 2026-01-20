@@ -6,6 +6,7 @@ import {
 	useQuartoTemplateCommand,
 	installExtensionFromRegistryCommand,
 	installExtensionFromURLCommand,
+	installExtensionFromGitHubCommand,
 	installExtensionFromLocalCommand,
 } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
@@ -99,6 +100,11 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.installExtensionFromURL", async () =>
 			installExtensionFromURLCommand(context),
+		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.installExtensionFromGitHub", async () =>
+			installExtensionFromGitHubCommand(context),
 		),
 	);
 	context.subscriptions.push(

@@ -60,6 +60,12 @@ Commands for installing extensions from different sources.
 
 Install an extension by entering its registry identifier.
 
+### Install Extension from GitHub
+
+**Command**: `Quarto Wizard: Install Extension from GitHub`
+
+Install an extension from a GitHub repository (owner/repo or owner/repo@version).
+
 ### Install Extension from URL
 
 **Command**: `Quarto Wizard: Install Extension from URL`
@@ -169,6 +175,7 @@ For scripting or keybinding purposes, here are the internal command identifiers:
 | Display Name                    | Command ID                                  |
 | ------------------------------- | ------------------------------------------- |
 | Install Extension from Registry | `quartoWizard.installExtensionFromRegistry` |
+| Install Extension from GitHub   | `quartoWizard.installExtensionFromGitHub`   |
 | Install Extension from URL      | `quartoWizard.installExtensionFromURL`      |
 | Install Extension from Local    | `quartoWizard.installExtensionFromLocal`    |
 
