@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Dependency Updates
+
+- chore(deps): bump tar from 7.5.3 to 7.5.4 in the npm_and_yarn group across 1 directory (#239)
+
 ## 2.1.0 (2026-01-20)
 
 ### New Features
