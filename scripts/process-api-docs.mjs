@@ -1018,6 +1018,19 @@ function updateVariablesYml(pkg) {
 
 /**
  * Generate changelog.qmd from CHANGELOG.md with nested version headers.
+ * Transforms headings to proper hierarchy with explicit IDs for Quarto.
+ *
+ * Input structure (CHANGELOG.md):
+ *   ## major.minor.patch (date)
+ *   ### Sub heading
+ *   #### Sub sub heading
+ *
+ * Output structure (changelog.qmd):
+ *   ## major {#version-major}
+ *   ### major.minor {#version-major-minor}
+ *   #### major.minor.patch (date) {#version-major-minor-patch}
+ *   ##### Sub heading
+ *   ###### Sub sub heading
  */
 function generateChangelog() {
 	console.log("\nGenerating changelog.qmd...");
@@ -1033,6 +1046,7 @@ function generateChangelog() {
 
 	let currentMajor = null;
 	let currentMinor = null;
+	let inVersionBlock = false;
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
@@ -1040,25 +1054,51 @@ function generateChangelog() {
 		// Skip the main "# Changelog" heading
 		if (i === 0 && line === "# Changelog") continue;
 
+		// Handle "## Unreleased" section
+		if (line === "## Unreleased") {
+			output.push("", `## Unreleased {#unreleased}`, "");
+			inVersionBlock = false;
+			continue;
+		}
+
 		// Match version headers like "## 1.0.2 (2025-12-06)"
-		const versionMatch = line.match(/^## (\d+)\.(\d+)\.(\d+)\s*\(.*\)/);
+		const versionMatch = line.match(/^## (\d+)\.(\d+)\.(\d+)\s*(\(.*\))?/);
 		if (versionMatch) {
 			const major = versionMatch[1];
-			const minor = `${major}.${versionMatch[2]}`;
+			const minorNum = versionMatch[2];
+			const patchNum = versionMatch[3];
+			const minor = `${major}.${minorNum}`;
+			const patch = `${major}.${minorNum}.${patchNum}`;
+			const datePart = versionMatch[4] ? ` ${versionMatch[4]}` : "";
 
 			if (currentMajor !== major) {
-				output.push("", `# ${major}`, "");
+				output.push("", `## ${major} {#version-${major}}`, "");
 				currentMajor = major;
 				currentMinor = null;
 			}
 
 			if (currentMinor !== minor) {
-				output.push(`## ${minor}`, "");
+				output.push(`### ${minor} {#version-${major}-${minorNum}}`, "");
 				currentMinor = minor;
 			}
 
-			output.push(`### ${line.substring(3)}`);
+			output.push(`#### ${patch}${datePart} {#version-${major}-${minorNum}-${patchNum}}`);
+			inVersionBlock = true;
 			continue;
+		}
+
+		// Demote sub-headings within version blocks
+		if (inVersionBlock) {
+			// Convert ### to ##### (demote by 2 levels)
+			if (line.startsWith("### ")) {
+				output.push(`##### ${line.substring(4)}`);
+				continue;
+			}
+			// Convert #### to ###### (demote by 2 levels)
+			if (line.startsWith("#### ")) {
+				output.push(`###### ${line.substring(5)}`);
+				continue;
+			}
 		}
 
 		output.push(line);
