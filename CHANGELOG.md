@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.1 (2026-01-23)
 
 ### Dependency Updates
 
