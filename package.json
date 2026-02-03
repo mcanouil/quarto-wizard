@@ -103,7 +103,7 @@
 		"glob": "^13.0.0",
 		"lru-cache": "^11.2.4",
 		"mocha": "^11.7.5",
-		"prettier": "^3.7.4",
+		"prettier": "^3.8.1",
 		"ts-loader": "^9.5.4",
 		"typedoc": "^0.28.15",
 		"typedoc-plugin-markdown": "^4.9.0",
