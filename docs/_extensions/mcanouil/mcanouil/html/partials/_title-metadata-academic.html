@@ -1,0 +1,54 @@
+$-- ACADEMIC / JOURNAL STYLE --$
+<div class="mc-title-metadata mc-style-academic">
+
+  $-- Authors inline with superscript affiliation numbers (linked) --$
+  $if(by-author)$
+  <div class="mc-academic-authors">
+    $for(by-author)$<span class="mc-academic-author">$_title-meta-author.html()$$if(by-author.affiliations)$<sup class="mc-academic-affiliation-ref">$for(by-author.affiliations)$<a href="#affiliation-$it.number$">$it.number$</a>$sep$,$endfor$</sup>$endif$$if(by-author.attributes.corresponding)$<sup class="mc-academic-corresponding"><a href="#corresponding-author">*</a></sup>$endif$</span>$sep$, $endfor$
+  </div>
+  $endif$
+
+  $-- Affiliations list with numbers (with IDs for linking) --$
+  $if(by-affiliation)$
+  <div class="mc-academic-affiliations">
+    $for(by-affiliation)$
+    <div class="mc-academic-affiliation" id="affiliation-$it.number$"><sup>$it.number$</sup>$it.name$$if(it.department)$, $it.department$$endif$$if(it.city)$, $it.city$$endif$$if(it.country)$, $it.country$$endif$</div>
+    $endfor$
+  </div>
+  $endif$
+
+  $-- Corresponding author note (with ID for linking) --$
+  $for(by-author)$
+  $if(by-author.attributes.corresponding)$
+  <div class="mc-academic-corresponding-note" id="corresponding-author">
+    <sup>*</sup>Corresponding author: $if(by-author.email)$<a href="mailto:$by-author.email$">$by-author.email$</a>$else$$by-author.name.literal$$endif$
+  </div>
+  $endif$
+  $endfor$
+
+  $-- Meta line: dates and DOI --$
+  <div class="mc-academic-meta-line">
+    $if(date)$<span class="mc-academic-date">Published: $date$</span>$endif$
+    $if(date-modified)$<span class="mc-academic-modified">Modified: $date-modified$</span>$endif$
+    $if(doi)$<span class="mc-academic-doi">DOI: <a href="https://doi.org/$doi$">$doi$</a></span>$endif$
+  </div>
+
+  $-- Abstract --$
+  $if(abstract)$
+  <div class="mc-academic-abstract">
+    <strong class="mc-academic-abstract-label">$labels.abstract$</strong>
+    <div class="mc-academic-abstract-content">
+      $abstract$
+    </div>
+  </div>
+  $endif$
+
+  $-- Keywords --$
+  $if(keywords)$
+  <div class="mc-academic-keywords">
+    <strong class="mc-academic-keywords-label">$labels.keywords$</strong>
+    <span class="mc-academic-keywords-list">$for(keywords)$$it$$sep$, $endfor$</span>
+  </div>
+  $endif$
+
+</div>

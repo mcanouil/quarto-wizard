@@ -1,0 +1,61 @@
+$-- PROFESSIONAL / EDITORIAL STYLE --$
+<div class="mc-title-metadata mc-style-professional">
+
+  $-- Top meta: categories and date --$
+  <div class="mc-professional-meta-top">
+    $if(categories)$
+    <span class="mc-professional-category">$for(categories)$$it$$sep$ / $endfor$</span>
+    $endif$
+    $if(date)$
+    <span class="mc-professional-date">$date$</span>
+    $endif$
+  </div>
+
+  $-- Byline: authors with avatars --$
+  $if(by-author)$
+  <div class="mc-professional-byline">
+    $for(by-author)$
+    <div class="mc-professional-author">
+      <div class="mc-professional-avatar" aria-hidden="true"></div>
+      <div class="mc-professional-author-info">
+        <div class="mc-professional-author-name">
+          <span class="author">$_title-meta-author.html()$</span>
+        </div>
+        $if(by-author.affiliations)$
+        <div class="mc-professional-author-affiliation">
+          $for(by-author.affiliations)$$it.name$$sep$, $endfor$
+        </div>
+        $endif$
+      </div>
+    </div>
+    $endfor$
+  </div>
+  $endif$
+
+  $-- Abstract --$
+  $if(abstract)$
+  <div class="mc-professional-abstract">
+    $abstract$
+  </div>
+  $endif$
+
+  $-- Keywords as tags --$
+  $if(keywords)$
+  <div class="mc-professional-keywords">
+    $for(keywords)$<span class="mc-professional-keyword">$it$</span>$sep$ $endfor$
+  </div>
+  $endif$
+
+  $-- Meta footer: modified date and DOI --$
+  $if(date-modified)$
+  <div class="mc-professional-meta-footer">
+    $if(date-modified)$
+    <span class="mc-professional-modified">Updated: $date-modified$</span>
+    $endif$
+    $if(doi)$
+    <span class="mc-professional-doi"><a href="https://doi.org/$doi$">$doi$</a></span>
+    $endif$
+  </div>
+  $endif$
+
+</div>

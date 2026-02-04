@@ -1,0 +1,11 @@
+<script id="quarto-ordinal-dates" type="text/javascript">
+  const dateElements = document.querySelectorAll(
+    "p.date, p.date-modified, div.listing-date, div.listing-file-modified, span.mc-professional-date, span.mc-professional-modified, span.mc-academic-date, span.mc-academic-modified"
+  );
+  dateElements.forEach((el) => {
+    el.innerHTML = el.innerHTML.replace(
+      /(\d+)(st|nd|rd|th)/g,
+      "$1<sup style='font-size:0.5em;font-style:italic;'>$2</sup>"
+    );
+  });
+</script>

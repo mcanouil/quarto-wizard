@@ -1,0 +1,11 @@
+name: RevealJsMCanouil
+script: revealjs-mcanouil.js
+stylesheet: revealjs-mcanouil.css
+config:
+  extensions:
+    mcanouil:
+      section-outline: true
+      date-superscript: true
+      favicon-from-logo: true
+      hide-title-slide-chrome: true
+      debug-borders: false

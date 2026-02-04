@@ -1,0 +1,48 @@
+<script id="quarto-categories-alphabetical" type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    const categories = document.querySelectorAll(".quarto-listing-category .category");
+    const container = document.querySelector(".quarto-listing-category");
+    if (!container || categories.length === 0) return;
+
+    const categoryMap = {};
+    categories.forEach(category => {
+      const dataCategory = category.getAttribute("data-category");
+      const decodedCategory = atob(dataCategory);
+      const firstLetter = decodedCategory.charAt(0).toUpperCase();
+      if (!categoryMap[firstLetter]) {
+        categoryMap[firstLetter] = [];
+      }
+      categoryMap[firstLetter].push(category);
+    });
+
+    Object.keys(categoryMap).sort().forEach(letter => {
+      const groupDiv = document.createElement("div");
+      groupDiv.classList.add("category-group");
+      const button = document.createElement("div");
+      button.classList.add("category", "collapsed");
+      button.setAttribute("data-bs-toggle", "collapse");
+      button.setAttribute("data-bs-target", `#collapse-category-${letter}`);
+      button.setAttribute("aria-expanded", "false");
+      button.setAttribute("aria-label", `Toggle ${letter} categories`);
+      button.setAttribute("aria-controls", `collapse-category-${letter}`);
+      button.setAttribute("role", "button");
+      button.innerHTML = `<div style="font-style: italic;">${letter}</div>`;
+      const collapseDiv = document.createElement("div");
+      collapseDiv.classList.add("collapse");
+      collapseDiv.id = `collapse-category-${letter}`;
+
+      if (letter.length === 0) {
+        categoryMap[letter].forEach(category => {
+          container.appendChild(category);
+        });
+      } else {
+        categoryMap[letter].forEach(category => {
+          collapseDiv.appendChild(category);
+        });
+        groupDiv.appendChild(button);
+        groupDiv.appendChild(collapseDiv);
+        container.appendChild(groupDiv);
+      }
+    });
+  });
+</script>

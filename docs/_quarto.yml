@@ -17,11 +17,6 @@ website:
   repo-url: https://github.com/mcanouil/quarto-wizard
   repo-actions: none
   repo-link-target: _blank
-  open-graph: true
-  twitter-card: true
-  page-navigation: true
-  back-to-top-navigation: true
-
   page-footer:
     border: true
     left: |
@@ -34,8 +29,6 @@ website:
   navbar:
     logo: "assets/logo/logo.png"
     logo-alt: "Quarto Wizard"
-    background: dark
-    search: true
     left:
       - text: Home
         href: index.qmd
@@ -72,33 +65,10 @@ metadata-files:
   - _sidebar-reference.yml
   - _sidebar-api.yml
 
+brand: _brand.yml
 format:
-  html:
-    toc: true
-    toc-depth: 4
-    code-copy: true
+  mcanouil-html:
     code-link: false
-    code-overflow: wrap
-    link-external-newwindow: true
-    fig-align: center
-    grid:
-      sidebar-width: 300px
-      body-width: 900px
-      margin-width: 300px
-    theme:
-      light:
-        - cosmo
-        - brand
-        - assets/stylesheets/theme.scss
-      dark:
-        - cosmo
-        - brand
-        - assets/stylesheets/theme.scss
-    include-after-body:
-      - text: |
-          <script>
-            document.getElementById('current-year').textContent = new Date().getFullYear();
-          </script>
 
 execute:
   freeze: auto

@@ -1,0 +1,778 @@
+// @license MIT
+// @copyright 2026 Mickaël Canouil
+// @author Mickaël Canouil
+//
+// Shared component styles for HTML and Reveal.js formats
+// Uses SCSS variables for build-time constants and CSS custom properties for runtime theming
+//
+// Usage:
+//   1. Define CSS custom properties (--mc-*) in your theme
+//   2. @use '../scss/components' as components;
+//   3. Call @include components.all(); at root level (HTML) or inside .reveal (Reveal.js)
+
+// ============================================================================
+// SCSS VARIABLES (BUILD-TIME CONSTANTS)
+// ============================================================================
+// Override these before @use to customise component sizing
+
+// Component sizing
+$mc-radius: 8px !default;
+$mc-radius-sm: 4px !default;
+$mc-padding: 1.2em !default;
+$mc-gap: 1em !default;
+$mc-margin: 1.5em 0 !default;
+
+// Value box sizing
+$mc-value-box-height: 120px !default;
+
+// Breakpoints for responsive grids
+$mc-breakpoint-md: 992px !default;
+$mc-breakpoint-sm: 576px !default;
+
+// ============================================================================
+// CSS CUSTOM PROPERTIES REFERENCE
+// ============================================================================
+// These must be defined by the importing theme before calling the mixin:
+//
+// Required:
+//   --mc-fg: Foreground colour (text)
+//   --mc-bg: Background colour
+//   --mc-muted: Muted text colour
+//   --mc-border: Border colour
+//   --mc-surface: Surface/card background colour
+//
+// Semantic colours:
+//   --mc-info, --mc-success, --mc-warning, --mc-danger, --mc-caution, --mc-neutral
+//
+// Optional (defaults provided):
+//   --mc-border-strong: Stronger border colour (defaults to --mc-border)
+
+// ============================================================================
+// COMPONENT MIXINS
+// ============================================================================
+
+/// Panel component mixin
+@mixin panel {
+  .mc-panel {
+    border-radius: $mc-radius;
+    border: 1px solid var(--mc-border);
+    margin: $mc-margin;
+    padding: $mc-padding;
+
+    // Pagination control for print/PDF output
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    &__header {
+      // Prevent header from being orphaned at page bottom
+      page-break-after: avoid;
+      break-after: avoid;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      margin-bottom: 0.8em;
+    }
+
+    &__icon {
+      font-size: 1.2em;
+    }
+
+    &__title {
+      font-weight: 600;
+      font-size: 1.1em;
+    }
+
+    &__content {
+      > :first-child {
+        margin-top: 0;
+      }
+
+      > :last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    // Style variants
+    &--subtle {
+      background-color: var(--mc-surface);
+      border-color: var(--mc-border);
+    }
+
+    &--outline {
+      background-color: transparent;
+      border-color: var(--mc-border-strong, var(--mc-border));
+    }
+
+    &--accent {
+      background-color: var(--mc-fg);
+      color: var(--mc-bg);
+      border-color: var(--mc-fg);
+    }
+
+    &--info {
+      background-color: color-mix(in srgb, var(--mc-info) 5%, transparent);
+      border-color: color-mix(in srgb, var(--mc-info) 30%, transparent);
+    }
+
+    &--success {
+      background-color: color-mix(in srgb, var(--mc-success) 5%, transparent);
+      border-color: color-mix(in srgb, var(--mc-success) 30%, transparent);
+    }
+
+    &--warning {
+      background-color: color-mix(in srgb, var(--mc-warning) 5%, transparent);
+      border-color: color-mix(in srgb, var(--mc-warning) 30%, transparent);
+    }
+
+    &--danger {
+      background-color: color-mix(in srgb, var(--mc-danger) 5%, transparent);
+      border-color: color-mix(in srgb, var(--mc-danger) 30%, transparent);
+    }
+
+    &--caution {
+      background-color: color-mix(in srgb, var(--mc-caution) 5%, transparent);
+      border-color: color-mix(in srgb, var(--mc-caution) 30%, transparent);
+    }
+
+    &--emphasis {
+      background-color: color-mix(in srgb, var(--mc-info) 5%, transparent);
+      border-color: color-mix(in srgb, var(--mc-info) 30%, transparent);
+    }
+  }
+}
+
+/// Badge component mixin
+@mixin badge {
+  .mc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.2em 0.6em;
+    font-size: 0.85em;
+    font-weight: 500;
+    border-radius: $mc-radius-sm;
+    background-color: var(--mc-surface);
+    border: 0.5pt solid var(--mc-border);
+    color: var(--mc-fg);
+    vertical-align: baseline;
+    line-height: 1.4;
+
+    &__icon {
+      font-size: 0.9em;
+    }
+
+    &--info {
+      background-color: color-mix(in srgb, var(--mc-info) 15%, transparent);
+      border-color: color-mix(in srgb, var(--mc-info) 40%, transparent);
+      color: var(--mc-info);
+    }
+
+    &--success {
+      background-color: color-mix(in srgb, var(--mc-success) 15%, transparent);
+      border-color: color-mix(in srgb, var(--mc-success) 40%, transparent);
+      color: var(--mc-success);
+    }
+
+    &--warning {
+      background-color: color-mix(in srgb, var(--mc-warning) 15%, transparent);
+      border-color: color-mix(in srgb, var(--mc-warning) 40%, transparent);
+      color: var(--mc-warning);
+    }
+
+    &--danger {
+      background-color: color-mix(in srgb, var(--mc-danger) 15%, transparent);
+      border-color: color-mix(in srgb, var(--mc-danger) 40%, transparent);
+      color: var(--mc-danger);
+    }
+
+    &--caution {
+      background-color: color-mix(in srgb, var(--mc-caution) 15%, transparent);
+      border-color: color-mix(in srgb, var(--mc-caution) 40%, transparent);
+      color: var(--mc-caution);
+    }
+
+    &--emphasis {
+      background-color: color-mix(in srgb, var(--mc-info) 15%, transparent);
+      border-color: color-mix(in srgb, var(--mc-info) 40%, transparent);
+      color: var(--mc-info);
+    }
+
+    &--neutral {
+      background-color: color-mix(in srgb, var(--mc-muted) 10%, transparent);
+      border-color: color-mix(in srgb, var(--mc-muted) 25%, transparent);
+      color: var(--mc-muted);
+    }
+  }
+}
+
+/// Divider component mixin
+@mixin divider {
+  .mc-divider {
+    // Component-level CSS custom properties (can be overridden per instance)
+    --divider-thickness: 1pt;
+    --divider-width: 50%;
+
+    border: 0;
+    border-style: none;
+    background: transparent;
+    height: 0;
+    margin: 2em auto;
+    width: var(--divider-width);
+    position: relative;
+
+    &--solid {
+      border-top: var(--divider-thickness) solid var(--mc-fg);
+    }
+
+    &--dashed {
+      border-top: var(--divider-thickness) dashed var(--mc-fg);
+    }
+
+    &--dotted {
+      border-top: var(--divider-thickness) dotted var(--mc-fg);
+    }
+
+    &--ornamental {
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+      height: auto;
+      color: var(--mc-fg);
+
+      &::before,
+      &::after {
+        content: '';
+        flex: 1;
+        height: var(--divider-thickness);
+        background-color: var(--mc-fg);
+      }
+
+      .mc-divider__label {
+        margin: 0;
+        font-style: normal;
+      }
+    }
+
+    &--section-break {
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+      color: var(--mc-fg);
+
+      &::before,
+      &::after {
+        content: '';
+        flex: 1;
+        height: var(--divider-thickness);
+        background-color: var(--mc-fg);
+      }
+    }
+
+    &--gradient {
+      border: none;
+      height: var(--divider-thickness);
+      background: linear-gradient(to right, transparent, var(--mc-fg), transparent);
+    }
+
+    &__label {
+      display: inline-block;
+      text-align: center;
+      font-style: italic;
+      color: var(--mc-fg);
+      font-size: 0.9em;
+      padding: 0 0.5em;
+      white-space: nowrap;
+    }
+
+    &[role="separator"] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+
+      &::before,
+      &::after {
+        content: '';
+        flex: 1;
+        height: var(--divider-thickness);
+        background-color: var(--mc-fg);
+      }
+    }
+  }
+}
+
+/// Progress component mixin
+@mixin progress {
+  .mc-progress {
+    // Component-level CSS custom properties
+    --progress-height: 1.5em;
+    --custom-colour: var(--mc-info);
+
+    position: relative;
+    height: var(--progress-height);
+    background-color: var(--mc-surface);
+    border: 1px solid var(--mc-border);
+    border-radius: calc(var(--progress-height) / 2);
+    overflow: hidden;
+
+    &__bar {
+      height: 100%;
+      background-color: var(--mc-info);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: width 0.3s ease;
+      min-width: fit-content;
+      padding: 0 0.5em;
+    }
+
+    &__value {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.8em;
+      font-weight: 600;
+      color: var(--mc-fg);
+      background-color: color-mix(in srgb, var(--mc-bg) 85%, transparent);
+      padding: 0.1em 0.4em;
+      border-radius: calc(var(--progress-height) / 2);
+      max-height: calc(var(--progress-height) * 0.9);
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      z-index: 1;
+    }
+
+    &__label {
+      font-size: 0.85em;
+      margin-bottom: 0.4em;
+      color: var(--mc-muted);
+    }
+
+    &__container {
+      margin: $mc-margin;
+    }
+
+    &--info .mc-progress__bar {
+      background-color: var(--mc-info);
+    }
+
+    &--success .mc-progress__bar {
+      background-color: var(--mc-success);
+    }
+
+    &--warning .mc-progress__bar {
+      background-color: var(--mc-warning);
+    }
+
+    &--danger .mc-progress__bar {
+      background-color: var(--mc-danger);
+    }
+
+    &--caution .mc-progress__bar {
+      background-color: var(--mc-caution);
+    }
+
+    &--neutral .mc-progress__bar {
+      background-color: var(--mc-muted);
+    }
+
+    &--custom .mc-progress__bar {
+      background-color: var(--custom-colour);
+    }
+  }
+}
+
+/// Value box component mixin
+@mixin value-box {
+  .mc-value-box {
+    // Component-level CSS custom property for custom colours
+    --custom-colour: var(--mc-fg);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: $mc-padding;
+    border-radius: $mc-radius;
+    border: 1px solid var(--mc-border);
+    background-color: var(--mc-surface);
+    text-align: center;
+    min-height: $mc-value-box-height;
+
+    // Vertical spacing for standalone value boxes (similar to paragraphs)
+    margin: $mc-margin;
+
+    // Pagination control for print/PDF output
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    // Remove margin when inside a card grid
+    .mc-card-grid>& {
+      margin: 0;
+    }
+
+    &__value {
+      display: flex;
+      align-items: baseline;
+      gap: 0.3em;
+    }
+
+    &__number {
+      font-size: 2.5em;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    &__unit {
+      font-size: 0.7em;
+      opacity: 0.8;
+    }
+
+    &__icon {
+      font-size: 1.5em;
+      margin-left: 0.2em;
+    }
+
+    &__label {
+      font-size: 0.85em;
+      color: var(--mc-muted);
+      margin-top: 0.6em;
+    }
+
+    &--info {
+      border-color: var(--mc-info);
+      background-color: color-mix(in srgb, var(--mc-info) 5%, transparent);
+
+      .mc-value-box__number,
+      .mc-value-box__unit,
+      .mc-value-box__icon {
+        color: var(--mc-info);
+      }
+    }
+
+    &--success {
+      border-color: var(--mc-success);
+      background-color: color-mix(in srgb, var(--mc-success) 5%, transparent);
+
+      .mc-value-box__number,
+      .mc-value-box__unit,
+      .mc-value-box__icon {
+        color: var(--mc-success);
+      }
+    }
+
+    &--warning {
+      border-color: var(--mc-warning);
+      background-color: color-mix(in srgb, var(--mc-warning) 5%, transparent);
+
+      .mc-value-box__number,
+      .mc-value-box__unit,
+      .mc-value-box__icon {
+        color: var(--mc-warning);
+      }
+    }
+
+    &--danger {
+      border-color: var(--mc-danger);
+      background-color: color-mix(in srgb, var(--mc-danger) 5%, transparent);
+
+      .mc-value-box__number,
+      .mc-value-box__unit,
+      .mc-value-box__icon {
+        color: var(--mc-danger);
+      }
+    }
+
+    &--caution {
+      border-color: var(--mc-caution);
+      background-color: color-mix(in srgb, var(--mc-caution) 5%, transparent);
+
+      .mc-value-box__number,
+      .mc-value-box__unit,
+      .mc-value-box__icon {
+        color: var(--mc-caution);
+      }
+    }
+
+    &--custom {
+      border-color: var(--custom-colour);
+      background-color: color-mix(in srgb, var(--custom-colour) 5%, transparent);
+
+      .mc-value-box__number,
+      .mc-value-box__unit,
+      .mc-value-box__icon {
+        color: var(--custom-colour);
+      }
+    }
+  }
+}
+
+/// Card grid component mixin
+@mixin card-grid {
+  .mc-card-grid {
+    // Component-level CSS custom property for dynamic column count
+    --card-columns: 3;
+
+    display: grid;
+    grid-template-columns: repeat(var(--card-columns), 1fr);
+    gap: $mc-gap;
+    margin: $mc-margin;
+
+    @media (max-width: $mc-breakpoint-md) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: $mc-breakpoint-sm) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .mc-card {
+    // Component-level CSS custom property for accent colour
+    --card-accent: var(--mc-border-strong, var(--mc-border));
+
+    display: flex;
+    flex-direction: column;
+    border-radius: $mc-radius;
+    border: 1px solid var(--mc-border);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+    // Vertical spacing for standalone cards (similar to paragraphs)
+    margin: $mc-margin;
+
+    // Pagination control for print/PDF output
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    // Remove margin when inside a card grid
+    .mc-card-grid>& {
+      margin: 0;
+    }
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--mc-fg) 10%, transparent);
+    }
+
+    &__header {
+      padding: 0.8em 1em;
+      background-color: var(--mc-surface);
+      border-bottom: 1px solid var(--mc-border);
+
+      // Prevent header from being orphaned at page bottom
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    &__title {
+      margin: 0;
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+
+    &__body {
+      padding: 1em;
+      flex: 1;
+
+      > :first-child {
+        margin-top: 0;
+      }
+
+      > :last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    &__footer {
+      padding: 0.8em 1em;
+      background-color: var(--mc-surface);
+      border-top: 1px solid var(--mc-border);
+      font-size: 0.9em;
+    }
+
+    &--subtle {
+      background-color: var(--mc-surface);
+    }
+
+    &--outlined {
+      background-color: transparent;
+      border-color: var(--card-accent);
+    }
+
+    &--filled {
+      background-color: var(--card-accent);
+      color: var(--mc-bg);
+      border-color: var(--card-accent);
+
+      .mc-card__header {
+        background-color: color-mix(in srgb, var(--mc-bg) 10%, transparent);
+        border-color: color-mix(in srgb, var(--mc-bg) 20%, transparent);
+      }
+
+      .mc-card__footer {
+        background-color: color-mix(in srgb, var(--mc-bg) 10%, transparent);
+        border-color: color-mix(in srgb, var(--mc-bg) 20%, transparent);
+      }
+    }
+  }
+}
+
+/// Executive summary component mixin
+@mixin executive-summary {
+  .mc-executive-summary {
+    position: relative;
+    margin: 2em auto;
+    max-width: 85%;
+    padding: 2em;
+    background-color: var(--mc-surface);
+    border: 2px solid var(--mc-border);
+    border-left: 6px solid var(--mc-border-strong, var(--mc-muted));
+    border-radius: $mc-radius;
+
+    // Pagination control for print/PDF output
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    &__title {
+      // Prevent title from being orphaned at page bottom
+      page-break-after: avoid;
+      break-after: avoid;
+      margin: 0 0 1em 0;
+      font-size: 1.3em;
+      font-weight: 700;
+      text-align: center;
+      color: var(--mc-fg);
+
+      &::after {
+        display: none !important;
+      }
+    }
+
+    &__separator {
+      width: 40%;
+      margin: 0 auto 1em;
+      border: none;
+      border-top: 2px solid var(--mc-muted);
+    }
+
+    &__content {
+      > :first-child {
+        margin-top: 0;
+      }
+
+      > :last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+/// Code window component mixin (macOS-style)
+/// Styles code blocks with filename attribute as macOS terminal windows
+@mixin code-window {
+  // macOS traffic light button colours (consistent across light/dark modes)
+  $traffic-light-close: #ff5f56;
+  $traffic-light-minimise: #ffbd2e;
+  $traffic-light-maximise: #27c93f;
+  $traffic-light-size: 12px;
+  $traffic-light-gap: 6px;
+
+  .code-with-filename {
+    margin: $mc-margin;
+    border-radius: $mc-radius;
+    border: 1px solid var(--mc-border);
+    overflow: hidden;
+
+    // Pagination control for print/PDF output
+    // Prevents page breaks inside the code window where possible
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    // Title bar with traffic lights and filename
+    .code-with-filename-file {
+      display: flex;
+      align-items: center;
+      gap: 0.75em;
+      background-color: var(--mc-surface);
+      border: none;
+      border-bottom: 1px solid var(--mc-border);
+      border-radius: 0;
+      padding: 0.6em 1em;
+      margin: 0;
+
+      // Prevent title bar from being orphaned at page bottom
+      // Ensures title stays with following code content
+      page-break-after: avoid;
+      break-after: avoid;
+
+      // Traffic light buttons via pseudo-element
+      &::before {
+        content: '';
+        display: inline-flex;
+        flex-shrink: 0;
+        width: calc(#{$traffic-light-size} * 3 + #{$traffic-light-gap} * 2);
+        height: $traffic-light-size;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='12'%3E%3Ccircle cx='6' cy='6' r='5' fill='%23ff5f56'/%3E%3Ccircle cx='24' cy='6' r='5' fill='%23ffbd2e'/%3E%3Ccircle cx='42' cy='6' r='5' fill='%2327c93f'/%3E%3C/svg%3E");
+        background-size: contain;
+        background-repeat: no-repeat;
+      }
+
+      // Filename styling
+      pre {
+        flex: 1;
+        margin: 0;
+        padding: 0;
+        background-color: transparent;
+        border: none;
+        text-align: center;
+        font-size: 0.85em;
+        font-weight: 500;
+        color: var(--mc-muted);
+      }
+
+      // Spacer for visual balance (matches traffic light width)
+      &::after {
+        content: '';
+        display: inline-flex;
+        flex-shrink: 0;
+        width: calc(#{$traffic-light-size} * 3 + #{$traffic-light-gap} * 2);
+        height: $traffic-light-size;
+      }
+    }
+
+    // Code block content area
+    .sourceCode,
+    div.sourceCode,
+    .code-copy-outer-scaffold {
+      margin: 0;
+      border: none;
+      border-radius: 0;
+
+      pre {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+      }
+    }
+  }
+}
+
+/// All components mixin - includes all component styles
+/// Call this at root level (HTML) or inside .reveal (Reveal.js)
+@mixin all {
+  @include panel;
+  @include badge;
+  @include divider;
+  @include progress;
+  @include value-box;
+  @include card-grid;
+  @include executive-summary;
+  @include code-window;
+}

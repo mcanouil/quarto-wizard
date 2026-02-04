@@ -1,9 +1,294 @@
 title: Mickaël Canouil's Brand
 author: Mickaël Canouil
-version: 0.1.6
-quarto-required: ">=1.8.20"
+version: 0.13.1
+quarto-required: ">=1.9.17"
+source: mcanouil/quarto-mcanouil@0.13.1
 contributes:
+  formats:
+    common:
+      author:
+        - name:
+            given: Mickaël
+            family: CANOUIL
+          degrees: Ph.D.
+          email: pro@mickael.canouil.dev
+          orcid: 0000-0002-3396-4549
+          url: https://mickael.canouil.fr
+          attributes:
+            corresponding: true
+          affiliations:
+            - name: Independent Contractor
+              city: Lille
+              country: France
+      copyright: © 2026 Mickaël CANOUIL
+      license: CC BY-NC-SA
+      lang: en
+      code-copy: true
+      code-overflow: wrap
+      date: today
+      date-format: dddd[, the] Do [of] MMMM, YYYY
+      mermaid:
+        theme: dark
+      shortcodes:
+        - shortcodes/divider.lua
+        - shortcodes/value-box.lua
+        - shortcodes/progress.lua
+        - shortcodes/badge.lua
+      filters:
+        - at: pre-ast
+          path: filters/panel-tabset.lua
+        - at: pre-quarto
+          path: filters/grid-background.lua
+        - at: pre-quarto
+          path: filters/components.lua
+        - at: pre-quarto
+          path: filters/math-alt-text.lua
+        - at: post-render
+          path: filters/normalise-extension-paths.lua
+      extensions:
+        mcanouil:
+          grid-background: true
+    html:
+      template-partials:
+        - html/partials/title-metadata.html
+        - html/partials/_title-metadata-academic.html
+        - html/partials/_title-metadata-professional.html
+        - html/partials/_title-meta-author.html
+      theme:
+        light:
+          - cosmo
+          - brand
+          - html/theme.scss
+        dark:
+          - cosmo
+          - brand
+          - html/theme.scss
+      highlight-style: github
+      grid:
+        sidebar-width: 300px
+        body-width: 900px
+        margin-width: 300px
+      fig-align: center
+      toc: true
+      toc-depth: 4
+      anchor-sections: true
+      link-external-newwindow: true
+      email-obfuscate: javascript
+      include-after-body:
+        - file: html/scripts/ordinal-dates.html
+        - file: html/scripts/current-year.html
+        - file: html/scripts/categories-alphabetical.html
+        - file: html/scripts/modal-clipboardjs.html
+        - file: html/scripts/external-links.html
+        - file: html/scripts/code-annotation-click.html
+      filters:
+        - at: pre-quarto
+          path: filters/html-options.lua
+        - at: post-quarto
+          path: filters/code-window.lua
+    typst:
+      document-type: report
+      brand-mode: light
+      style: professional
+      show-corner-brackets: true
+      show-margin-decoration: true
+      show-title-page-background: true
+      show-heading-underlines: true
+      show-logo: true
+      highlight-style: none
+      logo:
+        light:
+          path: dark
+          alt: Mickaël CANOUIL Logo
+          width: 7cm
+        dark:
+          path: light
+          alt: Mickaël CANOUIL Logo
+          width: 7cm
+      orcid-icon: typst/assets/orcid.svg
+      template: typst/template.typ
+      template-partials:
+        - typst/partials/libs/utilities.typ
+        - typst/partials/libs/marginalia.typ
+        - typst/partials/libs/definitions.typ
+        - typst/partials/libs/page.typ
+        - typst/partials/libs/colours.typ
+        - typst/partials/libs/code-annotations.typ
+        - typst/partials/libs/typography.typ
+        - typst/partials/libs/decorations.typ
+        - typst/partials/libs/watermark.typ
+        - typst/partials/libs/value-box.typ
+        - typst/partials/libs/panels.typ
+        - typst/partials/libs/badges.typ
+        - typst/partials/libs/dividers.typ
+        - typst/partials/libs/progress.typ
+        - typst/partials/libs/card-grid.typ
+        - typst/partials/libs/executive-summary.typ
+        - typst/partials/libs/authors.typ
+        - typst/partials/libs/header.typ
+        - typst/partials/libs/footer.typ
+        - typst/partials/libs/margin-section.typ
+        - typst/partials/libs/title-block.typ
+        - typst/partials/libs/list-of.typ
+        - typst/partials/libs/special-sections.typ
+        - typst/partials/libs/section-page.typ
+        - typst/partials/libs/document-type-dispatcher.typ
+        - typst/partials/document-types/report.typ
+        - typst/partials/document-types/invoice.typ
+        - typst/partials/document-types/letter.typ
+        - typst/partials/document-types/cv.typ
+        - typst/partials/libs.typ
+        - typst/partials/numbering.typ
+        - typst/partials/show-rules.typ
+        - typst/partials/biblio.typ
+        - typst/partials/notes.typ
+        - typst/partials/typst-template.typ
+        - typst/partials/typst-show.typ
+      filters:
+        - at: pre-ast
+          path: filters/typst-code-annotation.lua
+        - at: pre-quarto
+          path: filters/page-break-inside.lua
+        - at: pre-quarto
+          path: filters/logo-metadata.lua
+        - at: pre-quarto
+          path: filters/special-sections.lua
+      mainfont: Alegreya Sans
+      sansfont: Alegreya Sans
+      fontsize: 11pt
+      papersize: a4
+      margin:
+        top: 2.5cm
+        bottom: 2.5cm
+        left: 2.5cm
+        right: 2.5cm
+      columns: 1
+      title-page: true
+      number-sections: true
+      section-numbering: 1.1.1.
+      section-page: true
+      section-pagebreak: true
+      special-sections:
+        references:
+          name: References
+          numbering: none
+          prefix: false
+        appendix:
+          name: Appendix
+          numbering: A.a.
+          prefix: true
+        supplementary:
+          name: Supplementary
+          numbering: I.i.
+          prefix: true
+      toc: true
+      list-of: true
+      bibliographystyle: apa
+      citeproc: true
+    revealjs:
+      embed-resources: true
+      brand-mode: dark
+      logo:
+        light: light
+        dark: dark
+      theme:
+        - default
+        - revealjs/theme.scss
+        - brand
+      template: revealjs/template.html
+      template-partials:
+        - revealjs/partials/title-slide.html
+        - revealjs/partials/closing-slide.html
+      revealjs-plugins:
+        - revealjs-plugin/mcanouil
+        - revealjs-plugin/tabset
+        - revealjs-plugin/line-fragment-indices
+        - revealjs-plugin/code-annotation-fragments
+      extensions:
+        mcanouil:
+          section-outline: true
+          date-superscript: true
+          hide-title-slide-chrome: true
+          favicon-from-logo: true
+          code-annotation-fragments: true
+          debug-borders: false
+          grid-background: true
+      filters:
+        - at: post-quarto
+          path: filters/code-window.lua
+      transition: slide
+      slide-number: c
+      hash: true
+      center: false
+      code-annotations: select
+      footer: >
+        <a href="https://mickael.canouil.fr/" target="_blank" rel="noopener noreferrer">mickael.canouil.fr</a>
+
+        |
+
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">License:
+        CC BY-NC-SA 4.0</a>
+      closing-slide:
+        photo: https://github.com/mcanouil.png
+        social:
+          website: https://mickael.canouil.fr
+          github: mcanouil
+          linkedin: MickaelCanouil
+          bluesky: mickael.canouil.fr
+          mastodon: https://fosstodon.org/%40MickaelCanouil
+  project:
+    project:
+      type: website
+    extensions:
+      mcanouil:
+        section-outline: true
+        date-superscript: true
+        hide-title-slide-chrome: true
+        favicon-from-logo: true
+        code-annotation-fragments: true
+        debug-borders: false
+        hide-navbar-title: true
+        grid-background: false
+    website:
+      favicon: logos/logo-light-path.svg
+      back-to-top-navigation: true
+      page-navigation: true
+      open-graph: true
+      twitter-card: true
+      repo-actions:
+        - source
+        - issue
+      repo-link-target: _blank
+      repo-link-rel: noopener noreferrer
+      navbar:
+        background: dark
+        search: true
+        logo:
+          light: light
+          dark: dark
+        logo-alt: Mickaël CANOUIL logo
+      sidebar:
+        background: dark
+        search: true
+        logo:
+          light: light
+          dark: dark
+        logo-alt: Mickaël CANOUIL logo
+        pinned: true
+        align: center
+        style: docked
+        collapse-level: 2
+      page-footer:
+        border: true
+        left: |
+          Powered by [Quarto](https://quarto.org){target="_blank" rel="noopener noreferrer"}.
+        center: >
+          &copy; []{#current-year} [Mickaël CANOUIL](https://mickael.canouil.fr){target="_blank" rel="noopener
+          noreferrer"}.
+        right: >
+          [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/){target="_blank" rel="noopener
+          noreferrer"}.
+    format: mcanouil-html
   metadata:
     project:
       brand: brand.yml
-source: mcanouil/quarto-mcanouil@0.1.6

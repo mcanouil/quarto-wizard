@@ -1,0 +1,3683 @@
+/*-- scss:defaults --*/
+
+// Callout colours (matching Typst theme for consistency)
+// All colours meet WCAG AA contrast ratio requirements (4.5:1)
+$callout-color-note: #0066cc !default;
+$callout-color-tip: #009955 !default;
+$callout-color-warning: #cc6600 !default;
+$callout-color-important: #cc0000 !default;
+$callout-color-caution: #b38f00 !default;
+
+// Semantic colours for UI components (matching Typst semantic-colour)
+// Light mode: WCAG AA compliant (4.5:1+ contrast against #fafafa)
+$semantic-color-info: #0066cc !default; // 7.5:1 contrast
+$semantic-color-success: #009955 !default; // 6.8:1 contrast
+$semantic-color-warning: #cc6600 !default; // 5.2:1 contrast
+$semantic-color-danger: #cc0000 !default; // 5.9:1 contrast
+
+// Dark mode semantic colours: WCAG AA compliant (4.5:1+ contrast against #333333)
+$semantic-color-info-dark: #66aaff !default; // 6.8:1 contrast
+$semantic-color-success-dark: #66cc99 !default; // 6.5:1 contrast
+$semantic-color-warning-dark: #ffaa44 !default; // 8.2:1 contrast
+$semantic-color-danger-dark: #ff6666 !default; // 5.4:1 contrast
+$semantic-color-caution-dark: #ddcc66 !default; // 8.5:1 contrast
+
+/*-- scss:rules --*/
+
+// ===========================
+// INTERNAL COLOUR VARIABLES
+// ===========================
+// These provide fallbacks when $foreground/$background are not defined externally
+$_fg: #333333;
+$_bg: #fafafa;
+
+@if variable-exists(foreground) {
+  $_fg: $foreground !global;
+}
+
+@if variable-exists(background) {
+  $_bg: $background !global;
+}
+
+// Internal link colour with fallback (like $_fg/$foreground pattern)
+$_link-color: $_fg;
+
+@if variable-exists(link-color) {
+  $_link-color: $link-color !global;
+}
+
+// ===========================
+// LINK STYLE TOKENS
+// ===========================
+// Centralised variables for consistent link styling across the theme
+$_link-transition-duration: 0.3s;
+$_link-transition-timing: ease;
+$_link-transition: all $_link-transition-duration $_link-transition-timing;
+$_link-underline-color: rgba($_fg, 0.3);
+$_link-underline-color-hover: $_link-color;
+$_link-underline-thickness: 1px;
+$_link-underline-thickness-hover: 2px;
+
+// ===========================
+// LINK STYLING PATTERNS
+// ===========================
+// Pattern A (Content Links): Underline with animated thickness/colour
+//   - Use for inline text links in main content, thanks box, etc.
+//   - Variables: $_link-underline-*, $_link-transition
+//
+// Pattern B (Metadata Links): Toggle text-decoration on hover
+//   - Use for author names, dates, meta info in academic/magazine styles
+//   - Keeps UI clean, underline appears only on hover
+//
+// Pattern C (Navigation): Animated pseudo-element underline
+//   - Use for navbar, footer navigation
+//   - ::after element expands from centre or left
+//
+// Pattern D (Interactive UI): Transform effects
+//   - Use for social links, breadcrumbs where motion adds value
+//   - scale() for emphasis, translateX/Y for directional cues
+
+// ===========================
+// BREAKPOINT VARIABLES
+// ===========================
+// Convention: This file uses desktop-first (max-width) media queries throughout.
+// All responsive styles should follow this pattern for consistency.
+$_breakpoint-sm: 576px;
+$_breakpoint-md: 768px;
+$_breakpoint-lg: 992px;
+$_breakpoint-xl: 1200px;
+
+// ===========================
+// SPACING SCALE
+// ===========================
+$_space-xs: 0.25rem;
+$_space-sm: 0.5rem;
+$_space-md: 1rem;
+$_space-lg: 1.5rem;
+$_space-xl: 2rem;
+
+// ===========================
+// BORDER RADIUS
+// ===========================
+$_radius-sm: 4px;
+$_radius-md: 8px;
+$_radius-lg: 12px;
+$_radius-full: 50%;
+
+// ===========================
+// ANIMATION TIMING
+// ===========================
+$_anim-fast: 0.2s;
+$_anim-standard: 0.3s;
+$_anim-slow: 0.6s;
+$_easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+// ===========================
+// BOX SHADOW SCALE
+// ===========================
+$_shadow-sm: 0 2px 4px rgba($_fg, 0.08);
+$_shadow-md: 0 4px 12px rgba($_fg, 0.1);
+$_shadow-lg: 0 8px 24px rgba($_fg, 0.15);
+
+// ===========================
+// SPECIAL COLOURS
+// ===========================
+$_color-sponsor: rgb(255, 105, 180);
+$_color-macos-close: #ff5f56;
+$_color-macos-minimize: #ffbd2e;
+$_color-macos-maximize: #27c93f;
+
+// ===========================
+// UTILITY FUNCTIONS
+// ===========================
+// Helper function to mix background and foreground colors
+@function body-mix($weight) {
+  @return mix($_bg, $_fg, $weight);
+}
+
+// ===========================
+// SHARED COMPONENTS IMPORT
+// ===========================
+// Import shared component styles (mixin-based)
+@import '../scss/components';
+
+// ===========================
+// CSS CUSTOM PROPERTIES
+// ===========================
+// Define theming custom properties for shared components
+// Light mode (default)
+body {
+  // Core colours
+  --mc-fg: #{$_fg};
+  --mc-bg: #{$_bg};
+  --mc-muted: #{body-mix(35%)};
+  --mc-border: #{body-mix(80%)};
+  --mc-border-strong: #{body-mix(50%)};
+  --mc-surface: #{body-mix(98%)};
+
+  // Semantic colours
+  --mc-info: #{$semantic-color-info};
+  --mc-success: #{$semantic-color-success};
+  --mc-warning: #{$semantic-color-warning};
+  --mc-danger: #{$semantic-color-danger};
+  --mc-caution: #{$callout-color-caution};
+  --mc-neutral: #{body-mix(50%)};
+}
+
+// Dark mode overrides
+[data-bs-theme="dark"],
+.quarto-dark {
+  --mc-fg: #{$_fg};
+  --mc-bg: #{$_bg};
+  --mc-muted: #{body-mix(35%)};
+  --mc-border: #{body-mix(80%)};
+  --mc-border-strong: #{body-mix(50%)};
+  --mc-surface: #{body-mix(98%)};
+
+  // Dark mode semantic colours (WCAG compliant)
+  --mc-info: #{$semantic-color-info-dark};
+  --mc-success: #{$semantic-color-success-dark};
+  --mc-warning: #{$semantic-color-warning-dark};
+  --mc-danger: #{$semantic-color-danger-dark};
+  --mc-caution: #{$semantic-color-caution-dark};
+  --mc-neutral: #{body-mix(50%)};
+}
+
+// Include all shared component styles at root level
+@include all;
+
+// ===========================
+// BASE STYLES & ANIMATIONS
+// ===========================
+// Smooth scrolling for the entire page
+html {
+  scroll-behavior: smooth;
+}
+
+// Page fade-in animation on load
+body {
+  animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+// Enhanced focus states for accessibility
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid $_fg;
+  outline-offset: 2px;
+  transition: outline-offset 0.2s ease;
+}
+
+// Hide empty divs and paragraphs to reduce visual clutter
+div:empty:not(#code-annotation-line-highlight):not(#code-annotation-line-highlight-gutter),
+p:empty {
+  display: none;
+}
+
+// ===========================
+// QUARTO UI COMPONENTS
+// ===========================
+
+// Back to top button
+#quarto-back-to-top {
+  box-shadow: 0 .2rem .5rem body-mix(95%), 0 0 .05rem body-mix(95%);
+  color: body-mix(5%);
+  bottom: 80px;
+}
+
+// Title banner styling
+.quarto-title-banner {
+  margin-bottom: 1em;
+  color: $_fg;
+  background-color: body-mix(99%);
+
+  a {
+    color: body-mix(50%);
+
+    &:hover {
+      color: $_fg;
+    }
+  }
+
+  .quarto-title .title {
+    color: $_fg;
+  }
+}
+
+// Breadcrumb last item styling
+.quarto-title-breadcrumbs .breadcrumb li:last-of-type a,
+.quarto-secondary-nav nav.quarto-page-breadcrumbs .breadcrumb li:last-of-type a {
+  color: body-mix(50%);
+  font-weight: 600;
+}
+
+// ===========================
+// FORMS & PAGINATION
+// ===========================
+.page-item {
+
+  &.active .page-link,
+  .page-link:hover {
+    color: $_bg;
+    background-color: $_fg;
+    border-color: $_bg;
+  }
+
+  &.disabled .page-link {
+    color: $_fg;
+    background-color: $_bg;
+  }
+}
+
+.input-group-text {
+  color: $_bg;
+  background-color: $_fg;
+}
+
+// ===========================
+// CODE STYLING
+// ===========================
+// Inline code styling matching Typst: subtle background, foreground text
+// Uses body-mix(90%) for background (90% background, 10% foreground)
+code,
+a>code {
+  color: $_fg;
+  background-color: body-mix(90%);
+}
+
+a>code {
+  text-decoration: underline;
+}
+
+div.sourceCode {
+  background-color: body-mix(95%);
+  border: 1px solid body-mix(50%);
+}
+
+p code.sourceCode,
+li code.sourceCode,
+td code.sourceCode {
+  background-color: inherit;
+}
+
+.code-annotation-gutter {
+  background-color: body-mix(95%);
+}
+
+// Restore consistent vertical padding for code blocks with annotations
+// Quarto removes padding on .code-annotation-code, causing visual inconsistency
+pre.code-annotation-code {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+// Style code annotation markers as interactive buttons
+.code-annotation-anchor {
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    transform: scale(1.15);
+  }
+}
+
+// Prevent copy button overlap with code annotation gutter
+.code-copy-outer-scaffold:has(.code-annotated)>.code-copy-button {
+  right: 1.5em;
+  margin-right: 0;
+}
+
+// Code annotation workaround
+// Workaround: Quarto PR #13429 (still open as of 2026-01)
+// Remove this block once the PR is merged
+#code-annotation-line-highlight {
+  margin-left: unset;
+  width: 100%;
+  // Offset highlight to account for restored vertical padding
+  margin-top: 0.4rem;
+}
+
+#code-annotation-line-highlight-gutter,
+.code-annotation-gutter-bg,
+.code-annotation-gutter {
+  all: unset;
+}
+
+// ===========================
+// PRINT PAGINATION STYLES
+// ===========================
+// Ensure proper pagination for print and PDF output
+@media print {
+
+  // Keep code windows together when possible
+  .code-with-filename {
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    .code-with-filename-file {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+  }
+
+  // Keep callouts together
+  .callout {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  // Keep panels together
+  .mc-panel {
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    .mc-panel__header {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+  }
+
+  // Keep cards together
+  .mc-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    .mc-card__header {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+  }
+
+  // Keep executive summaries together
+  .mc-executive-summary {
+    page-break-inside: avoid;
+    break-inside: avoid;
+
+    .mc-executive-summary__title {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+  }
+}
+
+// ===========================
+// CALLOUT STYLING
+// ===========================
+// Callout styling matching Typst: left border in callout colour, subtle background
+// Border colour matches the callout type for visual consistency
+
+.callout {
+  // Override Quarto defaults (!important required to override inline styles)
+  border: none !important;
+  border-left: 4px solid !important;
+  border-radius: 4px !important;
+
+  // Pagination control for print/PDF output
+  page-break-inside: avoid;
+  break-inside: avoid;
+
+  // Subtle background using SCSS mix (computed at build time for browser compatibility)
+  &.callout-note {
+    background-color: mix($callout-color-note, $_bg, 15%) !important;
+    border-left-color: $callout-color-note !important;
+  }
+
+  &.callout-tip {
+    background-color: mix($callout-color-tip, $_bg, 15%) !important;
+    border-left-color: $callout-color-tip !important;
+  }
+
+  &.callout-warning {
+    background-color: mix($callout-color-warning, $_bg, 15%) !important;
+    border-left-color: $callout-color-warning !important;
+  }
+
+  &.callout-important {
+    background-color: mix($callout-color-important, $_bg, 15%) !important;
+    border-left-color: $callout-color-important !important;
+  }
+
+  &.callout-caution {
+    background-color: mix($callout-color-caution, $_bg, 15%) !important;
+    border-left-color: $callout-color-caution !important;
+  }
+
+  // Title styling
+  .callout-title-container {
+    font-weight: 600;
+  }
+
+  // Remove bottom spacing from last element in callout body (except code blocks)
+  &.callout-titled .callout-body> :last-child:not(.sourceCode),
+  &.callout-titled .callout-body>div> :last-child:not(.sourceCode) {
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  &.callout-style-default .callout-body {
+    padding-left: .5em;
+    padding-right: .5em;
+    padding-bottom: .5em;
+  }
+}
+
+// ===========================
+// BOOTSTRAP COMPONENTS
+// ===========================
+
+// List Groups
+.list-group-item-action {
+
+  &:hover,
+  &:focus {
+    color: unset;
+    background-color: unset;
+  }
+}
+
+// Navigation Tabs
+.nav-tabs {
+  border-bottom: 1px solid $_fg;
+
+  .nav-link.active,
+  .nav-item.show .nav-link {
+    color: $_fg;
+    background-color: $_bg;
+    border-color: $_fg;
+  }
+
+  .nav-link,
+  .nav-pills .nav-link {
+    color: $_fg;
+  }
+}
+
+// Tooltips
+.tooltip {
+  animation: fadeIn 0.2s ease;
+}
+
+// ===========================
+// ABOUT PAGE COMPONENTS
+// ===========================
+
+// Profile image with glow effect
+img.about-image {
+  border-radius: $_radius-full;
+  border-style: solid;
+  border-width: 3px;
+  border-color: $_fg;
+  padding: 6px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: $_fg;
+    transition: .5s;
+    transform: scale(.9);
+    z-index: -1;
+  }
+
+  &:hover {
+    color: $_fg;
+    box-shadow: 0 0 10px $_fg;
+    text-shadow: 0 0 10px $_fg;
+
+    &::before {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px $_fg;
+    }
+  }
+}
+
+// About entity title hover effect
+.about-entity {
+  #title-block-header.quarto-title-block.default .quarto-title .title:hover {
+    color: $_fg;
+    text-shadow: 0 0 10px $_fg;
+  }
+}
+
+// Solana template about links
+.quarto-about-solana .about-entity {
+  .about-links {
+    column-gap: 0;
+
+    .about-link {
+      font-size: 1.5em;
+      border-style: none;
+      transition: $_link-transition;
+
+      &:hover {
+        transform: scale(1.25);
+      }
+    }
+
+    // Override Quarto's column layout on smaller screens (!important for Bootstrap override)
+    @media(max-width: $_breakpoint-lg) {
+      flex-direction: row !important;
+      justify-content: center !important;
+      flex-wrap: wrap !important;
+    }
+  }
+}
+
+// Trestles template about links
+.quarto-about-trestles .about-entity {
+  .about-link {
+    // Mix link colour with background for muted appearance (different from body-mix)
+    color: mix($_link-color, $_bg, 50%);
+    border: solid 1px $_fg;
+
+    &:hover {
+      color: $_link-color;
+      font-weight: bold;
+    }
+  }
+}
+
+// ===========================
+// NAVIGATION & HEADER
+// ===========================
+
+// Main navbar styling
+.navbar {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background-color: $_bg;
+  border-bottom: 1px solid body-mix(50%);
+
+  &.bg-primary {
+    border: 1px solid body-mix(50%);
+  }
+
+  &.bg-dark {
+    background-color: $_bg;
+    border: 1px solid body-mix(50%);
+  }
+
+  &.bg-light {
+    background-color: body-mix(16%);
+  }
+
+  &.fixed-top {
+    border-width: 0 0 1px;
+  }
+
+  &.fixed-bottom {
+    border-width: 1px 0 0;
+  }
+}
+
+// Footer navigation
+.nav-footer {
+  border-top: 1px solid body-mix(50%);
+
+  a:hover {
+    color: $_link-color;
+  }
+}
+
+.nav-footer-center {
+  min-height: unset;
+
+  p,
+  ol,
+  ul,
+  dl {
+    margin-bottom: 0;
+  }
+
+  .toc-actions {
+
+    ol,
+    ul {
+      padding-left: 0;
+    }
+  }
+}
+
+.navbar-logo {
+  max-height: 2em;
+}
+
+// Navbar navigation items with animated underlines
+.navbar-nav {
+
+  .show>.nav-link,
+  .active>.nav-link,
+  .nav-link.active {
+    color: $_fg;
+  }
+
+  .nav-link:hover,
+  .nav-link:focus {
+    color: $_fg;
+  }
+
+  .nav-link {
+    color: body-mix(50%);
+  }
+
+  a.nav-link,
+  a.nav-link:after,
+  a.nav-link:before {
+    transition: $_link-transition;
+  }
+
+  a.nav-link {
+    position: relative;
+  }
+
+  a.nav-link:hover:after {
+    width: 80%;
+  }
+
+  a.nav-link.active:after,
+  a.nav-link.active:hover:after {
+    border-top: .2em solid $_fg;
+  }
+
+  a.nav-link:hover:after,
+  a.nav-link:after {
+    border-top: .1em solid $_fg;
+  }
+
+  a.nav-link:after {
+    position: absolute;
+    border-top: .1em solid body-mix(90%);
+    content: "";
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    width: 0%;
+  }
+
+  .show>.nav-link,
+  .active>.nav-link,
+  .nav-link.active {
+    font-weight: bolder;
+  }
+
+  .nav-link:hover,
+  .nav-link:focus {
+    color: $_fg;
+  }
+}
+
+// Responsive navbar adjustments
+@media (max-width: $_breakpoint-lg) {
+  .navbar-expand-lg {
+
+    a.nav-link.active:after,
+    a.nav-link.active:hover:after,
+    a.nav-link:hover:after,
+    a.nav-link:after {
+      border-top: 0 solid $_fg;
+    }
+  }
+}
+
+.navbar-brand {
+  color: $_fg;
+}
+
+// Navbar title with corner brackets animation
+.navbar-title,
+.navbar-brand-logo {
+  transition: $_link-transition;
+  display: inline-block;
+  padding: .25em .4em;
+  position: relative;
+  font-weight: bolder;
+
+  &::before,
+  &::after {
+    content: '';
+    height: 14px;
+    width: 14px;
+    position: absolute;
+    transition: $_link-transition;
+    opacity: 0;
+  }
+
+  &::before {
+    content: '';
+    right: 0;
+    top: 0;
+    border-top: 3px solid $_fg;
+    border-right: 3px solid $_fg;
+    transform: translate(-100%, 50%);
+  }
+
+  &:after {
+    content: '';
+    left: 0;
+    bottom: 0;
+    border-bottom: 3px solid $_fg;
+    border-left: 3px solid $_fg;
+    transform: translate(100%, -50%);
+  }
+
+  &:hover {
+
+    &:before,
+    &:after {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: $_breakpoint-md) {
+    display: none;
+  }
+}
+
+// ===========================
+// THEME TOGGLE ICONS
+// ===========================
+
+// Navbar theme toggle
+.navbar .quarto-color-scheme-toggle {
+  &:not(.alternate) .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($navbar-light-color)}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+  }
+
+  &.alternate .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($navbar-light-color)}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+  }
+}
+
+.sidebar-navigation .quarto-color-scheme-toggle {
+  &:not(.alternate) .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($_fg, 10%))}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+  }
+
+  &.alternate .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($_fg, 10%))}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+  }
+}
+
+.top-right.quarto-color-scheme-toggle {
+  &:not(.alternate) .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($_fg, 35%))}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+  }
+
+  &.alternate .bi::before {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($_fg, 20%))}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+  }
+}
+
+// ===========================
+// LISTING & BLOG COMPONENTS
+// ===========================
+
+// Listing category tags
+.quarto-post .listing-categories .listing-category {
+  border: solid 1px $_fg;
+
+  &:hover {
+    color: $_fg;
+  }
+}
+
+.quarto-grid-item .listing-categories .listing-category:hover,
+.quarto-listing-category .category:hover,
+.quarto-title .quarto-categories .quarto-category a:hover {
+  color: $_fg;
+}
+
+.quarto-listing-category .category {
+  text-transform: uppercase;
+}
+
+.listing-description {
+  color: $_fg;
+}
+
+// Footer link hover
+.footer a:hover {
+  color: $_link-color;
+}
+
+// ===========================
+// CUSTOM UTILITY STYLES
+// ===========================
+
+// Rounded picture style
+.picture {
+  border-style: solid;
+  border-width: $_radius-sm;
+  border-color: $_fg;
+  border-radius: $_radius-full;
+  padding: 6px;
+  height: 50%;
+  width: auto;
+  max-width: 200px !important;
+  min-width: 100px;
+}
+
+@media (max-width: $_breakpoint-md) {
+  .quarto-layout-row {
+    flex-direction: column;
+  }
+
+  .quarto-layout-cell {
+    flex-basis: 100% !important;
+    margin-bottom: $_space-md;
+  }
+
+  .quarto-figure-spacer {
+    display: none;
+  }
+}
+
+.quarto-alternate-formats,
+.quarto-code-links,
+.quarto-other-links {
+  h2 {
+    display: none;
+  }
+
+  ul {
+    margin-bottom: 0;
+  }
+}
+
+// ===========================
+// LINK ANIMATIONS & EFFECTS
+// ===========================
+
+// Main content links with subtle underline animation
+main a:not(:where(.nav-link,
+    .btn,
+    .about-link,
+    .listing-category,
+    .quarto-grid-link,
+    .code-annotation-anchor,
+    .anchor-section,
+    .anchorjs-link,
+    .toc-action,
+    #quarto-back-to-top)):not(:has(img)) {
+  position: relative;
+  text-decoration: underline;
+  text-decoration-color: $_link-underline-color;
+  text-decoration-thickness: $_link-underline-thickness;
+  text-underline-offset: 2px;
+  transition: $_link-transition;
+
+  &:hover {
+    text-decoration-color: $_link-underline-color-hover;
+    text-decoration-thickness: $_link-underline-thickness-hover;
+  }
+}
+
+// ===========================
+// CARD & GRID ENHANCEMENTS
+// ===========================
+
+// Blog listing cards with hover effects
+.quarto-post {
+  transition: all $_anim-standard $_easing-standard;
+  border-radius: $_radius-md;
+  overflow: hidden;
+  padding: $_space-md;
+
+  &:hover {
+    will-change: transform;
+    transform: translateY(-4px);
+    box-shadow: $_shadow-lg;
+  }
+
+  .listing-title {
+    transition: color 0.3s ease;
+    margin-bottom: $_space-sm !important;
+  }
+
+  .listing-image {
+    transition: transform 0.4s ease;
+    overflow: hidden;
+
+    img {
+      transition: transform 0.4s ease;
+    }
+  }
+
+  &:hover .listing-image img {
+    transform: scale(1.05);
+  }
+}
+
+// Thumbnail images in listings - match featured image styling
+.quarto-listing .thumbnail-image {
+  border-radius: 1.5rem;
+  box-shadow: $_shadow-lg;
+}
+
+// Featured images
+.img-featured {
+  border-radius: 1.5rem;
+  box-shadow: $_shadow-lg;
+  margin-bottom: $_space-xl;
+}
+
+// Grid items
+.quarto-grid-item {
+  transition: all $_anim-standard $_easing-standard;
+
+  &:hover {
+    will-change: transform;
+    transform: translateY(-4px);
+    box-shadow: $_shadow-lg;
+  }
+
+  .card-img-top {
+    transition: transform 0.4s ease;
+  }
+
+  .card-title {
+    font-weight: 700;
+  }
+
+  &:hover .card-img-top {
+    transform: scale(1.05);
+  }
+}
+
+.card {
+  border-color: $_fg !important;
+}
+
+// ===========================
+// BUTTON & FORM CONTROLS
+// ===========================
+
+// Buttons and pagination links
+.btn,
+.page-link {
+  transition: all $_anim-fast $_easing-standard;
+  text-decoration: none;
+  position: relative;
+
+  // Remove any inherited underline animations from main links
+  &::after {
+    display: none !important;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: $_shadow-md;
+    text-decoration: none;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// ===========================
+// Category Tags
+// ===========================
+
+.listing-category,
+.quarto-category {
+  transition: all 0.25s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: $_shadow-sm;
+  }
+}
+
+// ===========================
+// ABOUT PAGE - HERO BANNER
+// ===========================
+
+// Hero banner styling for Solana about template with gradient orbs
+.quarto-about-solana {
+  position: relative;
+  padding: 3rem 0;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+  margin-top: -$_space-xl;
+  margin-bottom: $_space-xl;
+  background:
+    radial-gradient(ellipse at top left, rgba($_fg, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba($_fg, 0.06) 0%, transparent 50%),
+    linear-gradient(135deg, rgba($_fg, 0.02) 0%, rgba($_fg, 0.05) 100%);
+  border-radius: 0;
+  box-shadow: $_shadow-md;
+  overflow: hidden;
+
+  // Gradient orbs overlay
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    right: -50%;
+    bottom: -50%;
+    background:
+      radial-gradient(circle at 30% 40%, rgba($_fg, 0.12) 0%, transparent 30%),
+      radial-gradient(circle at 70% 60%, rgba($_fg, 0.1) 0%, transparent 30%),
+      radial-gradient(circle at 50% 20%, rgba($_fg, 0.08) 0%, transparent 20%);
+    pointer-events: none;
+    opacity: 0.6;
+    animation: orbsMove 20s ease-in-out infinite alternate;
+  }
+
+  .about-entity {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 2rem;
+
+    .entity-contents {
+      .quarto-title-block {
+        text-align: center;
+
+        .quarto-title {
+          .title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: $_space-sm;
+            background: linear-gradient(135deg, $_fg 0%, rgba($_fg, 0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+
+            @media (max-width: $_breakpoint-md) {
+              font-size: 2rem;
+            }
+          }
+
+          .subtitle {
+            font-size: 1.2rem;
+            color: rgba($_fg, 0.8);
+            font-weight: 400;
+            margin-bottom: $_space-lg;
+
+            @media (max-width: $_breakpoint-md) {
+              font-size: 1rem;
+            }
+          }
+        }
+      }
+
+      .about-links {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: $_space-lg;
+
+        .about-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.6rem 1rem;
+          background-color: rgba($_fg, 0.08);
+          border: 1px solid rgba($_fg, 0.15);
+          border-radius: $_radius-md;
+          color: rgba($_fg, 0.85);
+          text-decoration: none;
+          transition: all $_anim-standard $_easing-standard;
+          font-size: 1.1rem;
+          min-width: 2.5rem;
+
+          .about-link-text {
+            display: flex;
+            align-items: center;
+            gap: $_space-sm;
+          }
+
+          &:hover {
+            background-color: rgba($_fg, 0.12);
+            border-color: rgba($_fg, 0.3);
+            transform: translateY(-2px);
+            box-shadow: $_shadow-md;
+            color: $_fg;
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+
+          // Special styling for sponsor link
+          &:has(iconify-icon[icon*="heart"]) {
+            background-color: rgba($_color-sponsor, 0.1);
+            border-color: rgba($_color-sponsor, 0.3);
+            color: $_color-sponsor;
+
+            &:hover {
+              background-color: rgba($_color-sponsor, 0.2);
+              border-color: rgba($_color-sponsor, 0.5);
+              color: darken($_color-sponsor, 10%);
+            }
+          }
+        }
+      }
+    }
+
+    // Profile image styling (override existing)
+    .about-image {
+      border: 4px solid rgba($_fg, 0.1);
+      box-shadow: $_shadow-lg;
+      transition: all $_anim-standard $_easing-standard;
+
+      &:hover {
+        transform: scale(1.05);
+        box-shadow: 0 12px 32px rgba($_fg, 0.2);
+        border-color: rgba($_fg, 0.2);
+      }
+    }
+  }
+
+  // Responsive adjustments
+  @media (max-width: $_breakpoint-md) {
+    padding: $_space-xl 0;
+    margin-top: -$_space-md;
+    margin-bottom: $_space-lg;
+
+    .about-entity {
+      padding: 0 $_space-lg;
+    }
+  }
+}
+
+// ===========================
+// ABOUT PAGE - CONTENT SECTIONS
+// ===========================
+
+// About entity links (outside hero section)
+.about-entity {
+  .about-link {
+    transition: all $_anim-standard $_easing-standard;
+
+    &:hover {
+      filter: brightness(1.2);
+    }
+  }
+}
+
+// About body styling
+.about-body {
+  margin: 2.5rem 0;
+  max-width: 800px;
+
+  p {
+    font-size: 1.1rem;
+    line-height: 1.75;
+    margin-bottom: $_space-lg;
+    color: rgba($_fg, 0.85);
+
+    @media (max-width: $_breakpoint-md) {
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+
+    strong {
+      color: $_fg;
+      font-weight: 600;
+    }
+
+    em {
+      color: rgba($_fg, 0.75);
+    }
+  }
+}
+
+// Subtle image styling class
+// Targets figures containing img.img-styled
+figure:has(img.img-styled) {
+  display: block;
+  margin: $_space-xl auto;
+  padding: $_space-md;
+  background: linear-gradient(135deg,
+      rgba($_fg, 0.02) 0%,
+      rgba($_fg, 0.04) 100%);
+  border: 1px solid rgba($_fg, 0.08);
+  border-radius: $_radius-lg;
+  box-shadow: $_shadow-sm;
+  transition: all $_anim-standard $_easing-standard;
+  overflow: visible;
+  position: relative;
+
+  // Remove default paragraph margin around image
+  p {
+    margin: 0;
+  }
+
+  // Round the image corners
+  img.img-styled {
+    border-radius: $_radius-md;
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-bottom: 0;
+  }
+
+  // Figcaption styling - hidden by default, expands on hover
+  figcaption {
+    display: block;
+    max-height: 0;
+    margin-top: 0;
+    padding-right: 0;
+    font-size: 0.8em;
+    color: rgba($_fg, 0.6);
+    text-align: right;
+    opacity: 0;
+    overflow: hidden;
+    transition: all $_anim-standard $_easing-standard;
+    line-height: 1.4;
+    font-style: italic;
+
+    a {
+      color: rgba($_fg, 0.7);
+      text-decoration: underline;
+
+      &:hover {
+        color: $_fg;
+      }
+    }
+  }
+
+  &:hover {
+    background: linear-gradient(135deg,
+        rgba($_fg, 0.04) 0%,
+        rgba($_fg, 0.06) 100%);
+    border-color: rgba($_fg, 0.12);
+    box-shadow: $_shadow-md;
+
+    // Show and expand figcaption on hover
+    figcaption {
+      max-height: 100px;
+      margin-top: 0.75rem;
+      opacity: 1;
+    }
+  }
+
+  // Responsive
+  @media (max-width: $_breakpoint-md) {
+    padding: 0.75rem;
+    margin: $_space-lg auto;
+    border-radius: 10px;
+
+    img.img-styled {
+      border-radius: 5px;
+    }
+
+    figcaption {
+      font-size: 0.75em;
+    }
+  }
+}
+
+// Highlight callout box - minimal dotted border style
+.highlight {
+  position: relative;
+  margin: $_space-xl auto;
+  padding: $_space-lg $_space-xl;
+  width: 65%;
+  background: transparent;
+  border: 2px dashed rgba($_fg, 0.25);
+  border-radius: $_radius-md;
+  transition: all $_anim-standard $_easing-standard;
+
+  // Corner accents
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 2px solid $_fg;
+    transition: $_link-transition;
+  }
+
+  // Top-left corner
+  &::before {
+    top: -2px;
+    left: -2px;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 8px 0 0 0;
+  }
+
+  // Bottom-right corner
+  &::after {
+    bottom: -2px;
+    right: -2px;
+    border-left: none;
+    border-top: none;
+    border-radius: 0 0 8px 0;
+  }
+
+  &:hover {
+    border-color: rgba($_fg, 0.4);
+    background: rgba($_fg, 0.02);
+
+    &::before,
+    &::after {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: $_fg;
+
+    @media (max-width: $_breakpoint-md) {
+      font-size: 1rem;
+    }
+
+    strong {
+      color: $_fg;
+      position: relative;
+      padding: 0 0.2em;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0.1em;
+        left: 0;
+        right: 0;
+        height: 0.35em;
+        background: rgba($_fg, 0.12);
+        z-index: -1;
+        transition: background 0.3s ease;
+      }
+    }
+
+    em {
+      font-style: italic;
+      color: $_fg;
+    }
+  }
+
+  &:hover p strong::after {
+    background: rgba($_fg, 0.2);
+  }
+
+  // Multiple paragraphs in highlight
+  p+p {
+    margin-top: $_space-md;
+  }
+
+  @media (max-width: $_breakpoint-md) {
+    padding: 1.25rem 1.5rem;
+  }
+
+  // Reduced motion support
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &::before,
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+// Thanks callout box - solid border with subtle background
+.thanks {
+  position: relative;
+  margin: $_space-xl auto;
+  padding: $_space-lg $_space-xl;
+  width: 90%;
+  background: linear-gradient(135deg,
+      rgba($_fg, 0.03) 0%,
+      rgba($_fg, 0.05) 100%);
+  border: 2px solid rgba($_fg, 0.2);
+  border-radius: $_radius-md;
+  transition: all $_anim-standard $_easing-standard;
+  box-shadow: $_shadow-sm;
+
+  // Corner accents - filled style
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: $_fg;
+    transition: $_link-transition;
+    opacity: 0.3;
+  }
+
+  // Top-left corner
+  &::before {
+    top: -1px;
+    left: -1px;
+    border-radius: 8px 0 0 0;
+  }
+
+  // Bottom-right corner
+  &::after {
+    bottom: -1px;
+    right: -1px;
+    border-radius: 0 0 8px 0;
+  }
+
+  &:hover {
+    border-color: rgba($_fg, 0.35);
+    background: linear-gradient(135deg,
+        rgba($_fg, 0.05) 0%,
+        rgba($_fg, 0.08) 100%);
+    box-shadow: $_shadow-md;
+
+    &::before,
+    &::after {
+      width: 16px;
+      height: 16px;
+      opacity: 0.5;
+    }
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.08rem;
+    line-height: 1.8;
+    color: $_fg;
+    font-weight: 500;
+    font-style: italic;
+    letter-spacing: 0.01em;
+
+    @media (max-width: $_breakpoint-md) {
+      font-size: 1.02rem;
+    }
+
+    strong {
+      color: $_fg;
+      font-weight: 700;
+      font-style: normal;
+      position: relative;
+      padding: 0 0.15em;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0.05em;
+        left: 0;
+        right: 0;
+        height: 0.4em;
+        background: rgba($_fg, 0.15);
+        z-index: -1;
+        border-radius: 2px;
+        transition: $_link-transition;
+      }
+    }
+
+    em {
+      font-style: italic;
+      color: rgba($_fg, 0.85);
+      font-weight: 600;
+    }
+
+    // Links inside thanks box
+    a {
+      color: $_fg;
+      font-weight: 600;
+      text-decoration-thickness: $_link-underline-thickness;
+      text-decoration-color: $_link-underline-color;
+      transition: $_link-transition;
+
+      &:hover {
+        text-decoration-color: $_link-underline-color-hover;
+        text-decoration-thickness: $_link-underline-thickness-hover;
+      }
+    }
+  }
+
+  &:hover p strong::after {
+    background: rgba($_fg, 0.25);
+    height: 0.45em;
+  }
+
+  // Multiple paragraphs in thanks
+  p+p {
+    margin-top: $_space-md;
+  }
+
+  @media (max-width: $_breakpoint-md) {
+    padding: 1.25rem 1.5rem;
+    width: 80%;
+  }
+
+  // Reduced motion support
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &::before,
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+// Index page content styling
+body.quarto-about-solana,
+#quarto-content:has(.quarto-about-solana) {
+  overflow-x: hidden;
+
+  // Introduction paragraphs after hero
+  >div:not(.quarto-about-solana) {
+    p {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      margin-bottom: 1.25rem;
+      color: rgba($_fg, 0.85);
+
+      strong {
+        color: $_fg;
+        font-weight: 600;
+      }
+    }
+  }
+
+  // Education and Interests sections
+  section.level2 {
+    padding-top: 0;
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: $_space-lg;
+      color: $_fg;
+      position: relative;
+      padding-bottom: 0.75rem;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 60px;
+        height: 3px;
+        background: linear-gradient(90deg, $_fg 0%, rgba($_fg, 0.3) 100%);
+        transition: width $_anim-standard $_easing-standard;
+      }
+
+      &:hover::after {
+        width: 100px;
+      }
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+
+      li {
+        position: relative;
+        padding: 0.75rem 0 0.75rem 2rem;
+        margin-bottom: 0.75rem;
+        transition: $_link-transition;
+
+        &::before {
+          content: '▸';
+          position: absolute;
+          left: 0.5rem;
+          color: rgba($_fg, 0.5);
+          font-size: 1rem;
+          transition: $_link-transition;
+        }
+
+        &:hover {
+          padding-left: 2.25rem;
+          color: $_fg;
+
+          &::before {
+            color: $_fg;
+            left: 0.25rem;
+          }
+        }
+
+        p {
+          margin: 0;
+
+          strong {
+            color: $_fg;
+            font-weight: 600;
+          }
+
+          em {
+            color: rgba($_fg, 0.7);
+          }
+        }
+      }
+    }
+  }
+
+  // Education section specific styling
+  .education {
+    ul li {
+      background-color: rgba($_fg, 0.02);
+      border-left: 2px solid rgba($_fg, 0.15);
+      border-radius: 0 6px 6px 0;
+      padding: $_space-md $_space-md $_space-md $_space-xl;
+
+      &:hover {
+        background-color: rgba($_fg, 0.05);
+        border-left-color: rgba($_fg, 0.3);
+      }
+
+      strong:last-of-type {
+        color: rgba($_fg, 0.7);
+        font-size: 0.95em;
+      }
+    }
+  }
+
+  // Interests section - more compact styling
+  .interests {
+    ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: $_space-sm;
+
+      @media (max-width: $_breakpoint-md) {
+        grid-template-columns: 1fr;
+      }
+
+      li {
+        padding: $_space-sm $_space-md $_space-sm 1.75rem;
+        background-color: rgba($_fg, 0.04);
+        border-radius: $_radius-md;
+        font-size: 0.95rem;
+
+        &::before {
+          left: $_space-sm;
+          font-size: 0.85rem;
+        }
+
+        &:hover {
+          background-color: rgba($_fg, 0.08);
+          padding-left: $_space-xl;
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments for index page
+@media (max-width: $_breakpoint-md) {
+
+  body.quarto-about-solana,
+  #quarto-content:has(.quarto-about-solana) {
+    >div:not(.quarto-about-solana) p {
+      font-size: 1rem;
+    }
+
+    section.level2 {
+      margin-top: 0;
+      padding-top: 0;
+
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  }
+}
+
+// ===========================
+// CODE ENHANCEMENTS
+// ===========================
+
+// Override Quarto/Bootstrap code styling (!important required for specificity)
+code:not(.sourceCode) {
+  color: $_fg !important;
+  background-color: body-mix(90%) !important;
+}
+
+// Inline code styling with hover effects
+p code:not(.sourceCode),
+li code:not(.sourceCode),
+td code:not(.sourceCode),
+span code:not(.sourceCode),
+div code:not(.sourceCode),
+h1 code:not(.sourceCode),
+h2 code:not(.sourceCode),
+h3 code:not(.sourceCode),
+h4 code:not(.sourceCode),
+h5 code:not(.sourceCode),
+h6 code:not(.sourceCode) {
+  // Improved padding and spacing
+  padding: 0.15em 0.4em;
+  margin: 0 0.1em;
+
+  // Rounded corners for modern look
+  border-radius: $_radius-sm;
+
+  // Smooth transitions
+  transition: all $_anim-fast $_easing-standard;
+
+  // Subtle border for definition
+  border: 1px solid rgba($_fg, 0.12);
+
+  // Font styling
+  font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+
+  // Subtle shadow for depth
+  box-shadow: 0 1px 2px rgba($_fg, 0.05);
+
+  // Hover effect
+  &:hover {
+    border-color: rgba($_fg, 0.25);
+    box-shadow: $_shadow-sm;
+    transform: translateY(-1px);
+  }
+}
+
+// Code within links
+a>code:not(.sourceCode) {
+  // Maintain underline from brand.yml
+  // Add hover effect
+  transition: $_link-transition;
+
+  &:hover {
+    box-shadow: $_shadow-sm;
+  }
+}
+
+// Code within headings - slightly larger
+h1 code:not(.sourceCode),
+h2 code:not(.sourceCode),
+h3 code:not(.sourceCode) {
+  font-size: 0.85em;
+  padding: 0.2em 0.5em;
+  font-weight: 600;
+}
+
+// Code within smaller headings
+h4 code:not(.sourceCode),
+h5 code:not(.sourceCode),
+h6 code:not(.sourceCode) {
+  font-size: 0.88em;
+  padding: 0.18em 0.45em;
+  font-weight: 600;
+}
+
+// Code in navigation (from brand.yml) - ensure consistency
+nav p code:not(.sourceCode),
+nav li code:not(.sourceCode),
+nav td code:not(.sourceCode),
+nav div code:not(.sourceCode),
+nav span code:not(.sourceCode) {
+  padding: 0.15em 0.4em;
+  border-radius: $_radius-sm;
+  border: 1px solid rgba($_fg, 0.12);
+}
+
+// Code blocks with hover shadow
+div.sourceCode {
+  transition: box-shadow 0.3s ease;
+  border-radius: $_radius-md;
+
+  &:hover {
+    box-shadow: $_shadow-md;
+  }
+}
+
+// Code with filename wrapper (macOS-style code window)
+.code-with-filename {
+  margin: 1em 0;
+  border: 1px solid rgba($_fg, 0.5);
+  border-radius: $_radius-md;
+  overflow: hidden;
+
+  // Filename header (title bar)
+  .code-with-filename-file {
+    background-color: rgba($_fg, 0.08);
+    border-bottom: 1px solid rgba($_fg, 0.5);
+    padding: 0.6em 1em;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    transition: $_link-transition;
+
+    // Traffic light buttons (macOS style)
+    &::before {
+      content: "";
+      display: inline-flex;
+      flex-shrink: 0;
+      width: 52px;
+      height: 12px;
+      margin-right: 8px;
+      background-image: radial-gradient(circle at 6px 6px, $_color-macos-close 5px, transparent 5px),
+        radial-gradient(circle at 21px 6px, $_color-macos-minimize 5px, transparent 5px),
+        radial-gradient(circle at 36px 6px, $_color-macos-maximize 5px, transparent 5px);
+    }
+
+    // Remove Quarto's default ::after pseudo-element
+    &::after {
+      content: none !important;
+      display: none !important;
+    }
+
+    pre {
+      margin: 0;
+      padding: 0;
+      background-color: transparent;
+      border: none;
+      font-size: 0.85em;
+      font-weight: 500;
+      color: rgba($_fg, 0.6);
+      font-family: "Fira Code", "Menlo", "Monaco", "Consolas", monospace;
+      flex-grow: 1;
+      text-align: right;
+
+      strong {
+        font-weight: 500;
+      }
+    }
+  }
+
+  // Code block immediately after filename
+  .code-copy-outer-scaffold,
+  div.sourceCode {
+    margin-top: 0;
+    border-radius: 0;
+    border: none;
+  }
+
+  // Remove top border from nested code block
+  div.sourceCode {
+    border-top: none;
+  }
+
+  // Hover effect for the entire wrapper
+  &:hover {
+    .code-with-filename-file {
+      background-color: rgba($_fg, 0.1);
+    }
+  }
+
+  // Auto-generated filenames display in simulated small caps (uppercase, smaller)
+  &.code-window-auto {
+    .code-with-filename-file pre strong {
+      text-transform: uppercase;
+      font-size: 0.8em;
+    }
+  }
+}
+
+.code-copy-button {
+  transition: all $_anim-fast ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+// ===========================
+// SEARCH & INTERACTION
+// ===========================
+
+// Navbar navigation items
+.navbar-nav .nav-item {
+  .nav-link {
+    &::after {
+      transition: all $_anim-standard $_easing-standard;
+    }
+  }
+}
+
+// Search form focus effect
+#quarto-search {
+  .aa-Form {
+    transition: $_link-transition;
+
+    &:focus-within {
+      box-shadow: $_shadow-md;
+    }
+  }
+}
+
+// ===========================
+// LISTING PAGE ANIMATIONS
+// ===========================
+
+// Staggered fade-in for listing items
+.quarto-listing {
+  .list {
+
+    .quarto-grid-item,
+    .quarto-post {
+      animation: fadeInUp 0.6s ease-out;
+      animation-fill-mode: both;
+
+      @for $i from 1 through 20 {
+        &:nth-child(#{$i}) {
+          animation-delay: #{$i * 0.05}s;
+        }
+      }
+    }
+  }
+}
+
+// ===========================
+// LISTING TABLES
+// ===========================
+
+// Modern table styling with rounded corners and shadows
+.quarto-listing-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin: 1.5em 0;
+  border-radius: $_radius-md;
+  overflow: hidden;
+  box-shadow: $_shadow-sm;
+  transition: box-shadow 0.3s ease;
+
+  &:hover {
+    box-shadow: $_shadow-md;
+  }
+
+  // Table header
+  thead {
+    background: linear-gradient(180deg,
+        rgba($_fg, 0.08) 0%,
+        rgba($_fg, 0.05) 100%);
+    border-bottom: 2px solid rgba($_fg, 0.15);
+
+    tr {
+      transition: background-color 0.3s ease;
+    }
+
+    th {
+      padding: $_space-md 1.25rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      color: rgba($_fg, 0.85);
+      text-align: left;
+      border-bottom: 2px solid rgba($_fg, 0.15);
+      position: relative;
+      transition: $_link-transition;
+
+      // First column
+      &:first-child {
+        padding-left: $_space-lg;
+        border-top-left-radius: 8px;
+      }
+
+      // Last column
+      &:last-child {
+        padding-right: $_space-lg;
+        border-top-right-radius: 8px;
+      }
+
+      // Sort links
+      a.sort {
+        color: rgba($_fg, 0.85);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: $_space-sm;
+        transition: color 0.3s ease;
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+
+        // Remove any inherited underline animations
+        &::before {
+          display: none;
+        }
+
+        // Sort indicator
+        &::after {
+          content: '⇅';
+          font-size: 0.9em;
+          opacity: 0.5;
+          transition: $_link-transition;
+          flex-shrink: 0;
+        }
+
+        &:hover {
+          color: $_fg;
+
+          &::after {
+            opacity: 1;
+            transform: scale(1.2);
+          }
+        }
+
+        // Active sort states
+        &.sort-asc::after {
+          content: '↑';
+          opacity: 1;
+          color: $_fg;
+        }
+
+        &.sort-desc::after {
+          content: '↓';
+          opacity: 1;
+          color: $_fg;
+        }
+      }
+
+      &:hover {
+        background-color: rgba($_fg, 0.06);
+      }
+    }
+  }
+
+  // Table body
+  tbody {
+    tr {
+      border-bottom: 1px solid rgba($_fg, 0.08);
+      transition: all $_anim-standard $_easing-standard;
+      background-color: transparent;
+
+      &:hover {
+        background-color: rgba($_fg, 0.04);
+        transform: scale(1.005);
+        box-shadow: $_shadow-sm;
+        position: relative;
+        z-index: 1;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      // Fade in animation for rows
+      animation: fadeInUp 0.5s ease-out;
+      animation-fill-mode: both;
+
+      @for $i from 1 through 20 {
+        &:nth-child(#{$i}) {
+          animation-delay: #{$i * 0.03}s;
+        }
+      }
+    }
+
+    td {
+      padding: $_space-md 1.25rem;
+      vertical-align: middle;
+      transition: $_link-transition;
+
+      // First column
+      &:first-child {
+        padding-left: $_space-lg;
+        font-weight: 600;
+      }
+
+      // Last column
+      &:last-child {
+        padding-right: $_space-lg;
+      }
+    }
+  }
+
+  // Listing-specific elements
+  .listing-date {
+    font-size: 0.9em;
+    color: rgba($_fg, 0.75);
+    font-weight: 600;
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .listing-title {
+    color: $_fg;
+    text-decoration: none;
+    font-weight: 600;
+    transition: $_link-transition;
+    display: inline-block;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg,
+          $_fg 0%,
+          rgba($_fg, 0.4) 100%);
+      transition: width $_anim-standard $_easing-standard;
+      border-radius: 1px;
+    }
+
+    &:hover {
+      color: $_fg;
+      transform: translateX(2px);
+
+      &::after {
+        width: 100%;
+      }
+    }
+  }
+
+  .listing-journal-title {
+    color: rgba($_fg, 0.8);
+    font-size: 0.95em;
+    font-style: italic;
+
+    em {
+      font-style: italic;
+    }
+  }
+
+  .listing-first,
+  .listing-last {
+    font-size: 0.9em;
+    color: rgba($_fg, 0.7);
+    font-weight: 500;
+    text-align: center;
+    display: inline-block;
+    transition: all $_anim-fast ease;
+
+    &:not(:empty) {
+      padding: 0.25em 0.75em;
+      background-color: rgba($_fg, 0.05);
+      border-radius: $_radius-sm;
+      border: 1px solid rgba($_fg, 0.12);
+
+      &:hover {
+        background-color: rgba($_fg, 0.08);
+        border-color: rgba($_fg, 0.2);
+        transform: scale(1.05);
+      }
+    }
+  }
+}
+
+// Listing actions group (filter and sort controls)
+.listing-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $_space-md;
+  margin-bottom: $_space-lg;
+
+  @media (max-width: $_breakpoint-md) {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  // Input groups (both sort and filter)
+  .input-group {
+    flex: 1;
+    min-width: 200px;
+
+    @media (max-width: $_breakpoint-md) {
+      min-width: 100%;
+    }
+  }
+
+  .input-group-text {
+    background-color: rgba($_fg, 0.08);
+    border: 1px solid rgba($_fg, 0.15);
+    border-right: none;
+    color: rgba($_fg, 0.7);
+    border-radius: 6px 0 0 6px;
+    padding: $_space-sm 0.75rem;
+    transition: $_link-transition;
+
+    i {
+      font-size: 1em;
+    }
+  }
+
+  // Sort dropdown
+  .quarto-listing-sort {
+    .form-select {
+      border: 1px solid rgba($_fg, 0.15);
+      border-left: none;
+      border-radius: 0 6px 6px 0;
+      padding: $_space-sm 2.5rem $_space-sm $_space-md;
+      background-color: $_bg;
+      color: rgba($_fg, 0.85);
+      font-size: 0.95em;
+      transition: $_link-transition;
+      cursor: pointer;
+
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 16px 12px;
+
+      &:hover {
+        border-color: rgba($_fg, 0.3);
+        background-color: rgba($_fg, 0.02);
+        box-shadow: $_shadow-sm;
+      }
+
+      &:focus {
+        border-color: rgba($_fg, 0.4);
+        box-shadow: 0 0 0 3px rgba($_fg, 0.08);
+        outline: none;
+      }
+
+      option {
+        padding: $_space-sm;
+        background-color: $_bg;
+        color: $_fg;
+
+        &:hover {
+          background-color: rgba($_fg, 0.08);
+        }
+      }
+    }
+  }
+}
+
+// Listing filter input
+.quarto-listing-filter {
+  .form-control {
+    border: 1px solid rgba($_fg, 0.15);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    padding: $_space-sm $_space-md;
+    background-color: $_bg;
+    color: rgba($_fg, 0.85);
+    transition: $_link-transition;
+
+    &::placeholder {
+      color: rgba($_fg, 0.4);
+      font-style: italic;
+    }
+
+    &:hover {
+      border-color: rgba($_fg, 0.3);
+      background-color: rgba($_fg, 0.02);
+      box-shadow: $_shadow-sm;
+    }
+
+    &:focus {
+      border-color: rgba($_fg, 0.4);
+      box-shadow: 0 0 0 3px rgba($_fg, 0.08);
+      outline: none;
+      background-color: $_bg;
+    }
+  }
+}
+
+// Pagination styling
+.listing-pagination,
+.pagination {
+  margin-top: $_space-xl;
+  display: flex;
+  justify-content: center;
+  gap: $_space-sm;
+
+  .page-link {
+    border: 1px solid rgba($_fg, 0.15);
+    border-radius: $_radius-md;
+    padding: $_space-sm $_space-md;
+    color: rgba($_fg, 0.85);
+    background-color: $_bg;
+    transition: all $_anim-fast $_easing-standard;
+    text-decoration: none;
+    position: relative;
+    display: inline-block;
+
+    // Ensure no underline animations
+    &::after,
+    &::before {
+      display: none !important;
+    }
+
+    &:hover {
+      background-color: rgba($_fg, 0.08);
+      border-color: rgba($_fg, 0.25);
+      transform: translateY(-2px);
+      text-decoration: none;
+      color: $_fg;
+    }
+
+    &:focus {
+      outline: 2px solid $_fg;
+      outline-offset: 2px;
+      text-decoration: none;
+    }
+
+    &.active {
+      background-color: $_fg;
+      color: $_bg;
+      border-color: $_fg;
+      font-weight: 600;
+      text-decoration: none;
+
+      &:hover {
+        color: $_bg;
+        background-color: rgba($_fg, 0.9);
+      }
+    }
+
+    &:disabled,
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+
+      &:hover {
+        transform: none;
+        background-color: $_bg;
+        border-color: rgba($_fg, 0.15);
+      }
+    }
+  }
+
+  // Page item wrapper
+  .page-item {
+    &.active .page-link {
+      background-color: $_fg;
+      color: $_bg;
+      border-color: $_fg;
+    }
+
+    &.disabled .page-link {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Listing category section
+.quarto-listing-category-title {
+  position: relative;
+  transition: all $_anim-standard $_easing-standard;
+  cursor: default;
+  margin-bottom: $_space-md;
+  padding-bottom: $_space-sm;
+
+  // Remove default border for animated version
+  border-bottom: none !important;
+
+  // Animated underline effect on hover
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, $_fg 0%, rgba($_fg, 0.4) 100%);
+    transition: width $_anim-standard $_easing-standard;
+  }
+
+  &:hover::after {
+    width: 50px;
+  }
+
+  // Enhanced section number styling if present
+  .header-section-number {
+    transition: $_link-transition;
+    opacity: 0.7;
+    margin-right: 0.5em;
+  }
+
+  &:hover .header-section-number {
+    opacity: 1;
+    transform: translateX(-2px);
+  }
+}
+
+.quarto-listing-category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: $_space-md;
+  max-height: none;
+  overflow: visible;
+
+  .category {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25em 0.25em;
+    background-color: transparent;
+    border: none;
+    border-radius: $_radius-sm;
+    font-size: 0.85em;
+    color: rgba($_fg, 0.75);
+    cursor: pointer;
+    transition: all $_anim-fast ease;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 0.5em;
+
+    &:hover {
+      background-color: rgba($_fg, 0.05);
+      color: rgba($_fg, 0.9);
+
+      .quarto-category-count {
+        background-color: rgba($_fg, 0.1);
+        color: rgba($_fg, 0.8);
+      }
+    }
+
+    &:active {
+      background-color: rgba($_fg, 0.08);
+    }
+
+    // Active/selected state
+    &.active,
+    &[aria-current="true"] {
+      background-color: rgba($_fg, 0.1);
+      color: $_fg;
+      font-weight: 600;
+
+      .quarto-category-count {
+        background-color: rgba($_fg, 0.15);
+        color: $_fg;
+      }
+
+      &:hover {
+        background-color: rgba($_fg, 0.12);
+      }
+    }
+
+    // Focus state for accessibility
+    &:focus {
+      outline: 2px solid rgba($_fg, 0.3);
+      outline-offset: 2px;
+    }
+
+    .quarto-category-count {
+      padding: 0.1em 0.4em;
+      background-color: rgba($_fg, 0.08);
+      border-radius: $_radius-md;
+      font-size: 0.8em;
+      font-weight: 500;
+      color: rgba($_fg, 0.6);
+      transition: all $_anim-fast ease;
+      min-width: 1.8em;
+      text-align: center;
+    }
+  }
+
+  // Special styling for "All" category
+  .category[data-category=""] {
+    font-weight: 600;
+    color: rgba($_fg, 0.8);
+  }
+
+  // Reduced motion support
+  @media (prefers-reduced-motion: reduce) {
+    .category {
+      transition: none;
+    }
+  }
+}
+
+// Responsive adjustments for categories
+@media (max-width: $_breakpoint-md) {
+  .quarto-listing-category {
+    gap: 0.2rem;
+
+    .category {
+      font-size: 0.8em;
+      padding: 0.2em 0.4em;
+
+      .quarto-category-count {
+        font-size: 0.75em;
+        padding: 0.08em 0.35em;
+      }
+    }
+  }
+
+  .quarto-listing-category-title {
+    font-size: 0.85rem;
+  }
+}
+
+// Responsive table adjustments
+@media (max-width: $_breakpoint-lg) {
+  .quarto-listing-table {
+    font-size: 0.9em;
+
+    thead th,
+    tbody td {
+      padding: 0.75rem $_space-md;
+
+      &:first-child {
+        padding-left: $_space-md;
+      }
+
+      &:last-child {
+        padding-right: $_space-md;
+      }
+    }
+  }
+}
+
+@media (max-width: $_breakpoint-md) {
+  .quarto-listing-table {
+    font-size: 0.85em;
+    border-radius: $_radius-md;
+
+    thead th,
+    tbody td {
+      padding: 0.6rem 0.75rem;
+
+      &:first-child {
+        padding-left: 0.75rem;
+      }
+
+      &:last-child {
+        padding-right: 0.75rem;
+      }
+    }
+
+    thead th {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ===========================
+// MEDIA & IMAGES
+// ===========================
+
+// Footer link animations
+.nav-footer {
+  a {
+    transition: $_link-transition;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      width: 0;
+      height: 1px;
+      background: $_fg;
+      transition: $_link-transition;
+      transform: translateX(-50%);
+    }
+
+    &:hover::after {
+      width: 100%;
+    }
+  }
+}
+
+// Figure images with hover zoom
+figure {
+  img {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+      transform: scale(1.02);
+      box-shadow: $_shadow-lg;
+    }
+  }
+}
+
+// ===========================
+// TABLE OF CONTENTS (TOC)
+// ===========================
+
+// TOC navigation with animated indicators
+nav#TOC {
+  position: relative;
+  transition: $_link-transition;
+
+  // TOC Title styling
+  #toc-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: $_space-md;
+    padding-bottom: $_space-sm;
+    position: relative;
+    color: rgba($_fg, 0.85);
+
+    // Animated underline
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background: linear-gradient(90deg,
+          $_fg 0%,
+          rgba($_fg, 0.3) 100%);
+      transition: width $_anim-standard $_easing-standard;
+      border-radius: 2px;
+    }
+
+    &:hover::after {
+      width: 80px;
+    }
+  }
+
+  // TOC list styling
+  ul {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: $_space-sm;
+
+    // Nested lists
+    ul {
+      padding-left: $_space-md;
+      margin-top: $_space-xs;
+      margin-bottom: $_space-xs;
+      position: relative;
+
+      // Vertical line for nested items
+      &::before {
+        content: '';
+        position: absolute;
+        left: $_space-sm;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: linear-gradient(180deg,
+            rgba($_fg, 0.15) 0%,
+            rgba($_fg, 0.05) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      &:hover::before {
+        opacity: 1;
+      }
+    }
+
+    li {
+      margin-bottom: $_space-xs;
+      position: relative;
+    }
+  }
+
+  // TOC link styling
+  .nav-link {
+    padding: 0.15rem 0.75rem;
+    border-radius: $_radius-md;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: rgba($_fg, 0.75);
+    transition: all $_anim-fast $_easing-standard;
+    display: block;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+
+    // Section numbers
+    .header-section-number {
+      font-weight: 600;
+      margin-right: $_space-sm;
+      opacity: 0.6;
+      transition: opacity 0.25s ease;
+      font-size: 0.8em;
+    }
+
+    // Hover effect background
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: $_fg;
+      transform: scaleY(0);
+      transition: transform $_anim-fast $_easing-standard;
+      border-radius: 0 2px 2px 0;
+    }
+
+    // Hover state
+    &:hover {
+      color: rgba($_fg, 0.95);
+      background-color: rgba($_fg, 0.04);
+      transform: translateX(2px);
+      padding-left: 0.85rem;
+
+      .header-section-number {
+        opacity: 1;
+      }
+
+      &::before {
+        transform: scaleY(1);
+      }
+    }
+
+    // Active state
+    &.active {
+      color: $_fg;
+      background-color: rgba($_fg, 0.08);
+      font-weight: 600;
+      padding-left: 0.85rem;
+
+      .header-section-number {
+        opacity: 1;
+        font-weight: 700;
+      }
+
+      &::before {
+        transform: scaleY(1);
+        width: 4px;
+      }
+
+      // Subtle pulse animation for active item
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        background: $_fg;
+        border-radius: 50%;
+        transform: translateY(-50%);
+        opacity: 0;
+        animation: tocPulse 2s ease-in-out infinite;
+      }
+    }
+
+    // Focus state for accessibility
+    &:focus-visible {
+      outline: 2px solid $_fg;
+      outline-offset: 2px;
+      background-color: rgba($_fg, 0.06);
+    }
+  }
+
+  // Collapsed nested items
+  ul.collapse {
+    .nav-link {
+      font-size: 0.8125rem;
+      padding: 0.3rem 0.75rem;
+      color: rgba($_fg, 0.65);
+
+      &:hover {
+        color: rgba($_fg, 0.9);
+      }
+    }
+  }
+
+  // TOC actions (Edit/Report buttons)
+  .toc-actions {
+    margin-top: $_space-lg;
+    padding-top: $_space-md;
+    border-top: 1px solid rgba($_fg, 0.1);
+
+    ul {
+      padding-left: 0;
+      margin-bottom: 0;
+    }
+
+    li {
+      margin-bottom: $_space-sm;
+    }
+
+    .toc-action {
+      display: flex;
+      align-items: center;
+      padding: $_space-sm 0.75rem;
+      border-radius: $_radius-md;
+      font-size: 0.875rem;
+      color: rgba($_fg, 0.7);
+      text-decoration: none;
+      transition: all $_anim-fast $_easing-standard;
+      background-color: rgba($_fg, 0.02);
+      border: 1px solid rgba($_fg, 0.08);
+
+      i,
+      .bi {
+        margin-right: $_space-sm;
+        font-size: 1rem;
+        transition: transform 0.3s ease;
+      }
+
+      &:hover {
+        color: $_fg;
+        background-color: rgba($_fg, 0.06);
+        border-color: rgba($_fg, 0.15);
+        transform: translateY(-1px);
+        box-shadow: $_shadow-sm;
+
+        i,
+        .bi {
+          transform: scale(1.1);
+        }
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+
+  // Sticky behavior enhancement
+  &.toc-active {
+
+    // Add subtle shadow when scrolling
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: linear-gradient(180deg,
+          rgba($_fg, 0.03) 0%,
+          transparent 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+  }
+}
+
+// Animation for active item pulse
+@keyframes tocPulse {
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: translateY(-50%) scale(1.5);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: $_breakpoint-lg) {
+  nav#TOC {
+    #toc-title {
+      font-size: 0.8125rem;
+    }
+
+    .nav-link {
+      font-size: 0.8125rem;
+      padding: 0.15rem 0.5rem;
+    }
+  }
+}
+
+// ===========================
+// SIDEBAR & BREADCRUMBS
+// ===========================
+
+// Sidebar navigation hover effects
+.sidebar-navigation {
+  .sidebar-item {
+    transition: all $_anim-fast ease;
+
+    &:hover {
+      padding-left: 0.2rem;
+    }
+  }
+}
+
+// Breadcrumb link animations
+.breadcrumb {
+  .breadcrumb-item {
+    a {
+      transition: $_link-transition;
+
+      &:hover {
+        transform: translateX(2px);
+      }
+    }
+  }
+}
+
+// ===========================
+// TITLE BLOCK & HEADERS
+// ===========================
+// Supports two styles via title-block-style: academic (default) or magazine
+
+// Base title block container
+header#title-block-header {
+  position: relative;
+  margin-bottom: 2.5rem;
+
+  // Title section - shared styles
+  .quarto-title {
+    .title {
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: $_space-sm;
+      color: $_fg;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: var(--mc-muted);
+      font-weight: 400;
+      margin-bottom: $_space-lg;
+    }
+  }
+}
+
+// Shared author styling
+.quarto-title-author-degree {
+  font-style: italic;
+  font-weight: normal;
+  color: var(--mc-muted);
+}
+
+.quarto-title-author-orcid {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 0.35em;
+  opacity: 0.8;
+  transition: opacity $_link-transition-duration $_link-transition-timing;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  img {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+  }
+}
+
+// ===========================
+// ACADEMIC / JOURNAL STYLE
+// ===========================
+.mc-style-academic {
+  text-align: center;
+  padding: $_space-lg 0;
+
+  // Authors inline with superscript affiliations
+  .mc-academic-authors {
+    margin-bottom: $_space-md;
+    font-size: 1rem;
+    line-height: 1.8;
+
+    .mc-academic-author {
+      .author {
+        a {
+          color: $_fg;
+          text-decoration: none;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+
+      sup {
+        font-size: 0.7em;
+        color: $_fg;
+        margin-left: 0.1em;
+
+        a {
+          color: inherit;
+          text-decoration: none;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+
+        &.mc-academic-corresponding {
+          margin-left: 0;
+        }
+      }
+    }
+  }
+
+  // Affiliations list at bottom
+  .mc-academic-affiliations {
+    font-size: 0.85rem;
+    color: var(--mc-muted);
+    margin-bottom: $_space-md;
+
+    .mc-academic-affiliation {
+      margin-bottom: $_space-xs;
+      scroll-margin-top: $_space-md;
+
+      sup {
+        font-size: 0.85em;
+        color: $_fg;
+        margin-right: 0.25em;
+      }
+    }
+  }
+
+  // Corresponding author note
+  .mc-academic-corresponding-note {
+    font-size: 0.85rem;
+    color: var(--mc-muted);
+    margin-bottom: $_space-md;
+    scroll-margin-top: $_space-md;
+
+    sup {
+      color: $_fg;
+      margin-right: 0.25em;
+    }
+
+    a {
+      color: $_fg;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // Meta line
+  .mc-academic-meta-line {
+    font-size: 0.85rem;
+    color: var(--mc-muted);
+    margin-bottom: $_space-lg;
+
+    span {
+      &::after {
+        content: ' | ';
+        color: var(--mc-border);
+      }
+
+      &:last-child::after {
+        content: '';
+      }
+    }
+
+    a {
+      color: $_fg;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // Abstract
+  .mc-academic-abstract {
+    text-align: left;
+    background: var(--mc-surface);
+    padding: 1.25rem;
+    margin: $_space-lg 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+
+    .mc-academic-abstract-label {
+      display: block;
+      margin-bottom: $_space-sm;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+      color: var(--mc-muted);
+    }
+
+    .mc-academic-abstract-content {
+      color: rgba($_fg, 0.9);
+
+      p:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  // Keywords
+  .mc-academic-keywords {
+    text-align: left;
+    font-size: 0.85rem;
+    padding: 0 1.25rem;
+
+    .mc-academic-keywords-label {
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+      color: var(--mc-muted);
+      margin-right: $_space-sm;
+    }
+
+    .mc-academic-keywords-list {
+      color: $_fg;
+    }
+  }
+}
+
+// ===========================
+// PROFESSIONAL / EDITORIAL STYLE
+// ===========================
+.mc-style-professional {
+  padding: $_space-xl 0 $_space-lg;
+  border-bottom: 4px solid $_fg;
+
+  // Top meta: category and date
+  .mc-professional-meta-top {
+    display: flex;
+    gap: $_space-lg;
+    margin-bottom: $_space-lg;
+    align-items: center;
+
+    .mc-professional-category {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: $_fg;
+      font-weight: 600;
+    }
+
+    .mc-professional-date {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--mc-muted);
+    }
+  }
+
+  // Byline with avatars
+  .mc-professional-byline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $_space-lg;
+    padding-top: $_space-lg;
+    border-top: 1px solid var(--mc-border);
+    margin-bottom: $_space-lg;
+  }
+
+  .mc-professional-author {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .mc-professional-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: $_fg;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    // User icon via SVG (uses background colour for icon fill)
+    &::before {
+      content: '';
+      width: 20px;
+      height: 20px;
+      background-color: $_bg;
+      mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>');
+      mask-size: contain;
+      mask-repeat: no-repeat;
+      -webkit-mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>');
+      -webkit-mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+    }
+  }
+
+  .mc-professional-author-info {
+    .mc-professional-author-name {
+      font-weight: 600;
+      color: $_fg;
+
+      a {
+        color: inherit;
+        font-weight: 600;
+        text-decoration: none;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    .mc-professional-author-affiliation {
+      font-size: 0.85rem;
+      color: var(--mc-muted);
+    }
+  }
+
+  // Abstract
+  .mc-professional-abstract {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    background: linear-gradient(135deg, var(--mc-surface) 0%, transparent 100%);
+    border-left: 3px solid $_fg;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: $_fg;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  // Keywords as dark tags
+  .mc-professional-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $_space-sm;
+    margin-top: $_space-lg;
+  }
+
+  .mc-professional-keyword {
+    font-size: 0.75rem;
+    padding: 0.35em 0.75em;
+    background: $_fg;
+    color: $_bg;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  // Meta footer
+  .mc-professional-meta-footer {
+    margin-top: $_space-lg;
+    padding-top: $_space-md;
+    border-top: 1px solid var(--mc-border);
+    font-size: 0.8rem;
+    color: var(--mc-muted);
+    display: flex;
+    gap: $_space-lg;
+
+    a {
+      color: $_fg;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+// Professional style: enhance title in header
+header#title-block-header:has(.mc-style-professional) {
+  padding-bottom: 0;
+
+  .quarto-title {
+    background: linear-gradient(135deg, $_bg 0%, darken($_bg, 8%) 100%);
+    color: $_fg;
+    padding: 3rem 2rem 2.5rem;
+    margin: 0 -1rem 0;
+    position: relative;
+    overflow: hidden;
+
+    // Corner bracket decorations (matching Reveal.js style)
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: $_fg;
+      border-style: solid;
+      pointer-events: none;
+    }
+
+    // Top-left corner bracket
+    &::before {
+      top: $_space-md;
+      left: $_space-md;
+      border-width: 3px 0 0 3px;
+    }
+
+    // Bottom-right corner bracket
+    &::after {
+      bottom: $_space-md;
+      right: $_space-md;
+      border-width: 0 3px 3px 0;
+    }
+
+    .title {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: $_space-md;
+      color: $_fg;
+      position: relative;
+
+      @media (max-width: $_breakpoint-sm) {
+        font-size: 2rem;
+      }
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: rgba($_fg, 0.7);
+      margin-bottom: 0;
+      max-width: 600px;
+      position: relative;
+
+      @media (max-width: $_breakpoint-sm) {
+        font-size: 1rem;
+      }
+    }
+  }
+
+  // Metadata section below title
+  .mc-style-professional {
+    padding-top: $_space-lg;
+  }
+}
+
+// Academic style: centred title in header
+header#title-block-header:has(.mc-style-academic) {
+  .quarto-title {
+    text-align: center;
+    padding-bottom: $_space-lg;
+    margin-bottom: 0;
+
+    .title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: $_space-sm;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--mc-muted);
+      margin-bottom: 0;
+    }
+  }
+
+  // Connect to metadata section
+  .mc-style-academic {
+    padding-top: 0;
+  }
+}
+
+// ===========================
+// SECTION HEADINGS (H2-H6)
+// ===========================
+
+// Override default heading borders with theme variables
+h1,
+.h1,
+h2,
+.h2,
+h3,
+.h3,
+h4,
+.h4,
+h5,
+.h5,
+h6,
+.h6 {
+
+  // Override any default border colors with theme variables
+  &[style*="border-bottom"],
+  &:not(:where(.nav-footer *, .navbar *, .sidebar *, nav#TOC *)) {
+    border-bottom-color: rgba($_fg, 0.15) !important;
+  }
+}
+
+// Default h2 border override (Quarto adds border-bottom to h2 by default)
+h2,
+.h2 {
+  &:not(:where(.nav-footer *, .navbar *, .sidebar *, nav#TOC *, .card-title)) {
+    border-bottom-color: rgba($_fg, 0.15);
+  }
+}
+
+// Animated underlines for section headings in main content
+main {
+
+  h2.anchored,
+  h3.anchored,
+  h4.anchored,
+  h5.anchored {
+    position: relative;
+    transition: all $_anim-standard $_easing-standard;
+    cursor: default;
+
+    // Remove default border for animated version
+    border-bottom: none !important;
+
+    // Animated underline effect on hover
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg,
+          $_fg 0%,
+          rgba($_fg, 0.4) 100%);
+      transition: width $_anim-slow $_easing-standard;
+      border-radius: 1px;
+    }
+
+    &:hover::after {
+      width: 80px;
+    }
+  }
+
+  // Different widths for different heading levels
+  h2.anchored:hover::after {
+    width: 100px;
+  }
+
+  h3.anchored:hover::after {
+    width: 80px;
+  }
+
+  h4.anchored:hover::after {
+    width: 60px;
+  }
+
+  h5.anchored:hover::after {
+    width: 50px;
+  }
+
+  // Enhance section number styling
+  h2.anchored,
+  h3.anchored,
+  h4.anchored,
+  h5.anchored {
+    .header-section-number {
+      transition: $_link-transition;
+      opacity: 0.7;
+      margin-right: 0.5em;
+    }
+
+    &:hover .header-section-number {
+      opacity: 1;
+      transform: translateX(-2px);
+    }
+  }
+}
+
+// ===========================
+// KEYFRAME ANIMATIONS
+// ===========================
+
+// Shimmer animation for banner accent
+@keyframes shimmer {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scaleX(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scaleX(0.95);
+  }
+}
+
+// Fade in animation for separator border
+@keyframes fadeInBorder {
+  from {
+    opacity: 0;
+    transform: scaleX(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+// Pulse animation for separator border
+@keyframes pulseBorder {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+// Gradient orbs movement
+@keyframes orbsMove {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+
+  33% {
+    transform: translate(8%, 5%) rotate(120deg) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-5%, 8%) rotate(240deg) scale(0.9);
+  }
+
+  100% {
+    transform: translate(0, 0) rotate(360deg) scale(1);
+  }
+}
+
+// ===========================
+// ACCESSIBILITY & REDUCED MOTION
+// ===========================
+
+// Disable all animations for users who prefer reduced motion
+// Note: !important is intentional here to ensure accessibility overrides all other styles
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  // Disable title-block animations for reduced motion
+  header#title-block-header {
+    &::after {
+      animation: none !important;
+    }
+
+    .quarto-title .title::after {
+      transition: none !important;
+    }
+
+    .quarto-title-meta::before {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+  }
+
+  // Disable TOC animations for reduced motion
+  nav#TOC {
+    .nav-link.active::after {
+      animation: none !important;
+      opacity: 0 !important;
+    }
+  }
+}
+
+// ---------------------------
+// BLOCKQUOTE WITH CURLY QUOTES
+// ---------------------------
+blockquote {
+  position: relative;
+  margin: 1.5em 0;
+  padding: 1.5em 2em 1.5em 3em;
+  background-color: body-mix(98%);
+  border-left: 4px solid body-mix(70%);
+  border-radius: $mc-radius-sm;
+  font-style: italic;
+
+  // Opening curly quote (top-left)
+  &::before {
+    content: '\201C';
+    position: absolute;
+    top: 0.1em;
+    left: 0.3em;
+    font-size: 3em;
+    line-height: 1;
+    color: body-mix(70%);
+    font-family: Georgia, serif;
+    font-style: normal;
+  }
+
+  // Closing curly quote (bottom-right)
+  &::after {
+    content: '\201D';
+    position: absolute;
+    bottom: -0.3em;
+    right: 0.3em;
+    font-size: 3em;
+    line-height: 1;
+    color: body-mix(70%);
+    font-family: Georgia, serif;
+    font-style: normal;
+  }
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+}

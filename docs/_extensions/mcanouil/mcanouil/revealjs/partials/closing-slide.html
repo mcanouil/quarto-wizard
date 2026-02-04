@@ -1,0 +1,104 @@
+<section id="$idprefix$closing-slide" class="mcanouil-closing-slide">
+  <!-- Geometric background shapes (matching title slide) -->
+  <div class="bg-shape circle-1"></div>
+  <div class="bg-shape circle-2"></div>
+  <div class="bg-shape circle-3"></div>
+  <div class="bg-shape circle-4"></div>
+  <div class="bg-shape circle-5"></div>
+
+  <div class="closing-content">
+    <!-- Outer corner brackets -->
+    <div class="corner-bracket outer top-right"></div>
+    <div class="corner-bracket outer bottom-left"></div>
+
+    <div class="speaker-card">
+      <!-- Inner corner brackets -->
+      <div class="corner-bracket inner top-left"></div>
+      <div class="corner-bracket inner bottom-right"></div>
+
+      <!-- T-shape layout: photo left, details right -->
+      <div class="speaker-header">
+        $if(closing-slide.photo)$
+        <img class="speaker-photo" src="$closing-slide.photo$" alt="Speaker photo">
+        $endif$
+
+        <div class="speaker-details">
+          $for(by-author)$
+          $if(by-author.attributes.corresponding)$
+          <h2 class="speaker-name">$if(by-author.url)$<a href="$by-author.url$" target="_blank" rel="noopener noreferrer">$by-author.name.literal$</a>$else$$by-author.name.literal$$endif$$if(by-author.degrees)$<em class="speaker-degree">, $for(by-author.degrees)$$by-author.degrees$$sep$, $endfor$</em>$endif$$if(by-author.orcid)$ <a href="https://orcid.org/$by-author.orcid$" class="speaker-orcid" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA2ZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMC1jMDYwIDYxLjEzNDc3NywgMjAxMC8wMi8xMi0xNzozMjowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDo1N0NEMjA4MDI1MjA2ODExOTk0QzkzNTEzRjZEQTg1NyIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDozM0NDOEJGNEZGNTcxMUUxODdBOEVCODg2RjdCQ0QwOSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDozM0NDOEJGM0ZGNTcxMUUxODdBOEVCODg2RjdCQ0QwOSIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ1M1IE1hY2ludG9zaCI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkZDN0YxMTc0MDcyMDY4MTE5NUZFRDc5MUM2MUUwNEREIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjU3Q0QyMDgwMjUyMDY4MTE5OTRDOTM1MTNGNkRBODU3Ii8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+84NovQAAAR1JREFUeNpiZEADy85ZJgCpeCB2QJM6AMQLo4yOL0AWZETSqACk1gOxAQN+cAGIA4EGPQBxmJA0nwdpjjQ8xqArmczw5tMHXAaALDgP1QMxAGqzAAPxQACqh4ER6uf5MBlkm0X4EGayMfMw/Pr7Bd2gRBZogMFBrv01hisv5jLsv9nLAPIOMnjy8RDDyYctyAbFM2EJbRQw+aAWw/LzVgx7b+cwCHKqMhjJFCBLOzAR6+lXX84xnHjYyqAo5IUizkRCwIENQQckGSDGY4TVgAPEaraQr2a4/24bSuoExcJCfAEJihXkWDj3ZAKy9EJGaEo8T0QSxkjSwORsCAuDQCD+QILmD1A9kECEZgxDaEZhICIzGcIyEyOl2RkgwAAhkmC+eAm0TAAAAABJRU5ErkJggg==" alt="ORCID"></a>$endif$</h2>
+          $if(closing-slide.title)$
+          <p class="speaker-title">$closing-slide.title$</p>
+          $elseif(by-author.affiliations)$
+          <p class="speaker-title">$for(by-author.affiliations)$$it.name$$sep$, $endfor$</p>
+          $endif$
+          $if(by-author.email)$
+          <p class="speaker-email"><a href="mailto:$by-author.email$">$by-author.email$</a></p>
+          $endif$
+          $endif$
+          $endfor$
+        </div>
+      </div>
+
+      $if(closing-slide.social)$
+      <!-- Social links spanning full width below -->
+      <div class="social-links">
+        $if(closing-slide.social.website)$
+        <a href="$closing-slide.social.website$" class="social-link website" target="_blank" rel="noopener noreferrer">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          <span class="social-label">Website</span>
+          <span class="social-handle">$closing-slide.social.website$</span>
+        </a>
+        $endif$
+        $if(closing-slide.social.github)$
+        <a href="https://github.com/$closing-slide.social.github$" class="social-link github" target="_blank"
+          rel="noopener noreferrer">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+          </svg>
+          <span class="social-label">GitHub</span>
+          <span class="social-handle">$closing-slide.social.github$</span>
+        </a>
+        $endif$
+        $if(closing-slide.social.linkedin)$
+        <a href="https://linkedin.com/in/$closing-slide.social.linkedin$" class="social-link linkedin" target="_blank"
+          rel="noopener noreferrer">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+          </svg>
+          <span class="social-label">LinkedIn</span>
+          <span class="social-handle">$closing-slide.social.linkedin$</span>
+        </a>
+        $endif$
+        $if(closing-slide.social.bluesky)$
+        <a href="https://bsky.app/profile/$closing-slide.social.bluesky$" class="social-link bluesky" target="_blank"
+          rel="noopener noreferrer">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 0 1-.415-.056c.14.017.279.036.415.056 2.67.296 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.206-.659-.298-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8Z" />
+          </svg>
+          <span class="social-label">Bluesky</span>
+          <span class="social-handle">$closing-slide.social.bluesky$</span>
+        </a>
+        $endif$
+        $if(closing-slide.social.mastodon)$
+        <a href="$closing-slide.social.mastodon$" class="social-link mastodon" target="_blank"
+          rel="noopener noreferrer">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M23.268 5.313c-.35-2.578-2.617-4.61-5.304-5.004C17.51.242 15.792 0 11.813 0h-.03c-3.98 0-4.835.242-5.288.309C3.882.692 1.496 2.518.917 5.127.64 6.412.61 7.837.661 9.143c.074 1.874.088 3.745.26 5.611.118 1.24.325 2.47.62 3.68.55 2.237 2.777 4.098 4.96 4.857 2.336.792 4.849.923 7.256.38.265-.061.527-.132.786-.213.585-.184 1.27-.39 1.774-.753a.057.057 0 0 0 .023-.043v-1.809a.052.052 0 0 0-.02-.041.053.053 0 0 0-.046-.01 20.282 20.282 0 0 1-4.709.545c-2.73 0-3.463-1.284-3.674-1.818a5.593 5.593 0 0 1-.319-1.433.053.053 0 0 1 .066-.054c1.517.363 3.072.546 4.632.546.376 0 .75 0 1.125-.01 1.57-.044 3.224-.124 4.768-.422.038-.008.077-.015.11-.024 2.435-.464 4.753-1.92 4.989-5.604.008-.145.03-1.52.03-1.67.002-.512.167-3.63-.024-5.545zm-3.748 9.195h-2.561V8.29c0-1.309-.55-1.976-1.67-1.976-1.23 0-1.846.79-1.846 2.35v3.403h-2.546V8.663c0-1.56-.617-2.35-1.848-2.35-1.112 0-1.668.668-1.67 1.977v6.218H4.822V8.102c0-1.31.337-2.35 1.011-3.12.696-.77 1.608-1.164 2.74-1.164 1.311 0 2.302.5 2.962 1.498l.638 1.06.638-1.06c.66-.999 1.65-1.498 2.96-1.498 1.13 0 2.043.395 2.74 1.164.675.77 1.012 1.81 1.012 3.12z" />
+          </svg>
+          <span class="social-label">Mastodon</span>
+          <span class="social-handle">$closing-slide.social.mastodon$</span>
+        </a>
+        $endif$
+      </div>
+      $endif$
+    </div>
+  </div>
+</section>

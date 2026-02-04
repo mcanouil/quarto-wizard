@@ -1,0 +1,167 @@
+/**
+ * MCanouil Reveal.js Plugin Styles
+ *
+ * Additional styles for plugin-generated elements.
+ * Main theme styles are in revealjs/theme.scss.
+ *
+ * @license MIT
+ * @copyright 2026 Mickaël Canouil
+ * @author Mickaël Canouil
+ */
+
+/* =========================================================================
+   DATE SUPERSCRIPT
+   ========================================================================= */
+
+.reveal .date sup {
+  font-size: 0.6em;
+  vertical-align: super;
+}
+
+/* =========================================================================
+   SECTION SLIDE TRANSITIONS
+   ========================================================================= */
+
+.reveal .slides section.section-slide {
+  transition: background-color 0.3s ease;
+}
+
+/* =========================================================================
+   SECTION OUTLINE ANIMATIONS
+   ========================================================================= */
+
+.reveal .slides section.section-slide .section-outline {
+  opacity: 0;
+  animation: fadeInOutline 0.5s ease 0.3s forwards;
+}
+
+@keyframes fadeInOutline {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================================
+   SECTION BANNER ANIMATIONS
+   ========================================================================= */
+
+.reveal .slides section.section-slide .section-banner {
+  opacity: 0;
+  animation: slideInBanner 0.4s ease forwards;
+}
+
+@keyframes slideInBanner {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* =========================================================================
+   CODE ANNOTATION COPY BUTTON FIX
+   ========================================================================= */
+
+/* Prevent copy button overlap with code annotation gutter */
+.reveal .code-copy-outer-scaffold:has(.code-annotated) > .code-copy-button {
+  right: 2.5em;
+  margin-right: 0;
+}
+
+/* =========================================================================
+   UI ELEMENT HOVER EFFECTS
+   ========================================================================= */
+
+.reveal .footer a:hover,
+.reveal .slide-number:hover,
+.reveal .slide-menu-button:hover {
+  opacity: 0.7;
+}
+
+/* =========================================================================
+   TOUCH TARGET SIZES
+   ========================================================================= */
+
+@media (pointer: coarse) {
+  .reveal .slides section.section-slide .section-outline a {
+    display: inline-block;
+    min-height: 44px;
+    padding: 0.5em;
+  }
+
+  .reveal .slides section.section-slide .section-outline li {
+    margin: 0.5em 0;
+  }
+}
+
+/* =========================================================================
+   REDUCED MOTION
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .reveal .slides section.section-slide .section-outline,
+  .reveal .slides section.section-slide .section-banner {
+    opacity: 1;
+    animation: none;
+  }
+
+  .reveal .slides section.section-slide {
+    transition: none;
+  }
+}
+
+/* =========================================================================
+   PRINT/PDF STYLES
+   ========================================================================= */
+
+@media print {
+  .reveal .slides section.section-slide .section-outline {
+    opacity: 1;
+    animation: none;
+    display: block !important;
+    border: 1px solid currentColor;
+    padding: 0.5em;
+    margin-bottom: 1em;
+  }
+
+  .reveal .slides section.section-slide .section-banner {
+    opacity: 1;
+    animation: none;
+  }
+
+  /* Ensure code annotations are visible in PDF */
+  .reveal .code-annotation-anchor {
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    padding: 0.1em 0.3em;
+  }
+
+  /* Closing slide print styles - prevent overflow */
+  .reveal .mcanouil-closing-slide {
+    overflow: hidden !important;
+  }
+
+  .reveal .mcanouil-closing-slide .bg-shape {
+    display: none !important;
+  }
+
+  /* Title slide print styles - prevent overflow */
+  .reveal .mcanouil-title-slide {
+    overflow: hidden !important;
+  }
+
+  .reveal .mcanouil-title-slide .bg-shape {
+    display: none !important;
+  }
+}

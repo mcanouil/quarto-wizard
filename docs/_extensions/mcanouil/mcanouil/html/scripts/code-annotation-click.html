@@ -1,0 +1,70 @@
+<script id="quarto-code-annotation-marker-click" type="text/javascript">
+/**
+ * Enable code annotation marker clicks to trigger line highlighting.
+ *
+ * @license MIT
+ * @copyright 2026 Mickael Canouil
+ * @author Mickael Canouil
+ *
+ * Quarto's default behaviour only triggers line highlighting when
+ * clicking the annotation list items below the code. This script
+ * extends that to also work when clicking the annotation markers
+ * (numbered circles) within the code itself.
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  /**
+   * Find the corresponding annotation list item for an anchor.
+   * @param {Element} anchor - The code annotation anchor element.
+   * @returns {Element|null} The corresponding dt element or null.
+   */
+  function findAnnotationItem(anchor) {
+    const targetCell = anchor.getAttribute('data-target-cell');
+    const targetAnnotation = anchor.getAttribute('data-target-annotation');
+
+    if (!targetCell || !targetAnnotation) return null;
+
+    return document.querySelector(
+      'dt[data-target-cell="' + targetCell + '"][data-target-annotation="' + targetAnnotation + '"]'
+    );
+  }
+
+  /**
+   * Handle click on annotation anchor.
+   * @param {Event} event - The click event.
+   */
+  function handleAnchorClick(event) {
+    const anchor = event.currentTarget;
+    const item = findAnnotationItem(anchor);
+
+    if (item) {
+      item.click();
+    }
+  }
+
+  /**
+   * Initialise click handlers for all annotation anchors.
+   */
+  function initialiseAnnotationClicks() {
+    const anchors = document.querySelectorAll('.code-annotation-anchor');
+
+    for (const anchor of anchors) {
+      if (anchor.dataset.clickHandlerAdded) continue;
+      anchor.dataset.clickHandlerAdded = 'true';
+
+      anchor.addEventListener('click', handleAnchorClick);
+    }
+  }
+
+  initialiseAnnotationClicks();
+
+  const observer = new MutationObserver(function(mutations) {
+    for (const mutation of mutations) {
+      if (mutation.addedNodes.length > 0) {
+        initialiseAnnotationClicks();
+      }
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+});
+</script>

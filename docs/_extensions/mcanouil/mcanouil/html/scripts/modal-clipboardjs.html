@@ -1,0 +1,70 @@
+<script id="quarto-extensions-listing-clipboardjs" type="text/javascript">
+  window.document.addEventListener('DOMContentLoaded', (event) => {
+    const initialiseModalClipboard = () => {
+      const modals = document.querySelectorAll('.modal');
+      modals.forEach((modal) => {
+        const modalId = modal.getAttribute('id');
+        if (!modalId) return;
+
+        const copyButtons = modal.querySelectorAll('.code-copy-button');
+        if (copyButtons.length === 0) return;
+
+        copyButtons.forEach((button) => {
+          button.setAttribute('data-in-quarto-modal', modalId);
+        });
+
+        const clipboardModal = new window.ClipboardJS(
+          `.code-copy-button[data-in-quarto-modal="${modalId}"]`,
+          {
+            text: (trigger) => {
+              const codeEl = trigger.previousElementSibling.cloneNode(true);
+              const annotations = codeEl.querySelectorAll('[class*="code-annotation-"]');
+              annotations.forEach((annotation) => annotation.remove());
+              return codeEl.innerText;
+            },
+            container: modal
+          }
+        );
+
+        clipboardModal.on('success', (e) => {
+          const button = e.trigger;
+          button.blur();
+          button.classList.add('code-copy-button-checked');
+          const currentTitle = button.getAttribute('title');
+          button.setAttribute('title', 'Copied!');
+
+          let tooltip;
+          if (window.bootstrap) {
+            button.setAttribute('data-bs-toggle', 'tooltip');
+            button.setAttribute('data-bs-placement', 'left');
+            button.setAttribute('data-bs-title', 'Copied!');
+            tooltip = new bootstrap.Tooltip(button, {
+              trigger: 'manual',
+              customClass: 'code-copy-button-tooltip',
+              offset: [0, -8]
+            });
+            tooltip.show();
+          }
+
+          setTimeout(() => {
+            if (tooltip) {
+              tooltip.hide();
+              button.removeAttribute('data-bs-title');
+              button.removeAttribute('data-bs-toggle');
+              button.removeAttribute('data-bs-placement');
+            }
+            button.setAttribute('title', currentTitle);
+            button.classList.remove('code-copy-button-checked');
+          }, 1000);
+
+          e.clearSelection();
+        });
+      });
+    };
+
+    initialiseModalClipboard();
+    document.addEventListener('shown.bs.modal', () => {
+      initialiseModalClipboard();
+    });
+  });
+</script>
