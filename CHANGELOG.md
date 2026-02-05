@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Dependency Updates
+
+- chore(deps-dev): bump prettier from 3.7.4 to 3.8.1 (#244)
+- chore(deps): bump the npm_and_yarn group across 1 directory with 2 updates (#246)
+- chore(deps): bump undici from 7.18.2 to 7.19.2 (#243)
+- chore(deps): bump lodash from 4.17.21 to 4.17.23 in the npm_and_yarn group across 1 directory (#241)
+
 ## 2.1.1 (2026-01-23)
 
 ### Dependency Updates
