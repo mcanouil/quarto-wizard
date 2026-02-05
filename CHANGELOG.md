@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.1.3 (2026-02-05)
 
 - docs: update website theme and display proper license.
 
