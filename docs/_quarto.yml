@@ -7,6 +7,7 @@ lang: en
 # date-modified: today
 date-format: "dddd[, the] Do [of] MMMM, YYYY"
 highlight-style: github
+license: MIT
 
 website:
   title: "Quarto Wizard {{< var version >}}"
@@ -17,6 +18,7 @@ website:
   repo-url: https://github.com/mcanouil/quarto-wizard
   repo-actions: none
   repo-link-target: _blank
+
   page-footer:
     border: true
     left: |
@@ -45,10 +47,11 @@ website:
         href: credits.qmd
       - text: "{{< iconify octicon:mark-github-16 title='GitHub' label='GitHub' >}}"
         href: https://github.com/mcanouil/quarto-wizard
+        target: _blank
+        rel: noopener noreferrer
 
   sidebar:
     - id: getting-started
-      style: docked
       collapse-level: 2
       contents:
         - section: "Getting Started"

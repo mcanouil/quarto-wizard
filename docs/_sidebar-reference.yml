@@ -1,7 +1,6 @@
 website:
   sidebar:
     - id: reference
-      style: docked
       collapse-level: 2
       contents:
         - section: "Reference"
