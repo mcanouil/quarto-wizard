@@ -227,7 +227,7 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 
 		return {
 			label: ext.name,
-			description: `${typeBadgeStr}$(star) ${ext.stars} $(repo) ${ext.full_name}`,
+			description: `${typeBadgeStr}$(star) ${ext.stars} $(repo) ${ext.fullName}`,
 			detail: `${ext.description}${ext.version ? ` (v${ext.version})` : ""}`,
 			buttons: [
 				{
@@ -235,7 +235,7 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 					tooltip: "Open GitHub Repository",
 				},
 			],
-			url: ext.html_url,
+			url: ext.htmlUrl,
 			id: ext.id,
 			tag: ext.tag,
 			template: ext.template,

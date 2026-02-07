@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { showLogsCommand, logMessage } from "./log";
+import { getShowLogsLink, logMessage } from "./log";
 
 /**
  * Checks if there is an active internet connection by attempting to fetch a URL.
@@ -27,7 +27,7 @@ export async function checkInternetConnection(url = "https://github.com/", timeo
 		} else {
 			const message = `No internet connection. Please check your network settings.`;
 			logMessage(message, "error");
-			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+			vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 			return false;
 		}
 	} catch (error) {
@@ -36,7 +36,7 @@ export async function checkInternetConnection(url = "https://github.com/", timeo
 			message = `Network connection check timed out after ${timeoutMs}ms. Please check your network settings.`;
 		}
 		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+		vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 		return false;
 	}
 }

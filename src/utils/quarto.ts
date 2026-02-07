@@ -4,9 +4,15 @@ import {
 	remove,
 	removeMultiple,
 	use,
+	useBrand,
 	parseInstallSource,
 	parseExtensionId,
+	createAuthConfig,
+	CancellationError,
+	isCancellationError,
 	type UseResult,
+	type UseBrandResult,
+	type UseBrandOptions,
 	type FileSelectionCallback,
 	type SelectTargetSubdirCallback,
 	type AuthConfig,
@@ -14,9 +20,75 @@ import {
 	type ExtensionManifest,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
+import { handleAuthError } from "./auth";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
 import { showExtensionSelectionQuickPick } from "../ui/extensionSelectionQuickPick";
+
+/**
+ * Wraps an async callback with a cancellation check that runs before the callback is invoked.
+ * Returns the original callback if no cancellation token is provided.
+ */
+function wrapWithCancellation<TArgs extends unknown[], TResult>(
+	fn: (...args: TArgs) => Promise<TResult>,
+	cancellationToken: vscode.CancellationToken | undefined,
+	cancelledValue: TResult,
+): (...args: TArgs) => Promise<TResult> {
+	if (!cancellationToken) {
+		return fn;
+	}
+	return async (...args: TArgs) => {
+		if (cancellationToken.isCancellationRequested) {
+			return cancelledValue;
+		}
+		return fn(...args);
+	};
+}
+
+/**
+ * Obtains a fresh GitHub auth config from the current session.
+ */
+async function getFreshAuth(): Promise<AuthConfig> {
+	const session = await vscode.authentication.getSession("github", ["repo"], { silent: true });
+	return session ? createAuthConfig({ githubToken: session.accessToken }) : createAuthConfig();
+}
+
+/**
+ * Handles the retry-after-authentication pattern.
+ * If the error triggers a successful auth flow, retries the operation with fresh credentials.
+ *
+ * @param prefix - Log prefix for messages.
+ * @param error - The caught error.
+ * @param cancellationToken - Optional cancellation token.
+ * @param retryFn - The operation to retry, receiving fresh auth.
+ * @param fallbackValue - Value to return when retry is not attempted or fails.
+ * @returns The result of the retry, or the fallback value.
+ */
+async function retryWithFreshAuth<T>(
+	prefix: string,
+	error: unknown,
+	cancellationToken: vscode.CancellationToken | undefined,
+	retryFn: (freshAuth: AuthConfig) => Promise<T>,
+	fallbackValue: T,
+): Promise<T> {
+	const signedIn = await handleAuthError(prefix, error);
+	if (!signedIn) {
+		return fallbackValue;
+	}
+	if (cancellationToken?.isCancellationRequested) {
+		logMessage(`${prefix} Operation cancelled by the user.`, "info");
+		return fallbackValue;
+	}
+	logMessage(`${prefix} Retrying after successful authentication.`, "info");
+	try {
+		const freshAuth = await getFreshAuth();
+		return await retryFn(freshAuth);
+	} catch (retryError) {
+		const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+		logMessage(`${prefix} Retry failed: ${retryMessage}`, "error");
+		return fallbackValue;
+	}
+}
 
 /**
  * Creates a callback for confirming extension overwrite.
@@ -109,26 +181,18 @@ export async function installQuartoExtension(
 		return false;
 	}
 
-	try {
-		const source = parseInstallSource(extension);
+	const selectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
 
-		// Create a wrapper for extension selection that checks cancellation token
-		const selectExtensionWithCancellation = cancellationToken
-			? async (extensions: DiscoveredExtension[]) => {
-					if (cancellationToken.isCancellationRequested) {
-						return null; // Cancelled
-					}
-					return showExtensionSelectionQuickPick(extensions);
-				}
-			: showExtensionSelectionQuickPick;
-
-		// Single-pass installation with interactive callbacks
+	const doInstall = async (
+		source: ReturnType<typeof parseInstallSource>,
+		authConfig?: AuthConfig,
+	): Promise<boolean | null> => {
 		const result = await install(source, {
 			projectDir: workspaceFolder,
 			force: true,
-			auth,
+			auth: authConfig,
 			sourceDisplay,
-			selectExtension: selectExtensionWithCancellation,
+			selectExtension,
 			confirmOverwrite: createConfirmOverwriteCallback(prefix, skipOverwritePrompt ?? false),
 			validateQuartoVersion: createValidateQuartoVersionCallback(prefix),
 			onProgress: (progress) => {
@@ -137,40 +201,36 @@ export async function installQuartoExtension(
 		});
 
 		if (result.cancelled) {
-			// User cancelled via callback (extension selection, overwrite, or version mismatch)
 			logMessage(`${prefix} Installation cancelled by user.`, "info");
 			return null;
 		}
 
 		if (result.success) {
 			logMessage(`${prefix} Successfully installed.`, "info");
-			// Refresh the extensions tree view to show the newly installed extension
 			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
 		} else {
 			logMessage(`${prefix} Failed to install.`, "error");
 			return false;
 		}
+	};
+
+	try {
+		const source = parseInstallSource(extension);
+		return await doInstall(source, auth);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		logMessage(`${prefix} Error: ${message}`, "error");
-
-		// Check for authentication errors and offer to sign in
-		if (message.includes("401") || message.includes("authentication") || message.includes("Unauthorized")) {
-			const action = await vscode.window.showErrorMessage(
-				"Authentication may be required. Sign in to GitHub to access private repositories.",
-				"Sign In",
-				"Set Token",
-			);
-			if (action === "Sign In") {
-				// Trigger native GitHub sign-in (will be handled by caller on retry)
-				logMessage("User requested GitHub sign-in.", "info");
-			} else if (action === "Set Token") {
-				await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
-			}
-		}
-
-		return false;
+		return retryWithFreshAuth(
+			prefix,
+			error,
+			cancellationToken,
+			async (freshAuth) => {
+				const source = parseInstallSource(extension);
+				return doInstall(source, freshAuth);
+			},
+			false,
+		);
 	}
 }
 
@@ -342,49 +402,24 @@ export async function useQuartoExtension(
 		return null;
 	}
 
-	try {
-		const source = parseInstallSource(extension);
+	const wrappedSelectFiles = selectFiles ? wrapWithCancellation(selectFiles, cancellationToken, null) : undefined;
+	const wrappedSelectTargetSubdir = selectTargetSubdir
+		? wrapWithCancellation(selectTargetSubdir, cancellationToken, undefined)
+		: undefined;
+	const wrappedSelectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
 
-		// Create wrappers for callbacks that check cancellation token before showing UI
-		const selectFilesWithCancellation = selectFiles
-			? cancellationToken
-				? async (availableFiles: string[], existingFiles: string[], defaultExcludePatterns: string[]) => {
-						if (cancellationToken.isCancellationRequested) {
-							return null; // Cancelled
-						}
-						return selectFiles(availableFiles, existingFiles, defaultExcludePatterns);
-					}
-				: selectFiles
-			: undefined;
-
-		const selectTargetSubdirWithCancellation = selectTargetSubdir
-			? cancellationToken
-				? async () => {
-						if (cancellationToken.isCancellationRequested) {
-							return undefined; // Cancelled - stop operation
-						}
-						return selectTargetSubdir();
-					}
-				: selectTargetSubdir
-			: undefined;
-
-		const selectExtensionWithCancellation = cancellationToken
-			? async (extensions: DiscoveredExtension[]) => {
-					if (cancellationToken.isCancellationRequested) {
-						return null; // Cancelled
-					}
-					return showExtensionSelectionQuickPick(extensions);
-				}
-			: showExtensionSelectionQuickPick;
-
+	const doUse = async (
+		source: ReturnType<typeof parseInstallSource>,
+		authConfig?: AuthConfig,
+	): Promise<UseResult | null> => {
 		const result = await use(source, {
 			projectDir: workspaceFolder,
-			selectFiles: selectFilesWithCancellation,
-			selectTargetSubdir: selectTargetSubdirWithCancellation,
+			selectFiles: wrappedSelectFiles,
+			selectTargetSubdir: wrappedSelectTargetSubdir,
 			selectFilesFirst: true,
-			selectExtension: selectExtensionWithCancellation,
+			selectExtension: wrappedSelectExtension,
 			confirmExtensionOverwrite: showExtensionOverwriteConfirmation,
-			auth,
+			auth: authConfig,
 			sourceDisplay,
 			onProgress: (progress) => {
 				if (progress.file) {
@@ -395,7 +430,6 @@ export async function useQuartoExtension(
 			},
 		});
 
-		// Check if user cancelled file selection or extension selection
 		if (result.cancelled) {
 			logMessage(`${prefix} Template usage cancelled by user.`, "info");
 			return null;
@@ -420,24 +454,140 @@ export async function useQuartoExtension(
 			logMessage(`${prefix} Failed to use template.`, "error");
 			return null;
 		}
+	};
+
+	try {
+		const source = parseInstallSource(extension);
+		return await doUse(source, auth);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		logMessage(`${prefix} Error: ${message}`, "error");
+		return retryWithFreshAuth(
+			prefix,
+			error,
+			cancellationToken,
+			async (freshAuth) => {
+				const source = parseInstallSource(extension);
+				return doUse(source, freshAuth);
+			},
+			null,
+		);
+	}
+}
 
-		// Check for authentication errors and offer to sign in
-		if (message.includes("401") || message.includes("authentication") || message.includes("Unauthorized")) {
-			const action = await vscode.window.showErrorMessage(
-				"Authentication may be required. Sign in to GitHub to access private repositories.",
-				"Sign In",
-				"Set Token",
-			);
-			if (action === "Sign In") {
-				logMessage(`${prefix} User requested GitHub sign-in.`, "info");
-			} else if (action === "Set Token") {
-				await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+/**
+ * Downloads and applies a Quarto brand to the project's _brand/ directory.
+ *
+ * @param source - Brand source (e.g., "owner/repo" or local path).
+ * @param workspaceFolder - The workspace folder path.
+ * @param auth - Optional authentication configuration.
+ * @param sourceDisplay - Optional display source for logging.
+ * @param cancellationToken - Optional cancellation token.
+ * @returns Brand result, or null on failure.
+ */
+export async function useQuartoBrand(
+	source: string,
+	workspaceFolder: string,
+	auth?: AuthConfig,
+	sourceDisplay?: string,
+	cancellationToken?: vscode.CancellationToken,
+): Promise<UseBrandResult | null> {
+	const prefix = `[${sourceDisplay ?? source}]`;
+	logMessage(`${prefix} Applying brand ...`, "info");
+
+	if (!workspaceFolder) {
+		logMessage(`${prefix} No workspace folder specified.`, "error");
+		return null;
+	}
+
+	// Callbacks throw CancellationError when the cancellation token fires,
+	// but return false when the user declines a dialog. The distinction lets
+	// useBrand skip the declined operation while still aborting entirely on
+	// token cancellation.
+	const brandOptions: UseBrandOptions = {
+		projectDir: workspaceFolder,
+		auth,
+		confirmOverwrite: async (files: string[]) => {
+			if (cancellationToken?.isCancellationRequested) {
+				throw new CancellationError();
 			}
+			const fileList = files.join(", ");
+			const message =
+				files.length === 1
+					? `File "${fileList}" already exists in _brand/. Overwrite?`
+					: `${files.length} files already exist in _brand/: ${fileList}. Overwrite all?`;
+			const action = await vscode.window.showWarningMessage(message, { modal: true }, "Overwrite");
+			return action === "Overwrite";
+		},
+		cleanupExtra: async (files: string[]) => {
+			if (cancellationToken?.isCancellationRequested) {
+				throw new CancellationError();
+			}
+			const fileList = files.map((f) => `  - ${f}`).join("\n");
+			const message = `${files.length} extra file(s) in _brand/ not present in the brand source:\n${fileList}\n\nRemove them?`;
+			const action = await vscode.window.showWarningMessage(message, { modal: true }, "Remove", "Keep");
+			return action === "Remove";
+		},
+		onProgress: (progress) => {
+			if (cancellationToken?.isCancellationRequested) {
+				throw new CancellationError();
+			}
+			if (progress.file) {
+				logMessage(`${prefix} [${progress.phase}] ${progress.message} (${progress.file})`, "debug");
+			} else {
+				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
+			}
+		},
+	};
+
+	function logBrandResult(result: UseBrandResult): void {
+		logMessage(`${prefix} Brand applied successfully.`, "info");
+		if (result.created.length > 0) {
+			logMessage(`${prefix} Created ${result.created.length} file(s):`, "info");
+			result.created.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
+		}
+		if (result.overwritten.length > 0) {
+			logMessage(`${prefix} Overwritten ${result.overwritten.length} file(s):`, "info");
+			result.overwritten.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
+		}
+		if (result.skipped.length > 0) {
+			logMessage(`${prefix} Skipped ${result.skipped.length} file(s):`, "info");
+			result.skipped.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
+		}
+		if (result.cleaned.length > 0) {
+			logMessage(`${prefix} Removed ${result.cleaned.length} extra file(s):`, "info");
+			result.cleaned.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
+		}
+	}
+
+	const doBrand = async (authConfig?: AuthConfig): Promise<UseBrandResult | null> => {
+		try {
+			const result = await useBrand(source, { ...brandOptions, auth: authConfig });
+			logBrandResult(result);
+			return result;
+		} catch (error) {
+			if (isCancellationError(error)) {
+				logMessage(`${prefix} ${error.message}`, "info");
+				return null;
+			}
+			throw error;
+		}
+	};
+
+	try {
+		if (cancellationToken?.isCancellationRequested) {
+			logMessage(`${prefix} Operation cancelled by the user.`, "info");
+			return null;
 		}
 
-		return null;
+		return await doBrand(auth);
+	} catch (error) {
+		if (isCancellationError(error)) {
+			logMessage(`${prefix} ${error.message}`, "info");
+			return null;
+		}
+		const message = error instanceof Error ? error.message : String(error);
+		logMessage(`${prefix} Error: ${message}`, "error");
+		return retryWithFreshAuth(prefix, error, cancellationToken, (freshAuth) => doBrand(freshAuth), null);
 	}
 }

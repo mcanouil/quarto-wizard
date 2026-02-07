@@ -145,6 +145,14 @@
 				"category": "Quarto Wizard"
 			},
 			{
+				"command": "quartoWizard.useBrand",
+				"title": "Use Brand",
+				"shortTitle": "Use Brand",
+				"icon": "$(symbol-color)",
+				"category": "Quarto Wizard",
+				"description": "Download and apply a Quarto brand to your project's _brand/ directory."
+			},
+			{
 				"command": "quartoWizard.showOutput",
 				"title": "Show Quarto Wizard Log Output",
 				"shortTitle": "Show Log",

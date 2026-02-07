@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { showLogsCommand, logMessage, debouncedLogMessage } from "../../utils/log";
+import { getShowLogsLink, logMessage, logMessageDebounced, resetLogLevelCache, type LogLevel } from "../../utils/log";
 import * as constants from "../../constants";
 
 interface MockOutputChannel {
@@ -52,6 +52,9 @@ suite("Log Utils Test Suite", () => {
 				logMessages.push(message);
 			},
 		};
+
+		// Reset the log level cache so each test reads fresh config
+		resetLogLevelCache();
 	});
 
 	teardown(() => {
@@ -62,15 +65,15 @@ suite("Log Utils Test Suite", () => {
 		(constants as { QW_LOG: MockOutputChannel }).QW_LOG = originalQwLog;
 	});
 
-	suite("showLogsCommand", () => {
+	suite("getShowLogsLink", () => {
 		test("should return correct command string", () => {
-			const result = showLogsCommand();
+			const result = getShowLogsLink();
 
 			assert.strictEqual(result, "[Show logs](command:quartoWizard.showOutput)");
 		});
 
 		test("should return a string that contains the command link", () => {
-			const result = showLogsCommand();
+			const result = getShowLogsLink();
 
 			assert.ok(typeof result === "string");
 			assert.ok(result.includes("command:quartoWizard.showOutput"));
@@ -193,7 +196,7 @@ suite("Log Utils Test Suite", () => {
 		test("should handle unknown message types gracefully", () => {
 			configValues.level = "info";
 
-			logMessage("Test message", "unknown" as "error" | "warn" | "info" | "debug");
+			logMessage("Test message", "unknown" as LogLevel);
 
 			// Unknown message type has indexOf -1, which is <= any valid level index
 			// So it will actually log the message (this is the current behaviour)
@@ -221,18 +224,18 @@ suite("Log Utils Test Suite", () => {
 		});
 	});
 
-	suite("debouncedLogMessage", () => {
+	suite("logMessageDebounced", () => {
 		test("should be a function", () => {
-			assert.ok(typeof debouncedLogMessage === "function");
+			assert.ok(typeof logMessageDebounced === "function");
 		});
 
 		test("should delay logging when called multiple times rapidly", (done) => {
 			configValues.level = "info";
 
 			// Call the debounced function multiple times
-			debouncedLogMessage("Message 1", "info");
-			debouncedLogMessage("Message 2", "info");
-			debouncedLogMessage("Message 3", "info");
+			logMessageDebounced("Message 1", "info");
+			logMessageDebounced("Message 2", "info");
+			logMessageDebounced("Message 3", "info");
 
 			// Should not log immediately
 			assert.strictEqual(logMessages.length, 0);
@@ -247,20 +250,20 @@ suite("Log Utils Test Suite", () => {
 		});
 
 		test("should have access to cancel and flush methods", () => {
-			assert.ok(typeof debouncedLogMessage.cancel === "function");
-			assert.ok(typeof debouncedLogMessage.flush === "function");
+			assert.ok(typeof logMessageDebounced.cancel === "function");
+			assert.ok(typeof logMessageDebounced.flush === "function");
 		});
 
 		test("should flush immediately when flush is called", () => {
 			configValues.level = "info";
 
-			debouncedLogMessage("Flush test message", "info");
+			logMessageDebounced("Flush test message", "info");
 
 			// Should not log immediately
 			assert.strictEqual(logMessages.length, 0);
 
 			// Flush should execute immediately
-			debouncedLogMessage.flush();
+			logMessageDebounced.flush();
 
 			assert.strictEqual(logMessages.length, 1);
 			assert.strictEqual(logMessages[0], "Flush test message");
@@ -269,10 +272,10 @@ suite("Log Utils Test Suite", () => {
 		test("should cancel pending execution when cancel is called", (done) => {
 			configValues.level = "info";
 
-			debouncedLogMessage("Cancel test message", "info");
+			logMessageDebounced("Cancel test message", "info");
 
 			// Cancel the pending execution
-			debouncedLogMessage.cancel();
+			logMessageDebounced.cancel();
 
 			// Wait beyond debounce delay
 			setTimeout(() => {

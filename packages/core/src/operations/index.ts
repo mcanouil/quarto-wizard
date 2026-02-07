@@ -41,3 +41,5 @@ export {
 	use,
 	getTemplateFiles,
 } from "./use.js";
+
+export { type UseBrandOptions, type UseBrandResult, useBrand } from "./brand.js";

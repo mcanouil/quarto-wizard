@@ -111,6 +111,72 @@ export async function hasManualToken(context: vscode.ExtensionContext): Promise<
 }
 
 /**
+ * Checks whether an error message indicates an authentication failure and,
+ * if so, shows a dialog offering to sign in or set a token.
+ *
+ * @param prefix - Log prefix for messages.
+ * @param error - The error to inspect.
+ * @returns True if authentication was obtained (user signed in successfully),
+ *   false otherwise.  Callers can use this to optionally retry the operation.
+ */
+export async function handleAuthError(prefix: string, error: unknown): Promise<boolean> {
+	// Check for structured error properties first (more reliable than string matching).
+	const statusCode =
+		error && typeof error === "object" && Object.hasOwn(error, "statusCode")
+			? (error as Record<string, unknown>).statusCode
+			: error && typeof error === "object" && Object.hasOwn(error, "status")
+				? (error as Record<string, unknown>).status
+				: undefined;
+
+	// Some HTTP libraries store status codes as strings, so check both.
+	const isAuthStatus = statusCode === 401 || statusCode === "401" || statusCode === 403 || statusCode === "403";
+
+	const message = error instanceof Error ? error.message : String(error);
+	// Match status codes only when preceded by "status" context to avoid false positives
+	// with URLs or other numeric contexts (e.g., a path segment containing "403").
+	// Tighter patterns to reduce false positives:
+	// - Status code patterns: "status 401", "status: 403", etc.
+	// - Authentication + outcome: require close proximity (within 30 chars) to avoid
+	//   matching incidental mentions like "authentication module loaded, but a required ...".
+	// - HTTP keywords: "Unauthorized" / "Forbidden" only when they appear after a
+	//   4xx status code (with common separators like spaces, colons, hyphens) or as
+	//   the final word following a colon, to avoid matching incidental uses like
+	//   "Unauthorized use of API key in sandbox mode".
+	const isAuthMessage =
+		/\bstatus\b.{0,20}\b(401|403)\b/i.test(message) ||
+		/\bHTTP\s+(401|403)\b/i.test(message) ||
+		/\bauthentication\b.{0,30}\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b/i.test(message) ||
+		/\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b.{0,30}\bauthentication\b/i.test(message) ||
+		/\b4\d{2}\b[:\s,;-]+(Unauthorized|Forbidden)\b/i.test(message) ||
+		/:\s*(Unauthorized|Forbidden)\s*$/i.test(message) ||
+		/^(Unauthorized|Forbidden)$/i.test(message.trim());
+
+	if (isAuthStatus || isAuthMessage) {
+		const action = await vscode.window.showErrorMessage(
+			"Authentication may be required. Sign in to GitHub to access private repositories.",
+			"Sign In",
+			"Set Token",
+		);
+		if (action === "Sign In") {
+			logMessage(`${prefix} User requested GitHub sign-in.`, "info");
+			try {
+				const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
+					createIfNone: true,
+				});
+				if (session) {
+					return true;
+				}
+			} catch {
+				logMessage(`${prefix} GitHub sign-in was cancelled or failed.`, "warn");
+			}
+		} else if (action === "Set Token") {
+			await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+		}
+	}
+	return false;
+}
+
+/**
  * Check if any GitHub authentication is available (silent check, no prompts).
  * Checks manual token, VSCode session, and environment variables.
  *

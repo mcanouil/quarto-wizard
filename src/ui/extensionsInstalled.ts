@@ -3,7 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as semver from "semver";
 import { debounce } from "lodash";
-import { logMessage, showLogsCommand } from "../utils/log";
+import { logMessage, getShowLogsLink } from "../utils/log";
 import {
 	getInstalledExtensionsRecord,
 	getExtensionRepository,
@@ -426,7 +426,7 @@ export class ExtensionsInstalled {
 		if (workspaceFolders.length === 0) {
 			const message = `Please open a workspace/folder to install Quarto extensions.`;
 			logMessage(message, "error");
-			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+			vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 			return;
 		}
 
@@ -509,10 +509,10 @@ export class ExtensionsInstalled {
 						vscode.window.showErrorMessage(
 							`Failed to update extension "${item.label}". ` +
 								`Source not found in extension manifest. ` +
-								`${showLogsCommand()}.`,
+								`${getShowLogsLink()}.`,
 						);
 					} else {
-						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${showLogsCommand()}.`);
+						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${getShowLogsLink()}.`);
 					}
 				}
 				// result === null means cancelled by user, no message needed
@@ -532,7 +532,7 @@ export class ExtensionsInstalled {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else {
-					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${showLogsCommand()}.`);
+					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${getShowLogsLink()}.`);
 				}
 			}),
 		);
@@ -583,7 +583,7 @@ export class ExtensionsInstalled {
 						const errorMessage = error instanceof Error ? error.message : String(error);
 						logMessage(`Failed to reveal "${item.label}" in Explorer: ${errorMessage}`, "error");
 						vscode.window.showErrorMessage(
-							`Failed to reveal extension "${item.label}" in Explorer. ${showLogsCommand()}.`,
+							`Failed to reveal extension "${item.label}" in Explorer. ${getShowLogsLink()}.`,
 						);
 					}
 				},
@@ -646,7 +646,7 @@ export class ExtensionsInstalled {
 						`Successfully updated ${successCount} extension(s)${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
 					);
 				} else {
-					vscode.window.showErrorMessage(`Failed to update extensions. ${showLogsCommand()}.`);
+					vscode.window.showErrorMessage(`Failed to update extensions. ${getShowLogsLink()}.`);
 				}
 
 				this.treeDataProvider.refreshAfterAction(context, view);
@@ -702,7 +702,7 @@ export class ExtensionsInstalled {
 							`Successfully removed ${result.successCount} extension(s)${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
 						);
 					} else {
-						vscode.window.showErrorMessage(`Failed to remove extensions. ${showLogsCommand()}.`);
+						vscode.window.showErrorMessage(`Failed to remove extensions. ${getShowLogsLink()}.`);
 					}
 
 					this.treeDataProvider.refreshAfterAction(context, view);

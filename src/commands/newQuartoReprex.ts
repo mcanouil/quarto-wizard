@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { showLogsCommand, logMessage } from "../utils/log";
+import { getShowLogsLink, logMessage } from "../utils/log";
 import { newQuartoReprex } from "../utils/reprex";
 
 /**
@@ -20,6 +20,6 @@ export async function newQuartoReprexCommand(context: vscode.ExtensionContext) {
 	} else {
 		const message = `No computing language selected. Aborting.`;
 		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+		vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 	}
 }
