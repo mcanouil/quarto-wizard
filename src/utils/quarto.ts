@@ -39,6 +39,7 @@ function wrapWithCancellation<TArgs extends unknown[], TResult>(
 	}
 	return async (...args: TArgs) => {
 		if (cancellationToken.isCancellationRequested) {
+			logMessage(`Callback skipped: operation cancelled by the user.`, "debug");
 			return cancelledValue;
 		}
 		return fn(...args);
@@ -500,10 +501,10 @@ export async function useQuartoBrand(
 		return null;
 	}
 
-	// Callbacks throw CancellationError when the cancellation token fires,
-	// but return false when the user declines a dialog. The distinction lets
-	// useBrand skip the declined operation while still aborting entirely on
-	// token cancellation.
+	// Interactive callbacks (confirmOverwrite, cleanupExtra) throw CancellationError
+	// when the token fires so that useBrand aborts cleanly before any destructive
+	// action. The onProgress callback only logs; throwing from it could interrupt a
+	// file copy mid-write and leave _brand/ in a partially-written state.
 	const brandOptions: UseBrandOptions = {
 		projectDir: workspaceFolder,
 		auth,
@@ -529,9 +530,6 @@ export async function useQuartoBrand(
 			return action === "Remove";
 		},
 		onProgress: (progress) => {
-			if (cancellationToken?.isCancellationRequested) {
-				throw new CancellationError();
-			}
 			if (progress.file) {
 				logMessage(`${prefix} [${progress.phase}] ${progress.message} (${progress.file})`, "debug");
 			} else {

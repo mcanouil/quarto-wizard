@@ -114,9 +114,11 @@ async function useBrandFromSource(
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			} else if (!token.isCancellationRequested) {
-				// result === null with no cancellation means failure; cancellation needs no message
-				const message = `Failed to apply brand from ${source}.`;
-				vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
+				// result === null without cancellation can mean either an actual error or
+				// the user declining authentication. Show a neutral message and point to
+				// logs where the specific reason is recorded.
+				const message = `Brand operation did not complete. See ${getShowLogsLink()} for details.`;
+				vscode.window.showWarningMessage(message);
 			}
 		},
 	);

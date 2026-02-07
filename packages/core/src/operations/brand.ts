@@ -263,6 +263,12 @@ const RECOGNISED_ASSET_EXTENSIONS = new Set([
  * Named image references like "light" or "dark" refer to logo.images keys,
  * not file paths. We detect these by checking for path separators or extensions.
  *
+ * Trade-off: a bare value like "logo.svg" (no path separator) is classified as
+ * a file path because ".svg" is in the recognised set. If a brand YAML ever
+ * uses a named reference whose name happens to end with a recognised extension,
+ * it would be misclassified. In practice this is unlikely because named
+ * references are short identifiers ("light", "dark", "icon"), not filenames.
+ *
  * @param value - String to check
  * @returns True if the value is a local file path
  */
@@ -748,6 +754,8 @@ export async function useBrand(source: string | InstallSource, options: UseBrand
 				const shouldClean = await cleanupExtra(extras);
 				if (shouldClean) {
 					for (const extra of extras) {
+						// extras use forward slashes (via path.posix); path.join
+						// normalises to OS separators before passing to unlink.
 						const extraPath = path.join(brandDir, extra);
 						try {
 							await fs.promises.unlink(extraPath);

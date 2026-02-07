@@ -132,22 +132,18 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 	const isAuthStatus = statusCode === 401 || statusCode === "401" || statusCode === 403 || statusCode === "403";
 
 	const message = error instanceof Error ? error.message : String(error);
-	// Match status codes only when preceded by "status" context to avoid false positives
-	// with URLs or other numeric contexts (e.g., a path segment containing "403").
-	// Tighter patterns to reduce false positives:
-	// - Status code patterns: "status 401", "status: 403", etc.
-	// - Authentication + outcome: require close proximity (within 30 chars) to avoid
-	//   matching incidental mentions like "authentication module loaded, but a required ...".
-	// - HTTP keywords: "Unauthorized" / "Forbidden" only when they appear after a
-	//   4xx status code (with common separators like spaces, colons, hyphens) or as
-	//   the final word following a colon, to avoid matching incidental uses like
-	//   "Unauthorized use of API key in sandbox mode".
+	// String-based fallback for libraries that only throw string errors.
+	// Patterns are deliberately narrow to avoid false positives:
+	// - "status 401", "status: 403", "HTTP 401" (status code in context).
+	// - "authentication [token] failed/required/..." (auth as subject, up to 10
+	//   chars of intervening text to allow e.g. "authentication token expired").
+	// - "401: Unauthorized", "403 - Forbidden" (status code + HTTP reason phrase).
+	// - Standalone "Unauthorized" / "Forbidden" (whole message or after colon).
 	const isAuthMessage =
 		/\bstatus\b.{0,20}\b(401|403)\b/i.test(message) ||
 		/\bHTTP\s+(401|403)\b/i.test(message) ||
-		/\bauthentication\b.{0,30}\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b/i.test(message) ||
-		/\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b.{0,30}\bauthentication\b/i.test(message) ||
-		/\b4\d{2}\b[:\s,;-]+(Unauthorized|Forbidden)\b/i.test(message) ||
+		/\bauthentication\b.{0,10}\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b/i.test(message) ||
+		/\b(401|403)\b[:\s,;-]+(Unauthorized|Forbidden)\b/i.test(message) ||
 		/:\s*(Unauthorized|Forbidden)\s*$/i.test(message) ||
 		/^(Unauthorized|Forbidden)$/i.test(message.trim());
 
