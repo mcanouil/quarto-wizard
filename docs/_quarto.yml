@@ -1,5 +1,5 @@
 project:
-  type: website
+  type: mcanouil
   output-dir: _site
 
 lang: en
@@ -8,6 +8,7 @@ lang: en
 date-format: "dddd[, the] Do [of] MMMM, YYYY"
 highlight-style: github
 license: MIT
+image: "assets/social/social-card.png"
 
 website:
   title: "Quarto Wizard {{< var version >}}"
@@ -15,22 +16,26 @@ website:
   favicon: "assets/logo/logo.svg"
   image: "assets/social/social-card.png"
   image-alt: "Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
+  site-url: "https://m.canouil.dev/quarto-wizard"
   repo-url: https://github.com/mcanouil/quarto-wizard
-  repo-actions: none
+  repo-actions: []
   repo-link-target: _blank
 
   page-footer:
     border: true
+    background: dark
+    foreground: light
     left: |
       Powered by [{{< iconify simple-icons:quarto title="Quarto Logo" label="Quarto Logo" >}} Quarto](https://quarto.org).
     center: |
       &copy; []{#current-year} [Mickaël CANOUIL](https://mickael.canouil.fr). [{{< iconify octicon:heart-fill-16 title="Heart" label="Heart" >}} Sponsor](https://github.com/sponsors/mcanouil?o=esb).
     right: |
       Licence: [MIT](https://github.com/mcanouil/quarto-wizard?tab=MIT-1-ov-file#readme).
-
   navbar:
     logo: "assets/logo/logo.png"
     logo-alt: "Quarto Wizard"
+    background: dark
+    foreground: light
     left:
       - text: Home
         href: index.qmd
@@ -50,21 +55,8 @@ website:
         target: _blank
         rel: noopener noreferrer
 
-  sidebar:
-    - id: getting-started
-      collapse-level: 2
-      contents:
-        - section: "Getting Started"
-          href: getting-started/index.qmd
-          contents:
-            - getting-started/installation.qmd
-            - getting-started/installing-extensions.qmd
-            - getting-started/explorer-view.qmd
-            - getting-started/using-templates.qmd
-            - getting-started/reproducible-docs.qmd
-            - getting-started/troubleshooting.qmd
-
 metadata-files:
+  - _sidebar-getting-started.yml
   - _sidebar-reference.yml
   - _sidebar-api.yml
 

@@ -25,39 +25,15 @@ $semantic-color-caution-dark: #ddcc66 !default; // 8.5:1 contrast
 /*-- scss:rules --*/
 
 // ===========================
-// INTERNAL COLOUR VARIABLES
+// QUARTO / BOOTSTRAP VARIABLE NOTES
 // ===========================
-// These provide fallbacks when $foreground/$background are not defined externally
-$_fg: #333333;
-$_bg: #fafafa;
-
-@if variable-exists(foreground) {
-  $_fg: $foreground !global;
-}
-
-@if variable-exists(background) {
-  $_bg: $background !global;
-}
-
-// Sidebar text colour: pick whichever of fg/bg contrasts most with sidebar-bg.
-// Uses abs() lightness distance so this works regardless of sidebar background
-// config (dark or light).
-$_sidebar-text: $_fg;
-
-@if variable-exists(sidebar-bg) {
-  $_sidebar-text: if(
-    abs(lightness($sidebar-bg) - lightness($_fg)) < abs(lightness($sidebar-bg) - lightness($_bg)),
-    $_bg,
-    $_fg
-  ) !global;
-}
-
-// Internal link colour with fallback (like $_fg/$foreground pattern)
-$_link-color: $_fg;
-
-@if variable-exists(link-color) {
-  $_link-color: $link-color !global;
-}
+// This theme uses Quarto-provided SASS variables directly:
+//   $body-color   - page text colour (from brand foreground)
+//   $body-bg      - page background colour (from brand background)
+//   $link-color   - link colour (from brand typography.link.color)
+//   $sidebar-fg   - sidebar foreground (auto-contrasted by Quarto)
+//   $navbar-fg    - navbar foreground (auto-contrasted by Quarto)
+//   $footer-fg    - footer foreground (auto-contrasted by Quarto)
 
 // ===========================
 // LINK STYLE TOKENS
@@ -66,8 +42,8 @@ $_link-color: $_fg;
 $_link-transition-duration: 0.3s;
 $_link-transition-timing: ease;
 $_link-transition: all $_link-transition-duration $_link-transition-timing;
-$_link-underline-color: rgba($_fg, 0.3);
-$_link-underline-color-hover: $_link-color;
+$_link-underline-color: rgba($body-color, 0.3);
+$_link-underline-color-hover: $link-color;
 $_link-underline-thickness: 1px;
 $_link-underline-thickness-hover: 2px;
 
@@ -128,9 +104,9 @@ $_easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
 // ===========================
 // BOX SHADOW SCALE
 // ===========================
-$_shadow-sm: 0 2px 4px rgba($_fg, 0.08);
-$_shadow-md: 0 4px 12px rgba($_fg, 0.1);
-$_shadow-lg: 0 8px 24px rgba($_fg, 0.15);
+$_shadow-sm: 0 2px 4px rgba($body-color, 0.08);
+$_shadow-md: 0 4px 12px rgba($body-color, 0.1);
+$_shadow-lg: 0 8px 24px rgba($body-color, 0.15);
 
 // ===========================
 // SPECIAL COLOURS
@@ -145,7 +121,26 @@ $_color-macos-maximize: #27c93f;
 // ===========================
 // Helper function to mix background and foreground colors
 @function body-mix($weight) {
-  @return mix($_bg, $_fg, $weight);
+  @return mix($body-bg, $body-color, $weight);
+}
+
+// ===========================
+// THEME TOGGLE ICON TOKENS
+// ===========================
+// SVG data URLs for sun/moon icons (defined once, reused across toggle blocks)
+$_icon-sun: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+$_icon-moon: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+
+// Mixin for mask-image toggle icons (shape from SVG, colour from background-color)
+@mixin toggle-icon($icon, $color) {
+  background-image: none;
+  background-color: $color;
+  -webkit-mask-image: $icon;
+  mask-image: $icon;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 // ===========================
@@ -161,8 +156,8 @@ $_color-macos-maximize: #27c93f;
 // Light mode (default)
 body {
   // Core colours
-  --mc-fg: #{$_fg};
-  --mc-bg: #{$_bg};
+  --mc-fg: #{$body-color};
+  --mc-bg: #{$body-bg};
   --mc-muted: #{body-mix(35%)};
   --mc-border: #{body-mix(80%)};
   --mc-border-strong: #{body-mix(50%)};
@@ -180,8 +175,8 @@ body {
 // Dark mode overrides
 [data-bs-theme="dark"],
 .quarto-dark {
-  --mc-fg: #{$_fg};
-  --mc-bg: #{$_bg};
+  --mc-fg: #{$body-color};
+  --mc-bg: #{$body-bg};
   --mc-muted: #{body-mix(35%)};
   --mc-border: #{body-mix(80%)};
   --mc-border-strong: #{body-mix(50%)};
@@ -226,7 +221,7 @@ body {
 a:focus-visible,
 button:focus-visible,
 .btn:focus-visible {
-  outline: 2px solid $_fg;
+  outline: 2px solid $body-color;
   outline-offset: 2px;
   transition: outline-offset 0.2s ease;
 }
@@ -251,19 +246,19 @@ p:empty {
 // Title banner styling
 .quarto-title-banner {
   margin-bottom: 1em;
-  color: $_fg;
+  color: $body-color;
   background-color: body-mix(99%);
 
   a {
     color: body-mix(50%);
 
     &:hover {
-      color: $_fg;
+      color: $body-color;
     }
   }
 
   .quarto-title .title {
-    color: $_fg;
+    color: $body-color;
   }
 }
 
@@ -274,6 +269,21 @@ p:empty {
   font-weight: 600;
 }
 
+// Secondary navigation text and border
+// The secondary nav sits below the navbar but follows the *sidebar* colour
+// scheme, not the navbar one.  Use $sidebar-fg (auto-contrasted against
+// $sidebar-bg) so the search icon, toggle, and breadcrumbs remain visible
+// regardless of whether the sidebar is light or dark.
+nav.quarto-secondary-nav {
+  border-bottom: 1px solid rgba($sidebar-fg, 0.3);
+  color: $sidebar-fg;
+
+  // .btn explicitly sets color via --bs-btn-color, overriding inheritance.
+  .quarto-search-button {
+    color: $sidebar-fg;
+  }
+}
+
 // ===========================
 // FORMS & PAGINATION
 // ===========================
@@ -281,20 +291,20 @@ p:empty {
 
   &.active .page-link,
   .page-link:hover {
-    color: $_bg;
-    background-color: $_fg;
-    border-color: $_bg;
+    color: $body-bg;
+    background-color: $body-color;
+    border-color: $body-bg;
   }
 
   &.disabled .page-link {
-    color: $_fg;
-    background-color: $_bg;
+    color: $body-color;
+    background-color: $body-bg;
   }
 }
 
 .input-group-text {
-  color: $_bg;
-  background-color: $_fg;
+  color: $body-bg;
+  background-color: $body-color;
 }
 
 // ===========================
@@ -304,7 +314,7 @@ p:empty {
 // Uses body-mix(90%) for background (90% background, 10% foreground)
 code,
 a>code {
-  color: $_fg;
+  color: $body-color;
   background-color: body-mix(90%);
 }
 
@@ -441,27 +451,27 @@ pre.code-annotation-code {
 
   // Subtle background using SCSS mix (computed at build time for browser compatibility)
   &.callout-note {
-    background-color: mix($callout-color-note, $_bg, 15%) !important;
+    background-color: mix($callout-color-note, $body-bg, 15%) !important;
     border-left-color: $callout-color-note !important;
   }
 
   &.callout-tip {
-    background-color: mix($callout-color-tip, $_bg, 15%) !important;
+    background-color: mix($callout-color-tip, $body-bg, 15%) !important;
     border-left-color: $callout-color-tip !important;
   }
 
   &.callout-warning {
-    background-color: mix($callout-color-warning, $_bg, 15%) !important;
+    background-color: mix($callout-color-warning, $body-bg, 15%) !important;
     border-left-color: $callout-color-warning !important;
   }
 
   &.callout-important {
-    background-color: mix($callout-color-important, $_bg, 15%) !important;
+    background-color: mix($callout-color-important, $body-bg, 15%) !important;
     border-left-color: $callout-color-important !important;
   }
 
   &.callout-caution {
-    background-color: mix($callout-color-caution, $_bg, 15%) !important;
+    background-color: mix($callout-color-caution, $body-bg, 15%) !important;
     border-left-color: $callout-color-caution !important;
   }
 
@@ -500,19 +510,24 @@ pre.code-annotation-code {
 
 // Navigation Tabs
 .nav-tabs {
-  border-bottom: 1px solid $_fg;
+  border-bottom: 1px solid $body-color;
 
   .nav-link.active,
   .nav-item.show .nav-link {
-    color: $_fg;
-    background-color: $_bg;
-    border-color: $_fg;
+    color: $body-color;
+    background-color: $body-bg;
+    border-color: $body-color;
   }
 
   .nav-link,
   .nav-pills .nav-link {
-    color: $_fg;
+    color: $body-color;
   }
+}
+
+// Tab content borders (Quarto/Bootstrap default is #dee2e6)
+.tab-content {
+  border-color: rgba($body-color, 0.15);
 }
 
 // Tooltips
@@ -529,7 +544,7 @@ img.about-image {
   border-radius: $_radius-full;
   border-style: solid;
   border-width: 3px;
-  border-color: $_fg;
+  border-color: $body-color;
   padding: 6px;
 
   &::before {
@@ -540,20 +555,20 @@ img.about-image {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: $_fg;
+    background: $body-color;
     transition: .5s;
     transform: scale(.9);
     z-index: -1;
   }
 
   &:hover {
-    color: $_fg;
-    box-shadow: 0 0 10px $_fg;
-    text-shadow: 0 0 10px $_fg;
+    color: $body-color;
+    box-shadow: 0 0 10px $body-color;
+    text-shadow: 0 0 10px $body-color;
 
     &::before {
       transform: scale(1.1);
-      box-shadow: 0 0 30px $_fg;
+      box-shadow: 0 0 30px $body-color;
     }
   }
 }
@@ -561,8 +576,8 @@ img.about-image {
 // About entity title hover effect
 .about-entity {
   #title-block-header.quarto-title-block.default .quarto-title .title:hover {
-    color: $_fg;
-    text-shadow: 0 0 10px $_fg;
+    color: $body-color;
+    text-shadow: 0 0 10px $body-color;
   }
 }
 
@@ -594,11 +609,11 @@ img.about-image {
 .quarto-about-trestles .about-entity {
   .about-link {
     // Mix link colour with background for muted appearance (different from body-mix)
-    color: mix($_link-color, $_bg, 50%);
-    border: solid 1px $_fg;
+    color: mix($link-color, $body-bg, 50%);
+    border: solid 1px $body-color;
 
     &:hover {
-      color: $_link-color;
+      color: $link-color;
       font-weight: bold;
     }
   }
@@ -609,23 +624,16 @@ img.about-image {
 // ===========================
 
 // Main navbar styling
+// Background colour is controlled by $navbar-bg (set via brand.yml + metadata).
+// Only custom border and layout overrides remain here.
 .navbar {
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  background-color: $_bg;
-  border-bottom: 1px solid body-mix(50%);
+  border-bottom: 1px solid rgba($navbar-fg, 0.2);
 
-  &.bg-primary {
-    border: 1px solid body-mix(50%);
-  }
-
+  &.bg-primary,
   &.bg-dark {
-    background-color: $_bg;
-    border: 1px solid body-mix(50%);
-  }
-
-  &.bg-light {
-    background-color: body-mix(16%);
+    border: 1px solid rgba($navbar-fg, 0.2);
   }
 
   &.fixed-top {
@@ -635,20 +643,43 @@ img.about-image {
   &.fixed-bottom {
     border-width: 1px 0 0;
   }
-
-  --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke='#{colorToRGBA($_fg)}' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/></svg>");
-}
-
-[data-bs-theme=dark] .navbar-toggler-icon {
-  --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke='#{colorToRGBA($_fg)}' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/></svg>");
 }
 
 // Footer navigation
-.nav-footer {
-  border-top: 1px solid body-mix(50%);
+// Quarto's `body .nav-footer` sets border-top to #dee2e6.  Match that
+// specificity with `body` prefix.  Use $footer-fg which Quarto computes from
+// the page-footer background/foreground metadata.  When these are not set,
+// $footer-fg falls back to an auto-computed value; set explicit page-footer
+// background/foreground in _extension.yml or _quarto.yml for best results.
+body .nav-footer,
+body .footer {
+  border-top: 1px solid rgba($footer-fg, 0.3);
+  color: $footer-fg;
 
-  a:hover {
-    color: $_link-color;
+  a {
+    color: $footer-fg;
+
+    &:hover {
+      color: $footer-fg;
+      opacity: 0.8;
+    }
+  }
+}
+
+// Horizontal rule: use body foreground for brand-awareness
+hr {
+  color: $body-color;
+  border-top-color: $body-color;
+  opacity: 0.25;
+}
+
+// Appendix border: override Quarto's #dee2e6 default with brand foreground
+#quarto-appendix.default {
+  border-top-color: rgba($body-color, 0.15);
+
+  .quarto-appendix-bibtex,
+  .quarto-appendix-citeas {
+    border-color: rgba($body-color, 0.15);
   }
 }
 
@@ -676,21 +707,23 @@ img.about-image {
 }
 
 // Navbar navigation items with animated underlines
+// Uses inherit/currentColor so colours follow $navbar-fg set by brand/metadata.
 .navbar-nav {
 
   .show>.nav-link,
   .active>.nav-link,
   .nav-link.active {
-    color: $_fg;
+    color: inherit;
   }
 
   .nav-link:hover,
   .nav-link:focus {
-    color: $_fg;
+    color: inherit;
   }
 
   .nav-link {
-    color: body-mix(50%);
+    color: inherit;
+    opacity: 0.65;
   }
 
   a.nav-link,
@@ -709,17 +742,17 @@ img.about-image {
 
   a.nav-link.active:after,
   a.nav-link.active:hover:after {
-    border-top: .2em solid $_fg;
+    border-top: .2em solid currentColor;
   }
 
   a.nav-link:hover:after,
   a.nav-link:after {
-    border-top: .1em solid $_fg;
+    border-top: .1em solid currentColor;
   }
 
   a.nav-link:after {
     position: absolute;
-    border-top: .1em solid body-mix(90%);
+    border-top: .1em solid transparent;
     content: "";
     bottom: 0;
     left: 0;
@@ -733,11 +766,6 @@ img.about-image {
   .nav-link.active {
     font-weight: bolder;
   }
-
-  .nav-link:hover,
-  .nav-link:focus {
-    color: $_fg;
-  }
 }
 
 // Responsive navbar adjustments
@@ -748,13 +776,13 @@ img.about-image {
     a.nav-link.active:hover:after,
     a.nav-link:hover:after,
     a.nav-link:after {
-      border-top: 0 solid $_fg;
+      border-top: 0 solid currentColor;
     }
   }
 }
 
 .navbar-brand {
-  color: $_fg;
+  color: inherit;
 }
 
 // Navbar title with corner brackets animation
@@ -780,8 +808,8 @@ img.about-image {
     content: '';
     right: 0;
     top: 0;
-    border-top: 3px solid $_fg;
-    border-right: 3px solid $_fg;
+    border-top: 3px solid currentColor;
+    border-right: 3px solid currentColor;
     transform: translate(-100%, 50%);
   }
 
@@ -789,13 +817,14 @@ img.about-image {
     content: '';
     left: 0;
     bottom: 0;
-    border-bottom: 3px solid $_fg;
-    border-left: 3px solid $_fg;
+    border-bottom: 3px solid currentColor;
+    border-left: 3px solid currentColor;
     transform: translate(100%, -50%);
   }
 
   &:hover {
-    color: body-mix(35%);
+    color: inherit;
+    opacity: 0.8;
 
     &:before,
     &:after {
@@ -813,49 +842,46 @@ img.about-image {
 // THEME TOGGLE ICONS
 // ===========================
 
-// Navbar theme toggle
+// Navbar toggle (inherits navbar text colour via currentColor)
 .navbar .quarto-color-scheme-toggle {
   &:not(.alternate) .bi::before {
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($_fg)}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+    @include toggle-icon($_icon-sun, currentColor);
   }
 
   &.alternate .bi::before {
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA($_fg)}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+    @include toggle-icon($_icon-moon, currentColor);
   }
 }
 
-// Sidebar toggle uses mask-image with computed sidebar text colour
+// Sidebar toggle: inherit size and colour from sidebar tools.
+// Other tools (.quarto-navigation-tool) use font-size: .875rem + opacity: .7.
+// The toggle already has .quarto-navigation-tool so it gets those, but the
+// ::before pseudo-element is hardcoded at 1rem.  Override to match.
 .sidebar-navigation .quarto-color-scheme-toggle {
+  .bi::before {
+    height: 0.875rem;
+    width: 0.875rem;
+    background-size: 0.875rem 0.875rem;
+    vertical-align: middle;
+  }
+
   &:not(.alternate) .bi::before {
-    background-image: none;
-    background-color: $_sidebar-text;
-    -webkit-mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
-    mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
+    @include toggle-icon($_icon-sun, $sidebar-fg);
   }
 
   &.alternate .bi::before {
-    background-image: none;
-    background-color: $_sidebar-text;
-    -webkit-mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
-    mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
+    @include toggle-icon($_icon-moon, $sidebar-fg);
   }
 }
 
+// Top-right toggle (body area, uses dimmed foreground colour)
 .top-right.quarto-color-scheme-toggle {
   &:not(.alternate) .bi::before {
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($_fg, 35%))}" class="bi bi-sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
+    @include toggle-icon($_icon-sun, theme-dim($body-color, 35%));
   }
 
   &.alternate .bi::before {
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#{colorToRGBA(theme-dim($_fg, 20%))}" class="bi bi-moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
+    @include toggle-icon($_icon-moon, theme-dim($body-color, 20%));
   }
 }
 
@@ -865,17 +891,17 @@ img.about-image {
 
 // Listing category tags
 .quarto-post .listing-categories .listing-category {
-  border: solid 1px $_fg;
+  border: solid 1px $body-color;
 
   &:hover {
-    color: $_fg;
+    color: $body-color;
   }
 }
 
 .quarto-grid-item .listing-categories .listing-category:hover,
 .quarto-listing-category .category:hover,
 .quarto-title .quarto-categories .quarto-category a:hover {
-  color: $_fg;
+  color: $body-color;
 }
 
 .quarto-listing-category .category {
@@ -883,12 +909,7 @@ img.about-image {
 }
 
 .listing-description {
-  color: $_fg;
-}
-
-// Footer link hover
-.footer a:hover {
-  color: $_link-color;
+  color: $body-color;
 }
 
 // ===========================
@@ -899,7 +920,7 @@ img.about-image {
 .picture {
   border-style: solid;
   border-width: $_radius-sm;
-  border-color: $_fg;
+  border-color: $body-color;
   border-radius: $_radius-full;
   padding: 6px;
   height: 50%;
@@ -1036,7 +1057,7 @@ main a:not(:where(.nav-link,
 }
 
 .card {
-  border-color: $_fg !important;
+  border-color: $body-color !important;
 }
 
 // ===========================
@@ -1093,9 +1114,9 @@ main a:not(:where(.nav-link,
   margin-top: -$_space-xl;
   margin-bottom: $_space-xl;
   background:
-    radial-gradient(ellipse at top left, rgba($_fg, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom right, rgba($_fg, 0.06) 0%, transparent 50%),
-    linear-gradient(135deg, rgba($_fg, 0.02) 0%, rgba($_fg, 0.05) 100%);
+    radial-gradient(ellipse at top left, rgba($body-color, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba($body-color, 0.06) 0%, transparent 50%),
+    linear-gradient(135deg, rgba($body-color, 0.02) 0%, rgba($body-color, 0.05) 100%);
   border-radius: 0;
   box-shadow: $_shadow-md;
   overflow: hidden;
@@ -1109,9 +1130,9 @@ main a:not(:where(.nav-link,
     right: -50%;
     bottom: -50%;
     background:
-      radial-gradient(circle at 30% 40%, rgba($_fg, 0.12) 0%, transparent 30%),
-      radial-gradient(circle at 70% 60%, rgba($_fg, 0.1) 0%, transparent 30%),
-      radial-gradient(circle at 50% 20%, rgba($_fg, 0.08) 0%, transparent 20%);
+      radial-gradient(circle at 30% 40%, rgba($body-color, 0.12) 0%, transparent 30%),
+      radial-gradient(circle at 70% 60%, rgba($body-color, 0.1) 0%, transparent 30%),
+      radial-gradient(circle at 50% 20%, rgba($body-color, 0.08) 0%, transparent 20%);
     pointer-events: none;
     opacity: 0.6;
     animation: orbsMove 20s ease-in-out infinite alternate;
@@ -1134,7 +1155,7 @@ main a:not(:where(.nav-link,
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: $_space-sm;
-            background: linear-gradient(135deg, $_fg 0%, rgba($_fg, 0.7) 100%);
+            background: linear-gradient(135deg, $body-color 0%, rgba($body-color, 0.7) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -1146,7 +1167,7 @@ main a:not(:where(.nav-link,
 
           .subtitle {
             font-size: 1.2rem;
-            color: rgba($_fg, 0.8);
+            color: rgba($body-color, 0.8);
             font-weight: 400;
             margin-bottom: $_space-lg;
 
@@ -1169,10 +1190,10 @@ main a:not(:where(.nav-link,
           align-items: center;
           justify-content: center;
           padding: 0.6rem 1rem;
-          background-color: rgba($_fg, 0.08);
-          border: 1px solid rgba($_fg, 0.15);
+          background-color: rgba($body-color, 0.08);
+          border: 1px solid rgba($body-color, 0.15);
           border-radius: $_radius-md;
-          color: rgba($_fg, 0.85);
+          color: rgba($body-color, 0.85);
           text-decoration: none;
           transition: all $_anim-standard $_easing-standard;
           font-size: 1.1rem;
@@ -1185,11 +1206,11 @@ main a:not(:where(.nav-link,
           }
 
           &:hover {
-            background-color: rgba($_fg, 0.12);
-            border-color: rgba($_fg, 0.3);
+            background-color: rgba($body-color, 0.12);
+            border-color: rgba($body-color, 0.3);
             transform: translateY(-2px);
             box-shadow: $_shadow-md;
-            color: $_fg;
+            color: $body-color;
           }
 
           &:active {
@@ -1214,14 +1235,14 @@ main a:not(:where(.nav-link,
 
     // Profile image styling (override existing)
     .about-image {
-      border: 4px solid rgba($_fg, 0.1);
+      border: 4px solid rgba($body-color, 0.1);
       box-shadow: $_shadow-lg;
       transition: all $_anim-standard $_easing-standard;
 
       &:hover {
         transform: scale(1.05);
-        box-shadow: 0 12px 32px rgba($_fg, 0.2);
-        border-color: rgba($_fg, 0.2);
+        box-shadow: 0 12px 32px rgba($body-color, 0.2);
+        border-color: rgba($body-color, 0.2);
       }
     }
   }
@@ -1262,7 +1283,7 @@ main a:not(:where(.nav-link,
     font-size: 1.1rem;
     line-height: 1.75;
     margin-bottom: $_space-lg;
-    color: rgba($_fg, 0.85);
+    color: rgba($body-color, 0.85);
 
     @media (max-width: $_breakpoint-md) {
       font-size: 1.05rem;
@@ -1270,12 +1291,12 @@ main a:not(:where(.nav-link,
     }
 
     strong {
-      color: $_fg;
+      color: $body-color;
       font-weight: 600;
     }
 
     em {
-      color: rgba($_fg, 0.75);
+      color: rgba($body-color, 0.75);
     }
   }
 }
@@ -1287,9 +1308,9 @@ figure:has(img.img-styled) {
   margin: $_space-xl auto;
   padding: $_space-md;
   background: linear-gradient(135deg,
-      rgba($_fg, 0.02) 0%,
-      rgba($_fg, 0.04) 100%);
-  border: 1px solid rgba($_fg, 0.08);
+      rgba($body-color, 0.02) 0%,
+      rgba($body-color, 0.04) 100%);
+  border: 1px solid rgba($body-color, 0.08);
   border-radius: $_radius-lg;
   box-shadow: $_shadow-sm;
   transition: all $_anim-standard $_easing-standard;
@@ -1317,7 +1338,7 @@ figure:has(img.img-styled) {
     margin-top: 0;
     padding-right: 0;
     font-size: 0.8em;
-    color: rgba($_fg, 0.6);
+    color: rgba($body-color, 0.6);
     text-align: right;
     opacity: 0;
     overflow: hidden;
@@ -1326,20 +1347,20 @@ figure:has(img.img-styled) {
     font-style: italic;
 
     a {
-      color: rgba($_fg, 0.7);
+      color: rgba($body-color, 0.7);
       text-decoration: underline;
 
       &:hover {
-        color: $_fg;
+        color: $body-color;
       }
     }
   }
 
   &:hover {
     background: linear-gradient(135deg,
-        rgba($_fg, 0.04) 0%,
-        rgba($_fg, 0.06) 100%);
-    border-color: rgba($_fg, 0.12);
+        rgba($body-color, 0.04) 0%,
+        rgba($body-color, 0.06) 100%);
+    border-color: rgba($body-color, 0.12);
     box-shadow: $_shadow-md;
 
     // Show and expand figcaption on hover
@@ -1373,7 +1394,7 @@ figure:has(img.img-styled) {
   padding: $_space-lg $_space-xl;
   width: 65%;
   background: transparent;
-  border: 2px dashed rgba($_fg, 0.25);
+  border: 2px dashed rgba($body-color, 0.25);
   border-radius: $_radius-md;
   transition: all $_anim-standard $_easing-standard;
 
@@ -1384,7 +1405,7 @@ figure:has(img.img-styled) {
     position: absolute;
     width: 12px;
     height: 12px;
-    border: 2px solid $_fg;
+    border: 2px solid $body-color;
     transition: $_link-transition;
   }
 
@@ -1407,8 +1428,8 @@ figure:has(img.img-styled) {
   }
 
   &:hover {
-    border-color: rgba($_fg, 0.4);
-    background: rgba($_fg, 0.02);
+    border-color: rgba($body-color, 0.4);
+    background: rgba($body-color, 0.02);
 
     &::before,
     &::after {
@@ -1421,14 +1442,14 @@ figure:has(img.img-styled) {
     margin: 0;
     font-size: 1.05rem;
     line-height: 1.8;
-    color: $_fg;
+    color: $body-color;
 
     @media (max-width: $_breakpoint-md) {
       font-size: 1rem;
     }
 
     strong {
-      color: $_fg;
+      color: $body-color;
       position: relative;
       padding: 0 0.2em;
 
@@ -1439,7 +1460,7 @@ figure:has(img.img-styled) {
         left: 0;
         right: 0;
         height: 0.35em;
-        background: rgba($_fg, 0.12);
+        background: rgba($body-color, 0.12);
         z-index: -1;
         transition: background 0.3s ease;
       }
@@ -1447,12 +1468,12 @@ figure:has(img.img-styled) {
 
     em {
       font-style: italic;
-      color: $_fg;
+      color: $body-color;
     }
   }
 
   &:hover p strong::after {
-    background: rgba($_fg, 0.2);
+    background: rgba($body-color, 0.2);
   }
 
   // Multiple paragraphs in highlight
@@ -1482,9 +1503,9 @@ figure:has(img.img-styled) {
   padding: $_space-lg $_space-xl;
   width: 90%;
   background: linear-gradient(135deg,
-      rgba($_fg, 0.03) 0%,
-      rgba($_fg, 0.05) 100%);
-  border: 2px solid rgba($_fg, 0.2);
+      rgba($body-color, 0.03) 0%,
+      rgba($body-color, 0.05) 100%);
+  border: 2px solid rgba($body-color, 0.2);
   border-radius: $_radius-md;
   transition: all $_anim-standard $_easing-standard;
   box-shadow: $_shadow-sm;
@@ -1496,7 +1517,7 @@ figure:has(img.img-styled) {
     position: absolute;
     width: 10px;
     height: 10px;
-    background: $_fg;
+    background: $body-color;
     transition: $_link-transition;
     opacity: 0.3;
   }
@@ -1516,10 +1537,10 @@ figure:has(img.img-styled) {
   }
 
   &:hover {
-    border-color: rgba($_fg, 0.35);
+    border-color: rgba($body-color, 0.35);
     background: linear-gradient(135deg,
-        rgba($_fg, 0.05) 0%,
-        rgba($_fg, 0.08) 100%);
+        rgba($body-color, 0.05) 0%,
+        rgba($body-color, 0.08) 100%);
     box-shadow: $_shadow-md;
 
     &::before,
@@ -1534,7 +1555,7 @@ figure:has(img.img-styled) {
     margin: 0;
     font-size: 1.08rem;
     line-height: 1.8;
-    color: $_fg;
+    color: $body-color;
     font-weight: 500;
     font-style: italic;
     letter-spacing: 0.01em;
@@ -1544,7 +1565,7 @@ figure:has(img.img-styled) {
     }
 
     strong {
-      color: $_fg;
+      color: $body-color;
       font-weight: 700;
       font-style: normal;
       position: relative;
@@ -1557,7 +1578,7 @@ figure:has(img.img-styled) {
         left: 0;
         right: 0;
         height: 0.4em;
-        background: rgba($_fg, 0.15);
+        background: rgba($body-color, 0.15);
         z-index: -1;
         border-radius: 2px;
         transition: $_link-transition;
@@ -1566,13 +1587,13 @@ figure:has(img.img-styled) {
 
     em {
       font-style: italic;
-      color: rgba($_fg, 0.85);
+      color: rgba($body-color, 0.85);
       font-weight: 600;
     }
 
     // Links inside thanks box
     a {
-      color: $_fg;
+      color: $body-color;
       font-weight: 600;
       text-decoration-thickness: $_link-underline-thickness;
       text-decoration-color: $_link-underline-color;
@@ -1586,7 +1607,7 @@ figure:has(img.img-styled) {
   }
 
   &:hover p strong::after {
-    background: rgba($_fg, 0.25);
+    background: rgba($body-color, 0.25);
     height: 0.45em;
   }
 
@@ -1622,10 +1643,10 @@ body.quarto-about-solana,
       font-size: 1.05rem;
       line-height: 1.7;
       margin-bottom: 1.25rem;
-      color: rgba($_fg, 0.85);
+      color: rgba($body-color, 0.85);
 
       strong {
-        color: $_fg;
+        color: $body-color;
         font-weight: 600;
       }
     }
@@ -1639,7 +1660,7 @@ body.quarto-about-solana,
       font-size: 1.75rem;
       font-weight: 700;
       margin-bottom: $_space-lg;
-      color: $_fg;
+      color: $body-color;
       position: relative;
       padding-bottom: 0.75rem;
 
@@ -1650,7 +1671,7 @@ body.quarto-about-solana,
         left: 0;
         width: 60px;
         height: 3px;
-        background: linear-gradient(90deg, $_fg 0%, rgba($_fg, 0.3) 100%);
+        background: linear-gradient(90deg, $body-color 0%, rgba($body-color, 0.3) 100%);
         transition: width $_anim-standard $_easing-standard;
       }
 
@@ -1674,17 +1695,17 @@ body.quarto-about-solana,
           content: '▸';
           position: absolute;
           left: 0.5rem;
-          color: rgba($_fg, 0.5);
+          color: rgba($body-color, 0.5);
           font-size: 1rem;
           transition: $_link-transition;
         }
 
         &:hover {
           padding-left: 2.25rem;
-          color: $_fg;
+          color: $body-color;
 
           &::before {
-            color: $_fg;
+            color: $body-color;
             left: 0.25rem;
           }
         }
@@ -1693,12 +1714,12 @@ body.quarto-about-solana,
           margin: 0;
 
           strong {
-            color: $_fg;
+            color: $body-color;
             font-weight: 600;
           }
 
           em {
-            color: rgba($_fg, 0.7);
+            color: rgba($body-color, 0.7);
           }
         }
       }
@@ -1708,18 +1729,18 @@ body.quarto-about-solana,
   // Education section specific styling
   .education {
     ul li {
-      background-color: rgba($_fg, 0.02);
-      border-left: 2px solid rgba($_fg, 0.15);
+      background-color: rgba($body-color, 0.02);
+      border-left: 2px solid rgba($body-color, 0.15);
       border-radius: 0 6px 6px 0;
       padding: $_space-md $_space-md $_space-md $_space-xl;
 
       &:hover {
-        background-color: rgba($_fg, 0.05);
-        border-left-color: rgba($_fg, 0.3);
+        background-color: rgba($body-color, 0.05);
+        border-left-color: rgba($body-color, 0.3);
       }
 
       strong:last-of-type {
-        color: rgba($_fg, 0.7);
+        color: rgba($body-color, 0.7);
         font-size: 0.95em;
       }
     }
@@ -1738,7 +1759,7 @@ body.quarto-about-solana,
 
       li {
         padding: $_space-sm $_space-md $_space-sm 1.75rem;
-        background-color: rgba($_fg, 0.04);
+        background-color: rgba($body-color, 0.04);
         border-radius: $_radius-md;
         font-size: 0.95rem;
 
@@ -1748,7 +1769,7 @@ body.quarto-about-solana,
         }
 
         &:hover {
-          background-color: rgba($_fg, 0.08);
+          background-color: rgba($body-color, 0.08);
           padding-left: $_space-xl;
         }
       }
@@ -1782,7 +1803,7 @@ body.quarto-about-solana,
 
 // Override Quarto/Bootstrap code styling (!important required for specificity)
 code:not(.sourceCode) {
-  color: $_fg !important;
+  color: $body-color !important;
   background-color: body-mix(90%) !important;
 }
 
@@ -1809,7 +1830,7 @@ h6 code:not(.sourceCode) {
   transition: all $_anim-fast $_easing-standard;
 
   // Subtle border for definition
-  border: 1px solid rgba($_fg, 0.12);
+  border: 1px solid rgba($body-color, 0.12);
 
   // Font styling
   font-size: 0.9em;
@@ -1817,11 +1838,11 @@ h6 code:not(.sourceCode) {
   letter-spacing: 0.01em;
 
   // Subtle shadow for depth
-  box-shadow: 0 1px 2px rgba($_fg, 0.05);
+  box-shadow: 0 1px 2px rgba($body-color, 0.05);
 
   // Hover effect
   &:hover {
-    border-color: rgba($_fg, 0.25);
+    border-color: rgba($body-color, 0.25);
     box-shadow: $_shadow-sm;
     transform: translateY(-1px);
   }
@@ -1864,30 +1885,24 @@ nav div code:not(.sourceCode),
 nav span code:not(.sourceCode) {
   padding: 0.15em 0.4em;
   border-radius: $_radius-sm;
-  border: 1px solid rgba($_fg, 0.12);
+  border: 1px solid rgba($body-color, 0.12);
 }
 
-// Code blocks with hover shadow
 div.sourceCode {
-  transition: box-shadow 0.3s ease;
   border-radius: $_radius-md;
-
-  &:hover {
-    box-shadow: $_shadow-md;
-  }
 }
 
 // Code with filename wrapper (macOS-style code window)
 .code-with-filename {
   margin: 1em 0;
-  border: 1px solid rgba($_fg, 0.5);
+  border: 1px solid rgba($body-color, 0.5);
   border-radius: $_radius-md;
   overflow: hidden;
 
   // Filename header (title bar)
   .code-with-filename-file {
-    background-color: rgba($_fg, 0.08);
-    border-bottom: 1px solid rgba($_fg, 0.5);
+    background-color: rgba($body-color, 0.08);
+    border-bottom: 1px solid rgba($body-color, 0.5);
     padding: 0.6em 1em;
     margin: 0;
     display: flex;
@@ -1920,7 +1935,7 @@ div.sourceCode {
       border: none;
       font-size: 0.85em;
       font-weight: 500;
-      color: rgba($_fg, 0.6);
+      color: rgba($body-color, 0.6);
       font-family: "Fira Code", "Menlo", "Monaco", "Consolas", monospace;
       flex-grow: 1;
       text-align: right;
@@ -1944,19 +1959,20 @@ div.sourceCode {
     border-top: none;
   }
 
-  // Hover effect for the entire wrapper
-  &:hover {
-    .code-with-filename-file {
-      background-color: rgba($_fg, 0.1);
-    }
-  }
-
   // Auto-generated filenames display in simulated small caps (uppercase, smaller)
   &.code-window-auto {
     .code-with-filename-file pre strong {
       text-transform: uppercase;
       font-size: 0.8em;
     }
+  }
+}
+
+// Dark mode override for code filename header (Quarto base uses #555)
+[data-bs-theme="dark"],
+.quarto-dark {
+  .code-with-filename .code-with-filename-file {
+    background-color: rgba($body-color, 0.08);
   }
 }
 
@@ -1992,30 +2008,45 @@ div.sourceCode {
   }
 }
 
-// Search icon colour in navbar
+// Search icon colour in navbar (inherits from $navbar-fg)
 .navbar #quarto-search.type-overlay .aa-Autocomplete {
 
   .aa-Form .aa-Label svg,
   .aa-Form .aa-LoadingIndicator svg,
   svg.aa-SubmitIcon {
-    color: $_fg;
+    color: inherit;
   }
 }
 
-// Sidebar title text colour for dark sidebar support
+// Sidebar title text colour
 .sidebar-navigation .sidebar-title a {
-  color: $_sidebar-text;
+  color: $sidebar-fg;
 }
 
-// Sidebar search theming (uses computed sidebar text colour for dark sidebar support)
+// Sidebar search theming: use $sidebar-fg explicitly because Quarto does not
+// set a `color` on .sidebar-navigation, so `inherit` falls through to body.
+// The .aa-Input override is needed because Quarto's base rule
+// (.aa-DetachedFormContainer .aa-Form .aa-InputWrapper .aa-Input) has higher
+// specificity (4 classes) and sets color to $body-color, which can match the
+// sidebar background in dark mode, making the cursor and text invisible.
 .sidebar-search .aa-Form {
   background-color: transparent;
-  border-color: $_sidebar-text;
-  color: $_sidebar-text;
+  border-color: $sidebar-fg;
+  color: $sidebar-fg;
+
+  .aa-InputWrapper .aa-Input {
+    color: $sidebar-fg;
+    caret-color: $sidebar-fg;
+
+    &::placeholder {
+      color: $sidebar-fg;
+      opacity: 0.5;
+    }
+  }
 
   .aa-InputWrapperPrefix .aa-Label svg,
   .aa-InputWrapperPrefix .aa-LoadingIndicator svg {
-    color: $_sidebar-text;
+    color: $sidebar-fg;
     opacity: 0.8;
   }
 }
@@ -2024,7 +2055,7 @@ div.sourceCode {
 .sidebar-tools-main {
 
   #quarto-search .aa-DetachedSearchButton .aa-DetachedSearchButtonIcon {
-    color: $_sidebar-text;
+    color: $sidebar-fg;
   }
 }
 
@@ -2072,9 +2103,9 @@ div.sourceCode {
   // Table header
   thead {
     background: linear-gradient(180deg,
-        rgba($_fg, 0.08) 0%,
-        rgba($_fg, 0.05) 100%);
-    border-bottom: 2px solid rgba($_fg, 0.15);
+        rgba($body-color, 0.08) 0%,
+        rgba($body-color, 0.05) 100%);
+    border-bottom: 2px solid rgba($body-color, 0.15);
 
     tr {
       transition: background-color 0.3s ease;
@@ -2086,9 +2117,9 @@ div.sourceCode {
       text-transform: uppercase;
       font-size: 0.8rem;
       letter-spacing: 0.08em;
-      color: rgba($_fg, 0.85);
+      color: rgba($body-color, 0.85);
       text-align: left;
-      border-bottom: 2px solid rgba($_fg, 0.15);
+      border-bottom: 2px solid rgba($body-color, 0.15);
       position: relative;
       transition: $_link-transition;
 
@@ -2106,7 +2137,7 @@ div.sourceCode {
 
       // Sort links
       a.sort {
-        color: rgba($_fg, 0.85);
+        color: rgba($body-color, 0.85);
         text-decoration: none;
         display: inline-flex;
         align-items: center;
@@ -2131,7 +2162,7 @@ div.sourceCode {
         }
 
         &:hover {
-          color: $_fg;
+          color: $body-color;
 
           &::after {
             opacity: 1;
@@ -2143,18 +2174,18 @@ div.sourceCode {
         &.sort-asc::after {
           content: '↑';
           opacity: 1;
-          color: $_fg;
+          color: $body-color;
         }
 
         &.sort-desc::after {
           content: '↓';
           opacity: 1;
-          color: $_fg;
+          color: $body-color;
         }
       }
 
       &:hover {
-        background-color: rgba($_fg, 0.06);
+        background-color: rgba($body-color, 0.06);
       }
     }
   }
@@ -2162,12 +2193,12 @@ div.sourceCode {
   // Table body
   tbody {
     tr {
-      border-bottom: 1px solid rgba($_fg, 0.08);
+      border-bottom: 1px solid rgba($body-color, 0.08);
       transition: all $_anim-standard $_easing-standard;
       background-color: transparent;
 
       &:hover {
-        background-color: rgba($_fg, 0.04);
+        background-color: rgba($body-color, 0.04);
         transform: scale(1.005);
         box-shadow: $_shadow-sm;
         position: relative;
@@ -2210,14 +2241,14 @@ div.sourceCode {
   // Listing-specific elements
   .listing-date {
     font-size: 0.9em;
-    color: rgba($_fg, 0.75);
+    color: rgba($body-color, 0.75);
     font-weight: 600;
     display: inline-block;
     white-space: nowrap;
   }
 
   .listing-title {
-    color: $_fg;
+    color: $body-color;
     text-decoration: none;
     font-weight: 600;
     transition: $_link-transition;
@@ -2232,14 +2263,14 @@ div.sourceCode {
       width: 0;
       height: 2px;
       background: linear-gradient(90deg,
-          $_fg 0%,
-          rgba($_fg, 0.4) 100%);
+          $body-color 0%,
+          rgba($body-color, 0.4) 100%);
       transition: width $_anim-standard $_easing-standard;
       border-radius: 1px;
     }
 
     &:hover {
-      color: $_fg;
+      color: $body-color;
       transform: translateX(2px);
 
       &::after {
@@ -2249,7 +2280,7 @@ div.sourceCode {
   }
 
   .listing-journal-title {
-    color: rgba($_fg, 0.8);
+    color: rgba($body-color, 0.8);
     font-size: 0.95em;
     font-style: italic;
 
@@ -2261,7 +2292,7 @@ div.sourceCode {
   .listing-first,
   .listing-last {
     font-size: 0.9em;
-    color: rgba($_fg, 0.7);
+    color: rgba($body-color, 0.7);
     font-weight: 500;
     text-align: center;
     display: inline-block;
@@ -2269,13 +2300,13 @@ div.sourceCode {
 
     &:not(:empty) {
       padding: 0.25em 0.75em;
-      background-color: rgba($_fg, 0.05);
+      background-color: rgba($body-color, 0.05);
       border-radius: $_radius-sm;
-      border: 1px solid rgba($_fg, 0.12);
+      border: 1px solid rgba($body-color, 0.12);
 
       &:hover {
-        background-color: rgba($_fg, 0.08);
-        border-color: rgba($_fg, 0.2);
+        background-color: rgba($body-color, 0.08);
+        border-color: rgba($body-color, 0.2);
         transform: scale(1.05);
       }
     }
@@ -2305,10 +2336,10 @@ div.sourceCode {
   }
 
   .input-group-text {
-    background-color: rgba($_fg, 0.08);
-    border: 1px solid rgba($_fg, 0.15);
+    background-color: rgba($body-color, 0.08);
+    border: 1px solid rgba($body-color, 0.15);
     border-right: none;
-    color: rgba($_fg, 0.7);
+    color: rgba($body-color, 0.7);
     border-radius: 6px 0 0 6px;
     padding: $_space-sm 0.75rem;
     transition: $_link-transition;
@@ -2321,12 +2352,12 @@ div.sourceCode {
   // Sort dropdown
   .quarto-listing-sort {
     .form-select {
-      border: 1px solid rgba($_fg, 0.15);
+      border: 1px solid rgba($body-color, 0.15);
       border-left: none;
       border-radius: 0 6px 6px 0;
       padding: $_space-sm 2.5rem $_space-sm $_space-md;
-      background-color: $_bg;
-      color: rgba($_fg, 0.85);
+      background-color: $body-bg;
+      color: rgba($body-color, 0.85);
       font-size: 0.95em;
       transition: $_link-transition;
       cursor: pointer;
@@ -2337,24 +2368,24 @@ div.sourceCode {
       background-size: 16px 12px;
 
       &:hover {
-        border-color: rgba($_fg, 0.3);
-        background-color: rgba($_fg, 0.02);
+        border-color: rgba($body-color, 0.3);
+        background-color: rgba($body-color, 0.02);
         box-shadow: $_shadow-sm;
       }
 
       &:focus {
-        border-color: rgba($_fg, 0.4);
-        box-shadow: 0 0 0 3px rgba($_fg, 0.08);
+        border-color: rgba($body-color, 0.4);
+        box-shadow: 0 0 0 3px rgba($body-color, 0.08);
         outline: none;
       }
 
       option {
         padding: $_space-sm;
-        background-color: $_bg;
-        color: $_fg;
+        background-color: $body-bg;
+        color: $body-color;
 
         &:hover {
-          background-color: rgba($_fg, 0.08);
+          background-color: rgba($body-color, 0.08);
         }
       }
     }
@@ -2364,30 +2395,30 @@ div.sourceCode {
 // Listing filter input
 .quarto-listing-filter {
   .form-control {
-    border: 1px solid rgba($_fg, 0.15);
+    border: 1px solid rgba($body-color, 0.15);
     border-left: none;
     border-radius: 0 6px 6px 0;
     padding: $_space-sm $_space-md;
-    background-color: $_bg;
-    color: rgba($_fg, 0.85);
+    background-color: $body-bg;
+    color: rgba($body-color, 0.85);
     transition: $_link-transition;
 
     &::placeholder {
-      color: rgba($_fg, 0.4);
+      color: rgba($body-color, 0.4);
       font-style: italic;
     }
 
     &:hover {
-      border-color: rgba($_fg, 0.3);
-      background-color: rgba($_fg, 0.02);
+      border-color: rgba($body-color, 0.3);
+      background-color: rgba($body-color, 0.02);
       box-shadow: $_shadow-sm;
     }
 
     &:focus {
-      border-color: rgba($_fg, 0.4);
-      box-shadow: 0 0 0 3px rgba($_fg, 0.08);
+      border-color: rgba($body-color, 0.4);
+      box-shadow: 0 0 0 3px rgba($body-color, 0.08);
       outline: none;
-      background-color: $_bg;
+      background-color: $body-bg;
     }
   }
 }
@@ -2401,11 +2432,11 @@ div.sourceCode {
   gap: $_space-sm;
 
   .page-link {
-    border: 1px solid rgba($_fg, 0.15);
+    border: 1px solid rgba($body-color, 0.15);
     border-radius: $_radius-md;
     padding: $_space-sm $_space-md;
-    color: rgba($_fg, 0.85);
-    background-color: $_bg;
+    color: rgba($body-color, 0.85);
+    background-color: $body-bg;
     transition: all $_anim-fast $_easing-standard;
     text-decoration: none;
     position: relative;
@@ -2418,29 +2449,29 @@ div.sourceCode {
     }
 
     &:hover {
-      background-color: rgba($_fg, 0.08);
-      border-color: rgba($_fg, 0.25);
+      background-color: rgba($body-color, 0.08);
+      border-color: rgba($body-color, 0.25);
       transform: translateY(-2px);
       text-decoration: none;
-      color: $_fg;
+      color: $body-color;
     }
 
     &:focus {
-      outline: 2px solid $_fg;
+      outline: 2px solid $body-color;
       outline-offset: 2px;
       text-decoration: none;
     }
 
     &.active {
-      background-color: $_fg;
-      color: $_bg;
-      border-color: $_fg;
+      background-color: $body-color;
+      color: $body-bg;
+      border-color: $body-color;
       font-weight: 600;
       text-decoration: none;
 
       &:hover {
-        color: $_bg;
-        background-color: rgba($_fg, 0.9);
+        color: $body-bg;
+        background-color: rgba($body-color, 0.9);
       }
     }
 
@@ -2452,8 +2483,8 @@ div.sourceCode {
 
       &:hover {
         transform: none;
-        background-color: $_bg;
-        border-color: rgba($_fg, 0.15);
+        background-color: $body-bg;
+        border-color: rgba($body-color, 0.15);
       }
     }
   }
@@ -2461,9 +2492,9 @@ div.sourceCode {
   // Page item wrapper
   .page-item {
     &.active .page-link {
-      background-color: $_fg;
-      color: $_bg;
-      border-color: $_fg;
+      background-color: $body-color;
+      color: $body-bg;
+      border-color: $body-color;
     }
 
     &.disabled .page-link {
@@ -2492,7 +2523,7 @@ div.sourceCode {
     left: 0;
     width: 0;
     height: 2px;
-    background: linear-gradient(90deg, $_fg 0%, rgba($_fg, 0.4) 100%);
+    background: linear-gradient(90deg, $body-color 0%, rgba($body-color, 0.4) 100%);
     transition: width $_anim-standard $_easing-standard;
   }
 
@@ -2530,7 +2561,7 @@ div.sourceCode {
     border: none;
     border-radius: $_radius-sm;
     font-size: 0.85em;
-    color: rgba($_fg, 0.75);
+    color: rgba($body-color, 0.75);
     cursor: pointer;
     transition: all $_anim-fast ease;
     text-decoration: none;
@@ -2540,49 +2571,49 @@ div.sourceCode {
     gap: 0.5em;
 
     &:hover {
-      background-color: rgba($_fg, 0.05);
-      color: rgba($_fg, 0.9);
+      background-color: rgba($body-color, 0.05);
+      color: rgba($body-color, 0.9);
 
       .quarto-category-count {
-        background-color: rgba($_fg, 0.1);
-        color: rgba($_fg, 0.8);
+        background-color: rgba($body-color, 0.1);
+        color: rgba($body-color, 0.8);
       }
     }
 
     &:active {
-      background-color: rgba($_fg, 0.08);
+      background-color: rgba($body-color, 0.08);
     }
 
     // Active/selected state
     &.active,
     &[aria-current="true"] {
-      background-color: rgba($_fg, 0.1);
-      color: $_fg;
+      background-color: rgba($body-color, 0.1);
+      color: $body-color;
       font-weight: 600;
 
       .quarto-category-count {
-        background-color: rgba($_fg, 0.15);
-        color: $_fg;
+        background-color: rgba($body-color, 0.15);
+        color: $body-color;
       }
 
       &:hover {
-        background-color: rgba($_fg, 0.12);
+        background-color: rgba($body-color, 0.12);
       }
     }
 
     // Focus state for accessibility
     &:focus {
-      outline: 2px solid rgba($_fg, 0.3);
+      outline: 2px solid rgba($body-color, 0.3);
       outline-offset: 2px;
     }
 
     .quarto-category-count {
       padding: 0.1em 0.4em;
-      background-color: rgba($_fg, 0.08);
+      background-color: rgba($body-color, 0.08);
       border-radius: $_radius-md;
       font-size: 0.8em;
       font-weight: 500;
-      color: rgba($_fg, 0.6);
+      color: rgba($body-color, 0.6);
       transition: all $_anim-fast ease;
       min-width: 1.8em;
       text-align: center;
@@ -2592,7 +2623,7 @@ div.sourceCode {
   // Special styling for "All" category
   .category[data-category=""] {
     font-weight: 600;
-    color: rgba($_fg, 0.8);
+    color: rgba($body-color, 0.8);
   }
 
   // Reduced motion support
@@ -2697,7 +2728,7 @@ div.sourceCode {
       left: 50%;
       width: 0;
       height: 1px;
-      background: $_fg;
+      background: currentColor;
       transition: $_link-transition;
       transform: translateX(-50%);
     }
@@ -2724,6 +2755,11 @@ figure {
 // TABLE OF CONTENTS (TOC)
 // ===========================
 
+// TOC link border-left: override Quarto's #e9ecef with brand colour
+.sidebar nav[role="doc-toc"] > ul a {
+  border-left-color: rgba($body-color, 0.1);
+}
+
 // TOC navigation with animated indicators
 nav#TOC {
   position: relative;
@@ -2738,7 +2774,7 @@ nav#TOC {
     margin-bottom: $_space-md;
     padding-bottom: $_space-sm;
     position: relative;
-    color: rgba($_fg, 0.85);
+    color: rgba($body-color, 0.85);
 
     // Animated underline
     &::after {
@@ -2749,8 +2785,8 @@ nav#TOC {
       width: 40px;
       height: 2px;
       background: linear-gradient(90deg,
-          $_fg 0%,
-          rgba($_fg, 0.3) 100%);
+          $body-color 0%,
+          rgba($body-color, 0.3) 100%);
       transition: width $_anim-standard $_easing-standard;
       border-radius: 2px;
     }
@@ -2782,8 +2818,8 @@ nav#TOC {
         bottom: 0;
         width: 1px;
         background: linear-gradient(180deg,
-            rgba($_fg, 0.15) 0%,
-            rgba($_fg, 0.05) 100%);
+            rgba($body-color, 0.15) 0%,
+            rgba($body-color, 0.05) 100%);
         opacity: 0;
         transition: opacity 0.3s ease;
       }
@@ -2805,7 +2841,7 @@ nav#TOC {
     border-radius: $_radius-md;
     font-size: 0.875rem;
     line-height: 1.5;
-    color: rgba($_fg, 0.75);
+    color: rgba($body-color, 0.75);
     transition: all $_anim-fast $_easing-standard;
     display: block;
     text-decoration: none;
@@ -2829,7 +2865,7 @@ nav#TOC {
       top: 0;
       bottom: 0;
       width: 3px;
-      background: $_fg;
+      background: $body-color;
       transform: scaleY(0);
       transition: transform $_anim-fast $_easing-standard;
       border-radius: 0 2px 2px 0;
@@ -2837,8 +2873,8 @@ nav#TOC {
 
     // Hover state
     &:hover {
-      color: rgba($_fg, 0.95);
-      background-color: rgba($_fg, 0.04);
+      color: rgba($body-color, 0.95);
+      background-color: rgba($body-color, 0.04);
       transform: translateX(2px);
       padding-left: 0.85rem;
 
@@ -2853,8 +2889,8 @@ nav#TOC {
 
     // Active state
     &.active {
-      color: $_fg;
-      background-color: rgba($_fg, 0.08);
+      color: $body-color;
+      background-color: rgba($body-color, 0.08);
       font-weight: 600;
       padding-left: 0.85rem;
 
@@ -2876,7 +2912,7 @@ nav#TOC {
         top: 50%;
         width: 4px;
         height: 4px;
-        background: $_fg;
+        background: $body-color;
         border-radius: 50%;
         transform: translateY(-50%);
         opacity: 0;
@@ -2886,9 +2922,9 @@ nav#TOC {
 
     // Focus state for accessibility
     &:focus-visible {
-      outline: 2px solid $_fg;
+      outline: 2px solid $body-color;
       outline-offset: 2px;
-      background-color: rgba($_fg, 0.06);
+      background-color: rgba($body-color, 0.06);
     }
   }
 
@@ -2897,10 +2933,10 @@ nav#TOC {
     .nav-link {
       font-size: 0.8125rem;
       padding: 0.3rem 0.75rem;
-      color: rgba($_fg, 0.65);
+      color: rgba($body-color, 0.65);
 
       &:hover {
-        color: rgba($_fg, 0.9);
+        color: rgba($body-color, 0.9);
       }
     }
   }
@@ -2909,7 +2945,7 @@ nav#TOC {
   .toc-actions {
     margin-top: $_space-lg;
     padding-top: $_space-md;
-    border-top: 1px solid rgba($_fg, 0.1);
+    border-top: 1px solid rgba($body-color, 0.1);
 
     ul {
       padding-left: 0;
@@ -2926,11 +2962,11 @@ nav#TOC {
       padding: $_space-sm 0.75rem;
       border-radius: $_radius-md;
       font-size: 0.875rem;
-      color: rgba($_fg, 0.7);
+      color: rgba($body-color, 0.7);
       text-decoration: none;
       transition: all $_anim-fast $_easing-standard;
-      background-color: rgba($_fg, 0.02);
-      border: 1px solid rgba($_fg, 0.08);
+      background-color: rgba($body-color, 0.02);
+      border: 1px solid rgba($body-color, 0.08);
 
       i,
       .bi {
@@ -2940,9 +2976,9 @@ nav#TOC {
       }
 
       &:hover {
-        color: $_fg;
-        background-color: rgba($_fg, 0.06);
-        border-color: rgba($_fg, 0.15);
+        color: $body-color;
+        background-color: rgba($body-color, 0.06);
+        border-color: rgba($body-color, 0.15);
         transform: translateY(-1px);
         box-shadow: $_shadow-sm;
 
@@ -2970,7 +3006,7 @@ nav#TOC {
       right: 0;
       height: 10px;
       background: linear-gradient(180deg,
-          rgba($_fg, 0.03) 0%,
+          rgba($body-color, 0.03) 0%,
           transparent 100%);
       pointer-events: none;
       opacity: 0;
@@ -3012,8 +3048,14 @@ nav#TOC {
 // SIDEBAR & BREADCRUMBS
 // ===========================
 
-// Sidebar navigation hover effects
-.sidebar-navigation {
+// Sidebar border: override Quarto's .sidebar.sidebar-navigation:not(.rollup)
+// which uses #dee2e6.  Match full selector for equal specificity; !important to
+// override their !important.
+.sidebar.sidebar-navigation:not(.rollup) {
+  border-right: 1px solid rgba($sidebar-fg, 0.2) !important;
+}
+
+.sidebar.sidebar-navigation {
   .sidebar-item {
     transition: all $_anim-fast ease;
 
@@ -3053,7 +3095,7 @@ header#title-block-header {
       letter-spacing: -0.02em;
       line-height: 1.2;
       margin-bottom: $_space-sm;
-      color: $_fg;
+      color: $body-color;
     }
 
     .subtitle {
@@ -3107,7 +3149,7 @@ header#title-block-header {
     .mc-academic-author {
       .author {
         a {
-          color: $_fg;
+          color: $body-color;
           text-decoration: none;
 
           &:hover {
@@ -3118,7 +3160,7 @@ header#title-block-header {
 
       sup {
         font-size: 0.7em;
-        color: $_fg;
+        color: $body-color;
         margin-left: 0.1em;
 
         a {
@@ -3149,7 +3191,7 @@ header#title-block-header {
 
       sup {
         font-size: 0.85em;
-        color: $_fg;
+        color: $body-color;
         margin-right: 0.25em;
       }
     }
@@ -3163,12 +3205,12 @@ header#title-block-header {
     scroll-margin-top: $_space-md;
 
     sup {
-      color: $_fg;
+      color: $body-color;
       margin-right: 0.25em;
     }
 
     a {
-      color: $_fg;
+      color: $body-color;
       text-decoration: none;
 
       &:hover {
@@ -3195,7 +3237,7 @@ header#title-block-header {
     }
 
     a {
-      color: $_fg;
+      color: $body-color;
       text-decoration: none;
 
       &:hover {
@@ -3223,7 +3265,7 @@ header#title-block-header {
     }
 
     .mc-academic-abstract-content {
-      color: rgba($_fg, 0.9);
+      color: rgba($body-color, 0.9);
 
       p:last-child {
         margin-bottom: 0;
@@ -3246,7 +3288,7 @@ header#title-block-header {
     }
 
     .mc-academic-keywords-list {
-      color: $_fg;
+      color: $body-color;
     }
   }
 }
@@ -3256,7 +3298,7 @@ header#title-block-header {
 // ===========================
 .mc-style-professional {
   padding: $_space-xl 0 $_space-lg;
-  border-bottom: 4px solid $_fg;
+  border-bottom: 4px solid $body-color;
 
   // Top meta: category and date
   .mc-professional-meta-top {
@@ -3269,7 +3311,7 @@ header#title-block-header {
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.15em;
-      color: $_fg;
+      color: $body-color;
       font-weight: 600;
     }
 
@@ -3301,7 +3343,7 @@ header#title-block-header {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: $_fg;
+    background: $body-color;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3312,7 +3354,7 @@ header#title-block-header {
       content: '';
       width: 20px;
       height: 20px;
-      background-color: $_bg;
+      background-color: $body-bg;
       mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>');
       mask-size: contain;
       mask-repeat: no-repeat;
@@ -3325,7 +3367,7 @@ header#title-block-header {
   .mc-professional-author-info {
     .mc-professional-author-name {
       font-weight: 600;
-      color: $_fg;
+      color: $body-color;
 
       a {
         color: inherit;
@@ -3349,10 +3391,10 @@ header#title-block-header {
     margin: 1.5rem 0;
     padding: 1.25rem;
     background: linear-gradient(135deg, var(--mc-surface) 0%, transparent 100%);
-    border-left: 3px solid $_fg;
+    border-left: 3px solid $body-color;
     font-size: 1.05rem;
     line-height: 1.6;
-    color: $_fg;
+    color: $body-color;
 
     p {
       margin: 0;
@@ -3370,8 +3412,8 @@ header#title-block-header {
   .mc-professional-keyword {
     font-size: 0.75rem;
     padding: 0.35em 0.75em;
-    background: $_fg;
-    color: $_bg;
+    background: $body-color;
+    color: $body-bg;
     border-radius: 2px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -3389,7 +3431,7 @@ header#title-block-header {
     gap: $_space-lg;
 
     a {
-      color: $_fg;
+      color: $body-color;
       text-decoration: none;
 
       &:hover {
@@ -3404,8 +3446,8 @@ header#title-block-header:has(.mc-style-professional) {
   padding-bottom: 0;
 
   .quarto-title {
-    background: linear-gradient(135deg, $_bg 0%, darken($_bg, 8%) 100%);
-    color: $_fg;
+    background: linear-gradient(135deg, $body-bg 0%, darken($body-bg, 8%) 100%);
+    color: $body-color;
     padding: 3rem 2rem 2.5rem;
     margin: 0 -1rem 0;
     position: relative;
@@ -3418,7 +3460,7 @@ header#title-block-header:has(.mc-style-professional) {
       position: absolute;
       width: 20px;
       height: 20px;
-      border-color: $_fg;
+      border-color: $body-color;
       border-style: solid;
       pointer-events: none;
     }
@@ -3443,7 +3485,7 @@ header#title-block-header:has(.mc-style-professional) {
       letter-spacing: -0.02em;
       line-height: 1.1;
       margin-bottom: $_space-md;
-      color: $_fg;
+      color: $body-color;
       position: relative;
 
       @media (max-width: $_breakpoint-sm) {
@@ -3454,7 +3496,7 @@ header#title-block-header:has(.mc-style-professional) {
     .subtitle {
       font-size: 1.1rem;
       font-weight: 400;
-      color: rgba($_fg, 0.7);
+      color: rgba($body-color, 0.7);
       margin-bottom: 0;
       max-width: 600px;
       position: relative;
@@ -3519,7 +3561,7 @@ h6,
   // Override any default border colors with theme variables
   &[style*="border-bottom"],
   &:not(:where(.nav-footer *, .navbar *, .sidebar *, nav#TOC *)) {
-    border-bottom-color: rgba($_fg, 0.15) !important;
+    border-bottom-color: rgba($body-color, 0.15) !important;
   }
 }
 
@@ -3527,7 +3569,7 @@ h6,
 h2,
 .h2 {
   &:not(:where(.nav-footer *, .navbar *, .sidebar *, nav#TOC *, .card-title)) {
-    border-bottom-color: rgba($_fg, 0.15);
+    border-bottom-color: rgba($body-color, 0.15);
   }
 }
 
@@ -3541,21 +3583,22 @@ main {
     position: relative;
     transition: all $_anim-standard $_easing-standard;
     cursor: default;
+    padding-bottom: 4px;
 
     // Remove default border for animated version
     border-bottom: none !important;
 
-    // Animated underline effect on hover
+    // Gradient underline: always visible, extends on hover
     &::after {
       content: '';
       position: absolute;
-      bottom: -2px;
+      bottom: 0;
       left: 0;
-      width: 0;
+      width: 40px;
       height: 2px;
       background: linear-gradient(90deg,
-          $_fg 0%,
-          rgba($_fg, 0.4) 100%);
+          $body-color 0%,
+          rgba($body-color, 0.4) 100%);
       transition: width $_anim-slow $_easing-standard;
       border-radius: 1px;
     }
@@ -3565,17 +3608,33 @@ main {
     }
   }
 
-  // Different widths for different heading levels
+  // Different resting/hover widths per heading level
+  h2.anchored::after {
+    width: 50px;
+  }
+
   h2.anchored:hover::after {
     width: 100px;
+  }
+
+  h3.anchored::after {
+    width: 40px;
   }
 
   h3.anchored:hover::after {
     width: 80px;
   }
 
+  h4.anchored::after {
+    width: 30px;
+  }
+
   h4.anchored:hover::after {
     width: 60px;
+  }
+
+  h5.anchored::after {
+    width: 25px;
   }
 
   h5.anchored:hover::after {

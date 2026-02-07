@@ -1,6 +1,7 @@
 website:
   sidebar:
     - id: api
+      align: center
       collapse-level: 2
       contents:
         - section: "API Reference"

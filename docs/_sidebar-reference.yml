@@ -1,6 +1,7 @@
 website:
   sidebar:
     - id: reference
+      align: center
       collapse-level: 2
       contents:
         - section: "Reference"

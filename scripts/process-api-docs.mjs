@@ -480,6 +480,7 @@ ${moduleEntries}`;
 	const content = `website:
   sidebar:
     - id: api
+      align: center
       collapse-level: 2
       contents:
         - section: "API Reference"
@@ -796,6 +797,7 @@ function generateReferenceSidebar() {
 	const content = `website:
   sidebar:
     - id: reference
+      align: center
       collapse-level: 2
       contents:
         - section: "Reference"

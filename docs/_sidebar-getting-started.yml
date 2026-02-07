@@ -1,0 +1,15 @@
+website:
+  sidebar:
+    - id: getting-started
+      align: center
+      collapse-level: 2
+      contents:
+        - section: "Getting Started"
+          href: getting-started/index.qmd
+          contents:
+            - getting-started/installation.qmd
+            - getting-started/installing-extensions.qmd
+            - getting-started/explorer-view.qmd
+            - getting-started/using-templates.qmd
+            - getting-started/reproducible-docs.qmd
+            - getting-started/troubleshooting.qmd

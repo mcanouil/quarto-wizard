@@ -11,13 +11,13 @@ color:
     dark: "#1e0808"
     light: "#faf3ed"
   foreground:
-    dark: "#e07c42"
+    dark: "#e2854e"
     light: "#451212"
   dark:
     dark: "#1e0808"
     light: "#451212"
   light:
-    dark: "#e07c42"
+    dark: "#e2854e"
     light: "#faf3ed"
 typography:
   fonts:

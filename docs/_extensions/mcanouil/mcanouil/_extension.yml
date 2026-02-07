@@ -1,8 +1,8 @@
 title: Mickaël Canouil's Brand
 author: Mickaël Canouil
-version: 0.14.0
+version: 0.15.5
 quarto-required: ">=1.9.17"
-source: mcanouil/quarto-mcanouil@0.14.0
+source: mcanouil/quarto-mcanouil@0.15.5
 contributes:
   formats:
     common:
@@ -25,6 +25,8 @@ contributes:
       lang: en
       code-copy: true
       code-overflow: wrap
+      code-link: false
+      code-tools: false
       date: today
       date-format: dddd[, the] Do [of] MMMM, YYYY
       mermaid:
@@ -54,6 +56,7 @@ contributes:
         - html/partials/_title-metadata-academic.html
         - html/partials/_title-metadata-professional.html
         - html/partials/_title-meta-author.html
+      respect-user-color-scheme: true
       theme:
         light:
           - cosmo
@@ -262,22 +265,12 @@ contributes:
       repo-link-rel: noopener noreferrer
       navbar:
         background: dark
+        foreground: light
         search: true
         logo:
           light: light
           dark: dark
         logo-alt: Mickaël CANOUIL logo
-      sidebar:
-        background: dark
-        search: true
-        logo:
-          light: light
-          dark: dark
-        logo-alt: Mickaël CANOUIL logo
-        pinned: true
-        align: center
-        style: docked
-        collapse-level: 2
       page-footer:
         border: true
         left: |

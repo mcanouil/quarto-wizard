@@ -56,5 +56,17 @@ defaults:
       tooltip-color: $background
       tooltip-bg: $foreground
       btn-close-color: $foreground
+      # # Navbar (complements metadata "background: dark")
+      # navbar-bg: $dark
+      # navbar-fg: $light
+      # navbar-hl: $light
+      # # Footer
+      # footer-bg: $dark
+      # footer-fg: $light
+      # footer-hl: $light
+      # # Sidebar (complements metadata "background: dark")
+      # sidebar-bg: $dark
+      # sidebar-fg: $light
+      # sidebar-hl: $light
     rules: |
       // CSS Rules
