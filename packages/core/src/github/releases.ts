@@ -10,6 +10,7 @@
 import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
+import { USER_AGENT } from "../constants.js";
 import { AuthenticationError, NetworkError, RepositoryNotFoundError, VersionError } from "../errors.js";
 import { fetchJson } from "../registry/http.js";
 
@@ -119,7 +120,7 @@ export interface ResolvedVersion {
 function getGitHubHeaders(auth?: AuthConfig): Record<string, string> {
 	return {
 		Accept: "application/vnd.github.v3+json",
-		"User-Agent": "quarto-wizard",
+		"User-Agent": USER_AGENT,
 		...getAuthHeaders(auth, true),
 	};
 }

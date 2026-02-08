@@ -9,6 +9,7 @@
 
 import { CancellationError, NetworkError } from "../errors.js";
 import { proxyFetch } from "../proxy/index.js";
+import { USER_AGENT } from "../constants.js";
 
 /**
  * Options for HTTP requests.
@@ -168,7 +169,7 @@ async function fetchWithRetry<T>(
 export async function fetchJson<T>(url: string, options: HttpOptions = {}): Promise<T> {
 	return fetchWithRetry<T>(
 		url,
-		{ Accept: "application/json", "User-Agent": "quarto-wizard" },
+		{ Accept: "application/json", "User-Agent": USER_AGENT },
 		(response) => response.json() as Promise<T>,
 		options,
 	);
@@ -182,5 +183,5 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
  * @returns Response text
  */
 export async function fetchText(url: string, options: HttpOptions = {}): Promise<string> {
-	return fetchWithRetry<string>(url, { "User-Agent": "quarto-wizard" }, (response) => response.text(), options);
+	return fetchWithRetry<string>(url, { "User-Agent": USER_AGENT }, (response) => response.text(), options);
 }

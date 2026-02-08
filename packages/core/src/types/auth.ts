@@ -73,10 +73,20 @@ export function createAuthConfig(options: AuthConfigOptions = {}): AuthConfig {
 			throw new Error(`Invalid header format: "${header}". Expected "Name: Value".`);
 		}
 
-		headers.push({
-			name: header.substring(0, colonIndex).trim(),
-			value: header.substring(colonIndex + 1).trim(),
-		});
+		const name = header.substring(0, colonIndex).trim();
+		const value = header.substring(colonIndex + 1).trim();
+
+		if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+			throw new Error(
+				`Invalid header name "${name}": only alphanumeric characters, hyphens, and underscores are allowed.`,
+			);
+		}
+
+		if (/[\r\n]/.test(value)) {
+			throw new Error(`Invalid header value for "${name}": value must not contain newline characters.`);
+		}
+
+		headers.push({ name, value });
 	}
 
 	const githubToken = options.githubToken ?? process.env["GITHUB_TOKEN"] ?? process.env["QUARTO_WIZARD_TOKEN"];

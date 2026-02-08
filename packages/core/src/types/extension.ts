@@ -66,6 +66,7 @@ export function parseExtensionId(input: string): ExtensionId {
 		}
 	}
 
+	validateIdSegment(trimmed, "name");
 	return { owner: null, name: trimmed };
 }
 

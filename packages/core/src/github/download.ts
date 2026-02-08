@@ -13,6 +13,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
+import { USER_AGENT } from "../constants.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { CancellationError, NetworkError } from "../errors.js";
 import { formatSize, validateUrlProtocol } from "../archive/security.js";
@@ -151,7 +152,7 @@ export async function downloadArchive(
 	}
 
 	const headers: Record<string, string> = {
-		"User-Agent": "quarto-wizard",
+		"User-Agent": USER_AGENT,
 		...getAuthHeaders(auth, githubLikeHost),
 	};
 

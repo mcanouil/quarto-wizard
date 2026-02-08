@@ -162,13 +162,16 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		this.refreshAllExtensionsDataAsync()
 			.then(() => {
 				this.checkUpdate(context, view).catch((error) => {
-					logMessage(`Failed to check for updates: ${error instanceof Error ? error.message : String(error)}`, "error");
+					logMessage(
+						`Failed to check for updates: ${error instanceof Error ? error.message : String(error)}.`,
+						"error",
+					);
 				});
 				this._onDidChangeTreeData.fire();
 			})
 			.catch((error) => {
 				logMessage(
-					`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}`,
+					`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}.`,
 					"error",
 				);
 			});
@@ -178,7 +181,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		// Synchronous initialization - starts async refresh in background
 		this.refreshAllExtensionsDataAsync().catch((error) => {
 			logMessage(
-				`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}`,
+				`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}.`,
 				"error",
 			);
 		});

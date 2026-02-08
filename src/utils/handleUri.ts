@@ -41,7 +41,7 @@ async function handleUriAction(
 	const repo = new URLSearchParams(uri.query).get("repo");
 	if (!repo || !/^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(repo)) {
 		if (repo) {
-			logMessage(`Invalid repo format in URI: ${repo}`, "warn");
+			logMessage(`Invalid repo format in URI: ${repo}.`, "warn");
 		}
 		return;
 	}
@@ -100,7 +100,7 @@ export async function handleUri(uri: vscode.Uri, context: vscode.ExtensionContex
 			await handleUriUse(uri, context);
 			break;
 		default:
-			logMessage(`Unsupported path: ${uri.path}`, "warn");
+			logMessage(`Unsupported path: ${uri.path}.`, "warn");
 			break;
 	}
 }

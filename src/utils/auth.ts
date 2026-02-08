@@ -63,7 +63,7 @@ export async function getAuthConfig(
 	} catch (error) {
 		// Only log if it's not a user cancellation
 		if (error instanceof Error && !error.message.includes("User did not consent")) {
-			logMessage(`GitHub authentication error: ${error.message}`, "warn");
+			logMessage(`GitHub authentication error: ${error.message}.`, "warn");
 		}
 	}
 

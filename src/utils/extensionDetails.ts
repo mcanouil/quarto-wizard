@@ -107,8 +107,9 @@ async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 100
 
 		return extensionDetailsList;
 	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : String(error);
 		const message = `Error fetching list of extensions from ${url}.`;
-		logMessage(`${message} ${error}`, "error");
+		logMessage(`${message} ${errorMsg}.`, "error");
 		return [];
 	}
 }

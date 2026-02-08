@@ -60,7 +60,7 @@ function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promi
 			return true;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			logMessage(`Error showing confirmation dialog: ${message}`, "error");
+			logMessage(`Error showing confirmation dialog: ${message}.`, "error");
 			return false;
 		}
 	};
@@ -559,7 +559,7 @@ export function createFileSelectionCallback(): (
 					resolve({ selectedFiles, overwriteExisting });
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error);
-					logMessage(`Error in file selection: ${message}`, "error");
+					logMessage(`Error in file selection: ${message}.`, "error");
 					resolve(null);
 				}
 			});

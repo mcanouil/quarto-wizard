@@ -350,7 +350,7 @@ export async function showExtensionQuickPick(
 	quickPick.onDidTriggerItemButton((e) => {
 		const url = e.item.url;
 		if (url) {
-			vscode.env.openExternal(vscode.Uri.parse(url));
+			void vscode.env.openExternal(vscode.Uri.parse(url));
 		}
 	});
 

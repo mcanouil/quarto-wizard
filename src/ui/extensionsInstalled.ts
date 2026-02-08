@@ -61,7 +61,7 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.openSource", (item: ExtensionTreeItem) => {
 				if (item.repository) {
 					const url = `https://github.com/${item.repository}`;
-					vscode.env.openExternal(vscode.Uri.parse(url));
+					void vscode.env.openExternal(vscode.Uri.parse(url));
 				}
 			}),
 		);
@@ -117,7 +117,7 @@ export class ExtensionsInstalled {
 								`${getShowLogsLink()}.`,
 						);
 					} else {
-						vscode.window.showErrorMessage(`Failed to update extension ${item.label}. ${getShowLogsLink()}.`);
+						vscode.window.showErrorMessage(`Failed to update extension "${item.label}". ${getShowLogsLink()}.`);
 					}
 				}
 				// result === null means cancelled by user, no message needed
@@ -152,7 +152,9 @@ export class ExtensionsInstalled {
 					// Early return if resourceUri is not available
 					if (!item.resourceUri) {
 						logMessage(`Cannot reveal "${item.label}": resource URI not available.`, "warn");
-						vscode.window.showWarningMessage(`Cannot reveal extension "${item.label}" in Explorer.`);
+						vscode.window.showWarningMessage(
+							`Cannot reveal extension "${item.label}" in Explorer. ${getShowLogsLink()}.`,
+						);
 						return;
 					}
 
@@ -160,8 +162,10 @@ export class ExtensionsInstalled {
 					try {
 						await vscode.workspace.fs.stat(item.resourceUri);
 					} catch {
-						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}`, "warn");
-						vscode.window.showWarningMessage(`Extension directory for "${item.label}" not found.`);
+						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}.`, "warn");
+						vscode.window.showWarningMessage(
+							`Extension directory for "${item.label}" not found. ${getShowLogsLink()}.`,
+						);
 						return;
 					}
 

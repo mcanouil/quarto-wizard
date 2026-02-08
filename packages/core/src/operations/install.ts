@@ -558,11 +558,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
  * @internal
  * Exported for testing purposes only. Not part of the public API.
  */
-export function resolveExtensionId(
-	source: InstallSource,
-	extensionRoot: string,
-	_manifest: ExtensionManifest, // eslint-disable-line @typescript-eslint/no-unused-vars
-): ExtensionId {
+export function resolveExtensionId(source: InstallSource, extensionRoot: string): ExtensionId {
 	if (source.type === "github") {
 		return { owner: source.owner, name: source.repo };
 	}

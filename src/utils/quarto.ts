@@ -18,6 +18,8 @@ import {
 	type AuthConfig,
 	type DiscoveredExtension,
 	type ExtensionManifest,
+	type RemoveResult,
+	type ExtensionId,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 import { handleAuthError } from "./auth";
@@ -87,7 +89,7 @@ async function retryWithFreshAuth<T>(
 		return await retryFn(freshAuth);
 	} catch (retryError) {
 		const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
-		logMessage(`${prefix} Retry failed: ${retryMessage}`, "error");
+		logMessage(`${prefix} Retry failed: ${retryMessage}.`, "error");
 		return fallbackValue;
 	}
 }
@@ -136,7 +138,7 @@ function createValidateQuartoVersionCallback(
 		const validation = validateQuartoRequirement(required, quartoInfo.version);
 
 		if (!validation.valid) {
-			logMessage(`${prefix} Version requirement not met: ${validation.message}`, "warn");
+			logMessage(`${prefix} Version requirement not met: ${validation.message}.`, "warn");
 
 			const action = await vscode.window.showWarningMessage(
 				`${validation.message}`,
@@ -222,7 +224,7 @@ export async function installQuartoExtension(
 		return await doInstall(source, auth);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}.`, "error");
 		return retryWithFreshAuth(
 			prefix,
 			error,
@@ -270,7 +272,7 @@ export async function removeQuartoExtension(extension: string, workspaceFolder: 
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}.`, "error");
 		return false;
 	}
 }
@@ -295,7 +297,7 @@ export async function removeQuartoExtensions(
 	workspaceFolder: string,
 ): Promise<BatchRemoveResult> {
 	const prefix = `[batch-remove]`;
-	logMessage(`${prefix} Removing ${extensions.length} extension(s): ${extensions.join(", ")}`, "info");
+	logMessage(`${prefix} Removing ${extensions.length} extension(s): ${extensions.join(", ")}.`, "info");
 
 	if (!workspaceFolder) {
 		logMessage(`${prefix} No workspace folder specified.`, "error");
@@ -310,19 +312,18 @@ export async function removeQuartoExtensions(
 			cleanupEmpty: true,
 		});
 
-		const successCount = results.filter((r) => "success" in r && r.success).length;
-		const failedExtensions = results
-			.filter((r) => "error" in r)
-			.map((r) => {
-				const failed = r as { extensionId: { owner: string | null; name: string }; error: string };
-				return formatExtensionId(failed.extensionId);
-			});
+		const isRemoveError = (
+			r: RemoveResult | { extensionId: ExtensionId; error: string },
+		): r is { extensionId: ExtensionId; error: string } => "error" in r;
+
+		const successCount = results.filter((r) => !isRemoveError(r) && r.success).length;
+		const failedExtensions = results.filter(isRemoveError).map((r) => formatExtensionId(r.extensionId));
 
 		if (successCount > 0) {
 			logMessage(`${prefix} Successfully removed ${successCount} extension(s).`, "info");
 		}
 		if (failedExtensions.length > 0) {
-			logMessage(`${prefix} Failed to remove: ${failedExtensions.join(", ")}`, "error");
+			logMessage(`${prefix} Failed to remove: ${failedExtensions.join(", ")}.`, "error");
 		}
 
 		void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
@@ -330,7 +331,7 @@ export async function removeQuartoExtensions(
 		return { successCount, failedExtensions };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}.`, "error");
 		return { successCount: 0, failedExtensions: extensions };
 	}
 }
@@ -461,7 +462,7 @@ export async function useQuartoExtension(
 		return await doUse(source, auth);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}.`, "error");
 		return retryWithFreshAuth(
 			prefix,
 			error,
@@ -587,7 +588,7 @@ export async function useQuartoBrand(
 			return null;
 		}
 		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}`, "error");
+		logMessage(`${prefix} Error: ${message}.`, "error");
 		return retryWithFreshAuth(prefix, error, cancellationToken, (freshAuth) => doBrand(freshAuth), null);
 	}
 }
