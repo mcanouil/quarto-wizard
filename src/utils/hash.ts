@@ -7,5 +7,5 @@ import * as crypto from "crypto";
  * @returns {string} - The generated hash key in hexadecimal format.
  */
 export function generateHashKey(input: string): string {
-	return crypto.createHash("md5").update(input).digest("hex");
+	return crypto.createHash("sha256").update(input).digest("hex");
 }

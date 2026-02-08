@@ -1,68 +1,42 @@
 import * as assert from "assert";
-import * as vscode from "vscode";
-import { getShowLogsLink, logMessage, logMessageDebounced, resetLogLevelCache, type LogLevel } from "../../utils/log";
+import { getShowLogsLink, logMessage, logMessageDebounced, type LogLevel } from "../../utils/log";
 import * as constants from "../../constants";
 
-interface MockOutputChannel {
-	appendLine: (message: string) => void;
+interface MockLogOutputChannel {
+	info: (message: string) => void;
+	warn: (message: string) => void;
+	error: (message: string) => void;
+	debug: (message: string) => void;
 }
 
 suite("Log Utils Test Suite", () => {
-	let originalGetConfiguration: typeof vscode.workspace.getConfiguration;
-	let originalQwLog: MockOutputChannel;
-	let mockConfig: {
-		get<T>(key: string): T | undefined;
-		update(key: string, value: unknown): Promise<void>;
-		has(section: string): boolean;
-		inspect(section: string): unknown;
-	};
-	let configValues: Record<string, unknown>;
-	let logMessages: string[];
+	let originalQwLog: MockLogOutputChannel;
+	let loggedMessages: { level: string; message: string }[];
 
 	setup(() => {
-		// Store original methods
-		originalGetConfiguration = vscode.workspace.getConfiguration;
+		loggedMessages = [];
 
-		// Reset test state
-		configValues = {};
-		logMessages = [];
-
-		// Mock configuration
-		mockConfig = {
-			get<T>(key: string): T | undefined {
-				return configValues[key] as T;
+		// Mock QW_LOG from constants with LogOutputChannel-style methods
+		originalQwLog = (constants as { QW_LOG: MockLogOutputChannel }).QW_LOG;
+		(constants as { QW_LOG: MockLogOutputChannel }).QW_LOG = {
+			info: (message: string) => {
+				loggedMessages.push({ level: "info", message });
 			},
-			async update(key: string, value: unknown): Promise<void> {
-				configValues[key] = value;
+			warn: (message: string) => {
+				loggedMessages.push({ level: "warn", message });
 			},
-			has(section: string): boolean {
-				return section in configValues;
+			error: (message: string) => {
+				loggedMessages.push({ level: "error", message });
 			},
-			inspect(section: string): unknown {
-				return { key: section };
+			debug: (message: string) => {
+				loggedMessages.push({ level: "debug", message });
 			},
 		};
-
-		vscode.workspace.getConfiguration = () => mockConfig as vscode.WorkspaceConfiguration;
-
-		// Mock QW_LOG from constants
-		originalQwLog = (constants as { QW_LOG: MockOutputChannel }).QW_LOG;
-		(constants as { QW_LOG: MockOutputChannel }).QW_LOG = {
-			appendLine: (message: string) => {
-				logMessages.push(message);
-			},
-		};
-
-		// Reset the log level cache so each test reads fresh config
-		resetLogLevelCache();
 	});
 
 	teardown(() => {
-		// Restore original methods
-		vscode.workspace.getConfiguration = originalGetConfiguration;
-
 		// Restore QW_LOG
-		(constants as { QW_LOG: MockOutputChannel }).QW_LOG = originalQwLog;
+		(constants as { QW_LOG: MockLogOutputChannel }).QW_LOG = originalQwLog;
 	});
 
 	suite("getShowLogsLink", () => {
@@ -82,146 +56,81 @@ suite("Log Utils Test Suite", () => {
 	});
 
 	suite("logMessage", () => {
-		test("should log message when type is at configured log level", () => {
-			configValues.level = "info";
-
+		test("should log info message using native info method", () => {
 			logMessage("Test message", "info");
 
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Test message");
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].level, "info");
+			assert.strictEqual(loggedMessages[0].message, "Test message");
 		});
 
-		test("should log message when type is below configured log level", () => {
-			configValues.level = "debug";
-
+		test("should log error message using native error method", () => {
 			logMessage("Error message", "error");
 
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Error message");
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].level, "error");
+			assert.strictEqual(loggedMessages[0].message, "Error message");
 		});
 
-		test("should not log message when type is above configured log level", () => {
-			configValues.level = "error";
+		test("should log warn message using native warn method", () => {
+			logMessage("Warning message", "warn");
 
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].level, "warn");
+			assert.strictEqual(loggedMessages[0].message, "Warning message");
+		});
+
+		test("should log debug message using native debug method", () => {
 			logMessage("Debug message", "debug");
 
-			assert.strictEqual(logMessages.length, 0);
-		});
-
-		test("should use default log level 'info' when config is undefined", () => {
-			configValues.level = undefined;
-
-			logMessage("Test message", "info");
-
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Test message");
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].level, "debug");
+			assert.strictEqual(loggedMessages[0].message, "Debug message");
 		});
 
 		test("should use default message type 'info' when not specified", () => {
-			configValues.level = "info";
-
 			logMessage("Test message");
 
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Test message");
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].level, "info");
+			assert.strictEqual(loggedMessages[0].message, "Test message");
 		});
 
-		test("should handle all log levels correctly", () => {
-			configValues.level = "debug";
-
-			// All levels should be logged when log level is debug
-			logMessage("Error message", "error");
-			logMessage("Warning message", "warn");
-			logMessage("Info message", "info");
-			logMessage("Debug message", "debug");
-
-			assert.strictEqual(logMessages.length, 4);
-			assert.strictEqual(logMessages[0], "Error message");
-			assert.strictEqual(logMessages[1], "Warning message");
-			assert.strictEqual(logMessages[2], "Info message");
-			assert.strictEqual(logMessages[3], "Debug message");
-		});
-
-		test("should respect error level filtering", () => {
-			configValues.level = "error";
-
-			logMessage("Error message", "error");
-			logMessage("Warning message", "warn");
-			logMessage("Info message", "info");
-			logMessage("Debug message", "debug");
-
-			// Only error should be logged
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Error message");
-		});
-
-		test("should respect warn level filtering", () => {
-			configValues.level = "warn";
-
-			logMessage("Error message", "error");
-			logMessage("Warning message", "warn");
-			logMessage("Info message", "info");
-			logMessage("Debug message", "debug");
-
-			// Only error and warn should be logged
-			assert.strictEqual(logMessages.length, 2);
-			assert.strictEqual(logMessages[0], "Error message");
-			assert.strictEqual(logMessages[1], "Warning message");
-		});
-
-		test("should respect info level filtering", () => {
-			configValues.level = "info";
-
-			logMessage("Error message", "error");
-			logMessage("Warning message", "warn");
-			logMessage("Info message", "info");
-			logMessage("Debug message", "debug");
-
-			// Error, warn, and info should be logged
-			assert.strictEqual(logMessages.length, 3);
-			assert.strictEqual(logMessages[0], "Error message");
-			assert.strictEqual(logMessages[1], "Warning message");
-			assert.strictEqual(logMessages[2], "Info message");
-		});
-
-		test("should handle unknown log levels gracefully", () => {
-			configValues.level = "unknown";
-
-			logMessage("Test message", "info");
-
-			// Invalid config levels fall back to "info", so info messages are logged.
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Test message");
-		});
-
-		test("should handle unknown message types gracefully", () => {
-			configValues.level = "info";
-
+		test("should handle unknown message types by falling through to info", () => {
 			logMessage("Test message", "unknown" as LogLevel);
 
-			// Unknown message type has indexOf -1, which is <= any valid level index
-			// So it will actually log the message (this is the current behaviour)
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Test message");
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].level, "info");
+			assert.strictEqual(loggedMessages[0].message, "Test message");
+		});
+
+		test("should route each log level to its native method", () => {
+			logMessage("Error message", "error");
+			logMessage("Warning message", "warn");
+			logMessage("Info message", "info");
+			logMessage("Debug message", "debug");
+
+			assert.strictEqual(loggedMessages.length, 4);
+			assert.strictEqual(loggedMessages[0].level, "error");
+			assert.strictEqual(loggedMessages[1].level, "warn");
+			assert.strictEqual(loggedMessages[2].level, "info");
+			assert.strictEqual(loggedMessages[3].level, "debug");
 		});
 
 		test("should handle empty messages", () => {
-			configValues.level = "info";
-
 			logMessage("", "info");
 
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "");
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].message, "");
 		});
 
 		test("should handle multiline messages", () => {
-			configValues.level = "info";
 			const multilineMessage = "Line 1\nLine 2\nLine 3";
 
 			logMessage(multilineMessage, "info");
 
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], multilineMessage);
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].message, multilineMessage);
 		});
 	});
 
@@ -231,21 +140,19 @@ suite("Log Utils Test Suite", () => {
 		});
 
 		test("should delay logging when called multiple times rapidly", (done) => {
-			configValues.level = "info";
-
 			// Call the debounced function multiple times
 			logMessageDebounced("Message 1", "info");
 			logMessageDebounced("Message 2", "info");
 			logMessageDebounced("Message 3", "info");
 
 			// Should not log immediately
-			assert.strictEqual(logMessages.length, 0);
+			assert.strictEqual(loggedMessages.length, 0);
 
 			// Wait for debounce delay (1000ms + buffer)
 			setTimeout(() => {
 				// Should only log the last message after debounce
-				assert.strictEqual(logMessages.length, 1);
-				assert.strictEqual(logMessages[0], "Message 3");
+				assert.strictEqual(loggedMessages.length, 1);
+				assert.strictEqual(loggedMessages[0].message, "Message 3");
 				done();
 			}, 1100);
 		});
@@ -256,23 +163,19 @@ suite("Log Utils Test Suite", () => {
 		});
 
 		test("should flush immediately when flush is called", () => {
-			configValues.level = "info";
-
 			logMessageDebounced("Flush test message", "info");
 
 			// Should not log immediately
-			assert.strictEqual(logMessages.length, 0);
+			assert.strictEqual(loggedMessages.length, 0);
 
 			// Flush should execute immediately
 			logMessageDebounced.flush();
 
-			assert.strictEqual(logMessages.length, 1);
-			assert.strictEqual(logMessages[0], "Flush test message");
+			assert.strictEqual(loggedMessages.length, 1);
+			assert.strictEqual(loggedMessages[0].message, "Flush test message");
 		});
 
 		test("should cancel pending execution when cancel is called", (done) => {
-			configValues.level = "info";
-
 			logMessageDebounced("Cancel test message", "info");
 
 			// Cancel the pending execution
@@ -281,7 +184,7 @@ suite("Log Utils Test Suite", () => {
 			// Wait beyond debounce delay
 			setTimeout(() => {
 				// Should not have logged anything
-				assert.strictEqual(logMessages.length, 0);
+				assert.strictEqual(loggedMessages.length, 0);
 				done();
 			}, 1100);
 		});

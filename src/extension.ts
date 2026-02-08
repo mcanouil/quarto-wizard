@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { QW_LOG, STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "./constants";
-import { getShowLogsLink, logMessage, resetLogLevelCache } from "./utils/log";
+import { getShowLogsLink, logMessage } from "./utils/log";
 import {
 	installQuartoExtensionCommand,
 	useQuartoTemplateCommand,
@@ -27,15 +27,6 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register command to show the extension's output log
 	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.showOutput", () => QW_LOG.show()));
 	logMessage("Quarto Wizard, your magical assistant, is now active!", "info");
-
-	// Invalidate log level cache immediately when configuration changes.
-	context.subscriptions.push(
-		vscode.workspace.onDidChangeConfiguration((e) => {
-			if (e.affectsConfiguration("quartoWizard.log.level")) {
-				resetLogLevelCache();
-			}
-		}),
-	);
 
 	// Register command to clear the recently installed/used extensions cache
 	context.subscriptions.push(

@@ -18,7 +18,7 @@ import {
 	showTypeFilterQuickPick,
 } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
-import { getAuthConfig } from "../utils/auth";
+import { getAuthConfig, logAuthStatus } from "../utils/auth";
 import { promptForGitHubReference, promptForURL, promptForLocalPath, resolveSourcePath } from "../utils/sourcePrompts";
 
 /**
@@ -52,9 +52,7 @@ async function installQuartoExtensions(
 		`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}.`,
 		"info",
 	);
-	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access).", "info");
-	}
+	logAuthStatus(auth);
 
 	await vscode.window.withProgress(
 		{
@@ -298,9 +296,7 @@ async function installFromSource(
 	// Log source and extension (use original source for display)
 	logMessage(`Source: ${type}.`, "info");
 	logMessage(`Extension: ${source}.`, "info");
-	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access).", "info");
-	}
+	logAuthStatus(auth);
 
 	await vscode.window.withProgress(
 		{
@@ -444,21 +440,7 @@ export async function installExtensionFromURLCommand(context: vscode.ExtensionCo
 		return;
 	}
 
-	const url = await vscode.window.showInputBox({
-		prompt: "Enter the URL to the extension archive (zip or tar.gz)",
-		placeHolder: "https://github.com/owner/repo/archive/refs/heads/main.zip",
-		ignoreFocusOut: true,
-		validateInput: (value) => {
-			if (!value) {
-				return "URL is required.";
-			}
-			if (!value.startsWith("http://") && !value.startsWith("https://")) {
-				return "URL must start with http:// or https://";
-			}
-			return null;
-		},
-	});
-
+	const url = await promptForURL();
 	if (!url) {
 		return;
 	}

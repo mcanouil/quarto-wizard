@@ -21,6 +21,7 @@ import {
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 import { handleAuthError } from "./auth";
+import { formatExtensionId } from "./extensions";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
 import { showExtensionSelectionQuickPick } from "../ui/extensionSelectionQuickPick";
@@ -106,7 +107,7 @@ function createConfirmOverwriteCallback(
 		if (skipPrompt) {
 			return true;
 		}
-		const extId = extension.id.owner ? `${extension.id.owner}/${extension.id.name}` : extension.id.name;
+		const extId = formatExtensionId(extension.id);
 		const action = await vscode.window.showWarningMessage(
 			`Extension "${extId}" already exists. Overwrite?`,
 			{ modal: true },
@@ -314,9 +315,7 @@ export async function removeQuartoExtensions(
 			.filter((r) => "error" in r)
 			.map((r) => {
 				const failed = r as { extensionId: { owner: string | null; name: string }; error: string };
-				return failed.extensionId.owner
-					? `${failed.extensionId.owner}/${failed.extensionId.name}`
-					: failed.extensionId.name;
+				return formatExtensionId(failed.extensionId);
 			});
 
 		if (successCount > 0) {
@@ -350,7 +349,7 @@ async function showExtensionOverwriteConfirmation(
 		return [];
 	}
 
-	const extNames = extensions.map((ext) => (ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name)).join(", ");
+	const extNames = extensions.map((ext) => formatExtensionId(ext.id)).join(", ");
 
 	const message =
 		extensions.length === 1
