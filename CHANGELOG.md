@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- feat: add `Quarto Wizard: Use Brand` command to download and apply a Quarto brand to the project's `_brand/` directory, supporting GitHub, URL, and local sources.
+
+### Bug Fixes
+
+- fix: clear tree view badge when no updates are available instead of showing "0 updates".
+- fix: hide "Update" button for extensions with unknown versions in the registry.
+- fix: allow cancelling update and update-all operations from the progress notification.
+- fix: display correct contribution types in extension details instead of listing all possible types.
+- fix: show "N/A" instead of "undefined" for missing fields in extension details.
+
+### Refactoring
+
+- refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
+
 ## 2.1.3 (2026-02-05)
 
 - docs: update website theme and display proper license.

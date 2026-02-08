@@ -7,8 +7,9 @@
  * @module registry
  */
 
-import { NetworkError } from "../errors.js";
+import { CancellationError, NetworkError } from "../errors.js";
 import { proxyFetch } from "../proxy/index.js";
+import { USER_AGENT } from "../constants.js";
 
 /**
  * Options for HTTP requests.
@@ -22,6 +23,8 @@ export interface HttpOptions {
 	retryDelay?: number;
 	/** Custom headers to include. */
 	headers?: Record<string, string>;
+	/** AbortSignal for cancellation. */
+	signal?: AbortSignal;
 }
 
 const DEFAULT_TIMEOUT = 30000;
@@ -36,9 +39,22 @@ const DEFAULT_RETRY_DELAY = 1000;
  * @param timeout - Timeout in milliseconds
  * @returns Response
  */
-async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
+async function fetchWithTimeout(
+	url: string,
+	options: RequestInit,
+	timeout: number,
+	externalSignal?: AbortSignal,
+): Promise<Response> {
+	if (externalSignal?.aborted) {
+		throw new CancellationError();
+	}
+
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+	// Link external signal to internal controller so callers can cancel
+	const onExternalAbort = () => controller.abort();
+	externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
 
 	try {
 		const response = await proxyFetch(url, {
@@ -48,11 +64,16 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
 		return response;
 	} catch (error) {
 		if (error instanceof Error && error.name === "AbortError") {
+			// Distinguish user cancellation from timeout
+			if (externalSignal?.aborted) {
+				throw new CancellationError();
+			}
 			throw new NetworkError(`Request timed out after ${timeout}ms`, { cause: error });
 		}
 		throw error;
 	} finally {
 		clearTimeout(timeoutId);
+		externalSignal?.removeEventListener("abort", onExternalAbort);
 	}
 }
 
@@ -78,18 +99,26 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Fetch JSON with timeout and retry support.
+ * Fetch with retry support and a response processor.
  *
  * @param url - URL to fetch
+ * @param requestHeaders - Headers to send
+ * @param processResponse - Callback to extract the desired value from the response
  * @param options - HTTP options
- * @returns Parsed JSON response
+ * @returns Processed response value
  */
-export async function fetchJson<T>(url: string, options: HttpOptions = {}): Promise<T> {
+async function fetchWithRetry<T>(
+	url: string,
+	requestHeaders: Record<string, string>,
+	processResponse: (response: Response) => Promise<T>,
+	options: HttpOptions = {},
+): Promise<T> {
 	const {
 		timeout = DEFAULT_TIMEOUT,
 		retries = DEFAULT_RETRIES,
 		retryDelay = DEFAULT_RETRY_DELAY,
 		headers = {},
+		signal,
 	} = options;
 
 	let lastError: Error | undefined;
@@ -101,19 +130,19 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 				{
 					method: "GET",
 					headers: {
-						Accept: "application/json",
-						"User-Agent": "quarto-wizard",
+						...requestHeaders,
 						...headers,
 					},
 				},
 				timeout,
+				signal,
 			);
 
 			if (!response.ok) {
 				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}
 
-			return (await response.json()) as T;
+			return await processResponse(response);
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -123,11 +152,27 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 				continue;
 			}
 
-			throw error;
+			throw lastError;
 		}
 	}
 
 	throw lastError ?? new NetworkError("Request failed after all retries");
+}
+
+/**
+ * Fetch JSON with timeout and retry support.
+ *
+ * @param url - URL to fetch
+ * @param options - HTTP options
+ * @returns Parsed JSON response
+ */
+export async function fetchJson<T>(url: string, options: HttpOptions = {}): Promise<T> {
+	return fetchWithRetry<T>(
+		url,
+		{ Accept: "application/json", "User-Agent": USER_AGENT },
+		(response) => response.json() as Promise<T>,
+		options,
+	);
 }
 
 /**
@@ -138,46 +183,5 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
  * @returns Response text
  */
 export async function fetchText(url: string, options: HttpOptions = {}): Promise<string> {
-	const {
-		timeout = DEFAULT_TIMEOUT,
-		retries = DEFAULT_RETRIES,
-		retryDelay = DEFAULT_RETRY_DELAY,
-		headers = {},
-	} = options;
-
-	let lastError: Error | undefined;
-
-	for (let attempt = 0; attempt <= retries; attempt++) {
-		try {
-			const response = await fetchWithTimeout(
-				url,
-				{
-					method: "GET",
-					headers: {
-						"User-Agent": "quarto-wizard",
-						...headers,
-					},
-				},
-				timeout,
-			);
-
-			if (!response.ok) {
-				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
-			}
-
-			return await response.text();
-		} catch (error) {
-			lastError = error instanceof Error ? error : new Error(String(error));
-
-			if (attempt < retries && isRetryableError(error)) {
-				const delay = retryDelay * Math.pow(2, attempt);
-				await sleep(delay);
-				continue;
-			}
-
-			throw error;
-		}
-	}
-
-	throw lastError ?? new NetworkError("Request failed after all retries");
+	return fetchWithRetry<string>(url, { "User-Agent": USER_AGENT }, (response) => response.text(), options);
 }

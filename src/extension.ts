@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { QW_LOG, QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "./constants";
-import { showLogsCommand, logMessage } from "./utils/log";
+import { QW_LOG, STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "./constants";
+import { getShowLogsLink, logMessage } from "./utils/log";
 import {
 	installQuartoExtensionCommand,
 	useQuartoTemplateCommand,
@@ -10,6 +10,7 @@ import {
 	installExtensionFromLocalCommand,
 } from "./commands/installQuartoExtension";
 import { newQuartoReprexCommand } from "./commands/newQuartoReprex";
+import { useBrandCommand } from "./commands/useBrand";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
@@ -30,11 +31,11 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register command to clear the recently installed/used extensions cache
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearRecent", () => {
-			context.globalState.update(QW_RECENTLY_INSTALLED, []);
-			context.globalState.update(QW_RECENTLY_USED, []);
+			context.globalState.update(STORAGE_KEY_RECENTLY_INSTALLED, []);
+			context.globalState.update(STORAGE_KEY_RECENTLY_USED, []);
 			const message = "Recently installed Quarto extensions have been cleared.";
 			logMessage(message, "info");
-			vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+			vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 		}),
 	);
 
@@ -53,6 +54,11 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register template installation command
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.useTemplate", async () => useQuartoTemplateCommand(context)),
+	);
+
+	// Register brand application command
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.useBrand", async () => useBrandCommand(context)),
 	);
 
 	// Register reproducible document creation command
@@ -76,7 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 			if (token) {
 				await setManualToken(context, token);
-				vscode.window.showInformationMessage(`GitHub token stored securely. ${showLogsCommand()}.`);
+				vscode.window.showInformationMessage(`GitHub token stored securely. ${getShowLogsLink()}.`);
 			}
 		}),
 	);
@@ -86,7 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.clearGitHubToken", async () => {
 			await clearManualToken(context);
 			vscode.window.showInformationMessage(
-				`Manual token cleared. Will use VSCode GitHub session or environment variables. ${showLogsCommand()}.`,
+				`Manual token cleared. Will use VSCode GitHub session or environment variables. ${getShowLogsLink()}.`,
 			);
 		}),
 	);
@@ -117,9 +123,11 @@ export function activate(context: vscode.ExtensionContext) {
 	new ExtensionsInstalled(context);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
-	vscode.window.registerUriHandler({
-		handleUri: (uri: vscode.Uri) => handleUri(uri, context),
-	});
+	context.subscriptions.push(
+		vscode.window.registerUriHandler({
+			handleUri: (uri: vscode.Uri) => handleUri(uri, context),
+		}),
+	);
 }
 
 /**

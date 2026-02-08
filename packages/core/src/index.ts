@@ -22,7 +22,9 @@ export {
 	SecurityError,
 	ManifestError,
 	VersionError,
+	CancellationError,
 	isQuartoWizardError,
+	isCancellationError,
 	wrapError,
 } from "./errors.js";
 

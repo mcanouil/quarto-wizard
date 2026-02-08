@@ -10,6 +10,7 @@
 import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
+import { USER_AGENT } from "../constants.js";
 import { AuthenticationError, NetworkError, RepositoryNotFoundError, VersionError } from "../errors.js";
 import { fetchJson } from "../registry/http.js";
 
@@ -85,6 +86,8 @@ export interface GitHubOptions {
 	timeout?: number;
 	/** Include prereleases when resolving versions. */
 	includePrereleases?: boolean;
+	/** AbortSignal for cancellation. */
+	signal?: AbortSignal;
 }
 
 /**
@@ -117,9 +120,17 @@ export interface ResolvedVersion {
 function getGitHubHeaders(auth?: AuthConfig): Record<string, string> {
 	return {
 		Accept: "application/vnd.github.v3+json",
-		"User-Agent": "quarto-wizard",
+		"User-Agent": USER_AGENT,
 		...getAuthHeaders(auth, true),
 	};
+}
+
+/**
+ * Build a GitHub API URL with encoded path segments.
+ */
+function repoApiUrl(owner: string, repo: string, ...segments: string[]): string {
+	const encoded = segments.map(encodeURIComponent);
+	return `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encoded.join("/")}`;
 }
 
 /**
@@ -140,15 +151,18 @@ export function constructArchiveUrl(
 	format: "zip" | "tarball" = "zip",
 ): string {
 	const ext = format === "zip" ? ".zip" : ".tar.gz";
-	const baseUrl = `https://github.com/${owner}/${repo}/archive`;
+	const encodedOwner = encodeURIComponent(owner);
+	const encodedRepo = encodeURIComponent(repo);
+	const encodedRef = encodeURIComponent(ref);
+	const baseUrl = `https://github.com/${encodedOwner}/${encodedRepo}/archive`;
 
 	switch (refType) {
 		case "tag":
-			return `${baseUrl}/refs/tags/${ref}${ext}`;
+			return `${baseUrl}/refs/tags/${encodedRef}${ext}`;
 		case "branch":
-			return `${baseUrl}/refs/heads/${ref}${ext}`;
+			return `${baseUrl}/refs/heads/${encodedRef}${ext}`;
 		case "commit":
-			return `${baseUrl}/${ref}${ext}`;
+			return `${baseUrl}/${encodedRef}${ext}`;
 	}
 }
 
@@ -187,14 +201,15 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
  * @throws VersionError if branch does not exist
  */
 async function validateBranch(owner: string, repo: string, branch: string, options: GitHubOptions = {}): Promise<void> {
-	const { auth, timeout } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`;
+	const { auth, timeout, signal } = options;
+	const url = repoApiUrl(owner, repo, "branches", branch);
 
 	try {
 		await fetchJson(url, {
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 1,
+			signal,
 		});
 	} catch (error) {
 		if (error instanceof NetworkError && error.statusCode === 404) {
@@ -216,14 +231,15 @@ async function validateBranch(owner: string, repo: string, branch: string, optio
  * @throws VersionError if commit does not exist
  */
 async function validateCommit(owner: string, repo: string, commit: string, options: GitHubOptions = {}): Promise<void> {
-	const { auth, timeout } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${encodeURIComponent(commit)}`;
+	const { auth, timeout, signal } = options;
+	const url = repoApiUrl(owner, repo, "commits", commit);
 
 	try {
 		await fetchJson(url, {
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 1,
+			signal,
 		});
 	} catch (error) {
 		if (error instanceof NetworkError && error.statusCode === 404) {
@@ -249,14 +265,15 @@ export async function fetchReleases(
 	repo: string,
 	options: GitHubOptions = {},
 ): Promise<GitHubRelease[]> {
-	const { auth, timeout, includePrereleases = false } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/releases`;
+	const { auth, timeout, includePrereleases = false, signal } = options;
+	const url = repoApiUrl(owner, repo, "releases");
 
 	try {
 		const raw = await fetchJson<RawRelease[]>(url, {
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 2,
+			signal,
 		});
 
 		return raw
@@ -285,14 +302,15 @@ export async function fetchReleases(
  * @returns Array of tags
  */
 export async function fetchTags(owner: string, repo: string, options: GitHubOptions = {}): Promise<GitHubTag[]> {
-	const { auth, timeout } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/tags`;
+	const { auth, timeout, signal } = options;
+	const url = repoApiUrl(owner, repo, "tags");
 
 	try {
 		const raw = await fetchJson<RawTag[]>(url, {
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 2,
+			signal,
 		});
 
 		return raw.map((t) => ({

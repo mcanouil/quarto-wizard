@@ -26,16 +26,12 @@ describe("parseExtensionId", () => {
 		expect(id.name).toBe("lightbox");
 	});
 
-	it("handles empty owner part", () => {
-		const id = parseExtensionId("/lightbox");
-		expect(id.owner).toBeNull();
-		expect(id.name).toBe("/lightbox");
+	it("rejects empty owner part", () => {
+		expect(() => parseExtensionId("/lightbox")).toThrow(/Invalid extension name/);
 	});
 
-	it("handles multiple slashes by taking first two parts", () => {
-		const id = parseExtensionId("owner/repo/extra");
-		expect(id.owner).toBeNull();
-		expect(id.name).toBe("owner/repo/extra");
+	it("rejects multiple slashes", () => {
+		expect(() => parseExtensionId("owner/repo/extra")).toThrow(/Invalid extension name/);
 	});
 });
 

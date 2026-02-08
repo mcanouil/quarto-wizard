@@ -141,6 +141,27 @@ export class VersionError extends QuartoWizardError {
 }
 
 /**
+ * Error thrown when an operation is cancelled by the user.
+ *
+ * Use this instead of throwing a generic Error with a cancellation message,
+ * so callers can reliably detect cancellation via instanceof rather than
+ * fragile string matching.
+ */
+export class CancellationError extends QuartoWizardError {
+	constructor(message = "Operation cancelled by the user.") {
+		super(message, "CANCELLED");
+		this.name = "CancellationError";
+	}
+}
+
+/**
+ * Check if an error is a CancellationError.
+ */
+export function isCancellationError(error: unknown): error is CancellationError {
+	return error instanceof CancellationError;
+}
+
+/**
  * Check if an error is a QuartoWizardError.
  */
 export function isQuartoWizardError(error: unknown): error is QuartoWizardError {
@@ -158,5 +179,7 @@ export function wrapError(error: unknown, context?: string): QuartoWizardError {
 	const message = error instanceof Error ? error.message : String(error);
 	const contextPrefix = context ? `${context}: ` : "";
 
-	return new QuartoWizardError(`${contextPrefix}${message}`, "UNKNOWN_ERROR");
+	return new QuartoWizardError(`${contextPrefix}${message}`, "UNKNOWN_ERROR", {
+		cause: error instanceof Error ? error : undefined,
+	});
 }

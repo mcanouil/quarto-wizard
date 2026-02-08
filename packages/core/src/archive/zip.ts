@@ -11,12 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as unzipper from "unzipper";
 import { SecurityError } from "../errors.js";
-
-/** Default maximum extraction size: 100 MB. */
-const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
-
-/** Maximum compression ratio allowed. */
-const MAX_COMPRESSION_RATIO = 100;
+import { checkPathTraversal, formatSize, DEFAULT_MAX_SIZE, MAX_COMPRESSION_RATIO, MAX_FILE_COUNT } from "./security.js";
 
 /**
  * Options for ZIP extraction.
@@ -26,17 +21,6 @@ export interface ZipExtractOptions {
 	maxSize?: number;
 	/** Progress callback. */
 	onProgress?: (file: string) => void;
-}
-
-/**
- * Check for path traversal attempts.
- */
-function checkPathTraversal(filePath: string): void {
-	const normalised = path.normalize(filePath);
-
-	if (normalised.includes("..") || path.isAbsolute(normalised)) {
-		throw new SecurityError(`Path traversal detected in archive: "${filePath}"`);
-	}
 }
 
 /**
@@ -58,6 +42,12 @@ export async function extractZip(
 	const compressedSize = stats.size;
 
 	const directory = await unzipper.Open.file(archivePath);
+
+	if (directory.files.length > MAX_FILE_COUNT) {
+		throw new SecurityError(
+			`Archive contains too many entries: ${directory.files.length} > ${MAX_FILE_COUNT}. This may indicate a file bomb.`,
+		);
+	}
 
 	let totalUncompressedSize = 0;
 	for (const file of directory.files) {
@@ -85,6 +75,8 @@ export async function extractZip(
 
 	const extractedFiles: string[] = [];
 
+	let extractedSize = 0;
+
 	for (const file of directory.files) {
 		const destPath = path.join(destDir, file.path);
 
@@ -93,29 +85,30 @@ export async function extractZip(
 			continue;
 		}
 
+		// Reject symlinks: the Unix mode is stored in the upper 16 bits of externalFileAttributes.
+		const unixMode = (file.externalFileAttributes >>> 16) & 0xffff;
+		const isSymlink = (unixMode & 0o170000) === 0o120000;
+		if (isSymlink) {
+			throw new SecurityError(`Archive contains a symbolic link ("${file.path}"), which is not permitted.`);
+		}
+
 		const dir = path.dirname(destPath);
 		await fs.promises.mkdir(dir, { recursive: true });
 
 		onProgress?.(file.path);
 
 		const content = await file.buffer();
+
+		// Incremental size check using actual extracted content size
+		extractedSize += content.length;
+		if (extractedSize > maxSize) {
+			throw new SecurityError(`Archive exceeds maximum size: ${formatSize(extractedSize)} > ${formatSize(maxSize)}`);
+		}
+
 		await fs.promises.writeFile(destPath, content);
 
 		extractedFiles.push(destPath);
 	}
 
 	return extractedFiles;
-}
-
-/**
- * Format size for display.
- */
-function formatSize(bytes: number): string {
-	if (bytes < 1024) {
-		return `${bytes} B`;
-	}
-	if (bytes < 1024 * 1024) {
-		return `${(bytes / 1024).toFixed(1)} KB`;
-	}
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

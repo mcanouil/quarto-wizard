@@ -1,7 +1,5 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
-import * as path from "path";
-import { showLogsCommand, logMessage } from "./log";
+import { getShowLogsLink, logMessage } from "./log";
 
 /**
  * Creates a new Quarto reprex (REPRoducible EXample) file based on the specified language.
@@ -25,22 +23,20 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 		default: {
 			const message = `Unsupported language: ${language}.`;
 			logMessage(message, "error");
-			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+			vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 			return;
 		}
 	}
 
-	const filePath = path.join(context.extensionPath, "assets", "templates", templateFile);
-	fs.readFile(filePath, "utf8", (err, data) => {
-		if (err) {
-			const message = `Failed to read the template file: ${err.message}.`;
-			logMessage(message, "error");
-			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
-			return;
-		}
-
-		vscode.workspace.openTextDocument({ content: data, language: "quarto" }).then((document) => {
-			vscode.window.showTextDocument(document);
-		});
-	});
+	const fileUri = vscode.Uri.joinPath(context.extensionUri, "assets", "templates", templateFile);
+	try {
+		const fileData = await vscode.workspace.fs.readFile(fileUri);
+		const data = new TextDecoder().decode(fileData);
+		const document = await vscode.workspace.openTextDocument({ content: data, language: "quarto" });
+		await vscode.window.showTextDocument(document);
+	} catch (error) {
+		const message = `Failed to read the template file: ${error instanceof Error ? error.message : String(error)}.`;
+		logMessage(message, "error");
+		vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
+	}
 }

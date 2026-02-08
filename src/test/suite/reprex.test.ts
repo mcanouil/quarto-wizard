@@ -18,6 +18,7 @@ suite("Reprex Utils Test Suite", () => {
 				// Get extension path from the actual extension
 				extensionContext = {
 					extensionPath: extension.extensionPath,
+					extensionUri: vscode.Uri.file(extension.extensionPath),
 				} as vscode.ExtensionContext;
 			}
 		}

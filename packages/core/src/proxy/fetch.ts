@@ -17,46 +17,67 @@ import { getProxyForUrl, type ProxyConfig } from "./config.js";
 const MAX_PROXY_CACHE_SIZE = 10;
 
 /**
- * Simple LRU cache for ProxyAgent instances.
+ * Default TTL for cached proxy agents (30 minutes).
+ * Ensures stale agents are refreshed when proxy credentials change.
+ */
+const PROXY_CACHE_TTL_MS = 30 * 60 * 1000;
+
+interface CachedAgent {
+	agent: ProxyAgent;
+	createdAt: number;
+}
+
+/**
+ * Simple LRU cache for ProxyAgent instances with TTL expiry.
  * Uses Map's insertion order to track recency.
  */
 class LRUProxyCache {
-	private cache = new Map<string, ProxyAgent>();
+	private cache = new Map<string, CachedAgent>();
 	private readonly maxSize: number;
+	private readonly ttlMs: number;
 
-	constructor(maxSize: number) {
+	constructor(maxSize: number, ttlMs = PROXY_CACHE_TTL_MS) {
 		this.maxSize = maxSize;
+		this.ttlMs = ttlMs;
 	}
 
 	get(proxyUrl: string): ProxyAgent | undefined {
-		const agent = this.cache.get(proxyUrl);
-		if (agent) {
+		const entry = this.cache.get(proxyUrl);
+		if (entry) {
+			if (Date.now() - entry.createdAt > this.ttlMs) {
+				entry.agent.close();
+				this.cache.delete(proxyUrl);
+				return undefined;
+			}
 			// Move to end (most recently used) by re-inserting
 			this.cache.delete(proxyUrl);
-			this.cache.set(proxyUrl, agent);
+			this.cache.set(proxyUrl, entry);
+			return entry.agent;
 		}
-		return agent;
+		return undefined;
 	}
 
 	set(proxyUrl: string, agent: ProxyAgent): void {
 		// If already exists, delete first to update position
 		if (this.cache.has(proxyUrl)) {
+			const existing = this.cache.get(proxyUrl);
+			existing?.agent.close();
 			this.cache.delete(proxyUrl);
 		} else if (this.cache.size >= this.maxSize) {
 			// Evict least recently used (first entry)
 			const firstKey = this.cache.keys().next().value;
 			if (firstKey !== undefined) {
-				const evictedAgent = this.cache.get(firstKey);
-				evictedAgent?.close();
+				const evicted = this.cache.get(firstKey);
+				evicted?.agent.close();
 				this.cache.delete(firstKey);
 			}
 		}
-		this.cache.set(proxyUrl, agent);
+		this.cache.set(proxyUrl, { agent, createdAt: Date.now() });
 	}
 
 	clear(): void {
-		for (const agent of this.cache.values()) {
-			agent.close();
+		for (const entry of this.cache.values()) {
+			entry.agent.close();
 		}
 		this.cache.clear();
 	}

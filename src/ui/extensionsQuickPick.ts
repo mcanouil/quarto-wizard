@@ -52,36 +52,61 @@ interface SourcePickerItem extends vscode.QuickPickItem {
 }
 
 /**
+ * Options for configuring the source picker.
+ */
+export interface SourcePickerOptions {
+	/** Title shown in the QuickPick header. */
+	title?: string;
+	/** Placeholder text shown when no input is typed. */
+	placeHolder?: string;
+	/** Whether to include the registry option. Defaults to true. */
+	includeRegistry?: boolean;
+	/** Verb used in GitHub/URL/Local descriptions (e.g. "Install", "Use brand"). Defaults to "Install". */
+	actionVerb?: string;
+}
+
+/**
  * Shows a QuickPick for selecting the installation source.
+ * @param options - Optional configuration for the picker.
  * @returns The selected source type or cancelled.
  */
-export async function showSourcePicker(): Promise<SourcePickerResult> {
-	const items: SourcePickerItem[] = [
-		{
+export async function showSourcePicker(options?: SourcePickerOptions): Promise<SourcePickerResult> {
+	const title = options?.title ?? "Install From";
+	const placeHolder = options?.placeHolder ?? "Select where to install from";
+	const includeRegistry = options?.includeRegistry ?? true;
+	const verb = options?.actionVerb ?? "Install";
+
+	const items: SourcePickerItem[] = [];
+
+	if (includeRegistry) {
+		items.push({
 			label: "$(cloud-download) Registry",
 			description: "Browse the Quarto extensions registry",
 			sourceType: "registry",
-		},
+		});
+	}
+
+	items.push(
 		{
 			label: "$(github) GitHub",
-			description: "Install from owner/repo or owner/repo@version",
+			description: `${verb} from owner/repo or owner/repo@version`,
 			sourceType: "github",
 		},
 		{
 			label: "$(link) URL",
-			description: "Install from a direct URL",
+			description: `${verb} from a direct URL`,
 			sourceType: "url",
 		},
 		{
 			label: "$(folder) Local",
-			description: "Install from a local path",
+			description: `${verb} from a local path`,
 			sourceType: "local",
 		},
-	];
+	);
 
 	const selected = await vscode.window.showQuickPick(items, {
-		title: "Install From",
-		placeHolder: "Select where to install from",
+		title,
+		placeHolder,
 	});
 
 	if (!selected) {
@@ -227,7 +252,7 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 
 		return {
 			label: ext.name,
-			description: `${typeBadgeStr}$(star) ${ext.stars} $(repo) ${ext.full_name}`,
+			description: `${typeBadgeStr}$(star) ${ext.stars} $(repo) ${ext.fullName}`,
 			detail: `${ext.description}${ext.version ? ` (v${ext.version})` : ""}`,
 			buttons: [
 				{
@@ -235,7 +260,7 @@ export function createExtensionItems(extensions: ExtensionDetails[]): ExtensionQ
 					tooltip: "Open GitHub Repository",
 				},
 			],
-			url: ext.html_url,
+			url: ext.htmlUrl,
 			id: ext.id,
 			tag: ext.tag,
 			template: ext.template,
@@ -325,7 +350,7 @@ export async function showExtensionQuickPick(
 	quickPick.onDidTriggerItemButton((e) => {
 		const url = e.item.url;
 		if (url) {
-			vscode.env.openExternal(vscode.Uri.parse(url));
+			void vscode.env.openExternal(vscode.Uri.parse(url));
 		}
 	});
 
@@ -342,6 +367,7 @@ export async function showExtensionQuickPick(
 		});
 
 		quickPick.onDidHide(() => {
+			quickPick.dispose();
 			if (resolved) return;
 			resolved = true;
 			resolve({ type: "cancelled" });

@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { showLogsCommand, logMessage } from "./log";
+import { getShowLogsLink, logMessage } from "./log";
 
 /**
  * Show a cancellable progress notification and run an async expression.
@@ -16,17 +16,24 @@ export async function withProgressNotification<T>(
 	return await vscode.window.withProgress<T>(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: `${title} (${showLogsCommand()})`,
+			title: `${title} (${getShowLogsLink()})`,
 			cancellable: true,
 		},
 		async (_progress: vscode.Progress<{ increment: number }>, token: vscode.CancellationToken): Promise<T> => {
+			let completed = false;
 			token.onCancellationRequested((): void => {
+				if (completed) {
+					return;
+				}
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			});
-			// progress.report({ increment: 0 });
-			return await expression(token);
+			try {
+				return await expression(token);
+			} finally {
+				completed = true;
+			}
 		},
 	);
 }

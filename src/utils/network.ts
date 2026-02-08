@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { showLogsCommand, logMessage } from "./log";
+import { getShowLogsLink, logMessage } from "./log";
 
 /**
  * Checks if there is an active internet connection by attempting to fetch a URL.
@@ -9,25 +9,22 @@ import { showLogsCommand, logMessage } from "./log";
  * @returns {Promise<boolean>} - A promise that resolves to true if the internet connection is active, otherwise false.
  */
 export async function checkInternetConnection(url = "https://github.com/", timeoutMs = 5000): Promise<boolean> {
-	try {
-		// Create AbortController for timeout handling
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => {
-			controller.abort();
-		}, timeoutMs);
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => {
+		controller.abort();
+	}, timeoutMs);
 
+	try {
 		const response: Response = await fetch(url, {
 			signal: controller.signal,
 		});
-
-		clearTimeout(timeoutId);
 
 		if (response.ok) {
 			return true;
 		} else {
 			const message = `No internet connection. Please check your network settings.`;
 			logMessage(message, "error");
-			vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+			vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 			return false;
 		}
 	} catch (error) {
@@ -36,7 +33,9 @@ export async function checkInternetConnection(url = "https://github.com/", timeo
 			message = `Network connection check timed out after ${timeoutMs}ms. Please check your network settings.`;
 		}
 		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+		vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 		return false;
+	} finally {
+		clearTimeout(timeoutId);
 	}
 }

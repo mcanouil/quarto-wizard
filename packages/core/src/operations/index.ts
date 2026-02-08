@@ -25,6 +25,7 @@ export {
 	checkForUpdates,
 	applyUpdates,
 	update,
+	normaliseVersion,
 } from "./update.js";
 
 export { type RemoveOptions, type RemoveResult, remove, removeMultiple } from "./remove.js";
@@ -41,3 +42,5 @@ export {
 	use,
 	getTemplateFiles,
 } from "./use.js";
+
+export { type UseBrandOptions, type UseBrandResult, useBrand } from "./brand.js";

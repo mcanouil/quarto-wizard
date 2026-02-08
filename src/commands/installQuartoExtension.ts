@@ -1,13 +1,11 @@
 import * as vscode from "vscode";
-import * as path from "path";
-import { parseInstallSource } from "@quarto-wizard/core";
-import { QW_RECENTLY_INSTALLED, QW_RECENTLY_USED } from "../constants";
-import { showLogsCommand, logMessage } from "../utils/log";
+import { STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "../constants";
+import { getShowLogsLink, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { installQuartoExtension, useQuartoExtension } from "../utils/quarto";
 import {
-	askTrustAuthors,
-	askConfirmInstall,
+	confirmTrustAuthors,
+	confirmInstall,
 	createFileSelectionCallback,
 	createTargetSubdirCallback,
 } from "../utils/ask";
@@ -19,7 +17,8 @@ import {
 	showTypeFilterQuickPick,
 } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
-import { getAuthConfig } from "../utils/auth";
+import { getAuthConfig, logAuthStatus } from "../utils/auth";
+import { promptForGitHubReference, promptForURL, promptForLocalPath, resolveSourcePath } from "../utils/sourcePrompts";
 
 /**
  * Installs or uses the selected Quarto extensions.
@@ -37,8 +36,8 @@ async function installQuartoExtensions(
 ) {
 	const mutableSelectedExtensions: ExtensionQuickPickItem[] = [...selectedExtensions];
 
-	if ((await askTrustAuthors()) !== 0) return;
-	if ((await askConfirmInstall()) !== 0) return;
+	if (!(await confirmTrustAuthors())) return;
+	if (!(await confirmInstall())) return;
 
 	// Get authentication configuration (prompts sign-in if needed for private repos)
 	const auth = await getAuthConfig(context, { createIfNone: true });
@@ -52,21 +51,23 @@ async function installQuartoExtensions(
 		`Extension(s) to ${template ? "use" : "install"}: ${mutableSelectedExtensions.map((ext) => ext.id).join(", ")}.`,
 		"info",
 	);
-	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access).", "info");
-	}
+	logAuthStatus(auth);
 
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: `${actionWord} selected extension(s) (${showLogsCommand()})`,
+			title: `${actionWord} selected extension(s) (${getShowLogsLink()})`,
 			cancellable: true,
 		},
 		async (progress, token) => {
+			let completed = false;
 			token.onCancellationRequested(() => {
+				if (completed) {
+					return;
+				}
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			});
 
 			const installedExtensions: string[] = [];
@@ -146,7 +147,9 @@ async function installQuartoExtensions(
 
 			if (installedExtensions.length > 0) {
 				logMessage(`Successfully ${actionPast} extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
-				installedExtensions.map((ext) => logMessage(` - ${ext}`, "info"));
+				for (const ext of installedExtensions) {
+					logMessage(` - ${ext}`, "info");
+				}
 			}
 
 			if (failedExtensions.length > 0) {
@@ -154,7 +157,9 @@ async function installQuartoExtensions(
 					`Failed to ${template ? "use" : "install"} extension${failedExtensions.length > 1 ? "s" : ""}:`,
 					"error",
 				);
-				failedExtensions.map((ext) => logMessage(` - ${ext}`, "error"));
+				for (const ext of failedExtensions) {
+					logMessage(` - ${ext}`, "error");
+				}
 				const message = [
 					"The following extension",
 					failedExtensions.length > 1 ? "s were" : " was",
@@ -162,7 +167,7 @@ async function installQuartoExtensions(
 					failedExtensions.length > 1 ? "them" : "it",
 					` manually with \`quarto ${template ? "use" : "add"} <extension>\`:`,
 				].join("");
-				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${showLogsCommand()}.`);
+				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${getShowLogsLink()}.`);
 			} else if (installedCount > 0) {
 				// Only show success message if at least one extension was processed
 				const message = [
@@ -172,79 +177,12 @@ async function installQuartoExtensions(
 					` ${actionPast} successfully.`,
 				].join("");
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			}
 			// If installedCount === 0 and failedExtensions.length === 0, the operation was cancelled - no message needed
+			completed = true;
 		},
 	);
-}
-
-/**
- * Prompts the user to enter a GitHub reference.
- * @returns The entered reference or undefined if cancelled.
- */
-async function promptForGitHubReference(): Promise<string | undefined> {
-	return vscode.window.showInputBox({
-		title: "GitHub Reference",
-		prompt: "Enter a GitHub reference",
-		placeHolder: "owner/repo or owner/repo@version",
-		ignoreFocusOut: true,
-		validateInput: (value) => {
-			if (!value?.trim()) {
-				return "GitHub reference is required.";
-			}
-			if (!value.includes("/")) {
-				return "Use format: owner/repo or owner/repo@version";
-			}
-			return null;
-		},
-	});
-}
-
-/**
- * Prompts the user to enter a URL.
- * @returns The entered URL or undefined if cancelled.
- */
-async function promptForURL(): Promise<string | undefined> {
-	return vscode.window.showInputBox({
-		title: "URL",
-		prompt: "Enter URL to extension archive",
-		placeHolder: "https://example.com/extension.zip",
-		ignoreFocusOut: true,
-		validateInput: (value) => {
-			if (!value?.trim()) {
-				return "URL is required.";
-			}
-			if (!value.startsWith("http://") && !value.startsWith("https://")) {
-				return "URL must start with http:// or https://";
-			}
-			return null;
-		},
-	});
-}
-
-/**
- * Prompts the user to select a local file or folder.
- * @returns The selected path or undefined if cancelled.
- */
-async function promptForLocalPath(): Promise<string | undefined> {
-	const uris = await vscode.window.showOpenDialog({
-		canSelectFiles: true,
-		canSelectFolders: true,
-		canSelectMany: false,
-		title: "Select Extension",
-		openLabel: "Install",
-		filters: {
-			"Archive files": ["zip", "tar.gz", "tgz"],
-			"All files": ["*"],
-		},
-	});
-
-	if (!uris || uris.length === 0) {
-		return undefined;
-	}
-
-	return uris[0].fsPath;
 }
 
 /**
@@ -290,7 +228,7 @@ export async function installQuartoExtensionFolderCommand(
 				typeFilter = filterResult.value;
 			}
 
-			const recentKey = template ? QW_RECENTLY_USED : QW_RECENTLY_INSTALLED;
+			const recentKey = template ? STORAGE_KEY_RECENTLY_USED : STORAGE_KEY_RECENTLY_INSTALLED;
 			const recentExtensions: string[] = context.globalState.get(recentKey, []);
 			const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
 
@@ -337,42 +275,6 @@ export async function installQuartoExtensionFolderCommand(
 }
 
 /**
- * Source type display names for logging.
- */
-const SOURCE_TYPE_NAMES: Record<string, string> = {
-	url: "URL",
-	local: "local path",
-	github: "GitHub",
-};
-
-/**
- * Resolve a source path relative to the workspace folder if needed.
- *
- * @param source - The source string (might be relative path).
- * @param workspaceFolder - The workspace folder for resolving relative paths.
- * @returns Object with resolved source path and original source for display.
- */
-function resolveSourcePath(
-	source: string,
-	workspaceFolder: string,
-): { resolved: string; display: string | undefined; type: string } {
-	try {
-		const parsed = parseInstallSource(source);
-		const type = SOURCE_TYPE_NAMES[parsed.type] ?? "unknown";
-
-		if (parsed.type === "local" && !path.isAbsolute(parsed.path)) {
-			// Resolve relative path to absolute
-			const resolved = path.resolve(workspaceFolder, parsed.path);
-			return { resolved, display: source, type };
-		}
-
-		return { resolved: source, display: undefined, type };
-	} catch {
-		return { resolved: source, display: undefined, type: "unknown" };
-	}
-}
-
-/**
  * Install extension from an alternative source (GitHub, URL, or local path).
  *
  * @param context - The extension context for authentication.
@@ -386,8 +288,8 @@ async function installFromSource(
 	workspaceFolder: string,
 	template: boolean,
 ) {
-	if ((await askTrustAuthors()) !== 0) return;
-	if ((await askConfirmInstall()) !== 0) return;
+	if (!(await confirmTrustAuthors())) return;
+	if (!(await confirmInstall())) return;
 
 	// Resolve local paths relative to workspace folder
 	const { resolved, display, type } = resolveSourcePath(source, workspaceFolder);
@@ -398,21 +300,19 @@ async function installFromSource(
 	// Log source and extension (use original source for display)
 	logMessage(`Source: ${type}.`, "info");
 	logMessage(`Extension: ${source}.`, "info");
-	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access).", "info");
-	}
+	logAuthStatus(auth);
 
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
-			title: `${actionWord} extension from ${source} (${showLogsCommand()})`,
+			title: `${actionWord} extension from ${source} (${getShowLogsLink()})`,
 			cancellable: true,
 		},
 		async (_progress, token) => {
 			token.onCancellationRequested(() => {
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			});
 
 			// Check if already cancelled before starting
@@ -451,13 +351,13 @@ async function installFromSource(
 			if (result === true) {
 				const message = template ? "Template used successfully." : "Extension installed successfully.";
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${showLogsCommand()}.`);
+				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			} else if (result === false) {
 				// Only show error message for actual failures, not cancellations
 				const message = template
 					? `Failed to use template from ${source}.`
 					: `Failed to install extension from ${source}.`;
-				vscode.window.showErrorMessage(`${message} ${showLogsCommand()}.`);
+				vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 			}
 			// result === null means cancelled by user, no message needed
 		},
@@ -475,7 +375,7 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 	if (!workspaceFolder) {
 		return;
 	}
-	installQuartoExtensionFolderCommand(context, workspaceFolder, false);
+	await installQuartoExtensionFolderCommand(context, workspaceFolder, false);
 }
 
 /**
@@ -490,7 +390,7 @@ export async function useQuartoTemplateCommand(context: vscode.ExtensionContext)
 	if (!workspaceFolder) {
 		return;
 	}
-	installQuartoExtensionFolderCommand(context, workspaceFolder, true);
+	await installQuartoExtensionFolderCommand(context, workspaceFolder, true);
 }
 
 /**
@@ -511,7 +411,7 @@ export async function installExtensionFromRegistryCommand(context: vscode.Extens
 	}
 
 	const extensionsList = await getExtensionsDetails(context);
-	const recentKey = QW_RECENTLY_INSTALLED;
+	const recentKey = STORAGE_KEY_RECENTLY_INSTALLED;
 	const recentExtensions: string[] = context.globalState.get(recentKey, []);
 	const result = await showExtensionQuickPick(extensionsList, recentExtensions, false, null);
 
@@ -544,21 +444,7 @@ export async function installExtensionFromURLCommand(context: vscode.ExtensionCo
 		return;
 	}
 
-	const url = await vscode.window.showInputBox({
-		prompt: "Enter the URL to the extension archive (zip or tar.gz)",
-		placeHolder: "https://github.com/owner/repo/archive/refs/heads/main.zip",
-		ignoreFocusOut: true,
-		validateInput: (value) => {
-			if (!value) {
-				return "URL is required.";
-			}
-			if (!value.startsWith("http://") && !value.startsWith("https://")) {
-				return "URL must start with http:// or https://";
-			}
-			return null;
-		},
-	});
-
+	const url = await promptForURL();
 	if (!url) {
 		return;
 	}
@@ -613,7 +499,7 @@ export async function installExtensionFromLocalCommand(context: vscode.Extension
 			canSelectMany: false,
 			openLabel: "Select Extension",
 			filters: {
-				"Archive files": ["zip", "tar.gz", "tgz"],
+				"Archive files": ["zip", "gz", "tgz"],
 				"All files": ["*"],
 			},
 		});
@@ -630,12 +516,17 @@ export async function installExtensionFromLocalCommand(context: vscode.Extension
 		return;
 	}
 
-	const absolutePath = path.isAbsolute(localPath) ? localPath : path.resolve(workspaceFolder, localPath);
+	const workspaceFolderUri = vscode.Uri.file(workspaceFolder);
+	const absoluteUri = localPath.startsWith("/")
+		? vscode.Uri.file(localPath)
+		: vscode.Uri.joinPath(workspaceFolderUri, localPath);
+	const absolutePath = absoluteUri.fsPath;
 
-	// Convert to relative path if within workspace folder
+	// Convert to relative path if within workspace folder (use URI paths for cross-platform comparison)
 	let sourcePath = absolutePath;
-	if (absolutePath.startsWith(workspaceFolder + path.sep)) {
-		const relativePath = path.relative(workspaceFolder, absolutePath);
+	const workspaceUriPrefix = workspaceFolderUri.path + "/";
+	if (absoluteUri.path.startsWith(workspaceUriPrefix)) {
+		const relativePath = absoluteUri.path.slice(workspaceUriPrefix.length);
 		// Ensure relative path starts with ./ for proper source detection
 		sourcePath = relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
 	}

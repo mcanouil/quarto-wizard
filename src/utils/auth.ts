@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { createAuthConfig, type AuthConfig } from "@quarto-wizard/core";
+import { createAuthConfig, AuthenticationError, NetworkError, type AuthConfig } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
@@ -63,7 +63,7 @@ export async function getAuthConfig(
 	} catch (error) {
 		// Only log if it's not a user cancellation
 		if (error instanceof Error && !error.message.includes("User did not consent")) {
-			logMessage(`GitHub authentication error: ${error.message}`, "warn");
+			logMessage(`GitHub authentication error: ${error.message}.`, "warn");
 		}
 	}
 
@@ -100,45 +100,83 @@ export async function clearManualToken(context: vscode.ExtensionContext): Promis
 }
 
 /**
- * Check if a manual token is set in SecretStorage.
+ * Checks whether an error message indicates an authentication failure and,
+ * if so, shows a dialog offering to sign in or set a token.
  *
- * @param context - The extension context for accessing secrets.
- * @returns True if a manual token is stored.
+ * @param prefix - Log prefix for messages.
+ * @param error - The error to inspect.
+ * @returns True if authentication was obtained (user signed in successfully),
+ *   false otherwise.  Callers can use this to optionally retry the operation.
  */
-export async function hasManualToken(context: vscode.ExtensionContext): Promise<boolean> {
-	const token = await context.secrets.get(MANUAL_TOKEN_KEY);
-	return token !== undefined;
+export async function handleAuthError(prefix: string, error: unknown): Promise<boolean> {
+	// 1. Check for typed core errors (most reliable, avoids string matching).
+	const isTypedAuthError =
+		error instanceof AuthenticationError ||
+		(error instanceof NetworkError && (error.statusCode === 401 || error.statusCode === 403));
+
+	// 2. Check for structured error properties from non-core errors.
+	const statusCode = isTypedAuthError
+		? undefined
+		: error && typeof error === "object" && Object.hasOwn(error, "statusCode")
+			? (error as Record<string, unknown>).statusCode
+			: error && typeof error === "object" && Object.hasOwn(error, "status")
+				? (error as Record<string, unknown>).status
+				: undefined;
+
+	// Some HTTP libraries store status codes as strings, so check both.
+	const isAuthStatus = statusCode === 401 || statusCode === "401" || statusCode === 403 || statusCode === "403";
+
+	// 3. String-based fallback for libraries that only throw string errors.
+	// Patterns are deliberately narrow to avoid false positives:
+	// - "status 401", "status: 403", "HTTP 401" (status code in context).
+	// - "authentication [token] failed/required/..." and the reverse order
+	//   "failed/denied/... authentication" (forward: up to 10 chars, reverse: up
+	//   to 5 chars to avoid "Failed to parse authentication..." false positives).
+	// - "401: Unauthorized", "403 - Forbidden" (status code + HTTP reason phrase).
+	// - Standalone "Unauthorized" / "Forbidden" (whole message or after colon).
+	const message = error instanceof Error ? error.message : String(error);
+	const isAuthMessage =
+		/\bstatus\b.{0,20}\b(401|403)\b/i.test(message) ||
+		/\bHTTP\s+(401|403)\b/i.test(message) ||
+		/\bauthentication\b.{0,10}\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b/i.test(message) ||
+		/\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b.{0,5}\bauthentication\b/i.test(message) ||
+		/\b(401|403)\b[:\s,;-]+(Unauthorized|Forbidden)\b/i.test(message) ||
+		/(?<!\d):\s*(Unauthorized|Forbidden)\s*$/i.test(message) ||
+		/^(Unauthorized|Forbidden)$/i.test(message.trim());
+
+	if (isTypedAuthError || isAuthStatus || isAuthMessage) {
+		const action = await vscode.window.showErrorMessage(
+			"Authentication may be required. Sign in to GitHub to access private repositories.",
+			"Sign In",
+			"Set Token",
+		);
+		if (action === "Sign In") {
+			logMessage(`${prefix} User requested GitHub sign-in.`, "info");
+			try {
+				const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
+					createIfNone: true,
+				});
+				if (session) {
+					return true;
+				}
+			} catch {
+				logMessage(`${prefix} GitHub sign-in was cancelled or failed.`, "warn");
+			}
+		} else if (action === "Set Token") {
+			await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+		}
+	}
+	return false;
 }
 
 /**
- * Check if any GitHub authentication is available (silent check, no prompts).
- * Checks manual token, VSCode session, and environment variables.
+ * Logs the authentication status for an operation.
+ * Logs "Authentication: none (public access)." when no auth is configured.
  *
- * @param context - The extension context for accessing secrets.
- * @returns True if any authentication method is available.
+ * @param auth - The authentication configuration.
  */
-export async function hasGitHubAuth(context: vscode.ExtensionContext): Promise<boolean> {
-	// Check manual token
-	if (await hasManualToken(context)) {
-		return true;
+export function logAuthStatus(auth: AuthConfig | undefined): void {
+	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
+		logMessage("Authentication: none (public access).", "info");
 	}
-
-	// Check VSCode session (silent)
-	try {
-		const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
-			createIfNone: false,
-			silent: true,
-		});
-		if (session) {
-			return true;
-		}
-	} catch {
-		// Silent session check can fail for various reasons (no GitHub extension,
-		// user never signed in, network issues). This is expected; we just proceed
-		// to check environment variables as the final fallback.
-	}
-
-	// Check environment variables
-	const authConfig = createAuthConfig();
-	return authConfig.githubToken !== undefined;
 }

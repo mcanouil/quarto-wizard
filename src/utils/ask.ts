@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { minimatch } from "minimatch";
-import { showLogsCommand, logMessage } from "../utils/log";
+import { getShowLogsLink, logMessage } from "../utils/log";
 import type { FileSelectionResult } from "@quarto-wizard/core";
 
 /**
@@ -29,10 +29,10 @@ interface ConfirmationDialogConfig {
  * Creates a confirmation dialog function based on the provided configuration.
  *
  * @param config - The configuration for the confirmation dialog.
- * @returns A function that prompts the user and returns 0 for success, 1 for cancellation.
+ * @returns A function that prompts the user and returns true if confirmed, false if cancelled.
  */
-function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promise<number> {
-	return async (): Promise<number> => {
+function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promise<boolean> {
+	return async (): Promise<boolean> => {
 		try {
 			const vsConfig = vscode.workspace.getConfiguration("quartoWizard.ask", null);
 			const configValue = vsConfig.get<string>(config.configKey);
@@ -50,27 +50,27 @@ function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promi
 				);
 				if (result?.label === config.alwaysLabel) {
 					await vsConfig.update(config.configKey, "never", vscode.ConfigurationTarget.Global);
-					return 0;
+					return true;
 				} else if (result?.label !== "Yes") {
 					logMessage(config.cancelMessage, "info");
-					vscode.window.showInformationMessage(`${config.cancelMessage} ${showLogsCommand()}.`);
-					return 1;
+					vscode.window.showInformationMessage(`${config.cancelMessage} ${getShowLogsLink()}.`);
+					return false;
 				}
 			}
-			return 0;
+			return true;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			logMessage(`Error showing confirmation dialog: ${message}`, "error");
-			return 1;
+			logMessage(`Error showing confirmation dialog: ${message}.`, "error");
+			return false;
 		}
 	};
 }
 
 /**
  * Prompts the user to trust the authors of the selected extensions when the trustAuthors setting is set to "ask".
- * @returns {Promise<number>} - Returns 0 if the authors are trusted or if the setting is updated to "never", otherwise returns 1.
+ * @returns {Promise<boolean>} - Returns true if confirmed, false if cancelled.
  */
-export const askTrustAuthors = createConfirmationDialog({
+export const confirmTrustAuthors = createConfirmationDialog({
 	configKey: "trustAuthors",
 	triggerValue: "ask",
 	placeholder: "Do you trust the authors of the selected extension(s)?",
@@ -83,9 +83,9 @@ export const askTrustAuthors = createConfirmationDialog({
 
 /**
  * Prompts the user to confirm the installation of the selected extensions when the confirmInstall setting is set to "ask".
- * @returns {Promise<number>} - Returns 0 if the installation is confirmed or if the setting is updated to "never", otherwise returns 1.
+ * @returns {Promise<boolean>} - Returns true if confirmed, false if cancelled.
  */
-export const askConfirmInstall = createConfirmationDialog({
+export const confirmInstall = createConfirmationDialog({
 	configKey: "confirmInstall",
 	triggerValue: "ask",
 	placeholder: "Do you want to install the selected extension(s)?",
@@ -93,21 +93,6 @@ export const askConfirmInstall = createConfirmationDialog({
 	noDescription: "Do not install extensions.",
 	alwaysLabel: "Yes, always install",
 	alwaysDescription: "Change setting to always install.",
-	cancelMessage: "Operation cancelled by the user.",
-});
-
-/**
- * Prompts the user to confirm the removal of the selected extensions when the confirmRemove setting is set to "always".
- * @returns {Promise<number>} - Returns 0 if the removal is confirmed or if the setting is updated to "never", otherwise returns 1.
- */
-export const askConfirmRemove = createConfirmationDialog({
-	configKey: "confirmRemove",
-	triggerValue: "always",
-	placeholder: "Do you want to remove the selected extension(s)?",
-	yesDescription: "Remove extensions.",
-	noDescription: "Do not remove extensions.",
-	alwaysLabel: "Yes, always remove",
-	alwaysDescription: "Change setting to always remove.",
 	cancelMessage: "Operation cancelled by the user.",
 });
 
@@ -574,7 +559,7 @@ export function createFileSelectionCallback(): (
 					resolve({ selectedFiles, overwriteExisting });
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error);
-					logMessage(`Error in file selection: ${message}`, "error");
+					logMessage(`Error in file selection: ${message}.`, "error");
 					resolve(null);
 				}
 			});

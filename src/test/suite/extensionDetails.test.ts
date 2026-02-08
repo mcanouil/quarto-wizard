@@ -78,13 +78,13 @@ suite("Extension Details Test Suite", () => {
 		{
 			id: "mcanouil/quarto-github",
 			name: "GITHUB",
-			full_name: "mcanouil/quarto-github",
+			fullName: "mcanouil/quarto-github",
 			owner: "mcanouil",
 			description:
 				"Use GitHub short references (commits, issues, discussions, and pull requests) directly into your Quarto documents.",
 			stars: 20,
 			license: "MIT License",
-			html_url: "https://github.com/mcanouil/quarto-github",
+			htmlUrl: "https://github.com/mcanouil/quarto-github",
 			version: "1.0.1",
 			tag: "1.0.1",
 			template: false,
@@ -93,13 +93,13 @@ suite("Extension Details Test Suite", () => {
 		{
 			id: "mcanouil/quarto-highlight-text",
 			name: "HIGHLIGHT TEXT",
-			full_name: "mcanouil/quarto-highlight-text",
+			fullName: "mcanouil/quarto-highlight-text",
 			owner: "mcanouil",
 			description:
 				"Quarto extension that allows to highlight text in a document for various formats: HTML, LaTeX, Typst, Reveal.js, Beamer, PowerPoint, and Docx.",
 			stars: 27,
 			license: "MIT License",
-			html_url: "https://github.com/mcanouil/quarto-highlight-text",
+			htmlUrl: "https://github.com/mcanouil/quarto-highlight-text",
 			version: "1.3.3",
 			tag: "1.3.3",
 			template: false,
@@ -153,7 +153,7 @@ suite("Extension Details Test Suite", () => {
 		let fetchCalled = false;
 
 		// Pre-populate cache with valid, non-expired data
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		globalStateStorage[cacheKey] = {
 			data: expectedExtensions,
 			timestamp: Date.now() - 1000, // 1 second ago
@@ -188,7 +188,7 @@ suite("Extension Details Test Suite", () => {
 		let fetchCalled = false;
 
 		// Pre-populate cache with valid data
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		const recentTimestamp = Date.now() - 1000; // 1 second ago
 		globalStateStorage[cacheKey] = {
 			data: expectedExtensions,
@@ -224,7 +224,7 @@ suite("Extension Details Test Suite", () => {
 		let fetchCalled = false;
 
 		// Pre-populate cache with expired data
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		globalStateStorage[cacheKey] = {
 			data: [],
 			timestamp: Date.now() - (DEFAULT_CACHE_TTL_MS + 1000), // Expired
@@ -376,7 +376,7 @@ suite("Extension Details Test Suite", () => {
 		const result = await getExtensionsDetails(mockContext as unknown as vscode.ExtensionContext);
 
 		// Check that data was cached
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		const cachedData = globalStateStorage[cacheKey] as { data: ExtensionDetails[]; timestamp: number };
 
 		assert.ok(cachedData, "Data should be cached");
@@ -431,7 +431,7 @@ suite("Extension Details Test Suite", () => {
 			// Validate required fields exist
 			assert.ok(typeof extension.id === "string", "id should be a string");
 			assert.ok(typeof extension.name === "string", "name should be a string");
-			assert.ok(typeof extension.full_name === "string", "full_name should be a string");
+			assert.ok(typeof extension.fullName === "string", "fullName should be a string");
 			assert.ok(typeof extension.owner === "string", "owner should be a string");
 			assert.ok(typeof extension.version === "string", "version should be a string");
 			assert.ok(typeof extension.tag === "string", "tag should be a string");
@@ -447,8 +447,8 @@ suite("Extension Details Test Suite", () => {
 			if (extension.license !== undefined) {
 				assert.ok(typeof extension.license === "string", "license should be a string when present");
 			}
-			if (extension.html_url !== undefined) {
-				assert.ok(typeof extension.html_url === "string", "html_url should be a string when present");
+			if (extension.htmlUrl !== undefined) {
+				assert.ok(typeof extension.htmlUrl === "string", "htmlUrl should be a string when present");
 			}
 		});
 	});

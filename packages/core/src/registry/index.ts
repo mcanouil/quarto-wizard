@@ -5,6 +5,7 @@
 export { type HttpOptions, fetchJson, fetchText } from "./http.js";
 
 export {
+	DEFAULT_CACHE_TTL,
 	getDefaultCacheDir,
 	getCacheFilePath,
 	readCachedRegistry,
@@ -18,6 +19,7 @@ export { type RegistryOptions, fetchRegistry, getDefaultRegistryUrl } from "./fe
 export {
 	type ListAvailableOptions,
 	type SearchOptions,
+	lookupRegistryEntry,
 	listAvailable,
 	search,
 	getExtension,

@@ -1,30 +1,43 @@
-import * as vscode from "vscode";
-import { debounce } from "lodash";
 import { QW_LOG } from "../constants";
+import { debounce } from "./debounce";
 
 /**
  * Returns a command string to show the logs.
  *
  * @returns {string} The command string to show the logs.
  */
-export function showLogsCommand(): string {
+export function getShowLogsLink(): string {
 	return "[Show logs](command:quartoWizard.showOutput)";
 }
 
 /**
- * Logs a message to the Quarto Wizard log output if the message type
- * is at or below the configured log level.
+ * Valid log levels in order of severity (most to least severe).
+ */
+export type LogLevel = "error" | "warn" | "info" | "debug";
+
+/**
+ * Logs a message to the Quarto Wizard log output using the native
+ * LogOutputChannel methods.  Level filtering is handled automatically
+ * by VS Code (configurable via "Developer: Set Log Level").
  *
  * @param {string} message - The message to log.
- * @param {string} [type="info"] - The type of log message (e.g., "error", "warn", "info", "debug").
+ * @param {LogLevel} [level="info"] - The log level for this message.
  */
-export function logMessage(message: string, type = "info"): void {
-	const levels = ["error", "warn", "info", "debug"];
-	const config = vscode.workspace.getConfiguration("quartoWizard.log", null);
-	const logLevel = config.get<string>("level") ?? "info";
-
-	if (levels.indexOf(type) <= levels.indexOf(logLevel)) {
-		QW_LOG.appendLine(message);
+export function logMessage(message: string, level: LogLevel = "info"): void {
+	switch (level) {
+		case "error":
+			QW_LOG.error(message);
+			break;
+		case "warn":
+			QW_LOG.warn(message);
+			break;
+		case "debug":
+			QW_LOG.debug(message);
+			break;
+		case "info":
+		default:
+			QW_LOG.info(message);
+			break;
 	}
 }
 
@@ -33,6 +46,6 @@ export function logMessage(message: string, type = "info"): void {
  * Waits 1000ms before logging the message to prevent excessive logging.
  *
  * @param {string} message - The message to log.
- * @param {string} [type="info"] - The type of log message.
+ * @param {LogLevel} [level="info"] - The log level for this message.
  */
-export const debouncedLogMessage = debounce(logMessage, 1000);
+export const logMessageDebounced = debounce(logMessage, 1000);

@@ -13,11 +13,14 @@ import { glob } from "glob";
 import { minimatch } from "minimatch";
 import type { AuthConfig } from "../types/auth.js";
 import { ExtensionError } from "../errors.js";
+import { pathExists } from "../filesystem/walk.js";
 import {
 	install,
 	installSingleExtension,
 	parseInstallSource,
 	formatInstallSource,
+	applySourceOwner,
+	selectExtensionsFromSource,
 	type InstallSource,
 	type InstallResult,
 	type ExtensionSelectionCallback,
@@ -317,9 +320,9 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		if (selectTargetSubdir) {
 			onProgress?.({ phase: "selecting", message: "Awaiting target directory selection..." });
 			const selectedSubdir = await selectTargetSubdir();
-			// undefined means user cancelled (pressed Escape) - stop the operation
+			// undefined means user cancelled (pressed Escape) - stop the operation.
+			// Cleanup is handled by the finally block.
 			if (selectedSubdir === undefined) {
-				await cleanupExtraction(sourceRoot);
 				return {
 					install: {
 						success: false,
@@ -352,7 +355,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		const existingFiles: string[] = [];
 		for (const file of allFiles) {
 			const targetPath = path.join(effectiveTargetDir, file);
-			if (fs.existsSync(targetPath)) {
+			if (await pathExists(targetPath)) {
 				existingFiles.push(file);
 			}
 		}
@@ -366,8 +369,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		);
 
 		if (!selectionResult) {
-			// User cancelled file selection
-			await cleanupExtraction(sourceRoot);
+			// User cancelled file selection. Cleanup is handled by the finally block.
 			return {
 				install: {
 					success: false,
@@ -391,43 +393,30 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			});
 		}
 
-		// Apply GitHub owner to extensions if source is from GitHub
-		if (source.type === "github") {
-			for (const ext of allExtensions) {
-				ext.id.owner = source.owner;
-			}
-		}
+		applySourceOwner(allExtensions, source);
 
-		let selectedExtensions: DiscoveredExtension[];
-		if (allExtensions.length > 1 && selectExtension) {
-			onProgress?.({ phase: "selecting", message: "Awaiting extension selection..." });
-			const selected = await selectExtension(allExtensions);
-			if (!selected || selected.length === 0) {
-				// User cancelled extension selection
-				await cleanupExtraction(sourceRoot);
-				return {
-					install: {
-						success: false,
-						extension: dryRunResult.extension,
-						filesCreated: [],
-						source: effectiveSourceDisplay,
-					},
-					templateFiles: [],
-					skippedFiles: allFiles,
-					cancelled: true,
-				};
-			}
-			selectedExtensions = selected;
-		} else {
-			// Single extension or no callback - use all (for single, just the one)
-			selectedExtensions = allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+		onProgress?.({ phase: "selecting", message: "Awaiting extension selection..." });
+		const selectedExtensions = await selectExtensionsFromSource(allExtensions, selectExtension);
+		if (!selectedExtensions) {
+			// User cancelled extension selection. Cleanup is handled by the finally block.
+			return {
+				install: {
+					success: false,
+					extension: dryRunResult.extension,
+					filesCreated: [],
+					source: effectiveSourceDisplay,
+				},
+				templateFiles: [],
+				skippedFiles: allFiles,
+				cancelled: true,
+			};
 		}
 
 		// STEP 4: Check for existing extensions and prompt for overwrite
 		const existingExtensions: DiscoveredExtension[] = [];
 		for (const ext of selectedExtensions) {
 			const targetDir = getExtensionInstallPath(projectDir, ext.id);
-			if (fs.existsSync(targetDir)) {
+			if (await pathExists(targetDir)) {
 				existingExtensions.push(ext);
 			}
 		}
@@ -437,8 +426,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			onProgress?.({ phase: "confirming", message: "Awaiting overwrite confirmation..." });
 			const confirmed = await confirmExtensionOverwrite(existingExtensions);
 			if (confirmed === null) {
-				// User cancelled overwrite confirmation
-				await cleanupExtraction(sourceRoot);
+				// User cancelled overwrite confirmation. Cleanup is handled by the finally block.
 				return {
 					install: {
 						success: false,
@@ -617,7 +605,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			const existingFiles: string[] = [];
 			for (const file of allFiles) {
 				const targetPath = path.join(effectiveTargetDir, file);
-				if (fs.existsSync(targetPath)) {
+				if (await pathExists(targetPath)) {
 					existingFiles.push(file);
 				}
 			}
@@ -657,7 +645,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			const wouldConflict: string[] = [];
 			for (const file of filesToCopy) {
 				const targetPath = path.join(effectiveTargetDir, file);
-				if (fs.existsSync(targetPath)) {
+				if (await pathExists(targetPath)) {
 					wouldConflict.push(file);
 				}
 			}
@@ -740,7 +728,7 @@ async function copyTemplateFiles(
 	const conflictingFiles: string[] = [];
 	for (const file of filesToCopy) {
 		const targetPath = path.join(effectiveTargetDir, file);
-		if (fs.existsSync(targetPath)) {
+		if (await pathExists(targetPath)) {
 			conflictingFiles.push(file);
 		}
 	}
@@ -780,7 +768,7 @@ async function copyTemplateFiles(
 		const sourcePath = path.join(sourceRoot, file);
 		const targetPath = path.join(effectiveTargetDir, file);
 
-		if (fs.existsSync(targetPath)) {
+		if (await pathExists(targetPath)) {
 			if (!filesToOverwrite.has(file)) {
 				skippedFiles.push(file);
 				continue;

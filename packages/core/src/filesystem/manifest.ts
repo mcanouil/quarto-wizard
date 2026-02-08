@@ -15,7 +15,7 @@ import { normaliseManifest } from "../types/manifest.js";
 import { ManifestError } from "../errors.js";
 
 /** Supported manifest file names. */
-const MANIFEST_FILENAMES = ["_extension.yml", "_extension.yaml"] as const;
+export const MANIFEST_FILENAMES = ["_extension.yml", "_extension.yaml"] as const;
 
 /**
  * Result of reading a manifest file.

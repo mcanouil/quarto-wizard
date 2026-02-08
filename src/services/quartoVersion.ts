@@ -66,7 +66,7 @@ export async function getQuartoVersionInfo(): Promise<QuartoVersionInfo> {
 		const version = typeof api.getQuartoVersion === "function" ? api.getQuartoVersion() : undefined;
 		const path = typeof api.getQuartoPath === "function" ? api.getQuartoPath() : undefined;
 
-		logMessage(`Quarto version info: available=${available}, version=${version ?? "unknown"}`, "debug");
+		logMessage(`Quarto version info: available=${available}, version=${version ?? "unknown"}.`, "debug");
 
 		return {
 			available,
@@ -75,7 +75,7 @@ export async function getQuartoVersionInfo(): Promise<QuartoVersionInfo> {
 		};
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : String(error);
-		logMessage(`Failed to get Quarto version info: ${errorMsg}`, "debug");
+		logMessage(`Failed to get Quarto version info: ${errorMsg}.`, "debug");
 		return unavailable;
 	}
 }

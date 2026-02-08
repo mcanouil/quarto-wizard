@@ -64,6 +64,39 @@ describe("normaliseManifest", () => {
 		expect(manifest.version).toBe("1.5");
 	});
 
+	it("produces empty string for object version", () => {
+		const raw = {
+			title: "Test",
+			version: { major: 1, minor: 0 } as unknown as string,
+		};
+
+		const manifest = normaliseManifest(raw);
+
+		expect(manifest.version).toBe("");
+	});
+
+	it("produces empty string for array version", () => {
+		const raw = {
+			title: "Test",
+			version: [1, 0, 0] as unknown as string,
+		};
+
+		const manifest = normaliseManifest(raw);
+
+		expect(manifest.version).toBe("");
+	});
+
+	it("produces empty string for boolean version", () => {
+		const raw = {
+			title: "Test",
+			version: true as unknown as string,
+		};
+
+		const manifest = normaliseManifest(raw);
+
+		expect(manifest.version).toBe("");
+	});
+
 	it("handles revealjs plugins", () => {
 		const raw = {
 			title: "Reveal Plugin",

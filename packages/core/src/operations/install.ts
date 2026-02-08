@@ -15,7 +15,7 @@ import type { ExtensionManifest } from "../types/manifest.js";
 import { parseExtensionRef } from "../types/extension.js";
 import { ExtensionError } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
-import { copyDirectory, collectFiles } from "../filesystem/walk.js";
+import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
 import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
@@ -25,6 +25,7 @@ import {
 	type DiscoveredExtension,
 } from "../archive/extract.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
+import { lookupRegistryEntry } from "../registry/search.js";
 
 /**
  * Source for extension installation.
@@ -82,6 +83,8 @@ export interface InstallOptions extends RegistryOptions {
 	onProgress?: InstallProgressCallback;
 	/** Force reinstall if already installed. */
 	force?: boolean;
+	/** AbortSignal for cancellation. */
+	signal?: AbortSignal;
 	/** Keep source directory after installation (for template copying). */
 	keepSourceDir?: boolean;
 	/** Dry run mode - resolve without installing. */
@@ -158,13 +161,27 @@ export interface InstallResult {
  * // { type: "local", path: "./my-extension" }
  * ```
  */
-export function parseInstallSource(input: string): InstallSource {
+export function parseInstallSource(
+	input: string,
+	checkExists: (path: string) => boolean = fs.existsSync,
+): InstallSource {
 	// HTTP/HTTPS URLs
 	if (input.startsWith("http://") || input.startsWith("https://")) {
 		return { type: "url", url: input };
 	}
 
-	// file:// protocol - strip protocol and treat as local path
+	// file:// protocol - use URL API for correct parsing when the URI has three
+	// slashes (file:///path). For non-standard forms like file://./relative or
+	// file://host/share, fall back to stripping the protocol prefix to preserve
+	// backwards compatibility.
+	if (input.startsWith("file:///")) {
+		try {
+			const fileUrl = new URL(input);
+			return { type: "local", path: decodeURIComponent(fileUrl.pathname) };
+		} catch {
+			return { type: "local", path: input.slice(7) };
+		}
+	}
 	if (input.startsWith("file://")) {
 		return { type: "local", path: input.slice(7) };
 	}
@@ -201,7 +218,7 @@ export function parseInstallSource(input: string): InstallSource {
 	}
 
 	// Filesystem existence check (fallback)
-	if (fs.existsSync(input)) {
+	if (checkExists(input)) {
 		return { type: "local", path: input };
 	}
 
@@ -274,7 +291,16 @@ export function formatInstallSource(source: InstallSource): string {
  * ```
  */
 export async function install(source: InstallSource, options: InstallOptions): Promise<InstallResult> {
-	const { projectDir, auth, onProgress, force = false, keepSourceDir = false, dryRun = false, sourceDisplay } = options;
+	const {
+		projectDir,
+		auth,
+		onProgress,
+		force = false,
+		keepSourceDir = false,
+		dryRun = false,
+		sourceDisplay,
+		signal,
+	} = options;
 
 	let archivePath: string | undefined;
 	let extractDir: string | undefined;
@@ -291,8 +317,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			let latestCommit: string | undefined;
 			try {
 				const registry = await fetchRegistry(options);
-				const registryKey = `${source.owner}/${source.repo}`;
-				const entry = registry[registryKey] ?? registry[registryKey.toLowerCase()];
+				const entry = lookupRegistryEntry(registry, `${source.owner}/${source.repo}`);
 				if (entry) {
 					defaultBranch = entry.defaultBranchRef ?? undefined;
 					latestCommit = entry.latestCommit ?? undefined;
@@ -305,6 +330,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				auth,
 				defaultBranch,
 				latestCommit,
+				signal,
 				onProgress: (p) => {
 					onProgress?.({
 						phase: p.phase === "resolving" ? "resolving" : "downloading",
@@ -318,7 +344,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			commitSha = result.commitSha;
 		} else if (source.type === "url") {
 			onProgress?.({ phase: "downloading", message: "Downloading archive..." });
-			archivePath = await downloadFromUrl(source.url, { auth });
+			archivePath = await downloadFromUrl(source.url, { auth, signal });
 		} else {
 			archivePath = source.path;
 		}
@@ -342,38 +368,23 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			});
 		}
 
-		// When installing from GitHub, use the GitHub owner for all extensions
-		// This matches Quarto CLI behaviour where all extensions from a repo
-		// are installed under the repository owner's namespace
-		if (source.type === "github") {
-			for (const ext of allExtensions) {
-				ext.id.owner = source.owner;
-			}
-		}
+		applySourceOwner(allExtensions, source);
 
-		// Handle multiple extensions
-		let selectedExtensions: DiscoveredExtension[];
-		if (allExtensions.length > 1 && options.selectExtension) {
-			const selected = await options.selectExtension(allExtensions);
-			if (!selected || selected.length === 0) {
-				// User cancelled extension selection - return cancelled result instead of throwing
-				return {
-					success: false,
-					cancelled: true,
-					extension: {
-						id: allExtensions[0].id,
-						manifest: {} as ExtensionManifest,
-						manifestPath: "",
-						directory: "",
-					},
-					filesCreated: [],
-					source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
-				};
-			}
-			selectedExtensions = selected;
-		} else {
-			// Single extension or no callback - use all found extensions (for single, just the one)
-			selectedExtensions = allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+		const selectedExtensions = await selectExtensionsFromSource(allExtensions, options.selectExtension);
+		if (!selectedExtensions) {
+			// User cancelled extension selection
+			return {
+				success: false,
+				cancelled: true,
+				extension: {
+					id: allExtensions[0].id,
+					manifest: {} as ExtensionManifest,
+					manifestPath: "",
+					directory: "",
+				},
+				filesCreated: [],
+				source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
+			};
 		}
 
 		// Use the first selected extension as the primary one
@@ -430,7 +441,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		const targetDir = getExtensionInstallPath(projectDir, extensionId);
 		// Use sourceDisplay if provided (for relative paths that were resolved), otherwise format from source
 		const sourceString = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
-		const alreadyExists = fs.existsSync(targetDir);
+		const alreadyExists = await pathExists(targetDir);
 
 		// In dry-run mode, return what would happen without making changes
 		if (dryRun) {
@@ -484,23 +495,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			await fs.promises.rm(targetDir, { recursive: true, force: true });
 		}
 
-		// Transaction-like semantics: if manifest update fails after copying,
-		// we clean up the partially installed extension to avoid inconsistent state.
-		let filesCreated: string[];
-		try {
-			filesCreated = await copyExtension(extensionRoot, targetDir);
-
-			onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
-
-			const manifestPath = path.join(targetDir, manifestResult.filename);
-			updateManifestSource(manifestPath, sourceString);
-		} catch (error) {
-			// Rollback: remove partially installed extension to maintain consistency.
-			// This ensures we don't leave an extension directory without proper metadata.
-			// eslint-disable-next-line @typescript-eslint/no-empty-function
-			await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
-			throw error;
-		}
+		onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
+		const filesCreated = await writeExtensionToDisk(extensionRoot, targetDir, manifestResult.filename, sourceString);
 
 		const manifestPath = path.join(targetDir, manifestResult.filename);
 		const finalManifest = readManifest(targetDir);
@@ -562,11 +558,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
  * @internal
  * Exported for testing purposes only. Not part of the public API.
  */
-export function resolveExtensionId(
-	source: InstallSource,
-	extensionRoot: string,
-	_manifest: ExtensionManifest, // eslint-disable-line @typescript-eslint/no-unused-vars
-): ExtensionId {
+export function resolveExtensionId(source: InstallSource, extensionRoot: string): ExtensionId {
 	if (source.type === "github") {
 		return { owner: source.owner, name: source.repo };
 	}
@@ -603,6 +595,43 @@ export function resolveExtensionId(
 }
 
 /**
+ * Apply GitHub owner to all discovered extensions.
+ * When installing from GitHub, extensions are namespaced under the repository owner.
+ *
+ * @param extensions - Discovered extensions to update
+ * @param source - Installation source
+ */
+export function applySourceOwner(extensions: DiscoveredExtension[], source: InstallSource): void {
+	if (source.type === "github") {
+		for (const ext of extensions) {
+			ext.id.owner = source.owner;
+		}
+	}
+}
+
+/**
+ * Select extensions from a list using an optional callback.
+ * Returns null if the user cancelled.
+ *
+ * @param allExtensions - All discovered extensions
+ * @param selectExtension - Optional callback for user selection
+ * @returns Selected extensions, or null if cancelled
+ */
+export async function selectExtensionsFromSource(
+	allExtensions: DiscoveredExtension[],
+	selectExtension?: ExtensionSelectionCallback,
+): Promise<DiscoveredExtension[] | null> {
+	if (allExtensions.length > 1 && selectExtension) {
+		const selected = await selectExtension(allExtensions);
+		if (!selected || selected.length === 0) {
+			return null;
+		}
+		return selected;
+	}
+	return allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+}
+
+/**
  * Format source string for manifest.
  */
 function formatSourceString(source: InstallSource, tagName?: string, commitSha?: string): string {
@@ -619,10 +648,35 @@ function formatSourceString(source: InstallSource, tagName?: string, commitSha?:
 }
 
 /**
- * Copy extension files to target directory.
+ * Write an extension to disk with transactional rollback.
+ *
+ * Copies extension files to the target directory and updates the manifest
+ * source field. If any step fails, the target directory is cleaned up to
+ * avoid leaving an inconsistent state.
+ *
+ * @param sourceDir - Source directory containing the extension
+ * @param targetDir - Destination directory for the extension
+ * @param manifestFilename - Name of the manifest file (e.g., "_extension.yml")
+ * @param sourceString - Source string to write into the manifest
+ * @returns List of files created
  */
-async function copyExtension(sourceDir: string, targetDir: string): Promise<string[]> {
-	return copyDirectory(sourceDir, targetDir);
+async function writeExtensionToDisk(
+	sourceDir: string,
+	targetDir: string,
+	manifestFilename: string,
+	sourceString: string,
+): Promise<string[]> {
+	try {
+		const filesCreated = await copyDirectory(sourceDir, targetDir);
+		const manifestPath = path.join(targetDir, manifestFilename);
+		updateManifestSource(manifestPath, sourceString);
+		return filesCreated;
+	} catch (error) {
+		// Rollback: remove partially installed extension to maintain consistency.
+		// eslint-disable-next-line @typescript-eslint/no-empty-function
+		await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
+		throw error;
+	}
 }
 
 /**
@@ -665,7 +719,7 @@ export async function installSingleExtension(
 	const extensionId: ExtensionId = extension.id;
 
 	const targetDir = getExtensionInstallPath(projectDir, extensionId);
-	const alreadyExists = fs.existsSync(targetDir);
+	const alreadyExists = await pathExists(targetDir);
 
 	if (alreadyExists) {
 		if (!force) {
@@ -699,17 +753,7 @@ export async function installSingleExtension(
 	const extIdString = extensionId.owner ? `${extensionId.owner}/${extensionId.name}` : extensionId.name;
 	onProgress?.({ phase: "installing", message: `Installing ${extIdString}...` });
 
-	let filesCreated: string[];
-	try {
-		filesCreated = await copyExtension(extension.path, targetDir);
-
-		const manifestPath = path.join(targetDir, manifestResult.filename);
-		updateManifestSource(manifestPath, sourceString);
-	} catch (error) {
-		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
-		throw error;
-	}
+	const filesCreated = await writeExtensionToDisk(extension.path, targetDir, manifestResult.filename, sourceString);
 
 	const manifestPath = path.join(targetDir, manifestResult.filename);
 	const finalManifest = readManifest(targetDir);

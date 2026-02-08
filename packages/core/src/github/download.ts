@@ -7,13 +7,16 @@
  * @module github
  */
 
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
+import { USER_AGENT } from "../constants.js";
 import { getAuthHeaders } from "../types/auth.js";
-import { NetworkError } from "../errors.js";
+import { CancellationError, NetworkError } from "../errors.js";
+import { formatSize, validateUrlProtocol } from "../archive/security.js";
 import { proxyFetch } from "../proxy/index.js";
 import { resolveVersion, type ResolveVersionOptions } from "./releases.js";
 
@@ -69,14 +72,23 @@ export async function downloadGitHubArchive(
 	version: VersionSpec,
 	options: DownloadOptions = {},
 ): Promise<DownloadResult> {
-	const { auth, timeout = 60000, format = "zip", onProgress, downloadDir, defaultBranch, latestCommit } = options;
+	const {
+		auth,
+		timeout = 60000,
+		format = "zip",
+		onProgress,
+		downloadDir,
+		defaultBranch,
+		latestCommit,
+		signal,
+	} = options;
 
 	onProgress?.({
 		phase: "resolving",
 		message: `Resolving version for ${owner}/${repo}...`,
 	});
 
-	const resolved = await resolveVersion(owner, repo, version, { auth, timeout, defaultBranch, latestCommit });
+	const resolved = await resolveVersion(owner, repo, version, { auth, timeout, defaultBranch, latestCommit, signal });
 
 	const downloadUrl = format === "zip" ? resolved.zipballUrl : resolved.tarballUrl;
 	const extension = format === "zip" ? ".zip" : ".tar.gz";
@@ -92,6 +104,7 @@ export async function downloadGitHubArchive(
 		extension,
 		downloadDir,
 		onProgress,
+		signal,
 	});
 
 	return {
@@ -117,9 +130,16 @@ export async function downloadArchive(
 		extension?: string;
 		downloadDir?: string;
 		onProgress?: DownloadProgressCallback;
+		signal?: AbortSignal;
 	} = {},
 ): Promise<string> {
-	const { auth, timeout = 60000, extension = ".zip", downloadDir, onProgress } = options;
+	const { auth, timeout = 60000, extension = ".zip", downloadDir, onProgress, signal } = options;
+
+	if (signal?.aborted) {
+		throw new CancellationError();
+	}
+
+	validateUrlProtocol(url);
 
 	let githubLikeHost = false;
 	try {
@@ -132,12 +152,18 @@ export async function downloadArchive(
 	}
 
 	const headers: Record<string, string> = {
-		"User-Agent": "quarto-wizard",
+		"User-Agent": USER_AGENT,
 		...getAuthHeaders(auth, githubLikeHost),
 	};
 
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), timeout);
+	const onExternalAbort = () => controller.abort();
+	signal?.addEventListener("abort", onExternalAbort, { once: true });
+
+	const dir = downloadDir ?? os.tmpdir();
+	const filename = `quarto-ext-${crypto.randomUUID()}${extension}`;
+	const archivePath = path.join(dir, filename);
 
 	try {
 		const response = await proxyFetch(url, {
@@ -153,13 +179,17 @@ export async function downloadArchive(
 		const contentLength = response.headers.get("content-length");
 		const totalBytes = contentLength ? parseInt(contentLength, 10) : undefined;
 
-		const dir = downloadDir ?? os.tmpdir();
-		const filename = `quarto-ext-${Date.now()}${extension}`;
-		const archivePath = path.join(dir, filename);
-
 		const fileStream = fs.createWriteStream(archivePath);
 
+		// Capture stream errors that occur during the write loop so they
+		// can be rethrown after the loop finishes.
+		let streamError: Error | undefined;
+		fileStream.on("error", (err) => {
+			streamError = err;
+		});
+
 		if (!response.body) {
+			fileStream.destroy();
 			throw new NetworkError("No response body received");
 		}
 
@@ -168,21 +198,30 @@ export async function downloadArchive(
 
 		try {
 			while (true) {
+				if (streamError) {
+					break;
+				}
+
 				const { done, value } = await reader.read();
 
 				if (done) {
 					break;
 				}
 
-				fileStream.write(Buffer.from(value));
+				const canContinue = fileStream.write(Buffer.from(value));
 				bytesDownloaded += value.length;
+
+				// Respect backpressure: wait for drain before writing more data
+				if (!canContinue) {
+					await new Promise<void>((resolve) => fileStream.once("drain", resolve));
+				}
 
 				if (onProgress) {
 					const percentage = totalBytes ? Math.round((bytesDownloaded / totalBytes) * 100) : undefined;
 
 					onProgress({
 						phase: "downloading",
-						message: `Downloading... ${formatBytes(bytesDownloaded)}`,
+						message: `Downloading... ${formatSize(bytesDownloaded)}`,
 						bytesDownloaded,
 						totalBytes,
 						percentage,
@@ -193,6 +232,10 @@ export async function downloadArchive(
 			fileStream.end();
 		}
 
+		if (streamError) {
+			throw new NetworkError(`Write error during download: ${streamError.message}`, { cause: streamError });
+		}
+
 		await new Promise<void>((resolve, reject) => {
 			fileStream.on("finish", resolve);
 			fileStream.on("error", reject);
@@ -200,12 +243,22 @@ export async function downloadArchive(
 
 		return archivePath;
 	} catch (error) {
+		// Clean up partial download on failure.
+		try {
+			await fs.promises.unlink(archivePath);
+		} catch {
+			// Best-effort cleanup.
+		}
 		if (error instanceof Error && error.name === "AbortError") {
+			if (signal?.aborted) {
+				throw new CancellationError();
+			}
 			throw new NetworkError(`Download timed out after ${timeout}ms`, { cause: error });
 		}
 		throw error;
 	} finally {
 		clearTimeout(timeoutId);
+		signal?.removeEventListener("abort", onExternalAbort);
 	}
 }
 
@@ -223,6 +276,7 @@ export async function downloadFromUrl(
 		timeout?: number;
 		downloadDir?: string;
 		onProgress?: DownloadProgressCallback;
+		signal?: AbortSignal;
 	} = {},
 ): Promise<string> {
 	const extension = getExtensionFromUrl(url);
@@ -248,19 +302,4 @@ function getExtensionFromUrl(url: string): string {
 	}
 
 	return ".zip";
-}
-
-/**
- * Format bytes for display.
- */
-function formatBytes(bytes: number): string {
-	if (bytes < 1024) {
-		return `${bytes} B`;
-	}
-
-	if (bytes < 1024 * 1024) {
-		return `${(bytes / 1024).toFixed(1)} KB`;
-	}
-
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

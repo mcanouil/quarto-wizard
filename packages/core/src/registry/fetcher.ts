@@ -12,13 +12,10 @@ import { parseRegistry } from "../types/registry.js";
 import type { AuthConfig } from "../types/auth.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { fetchJson } from "./http.js";
-import { readCachedRegistry, writeCachedRegistry, getDefaultCacheDir } from "./cache.js";
+import { readCachedRegistry, writeCachedRegistry, getDefaultCacheDir, DEFAULT_CACHE_TTL } from "./cache.js";
 
 /** Default registry URL. */
 const DEFAULT_REGISTRY_URL = "https://m.canouil.dev/quarto-extensions/extensions.json";
-
-/** Default cache TTL: 24 hours. */
-const DEFAULT_TTL = 24 * 60 * 60 * 1000;
 
 /**
  * Options for fetching the registry.
@@ -49,7 +46,7 @@ export async function fetchRegistry(options: RegistryOptions = {}): Promise<Regi
 		registryUrl = DEFAULT_REGISTRY_URL,
 		cacheDir = getDefaultCacheDir(),
 		forceRefresh = false,
-		cacheTtl = DEFAULT_TTL,
+		cacheTtl = DEFAULT_CACHE_TTL,
 		auth,
 		timeout,
 	} = options;

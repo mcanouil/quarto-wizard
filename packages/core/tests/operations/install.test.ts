@@ -260,13 +260,6 @@ describe("formatInstallSource", () => {
 });
 
 describe("resolveExtensionId", () => {
-	const mockManifest = {
-		title: "Test Extension",
-		author: "Test Author",
-		version: "1.0.0",
-		contributes: {},
-	};
-
 	describe("with GitHub source", () => {
 		it("should use GitHub owner and repo", () => {
 			const source: InstallSource = {
@@ -277,7 +270,7 @@ describe("resolveExtensionId", () => {
 			};
 			const extensionRoot = "/tmp/extract/repo-main/_extensions/other/name";
 
-			const result = resolveExtensionId(source, extensionRoot, mockManifest);
+			const result = resolveExtensionId(source, extensionRoot);
 
 			expect(result.owner).toBe("quarto-ext");
 			expect(result.name).toBe("fontawesome");
@@ -290,7 +283,7 @@ describe("resolveExtensionId", () => {
 		it("should extract owner/name from _extensions/owner/name structure", () => {
 			const extensionRoot = "/tmp/extract/repo-main/_extensions/myowner/myext";
 
-			const result = resolveExtensionId(urlSource, extensionRoot, mockManifest);
+			const result = resolveExtensionId(urlSource, extensionRoot);
 
 			expect(result.owner).toBe("myowner");
 			expect(result.name).toBe("myext");
@@ -299,7 +292,7 @@ describe("resolveExtensionId", () => {
 		it("should return null owner for _extensions/name structure", () => {
 			const extensionRoot = "/tmp/extract/repo-main/_extensions/test";
 
-			const result = resolveExtensionId(urlSource, extensionRoot, mockManifest);
+			const result = resolveExtensionId(urlSource, extensionRoot);
 
 			expect(result.owner).toBeNull();
 			expect(result.name).toBe("test");
@@ -308,7 +301,7 @@ describe("resolveExtensionId", () => {
 		it("should not use _extensions as owner name", () => {
 			const extensionRoot = "/tmp/extract/repo-main/_extensions/test";
 
-			const result = resolveExtensionId(urlSource, extensionRoot, mockManifest);
+			const result = resolveExtensionId(urlSource, extensionRoot);
 
 			expect(result.owner).not.toBe("_extensions");
 		});
@@ -316,7 +309,7 @@ describe("resolveExtensionId", () => {
 		it("should throw error when no _extensions in path", () => {
 			const extensionRoot = "/tmp/extract/some/other/path";
 
-			expect(() => resolveExtensionId(urlSource, extensionRoot, mockManifest)).toThrow(/Invalid extension structure/);
+			expect(() => resolveExtensionId(urlSource, extensionRoot)).toThrow(/Invalid extension structure/);
 		});
 	});
 
@@ -326,7 +319,7 @@ describe("resolveExtensionId", () => {
 		it("should extract owner/name from _extensions/owner/name structure", () => {
 			const extensionRoot = "/project/_extensions/owner/name";
 
-			const result = resolveExtensionId(localSource, extensionRoot, mockManifest);
+			const result = resolveExtensionId(localSource, extensionRoot);
 
 			expect(result.owner).toBe("owner");
 			expect(result.name).toBe("name");
@@ -335,7 +328,7 @@ describe("resolveExtensionId", () => {
 		it("should return null owner for _extensions/name structure", () => {
 			const extensionRoot = "/project/_extensions/myext";
 
-			const result = resolveExtensionId(localSource, extensionRoot, mockManifest);
+			const result = resolveExtensionId(localSource, extensionRoot);
 
 			expect(result.owner).toBeNull();
 			expect(result.name).toBe("myext");
@@ -344,7 +337,7 @@ describe("resolveExtensionId", () => {
 		it("should throw error when no _extensions in path", () => {
 			const extensionRoot = "/project/myext";
 
-			expect(() => resolveExtensionId(localSource, extensionRoot, mockManifest)).toThrow(/Invalid extension structure/);
+			expect(() => resolveExtensionId(localSource, extensionRoot)).toThrow(/Invalid extension structure/);
 		});
 	});
 });

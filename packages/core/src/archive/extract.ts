@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { ExtensionError } from "../errors.js";
+import { MANIFEST_FILENAMES } from "../filesystem/manifest.js";
 import { extractZip } from "./zip.js";
 import { extractTar } from "./tar.js";
 
@@ -91,6 +92,9 @@ export async function extractArchive(archivePath: string, options: ExtractOption
 	}
 }
 
+/** Maximum recursion depth for findExtensionRoot to prevent stack overflow on crafted archives. */
+const MAX_FIND_DEPTH = 5;
+
 /**
  * Find the extension root in an extracted archive.
  *
@@ -98,12 +102,15 @@ export async function extractArchive(archivePath: string, options: ExtractOption
  * This function finds the directory containing _extension.yml.
  *
  * @param extractDir - Extraction directory
+ * @param depth - Current recursion depth (internal use)
  * @returns Path to extension root or null if not found
  */
-export async function findExtensionRoot(extractDir: string): Promise<string | null> {
-	const manifestNames = ["_extension.yml", "_extension.yaml"];
+export async function findExtensionRoot(extractDir: string, depth = 0): Promise<string | null> {
+	if (depth > MAX_FIND_DEPTH) {
+		return null;
+	}
 
-	for (const name of manifestNames) {
+	for (const name of MANIFEST_FILENAMES) {
 		const directPath = path.join(extractDir, name);
 		if (fs.existsSync(directPath)) {
 			return extractDir;
@@ -116,7 +123,7 @@ export async function findExtensionRoot(extractDir: string): Promise<string | nu
 	for (const dir of directories) {
 		const dirPath = path.join(extractDir, dir.name);
 
-		for (const name of manifestNames) {
+		for (const name of MANIFEST_FILENAMES) {
 			const manifestPath = path.join(dirPath, name);
 			if (fs.existsSync(manifestPath)) {
 				return dirPath;
@@ -125,7 +132,7 @@ export async function findExtensionRoot(extractDir: string): Promise<string | nu
 	}
 
 	for (const dir of directories) {
-		const subRoot = await findExtensionRoot(path.join(extractDir, dir.name));
+		const subRoot = await findExtensionRoot(path.join(extractDir, dir.name), depth + 1);
 		if (subRoot) {
 			return subRoot;
 		}
@@ -184,11 +191,10 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
  */
 export async function findAllExtensionRoots(extractDir: string): Promise<DiscoveredExtension[]> {
 	const results: DiscoveredExtension[] = [];
-	const manifestNames = ["_extension.yml", "_extension.yaml"];
 
 	async function searchDirectory(dir: string): Promise<void> {
 		// Check for manifest in current directory
-		for (const name of manifestNames) {
+		for (const name of MANIFEST_FILENAMES) {
 			const manifestPath = path.join(dir, name);
 			if (fs.existsSync(manifestPath)) {
 				// Found an extension, derive its ID from path

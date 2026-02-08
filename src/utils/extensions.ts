@@ -1,6 +1,9 @@
-import * as fs from "fs";
-import * as path from "path";
-import { discoverInstalledExtensions, type InstalledExtension } from "@quarto-wizard/core";
+import {
+	discoverInstalledExtensions,
+	formatExtensionId,
+	getExtensionTypes,
+	type InstalledExtension,
+} from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
@@ -12,11 +15,12 @@ import { logMessage } from "./log";
 export async function findQuartoExtensions(directory: string): Promise<string[]> {
 	try {
 		const extensions = await discoverInstalledExtensions(directory);
-		return extensions.map((ext) => {
-			const id = ext.id;
-			return id.owner ? `${id.owner}/${id.name}` : id.name;
-		});
-	} catch {
+		return extensions.map((ext) => formatExtensionId(ext.id));
+	} catch (error) {
+		logMessage(
+			`Failed to discover extensions in ${directory}: ${error instanceof Error ? error.message : String(error)}.`,
+			"warn",
+		);
 		return [];
 	}
 }
@@ -30,7 +34,11 @@ export async function findQuartoExtensions(directory: string): Promise<string[]>
 export async function getInstalledExtensions(workspaceFolder: string): Promise<InstalledExtension[]> {
 	try {
 		return await discoverInstalledExtensions(workspaceFolder);
-	} catch {
+	} catch (error) {
+		logMessage(
+			`Failed to get installed extensions in ${workspaceFolder}: ${error instanceof Error ? error.message : String(error)}.`,
+			"warn",
+		);
 		return [];
 	}
 }
@@ -47,7 +55,7 @@ export async function getInstalledExtensionsRecord(
 	const extensions = await getInstalledExtensions(workspaceFolder);
 	const record: Record<string, InstalledExtension> = {};
 	for (const ext of extensions) {
-		const key = ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name;
+		const key = formatExtensionId(ext.id);
 		record[key] = ext;
 	}
 	return record;
@@ -70,47 +78,8 @@ export function getExtensionRepository(ext: InstalledExtension): string | undefi
  * @returns A comma-separated list of contribution types or undefined.
  */
 export function getExtensionContributes(ext: InstalledExtension): string | undefined {
-	return ext.manifest.contributes ? Object.keys(ext.manifest.contributes).join(", ") : undefined;
+	const types = getExtensionTypes(ext.manifest);
+	return types.length > 0 ? types.join(", ") : undefined;
 }
 
-/**
- * Removes a specified extension and its parent directories if they become empty.
- *
- * @param extension - The name of the extension to remove.
- * @param root - The root directory where the extension is located.
- * @returns True if the extension was removed successfully, false otherwise.
- */
-export async function removeExtension(extension: string, root: string): Promise<boolean> {
-	const extensionPath = path.join(root, extension);
-	if (fs.existsSync(extensionPath)) {
-		try {
-			await fs.promises.rm(extensionPath, { recursive: true, force: true });
-
-			// Try to remove parent directories if empty. Using rmdir (without recursive)
-			// will fail with ENOTEMPTY if the directory has contents, which is the
-			// desired behaviour. This avoids TOCTTOU race conditions where we check
-			// if empty then delete; instead we just try to delete and handle failure.
-			const ownerPath = path.dirname(extensionPath);
-			try {
-				await fs.promises.rmdir(ownerPath);
-			} catch {
-				// Directory not empty or already removed; either is fine.
-			}
-
-			try {
-				await fs.promises.rmdir(root);
-			} catch {
-				// Directory not empty or already removed; either is fine.
-			}
-			return true;
-		} catch (error) {
-			logMessage(`Failed to remove extension: ${error}`, "error");
-			return false;
-		}
-	} else {
-		logMessage(`Extension path does not exist: ${extensionPath}`, "warn");
-		return false;
-	}
-}
-
-export { type InstalledExtension } from "@quarto-wizard/core";
+export { formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";
