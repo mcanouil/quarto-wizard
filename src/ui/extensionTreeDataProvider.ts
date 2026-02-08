@@ -310,9 +310,6 @@ export class QuartoExtensionTreeDataProvider
 			const folderCache = this.cache[workspacePath];
 			if (!folderCache) continue;
 
-			// Reset latest versions for this folder
-			folderCache.latestVersions = {};
-
 			try {
 				const updates = await checkForUpdates({
 					projectDir: workspacePath,
@@ -321,6 +318,9 @@ export class QuartoExtensionTreeDataProvider
 					auth: auth ?? undefined,
 					timeout: 10000,
 				});
+
+				// Only reset after successful fetch to preserve previous state on error
+				folderCache.latestVersions = {};
 
 				for (const update of updates) {
 					const extId = formatExtensionId(update.extension.id);
