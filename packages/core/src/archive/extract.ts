@@ -92,6 +92,9 @@ export async function extractArchive(archivePath: string, options: ExtractOption
 	}
 }
 
+/** Maximum recursion depth for findExtensionRoot to prevent stack overflow on crafted archives. */
+const MAX_FIND_DEPTH = 5;
+
 /**
  * Find the extension root in an extracted archive.
  *
@@ -99,9 +102,14 @@ export async function extractArchive(archivePath: string, options: ExtractOption
  * This function finds the directory containing _extension.yml.
  *
  * @param extractDir - Extraction directory
+ * @param depth - Current recursion depth (internal use)
  * @returns Path to extension root or null if not found
  */
-export async function findExtensionRoot(extractDir: string): Promise<string | null> {
+export async function findExtensionRoot(extractDir: string, depth = 0): Promise<string | null> {
+	if (depth > MAX_FIND_DEPTH) {
+		return null;
+	}
+
 	for (const name of MANIFEST_FILENAMES) {
 		const directPath = path.join(extractDir, name);
 		if (fs.existsSync(directPath)) {
@@ -124,7 +132,7 @@ export async function findExtensionRoot(extractDir: string): Promise<string | nu
 	}
 
 	for (const dir of directories) {
-		const subRoot = await findExtensionRoot(path.join(extractDir, dir.name));
+		const subRoot = await findExtensionRoot(path.join(extractDir, dir.name), depth + 1);
 		if (subRoot) {
 			return subRoot;
 		}

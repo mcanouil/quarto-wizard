@@ -1,4 +1,5 @@
 import { discoverInstalledExtensions, formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";
+import { logMessage } from "./log";
 
 /**
  * Finds Quarto extensions in a directory using the core library.
@@ -10,7 +11,11 @@ export async function findQuartoExtensions(directory: string): Promise<string[]>
 	try {
 		const extensions = await discoverInstalledExtensions(directory);
 		return extensions.map((ext) => formatExtensionId(ext.id));
-	} catch {
+	} catch (error) {
+		logMessage(
+			`Failed to discover extensions in ${directory}: ${error instanceof Error ? error.message : String(error)}.`,
+			"warn",
+		);
 		return [];
 	}
 }
@@ -24,7 +29,11 @@ export async function findQuartoExtensions(directory: string): Promise<string[]>
 export async function getInstalledExtensions(workspaceFolder: string): Promise<InstalledExtension[]> {
 	try {
 		return await discoverInstalledExtensions(workspaceFolder);
-	} catch {
+	} catch (error) {
+		logMessage(
+			`Failed to get installed extensions in ${workspaceFolder}: ${error instanceof Error ? error.message : String(error)}.`,
+			"warn",
+		);
 		return [];
 	}
 }

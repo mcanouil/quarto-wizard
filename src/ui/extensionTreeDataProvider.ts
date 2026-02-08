@@ -10,9 +10,9 @@ import { WorkspaceFolderTreeItem, ExtensionTreeItem, type FolderCache } from "./
 /**
  * Provides data for the Quarto extensions tree view.
  */
-export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
-	WorkspaceFolderTreeItem | ExtensionTreeItem
-> {
+export class QuartoExtensionTreeDataProvider
+	implements vscode.TreeDataProvider<WorkspaceFolderTreeItem | ExtensionTreeItem>, vscode.Disposable
+{
 	private _onDidChangeTreeData: vscode.EventEmitter<WorkspaceFolderTreeItem | ExtensionTreeItem | undefined | void> =
 		new vscode.EventEmitter<WorkspaceFolderTreeItem | ExtensionTreeItem | undefined | void>();
 	readonly onDidChangeTreeData: vscode.Event<WorkspaceFolderTreeItem | ExtensionTreeItem | undefined | void> =
@@ -26,6 +26,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	constructor(private workspaceFolders: readonly vscode.WorkspaceFolder[]) {
 		this.refreshAllExtensionsData();
+	}
+
+	dispose(): void {
+		this.refresh.cancel();
+		this._onDidChangeTreeData.dispose();
 	}
 
 	getTreeItem(element: WorkspaceFolderTreeItem | ExtensionTreeItem): vscode.TreeItem {

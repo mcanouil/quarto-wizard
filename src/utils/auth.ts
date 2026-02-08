@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { createAuthConfig, type AuthConfig } from "@quarto-wizard/core";
+import { createAuthConfig, AuthenticationError, NetworkError, type AuthConfig } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
@@ -109,9 +109,15 @@ export async function clearManualToken(context: vscode.ExtensionContext): Promis
  *   false otherwise.  Callers can use this to optionally retry the operation.
  */
 export async function handleAuthError(prefix: string, error: unknown): Promise<boolean> {
-	// Check for structured error properties first (more reliable than string matching).
-	const statusCode =
-		error && typeof error === "object" && Object.hasOwn(error, "statusCode")
+	// 1. Check for typed core errors (most reliable, avoids string matching).
+	const isTypedAuthError =
+		error instanceof AuthenticationError ||
+		(error instanceof NetworkError && (error.statusCode === 401 || error.statusCode === 403));
+
+	// 2. Check for structured error properties from non-core errors.
+	const statusCode = isTypedAuthError
+		? undefined
+		: error && typeof error === "object" && Object.hasOwn(error, "statusCode")
 			? (error as Record<string, unknown>).statusCode
 			: error && typeof error === "object" && Object.hasOwn(error, "status")
 				? (error as Record<string, unknown>).status
@@ -120,8 +126,7 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 	// Some HTTP libraries store status codes as strings, so check both.
 	const isAuthStatus = statusCode === 401 || statusCode === "401" || statusCode === 403 || statusCode === "403";
 
-	const message = error instanceof Error ? error.message : String(error);
-	// String-based fallback for libraries that only throw string errors.
+	// 3. String-based fallback for libraries that only throw string errors.
 	// Patterns are deliberately narrow to avoid false positives:
 	// - "status 401", "status: 403", "HTTP 401" (status code in context).
 	// - "authentication [token] failed/required/..." and the reverse order
@@ -129,6 +134,7 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 	//   to allow e.g. "authentication token expired" or "invalid authentication").
 	// - "401: Unauthorized", "403 - Forbidden" (status code + HTTP reason phrase).
 	// - Standalone "Unauthorized" / "Forbidden" (whole message or after colon).
+	const message = error instanceof Error ? error.message : String(error);
 	const isAuthMessage =
 		/\bstatus\b.{0,20}\b(401|403)\b/i.test(message) ||
 		/\bHTTP\s+(401|403)\b/i.test(message) ||
@@ -138,7 +144,7 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 		/:\s*(Unauthorized|Forbidden)\s*$/i.test(message) ||
 		/^(Unauthorized|Forbidden)$/i.test(message.trim());
 
-	if (isAuthStatus || isAuthMessage) {
+	if (isTypedAuthError || isAuthStatus || isAuthMessage) {
 		const action = await vscode.window.showErrorMessage(
 			"Authentication may be required. Sign in to GitHub to access private repositories.",
 			"Sign In",

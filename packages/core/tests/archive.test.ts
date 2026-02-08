@@ -102,6 +102,34 @@ describe("findExtensionRoot", () => {
 
 		expect(root).toBeNull();
 	});
+
+	it("returns null when manifest is deeper than max depth", async () => {
+		// Create a deeply nested directory structure (7 levels deep > MAX_FIND_DEPTH of 5)
+		let current = tempDir;
+		for (let i = 0; i < 7; i++) {
+			current = path.join(current, `level${i}`);
+			await fs.promises.mkdir(current);
+		}
+		await fs.promises.writeFile(path.join(current, "_extension.yml"), "title: Deep");
+
+		const root = await findExtensionRoot(tempDir);
+
+		expect(root).toBeNull();
+	});
+
+	it("finds manifest at exactly the max depth", async () => {
+		// Create directory structure at depth 5 (within MAX_FIND_DEPTH)
+		let current = tempDir;
+		for (let i = 0; i < 4; i++) {
+			current = path.join(current, `level${i}`);
+			await fs.promises.mkdir(current);
+		}
+		await fs.promises.writeFile(path.join(current, "_extension.yml"), "title: AtLimit");
+
+		const root = await findExtensionRoot(tempDir);
+
+		expect(root).toBe(current);
+	});
 });
 
 describe("cleanupExtraction", () => {

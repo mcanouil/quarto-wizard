@@ -152,7 +152,7 @@ async function fetchWithRetry<T>(
 				continue;
 			}
 
-			throw error;
+			throw lastError;
 		}
 	}
 

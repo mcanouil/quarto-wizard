@@ -113,7 +113,7 @@ export function normaliseManifest(raw: RawManifest): ExtensionManifest {
 	return {
 		title: raw.title ?? "",
 		author: raw.author ?? "",
-		version: String(raw.version ?? ""),
+		version: typeof raw.version === "string" || typeof raw.version === "number" ? String(raw.version) : "",
 		quartoRequired: raw["quarto-required"],
 		contributes: {
 			filter: raw.contributes?.filters,
