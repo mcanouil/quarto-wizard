@@ -169,13 +169,15 @@ export class QuartoExtensionTreeDataProvider
 		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
 	): void {
 		this.refreshAllExtensionsDataAsync()
-			.then(() => {
-				this.checkUpdate(context, view).catch((error) => {
+			.then(async () => {
+				try {
+					await this.checkUpdate(context, view);
+				} catch (error) {
 					logMessage(
 						`Failed to check for updates: ${error instanceof Error ? error.message : String(error)}.`,
 						"error",
 					);
-				});
+				}
 				this._onDidChangeTreeData.fire();
 			})
 			.catch((error) => {
