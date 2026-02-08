@@ -293,9 +293,10 @@ function isLocalFilePath(value: string): boolean {
  * - typography.fonts[].files where source is "file".
  *
  * @param brandYamlPath - Absolute path to the brand YAML file
+ * @param onWarning - Optional callback for non-fatal warnings (e.g., parse errors)
  * @returns Array of unique relative file paths
  */
-export function extractBrandFilePaths(brandYamlPath: string): string[] {
+export function extractBrandFilePaths(brandYamlPath: string, onWarning?: (message: string) => void): string[] {
 	const paths: string[] = [];
 
 	let raw: Record<string, unknown>;
@@ -305,7 +306,9 @@ export function extractBrandFilePaths(brandYamlPath: string): string[] {
 		if (!raw || typeof raw !== "object") {
 			return paths;
 		}
-	} catch {
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		onWarning?.(`Failed to read brand file "${brandYamlPath}": ${message}`);
 		return paths;
 	}
 
@@ -636,7 +639,9 @@ export async function useBrand(source: string | InstallSource, options: UseBrand
 		}
 
 		// Step 3: Extract referenced file paths.
-		const referencedPaths = extractBrandFilePaths(brandInfo.brandFilePath);
+		const referencedPaths = extractBrandFilePaths(brandInfo.brandFilePath, (warning) => {
+			onProgress?.({ phase: "detecting", message: warning });
+		});
 
 		// Step 4: Build file copy list.
 		// The brand file itself (will be renamed to _brand.yml).

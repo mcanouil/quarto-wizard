@@ -28,6 +28,7 @@ export class ExtensionsInstalled {
 		}
 
 		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders);
+		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,

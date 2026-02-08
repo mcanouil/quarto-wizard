@@ -472,6 +472,25 @@ describe("extractBrandFilePaths", () => {
 		expect(paths).toEqual([]);
 	});
 
+	it("should call onWarning for missing file", () => {
+		const warnings: string[] = [];
+		const paths = extractBrandFilePaths(path.join(tempDir, "nonexistent.yml"), (msg) => warnings.push(msg));
+
+		expect(paths).toEqual([]);
+		expect(warnings).toHaveLength(1);
+		expect(warnings[0]).toContain("Failed to read brand file");
+	});
+
+	it("should call onWarning for invalid YAML", () => {
+		const brandPath = createFile(tempDir, "_brand.yml", "[invalid: yaml:");
+		const warnings: string[] = [];
+		const paths = extractBrandFilePaths(brandPath, (msg) => warnings.push(msg));
+
+		expect(paths).toEqual([]);
+		expect(warnings).toHaveLength(1);
+		expect(warnings[0]).toContain("Failed to read brand file");
+	});
+
 	it("should return empty array for empty YAML", () => {
 		const brandPath = createFile(tempDir, "_brand.yml", "");
 

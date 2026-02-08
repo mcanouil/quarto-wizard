@@ -338,10 +338,13 @@ export class QuartoExtensionTreeDataProvider
 		}
 
 		if (view) {
-			view.badge = {
-				value: totalUpdates,
-				tooltip: `${totalUpdates} update${totalUpdates === 1 ? "" : "s"} available`,
-			};
+			view.badge =
+				totalUpdates > 0
+					? {
+							value: totalUpdates,
+							tooltip: `${totalUpdates} update${totalUpdates === 1 ? "" : "s"} available`,
+						}
+					: undefined;
 		}
 
 		return totalUpdates;
