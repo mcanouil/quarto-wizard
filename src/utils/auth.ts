@@ -13,35 +13,17 @@ const GITHUB_SCOPES = ["repo"];
 const MANUAL_TOKEN_KEY = "quartoWizard.githubToken";
 
 /**
- * Options for getting authentication configuration.
- */
-export interface GetAuthConfigOptions {
-	/**
-	 * If true, prompts user to sign in if no session exists.
-	 * @default false
-	 */
-	createIfNone?: boolean;
-	/**
-	 * If true, never shows UI (returns undefined if no session).
-	 * @default false
-	 */
-	silent?: boolean;
-}
-
-/**
  * Get GitHub authentication configuration using the following priority:
  * 1. Manual token (SecretStorage) - if user explicitly set one.
- * 2. VSCode GitHub session - native OAuth.
- * 3. Environment variables (GITHUB_TOKEN, QUARTO_WIZARD_TOKEN).
+ * 2. Environment variables (GITHUB_TOKEN, QUARTO_WIZARD_TOKEN).
+ *
+ * VSCode GitHub session acquisition is handled reactively by
+ * {@link handleAuthError} when authentication errors occur.
  *
  * @param context - The extension context for accessing secrets.
- * @param options - Options for authentication behaviour.
  * @returns AuthConfig with GitHub token if available.
  */
-export async function getAuthConfig(
-	context: vscode.ExtensionContext,
-	options?: GetAuthConfigOptions,
-): Promise<AuthConfig> {
+export async function getAuthConfig(context: vscode.ExtensionContext): Promise<AuthConfig> {
 	// 1. Check for manual token (highest priority)
 	const manualToken = await context.secrets.get(MANUAL_TOKEN_KEY);
 	if (manualToken) {
@@ -49,25 +31,7 @@ export async function getAuthConfig(
 		return createAuthConfig({ githubToken: manualToken });
 	}
 
-	// 2. Try VSCode native GitHub session
-	try {
-		const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
-			createIfNone: options?.createIfNone ?? false,
-			silent: options?.silent ?? false,
-		});
-
-		if (session) {
-			logMessage("Using GitHub token from VSCode session.", "info");
-			return createAuthConfig({ githubToken: session.accessToken });
-		}
-	} catch (error) {
-		// Only log if it's not a user cancellation
-		if (error instanceof Error && !error.message.includes("User did not consent")) {
-			logMessage(`GitHub authentication error: ${error.message}.`, "warn");
-		}
-	}
-
-	// 3. Fall back to environment variables (handled by createAuthConfig)
+	// 2. Fall back to environment variables (handled by createAuthConfig)
 	const authConfig = createAuthConfig();
 	if (authConfig.githubToken) {
 		logMessage("Using GitHub token from environment variable (GITHUB_TOKEN or QUARTO_WIZARD_TOKEN).", "info");
@@ -78,7 +42,7 @@ export async function getAuthConfig(
 
 /**
  * Set a manual GitHub token (stored securely in SecretStorage).
- * When set, this token takes priority over VSCode sessions and environment variables.
+ * When set, this token takes priority over environment variables.
  *
  * @param context - The extension context for accessing secrets.
  * @param token - The GitHub personal access token to store.
@@ -90,7 +54,7 @@ export async function setManualToken(context: vscode.ExtensionContext, token: st
 
 /**
  * Clear the manual GitHub token.
- * After clearing, authentication will fall back to VSCode session or environment variables.
+ * After clearing, authentication will fall back to environment variables.
  *
  * @param context - The extension context for accessing secrets.
  */
