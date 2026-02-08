@@ -18,7 +18,7 @@ const DEFAULT_CACHE_TTL_MINUTES = 30;
  * Gets the configured cache TTL in milliseconds.
  * @returns Cache TTL in milliseconds.
  */
-function getCacheTTL(): number {
+export function getCacheTTL(): number {
 	const config = vscode.workspace.getConfiguration("quartoWizard");
 	const ttlMinutes = config.get<number>("cache.ttlMinutes", DEFAULT_CACHE_TTL_MINUTES);
 	return ttlMinutes * 60 * 1000;
@@ -28,7 +28,7 @@ function getCacheTTL(): number {
  * Gets the configured registry URL.
  * @returns The registry URL from settings or the default.
  */
-function getRegistryUrl(): string {
+export function getRegistryUrl(): string {
 	const config = vscode.workspace.getConfiguration("quartoWizard");
 	return config.get<string>("registry.url", getDefaultRegistryUrl());
 }

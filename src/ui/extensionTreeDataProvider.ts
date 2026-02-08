@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
-import * as semver from "semver";
-import { normaliseVersion } from "@quarto-wizard/core";
+import { checkForUpdates, formatExtensionId } from "@quarto-wizard/core";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionRepository, getExtensionContributes } from "../utils/extensions";
-import { getExtensionsDetails } from "../utils/extensionDetails";
+import { getRegistryUrl, getCacheTTL } from "../utils/extensionDetails";
+import { getAuthConfig } from "../utils/auth";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, type FolderCache } from "./extensionTreeItems";
 
 /**
@@ -299,7 +299,9 @@ export class QuartoExtensionTreeDataProvider
 		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
 		silent = true,
 	): Promise<number> {
-		const extensionsDetails = await getExtensionsDetails(context);
+		const auth = await getAuthConfig(context, { silent: true });
+		const registryUrl = getRegistryUrl();
+		const cacheTtl = getCacheTTL();
 		const updatesAvailable: string[] = [];
 		let totalUpdates = 0;
 
@@ -311,28 +313,29 @@ export class QuartoExtensionTreeDataProvider
 			// Reset latest versions for this folder
 			folderCache.latestVersions = {};
 
-			for (const [extId, ext] of Object.entries(folderCache.extensions)) {
-				const repository = getExtensionRepository(ext);
-				const matchingDetail = extensionsDetails.find((detail) => detail.id === repository);
+			try {
+				const updates = await checkForUpdates({
+					projectDir: workspacePath,
+					registryUrl,
+					cacheTtl,
+					auth: auth ?? undefined,
+					timeout: 10000,
+				});
 
-				const version = ext.manifest.version;
-				if (!version || version === "none") {
-					continue;
-				}
+				for (const update of updates) {
+					const extId = formatExtensionId(update.extension.id);
+					const atIndex = update.source.lastIndexOf("@");
+					const versionRef = atIndex > 0 ? update.source.substring(atIndex + 1) : update.latestVersion;
 
-				if (matchingDetail?.version === "none") {
-					folderCache.latestVersions[extId] = "unknown";
-					continue;
-				}
-
-				const currentSemver = normaliseVersion(version);
-				const latestSemver = matchingDetail ? normaliseVersion(matchingDetail.version) : null;
-
-				if (matchingDetail && currentSemver && latestSemver && semver.lt(currentSemver, latestSemver)) {
+					folderCache.latestVersions[extId] = versionRef;
 					updatesAvailable.push(`${folder.name}/${extId}`);
-					folderCache.latestVersions[extId] = matchingDetail.tag;
 					totalUpdates++;
 				}
+			} catch (error) {
+				logMessage(
+					`Failed to check updates for ${workspacePath}: ${error instanceof Error ? error.message : String(error)}.`,
+					"error",
+				);
 			}
 		}
 
