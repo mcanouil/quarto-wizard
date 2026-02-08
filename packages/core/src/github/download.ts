@@ -7,6 +7,7 @@
  * @module github
  */
 
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -160,7 +161,7 @@ export async function downloadArchive(
 	signal?.addEventListener("abort", onExternalAbort, { once: true });
 
 	const dir = downloadDir ?? os.tmpdir();
-	const filename = `quarto-ext-${Date.now()}${extension}`;
+	const filename = `quarto-ext-${crypto.randomUUID()}${extension}`;
 	const archivePath = path.join(dir, filename);
 
 	try {

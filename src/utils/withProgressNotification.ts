@@ -20,13 +20,20 @@ export async function withProgressNotification<T>(
 			cancellable: true,
 		},
 		async (_progress: vscode.Progress<{ increment: number }>, token: vscode.CancellationToken): Promise<T> => {
+			let completed = false;
 			token.onCancellationRequested((): void => {
+				if (completed) {
+					return;
+				}
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			});
-			// progress.report({ increment: 0 });
-			return await expression(token);
+			try {
+				return await expression(token);
+			} finally {
+				completed = true;
+			}
 		},
 	);
 }

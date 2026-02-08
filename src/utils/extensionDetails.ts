@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { fetchRegistry, type RegistryEntry } from "@quarto-wizard/core";
 import {
-	QW_EXTENSIONS,
+	getDefaultRegistryUrl,
 	QW_EXTENSIONS_CACHE,
 	STORAGE_KEY_RECENTLY_INSTALLED,
 	STORAGE_KEY_RECENTLY_USED,
@@ -30,7 +30,7 @@ function getCacheTTL(): number {
  */
 function getRegistryUrl(): string {
 	const config = vscode.workspace.getConfiguration("quartoWizard");
-	return config.get<string>("registry.url", QW_EXTENSIONS);
+	return config.get<string>("registry.url", getDefaultRegistryUrl());
 }
 
 /**

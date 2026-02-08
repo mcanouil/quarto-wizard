@@ -60,7 +60,11 @@ async function installQuartoExtensions(
 			cancellable: true,
 		},
 		async (progress, token) => {
+			let completed = false;
 			token.onCancellationRequested(() => {
+				if (completed) {
+					return;
+				}
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
 				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
@@ -176,6 +180,7 @@ async function installQuartoExtensions(
 				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
 			}
 			// If installedCount === 0 and failedExtensions.length === 0, the operation was cancelled - no message needed
+			completed = true;
 		},
 	);
 }

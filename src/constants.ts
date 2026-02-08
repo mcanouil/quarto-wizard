@@ -16,9 +16,9 @@ export const STORAGE_KEY_RECENTLY_INSTALLED = "recentlyInstalledExtensions";
 export const STORAGE_KEY_RECENTLY_USED = "recentlyUsedTemplates";
 
 /**
- * URL to the Quarto extensions CSV file.
+ * Default registry URL (sourced from core library).
  */
-export const QW_EXTENSIONS = "https://m.canouil.dev/quarto-extensions/extensions.json";
+export { getDefaultRegistryUrl } from "@quarto-wizard/core";
 
 /**
  * Key for caching the Quarto extensions JSON.

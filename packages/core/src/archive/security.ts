@@ -11,6 +11,15 @@
 import * as path from "node:path";
 import { SecurityError } from "../errors.js";
 
+/** Default maximum extraction size: 100 MB. */
+export const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
+
+/** Maximum compression ratio allowed. */
+export const MAX_COMPRESSION_RATIO = 100;
+
+/** Maximum number of entries allowed in an archive. */
+export const MAX_FILE_COUNT = 10_000;
+
 /**
  * Check for path traversal attempts in archive entry paths.
  *

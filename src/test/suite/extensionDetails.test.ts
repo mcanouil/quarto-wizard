@@ -153,7 +153,7 @@ suite("Extension Details Test Suite", () => {
 		let fetchCalled = false;
 
 		// Pre-populate cache with valid, non-expired data
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		globalStateStorage[cacheKey] = {
 			data: expectedExtensions,
 			timestamp: Date.now() - 1000, // 1 second ago
@@ -188,7 +188,7 @@ suite("Extension Details Test Suite", () => {
 		let fetchCalled = false;
 
 		// Pre-populate cache with valid data
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		const recentTimestamp = Date.now() - 1000; // 1 second ago
 		globalStateStorage[cacheKey] = {
 			data: expectedExtensions,
@@ -224,7 +224,7 @@ suite("Extension Details Test Suite", () => {
 		let fetchCalled = false;
 
 		// Pre-populate cache with expired data
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		globalStateStorage[cacheKey] = {
 			data: [],
 			timestamp: Date.now() - (DEFAULT_CACHE_TTL_MS + 1000), // Expired
@@ -376,7 +376,7 @@ suite("Extension Details Test Suite", () => {
 		const result = await getExtensionsDetails(mockContext as unknown as vscode.ExtensionContext);
 
 		// Check that data was cached
-		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.QW_EXTENSIONS)}`;
+		const cacheKey = `${constants.QW_EXTENSIONS_CACHE}_${generateHashKey(constants.getDefaultRegistryUrl())}`;
 		const cachedData = globalStateStorage[cacheKey] as { data: ExtensionDetails[]; timestamp: number };
 
 		assert.ok(cachedData, "Data should be cached");

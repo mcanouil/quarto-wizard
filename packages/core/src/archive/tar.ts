@@ -11,16 +11,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as tar from "tar";
 import { SecurityError } from "../errors.js";
-import { checkPathTraversal, checkSymlinkTarget, formatSize } from "./security.js";
-
-/** Default maximum extraction size: 100 MB. */
-const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
-
-/** Maximum compression ratio allowed (matches ZIP extractor). */
-const MAX_COMPRESSION_RATIO = 100;
-
-/** Maximum number of entries allowed in an archive. */
-const MAX_FILE_COUNT = 10_000;
+import {
+	checkPathTraversal,
+	checkSymlinkTarget,
+	formatSize,
+	DEFAULT_MAX_SIZE,
+	MAX_COMPRESSION_RATIO,
+	MAX_FILE_COUNT,
+} from "./security.js";
 
 /**
  * Options for TAR extraction.

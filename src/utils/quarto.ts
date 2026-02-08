@@ -209,7 +209,7 @@ export async function installQuartoExtension(
 
 		if (result.success) {
 			logMessage(`${prefix} Successfully installed.`, "info");
-			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+			void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
 		} else {
 			logMessage(`${prefix} Failed to install.`, "error");
@@ -262,7 +262,7 @@ export async function removeQuartoExtension(extension: string, workspaceFolder: 
 
 		if (result.success) {
 			logMessage(`${prefix} Successfully removed.`, "info");
-			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+			void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
 		} else {
 			logMessage(`${prefix} Failed to remove.`, "error");
@@ -325,7 +325,7 @@ export async function removeQuartoExtensions(
 			logMessage(`${prefix} Failed to remove: ${failedExtensions.join(", ")}`, "error");
 		}
 
-		vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+		void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 
 		return { successCount, failedExtensions };
 	} catch (error) {
@@ -448,7 +448,7 @@ export async function useQuartoExtension(
 				result.skippedFiles.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 			}
 
-			vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
+			void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return result;
 		} else {
 			logMessage(`${prefix} Failed to use template.`, "error");

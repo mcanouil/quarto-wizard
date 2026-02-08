@@ -100,17 +100,6 @@ export async function clearManualToken(context: vscode.ExtensionContext): Promis
 }
 
 /**
- * Check if a manual token is set in SecretStorage.
- *
- * @param context - The extension context for accessing secrets.
- * @returns True if a manual token is stored.
- */
-export async function hasManualToken(context: vscode.ExtensionContext): Promise<boolean> {
-	const token = await context.secrets.get(MANUAL_TOKEN_KEY);
-	return token !== undefined;
-}
-
-/**
  * Checks whether an error message indicates an authentication failure and,
  * if so, shows a dialog offering to sign in or set a token.
  *

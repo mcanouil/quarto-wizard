@@ -368,38 +368,23 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			});
 		}
 
-		// When installing from GitHub, use the GitHub owner for all extensions
-		// This matches Quarto CLI behaviour where all extensions from a repo
-		// are installed under the repository owner's namespace
-		if (source.type === "github") {
-			for (const ext of allExtensions) {
-				ext.id.owner = source.owner;
-			}
-		}
+		applySourceOwner(allExtensions, source);
 
-		// Handle multiple extensions
-		let selectedExtensions: DiscoveredExtension[];
-		if (allExtensions.length > 1 && options.selectExtension) {
-			const selected = await options.selectExtension(allExtensions);
-			if (!selected || selected.length === 0) {
-				// User cancelled extension selection - return cancelled result instead of throwing
-				return {
-					success: false,
-					cancelled: true,
-					extension: {
-						id: allExtensions[0].id,
-						manifest: {} as ExtensionManifest,
-						manifestPath: "",
-						directory: "",
-					},
-					filesCreated: [],
-					source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
-				};
-			}
-			selectedExtensions = selected;
-		} else {
-			// Single extension or no callback - use all found extensions (for single, just the one)
-			selectedExtensions = allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+		const selectedExtensions = await selectExtensionsFromSource(allExtensions, options.selectExtension);
+		if (!selectedExtensions) {
+			// User cancelled extension selection
+			return {
+				success: false,
+				cancelled: true,
+				extension: {
+					id: allExtensions[0].id,
+					manifest: {} as ExtensionManifest,
+					manifestPath: "",
+					directory: "",
+				},
+				filesCreated: [],
+				source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
+			};
 		}
 
 		// Use the first selected extension as the primary one
@@ -614,6 +599,43 @@ export function resolveExtensionId(
 }
 
 /**
+ * Apply GitHub owner to all discovered extensions.
+ * When installing from GitHub, extensions are namespaced under the repository owner.
+ *
+ * @param extensions - Discovered extensions to update
+ * @param source - Installation source
+ */
+export function applySourceOwner(extensions: DiscoveredExtension[], source: InstallSource): void {
+	if (source.type === "github") {
+		for (const ext of extensions) {
+			ext.id.owner = source.owner;
+		}
+	}
+}
+
+/**
+ * Select extensions from a list using an optional callback.
+ * Returns null if the user cancelled.
+ *
+ * @param allExtensions - All discovered extensions
+ * @param selectExtension - Optional callback for user selection
+ * @returns Selected extensions, or null if cancelled
+ */
+export async function selectExtensionsFromSource(
+	allExtensions: DiscoveredExtension[],
+	selectExtension?: ExtensionSelectionCallback,
+): Promise<DiscoveredExtension[] | null> {
+	if (allExtensions.length > 1 && selectExtension) {
+		const selected = await selectExtension(allExtensions);
+		if (!selected || selected.length === 0) {
+			return null;
+		}
+		return selected;
+	}
+	return allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+}
+
+/**
  * Format source string for manifest.
  */
 function formatSourceString(source: InstallSource, tagName?: string, commitSha?: string): string {
@@ -627,13 +649,6 @@ function formatSourceString(source: InstallSource, tagName?: string, commitSha?:
 	}
 
 	return formatInstallSource(source);
-}
-
-/**
- * Copy extension files to target directory.
- */
-async function copyExtension(sourceDir: string, targetDir: string): Promise<string[]> {
-	return copyDirectory(sourceDir, targetDir);
 }
 
 /**
@@ -656,7 +671,7 @@ async function writeExtensionToDisk(
 	sourceString: string,
 ): Promise<string[]> {
 	try {
-		const filesCreated = await copyExtension(sourceDir, targetDir);
+		const filesCreated = await copyDirectory(sourceDir, targetDir);
 		const manifestPath = path.join(targetDir, manifestFilename);
 		updateManifestSource(manifestPath, sourceString);
 		return filesCreated;

@@ -19,6 +19,8 @@ import {
 	installSingleExtension,
 	parseInstallSource,
 	formatInstallSource,
+	applySourceOwner,
+	selectExtensionsFromSource,
 	type InstallSource,
 	type InstallResult,
 	type ExtensionSelectionCallback,
@@ -391,35 +393,23 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			});
 		}
 
-		// Apply GitHub owner to extensions if source is from GitHub
-		if (source.type === "github") {
-			for (const ext of allExtensions) {
-				ext.id.owner = source.owner;
-			}
-		}
+		applySourceOwner(allExtensions, source);
 
-		let selectedExtensions: DiscoveredExtension[];
-		if (allExtensions.length > 1 && selectExtension) {
-			onProgress?.({ phase: "selecting", message: "Awaiting extension selection..." });
-			const selected = await selectExtension(allExtensions);
-			if (!selected || selected.length === 0) {
-				// User cancelled extension selection. Cleanup is handled by the finally block.
-				return {
-					install: {
-						success: false,
-						extension: dryRunResult.extension,
-						filesCreated: [],
-						source: effectiveSourceDisplay,
-					},
-					templateFiles: [],
-					skippedFiles: allFiles,
-					cancelled: true,
-				};
-			}
-			selectedExtensions = selected;
-		} else {
-			// Single extension or no callback - use all (for single, just the one)
-			selectedExtensions = allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
+		onProgress?.({ phase: "selecting", message: "Awaiting extension selection..." });
+		const selectedExtensions = await selectExtensionsFromSource(allExtensions, selectExtension);
+		if (!selectedExtensions) {
+			// User cancelled extension selection. Cleanup is handled by the finally block.
+			return {
+				install: {
+					success: false,
+					extension: dryRunResult.extension,
+					filesCreated: [],
+					source: effectiveSourceDisplay,
+				},
+				templateFiles: [],
+				skippedFiles: allFiles,
+				cancelled: true,
+			};
 		}
 
 		// STEP 4: Check for existing extensions and prompt for overwrite

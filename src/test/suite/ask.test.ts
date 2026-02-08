@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { confirmTrustAuthors, confirmInstall, confirmRemove } from "../../utils/ask";
+import { confirmTrustAuthors, confirmInstall } from "../../utils/ask";
 
 /**
  * Mock implementation for testing VS Code configuration
@@ -176,57 +176,6 @@ suite("Ask Utils Test Suite", () => {
 			quickPickResult = undefined;
 
 			const result = await confirmInstall();
-
-			assert.strictEqual(result, false);
-		});
-	});
-
-	suite("confirmRemove", () => {
-		test("Should return true when confirmRemove is not 'always'", async () => {
-			configValues["confirmRemove"] = "never";
-
-			const result = await confirmRemove();
-
-			assert.strictEqual(result, true);
-		});
-
-		test("Should return true when user selects 'Yes'", async () => {
-			configValues["confirmRemove"] = "always";
-			quickPickResult = { label: "Yes", description: "Remove extensions." };
-
-			const result = await confirmRemove();
-
-			assert.strictEqual(result, true);
-			assert.strictEqual(updateCalls.length, 0);
-		});
-
-		test("Should return true and update config when user selects 'Yes, always remove'", async () => {
-			configValues["confirmRemove"] = "always";
-			quickPickResult = { label: "Yes, always remove", description: "Change setting to always remove." };
-
-			const result = await confirmRemove();
-
-			assert.strictEqual(result, true);
-			assert.strictEqual(updateCalls.length, 1);
-			assert.strictEqual(updateCalls[0].key, "confirmRemove");
-			assert.strictEqual(updateCalls[0].value, "never");
-			assert.strictEqual(updateCalls[0].target, vscode.ConfigurationTarget.Global);
-		});
-
-		test("Should return false when user selects 'No'", async () => {
-			configValues["confirmRemove"] = "always";
-			quickPickResult = { label: "No", description: "Do not remove extensions." };
-
-			const result = await confirmRemove();
-
-			assert.strictEqual(result, false);
-		});
-
-		test("Should return false when user cancels the prompt", async () => {
-			configValues["confirmRemove"] = "always";
-			quickPickResult = undefined;
-
-			const result = await confirmRemove();
 
 			assert.strictEqual(result, false);
 		});

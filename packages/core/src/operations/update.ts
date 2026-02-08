@@ -256,9 +256,13 @@ function extractCommitFromSource(source: string): string | null {
 }
 
 /**
- * Normalise version string for comparison.
+ * Normalise a version string for comparison.
+ * Strips leading "v" prefix and coerces to valid semver.
+ *
+ * @param version - Version string to normalise
+ * @returns Normalised semver string, or null if invalid
  */
-function normaliseVersion(version: string): string | null {
+export function normaliseVersion(version: string): string | null {
 	if (!version) {
 		return null;
 	}

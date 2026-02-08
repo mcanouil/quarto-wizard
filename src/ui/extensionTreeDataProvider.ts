@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as semver from "semver";
+import { normaliseVersion } from "@quarto-wizard/core";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionRepository, getExtensionContributes } from "../utils/extensions";
@@ -19,6 +20,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	// Consolidated cache for extension data per workspace folder
 	private cache: Record<string, FolderCache> = {};
+
+	// Guard against concurrent refresh operations
+	private pendingRefresh: Promise<void> | null = null;
 
 	constructor(private workspaceFolders: readonly vscode.WorkspaceFolder[]) {
 		this.refreshAllExtensionsData();
@@ -155,10 +159,19 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		context: vscode.ExtensionContext,
 		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
 	): void {
-		this.refreshAllExtensionsDataAsync().then(() => {
-			this.checkUpdate(context, view);
-			this._onDidChangeTreeData.fire();
-		});
+		this.refreshAllExtensionsDataAsync()
+			.then(() => {
+				this.checkUpdate(context, view).catch((error) => {
+					logMessage(`Failed to check for updates: ${error instanceof Error ? error.message : String(error)}`, "error");
+				});
+				this._onDidChangeTreeData.fire();
+			})
+			.catch((error) => {
+				logMessage(
+					`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}`,
+					"error",
+				);
+			});
 	}
 
 	private refreshAllExtensionsData(): void {
@@ -172,29 +185,42 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	private async refreshAllExtensionsDataAsync(): Promise<void> {
-		const newCache: Record<string, FolderCache> = {};
-
-		for (const folder of this.workspaceFolders) {
-			const workspaceFolder = folder.uri.fsPath;
-			const extensions = await getInstalledExtensionsRecord(workspaceFolder);
-
-			const parseErrors = new Set<string>();
-			for (const [extId, ext] of Object.entries(extensions)) {
-				const manifest = ext.manifest;
-				// Mark as parse error if essential fields are missing
-				if (!manifest.title && !manifest.version && !manifest.contributes) {
-					parseErrors.add(extId);
-				}
-			}
-
-			newCache[workspaceFolder] = {
-				extensions,
-				latestVersions: this.cache[workspaceFolder]?.latestVersions || {},
-				parseErrors,
-			};
+		// If a refresh is already in progress, wait for it instead of starting another
+		if (this.pendingRefresh) {
+			return this.pendingRefresh;
 		}
 
-		this.cache = newCache;
+		const doRefresh = async (): Promise<void> => {
+			const newCache: Record<string, FolderCache> = {};
+
+			for (const folder of this.workspaceFolders) {
+				const workspaceFolder = folder.uri.fsPath;
+				const extensions = await getInstalledExtensionsRecord(workspaceFolder);
+
+				const parseErrors = new Set<string>();
+				for (const [extId, ext] of Object.entries(extensions)) {
+					const manifest = ext.manifest;
+					// Mark as parse error if essential fields are missing
+					if (!manifest.title && !manifest.version && !manifest.contributes) {
+						parseErrors.add(extId);
+					}
+				}
+
+				newCache[workspaceFolder] = {
+					extensions,
+					latestVersions: this.cache[workspaceFolder]?.latestVersions || {},
+					parseErrors,
+				};
+			}
+
+			this.cache = newCache;
+		};
+
+		this.pendingRefresh = doRefresh().finally(() => {
+			this.pendingRefresh = null;
+		});
+
+		return this.pendingRefresh;
 	}
 
 	/**
@@ -287,12 +313,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					continue;
 				}
 
-				if (
-					matchingDetail &&
-					semver.valid(version) &&
-					semver.valid(matchingDetail.version) &&
-					semver.lt(version, matchingDetail.version)
-				) {
+				const currentSemver = normaliseVersion(version);
+				const latestSemver = matchingDetail ? normaliseVersion(matchingDetail.version) : null;
+
+				if (matchingDetail && currentSemver && latestSemver && semver.lt(currentSemver, latestSemver)) {
 					updatesAvailable.push(`${folder.name}/${extId}`);
 					folderCache.latestVersions[extId] = matchingDetail.tag;
 					totalUpdates++;

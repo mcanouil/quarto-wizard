@@ -25,6 +25,7 @@ export {
 	checkForUpdates,
 	applyUpdates,
 	update,
+	normaliseVersion,
 } from "./update.js";
 
 export { type RemoveOptions, type RemoveResult, remove, removeMultiple } from "./remove.js";

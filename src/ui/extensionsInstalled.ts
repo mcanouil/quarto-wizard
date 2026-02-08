@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { normaliseVersion } from "@quarto-wizard/core";
 import { logMessage, getShowLogsLink } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
@@ -35,11 +36,12 @@ export class ExtensionsInstalled {
 		// Initial setup with update check and refresh
 		this.treeDataProvider.refreshAfterAction(context, view);
 
-		view.onDidChangeVisibility((e) => {
+		const visibilityDisposable = view.onDidChangeVisibility((e) => {
 			if (e.visible) {
 				this.treeDataProvider.refreshAfterAction(context, view);
 			}
 		});
+		context.subscriptions.push(visibilityDisposable);
 
 		// Watch for changes to _extensions directories for real-time tree view updates
 		const extensionWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_extension.{yml,yaml}");
@@ -88,7 +90,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
 				const latestVersion = item.latestVersion?.replace(/^@/, "");
-				const latestSemver = latestVersion ? latestVersion.replace(/^v/, "") : undefined;
+				const latestSemver = latestVersion ? (normaliseVersion(latestVersion) ?? latestVersion) : undefined;
 				const auth = await getAuthConfig(context, { createIfNone: true });
 				// result is true (success), false (failure), or null (cancelled)
 				const result = await withProgressNotification(

@@ -97,21 +97,6 @@ export const confirmInstall = createConfirmationDialog({
 });
 
 /**
- * Prompts the user to confirm the removal of the selected extensions when the confirmRemove setting is set to "always".
- * @returns {Promise<boolean>} - Returns true if confirmed, false if cancelled.
- */
-export const confirmRemove = createConfirmationDialog({
-	configKey: "confirmRemove",
-	triggerValue: "always",
-	placeholder: "Do you want to remove the selected extension(s)?",
-	yesDescription: "Remove extensions.",
-	noDescription: "Do not remove extensions.",
-	alwaysLabel: "Yes, always remove",
-	alwaysDescription: "Change setting to always remove.",
-	cancelMessage: "Operation cancelled by the user.",
-});
-
-/**
  * Quick pick item for file/directory selection with tree metadata.
  */
 interface TreeQuickPickItem extends vscode.QuickPickItem {
