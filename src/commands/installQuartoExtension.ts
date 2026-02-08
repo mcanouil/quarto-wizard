@@ -39,8 +39,7 @@ async function installQuartoExtensions(
 	if (!(await confirmTrustAuthors())) return;
 	if (!(await confirmInstall())) return;
 
-	// Get authentication configuration (prompts sign-in if needed for private repos)
-	const auth = await getAuthConfig(context, { createIfNone: true });
+	const auth = await getAuthConfig(context);
 
 	const actionWord = template ? "Using" : "Installing";
 	const actionPast = template ? "used" : "installed";
@@ -294,7 +293,7 @@ async function installFromSource(
 	// Resolve local paths relative to workspace folder
 	const { resolved, display, type } = resolveSourcePath(source, workspaceFolder);
 
-	const auth = await getAuthConfig(context, { createIfNone: true });
+	const auth = await getAuthConfig(context);
 	const actionWord = template ? "Using" : "Installing";
 
 	// Log source and extension (use original source for display)

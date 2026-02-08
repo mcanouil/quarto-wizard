@@ -33,7 +33,7 @@ async function useBrandFromSource(
 	if (!(await confirmInstall())) return;
 
 	const { resolved, display, type } = resolveSourcePath(source, workspaceFolder);
-	const auth = await getAuthConfig(context, { createIfNone: true });
+	const auth = await getAuthConfig(context);
 
 	logMessage(`Source: ${type}.`, "info");
 	logMessage(`Brand: ${source}.`, "info");

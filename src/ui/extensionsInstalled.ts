@@ -92,7 +92,7 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
 				const latestVersion = item.latestVersion?.replace(/^@/, "");
 				const latestSemver = latestVersion ? (normaliseVersion(latestVersion) ?? latestVersion) : undefined;
-				const auth = await getAuthConfig(context, { createIfNone: true });
+				const auth = await getAuthConfig(context);
 				// result is true (success), false (failure), or null (cancelled)
 				const result = await withProgressNotification(
 					`Updating "${item.repository ?? item.label}" to ${latestSemver} ...`,
@@ -229,7 +229,7 @@ export class ExtensionsInstalled {
 					return;
 				}
 
-				const auth = await getAuthConfig(context, { createIfNone: true });
+				const auth = await getAuthConfig(context);
 				let successCount = 0;
 				let failedCount = 0;
 

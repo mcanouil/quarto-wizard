@@ -64,8 +64,7 @@ async function handleUriAction(
 		return;
 	}
 
-	// Get authentication configuration (prompts sign-in if needed for private repos)
-	const auth = await getAuthConfig(context, { createIfNone: true });
+	const auth = await getAuthConfig(context);
 
 	// Log source and extension
 	logMessage("Source: URI handler (GitHub).", "info");

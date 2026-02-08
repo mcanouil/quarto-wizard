@@ -14,6 +14,7 @@
 - fix: allow cancelling update and update-all operations from the progress notification.
 - fix: display correct contribution types in extension details instead of listing all possible types.
 - fix: show "N/A" instead of "undefined" for missing fields in extension details.
+- fix: remove unnecessary GitHub sign-in prompt that appeared before every command, even for public registry operations.
 
 ### Refactoring
 
