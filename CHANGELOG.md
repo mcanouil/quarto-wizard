@@ -8,6 +8,7 @@
 
 ### Bug Fixes
 
+- fix: detect updates for extensions installed from commits (no GitHub releases) by delegating to the core library's update detection.
 - fix: clear tree view badge when no updates are available instead of showing "0 updates".
 - fix: hide "Update" button for extensions with unknown versions in the registry.
 - fix: allow cancelling update and update-all operations from the progress notification.
