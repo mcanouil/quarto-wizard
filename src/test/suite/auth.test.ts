@@ -220,6 +220,9 @@ suite("Auth Utils Test Suite", () => {
 			assert.strictEqual(errorMessages.length, 0);
 		});
 
+		// Verifies that "Unauthorized" embedded in a sentence does not trigger auth
+		// handling. The regex patterns only match standalone "Unauthorized" (the
+		// entire trimmed message) or after a colon at the end of the string.
 		test("should not show dialog for incidental Unauthorized after space", async () => {
 			await handleAuthError("test", new Error("This request is Unauthorized"));
 			assert.strictEqual(errorMessages.length, 0);

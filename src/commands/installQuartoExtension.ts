@@ -509,7 +509,7 @@ export async function installExtensionFromLocalCommand(context: vscode.Extension
 			canSelectMany: false,
 			openLabel: "Select Extension",
 			filters: {
-				"Archive files": ["zip", "tar.gz", "tgz"],
+				"Archive files": ["zip", "gz", "tgz"],
 				"All files": ["*"],
 			},
 		});

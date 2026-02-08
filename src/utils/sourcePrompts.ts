@@ -89,7 +89,7 @@ export async function promptForLocalPath(options?: SourcePromptOptions): Promise
 		title: options?.selectTitle ?? "Select Extension",
 		openLabel: options?.openLabel ?? "Install",
 		filters: {
-			"Archive files": ["zip", "tar.gz", "tgz"],
+			"Archive files": ["zip", "gz", "tgz"],
 			"All files": ["*"],
 		},
 	});
