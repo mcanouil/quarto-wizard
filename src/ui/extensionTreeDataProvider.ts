@@ -111,29 +111,33 @@ export class QuartoExtensionTreeDataProvider
 		}
 		const manifest = ext.manifest;
 		return [
-			new ExtensionTreeItem(`Title: ${manifest.title}`, vscode.TreeItemCollapsibleState.None, element.workspaceFolder),
 			new ExtensionTreeItem(
-				`Author: ${manifest.author}`,
+				`Title: ${manifest.title || "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
-				`Version: ${manifest.version}`,
+				`Author: ${manifest.author || "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
-				`Contributes: ${getExtensionContributes(ext)}`,
+				`Version: ${manifest.version || "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
-				`Repository: ${getExtensionRepository(ext)}`,
+				`Contributes: ${getExtensionContributes(ext) ?? "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
-				`Source: ${manifest.source}`,
+				`Repository: ${getExtensionRepository(ext) ?? "N/A"}`,
+				vscode.TreeItemCollapsibleState.None,
+				element.workspaceFolder,
+			),
+			new ExtensionTreeItem(
+				`Source: ${manifest.source ?? "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),

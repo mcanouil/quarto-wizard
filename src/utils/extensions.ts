@@ -1,4 +1,9 @@
-import { discoverInstalledExtensions, formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";
+import {
+	discoverInstalledExtensions,
+	formatExtensionId,
+	getExtensionTypes,
+	type InstalledExtension,
+} from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
@@ -73,7 +78,8 @@ export function getExtensionRepository(ext: InstalledExtension): string | undefi
  * @returns A comma-separated list of contribution types or undefined.
  */
 export function getExtensionContributes(ext: InstalledExtension): string | undefined {
-	return ext.manifest.contributes ? Object.keys(ext.manifest.contributes).join(", ") : undefined;
+	const types = getExtensionTypes(ext.manifest);
+	return types.length > 0 ? types.join(", ") : undefined;
 }
 
 export { formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";
