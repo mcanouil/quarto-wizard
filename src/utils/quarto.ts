@@ -530,6 +530,9 @@ export async function useQuartoBrand(
 			return action === "Remove";
 		},
 		onProgress: (progress) => {
+			if (cancellationToken?.isCancellationRequested) {
+				return;
+			}
 			if (progress.file) {
 				logMessage(`${prefix} [${progress.phase}] ${progress.message} (${progress.file})`, "debug");
 			} else {

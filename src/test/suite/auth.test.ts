@@ -228,6 +228,61 @@ suite("Auth Utils Test Suite", () => {
 			assert.strictEqual(errorMessages.length, 0);
 		});
 
+		// Reverse-order authentication pattern tests
+		test("should show dialog for reverse-order 'invalid authentication'", async () => {
+			await handleAuthError("test", new Error("Request failed: invalid authentication"));
+			assert.strictEqual(errorMessages.length, 1);
+		});
+
+		test("should show dialog for reverse-order 'denied authentication'", async () => {
+			await handleAuthError("test", new Error("denied authentication for user"));
+			assert.strictEqual(errorMessages.length, 1);
+		});
+
+		test("should show dialog for reverse-order 'expired authentication'", async () => {
+			await handleAuthError("test", new Error("expired authentication token"));
+			assert.strictEqual(errorMessages.length, 1);
+		});
+
+		test("should not show dialog for distant reverse-order authentication match", async () => {
+			await handleAuthError("test", new Error("failure in the process of authentication"));
+			assert.strictEqual(errorMessages.length, 0);
+		});
+
+		// Boundary tests for 10-character window
+		test("should show dialog for authentication keyword at exactly 10 chars distance", async () => {
+			// "authentication" + 10 chars + "failed" = boundary match
+			await handleAuthError("test", new Error("authentication 123456789failed"));
+			assert.strictEqual(errorMessages.length, 1);
+		});
+
+		test("should not show dialog for authentication keyword beyond 10 chars distance", async () => {
+			// "authentication" + 11 chars + "failed" = beyond boundary
+			await handleAuthError("test", new Error("authentication 1234567890failed"));
+			assert.strictEqual(errorMessages.length, 0);
+		});
+
+		// Status code narrowing tests (only 401 and 403 match, not other 4xx)
+		test("should not show dialog for 404: Unauthorized (non-auth status code)", async () => {
+			await handleAuthError("test", new Error("404: Unauthorized"));
+			assert.strictEqual(errorMessages.length, 0);
+		});
+
+		test("should not show dialog for 429: Forbidden (non-auth status code)", async () => {
+			await handleAuthError("test", new Error("429: Forbidden"));
+			assert.strictEqual(errorMessages.length, 0);
+		});
+
+		test("should show dialog for 401: Unauthorized", async () => {
+			await handleAuthError("test", new Error("401: Unauthorized"));
+			assert.strictEqual(errorMessages.length, 1);
+		});
+
+		test("should show dialog for 403: Forbidden", async () => {
+			await handleAuthError("test", new Error("403: Forbidden"));
+			assert.strictEqual(errorMessages.length, 1);
+		});
+
 		test("should show dialog for error with statusCode 401 property", async () => {
 			const error = Object.assign(new Error("Request failed"), { statusCode: 401 });
 			await handleAuthError("test", error);
