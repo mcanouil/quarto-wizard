@@ -15,6 +15,8 @@
 - fix: display correct contribution types in extension details instead of listing all possible types.
 - fix: show "N/A" instead of "undefined" for missing fields in extension details.
 - fix: remove unnecessary GitHub sign-in prompt that appeared before every command, even for public registry operations.
+- fix: resolve download hanging when file stream errors during backpressure (e.g., disk full).
+- fix: show update indicators immediately after refresh instead of requiring an extra refresh.
 
 ### Refactoring
 
