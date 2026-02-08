@@ -123,6 +123,14 @@ function getGitHubHeaders(auth?: AuthConfig): Record<string, string> {
 }
 
 /**
+ * Build a GitHub API URL with encoded path segments.
+ */
+function repoApiUrl(owner: string, repo: string, ...segments: string[]): string {
+	const encoded = segments.map(encodeURIComponent);
+	return `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encoded.join("/")}`;
+}
+
+/**
  * Construct a GitHub archive URL.
  *
  * @param owner - Repository owner
@@ -140,15 +148,18 @@ export function constructArchiveUrl(
 	format: "zip" | "tarball" = "zip",
 ): string {
 	const ext = format === "zip" ? ".zip" : ".tar.gz";
-	const baseUrl = `https://github.com/${owner}/${repo}/archive`;
+	const encodedOwner = encodeURIComponent(owner);
+	const encodedRepo = encodeURIComponent(repo);
+	const encodedRef = encodeURIComponent(ref);
+	const baseUrl = `https://github.com/${encodedOwner}/${encodedRepo}/archive`;
 
 	switch (refType) {
 		case "tag":
-			return `${baseUrl}/refs/tags/${ref}${ext}`;
+			return `${baseUrl}/refs/tags/${encodedRef}${ext}`;
 		case "branch":
-			return `${baseUrl}/refs/heads/${ref}${ext}`;
+			return `${baseUrl}/refs/heads/${encodedRef}${ext}`;
 		case "commit":
-			return `${baseUrl}/${ref}${ext}`;
+			return `${baseUrl}/${encodedRef}${ext}`;
 	}
 }
 
@@ -188,7 +199,7 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
  */
 async function validateBranch(owner: string, repo: string, branch: string, options: GitHubOptions = {}): Promise<void> {
 	const { auth, timeout } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`;
+	const url = repoApiUrl(owner, repo, "branches", branch);
 
 	try {
 		await fetchJson(url, {
@@ -217,7 +228,7 @@ async function validateBranch(owner: string, repo: string, branch: string, optio
  */
 async function validateCommit(owner: string, repo: string, commit: string, options: GitHubOptions = {}): Promise<void> {
 	const { auth, timeout } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${encodeURIComponent(commit)}`;
+	const url = repoApiUrl(owner, repo, "commits", commit);
 
 	try {
 		await fetchJson(url, {
@@ -250,7 +261,7 @@ export async function fetchReleases(
 	options: GitHubOptions = {},
 ): Promise<GitHubRelease[]> {
 	const { auth, timeout, includePrereleases = false } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/releases`;
+	const url = repoApiUrl(owner, repo, "releases");
 
 	try {
 		const raw = await fetchJson<RawRelease[]>(url, {
@@ -286,7 +297,7 @@ export async function fetchReleases(
  */
 export async function fetchTags(owner: string, repo: string, options: GitHubOptions = {}): Promise<GitHubTag[]> {
 	const { auth, timeout } = options;
-	const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/tags`;
+	const url = repoApiUrl(owner, repo, "tags");
 
 	try {
 		const raw = await fetchJson<RawTag[]>(url, {

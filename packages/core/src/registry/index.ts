@@ -5,6 +5,7 @@
 export { type HttpOptions, fetchJson, fetchText } from "./http.js";
 
 export {
+	DEFAULT_CACHE_TTL,
 	getDefaultCacheDir,
 	getCacheFilePath,
 	readCachedRegistry,

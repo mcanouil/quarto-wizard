@@ -16,13 +16,11 @@ import { ExtensionError } from "../errors.js";
 import { parseInstallSource, formatInstallSource, type InstallSource } from "./install.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import { extractArchive, cleanupExtraction } from "../archive/extract.js";
+import { MANIFEST_FILENAMES } from "../filesystem/manifest.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 
 /** Supported brand file names at root level. */
 const BRAND_FILENAMES = ["_brand.yml", "_brand.yaml"] as const;
-
-/** Supported extension manifest file names. */
-const EXTENSION_FILENAMES = ["_extension.yml", "_extension.yaml"] as const;
 
 /**
  * Result of brand extension detection.
@@ -91,7 +89,7 @@ export interface UseBrandResult {
  * @returns Brand extension info
  */
 export function checkForBrandExtension(dir: string): BrandExtensionInfo {
-	for (const filename of EXTENSION_FILENAMES) {
+	for (const filename of MANIFEST_FILENAMES) {
 		const filePath = path.join(dir, filename);
 		if (!fs.existsSync(filePath)) {
 			continue;

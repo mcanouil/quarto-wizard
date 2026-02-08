@@ -1,0 +1,81 @@
+/**
+ * @title Archive Security Module
+ * @description Shared security utilities for archive extraction.
+ *
+ * Provides path traversal detection and size formatting used by both
+ * ZIP and TAR extractors.
+ *
+ * @module archive
+ */
+
+import * as path from "node:path";
+import { SecurityError } from "../errors.js";
+
+/**
+ * Check for path traversal attempts in archive entry paths.
+ *
+ * @param filePath - Entry path from the archive
+ * @throws SecurityError if path traversal is detected
+ */
+export function checkPathTraversal(filePath: string): void {
+	const normalised = path.normalize(filePath);
+
+	if (normalised.includes("..") || path.isAbsolute(normalised)) {
+		throw new SecurityError(`Path traversal detected in archive: "${filePath}"`);
+	}
+}
+
+/**
+ * Validate that a symlink target stays within the extraction directory.
+ *
+ * @param linkTarget - Symlink target path
+ * @param entryDir - Directory containing the symlink entry
+ * @param destDir - Root extraction directory
+ * @throws SecurityError if the symlink escapes destDir
+ */
+export function checkSymlinkTarget(linkTarget: string, entryDir: string, destDir: string): void {
+	const resolvedTarget = path.resolve(entryDir, linkTarget);
+	const resolvedDest = path.resolve(destDir);
+
+	if (!resolvedTarget.startsWith(resolvedDest + path.sep) && resolvedTarget !== resolvedDest) {
+		throw new SecurityError(`Symlink target escapes extraction directory: "${linkTarget}"`);
+	}
+}
+
+/**
+ * Validate that a URL uses an allowed protocol.
+ *
+ * Prevents SSRF by rejecting file://, ftp://, and other non-HTTP protocols.
+ *
+ * @param url - URL string to validate
+ * @throws SecurityError if the protocol is not allowed
+ */
+export function validateUrlProtocol(url: string): void {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		throw new SecurityError(`Invalid URL: "${url}"`);
+	}
+
+	const protocol = parsed.protocol.toLowerCase();
+	if (protocol !== "https:" && protocol !== "http:") {
+		throw new SecurityError(`Disallowed URL protocol "${protocol}" in "${url}". Only https: and http: are permitted.`);
+	}
+}
+
+/**
+ * Format a byte count for display.
+ *
+ * @param bytes - Number of bytes
+ * @returns Human-readable size string
+ */
+export function formatSize(bytes: number): string {
+	if (bytes < 1024) {
+		return `${bytes} B`;
+	}
+	if (bytes < 1024 * 1024) {
+		return `${(bytes / 1024).toFixed(1)} KB`;
+	}
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

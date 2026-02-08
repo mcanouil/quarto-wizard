@@ -78,13 +78,20 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Fetch JSON with timeout and retry support.
+ * Fetch with retry support and a response processor.
  *
  * @param url - URL to fetch
+ * @param requestHeaders - Headers to send
+ * @param processResponse - Callback to extract the desired value from the response
  * @param options - HTTP options
- * @returns Parsed JSON response
+ * @returns Processed response value
  */
-export async function fetchJson<T>(url: string, options: HttpOptions = {}): Promise<T> {
+async function fetchWithRetry<T>(
+	url: string,
+	requestHeaders: Record<string, string>,
+	processResponse: (response: Response) => Promise<T>,
+	options: HttpOptions = {},
+): Promise<T> {
 	const {
 		timeout = DEFAULT_TIMEOUT,
 		retries = DEFAULT_RETRIES,
@@ -101,8 +108,7 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 				{
 					method: "GET",
 					headers: {
-						Accept: "application/json",
-						"User-Agent": "quarto-wizard",
+						...requestHeaders,
 						...headers,
 					},
 				},
@@ -113,7 +119,7 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}
 
-			return (await response.json()) as T;
+			return await processResponse(response);
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -131,6 +137,22 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 }
 
 /**
+ * Fetch JSON with timeout and retry support.
+ *
+ * @param url - URL to fetch
+ * @param options - HTTP options
+ * @returns Parsed JSON response
+ */
+export async function fetchJson<T>(url: string, options: HttpOptions = {}): Promise<T> {
+	return fetchWithRetry<T>(
+		url,
+		{ Accept: "application/json", "User-Agent": "quarto-wizard" },
+		(response) => response.json() as Promise<T>,
+		options,
+	);
+}
+
+/**
  * Fetch text with timeout and retry support.
  *
  * @param url - URL to fetch
@@ -138,46 +160,5 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
  * @returns Response text
  */
 export async function fetchText(url: string, options: HttpOptions = {}): Promise<string> {
-	const {
-		timeout = DEFAULT_TIMEOUT,
-		retries = DEFAULT_RETRIES,
-		retryDelay = DEFAULT_RETRY_DELAY,
-		headers = {},
-	} = options;
-
-	let lastError: Error | undefined;
-
-	for (let attempt = 0; attempt <= retries; attempt++) {
-		try {
-			const response = await fetchWithTimeout(
-				url,
-				{
-					method: "GET",
-					headers: {
-						"User-Agent": "quarto-wizard",
-						...headers,
-					},
-				},
-				timeout,
-			);
-
-			if (!response.ok) {
-				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
-			}
-
-			return await response.text();
-		} catch (error) {
-			lastError = error instanceof Error ? error : new Error(String(error));
-
-			if (attempt < retries && isRetryableError(error)) {
-				const delay = retryDelay * Math.pow(2, attempt);
-				await sleep(delay);
-				continue;
-			}
-
-			throw error;
-		}
-	}
-
-	throw lastError ?? new NetworkError("Request failed after all retries");
+	return fetchWithRetry<string>(url, { "User-Agent": "quarto-wizard" }, (response) => response.text(), options);
 }

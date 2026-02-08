@@ -3,6 +3,7 @@
  */
 
 export {
+	MANIFEST_FILENAMES,
 	type ManifestReadResult,
 	findManifestFile,
 	parseManifestFile,

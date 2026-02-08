@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as unzipper from "unzipper";
 import { SecurityError } from "../errors.js";
+import { checkPathTraversal, formatSize } from "./security.js";
 
 /** Default maximum extraction size: 100 MB. */
 const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
@@ -26,17 +27,6 @@ export interface ZipExtractOptions {
 	maxSize?: number;
 	/** Progress callback. */
 	onProgress?: (file: string) => void;
-}
-
-/**
- * Check for path traversal attempts.
- */
-function checkPathTraversal(filePath: string): void {
-	const normalised = path.normalize(filePath);
-
-	if (normalised.includes("..") || path.isAbsolute(normalised)) {
-		throw new SecurityError(`Path traversal detected in archive: "${filePath}"`);
-	}
 }
 
 /**
@@ -105,17 +95,4 @@ export async function extractZip(
 	}
 
 	return extractedFiles;
-}
-
-/**
- * Format size for display.
- */
-function formatSize(bytes: number): string {
-	if (bytes < 1024) {
-		return `${bytes} B`;
-	}
-	if (bytes < 1024 * 1024) {
-		return `${(bytes / 1024).toFixed(1)} KB`;
-	}
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -13,7 +13,7 @@ import * as os from "node:os";
 import type { Registry } from "../types/registry.js";
 
 /** Default cache TTL: 24 hours in milliseconds. */
-const DEFAULT_TTL = 24 * 60 * 60 * 1000;
+export const DEFAULT_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 /** Cache file name. */
 const CACHE_FILENAME = "quarto-wizard-registry.json";
@@ -73,7 +73,7 @@ export function getCacheFilePath(cacheDir?: string): string {
 export async function readCachedRegistry(
 	cacheDir: string,
 	url: string,
-	ttl: number = DEFAULT_TTL,
+	ttl: number = DEFAULT_CACHE_TTL,
 ): Promise<Registry | null> {
 	const cacheFile = getCacheFilePath(cacheDir);
 

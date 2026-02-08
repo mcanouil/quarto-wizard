@@ -14,6 +14,7 @@ import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { NetworkError } from "../errors.js";
+import { formatSize, validateUrlProtocol } from "../archive/security.js";
 import { proxyFetch } from "../proxy/index.js";
 import { resolveVersion, type ResolveVersionOptions } from "./releases.js";
 
@@ -121,6 +122,8 @@ export async function downloadArchive(
 ): Promise<string> {
 	const { auth, timeout = 60000, extension = ".zip", downloadDir, onProgress } = options;
 
+	validateUrlProtocol(url);
+
 	let githubLikeHost = false;
 	try {
 		const parsedUrl = new URL(url);
@@ -194,7 +197,7 @@ export async function downloadArchive(
 
 					onProgress({
 						phase: "downloading",
-						message: `Downloading... ${formatBytes(bytesDownloaded)}`,
+						message: `Downloading... ${formatSize(bytesDownloaded)}`,
 						bytesDownloaded,
 						totalBytes,
 						percentage,
@@ -270,19 +273,4 @@ function getExtensionFromUrl(url: string): string {
 	}
 
 	return ".zip";
-}
-
-/**
- * Format bytes for display.
- */
-function formatBytes(bytes: number): string {
-	if (bytes < 1024) {
-		return `${bytes} B`;
-	}
-
-	if (bytes < 1024 * 1024) {
-		return `${(bytes / 1024).toFixed(1)} KB`;
-	}
-
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
