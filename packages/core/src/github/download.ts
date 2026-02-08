@@ -211,9 +211,22 @@ export async function downloadArchive(
 				const canContinue = fileStream.write(Buffer.from(value));
 				bytesDownloaded += value.length;
 
-				// Respect backpressure: wait for drain before writing more data
+				// Respect backpressure: wait for drain before writing more data.
+				// Also listen for stream errors to avoid hanging if the stream
+				// fails while waiting (e.g., disk full).
 				if (!canContinue) {
-					await new Promise<void>((resolve) => fileStream.once("drain", resolve));
+					await new Promise<void>((resolve, reject) => {
+						const onDrain = () => {
+							fileStream.off("error", onError);
+							resolve();
+						};
+						const onError = (err: Error) => {
+							fileStream.off("drain", onDrain);
+							reject(err);
+						};
+						fileStream.once("drain", onDrain);
+						fileStream.once("error", onError);
+					});
 				}
 
 				if (onProgress) {
