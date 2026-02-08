@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import { STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "../constants";
 import { getShowLogsLink, logMessage } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
@@ -512,12 +511,17 @@ export async function installExtensionFromLocalCommand(context: vscode.Extension
 		return;
 	}
 
-	const absolutePath = path.isAbsolute(localPath) ? localPath : path.resolve(workspaceFolder, localPath);
+	const workspaceFolderUri = vscode.Uri.file(workspaceFolder);
+	const absoluteUri = localPath.startsWith("/")
+		? vscode.Uri.file(localPath)
+		: vscode.Uri.joinPath(workspaceFolderUri, localPath);
+	const absolutePath = absoluteUri.fsPath;
 
-	// Convert to relative path if within workspace folder
+	// Convert to relative path if within workspace folder (use URI paths for cross-platform comparison)
 	let sourcePath = absolutePath;
-	if (absolutePath.startsWith(workspaceFolder + path.sep)) {
-		const relativePath = path.relative(workspaceFolder, absolutePath);
+	const workspaceUriPrefix = workspaceFolderUri.path + "/";
+	if (absoluteUri.path.startsWith(workspaceUriPrefix)) {
+		const relativePath = absoluteUri.path.slice(workspaceUriPrefix.length);
 		// Ensure relative path starts with ./ for proper source detection
 		sourcePath = relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
 	}

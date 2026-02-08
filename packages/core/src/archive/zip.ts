@@ -19,6 +19,9 @@ const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
 /** Maximum compression ratio allowed. */
 const MAX_COMPRESSION_RATIO = 100;
 
+/** Maximum number of entries allowed in an archive. */
+const MAX_FILE_COUNT = 10_000;
+
 /**
  * Options for ZIP extraction.
  */
@@ -49,6 +52,12 @@ export async function extractZip(
 
 	const directory = await unzipper.Open.file(archivePath);
 
+	if (directory.files.length > MAX_FILE_COUNT) {
+		throw new SecurityError(
+			`Archive contains too many entries: ${directory.files.length} > ${MAX_FILE_COUNT}. This may indicate a file bomb.`,
+		);
+	}
+
 	let totalUncompressedSize = 0;
 	for (const file of directory.files) {
 		checkPathTraversal(file.path);
@@ -75,6 +84,8 @@ export async function extractZip(
 
 	const extractedFiles: string[] = [];
 
+	let extractedSize = 0;
+
 	for (const file of directory.files) {
 		const destPath = path.join(destDir, file.path);
 
@@ -83,12 +94,26 @@ export async function extractZip(
 			continue;
 		}
 
+		// Reject symlinks: the Unix mode is stored in the upper 16 bits of externalFileAttributes.
+		const unixMode = (file.externalFileAttributes >>> 16) & 0xffff;
+		const isSymlink = (unixMode & 0o170000) === 0o120000;
+		if (isSymlink) {
+			throw new SecurityError(`Archive contains a symbolic link ("${file.path}"), which is not permitted.`);
+		}
+
 		const dir = path.dirname(destPath);
 		await fs.promises.mkdir(dir, { recursive: true });
 
 		onProgress?.(file.path);
 
 		const content = await file.buffer();
+
+		// Incremental size check using actual extracted content size
+		extractedSize += content.length;
+		if (extractedSize > maxSize) {
+			throw new SecurityError(`Archive exceeds maximum size: ${formatSize(extractedSize)} > ${formatSize(maxSize)}`);
+		}
+
 		await fs.promises.writeFile(destPath, content);
 
 		extractedFiles.push(destPath);

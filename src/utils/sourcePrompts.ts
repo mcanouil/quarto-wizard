@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import { parseInstallSource } from "@quarto-wizard/core";
 
 /**
@@ -67,8 +66,8 @@ export async function promptForURL(options?: SourcePromptOptions): Promise<strin
 			if (!value?.trim()) {
 				return "URL is required.";
 			}
-			if (!value.startsWith("http://") && !value.startsWith("https://")) {
-				return "URL must start with http:// or https://";
+			if (!value.startsWith("https://")) {
+				return "URL must start with https://";
 			}
 			return null;
 		},
@@ -116,8 +115,8 @@ export function resolveSourcePath(
 		const parsed = parseInstallSource(source);
 		const type = SOURCE_TYPE_NAMES[parsed.type] ?? "unknown";
 
-		if (parsed.type === "local" && !path.isAbsolute(parsed.path)) {
-			const resolved = path.resolve(workspaceFolder, parsed.path);
+		if (parsed.type === "local" && !parsed.path.startsWith("/")) {
+			const resolved = vscode.Uri.joinPath(vscode.Uri.file(workspaceFolder), parsed.path).fsPath;
 			return { resolved, display: source, type };
 		}
 

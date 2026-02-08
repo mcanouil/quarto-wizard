@@ -9,18 +9,15 @@ import { getShowLogsLink, logMessage } from "./log";
  * @returns {Promise<boolean>} - A promise that resolves to true if the internet connection is active, otherwise false.
  */
 export async function checkInternetConnection(url = "https://github.com/", timeoutMs = 5000): Promise<boolean> {
-	try {
-		// Create AbortController for timeout handling
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => {
-			controller.abort();
-		}, timeoutMs);
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => {
+		controller.abort();
+	}, timeoutMs);
 
+	try {
 		const response: Response = await fetch(url, {
 			signal: controller.signal,
 		});
-
-		clearTimeout(timeoutId);
 
 		if (response.ok) {
 			return true;
@@ -38,5 +35,7 @@ export async function checkInternetConnection(url = "https://github.com/", timeo
 		logMessage(message, "error");
 		vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
 		return false;
+	} finally {
+		clearTimeout(timeoutId);
 	}
 }

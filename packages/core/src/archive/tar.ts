@@ -19,6 +19,9 @@ const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
 /** Maximum compression ratio allowed (matches ZIP extractor). */
 const MAX_COMPRESSION_RATIO = 100;
 
+/** Maximum number of entries allowed in an archive. */
+const MAX_FILE_COUNT = 10_000;
+
 /**
  * Options for TAR extraction.
  */
@@ -51,6 +54,7 @@ export async function extractTar(
 
 	const extractedFiles: string[] = [];
 	let totalSize = 0;
+	let entryCount = 0;
 
 	await tar.extract({
 		file: archivePath,
@@ -60,6 +64,13 @@ export async function extractTar(
 			return true;
 		},
 		onReadEntry: (entry) => {
+			entryCount++;
+			if (entryCount > MAX_FILE_COUNT) {
+				throw new SecurityError(
+					`Archive contains too many entries: ${entryCount} > ${MAX_FILE_COUNT}. This may indicate a file bomb.`,
+				);
+			}
+
 			totalSize += entry.size ?? 0;
 
 			if (totalSize > maxSize) {

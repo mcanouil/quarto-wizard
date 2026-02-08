@@ -1,14 +1,4 @@
-import { discoverInstalledExtensions, type InstalledExtension } from "@quarto-wizard/core";
-
-/**
- * Formats an extension ID as a display string.
- *
- * @param id - The extension identifier with owner and name.
- * @returns The formatted string (e.g., "owner/name" or "name").
- */
-export function formatExtensionId(id: { owner: string | null; name: string }): string {
-	return id.owner ? `${id.owner}/${id.name}` : id.name;
-}
+import { discoverInstalledExtensions, formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";
 
 /**
  * Finds Quarto extensions in a directory using the core library.
@@ -77,4 +67,4 @@ export function getExtensionContributes(ext: InstalledExtension): string | undef
 	return ext.manifest.contributes ? Object.keys(ext.manifest.contributes).join(", ") : undefined;
 }
 
-export { type InstalledExtension } from "@quarto-wizard/core";
+export { formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";

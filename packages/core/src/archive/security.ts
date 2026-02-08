@@ -59,8 +59,8 @@ export function validateUrlProtocol(url: string): void {
 	}
 
 	const protocol = parsed.protocol.toLowerCase();
-	if (protocol !== "https:" && protocol !== "http:") {
-		throw new SecurityError(`Disallowed URL protocol "${protocol}" in "${url}". Only https: and http: are permitted.`);
+	if (protocol !== "https:") {
+		throw new SecurityError(`Disallowed URL protocol "${protocol}" in "${url}". Only https: is permitted.`);
 	}
 }
 

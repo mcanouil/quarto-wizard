@@ -287,7 +287,12 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					continue;
 				}
 
-				if (matchingDetail && semver.lt(version, matchingDetail.version)) {
+				if (
+					matchingDetail &&
+					semver.valid(version) &&
+					semver.valid(matchingDetail.version) &&
+					semver.lt(version, matchingDetail.version)
+				) {
 					updatesAvailable.push(`${folder.name}/${extId}`);
 					folderCache.latestVersions[extId] = matchingDetail.tag;
 					totalUpdates++;

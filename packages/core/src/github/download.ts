@@ -206,8 +206,13 @@ export async function downloadArchive(
 					break;
 				}
 
-				fileStream.write(Buffer.from(value));
+				const canContinue = fileStream.write(Buffer.from(value));
 				bytesDownloaded += value.length;
+
+				// Respect backpressure: wait for drain before writing more data
+				if (!canContinue) {
+					await new Promise<void>((resolve) => fileStream.once("drain", resolve));
+				}
 
 				if (onProgress) {
 					const percentage = totalBytes ? Math.round((bytesDownloaded / totalBytes) * 100) : undefined;
