@@ -15,7 +15,7 @@ import type { ExtensionManifest } from "../types/manifest.js";
 import { parseExtensionRef } from "../types/extension.js";
 import { ExtensionError } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
-import { copyDirectory, collectFiles } from "../filesystem/walk.js";
+import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
 import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
@@ -25,6 +25,7 @@ import {
 	type DiscoveredExtension,
 } from "../archive/extract.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
+import { lookupRegistryEntry } from "../registry/search.js";
 
 /**
  * Source for extension installation.
@@ -82,6 +83,8 @@ export interface InstallOptions extends RegistryOptions {
 	onProgress?: InstallProgressCallback;
 	/** Force reinstall if already installed. */
 	force?: boolean;
+	/** AbortSignal for cancellation. */
+	signal?: AbortSignal;
 	/** Keep source directory after installation (for template copying). */
 	keepSourceDir?: boolean;
 	/** Dry run mode - resolve without installing. */
@@ -158,7 +161,10 @@ export interface InstallResult {
  * // { type: "local", path: "./my-extension" }
  * ```
  */
-export function parseInstallSource(input: string): InstallSource {
+export function parseInstallSource(
+	input: string,
+	checkExists: (path: string) => boolean = fs.existsSync,
+): InstallSource {
 	// HTTP/HTTPS URLs
 	if (input.startsWith("http://") || input.startsWith("https://")) {
 		return { type: "url", url: input };
@@ -212,7 +218,7 @@ export function parseInstallSource(input: string): InstallSource {
 	}
 
 	// Filesystem existence check (fallback)
-	if (fs.existsSync(input)) {
+	if (checkExists(input)) {
 		return { type: "local", path: input };
 	}
 
@@ -285,7 +291,16 @@ export function formatInstallSource(source: InstallSource): string {
  * ```
  */
 export async function install(source: InstallSource, options: InstallOptions): Promise<InstallResult> {
-	const { projectDir, auth, onProgress, force = false, keepSourceDir = false, dryRun = false, sourceDisplay } = options;
+	const {
+		projectDir,
+		auth,
+		onProgress,
+		force = false,
+		keepSourceDir = false,
+		dryRun = false,
+		sourceDisplay,
+		signal,
+	} = options;
 
 	let archivePath: string | undefined;
 	let extractDir: string | undefined;
@@ -302,8 +317,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			let latestCommit: string | undefined;
 			try {
 				const registry = await fetchRegistry(options);
-				const registryKey = `${source.owner}/${source.repo}`;
-				const entry = registry[registryKey] ?? registry[registryKey.toLowerCase()];
+				const entry = lookupRegistryEntry(registry, `${source.owner}/${source.repo}`);
 				if (entry) {
 					defaultBranch = entry.defaultBranchRef ?? undefined;
 					latestCommit = entry.latestCommit ?? undefined;
@@ -316,6 +330,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				auth,
 				defaultBranch,
 				latestCommit,
+				signal,
 				onProgress: (p) => {
 					onProgress?.({
 						phase: p.phase === "resolving" ? "resolving" : "downloading",
@@ -329,7 +344,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			commitSha = result.commitSha;
 		} else if (source.type === "url") {
 			onProgress?.({ phase: "downloading", message: "Downloading archive..." });
-			archivePath = await downloadFromUrl(source.url, { auth });
+			archivePath = await downloadFromUrl(source.url, { auth, signal });
 		} else {
 			archivePath = source.path;
 		}
@@ -441,7 +456,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		const targetDir = getExtensionInstallPath(projectDir, extensionId);
 		// Use sourceDisplay if provided (for relative paths that were resolved), otherwise format from source
 		const sourceString = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
-		const alreadyExists = fs.existsSync(targetDir);
+		const alreadyExists = await pathExists(targetDir);
 
 		// In dry-run mode, return what would happen without making changes
 		if (dryRun) {
@@ -495,23 +510,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			await fs.promises.rm(targetDir, { recursive: true, force: true });
 		}
 
-		// Transaction-like semantics: if manifest update fails after copying,
-		// we clean up the partially installed extension to avoid inconsistent state.
-		let filesCreated: string[];
-		try {
-			filesCreated = await copyExtension(extensionRoot, targetDir);
-
-			onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
-
-			const manifestPath = path.join(targetDir, manifestResult.filename);
-			updateManifestSource(manifestPath, sourceString);
-		} catch (error) {
-			// Rollback: remove partially installed extension to maintain consistency.
-			// This ensures we don't leave an extension directory without proper metadata.
-			// eslint-disable-next-line @typescript-eslint/no-empty-function
-			await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
-			throw error;
-		}
+		onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
+		const filesCreated = await writeExtensionToDisk(extensionRoot, targetDir, manifestResult.filename, sourceString);
 
 		const manifestPath = path.join(targetDir, manifestResult.filename);
 		const finalManifest = readManifest(targetDir);
@@ -637,6 +637,38 @@ async function copyExtension(sourceDir: string, targetDir: string): Promise<stri
 }
 
 /**
+ * Write an extension to disk with transactional rollback.
+ *
+ * Copies extension files to the target directory and updates the manifest
+ * source field. If any step fails, the target directory is cleaned up to
+ * avoid leaving an inconsistent state.
+ *
+ * @param sourceDir - Source directory containing the extension
+ * @param targetDir - Destination directory for the extension
+ * @param manifestFilename - Name of the manifest file (e.g., "_extension.yml")
+ * @param sourceString - Source string to write into the manifest
+ * @returns List of files created
+ */
+async function writeExtensionToDisk(
+	sourceDir: string,
+	targetDir: string,
+	manifestFilename: string,
+	sourceString: string,
+): Promise<string[]> {
+	try {
+		const filesCreated = await copyExtension(sourceDir, targetDir);
+		const manifestPath = path.join(targetDir, manifestFilename);
+		updateManifestSource(manifestPath, sourceString);
+		return filesCreated;
+	} catch (error) {
+		// Rollback: remove partially installed extension to maintain consistency.
+		// eslint-disable-next-line @typescript-eslint/no-empty-function
+		await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
+		throw error;
+	}
+}
+
+/**
  * Collect extension files for dry-run preview.
  * Returns relative paths that would be created.
  */
@@ -676,7 +708,7 @@ export async function installSingleExtension(
 	const extensionId: ExtensionId = extension.id;
 
 	const targetDir = getExtensionInstallPath(projectDir, extensionId);
-	const alreadyExists = fs.existsSync(targetDir);
+	const alreadyExists = await pathExists(targetDir);
 
 	if (alreadyExists) {
 		if (!force) {
@@ -710,17 +742,7 @@ export async function installSingleExtension(
 	const extIdString = extensionId.owner ? `${extensionId.owner}/${extensionId.name}` : extensionId.name;
 	onProgress?.({ phase: "installing", message: `Installing ${extIdString}...` });
 
-	let filesCreated: string[];
-	try {
-		filesCreated = await copyExtension(extension.path, targetDir);
-
-		const manifestPath = path.join(targetDir, manifestResult.filename);
-		updateManifestSource(manifestPath, sourceString);
-	} catch (error) {
-		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		await fs.promises.rm(targetDir, { recursive: true, force: true }).catch(() => {});
-		throw error;
-	}
+	const filesCreated = await writeExtensionToDisk(extension.path, targetDir, manifestResult.filename, sourceString);
 
 	const manifestPath = path.join(targetDir, manifestResult.filename);
 	const finalManifest = readManifest(targetDir);

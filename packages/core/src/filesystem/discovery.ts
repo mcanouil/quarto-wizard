@@ -12,6 +12,7 @@ import * as path from "node:path";
 import type { ExtensionId } from "../types/extension.js";
 import type { ExtensionManifest } from "../types/manifest.js";
 import { readManifest } from "./manifest.js";
+import { pathExists } from "./walk.js";
 
 /** Name of the extensions directory. */
 const EXTENSIONS_DIR = "_extensions";
@@ -82,101 +83,10 @@ export async function discoverInstalledExtensions(
 	projectDir: string,
 	options: DiscoveryOptions = {},
 ): Promise<InstalledExtension[]> {
-	const extensionsDir = getExtensionsDir(projectDir);
-
-	if (!hasExtensionsDir(projectDir)) {
-		return [];
-	}
-
-	const results: InstalledExtension[] = [];
-
-	try {
-		const topEntries = await fs.promises.readdir(extensionsDir, {
-			withFileTypes: true,
-		});
-
-		for (const topEntry of topEntries) {
-			if (!topEntry.isDirectory()) {
-				continue;
-			}
-
-			const topPath = path.join(extensionsDir, topEntry.name);
-
-			// Check if this is an extension without owner (has manifest directly)
-			const directManifest = readManifest(topPath);
-			if (directManifest) {
-				results.push({
-					id: { owner: null, name: topEntry.name },
-					manifest: directManifest.manifest,
-					manifestPath: directManifest.manifestPath,
-					directory: topPath,
-				});
-				continue;
-			}
-
-			// Otherwise, treat as owner directory and look for extensions inside
-			const extEntries = await fs.promises.readdir(topPath, {
-				withFileTypes: true,
-			});
-
-			for (const extEntry of extEntries) {
-				if (!extEntry.isDirectory()) {
-					continue;
-				}
-
-				const extPath = path.join(topPath, extEntry.name);
-
-				try {
-					const manifestResult = readManifest(extPath);
-
-					if (manifestResult) {
-						results.push({
-							id: { owner: topEntry.name, name: extEntry.name },
-							manifest: manifestResult.manifest,
-							manifestPath: manifestResult.manifestPath,
-							directory: extPath,
-						});
-					} else if (options.includeInvalid) {
-						results.push({
-							id: { owner: topEntry.name, name: extEntry.name },
-							manifest: {
-								title: extEntry.name,
-								author: "",
-								version: "",
-								contributes: {},
-							},
-							manifestPath: path.join(extPath, "_extension.yml"),
-							directory: extPath,
-						});
-					}
-				} catch {
-					// Manifest parsing failed (invalid YAML, missing required fields, etc.).
-					// If includeInvalid is set, we still want to show the extension exists
-					// so users can see and potentially fix or remove it.
-					if (options.includeInvalid) {
-						results.push({
-							id: { owner: topEntry.name, name: extEntry.name },
-							manifest: {
-								title: extEntry.name,
-								author: "",
-								version: "",
-								contributes: {},
-							},
-							manifestPath: path.join(extPath, "_extension.yml"),
-							directory: extPath,
-						});
-					}
-				}
-			}
-		}
-	} catch {
-		// Top-level directory read failed (permissions, deleted mid-scan, etc.).
-		// Return empty array rather than throwing since discovery is best-effort;
-		// a missing or inaccessible _extensions directory just means no extensions.
-		return [];
-	}
-
-	return results;
+	// Delegates to the sync version since readManifest (the heavy work) is
+	// already synchronous. The only async part would be readdir, but for
+	// the small _extensions directory this is negligible.
+	return discoverInstalledExtensionsSync(projectDir, options);
 }
 
 /**
@@ -301,7 +211,7 @@ export async function findInstalledExtension(
 
 	const extPath = path.join(getExtensionsDir(projectDir), extensionId.owner, extensionId.name);
 
-	if (!fs.existsSync(extPath)) {
+	if (!(await pathExists(extPath))) {
 		return null;
 	}
 

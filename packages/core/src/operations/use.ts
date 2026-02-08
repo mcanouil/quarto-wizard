@@ -13,6 +13,7 @@ import { glob } from "glob";
 import { minimatch } from "minimatch";
 import type { AuthConfig } from "../types/auth.js";
 import { ExtensionError } from "../errors.js";
+import { pathExists } from "../filesystem/walk.js";
 import {
 	install,
 	installSingleExtension,
@@ -352,7 +353,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		const existingFiles: string[] = [];
 		for (const file of allFiles) {
 			const targetPath = path.join(effectiveTargetDir, file);
-			if (fs.existsSync(targetPath)) {
+			if (await pathExists(targetPath)) {
 				existingFiles.push(file);
 			}
 		}
@@ -425,7 +426,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		const existingExtensions: DiscoveredExtension[] = [];
 		for (const ext of selectedExtensions) {
 			const targetDir = getExtensionInstallPath(projectDir, ext.id);
-			if (fs.existsSync(targetDir)) {
+			if (await pathExists(targetDir)) {
 				existingExtensions.push(ext);
 			}
 		}
@@ -614,7 +615,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			const existingFiles: string[] = [];
 			for (const file of allFiles) {
 				const targetPath = path.join(effectiveTargetDir, file);
-				if (fs.existsSync(targetPath)) {
+				if (await pathExists(targetPath)) {
 					existingFiles.push(file);
 				}
 			}
@@ -654,7 +655,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			const wouldConflict: string[] = [];
 			for (const file of filesToCopy) {
 				const targetPath = path.join(effectiveTargetDir, file);
-				if (fs.existsSync(targetPath)) {
+				if (await pathExists(targetPath)) {
 					wouldConflict.push(file);
 				}
 			}
@@ -737,7 +738,7 @@ async function copyTemplateFiles(
 	const conflictingFiles: string[] = [];
 	for (const file of filesToCopy) {
 		const targetPath = path.join(effectiveTargetDir, file);
-		if (fs.existsSync(targetPath)) {
+		if (await pathExists(targetPath)) {
 			conflictingFiles.push(file);
 		}
 	}
@@ -777,7 +778,7 @@ async function copyTemplateFiles(
 		const sourcePath = path.join(sourceRoot, file);
 		const targetPath = path.join(effectiveTargetDir, file);
 
-		if (fs.existsSync(targetPath)) {
+		if (await pathExists(targetPath)) {
 			if (!filesToOverwrite.has(file)) {
 				skippedFiles.push(file);
 				continue;
