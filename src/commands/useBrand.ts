@@ -4,7 +4,7 @@ import { checkInternetConnection } from "../utils/network";
 import { useQuartoBrand } from "../utils/quarto";
 import { confirmTrustAuthors, confirmInstall } from "../utils/ask";
 import { selectWorkspaceFolder } from "../utils/workspace";
-import { getAuthConfig } from "../utils/auth";
+import { getAuthConfig, logAuthStatus } from "../utils/auth";
 import { promptForGitHubReference, promptForURL, promptForLocalPath, resolveSourcePath } from "../utils/sourcePrompts";
 
 /**
@@ -86,9 +86,7 @@ async function useBrandFromSource(
 
 	logMessage(`Source: ${type}.`, "info");
 	logMessage(`Brand: ${source}.`, "info");
-	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access).", "info");
-	}
+	logAuthStatus(auth);
 
 	await vscode.window.withProgress(
 		{

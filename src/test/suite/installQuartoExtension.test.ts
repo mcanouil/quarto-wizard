@@ -83,12 +83,16 @@ suite("Install Quarto Extension Test Suite", () => {
 		originalWorkspaceFolders = vscode.workspace.workspaceFolders;
 		originalLogMessage = logUtils.logMessage;
 
-		// Mock the QW_LOG output channel
+		// Mock the QW_LOG output channel with LogOutputChannel methods
 		originalQwLog = (constants as { QW_LOG: unknown }).QW_LOG;
+		const noop = () => {
+			// no-op mock
+		};
 		(constants as { QW_LOG: unknown }).QW_LOG = {
-			appendLine: () => {
-				// Mock implementation - do nothing
-			},
+			info: noop,
+			warn: noop,
+			error: noop,
+			debug: noop,
 		};
 
 		// Mock logMessage function

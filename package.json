@@ -9,7 +9,7 @@
 	],
 	"publisher": "mcanouil",
 	"author": {
-		"name": "Mickaël CANOUIL",
+		"name": "Micka\u00ebl CANOUIL",
 		"url": "https://mickael.canouil.fr"
 	},
 	"license": "MIT",
@@ -82,8 +82,6 @@
 	},
 	"dependencies": {
 		"@quarto-wizard/core": "*",
-		"@types/lodash": "^4.17.21",
-		"lodash": "^4.17.23",
 		"semver": "^7.7.3"
 	},
 	"devDependencies": {
@@ -600,27 +598,6 @@
 					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again.",
 					"title": "Confirm Installation",
 					"description": "Prompt before installing."
-				},
-				"quartoWizard.log.level": {
-					"order": 20,
-					"scope": "resource",
-					"type": "string",
-					"enum": [
-						"error",
-						"warn",
-						"info",
-						"debug"
-					],
-					"enumDescriptions": [
-						"Only log errors",
-						"Log warnings and errors",
-						"Log info, warnings, and errors",
-						"Log everything, including debug information"
-					],
-					"default": "info",
-					"markdownDescription": "The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything.",
-					"title": "Log Level",
-					"description": "Logging verbosity."
 				},
 				"quartoWizard.cache.ttlMinutes": {
 					"order": 10,

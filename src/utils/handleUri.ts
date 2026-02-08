@@ -5,7 +5,7 @@ import { getShowLogsLink, logMessage } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { createFileSelectionCallback, createTargetSubdirCallback } from "../utils/ask";
-import { getAuthConfig } from "../utils/auth";
+import { getAuthConfig, logAuthStatus } from "../utils/auth";
 
 /**
  * Configuration for a URI action handler.
@@ -39,8 +39,14 @@ async function handleUriAction(
 	config: UriActionConfig,
 ): Promise<boolean | null | undefined> {
 	const repo = new URLSearchParams(uri.query).get("repo");
+	if (!repo || !/^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(repo)) {
+		if (repo) {
+			logMessage(`Invalid repo format in URI: ${repo}`, "warn");
+		}
+		return;
+	}
 	const workspaceFolder = await selectWorkspaceFolder();
-	if (!repo || !workspaceFolder) {
+	if (!workspaceFolder) {
 		return;
 	}
 
@@ -64,9 +70,7 @@ async function handleUriAction(
 	// Log source and extension
 	logMessage("Source: URI handler (GitHub).", "info");
 	logMessage(`Extension: ${repo}.`, "info");
-	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
-		logMessage("Authentication: none (public access).", "info");
-	}
+	logAuthStatus(auth);
 
 	return await withProgressNotification(config.progressMessage(repo), async (token) => {
 		// Check if already cancelled before starting

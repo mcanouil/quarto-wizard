@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { DiscoveredExtension } from "@quarto-wizard/core";
+import { formatExtensionId } from "../utils/extensions";
 
 /**
  * QuickPick item for extension selection.
@@ -19,7 +20,7 @@ export async function showExtensionSelectionQuickPick(
 	extensions: DiscoveredExtension[],
 ): Promise<DiscoveredExtension[] | null> {
 	const items: ExtensionSelectionItem[] = extensions.map((ext) => {
-		const label = ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name;
+		const label = formatExtensionId(ext.id);
 		return {
 			label,
 			description: ext.relativePath,

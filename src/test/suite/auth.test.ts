@@ -3,20 +3,21 @@ import * as vscode from "vscode";
 import { handleAuthError } from "../../utils/auth";
 import * as constants from "../../constants";
 
-interface MockOutputChannel {
-	appendLine: (message: string) => void;
+interface MockLogOutputChannel {
+	info: (message: string) => void;
+	warn: (message: string) => void;
+	error: (message: string) => void;
+	debug: (message: string) => void;
 }
 
 suite("Auth Utils Test Suite", () => {
 	let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
 	let originalGetSession: typeof vscode.authentication.getSession;
 	let originalExecuteCommand: typeof vscode.commands.executeCommand;
-	let originalQwLog: MockOutputChannel;
-	let originalGetConfiguration: typeof vscode.workspace.getConfiguration;
+	let originalQwLog: MockLogOutputChannel;
 
 	let errorMessages: string[];
 	let actionItems: string[][];
-	let configValues: Record<string, unknown>;
 	let getSessionCalled: boolean;
 	let getSessionScopes: string[];
 	let getSessionOptions: Record<string, unknown> | undefined;
@@ -26,7 +27,6 @@ suite("Auth Utils Test Suite", () => {
 	function installMocks(): void {
 		errorMessages = [];
 		actionItems = [];
-		configValues = { level: "info" };
 		getSessionCalled = false;
 		getSessionScopes = [];
 		getSessionOptions = undefined;
@@ -60,29 +60,18 @@ suite("Auth Utils Test Suite", () => {
 			executedCommands.push(command);
 		};
 
-		// Mock workspace.getConfiguration
-		vscode.workspace.getConfiguration = () => {
-			return {
-				get<T>(key: string): T | undefined {
-					return configValues[key] as T;
-				},
-				update: async (key: string, value: unknown) => {
-					configValues[key] = value;
-				},
-				has: (section: string) => section in configValues,
-				inspect: <T>(section: string) => ({
-					key: section,
-					defaultValue: configValues[section] as T,
-					globalValue: configValues[section] as T,
-					workspaceValue: configValues[section] as T,
-					workspaceFolderValue: configValues[section] as T,
-				}),
-			} as vscode.WorkspaceConfiguration;
-		};
-
-		// Mock QW_LOG to capture logged messages
-		(constants as { QW_LOG: MockOutputChannel }).QW_LOG = {
-			appendLine: (message: string) => {
+		// Mock QW_LOG to capture logged messages using LogOutputChannel methods
+		(constants as { QW_LOG: MockLogOutputChannel }).QW_LOG = {
+			info: (message: string) => {
+				loggedMessages.push(message);
+			},
+			warn: (message: string) => {
+				loggedMessages.push(message);
+			},
+			error: (message: string) => {
+				loggedMessages.push(message);
+			},
+			debug: (message: string) => {
 				loggedMessages.push(message);
 			},
 		};
@@ -104,16 +93,14 @@ suite("Auth Utils Test Suite", () => {
 		vscode.window.showErrorMessage = originalShowErrorMessage;
 		vscode.authentication.getSession = originalGetSession;
 		vscode.commands.executeCommand = originalExecuteCommand;
-		vscode.workspace.getConfiguration = originalGetConfiguration;
-		(constants as { QW_LOG: MockOutputChannel }).QW_LOG = originalQwLog;
+		(constants as { QW_LOG: MockLogOutputChannel }).QW_LOG = originalQwLog;
 	}
 
 	setup(() => {
 		originalShowErrorMessage = vscode.window.showErrorMessage;
 		originalGetSession = vscode.authentication.getSession;
 		originalExecuteCommand = vscode.commands.executeCommand;
-		originalGetConfiguration = vscode.workspace.getConfiguration;
-		originalQwLog = (constants as { QW_LOG: MockOutputChannel }).QW_LOG;
+		originalQwLog = (constants as { QW_LOG: MockLogOutputChannel }).QW_LOG;
 
 		installMocks();
 	});

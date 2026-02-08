@@ -3,49 +3,28 @@ import * as vscode from "vscode";
 import { checkInternetConnection } from "../../utils/network";
 import * as constants from "../../constants";
 
-interface MockOutputChannel {
-	appendLine: (message: string) => void;
+interface MockLogOutputChannel {
+	info: (message: string) => void;
+	warn: (message: string) => void;
+	error: (message: string) => void;
+	debug: (message: string) => void;
 }
 
 suite("Network Utils Test Suite", () => {
 	let originalFetch: typeof globalThis.fetch;
-	let originalGetConfiguration: typeof vscode.workspace.getConfiguration;
 	let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
-	let originalQwLog: MockOutputChannel;
-	let configValues: Record<string, unknown>;
+	let originalQwLog: MockLogOutputChannel;
 	let logMessages: string[];
 	let errorMessages: string[];
 
 	setup(() => {
 		// Store original methods
 		originalFetch = globalThis.fetch;
-		originalGetConfiguration = vscode.workspace.getConfiguration;
 		originalShowErrorMessage = vscode.window.showErrorMessage;
 
 		// Reset test state
-		configValues = {};
 		logMessages = [];
 		errorMessages = [];
-
-		// Mock vscode.workspace.getConfiguration
-		vscode.workspace.getConfiguration = () => {
-			return {
-				get<T>(key: string): T | undefined {
-					return configValues[key] as T;
-				},
-				update: async (key: string, value: unknown) => {
-					configValues[key] = value;
-				},
-				has: (section: string) => section in configValues,
-				inspect: <T>(section: string) => ({
-					key: section,
-					defaultValue: configValues[section] as T,
-					globalValue: configValues[section] as T,
-					workspaceValue: configValues[section] as T,
-					workspaceFolderValue: configValues[section] as T,
-				}),
-			} as vscode.WorkspaceConfiguration;
-		};
 
 		// Mock vscode.window.showErrorMessage
 		vscode.window.showErrorMessage = async (message: string) => {
@@ -53,26 +32,31 @@ suite("Network Utils Test Suite", () => {
 			return undefined;
 		};
 
-		// Mock QW_LOG from constants
-		originalQwLog = (constants as { QW_LOG: MockOutputChannel }).QW_LOG;
-		(constants as { QW_LOG: MockOutputChannel }).QW_LOG = {
-			appendLine: (message: string) => {
+		// Mock QW_LOG from constants using LogOutputChannel methods
+		originalQwLog = (constants as { QW_LOG: MockLogOutputChannel }).QW_LOG;
+		(constants as { QW_LOG: MockLogOutputChannel }).QW_LOG = {
+			info: (message: string) => {
+				logMessages.push(message);
+			},
+			warn: (message: string) => {
+				logMessages.push(message);
+			},
+			error: (message: string) => {
+				logMessages.push(message);
+			},
+			debug: (message: string) => {
 				logMessages.push(message);
 			},
 		};
-
-		// Set default log level
-		configValues["level"] = "info";
 	});
 
 	teardown(() => {
 		// Restore original methods
 		globalThis.fetch = originalFetch;
-		vscode.workspace.getConfiguration = originalGetConfiguration;
 		vscode.window.showErrorMessage = originalShowErrorMessage;
 
 		// Restore QW_LOG
-		(constants as { QW_LOG: MockOutputChannel }).QW_LOG = originalQwLog;
+		(constants as { QW_LOG: MockLogOutputChannel }).QW_LOG = originalQwLog;
 	});
 
 	test("should return true when internet connection is available", async () => {
@@ -175,10 +159,7 @@ suite("Network Utils Test Suite", () => {
 		assert.strictEqual(errorMessages.length, 1);
 	});
 
-	test("should log error message when log level allows", async () => {
-		// Set log level to error
-		configValues["level"] = "error";
-
+	test("should log error message on failed fetch", async () => {
 		globalThis.fetch = async (): Promise<Response> =>
 			({
 				ok: false,
@@ -192,12 +173,7 @@ suite("Network Utils Test Suite", () => {
 		assert.ok(logMessages[0].includes("No internet connection"));
 	});
 
-	test("should not log when log level is below error", async () => {
-		// Set log level to a level that would not log errors if logMessage was checking levels
-		// However, in the current implementation, logMessage with "error" type should still log
-		// since error is always at the top of the hierarchy
-		configValues["level"] = "error";
-
+	test("should log error message on network exception", async () => {
 		globalThis.fetch = async (): Promise<Response> => {
 			throw new Error("Network error");
 		};
@@ -205,7 +181,6 @@ suite("Network Utils Test Suite", () => {
 		const result = await checkInternetConnection();
 
 		assert.strictEqual(result, false);
-		// Error messages should still be logged since they're at the highest priority
 		assert.strictEqual(logMessages.length, 1);
 	});
 

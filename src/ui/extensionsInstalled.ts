@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as semver from "semver";
-import { debounce } from "lodash";
+import { debounce } from "../utils/debounce";
 import { logMessage, getShowLogsLink } from "../utils/log";
 import {
 	getInstalledExtensionsRecord,
@@ -266,7 +266,12 @@ class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<Workspa
 
 	private refreshAllExtensionsData(): void {
 		// Synchronous initialization - starts async refresh in background
-		this.refreshAllExtensionsDataAsync();
+		this.refreshAllExtensionsDataAsync().catch((error) => {
+			logMessage(
+				`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}`,
+				"error",
+			);
+		});
 	}
 
 	private async refreshAllExtensionsDataAsync(): Promise<void> {

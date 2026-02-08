@@ -175,34 +175,13 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 }
 
 /**
- * Check if any GitHub authentication is available (silent check, no prompts).
- * Checks manual token, VSCode session, and environment variables.
+ * Logs the authentication status for an operation.
+ * Logs "Authentication: none (public access)." when no auth is configured.
  *
- * @param context - The extension context for accessing secrets.
- * @returns True if any authentication method is available.
+ * @param auth - The authentication configuration.
  */
-export async function hasGitHubAuth(context: vscode.ExtensionContext): Promise<boolean> {
-	// Check manual token
-	if (await hasManualToken(context)) {
-		return true;
+export function logAuthStatus(auth: AuthConfig | undefined): void {
+	if (!auth?.githubToken && (auth?.httpHeaders?.length ?? 0) === 0) {
+		logMessage("Authentication: none (public access).", "info");
 	}
-
-	// Check VSCode session (silent)
-	try {
-		const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
-			createIfNone: false,
-			silent: true,
-		});
-		if (session) {
-			return true;
-		}
-	} catch {
-		// Silent session check can fail for various reasons (no GitHub extension,
-		// user never signed in, network issues). This is expected; we just proceed
-		// to check environment variables as the final fallback.
-	}
-
-	// Check environment variables
-	const authConfig = createAuthConfig();
-	return authConfig.githubToken !== undefined;
 }

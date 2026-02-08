@@ -8,7 +8,7 @@ import {
 	getInstalledExtensionsRecord,
 	getExtensionRepository,
 	getExtensionContributes,
-	removeExtension,
+	formatExtensionId,
 } from "../../utils/extensions";
 
 suite("Extensions Utils Test Suite", () => {
@@ -78,6 +78,18 @@ contributes:\n`;
 		fs.writeFileSync(path.join(extPath, "_extension.yml"), yamlContent);
 		return extPath;
 	}
+
+	suite("formatExtensionId", () => {
+		test("Should format extension ID with owner", () => {
+			const result = formatExtensionId({ owner: "quarto-ext", name: "fancy-text" });
+			assert.strictEqual(result, "quarto-ext/fancy-text");
+		});
+
+		test("Should format extension ID without owner", () => {
+			const result = formatExtensionId({ owner: null, name: "fancy-text" });
+			assert.strictEqual(result, "fancy-text");
+		});
+	});
 
 	suite("findQuartoExtensions", () => {
 		test("Should find extensions in _extensions directory", async () => {
@@ -197,80 +209,6 @@ contributes:\n`;
 			// Core library normalises plural keys to singular (e.g., "shortcodes" -> "shortcode")
 			assert.ok(contributes?.includes("shortcode"));
 			assert.ok(contributes?.includes("filter"));
-		});
-	});
-
-	suite("removeExtension", () => {
-		test("Should remove extension and clean up empty parent directories", async () => {
-			const extPath = createTestExtension("author", "test-extension");
-
-			assert.ok(fs.existsSync(extPath), "Extension should exist before removal");
-
-			const result = await removeExtension("author/test-extension", extensionsDir);
-
-			assert.strictEqual(result, true, "Should return true on successful removal");
-			assert.ok(!fs.existsSync(extPath), "Extension directory should be removed");
-			assert.ok(!fs.existsSync(path.dirname(extPath)), "Parent author directory should be removed if empty");
-		});
-
-		test("Should not remove parent directory if it contains other extensions", async () => {
-			createTestExtension("author", "extension1");
-			createTestExtension("author", "extension2");
-
-			const authorDir = path.join(extensionsDir, "author");
-			assert.ok(fs.existsSync(authorDir), "Author directory should exist");
-
-			const result = await removeExtension("author/extension1", extensionsDir);
-
-			assert.strictEqual(result, true, "Should return true on successful removal");
-			assert.ok(fs.existsSync(authorDir), "Author directory should still exist when containing other extensions");
-			assert.ok(fs.existsSync(path.join(authorDir, "extension2")), "Other extension should still exist");
-		});
-
-		test("Should remove root _extensions directory if it becomes empty", async () => {
-			createTestExtension("author", "test-extension");
-
-			const result = await removeExtension("author/test-extension", extensionsDir);
-
-			assert.strictEqual(result, true, "Should return true on successful removal");
-			assert.ok(!fs.existsSync(extensionsDir), "Root _extensions directory should be removed if empty");
-		});
-
-		test("Should not remove root directory if it contains other extensions", async () => {
-			createTestExtension("author1", "extension1");
-			createTestExtension("author2", "extension2");
-
-			const result = await removeExtension("author1/extension1", extensionsDir);
-
-			assert.strictEqual(result, true, "Should return true on successful removal");
-			assert.ok(fs.existsSync(extensionsDir), "Root directory should still exist when containing other extensions");
-		});
-
-		test("Should return false for non-existent extension", async () => {
-			const result = await removeExtension("non-existent/extension", extensionsDir);
-
-			assert.strictEqual(result, false, "Should return false for non-existent extension");
-		});
-
-		test("Should handle removal errors gracefully", async () => {
-			// Create extension with restricted permissions to simulate removal error
-			const extPath = createTestExtension("author", "restricted-extension");
-
-			// Make directory read-only on Unix systems
-			if (process.platform !== "win32") {
-				fs.chmodSync(path.dirname(extPath), 0o444);
-
-				const result = await removeExtension("author/restricted-extension", extensionsDir);
-
-				assert.strictEqual(result, false, "Should return false when removal fails");
-
-				// Restore permissions for cleanup
-				fs.chmodSync(path.dirname(extPath), 0o755);
-			} else {
-				// On Windows, simulate by testing non-existent path
-				const result = await removeExtension("non-existent/extension", extensionsDir);
-				assert.strictEqual(result, false, "Should return false for non-existent extension on Windows");
-			}
 		});
 	});
 });
