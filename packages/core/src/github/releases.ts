@@ -85,6 +85,8 @@ export interface GitHubOptions {
 	timeout?: number;
 	/** Include prereleases when resolving versions. */
 	includePrereleases?: boolean;
+	/** AbortSignal for cancellation. */
+	signal?: AbortSignal;
 }
 
 /**
@@ -198,7 +200,7 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
  * @throws VersionError if branch does not exist
  */
 async function validateBranch(owner: string, repo: string, branch: string, options: GitHubOptions = {}): Promise<void> {
-	const { auth, timeout } = options;
+	const { auth, timeout, signal } = options;
 	const url = repoApiUrl(owner, repo, "branches", branch);
 
 	try {
@@ -206,6 +208,7 @@ async function validateBranch(owner: string, repo: string, branch: string, optio
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 1,
+			signal,
 		});
 	} catch (error) {
 		if (error instanceof NetworkError && error.statusCode === 404) {
@@ -227,7 +230,7 @@ async function validateBranch(owner: string, repo: string, branch: string, optio
  * @throws VersionError if commit does not exist
  */
 async function validateCommit(owner: string, repo: string, commit: string, options: GitHubOptions = {}): Promise<void> {
-	const { auth, timeout } = options;
+	const { auth, timeout, signal } = options;
 	const url = repoApiUrl(owner, repo, "commits", commit);
 
 	try {
@@ -235,6 +238,7 @@ async function validateCommit(owner: string, repo: string, commit: string, optio
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 1,
+			signal,
 		});
 	} catch (error) {
 		if (error instanceof NetworkError && error.statusCode === 404) {
@@ -260,7 +264,7 @@ export async function fetchReleases(
 	repo: string,
 	options: GitHubOptions = {},
 ): Promise<GitHubRelease[]> {
-	const { auth, timeout, includePrereleases = false } = options;
+	const { auth, timeout, includePrereleases = false, signal } = options;
 	const url = repoApiUrl(owner, repo, "releases");
 
 	try {
@@ -268,6 +272,7 @@ export async function fetchReleases(
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 2,
+			signal,
 		});
 
 		return raw
@@ -296,7 +301,7 @@ export async function fetchReleases(
  * @returns Array of tags
  */
 export async function fetchTags(owner: string, repo: string, options: GitHubOptions = {}): Promise<GitHubTag[]> {
-	const { auth, timeout } = options;
+	const { auth, timeout, signal } = options;
 	const url = repoApiUrl(owner, repo, "tags");
 
 	try {
@@ -304,6 +309,7 @@ export async function fetchTags(owner: string, repo: string, options: GitHubOpti
 			headers: getGitHubHeaders(auth),
 			timeout,
 			retries: 2,
+			signal,
 		});
 
 		return raw.map((t) => ({

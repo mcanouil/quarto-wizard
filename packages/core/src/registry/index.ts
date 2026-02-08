@@ -19,6 +19,7 @@ export { type RegistryOptions, fetchRegistry, getDefaultRegistryUrl } from "./fe
 export {
 	type ListAvailableOptions,
 	type SearchOptions,
+	lookupRegistryEntry,
 	listAvailable,
 	search,
 	getExtension,

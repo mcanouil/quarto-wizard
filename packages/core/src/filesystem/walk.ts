@@ -72,6 +72,24 @@ export async function collectFiles(directory: string): Promise<string[]> {
 }
 
 /**
+ * Async check whether a path exists on disk.
+ *
+ * Prefer this over fs.existsSync in async code paths to avoid blocking
+ * the event loop.
+ *
+ * @param filePath - Path to check
+ * @returns True if the path exists
+ */
+export async function pathExists(filePath: string): Promise<boolean> {
+	try {
+		await fs.promises.access(filePath);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Copy a directory recursively.
  *
  * @param sourceDir - Source directory

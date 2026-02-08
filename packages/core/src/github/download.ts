@@ -13,7 +13,7 @@ import * as os from "node:os";
 import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
-import { NetworkError } from "../errors.js";
+import { CancellationError, NetworkError } from "../errors.js";
 import { formatSize, validateUrlProtocol } from "../archive/security.js";
 import { proxyFetch } from "../proxy/index.js";
 import { resolveVersion, type ResolveVersionOptions } from "./releases.js";
@@ -70,14 +70,23 @@ export async function downloadGitHubArchive(
 	version: VersionSpec,
 	options: DownloadOptions = {},
 ): Promise<DownloadResult> {
-	const { auth, timeout = 60000, format = "zip", onProgress, downloadDir, defaultBranch, latestCommit } = options;
+	const {
+		auth,
+		timeout = 60000,
+		format = "zip",
+		onProgress,
+		downloadDir,
+		defaultBranch,
+		latestCommit,
+		signal,
+	} = options;
 
 	onProgress?.({
 		phase: "resolving",
 		message: `Resolving version for ${owner}/${repo}...`,
 	});
 
-	const resolved = await resolveVersion(owner, repo, version, { auth, timeout, defaultBranch, latestCommit });
+	const resolved = await resolveVersion(owner, repo, version, { auth, timeout, defaultBranch, latestCommit, signal });
 
 	const downloadUrl = format === "zip" ? resolved.zipballUrl : resolved.tarballUrl;
 	const extension = format === "zip" ? ".zip" : ".tar.gz";
@@ -93,6 +102,7 @@ export async function downloadGitHubArchive(
 		extension,
 		downloadDir,
 		onProgress,
+		signal,
 	});
 
 	return {
@@ -118,9 +128,14 @@ export async function downloadArchive(
 		extension?: string;
 		downloadDir?: string;
 		onProgress?: DownloadProgressCallback;
+		signal?: AbortSignal;
 	} = {},
 ): Promise<string> {
-	const { auth, timeout = 60000, extension = ".zip", downloadDir, onProgress } = options;
+	const { auth, timeout = 60000, extension = ".zip", downloadDir, onProgress, signal } = options;
+
+	if (signal?.aborted) {
+		throw new CancellationError();
+	}
 
 	validateUrlProtocol(url);
 
@@ -141,6 +156,8 @@ export async function downloadArchive(
 
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), timeout);
+	const onExternalAbort = () => controller.abort();
+	signal?.addEventListener("abort", onExternalAbort, { once: true });
 
 	const dir = downloadDir ?? os.tmpdir();
 	const filename = `quarto-ext-${Date.now()}${extension}`;
@@ -226,11 +243,15 @@ export async function downloadArchive(
 			// Best-effort cleanup.
 		}
 		if (error instanceof Error && error.name === "AbortError") {
+			if (signal?.aborted) {
+				throw new CancellationError();
+			}
 			throw new NetworkError(`Download timed out after ${timeout}ms`, { cause: error });
 		}
 		throw error;
 	} finally {
 		clearTimeout(timeoutId);
+		signal?.removeEventListener("abort", onExternalAbort);
 	}
 }
 
@@ -248,6 +269,7 @@ export async function downloadFromUrl(
 		timeout?: number;
 		downloadDir?: string;
 		onProgress?: DownloadProgressCallback;
+		signal?: AbortSignal;
 	} = {},
 ): Promise<string> {
 	const extension = getExtensionFromUrl(url);

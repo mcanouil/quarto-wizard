@@ -49,13 +49,38 @@ export type ExtensionType = "filter" | "shortcode" | "format" | "project" | "rev
  */
 export function parseExtensionId(input: string): ExtensionId {
 	const trimmed = input.trim();
-	const parts = trimmed.split("/");
 
-	if (parts.length === 2 && parts[0] && parts[1]) {
-		return { owner: parts[0], name: parts[1] };
+	if (!trimmed) {
+		throw new Error("Extension ID must not be empty");
+	}
+
+	const slashIndex = trimmed.indexOf("/");
+
+	if (slashIndex > 0 && trimmed.indexOf("/", slashIndex + 1) === -1) {
+		const owner = trimmed.substring(0, slashIndex);
+		const name = trimmed.substring(slashIndex + 1);
+		if (owner && name) {
+			validateIdSegment(owner, "owner");
+			validateIdSegment(name, "name");
+			return { owner, name };
+		}
 	}
 
 	return { owner: null, name: trimmed };
+}
+
+/** Valid characters for extension ID segments: alphanumeric, hyphens, underscores, dots, and @. */
+const ID_SEGMENT_PATTERN = /^[@a-zA-Z0-9._-]+$/;
+
+/**
+ * Validate that an ID segment contains only allowed characters.
+ */
+function validateIdSegment(segment: string, label: string): void {
+	if (!ID_SEGMENT_PATTERN.test(segment)) {
+		throw new Error(
+			`Invalid extension ${label} "${segment}": only alphanumeric characters, hyphens, underscores, and dots are allowed`,
+		);
+	}
 }
 
 /**

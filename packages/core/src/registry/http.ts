@@ -7,7 +7,7 @@
  * @module registry
  */
 
-import { NetworkError } from "../errors.js";
+import { CancellationError, NetworkError } from "../errors.js";
 import { proxyFetch } from "../proxy/index.js";
 
 /**
@@ -22,6 +22,8 @@ export interface HttpOptions {
 	retryDelay?: number;
 	/** Custom headers to include. */
 	headers?: Record<string, string>;
+	/** AbortSignal for cancellation. */
+	signal?: AbortSignal;
 }
 
 const DEFAULT_TIMEOUT = 30000;
@@ -36,9 +38,22 @@ const DEFAULT_RETRY_DELAY = 1000;
  * @param timeout - Timeout in milliseconds
  * @returns Response
  */
-async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
+async function fetchWithTimeout(
+	url: string,
+	options: RequestInit,
+	timeout: number,
+	externalSignal?: AbortSignal,
+): Promise<Response> {
+	if (externalSignal?.aborted) {
+		throw new CancellationError();
+	}
+
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+	// Link external signal to internal controller so callers can cancel
+	const onExternalAbort = () => controller.abort();
+	externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
 
 	try {
 		const response = await proxyFetch(url, {
@@ -48,11 +63,16 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
 		return response;
 	} catch (error) {
 		if (error instanceof Error && error.name === "AbortError") {
+			// Distinguish user cancellation from timeout
+			if (externalSignal?.aborted) {
+				throw new CancellationError();
+			}
 			throw new NetworkError(`Request timed out after ${timeout}ms`, { cause: error });
 		}
 		throw error;
 	} finally {
 		clearTimeout(timeoutId);
+		externalSignal?.removeEventListener("abort", onExternalAbort);
 	}
 }
 
@@ -97,6 +117,7 @@ async function fetchWithRetry<T>(
 		retries = DEFAULT_RETRIES,
 		retryDelay = DEFAULT_RETRY_DELAY,
 		headers = {},
+		signal,
 	} = options;
 
 	let lastError: Error | undefined;
@@ -113,6 +134,7 @@ async function fetchWithRetry<T>(
 					},
 				},
 				timeout,
+				signal,
 			);
 
 			if (!response.ok) {

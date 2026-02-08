@@ -17,6 +17,7 @@ import {
 	type InstalledExtension,
 } from "../filesystem/discovery.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
+import { lookupRegistryEntry } from "../registry/search.js";
 import { install, parseInstallSource } from "./install.js";
 
 /**
@@ -105,13 +106,9 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 			continue;
 		}
 
-		const registryKey = findRegistryKey(source, registry);
-
-		if (!registryKey) {
-			continue;
-		}
-
-		const entry = registry[registryKey];
+		const atIndex = source.lastIndexOf("@");
+		const baseName = atIndex > 0 ? source.substring(0, atIndex) : source;
+		const entry = lookupRegistryEntry(registry, baseName);
 
 		if (!entry) {
 			continue;
@@ -240,27 +237,6 @@ export async function update(options: UpdateOptions): Promise<UpdateResult> {
 	}
 
 	return applyUpdates(updates, options);
-}
-
-/**
- * Find registry key for a source string.
- */
-function findRegistryKey(source: string, registry: Record<string, unknown>): string | null {
-	const atIndex = source.lastIndexOf("@");
-	const baseName = atIndex > 0 ? source.substring(0, atIndex) : source;
-
-	if (registry[baseName]) {
-		return baseName;
-	}
-
-	const lowerBase = baseName.toLowerCase();
-	for (const key of Object.keys(registry)) {
-		if (key.toLowerCase() === lowerBase) {
-			return key;
-		}
-	}
-
-	return null;
 }
 
 /**

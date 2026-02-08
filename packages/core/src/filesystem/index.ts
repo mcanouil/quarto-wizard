@@ -25,4 +25,4 @@ export {
 	getExtensionInstallPath,
 } from "./discovery.js";
 
-export { type WalkEntry, type WalkCallback, walkDirectory, collectFiles, copyDirectory } from "./walk.js";
+export { type WalkEntry, type WalkCallback, walkDirectory, collectFiles, copyDirectory, pathExists } from "./walk.js";

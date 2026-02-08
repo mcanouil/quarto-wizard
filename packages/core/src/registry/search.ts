@@ -7,9 +7,32 @@
  * @module registry
  */
 
-import type { RegistryEntry } from "../types/registry.js";
+import type { Registry, RegistryEntry } from "../types/registry.js";
 import type { ExtensionType } from "../types/extension.js";
 import { fetchRegistry, type RegistryOptions } from "./fetcher.js";
+
+/**
+ * Look up a registry entry by key with case-insensitive fallback.
+ *
+ * @param registry - Registry to search
+ * @param key - Entry key (e.g., "quarto-ext/lightbox")
+ * @returns Matching entry or null
+ */
+export function lookupRegistryEntry(registry: Registry, key: string): RegistryEntry | null {
+	const entry = registry[key];
+	if (entry) {
+		return entry;
+	}
+
+	const lowerKey = key.toLowerCase();
+	for (const [k, v] of Object.entries(registry)) {
+		if (k.toLowerCase() === lowerKey) {
+			return v;
+		}
+	}
+
+	return null;
+}
 
 /**
  * Options for listing available extensions.
@@ -132,7 +155,7 @@ export async function search(query: string, options: SearchOptions = {}): Promis
  */
 export async function getExtension(id: string, options: RegistryOptions = {}): Promise<RegistryEntry | null> {
 	const registry = await fetchRegistry(options);
-	return registry[id] ?? null;
+	return lookupRegistryEntry(registry, id);
 }
 
 /**
