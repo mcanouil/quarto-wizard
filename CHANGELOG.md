@@ -16,11 +16,7 @@
 
 ### Refactoring
 
-- refactor: extract shared source prompt helpers (`promptForGitHubReference`, `promptForURL`, `promptForLocalPath`, `resolveSourcePath`) into `src/utils/sourcePrompts.ts` for reuse across commands.
-- refactor: extract `handleAuthError` into `src/utils/auth.ts` to remove duplicated authentication error handling.
-- refactor: rename constants (`STORAGE_KEY_RECENTLY_INSTALLED`, `STORAGE_KEY_RECENTLY_USED`) and log utilities (`getShowLogsLink`, `logMessageDebounced`) for clarity.
-- refactor: simplify `confirmTrustAuthors` and `confirmInstall` to return booleans.
-- refactor: add `LogLevel` type and log level caching with 5-second TTL for improved performance.
+- refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
 
 ## 2.1.3 (2026-02-05)
 
