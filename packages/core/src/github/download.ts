@@ -177,7 +177,7 @@ export async function downloadArchive(
 		try {
 			while (true) {
 				if (streamError) {
-					throw new NetworkError(`Write error during download: ${streamError.message}`, { cause: streamError });
+					break;
 				}
 
 				const { done, value } = await reader.read();
