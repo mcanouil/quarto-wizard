@@ -424,9 +424,7 @@ export class ExtensionsInstalled {
 	private initialise(context: vscode.ExtensionContext) {
 		const workspaceFolders = vscode.workspace.workspaceFolders || [];
 		if (workspaceFolders.length === 0) {
-			const message = `Please open a workspace/folder to install Quarto extensions.`;
-			logMessage(message, "error");
-			vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
+			logMessage("No workspace folders open. Extensions view not initialised.", "debug");
 			return;
 		}
 

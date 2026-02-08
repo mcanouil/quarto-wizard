@@ -342,6 +342,7 @@ export async function showExtensionQuickPick(
 		});
 
 		quickPick.onDidHide(() => {
+			quickPick.dispose();
 			if (resolved) return;
 			resolved = true;
 			resolve({ type: "cancelled" });

@@ -146,7 +146,9 @@ async function installQuartoExtensions(
 
 			if (installedExtensions.length > 0) {
 				logMessage(`Successfully ${actionPast} extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
-				installedExtensions.map((ext) => logMessage(` - ${ext}`, "info"));
+				for (const ext of installedExtensions) {
+					logMessage(` - ${ext}`, "info");
+				}
 			}
 
 			if (failedExtensions.length > 0) {
@@ -154,7 +156,9 @@ async function installQuartoExtensions(
 					`Failed to ${template ? "use" : "install"} extension${failedExtensions.length > 1 ? "s" : ""}:`,
 					"error",
 				);
-				failedExtensions.map((ext) => logMessage(` - ${ext}`, "error"));
+				for (const ext of failedExtensions) {
+					logMessage(` - ${ext}`, "error");
+				}
 				const message = [
 					"The following extension",
 					failedExtensions.length > 1 ? "s were" : " was",
@@ -371,7 +375,7 @@ export async function installQuartoExtensionCommand(context: vscode.ExtensionCon
 	if (!workspaceFolder) {
 		return;
 	}
-	installQuartoExtensionFolderCommand(context, workspaceFolder, false);
+	await installQuartoExtensionFolderCommand(context, workspaceFolder, false);
 }
 
 /**
@@ -386,7 +390,7 @@ export async function useQuartoTemplateCommand(context: vscode.ExtensionContext)
 	if (!workspaceFolder) {
 		return;
 	}
-	installQuartoExtensionFolderCommand(context, workspaceFolder, true);
+	await installQuartoExtensionFolderCommand(context, workspaceFolder, true);
 }
 
 /**

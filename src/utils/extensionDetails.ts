@@ -123,70 +123,7 @@ export async function getExtensionsDetails(
 	context: vscode.ExtensionContext,
 	timeoutMs = 10000,
 ): Promise<ExtensionDetails[]> {
-	const extensions = await fetchExtensions(context, timeoutMs);
-
-	return extensions.filter((extension): extension is ExtensionDetails => extension !== undefined);
-}
-
-/**
- * Searches for extensions matching a query using the core library.
- * @param {vscode.ExtensionContext} context - The extension context.
- * @param {string} query - The search query.
- * @param {number} limit - Maximum number of results (default: 50).
- * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to matching extensions.
- */
-export async function searchExtensionsDetails(
-	context: vscode.ExtensionContext,
-	query: string,
-	limit = 50,
-): Promise<ExtensionDetails[]> {
-	const extensions = await fetchExtensions(context);
-
-	if (!query.trim()) {
-		return extensions.slice(0, limit);
-	}
-
-	// Simple search: filter by query matching name, description, or owner
-	const queryLower = query.toLowerCase();
-	const results = extensions.filter((ext) => {
-		const searchable = [ext.name, ext.fullName, ext.owner, ext.description].filter(Boolean).join(" ").toLowerCase();
-		return searchable.includes(queryLower);
-	});
-
-	// Sort by stars (descending) and limit
-	results.sort((a, b) => b.stars - a.stars);
-	return results.slice(0, limit);
-}
-
-/**
- * Lists available extensions filtered by type.
- * @param {vscode.ExtensionContext} context - The extension context.
- * @param {object} options - Filter options.
- * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to filtered extensions.
- */
-export async function listExtensionsByType(
-	context: vscode.ExtensionContext,
-	options: {
-		templatesOnly?: boolean;
-		extensionsOnly?: boolean;
-		limit?: number;
-	} = {},
-): Promise<ExtensionDetails[]> {
-	const extensions = await fetchExtensions(context);
-
-	let filtered = extensions;
-
-	if (options.templatesOnly) {
-		filtered = filtered.filter((ext) => ext.template);
-	} else if (options.extensionsOnly) {
-		filtered = filtered.filter((ext) => !ext.template);
-	}
-
-	if (options.limit) {
-		filtered = filtered.slice(0, options.limit);
-	}
-
-	return filtered;
+	return fetchExtensions(context, timeoutMs);
 }
 
 /**

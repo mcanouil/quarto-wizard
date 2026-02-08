@@ -132,9 +132,11 @@ export function activate(context: vscode.ExtensionContext) {
 	new ExtensionsInstalled(context);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
-	vscode.window.registerUriHandler({
-		handleUri: (uri: vscode.Uri) => handleUri(uri, context),
-	});
+	context.subscriptions.push(
+		vscode.window.registerUriHandler({
+			handleUri: (uri: vscode.Uri) => handleUri(uri, context),
+		}),
+	);
 }
 
 /**

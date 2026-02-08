@@ -44,7 +44,8 @@ export function logMessage(message: string, level: LogLevel = "info"): void {
 	const now = Date.now();
 	if (!cachedLogLevel || now - cachedLogLevelTimestamp > LOG_LEVEL_CACHE_TTL_MS) {
 		const config = vscode.workspace.getConfiguration("quartoWizard.log", null);
-		cachedLogLevel = (config.get<string>("level") as LogLevel) ?? "info";
+		const configured = config.get<string>("level") ?? "info";
+		cachedLogLevel = LOG_LEVELS.includes(configured as LogLevel) ? (configured as LogLevel) : "info";
 		cachedLogLevelTimestamp = now;
 	}
 

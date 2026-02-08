@@ -189,8 +189,9 @@ suite("Log Utils Test Suite", () => {
 
 			logMessage("Test message", "info");
 
-			// Should not log when level is unknown
-			assert.strictEqual(logMessages.length, 0);
+			// Invalid config levels fall back to "info", so info messages are logged.
+			assert.strictEqual(logMessages.length, 1);
+			assert.strictEqual(logMessages[0], "Test message");
 		});
 
 		test("should handle unknown message types gracefully", () => {
