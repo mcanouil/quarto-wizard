@@ -96,13 +96,14 @@ export class ExtensionsInstalled {
 				// result is true (success), false (failure), or null (cancelled)
 				const result = await withProgressNotification(
 					`Updating "${item.repository ?? item.label}" to ${latestSemver} ...`,
-					async () => {
+					async (token) => {
 						return installQuartoExtension(
 							`${item.repository ?? item.label}${item.latestVersion}`,
 							item.workspaceFolder,
 							auth,
 							undefined,
 							true, // skipOverwritePrompt - updates are expected to overwrite
+							token,
 						);
 					},
 				);
@@ -232,8 +233,11 @@ export class ExtensionsInstalled {
 				let successCount = 0;
 				let failedCount = 0;
 
-				await withProgressNotification(`Updating ${outdated.length} extension(s) ...`, async () => {
+				await withProgressNotification(`Updating ${outdated.length} extension(s) ...`, async (token) => {
 					for (const ext of outdated) {
+						if (token.isCancellationRequested) {
+							break;
+						}
 						const source = ext.repository
 							? `${ext.repository}@${ext.latestVersion}`
 							: `${ext.extensionId}@${ext.latestVersion}`;
@@ -244,6 +248,7 @@ export class ExtensionsInstalled {
 							auth,
 							undefined,
 							true, // skipOverwritePrompt - updates are expected to overwrite
+							token,
 						);
 						if (result === true) {
 							successCount++;

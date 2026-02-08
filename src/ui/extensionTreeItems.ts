@@ -37,7 +37,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		hasIssue?: boolean,
 	) {
 		super(label, collapsibleState);
-		const needsUpdate = latestVersion !== undefined;
+		const needsUpdate = latestVersion !== undefined && latestVersion !== "unknown";
 		const noSource = extension && !extension.manifest.source;
 		const baseContextValue = "quartoExtensionItem";
 		let contextValue = baseContextValue;
