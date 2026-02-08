@@ -299,7 +299,7 @@ export class QuartoExtensionTreeDataProvider
 		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
 		silent = true,
 	): Promise<number> {
-		const auth = await getAuthConfig(context, { silent: true });
+		const auth = await getAuthConfig(context);
 		const registryUrl = getRegistryUrl();
 		const cacheTtl = getCacheTTL();
 		const updatesAvailable: string[] = [];
