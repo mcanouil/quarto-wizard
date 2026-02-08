@@ -130,8 +130,8 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 	// Patterns are deliberately narrow to avoid false positives:
 	// - "status 401", "status: 403", "HTTP 401" (status code in context).
 	// - "authentication [token] failed/required/..." and the reverse order
-	//   "failed/denied/... authentication" (up to 10 chars of intervening text
-	//   to allow e.g. "authentication token expired" or "invalid authentication").
+	//   "failed/denied/... authentication" (forward: up to 10 chars, reverse: up
+	//   to 5 chars to avoid "Failed to parse authentication..." false positives).
 	// - "401: Unauthorized", "403 - Forbidden" (status code + HTTP reason phrase).
 	// - Standalone "Unauthorized" / "Forbidden" (whole message or after colon).
 	const message = error instanceof Error ? error.message : String(error);
@@ -139,9 +139,9 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 		/\bstatus\b.{0,20}\b(401|403)\b/i.test(message) ||
 		/\bHTTP\s+(401|403)\b/i.test(message) ||
 		/\bauthentication\b.{0,10}\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b/i.test(message) ||
-		/\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b.{0,10}\bauthentication\b/i.test(message) ||
+		/\b(fail(?:ed|ure)?|required|denied|invalid|expired)\b.{0,5}\bauthentication\b/i.test(message) ||
 		/\b(401|403)\b[:\s,;-]+(Unauthorized|Forbidden)\b/i.test(message) ||
-		/:\s*(Unauthorized|Forbidden)\s*$/i.test(message) ||
+		/(?<!\d):\s*(Unauthorized|Forbidden)\s*$/i.test(message) ||
 		/^(Unauthorized|Forbidden)$/i.test(message.trim());
 
 	if (isTypedAuthError || isAuthStatus || isAuthMessage) {

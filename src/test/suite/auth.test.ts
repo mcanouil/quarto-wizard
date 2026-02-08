@@ -239,13 +239,13 @@ suite("Auth Utils Test Suite", () => {
 		// Boundary tests for 10-character window
 		test("should show dialog for authentication keyword at exactly 10 chars distance", async () => {
 			// "authentication" + 10 chars + "failed" = boundary match
-			await handleAuthError("test", new Error("authentication 123456789failed"));
+			await handleAuthError("test", new Error("authentication 12345678 failed"));
 			assert.strictEqual(errorMessages.length, 1);
 		});
 
 		test("should not show dialog for authentication keyword beyond 10 chars distance", async () => {
 			// "authentication" + 11 chars + "failed" = beyond boundary
-			await handleAuthError("test", new Error("authentication 1234567890failed"));
+			await handleAuthError("test", new Error("authentication 123456789 failed"));
 			assert.strictEqual(errorMessages.length, 0);
 		});
 
