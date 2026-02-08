@@ -15,6 +15,9 @@ import { SecurityError } from "../errors.js";
 /** Default maximum extraction size: 100 MB. */
 const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
 
+/** Maximum compression ratio allowed (matches ZIP extractor). */
+const MAX_COMPRESSION_RATIO = 100;
+
 /**
  * Options for TAR extraction.
  */
@@ -51,6 +54,9 @@ export async function extractTar(
 ): Promise<string[]> {
 	const { maxSize = DEFAULT_MAX_SIZE, onProgress } = options;
 
+	const stats = await fs.promises.stat(archivePath);
+	const compressedSize = stats.size;
+
 	await fs.promises.mkdir(destDir, { recursive: true });
 
 	const extractedFiles: string[] = [];
@@ -68,6 +74,16 @@ export async function extractTar(
 
 			if (totalSize > maxSize) {
 				throw new SecurityError(`Archive exceeds maximum size: ${formatSize(totalSize)} > ${formatSize(maxSize)}`);
+			}
+
+			// Check compression ratio incrementally to detect tar bombs early.
+			if (compressedSize > 0) {
+				const ratio = totalSize / compressedSize;
+				if (ratio > MAX_COMPRESSION_RATIO) {
+					throw new SecurityError(
+						`Suspicious compression ratio detected: ${ratio.toFixed(1)}:1. ` + "This may indicate a tar bomb.",
+					);
+				}
 			}
 
 			const entryPath = entry.path;

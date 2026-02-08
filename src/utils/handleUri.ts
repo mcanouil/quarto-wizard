@@ -90,10 +90,10 @@ async function handleUriAction(
 export async function handleUri(uri: vscode.Uri, context: vscode.ExtensionContext) {
 	switch (uri.path) {
 		case "/install":
-			handleUriInstall(uri, context);
+			await handleUriInstall(uri, context);
 			break;
 		case "/use":
-			handleUriUse(uri, context);
+			await handleUriUse(uri, context);
 			break;
 		default:
 			logMessage(`Unsupported path: ${uri.path}`, "warn");

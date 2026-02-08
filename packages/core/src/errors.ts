@@ -179,5 +179,7 @@ export function wrapError(error: unknown, context?: string): QuartoWizardError {
 	const message = error instanceof Error ? error.message : String(error);
 	const contextPrefix = context ? `${context}: ` : "";
 
-	return new QuartoWizardError(`${contextPrefix}${message}`, "UNKNOWN_ERROR");
+	return new QuartoWizardError(`${contextPrefix}${message}`, "UNKNOWN_ERROR", {
+		cause: error instanceof Error ? error : undefined,
+	});
 }

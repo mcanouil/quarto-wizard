@@ -139,6 +139,10 @@ export async function downloadArchive(
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+	const dir = downloadDir ?? os.tmpdir();
+	const filename = `quarto-ext-${Date.now()}${extension}`;
+	const archivePath = path.join(dir, filename);
+
 	try {
 		const response = await proxyFetch(url, {
 			headers,
@@ -153,13 +157,17 @@ export async function downloadArchive(
 		const contentLength = response.headers.get("content-length");
 		const totalBytes = contentLength ? parseInt(contentLength, 10) : undefined;
 
-		const dir = downloadDir ?? os.tmpdir();
-		const filename = `quarto-ext-${Date.now()}${extension}`;
-		const archivePath = path.join(dir, filename);
-
 		const fileStream = fs.createWriteStream(archivePath);
 
+		// Capture stream errors that occur during the write loop so they
+		// can be rethrown after the loop finishes.
+		let streamError: Error | undefined;
+		fileStream.on("error", (err) => {
+			streamError = err;
+		});
+
 		if (!response.body) {
+			fileStream.destroy();
 			throw new NetworkError("No response body received");
 		}
 
@@ -168,6 +176,10 @@ export async function downloadArchive(
 
 		try {
 			while (true) {
+				if (streamError) {
+					throw new NetworkError(`Write error during download: ${streamError.message}`, { cause: streamError });
+				}
+
 				const { done, value } = await reader.read();
 
 				if (done) {
@@ -193,6 +205,10 @@ export async function downloadArchive(
 			fileStream.end();
 		}
 
+		if (streamError) {
+			throw new NetworkError(`Write error during download: ${streamError.message}`, { cause: streamError });
+		}
+
 		await new Promise<void>((resolve, reject) => {
 			fileStream.on("finish", resolve);
 			fileStream.on("error", reject);
@@ -200,6 +216,12 @@ export async function downloadArchive(
 
 		return archivePath;
 	} catch (error) {
+		// Clean up partial download on failure.
+		try {
+			await fs.promises.unlink(archivePath);
+		} catch {
+			// Best-effort cleanup.
+		}
 		if (error instanceof Error && error.name === "AbortError") {
 			throw new NetworkError(`Download timed out after ${timeout}ms`, { cause: error });
 		}

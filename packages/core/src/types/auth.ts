@@ -103,6 +103,11 @@ export function getAuthHeaders(auth: AuthConfig | undefined, isGitHub: boolean):
 
 	if (auth?.httpHeaders) {
 		for (const header of auth.httpHeaders) {
+			// Prevent user-supplied headers from overriding the Authorization
+			// header, which is set from the GitHub token above.
+			if (header.name.toLowerCase() === "authorization" && headers["Authorization"]) {
+				continue;
+			}
 			headers[header.name] = header.value;
 		}
 	}

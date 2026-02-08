@@ -317,9 +317,9 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		if (selectTargetSubdir) {
 			onProgress?.({ phase: "selecting", message: "Awaiting target directory selection..." });
 			const selectedSubdir = await selectTargetSubdir();
-			// undefined means user cancelled (pressed Escape) - stop the operation
+			// undefined means user cancelled (pressed Escape) - stop the operation.
+			// Cleanup is handled by the finally block.
 			if (selectedSubdir === undefined) {
-				await cleanupExtraction(sourceRoot);
 				return {
 					install: {
 						success: false,
@@ -366,8 +366,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		);
 
 		if (!selectionResult) {
-			// User cancelled file selection
-			await cleanupExtraction(sourceRoot);
+			// User cancelled file selection. Cleanup is handled by the finally block.
 			return {
 				install: {
 					success: false,
@@ -403,8 +402,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			onProgress?.({ phase: "selecting", message: "Awaiting extension selection..." });
 			const selected = await selectExtension(allExtensions);
 			if (!selected || selected.length === 0) {
-				// User cancelled extension selection
-				await cleanupExtraction(sourceRoot);
+				// User cancelled extension selection. Cleanup is handled by the finally block.
 				return {
 					install: {
 						success: false,
@@ -437,8 +435,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			onProgress?.({ phase: "confirming", message: "Awaiting overwrite confirmation..." });
 			const confirmed = await confirmExtensionOverwrite(existingExtensions);
 			if (confirmed === null) {
-				// User cancelled overwrite confirmation
-				await cleanupExtraction(sourceRoot);
+				// User cancelled overwrite confirmation. Cleanup is handled by the finally block.
 				return {
 					install: {
 						success: false,

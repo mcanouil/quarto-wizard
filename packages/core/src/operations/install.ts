@@ -164,7 +164,18 @@ export function parseInstallSource(input: string): InstallSource {
 		return { type: "url", url: input };
 	}
 
-	// file:// protocol - strip protocol and treat as local path
+	// file:// protocol - use URL API for correct parsing when the URI has three
+	// slashes (file:///path). For non-standard forms like file://./relative or
+	// file://host/share, fall back to stripping the protocol prefix to preserve
+	// backwards compatibility.
+	if (input.startsWith("file:///")) {
+		try {
+			const fileUrl = new URL(input);
+			return { type: "local", path: decodeURIComponent(fileUrl.pathname) };
+		} catch {
+			return { type: "local", path: input.slice(7) };
+		}
+	}
 	if (input.startsWith("file://")) {
 		return { type: "local", path: input.slice(7) };
 	}
