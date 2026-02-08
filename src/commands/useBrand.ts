@@ -6,56 +6,7 @@ import { confirmTrustAuthors, confirmInstall } from "../utils/ask";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
 import { promptForGitHubReference, promptForURL, promptForLocalPath, resolveSourcePath } from "../utils/sourcePrompts";
-
-/**
- * Source type for the brand source picker.
- */
-type BrandSourceType = "github" | "url" | "local";
-
-/**
- * Result from the brand source picker.
- */
-type BrandSourcePickerResult = { type: BrandSourceType } | { type: "cancelled" };
-
-/**
- * Shows a source picker for brand operations (excludes Registry).
- *
- * @returns Selected source type or cancelled.
- */
-async function showBrandSourcePicker(): Promise<BrandSourcePickerResult> {
-	interface BrandSourceItem extends vscode.QuickPickItem {
-		sourceType: BrandSourceType;
-	}
-
-	const items: BrandSourceItem[] = [
-		{
-			label: "$(github) GitHub",
-			description: "Use brand from owner/repo or owner/repo@version",
-			sourceType: "github",
-		},
-		{
-			label: "$(link) URL",
-			description: "Use brand from a direct URL",
-			sourceType: "url",
-		},
-		{
-			label: "$(folder) Local",
-			description: "Use brand from a local path",
-			sourceType: "local",
-		},
-	];
-
-	const selected = await vscode.window.showQuickPick(items, {
-		title: "Use Brand From",
-		placeHolder: "Select where to get the brand from",
-	});
-
-	if (!selected) {
-		return { type: "cancelled" };
-	}
-
-	return { type: selected.sourceType };
-}
+import { showSourcePicker } from "../ui/extensionsQuickPick";
 
 /**
  * Brand-specific prompt options for shared source prompt helpers.
@@ -133,7 +84,12 @@ export async function useBrandCommand(context: vscode.ExtensionContext): Promise
 		return;
 	}
 
-	const sourceResult = await showBrandSourcePicker();
+	const sourceResult = await showSourcePicker({
+		title: "Use Brand From",
+		placeHolder: "Select where to get the brand from",
+		includeRegistry: false,
+		actionVerb: "Use brand",
+	});
 	if (sourceResult.type === "cancelled") {
 		return;
 	}

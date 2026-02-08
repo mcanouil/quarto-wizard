@@ -1,6 +1,4 @@
 import * as vscode from "vscode";
-import * as path from "path";
-import * as fs from "fs";
 import * as semver from "semver";
 import { debounce } from "../utils/debounce";
 import { logMessage, getShowLogsLink } from "../utils/log";
@@ -96,8 +94,7 @@ class ExtensionTreeItem extends vscode.TreeItem {
 
 		// Set resource URI for the extension directory to enable "Reveal in Explorer" functionality
 		if (this.extension) {
-			const extensionPath = path.join(workspacePath, "_extensions", this.label);
-			this.resourceUri = vscode.Uri.file(extensionPath);
+			this.resourceUri = vscode.Uri.joinPath(vscode.Uri.file(workspacePath), "_extensions", this.label);
 		}
 	}
 }
@@ -448,6 +445,13 @@ export class ExtensionsInstalled {
 			}
 		});
 
+		// Watch for changes to _extensions directories for real-time tree view updates
+		const extensionWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_extension.{yml,yaml}");
+		extensionWatcher.onDidCreate(() => this.treeDataProvider.refresh());
+		extensionWatcher.onDidDelete(() => this.treeDataProvider.refresh());
+		extensionWatcher.onDidChange(() => this.treeDataProvider.refresh());
+		context.subscriptions.push(extensionWatcher);
+
 		context.subscriptions.push(view);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
@@ -555,28 +559,34 @@ export class ExtensionsInstalled {
 					}
 
 					// Check if extension directory exists
-					if (!fs.existsSync(item.resourceUri.fsPath)) {
+					try {
+						await vscode.workspace.fs.stat(item.resourceUri);
+					} catch {
 						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}`, "warn");
 						vscode.window.showWarningMessage(`Extension directory for "${item.label}" not found.`);
 						return;
 					}
 
 					// Try to find _extension.yml or _extension.yaml
-					const extensionYml = path.join(item.resourceUri.fsPath, "_extension.yml");
-					const extensionYaml = path.join(item.resourceUri.fsPath, "_extension.yaml");
+					const extensionYml = vscode.Uri.joinPath(item.resourceUri, "_extension.yml");
+					const extensionYaml = vscode.Uri.joinPath(item.resourceUri, "_extension.yaml");
 
 					let targetUri: vscode.Uri;
-					if (fs.existsSync(extensionYml)) {
-						targetUri = vscode.Uri.file(extensionYml);
-					} else if (fs.existsSync(extensionYaml)) {
-						targetUri = vscode.Uri.file(extensionYaml);
-					} else {
-						// Fallback to directory if no extension file found
-						logMessage(
-							`No _extension.yml or _extension.yaml found for "${item.label}", showing directory instead.`,
-							"info",
-						);
-						targetUri = item.resourceUri;
+					try {
+						await vscode.workspace.fs.stat(extensionYml);
+						targetUri = extensionYml;
+					} catch {
+						try {
+							await vscode.workspace.fs.stat(extensionYaml);
+							targetUri = extensionYaml;
+						} catch {
+							// Fallback to directory if no extension file found
+							logMessage(
+								`No _extension.yml or _extension.yaml found for "${item.label}", showing directory instead.`,
+								"info",
+							);
+							targetUri = item.resourceUri;
+						}
 					}
 
 					try {

@@ -1,6 +1,4 @@
 import * as vscode from "vscode";
-import * as fs from "fs/promises";
-import * as path from "path";
 import { getShowLogsLink, logMessage } from "./log";
 
 /**
@@ -30,9 +28,10 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 		}
 	}
 
-	const filePath = path.join(context.extensionPath, "assets", "templates", templateFile);
+	const fileUri = vscode.Uri.joinPath(context.extensionUri, "assets", "templates", templateFile);
 	try {
-		const data = await fs.readFile(filePath, "utf8");
+		const fileData = await vscode.workspace.fs.readFile(fileUri);
+		const data = new TextDecoder().decode(fileData);
 		const document = await vscode.workspace.openTextDocument({ content: data, language: "quarto" });
 		await vscode.window.showTextDocument(document);
 	} catch (error) {
