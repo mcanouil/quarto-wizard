@@ -458,3 +458,55 @@ element-attributes:
       type: boolean
       description: "Apply a fade transition for this modal."
 ```
+
+## Generating a Schema with AI
+
+The prompt below can be used with an AI assistant to generate a `_schema.yml` for an existing extension.
+Copy the prompt, attach your extension's `_extension.yml` and Lua source files, and the assistant will produce a schema that matches your extension's actual behaviour.
+
+:::: {.callout-tip collapse="true" title="Prompt for generating `_schema.yml`"}
+
+```markdown
+Generate a `_schema.yml` file for the attached Quarto extension.
+
+Read the attached `_extension.yml` to identify the extension name and
+contribution types (filters, shortcodes, formats, projects).
+
+Then read every Lua source file to discover:
+
+1. **Options** read from `meta` or `meta['extensions']` tables.
+   Record each key, its expected type, any default value, and whether
+   it is required.
+2. **Shortcode arguments and attributes** parsed in shortcode handler
+   functions. Record positional arguments (in order) and named
+   attributes with their types, defaults, and allowed values.
+3. **Format-specific options** read under a format name in metadata.
+4. **Element attributes** read from `el.attributes` in Div, Span, or
+   CodeBlock filter functions. Group them by CSS class (use `_any` when
+   the attribute applies regardless of class).
+
+For every field use the following properties where applicable:
+
+- `type`: `string`, `number`, `boolean`, `array`, `object`, or
+  `content` (for shortcode arguments that receive Pandoc content).
+- `required`: set to `true` only when the code raises an error or
+  returns early for missing values.
+- `default`: the fallback value used in the code.
+- `enum`: list of allowed values when the code checks against a
+  fixed set.
+- `enum-case-insensitive`: `true` when the code lowercases or
+  case-folds before comparing.
+- `aliases`: alternative key names accepted by the code.
+- `description`: one sentence in British English explaining the option.
+- `completion`: add `type: color` for CSS colour values, `type: file`
+  with `extensions` for file paths, or omit to let the IDE infer
+  from `enum` and `type`.
+- `items` and `properties` for `array` and `object` types.
+
+Output only the YAML content of `_schema.yml`, nothing else.
+Use kebab-case for multi-word property names (`enum-case-insensitive`,
+not `enumCaseInsensitive`).
+Add a one-line comment header: `# Schema for the <name> extension`.
+```
+
+::::
