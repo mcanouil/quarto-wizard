@@ -32,27 +32,24 @@ export function isInYamlRegion(lines: string[], lineIndex: number, languageId: s
 		return true;
 	}
 
-	// For quarto / qmd files look for --- delimiters.
-	let yamlStart = -1;
-	let yamlEnd = -1;
-
-	for (let i = 0; i < lines.length; i++) {
-		const trimmed = lines[i].trim();
-		if (trimmed === "---") {
-			if (yamlStart === -1) {
-				yamlStart = i;
-			} else {
-				yamlEnd = i;
-				break;
-			}
-		}
-	}
-
-	if (yamlStart === -1 || yamlEnd === -1) {
+	// For quarto / qmd files the YAML front matter must start with --- on line 0.
+	if (lines.length === 0 || lines[0].trim() !== "---") {
 		return false;
 	}
 
-	return lineIndex > yamlStart && lineIndex < yamlEnd;
+	let yamlEnd = -1;
+	for (let i = 1; i < lines.length; i++) {
+		if (lines[i].trim() === "---") {
+			yamlEnd = i;
+			break;
+		}
+	}
+
+	if (yamlEnd === -1) {
+		return false;
+	}
+
+	return lineIndex > 0 && lineIndex < yamlEnd;
 }
 
 /**

@@ -470,25 +470,24 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			return lines.join("\n");
 		}
 
-		// For .qmd files extract the front-matter block.
-		let start = -1;
-		let end = -1;
-		for (let i = 0; i < lines.length; i++) {
-			if (lines[i].trim() === "---") {
-				if (start === -1) {
-					start = i;
-				} else {
-					end = i;
-					break;
-				}
-			}
-		}
-
-		if (start === -1 || end === -1) {
+		// For .qmd files the front matter must start with --- on line 0.
+		if (lines.length === 0 || lines[0].trim() !== "---") {
 			return null;
 		}
 
-		return lines.slice(start + 1, end).join("\n");
+		let end = -1;
+		for (let i = 1; i < lines.length; i++) {
+			if (lines[i].trim() === "---") {
+				end = i;
+				break;
+			}
+		}
+
+		if (end === -1) {
+			return null;
+		}
+
+		return lines.slice(1, end).join("\n");
 	}
 
 	private getYamlStartLine(lines: string[], languageId: string): number {
@@ -496,10 +495,9 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			return 0;
 		}
 
-		for (let i = 0; i < lines.length; i++) {
-			if (lines[i].trim() === "---") {
-				return i + 1;
-			}
+		// Front matter must start with --- on line 0.
+		if (lines.length > 0 && lines[0].trim() === "---") {
+			return 1;
 		}
 
 		return 0;
