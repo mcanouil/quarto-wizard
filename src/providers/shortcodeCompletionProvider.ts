@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import type { ShortcodeSchema, FieldDescriptor } from "@quarto-wizard/core";
-import { SchemaCache, discoverInstalledExtensions } from "@quarto-wizard/core";
+import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/core";
+import { discoverInstalledExtensions } from "@quarto-wizard/core";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { logMessage } from "../utils/log";
 
@@ -15,42 +15,47 @@ import { logMessage } from "../utils/log";
 export class ShortcodeCompletionProvider implements vscode.CompletionItemProvider {
 	private schemaCache: SchemaCache;
 
-	constructor(schemaCache?: SchemaCache) {
-		this.schemaCache = schemaCache ?? new SchemaCache();
+	constructor(schemaCache: SchemaCache) {
+		this.schemaCache = schemaCache;
 	}
 
 	async provideCompletionItems(
 		document: vscode.TextDocument,
 		position: vscode.Position,
 	): Promise<vscode.CompletionItem[] | null> {
-		const text = document.getText();
-		const offset = document.offsetAt(position);
+		try {
+			const text = document.getText();
+			const offset = document.offsetAt(position);
 
-		const parsed = parseShortcodeAtPosition(text, offset);
-		if (!parsed) {
-			return null;
-		}
-
-		const schemas = await this.collectShortcodeSchemas();
-		if (schemas.size === 0) {
-			return null;
-		}
-
-		switch (parsed.cursorContext) {
-			case "name":
-				return this.completeShortcodeName(schemas, parsed.name);
-
-			case "attributeKey":
-				return this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
-
-			case "attributeValue":
-				return this.completeAttributeValue(schemas, parsed.name, parsed.currentAttributeKey);
-
-			case "argument":
-				return this.completeArgument(schemas, parsed.name, parsed.arguments);
-
-			default:
+			const parsed = parseShortcodeAtPosition(text, offset);
+			if (!parsed) {
 				return null;
+			}
+
+			const schemas = await this.collectShortcodeSchemas();
+			if (schemas.size === 0) {
+				return null;
+			}
+
+			switch (parsed.cursorContext) {
+				case "name":
+					return this.completeShortcodeName(schemas, parsed.name);
+
+				case "attributeKey":
+					return this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
+
+				case "attributeValue":
+					return this.completeAttributeValue(schemas, parsed.name, parsed.currentAttributeKey);
+
+				case "argument":
+					return this.completeArgument(schemas, parsed.name, parsed.arguments);
+
+				default:
+					return null;
+			}
+		} catch (error) {
+			logMessage(`Shortcode completion error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			return null;
 		}
 	}
 
@@ -338,7 +343,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
  */
 export function registerShortcodeCompletionProvider(
 	context: vscode.ExtensionContext,
-	schemaCache?: SchemaCache,
+	schemaCache: SchemaCache,
 ): vscode.Disposable {
 	const provider = new ShortcodeCompletionProvider(schemaCache);
 	const selector: vscode.DocumentSelector = { language: "quarto" };

@@ -222,7 +222,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			case "projects":
 				return this.fieldItems(schema.projects ?? {});
 			case "elementAttributes":
-				return this.fieldItems(schema.elementAttributes ?? {});
+				return this.formatItems(schema.elementAttributes ?? {});
 		}
 	}
 
