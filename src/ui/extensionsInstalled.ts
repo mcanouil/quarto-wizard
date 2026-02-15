@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { normaliseVersion } from "@quarto-wizard/core";
+import * as path from "node:path";
+import { normaliseVersion, SchemaCache } from "@quarto-wizard/core";
 import { logMessage, getShowLogsLink } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
@@ -27,7 +28,8 @@ export class ExtensionsInstalled {
 			return;
 		}
 
-		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders);
+		const schemaCache = new SchemaCache();
+		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders, schemaCache);
 		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
@@ -50,6 +52,17 @@ export class ExtensionsInstalled {
 		extensionWatcher.onDidDelete(() => this.treeDataProvider.refresh());
 		extensionWatcher.onDidChange(() => this.treeDataProvider.refresh());
 		context.subscriptions.push(extensionWatcher);
+
+		// Watch for changes to schema files for real-time tree view updates
+		const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_schema.{yml,yaml}");
+		const invalidateSchemaAndRefresh = (uri: vscode.Uri) => {
+			schemaCache.invalidate(path.dirname(uri.fsPath));
+			this.treeDataProvider.refresh();
+		};
+		schemaWatcher.onDidCreate(invalidateSchemaAndRefresh);
+		schemaWatcher.onDidDelete(invalidateSchemaAndRefresh);
+		schemaWatcher.onDidChange(invalidateSchemaAndRefresh);
+		context.subscriptions.push(schemaWatcher);
 
 		context.subscriptions.push(view);
 		context.subscriptions.push(

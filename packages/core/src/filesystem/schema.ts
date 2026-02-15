@@ -79,7 +79,7 @@ export function parseSchemaContent(content: string, sourcePath?: string): Extens
 	try {
 		const raw = yaml.load(content) as RawSchema;
 
-		if (!raw || typeof raw !== "object") {
+		if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
 			throw new SchemaError("Schema file is empty or invalid", { schemaPath: sourcePath });
 		}
 
