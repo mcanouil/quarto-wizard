@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/core";
 import { getExtensionRepository, type InstalledExtension } from "../utils/extensions";
 
 /**
@@ -85,6 +86,161 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		}
 	}
 }
+
+/**
+ * Represents the top-level "Schema" node under an extension.
+ */
+export class SchemaTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSchemaItem";
+
+	constructor(
+		public readonly extensionDir: string,
+		public readonly schema: ExtensionSchema,
+	) {
+		super("Schema", vscode.TreeItemCollapsibleState.Collapsed);
+		this.iconPath = new vscode.ThemeIcon("symbol-namespace");
+		this.tooltip = "Extension schema from _schema.yml";
+	}
+}
+
+/**
+ * Type of schema section, used to determine children and icons.
+ */
+export type SchemaSectionKind = "options" | "shortcodes" | "formats" | "projects" | "elementAttributes";
+
+/**
+ * Represents a section within the schema (Options, Shortcodes, etc.).
+ */
+export class SchemaSectionTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSchemaSection";
+
+	constructor(
+		label: string,
+		public readonly kind: SchemaSectionKind,
+		public readonly schema: ExtensionSchema,
+		fieldCount: number,
+	) {
+		super(label, vscode.TreeItemCollapsibleState.Collapsed);
+		this.description = `${fieldCount} ${fieldCount === 1 ? singularLabel(kind) : pluralLabel(kind)}`;
+
+		const icons: Record<SchemaSectionKind, string> = {
+			options: "symbol-field",
+			shortcodes: "symbol-method",
+			formats: "symbol-interface",
+			projects: "symbol-property",
+			elementAttributes: "symbol-class",
+		};
+		this.iconPath = new vscode.ThemeIcon(icons[kind]);
+	}
+}
+
+/**
+ * Represents an individual field or option within a schema section.
+ */
+export class SchemaFieldTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSchemaField";
+
+	constructor(label: string, field: FieldDescriptor, deprecated: boolean) {
+		super(label, vscode.TreeItemCollapsibleState.None);
+
+		const parts: string[] = [];
+		if (field.type) {
+			parts.push(field.type);
+		}
+		if (field.required) {
+			parts.push("required");
+		}
+		if (field.default !== undefined) {
+			parts.push(`default: ${String(field.default)}`);
+		}
+		this.description = parts.join(", ");
+
+		if (deprecated) {
+			const reason = typeof field.deprecated === "string" ? field.deprecated : "Deprecated";
+			this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
+			this.tooltip = reason;
+		} else {
+			this.iconPath = new vscode.ThemeIcon("symbol-field");
+			this.tooltip = field.description ?? label;
+		}
+	}
+}
+
+/**
+ * Represents an individual shortcode within the Shortcodes section.
+ */
+export class SchemaShortcodeTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSchemaField";
+
+	constructor(label: string, shortcode: ShortcodeSchema) {
+		super(label, vscode.TreeItemCollapsibleState.None);
+
+		const parts: string[] = [];
+		const argCount = shortcode.arguments?.length ?? 0;
+		const attrCount = shortcode.attributes ? Object.keys(shortcode.attributes).length : 0;
+		if (argCount > 0) {
+			parts.push(`${argCount} arg${argCount === 1 ? "" : "s"}`);
+		}
+		if (attrCount > 0) {
+			parts.push(`${attrCount} attr${attrCount === 1 ? "" : "s"}`);
+		}
+		this.description = parts.join(", ");
+
+		this.iconPath = new vscode.ThemeIcon("symbol-method");
+		this.tooltip = shortcode.description ?? label;
+	}
+}
+
+/**
+ * Represents a format group within the Formats section.
+ */
+export class SchemaFormatTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSchemaSection";
+
+	constructor(
+		label: string,
+		public readonly fields: Record<string, FieldDescriptor>,
+	) {
+		const fieldCount = Object.keys(fields).length;
+		super(label, vscode.TreeItemCollapsibleState.Collapsed);
+		this.description = `${fieldCount} option${fieldCount === 1 ? "" : "s"}`;
+		this.iconPath = new vscode.ThemeIcon("symbol-interface");
+	}
+}
+
+function singularLabel(kind: SchemaSectionKind): string {
+	const labels: Record<SchemaSectionKind, string> = {
+		options: "option",
+		shortcodes: "shortcode",
+		formats: "format",
+		projects: "project option",
+		elementAttributes: "attribute",
+	};
+	return labels[kind];
+}
+
+function pluralLabel(kind: SchemaSectionKind): string {
+	const labels: Record<SchemaSectionKind, string> = {
+		options: "options",
+		shortcodes: "shortcodes",
+		formats: "formats",
+		projects: "project options",
+		elementAttributes: "attributes",
+	};
+	return labels[kind];
+}
+
+/**
+ * Union type for all tree item types used in the extensions tree view.
+ */
+export type TreeItemType =
+	| WorkspaceFolderTreeItem
+	| ExtensionTreeItem
+	| SchemaTreeItem
+	| SchemaSectionTreeItem
+	| SchemaFieldTreeItem
+	| SchemaShortcodeTreeItem
+	| SchemaFormatTreeItem;
 
 /**
  * Cached data for a workspace folder.

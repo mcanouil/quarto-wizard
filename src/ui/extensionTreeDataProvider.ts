@@ -1,22 +1,31 @@
 import * as vscode from "vscode";
 import { checkForUpdates, formatExtensionId } from "@quarto-wizard/core";
+import type { SchemaCache, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/core";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionRepository, getExtensionContributes } from "../utils/extensions";
 import { getRegistryUrl, getCacheTTL } from "../utils/extensionDetails";
 import { getAuthConfig } from "../utils/auth";
-import { WorkspaceFolderTreeItem, ExtensionTreeItem, type FolderCache } from "./extensionTreeItems";
+import {
+	WorkspaceFolderTreeItem,
+	ExtensionTreeItem,
+	SchemaTreeItem,
+	SchemaSectionTreeItem,
+	SchemaFieldTreeItem,
+	SchemaShortcodeTreeItem,
+	SchemaFormatTreeItem,
+	type TreeItemType,
+	type FolderCache,
+} from "./extensionTreeItems";
 
 /**
  * Provides data for the Quarto extensions tree view.
  */
-export class QuartoExtensionTreeDataProvider
-	implements vscode.TreeDataProvider<WorkspaceFolderTreeItem | ExtensionTreeItem>, vscode.Disposable
-{
-	private _onDidChangeTreeData: vscode.EventEmitter<WorkspaceFolderTreeItem | ExtensionTreeItem | undefined | void> =
-		new vscode.EventEmitter<WorkspaceFolderTreeItem | ExtensionTreeItem | undefined | void>();
-	readonly onDidChangeTreeData: vscode.Event<WorkspaceFolderTreeItem | ExtensionTreeItem | undefined | void> =
-		this._onDidChangeTreeData.event;
+export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<TreeItemType>, vscode.Disposable {
+	private _onDidChangeTreeData: vscode.EventEmitter<TreeItemType | undefined | void> = new vscode.EventEmitter<
+		TreeItemType | undefined | void
+	>();
+	readonly onDidChangeTreeData: vscode.Event<TreeItemType | undefined | void> = this._onDidChangeTreeData.event;
 
 	// Consolidated cache for extension data per workspace folder
 	private cache: Record<string, FolderCache> = {};
@@ -24,7 +33,10 @@ export class QuartoExtensionTreeDataProvider
 	// Guard against concurrent refresh operations
 	private pendingRefresh: Promise<void> | null = null;
 
-	constructor(private workspaceFolders: readonly vscode.WorkspaceFolder[]) {
+	constructor(
+		private workspaceFolders: readonly vscode.WorkspaceFolder[],
+		private schemaCache: SchemaCache,
+	) {
 		this.refreshAllExtensionsData();
 	}
 
@@ -33,13 +45,11 @@ export class QuartoExtensionTreeDataProvider
 		this._onDidChangeTreeData.dispose();
 	}
 
-	getTreeItem(element: WorkspaceFolderTreeItem | ExtensionTreeItem): vscode.TreeItem {
+	getTreeItem(element: TreeItemType): vscode.TreeItem {
 		return element;
 	}
 
-	getChildren(
-		element?: WorkspaceFolderTreeItem | ExtensionTreeItem,
-	): Thenable<(WorkspaceFolderTreeItem | ExtensionTreeItem)[]> {
+	getChildren(element?: TreeItemType): Thenable<TreeItemType[]> {
 		if (!element) {
 			if (this.workspaceFolders.length === 0) {
 				return Promise.resolve([
@@ -59,7 +69,23 @@ export class QuartoExtensionTreeDataProvider
 			return Promise.resolve(this.getExtensionItems(element.folderPath));
 		}
 
-		return Promise.resolve(this.getExtensionDetailItems(element));
+		if (element instanceof ExtensionTreeItem) {
+			return Promise.resolve(this.getExtensionDetailItems(element));
+		}
+
+		if (element instanceof SchemaTreeItem) {
+			return Promise.resolve(this.getSchemaSectionItems(element));
+		}
+
+		if (element instanceof SchemaSectionTreeItem) {
+			return Promise.resolve(this.getSectionChildItems(element));
+		}
+
+		if (element instanceof SchemaFormatTreeItem) {
+			return Promise.resolve(this.getFormatFieldItems(element));
+		}
+
+		return Promise.resolve([]);
 	}
 
 	private getWorkspaceFolderItems(): WorkspaceFolderTreeItem[] {
@@ -104,13 +130,13 @@ export class QuartoExtensionTreeDataProvider
 		);
 	}
 
-	private getExtensionDetailItems(element: ExtensionTreeItem): ExtensionTreeItem[] {
+	private getExtensionDetailItems(element: ExtensionTreeItem): TreeItemType[] {
 		const ext = element.extension;
 		if (!ext) {
 			return [];
 		}
 		const manifest = ext.manifest;
-		return [
+		const items: TreeItemType[] = [
 			new ExtensionTreeItem(
 				`Title: ${manifest.title || "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
@@ -142,6 +168,78 @@ export class QuartoExtensionTreeDataProvider
 				element.workspaceFolder,
 			),
 		];
+
+		const schema = this.schemaCache.get(ext.directory);
+		if (schema) {
+			items.push(new SchemaTreeItem(ext.directory, schema));
+		}
+
+		return items;
+	}
+
+	private getSchemaSectionItems(element: SchemaTreeItem): SchemaSectionTreeItem[] {
+		const schema = element.schema;
+		const sections: SchemaSectionTreeItem[] = [];
+
+		if (schema.options && Object.keys(schema.options).length > 0) {
+			sections.push(new SchemaSectionTreeItem("Options", "options", schema, Object.keys(schema.options).length));
+		}
+		if (schema.shortcodes && Object.keys(schema.shortcodes).length > 0) {
+			sections.push(
+				new SchemaSectionTreeItem("Shortcodes", "shortcodes", schema, Object.keys(schema.shortcodes).length),
+			);
+		}
+		if (schema.formats && Object.keys(schema.formats).length > 0) {
+			sections.push(new SchemaSectionTreeItem("Formats", "formats", schema, Object.keys(schema.formats).length));
+		}
+		if (schema.projects && Object.keys(schema.projects).length > 0) {
+			sections.push(new SchemaSectionTreeItem("Projects", "projects", schema, Object.keys(schema.projects).length));
+		}
+		if (schema.elementAttributes && Object.keys(schema.elementAttributes).length > 0) {
+			sections.push(
+				new SchemaSectionTreeItem(
+					"Element Attributes",
+					"elementAttributes",
+					schema,
+					Object.keys(schema.elementAttributes).length,
+				),
+			);
+		}
+
+		return sections;
+	}
+
+	private getSectionChildItems(element: SchemaSectionTreeItem): TreeItemType[] {
+		const schema = element.schema;
+
+		switch (element.kind) {
+			case "options":
+				return this.fieldItems(schema.options ?? {});
+			case "shortcodes":
+				return this.shortcodeItems(schema.shortcodes ?? {});
+			case "formats":
+				return this.formatItems(schema.formats ?? {});
+			case "projects":
+				return this.fieldItems(schema.projects ?? {});
+			case "elementAttributes":
+				return this.fieldItems(schema.elementAttributes ?? {});
+		}
+	}
+
+	private getFormatFieldItems(element: SchemaFormatTreeItem): SchemaFieldTreeItem[] {
+		return this.fieldItems(element.fields);
+	}
+
+	private fieldItems(fields: Record<string, FieldDescriptor>): SchemaFieldTreeItem[] {
+		return Object.entries(fields).map(([name, field]) => new SchemaFieldTreeItem(name, field, !!field.deprecated));
+	}
+
+	private shortcodeItems(shortcodes: Record<string, ShortcodeSchema>): SchemaShortcodeTreeItem[] {
+		return Object.entries(shortcodes).map(([name, sc]) => new SchemaShortcodeTreeItem(name, sc));
+	}
+
+	private formatItems(formats: Record<string, Record<string, FieldDescriptor>>): SchemaFormatTreeItem[] {
+		return Object.entries(formats).map(([name, fields]) => new SchemaFormatTreeItem(name, fields));
 	}
 
 	/**
@@ -164,10 +262,7 @@ export class QuartoExtensionTreeDataProvider
 	 * Centralised method to handle post-action refresh and update checking.
 	 * Ensures proper order: check for updates first, then refresh display.
 	 */
-	refreshAfterAction(
-		context: vscode.ExtensionContext,
-		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
-	): void {
+	refreshAfterAction(context: vscode.ExtensionContext, view?: vscode.TreeView<TreeItemType>): void {
 		this.refreshAllExtensionsDataAsync()
 			.then(async () => {
 				try {
@@ -298,7 +393,7 @@ export class QuartoExtensionTreeDataProvider
 	 */
 	async checkUpdate(
 		context: vscode.ExtensionContext,
-		view?: vscode.TreeView<WorkspaceFolderTreeItem | ExtensionTreeItem>,
+		view?: vscode.TreeView<TreeItemType>,
 		silent = true,
 	): Promise<number> {
 		const auth = await getAuthConfig(context);
