@@ -1,0 +1,443 @@
+---
+title: "Extension Schema Specification"
+---
+
+Quarto extensions can provide a `_schema.yml` file alongside their `_extension.yml` manifest.
+This file declares every configurable option, shortcode parameter, format key, and element attribute the extension accepts.
+
+A single schema serves two consumers:
+
+- **Lua runtime** validates options when Quarto renders, catching configuration errors early with clear messages.
+- **IDE tooling** (Quarto Wizard) reads the same file to provide autocompletion, hover documentation, and diagnostics in `_quarto.yml`, `_metadata.yml`, and document YAML front matter.
+
+## File Location
+
+Place `_schema.yml` (or `_schema.yaml`) in the same directory as `_extension.yml`:
+
+```text
+_extensions/
+  my-extension/
+    _extension.yml
+    _schema.yml
+    my-extension.lua
+```
+
+Quarto Wizard discovers schema files automatically when scanning installed extensions.
+
+## Top-level Structure
+
+The schema has five optional top-level sections.
+An extension may define any combination of these.
+
+```yaml
+# Extension-level metadata options (all extension types).
+# Configured under the extension name in YAML metadata.
+options:
+  <option-name>: <field-descriptor>
+
+# Per-shortcode schemas (one entry per contributed shortcode).
+shortcodes:
+  <shortcode-name>:
+    description: <string>
+    arguments:
+      - name: <string>
+        <field-descriptor properties>
+    attributes:
+      <attribute-name>: <field-descriptor>
+
+# Per-format schemas (one entry per contributed format).
+# Configured under format: <format-name>: in YAML metadata.
+formats:
+  <format-name>:
+    <option-name>: <field-descriptor>
+
+# Per-project schemas (one entry per contributed project type).
+# Configured under project: in YAML metadata.
+projects:
+  <project-type>:
+    <option-name>: <field-descriptor>
+
+# Element attributes accepted by filters on Div/Span/CodeBlock elements.
+# Used in: [text]{.class attr=value} or ::: {.class attr=value}
+# These are Pandoc AST element attributes, not metadata options.
+element-attributes:
+  <class-or-context>:
+    <attribute-name>: <field-descriptor>
+```
+
+### options
+
+Extension-level configuration options.
+These appear under the extension name in YAML metadata (e.g., `_quarto.yml`, `_metadata.yml`, or document front matter).
+
+```yaml
+options:
+  size:
+    type: number
+    default: 60
+    description: "Radius of the spotlight circle in pixels."
+  lockPointerInsideCanvas:
+    type: boolean
+    default: false
+    description: "Whether to lock the mouse pointer inside the canvas."
+```
+
+### shortcodes
+
+Per-shortcode schemas, keyed by shortcode name.
+Each shortcode entry can specify a `description`, positional `arguments` (as an ordered array), and named `attributes` (as a map).
+
+```yaml
+shortcodes:
+  modal:
+    description: "Generate a Bootstrap modal toggle or dismiss button."
+    arguments:
+      - name: type
+        type: string
+        default: "toggle"
+        enum: [toggle, dismiss]
+        description: "Button type: toggle to open, dismiss to close."
+    attributes:
+      target:
+        type: string
+        description: "ID of the modal to target (without the # prefix)."
+      label:
+        type: string
+        description: "Button label text."
+```
+
+Shortcode arguments use the same field descriptor properties as options, plus a required `name` field that identifies the positional argument.
+
+### formats
+
+Per-format options, keyed by the format name as it appears in YAML metadata (e.g., `letter-pdf`, `invoice-pdf`).
+
+```yaml
+formats:
+  letter-pdf:
+    address:
+      type: array
+      required: true
+      description: "Recipient address lines."
+      items:
+        type: string
+    subject:
+      type: string
+      description: "Letter subject line."
+```
+
+### projects
+
+Per-project-type options, keyed by the project type name.
+
+```yaml
+projects:
+  my-website:
+    output-dir:
+      type: string
+      default: "_site"
+      description: "Output directory for the website build."
+```
+
+### element-attributes
+
+Attributes accepted by filter extensions on Pandoc Div, Span, and CodeBlock elements.
+Grouped by CSS class or element type.
+Use `_any` for attributes accepted on any element regardless of class.
+
+```yaml
+element-attributes:
+  _any:
+    colour:
+      type: string
+      aliases: [color, ink, fg]
+      description: "Text (foreground) colour."
+      completion:
+        type: color
+    bg-colour:
+      type: string
+      aliases: [bg-color, bg, paper]
+      description: "Background colour."
+      completion:
+        type: color
+```
+
+## Field Descriptor Properties
+
+Every option, argument, or attribute is described by the same set of properties.
+All properties are optional.
+
+### Type and Value Constraints
+
+| Property                | Type      | Description                                                                          |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `type`                  | `string`  | Expected value type: `string`, `number`, `boolean`, `array`, `object`, or `content`. |
+| `required`              | `boolean` | Whether the field must be present. Default: `false`.                                 |
+| `default`               | any       | Default value applied when not provided.                                             |
+| `enum`                  | array     | List of allowed values.                                                              |
+| `enum-case-insensitive` | `boolean` | Case-insensitive enum matching. Default: `false`.                                    |
+| `pattern`               | `string`  | Regular expression the value must match (JS regex syntax).                           |
+| `pattern-exact`         | `boolean` | Treat `pattern` as an exact string match. Default: `false`.                          |
+| `min`                   | `number`  | Minimum value (inclusive, for `type: number`).                                       |
+| `max`                   | `number`  | Maximum value (inclusive, for `type: number`).                                       |
+| `min-length`            | `integer` | Minimum array length (for `type: array`).                                            |
+| `max-length`            | `integer` | Maximum array length (for `type: array`).                                            |
+
+The `content` type is specific to shortcode arguments and accepts any Pandoc Inlines, Blocks, or string value.
+Validation only checks presence (for `required`); no further type or pattern checking applies.
+
+### Metadata Properties
+
+| Property      | Type                             | Description                                                               |
+| ------------- | -------------------------------- | ------------------------------------------------------------------------- |
+| `description` | `string`                         | Human-readable description shown in hover tooltips and completion detail. |
+| `aliases`     | `array<string>`                  | Alternative accepted names (e.g., `[color]` alongside `colour`).          |
+| `deprecated`  | `boolean`, `string`, or `object` | Mark the field as deprecated (see [Deprecation](#deprecation)).           |
+
+### Nested Type Properties
+
+| Property     | Type                            | Description                                     |
+| ------------ | ------------------------------- | ----------------------------------------------- |
+| `items`      | field descriptor                | Schema for array elements (when `type: array`). |
+| `properties` | `map<string, field descriptor>` | Schema for object keys (when `type: object`).   |
+
+### Completion
+
+The `completion` object controls IDE autocomplete behaviour.
+When omitted, Quarto Wizard infers completion from other properties (e.g., `enum` values become suggestions, `type: boolean` suggests `true`/`false`).
+
+| Property      | Type            | Description                                                                      |
+| ------------- | --------------- | -------------------------------------------------------------------------------- |
+| `type`        | `string`        | Completion strategy (see [Completion types](#completion-types)).                 |
+| `extensions`  | `array<string>` | File extension filter for `type: file` (e.g., `[.csv, .xlsx]`).                  |
+| `placeholder` | `string`        | Hint text for `type: freeform`.                                                  |
+| `values`      | `array`         | Override values for `type: enum` (when different from validation `enum`).        |
+| `dynamic`     | `boolean`       | Values come from external sources (brand colours, filesystem). Default: `false`. |
+| `source`      | `string`        | Hint for dynamic value source (e.g., `"brand-colors"`, `"git-remote"`).          |
+
+#### Completion Types {#completion-types}
+
+| Type       | IDE Behaviour                                         |
+| ---------- | ----------------------------------------------------- |
+| `enum`     | Suggests values from the `enum` or `values` property. |
+| `file`     | Opens a file picker filtered by `extensions`.         |
+| `color`    | Shows a colour picker.                                |
+| `boolean`  | Suggests `true` and `false`.                          |
+| `freeform` | Shows a text input with `placeholder` as hint.        |
+| `size`     | Suggests common CSS size values.                      |
+| `none`     | Disables autocompletion for this field.               |
+
+## Features
+
+### Alias Resolution
+
+Alternative field names allow extensions to accept multiple spellings.
+The IDE suggests all names; the Lua validator resolves aliases to the primary key.
+
+```yaml
+colour:
+  type: string
+  aliases: [color, ink, fg]
+  description: "Text colour."
+```
+
+If a user provides `color: red`, validation and merging resolve it to `colour = "red"`.
+
+### Deprecation
+
+The `deprecated` property supports three forms:
+
+- `deprecated: true` marks the field as deprecated with a generic warning.
+- `deprecated: "Use X instead"` uses the string as the warning message.
+- Object form with `replace-with` enables automatic value forwarding.
+
+```yaml
+old_colour:
+  type: string
+  deprecated:
+    since: "1.2"
+    message: "Use colour instead."
+    replace-with: colour
+
+colour:
+  type: string
+```
+
+When `replace-with` is specified, the deprecated key's value is forwarded to the replacement key automatically.
+The IDE shows a diagnostic on deprecated fields.
+
+### Boolean Coercion
+
+YAML parsers accept `true`, `True`, `yes`, `on` (and their negatives) as boolean values.
+Pandoc metadata may deliver these as native booleans or as the strings `"true"`/`"false"`.
+
+For `type: boolean` fields, string representations are normalised to native booleans before validation.
+
+### Nested Validation
+
+When `type: array` with an `items` descriptor, each array element is validated against the `items` schema.
+When `type: object` with a `properties` descriptor, the object value is validated recursively.
+
+```yaml
+badge:
+  type: array
+  description: "Array of badge configuration objects."
+  items:
+    type: object
+    properties:
+      key:
+        type: string
+        required: true
+        description: "Unique identifier for the badge."
+      colour:
+        type: string
+        aliases: [color]
+        description: "Background colour for the badge."
+        completion:
+          type: color
+```
+
+## Common Patterns
+
+### Filter with options
+
+A filter extension that reads configuration from YAML metadata.
+
+```yaml
+# _schema.yml
+options:
+  enabled:
+    type: boolean
+    default: true
+    description: "Enable or disable the extension."
+  threshold:
+    type: number
+    min: 0
+    max: 1
+    default: 0.5
+    description: "Detection threshold value."
+```
+
+### Shortcode with arguments and attributes
+
+A shortcode extension with positional arguments and named attributes.
+
+```yaml
+# _schema.yml
+shortcodes:
+  iconify:
+    description: "Renders an Iconify icon."
+    arguments:
+      - name: set-or-icon
+        type: string
+        required: true
+        description: "Icon set name, or 'set:icon' combined format."
+      - name: icon
+        type: string
+        description: "Icon name when the first argument is the set name."
+    attributes:
+      size:
+        type: string
+        description: "Icon size as a keyword or CSS value."
+      flip:
+        type: string
+        enum: [horizontal, vertical, "horizontal,vertical"]
+        description: "Flip transformation for the icon."
+```
+
+### Format extension
+
+A format extension with format-specific options.
+
+```yaml
+# _schema.yml
+formats:
+  letter-pdf:
+    address:
+      type: array
+      required: true
+      description: "Recipient address lines."
+      items:
+        type: string
+    opening:
+      type: string
+      description: "Opening salutation."
+    closing:
+      type: string
+      description: "Closing salutation."
+```
+
+### Element attributes with colour picker
+
+A filter extension that processes element attributes with IDE colour picker support.
+
+```yaml
+# _schema.yml
+element-attributes:
+  _any:
+    colour:
+      type: string
+      aliases: [color, ink, fg]
+      description: "Text (foreground) colour."
+      completion:
+        type: color
+    bg-colour:
+      type: string
+      aliases: [bg-color, bg, paper]
+      description: "Background colour."
+      completion:
+        type: color
+    border-colour:
+      type: string
+      aliases: [border-color, bc]
+      description: "Border colour."
+      completion:
+        type: color
+```
+
+### Combined extension
+
+An extension that defines options, shortcodes, and element attributes together.
+
+```yaml
+# _schema.yml
+options:
+  size:
+    type: string
+    default: ""
+    enum: ["", sm, lg, xl]
+    enum-case-insensitive: true
+    description: "Default modal dialog size."
+  fade:
+    type: boolean
+    default: false
+    description: "Apply a fade transition."
+
+shortcodes:
+  modal:
+    description: "Generate a Bootstrap modal button."
+    arguments:
+      - name: type
+        type: string
+        default: "toggle"
+        enum: [toggle, dismiss]
+        description: "Button type."
+    attributes:
+      target:
+        type: string
+        description: "ID of the modal to target."
+      label:
+        type: string
+        description: "Button label text."
+
+element-attributes:
+  _any:
+    size:
+      type: string
+      enum: ["", sm, lg, xl]
+      enum-case-insensitive: true
+      description: "Modal dialog size override."
+    fade:
+      type: boolean
+      description: "Apply a fade transition for this modal."
+```
