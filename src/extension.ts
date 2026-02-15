@@ -16,6 +16,7 @@ import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDet
 import { handleUri } from "./utils/handleUri";
 import { setManualToken, clearManualToken } from "./utils/auth";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
+import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
 
 /**
  * This method is called when the extension is activated.
@@ -125,6 +126,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register YAML completion and diagnostics providers for extension schemas
 	registerYamlProviders(context);
+
+	// Register shortcode completion provider for Quarto documents
+	registerShortcodeCompletionProvider(context);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(

@@ -93,8 +93,8 @@ export interface ExtensionSchema {
 	formats?: Record<string, Record<string, FieldDescriptor>>;
 	/** Project-level options the extension supports. */
 	projects?: Record<string, FieldDescriptor>;
-	/** Element-level attributes the extension supports. */
-	elementAttributes?: Record<string, FieldDescriptor>;
+	/** Element-level attributes grouped by CSS class or element type (e.g., "_any", "panel", "card"). */
+	elementAttributes?: Record<string, Record<string, FieldDescriptor>>;
 }
 
 /**
@@ -201,7 +201,7 @@ export function normaliseShortcodeSchema(raw: Record<string, unknown>): Shortcod
 export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 	const result: ExtensionSchema = {};
 
-	if (raw.options && typeof raw.options === "object") {
+	if (raw.options && typeof raw.options === "object" && !Array.isArray(raw.options)) {
 		result.options = normaliseFieldDescriptorMap(raw.options);
 	}
 
@@ -225,13 +225,19 @@ export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 		result.formats = formats;
 	}
 
-	if (raw.projects && typeof raw.projects === "object") {
+	if (raw.projects && typeof raw.projects === "object" && !Array.isArray(raw.projects)) {
 		result.projects = normaliseFieldDescriptorMap(raw.projects);
 	}
 
 	const elementAttributes = raw["element-attributes"];
-	if (elementAttributes && typeof elementAttributes === "object") {
-		result.elementAttributes = normaliseFieldDescriptorMap(elementAttributes as Record<string, unknown>);
+	if (elementAttributes && typeof elementAttributes === "object" && !Array.isArray(elementAttributes)) {
+		const groups: Record<string, Record<string, FieldDescriptor>> = {};
+		for (const [groupKey, groupValue] of Object.entries(elementAttributes as Record<string, unknown>)) {
+			if (groupValue && typeof groupValue === "object" && !Array.isArray(groupValue)) {
+				groups[groupKey] = normaliseFieldDescriptorMap(groupValue as Record<string, unknown>);
+			}
+		}
+		result.elementAttributes = groups;
 	}
 
 	return result;
