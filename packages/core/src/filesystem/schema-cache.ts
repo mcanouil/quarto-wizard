@@ -30,14 +30,18 @@ export class SchemaCache {
 			return this.cache.get(extensionDir)!;
 		}
 
-		const result = readSchema(extensionDir);
+		try {
+			const result = readSchema(extensionDir);
 
-		if (!result) {
+			if (!result) {
+				return null;
+			}
+
+			this.cache.set(extensionDir, result.schema);
+			return result.schema;
+		} catch {
 			return null;
 		}
-
-		this.cache.set(extensionDir, result.schema);
-		return result.schema;
 	}
 
 	/**

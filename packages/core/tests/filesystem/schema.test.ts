@@ -184,7 +184,9 @@ describe("normaliseSchema", () => {
 				output: { type: "string" },
 			},
 			"element-attributes": {
-				width: { type: "number" },
+				_any: {
+					width: { type: "number" },
+				},
 			},
 		});
 
@@ -197,7 +199,7 @@ describe("normaliseSchema", () => {
 		expect(result.projects).toBeDefined();
 		expect(result.projects!["output"].type).toBe("string");
 		expect(result.elementAttributes).toBeDefined();
-		expect(result.elementAttributes!["width"].type).toBe("number");
+		expect(result.elementAttributes!["_any"]["width"].type).toBe("number");
 	});
 
 	it("returns empty object for empty schema", () => {
@@ -276,22 +278,27 @@ options:
 		expect(schema.options!["name"].patternExact).toBe(false);
 	});
 
-	it("parses element-attributes section", () => {
+	it("parses element-attributes section with class grouping", () => {
 		const yamlContent = `
 element-attributes:
-  width:
-    type: number
-    min: 0
-  height:
-    type: number
-    min: 0
+  _any:
+    width:
+      type: number
+      min: 0
+    height:
+      type: number
+      min: 0
+  panel:
+    title:
+      type: string
 `;
 
 		const schema = parseSchemaContent(yamlContent);
 
 		expect(schema.elementAttributes).toBeDefined();
-		expect(schema.elementAttributes!["width"].type).toBe("number");
-		expect(schema.elementAttributes!["height"].min).toBe(0);
+		expect(schema.elementAttributes!["_any"]["width"].type).toBe("number");
+		expect(schema.elementAttributes!["_any"]["height"].min).toBe(0);
+		expect(schema.elementAttributes!["panel"]["title"].type).toBe("string");
 	});
 
 	it("parses formats section with nested format options", () => {
@@ -320,6 +327,14 @@ formats:
 
 	it("throws SchemaError on invalid YAML", () => {
 		expect(() => parseSchemaContent("title: [invalid")).toThrow(SchemaError);
+	});
+
+	it("throws SchemaError on YAML array at root level", () => {
+		expect(() => parseSchemaContent("- item1\n- item2")).toThrow(SchemaError);
+	});
+
+	it("throws SchemaError on YAML scalar at root level", () => {
+		expect(() => parseSchemaContent("just a string")).toThrow(SchemaError);
 	});
 
 	it("includes source path in error for empty content", () => {
@@ -554,6 +569,7 @@ describe("SchemaCache", () => {
 
 	it("invalidates all entries", () => {
 		const tempDir2 = fs.mkdtempSync(path.join(os.tmpdir(), "schema-cache-test2-"));
+		try {
 		fs.writeFileSync(
 			path.join(tempDir, "_schema.yml"),
 			"options:\n  a:\n    type: string\n",
@@ -571,8 +587,9 @@ describe("SchemaCache", () => {
 		cache.invalidateAll();
 		expect(cache.has(tempDir)).toBe(false);
 		expect(cache.has(tempDir2)).toBe(false);
-
-		fs.rmSync(tempDir2, { recursive: true, force: true });
+		} finally {
+			fs.rmSync(tempDir2, { recursive: true, force: true });
+		}
 	});
 
 	it("reloads schema after invalidation", () => {
@@ -606,5 +623,21 @@ describe("SchemaCache", () => {
 
 		cache.get(tempDir);
 		expect(cache.has(tempDir)).toBe(true);
+	});
+
+	it("returns null for malformed schema file without throwing", () => {
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "- item1\n- item2\n");
+
+		const result = cache.get(tempDir);
+
+		expect(result).toBeNull();
+	});
+
+	it("returns null for schema with invalid YAML syntax without throwing", () => {
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "title: [invalid\n");
+
+		const result = cache.get(tempDir);
+
+		expect(result).toBeNull();
 	});
 });
