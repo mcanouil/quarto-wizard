@@ -68,9 +68,12 @@ element-attributes:
 ### options
 
 Extension-level configuration options.
-These appear under the extension name in YAML metadata (e.g., `_quarto.yml`, `_metadata.yml`, or document front matter).
+Users set these values in `_quarto.yml`, `_metadata.yml`, or document front matter, scoped under the extension name inside an `extensions` key.
+
+Given a `_schema.yml` for an extension called `spotlight`:
 
 ```yaml
+# _extensions/spotlight/_schema.yml
 options:
   size:
     type: number
@@ -80,6 +83,27 @@ options:
     type: boolean
     default: false
     description: "Whether to lock the mouse pointer inside the canvas."
+```
+
+The corresponding user configuration in `_quarto.yml` would be:
+
+```yaml
+# _quarto.yml
+extensions:
+  spotlight:
+    size: 80
+    lockPointerInsideCanvas: true
+```
+
+The same structure works in `_metadata.yml` or document front matter:
+
+```yaml
+---
+title: "My Presentation"
+extensions:
+  spotlight:
+    size: 80
+---
 ```
 
 ### shortcodes
