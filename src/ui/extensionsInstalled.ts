@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
-import { normaliseVersion, SchemaCache } from "@quarto-wizard/core";
+import { normaliseVersion } from "@quarto-wizard/core";
+import type { SchemaCache } from "@quarto-wizard/core";
 import { logMessage, getShowLogsLink } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
@@ -21,14 +22,13 @@ export class ExtensionsInstalled {
 	 *
 	 * @param context - The extension context.
 	 */
-	private initialise(context: vscode.ExtensionContext) {
+	private initialise(context: vscode.ExtensionContext, schemaCache: SchemaCache) {
 		const workspaceFolders = vscode.workspace.workspaceFolders || [];
 		if (workspaceFolders.length === 0) {
 			logMessage("No workspace folders open. Extensions view not initialised.", "debug");
 			return;
 		}
 
-		const schemaCache = new SchemaCache();
 		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders, schemaCache);
 		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
@@ -345,7 +345,7 @@ export class ExtensionsInstalled {
 		);
 	}
 
-	constructor(context: vscode.ExtensionContext) {
-		this.initialise(context);
+	constructor(context: vscode.ExtensionContext, schemaCache: SchemaCache) {
+		this.initialise(context, schemaCache);
 	}
 }

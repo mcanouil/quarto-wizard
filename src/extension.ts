@@ -15,6 +15,7 @@ import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
 import { setManualToken, clearManualToken } from "./utils/auth";
+import { SchemaCache } from "@quarto-wizard/core";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
 import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
 
@@ -121,14 +122,17 @@ export function activate(context: vscode.ExtensionContext) {
 		),
 	);
 
+	// Shared schema cache for all providers and tree view
+	const schemaCache = new SchemaCache();
+
 	// Initialise the Extensions Installed tree view provider
-	new ExtensionsInstalled(context);
+	new ExtensionsInstalled(context, schemaCache);
 
 	// Register YAML completion and diagnostics providers for extension schemas
-	registerYamlProviders(context);
+	registerYamlProviders(context, schemaCache);
 
 	// Register shortcode completion provider for Quarto documents
-	registerShortcodeCompletionProvider(context);
+	registerShortcodeCompletionProvider(context, schemaCache);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(

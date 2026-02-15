@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { SchemaCache, discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
-import type { ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
+import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
 import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
@@ -15,53 +15,48 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		document: vscode.TextDocument,
 		position: vscode.Position,
 	): Promise<vscode.CompletionItem[] | undefined> {
-		const lines = document.getText().split("\n");
-		const languageId = document.languageId;
-
-		if (!isInYamlRegion(lines, position.line, languageId)) {
-			return undefined;
-		}
-
-		const keyPath = getYamlKeyPath(lines, position.line, languageId);
-
-		const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-		if (!workspaceFolder) {
-			return undefined;
-		}
-
-		const projectDir = workspaceFolder.uri.fsPath;
-
-		let extensions;
 		try {
-			extensions = await discoverInstalledExtensions(projectDir);
-		} catch (error) {
-			logMessage(
-				`Failed to discover extensions for completions: ${error instanceof Error ? error.message : String(error)}.`,
-				"warn",
-			);
-			return undefined;
-		}
+			const lines = document.getText().split("\n");
+			const languageId = document.languageId;
 
-		// Build a map of extension name to schema for quick lookup.
-		const schemaMap = new Map<string, ExtensionSchema>();
-		for (const ext of extensions) {
-			const schema = this.schemaCache.get(ext.directory);
-			if (schema) {
-				const id = formatExtensionId(ext.id);
-				const shortName = ext.id.name;
-				schemaMap.set(id, schema);
-				if (!schemaMap.has(shortName)) {
-					schemaMap.set(shortName, schema);
+			if (!isInYamlRegion(lines, position.line, languageId)) {
+				return undefined;
+			}
+
+			const keyPath = getYamlKeyPath(lines, position.line, languageId);
+
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+			if (!workspaceFolder) {
+				return undefined;
+			}
+
+			const projectDir = workspaceFolder.uri.fsPath;
+			const extensions = await discoverInstalledExtensions(projectDir);
+
+			// Build a map of extension name to schema for quick lookup.
+			const schemaMap = new Map<string, ExtensionSchema>();
+			for (const ext of extensions) {
+				const schema = this.schemaCache.get(ext.directory);
+				if (schema) {
+					const id = formatExtensionId(ext.id);
+					const shortName = ext.id.name;
+					schemaMap.set(id, schema);
+					if (!schemaMap.has(shortName)) {
+						schemaMap.set(shortName, schema);
+					}
 				}
 			}
-		}
 
-		if (schemaMap.size === 0) {
+			if (schemaMap.size === 0) {
+				return undefined;
+			}
+
+			// Determine completion context from the key path.
+			return this.resolveCompletions(keyPath, schemaMap);
+		} catch (error) {
+			logMessage(`YAML completion error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
 			return undefined;
 		}
-
-		// Determine completion context from the key path.
-		return this.resolveCompletions(keyPath, schemaMap);
 	}
 
 	private resolveCompletions(

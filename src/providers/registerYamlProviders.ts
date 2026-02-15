@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { SchemaCache } from "@quarto-wizard/core";
+import * as path from "node:path";
+import type { SchemaCache } from "@quarto-wizard/core";
 import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletionProvider";
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { logMessage } from "../utils/log";
@@ -10,10 +11,9 @@ import { logMessage } from "../utils/log";
  * schema cache when _schema.yml files change.
  *
  * @param context - The VS Code extension context.
+ * @param schemaCache - Shared schema cache instance.
  */
-export function registerYamlProviders(context: vscode.ExtensionContext): void {
-	const schemaCache = new SchemaCache();
-
+export function registerYamlProviders(context: vscode.ExtensionContext, schemaCache: SchemaCache): void {
 	// Register completion provider.
 	const completionProvider = new YamlCompletionProvider(schemaCache);
 	context.subscriptions.push(
@@ -27,7 +27,7 @@ export function registerYamlProviders(context: vscode.ExtensionContext): void {
 	// Watch for _schema.yml changes to invalidate the cache and revalidate.
 	const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_schema.{yml,yaml}");
 	const invalidateAndRevalidate = (uri: vscode.Uri) => {
-		const dir = vscode.Uri.joinPath(uri, "..").fsPath;
+		const dir = path.normalize(vscode.Uri.joinPath(uri, "..").fsPath);
 		schemaCache.invalidate(dir);
 		diagnosticsProvider.revalidateAll();
 		logMessage(`Schema cache invalidated for ${dir}.`, "debug");

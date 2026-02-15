@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
-import { SchemaCache, discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
-import type { ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
+import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
@@ -40,9 +40,10 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			}),
 		);
 
-		// Clear diagnostics when a document is closed.
+		// Clear diagnostics and cancel pending validation when a document is closed.
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
+				this.debouncedValidate.cancel();
 				this.diagnosticCollection.delete(document.uri);
 			}),
 		);
@@ -315,8 +316,8 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 
-			// Pattern check.
-			if (descriptor.pattern && typeof value === "string") {
+			// Pattern check (skip patterns exceeding 1024 chars to mitigate ReDoS risk).
+			if (descriptor.pattern && typeof value === "string" && descriptor.pattern.length <= 1024) {
 				try {
 					const regex = descriptor.patternExact
 						? new RegExp(`^${descriptor.pattern}$`)
@@ -386,7 +387,14 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		return undefined;
 	}
 
+	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object"]);
+
 	private checkType(value: unknown, expectedType: string): string | undefined {
+		if (!YamlDiagnosticsProvider.KNOWN_TYPES.has(expectedType)) {
+			// Unknown type in schema; skip validation rather than producing false positives.
+			return undefined;
+		}
+
 		switch (expectedType) {
 			case "string":
 				if (typeof value !== "string") {
