@@ -5,6 +5,12 @@
 ### New Features
 
 - feat: add `Quarto Wizard: Use Brand` command to download and apply a Quarto brand to the project's `_brand/` directory, supporting GitHub, URL, and local sources.
+- feat: add `_schema.yml` support for Quarto extensions.
+  Extensions can ship a `_schema.yml` file that declares options, shortcode parameters, format keys, and element attributes.
+  Quarto Wizard reads the schema to provide autocompletion, hover documentation, and diagnostics in YAML configuration files.
+- feat: add shortcode completion provider.
+  Shortcode names, positional arguments, and named attributes defined in `_schema.yml` are suggested inside `{{< >}}` delimiters.
+- feat: display schema information in the installed extensions tree view, showing option counts and types per extension.
 
 ### Bug Fixes
 
@@ -17,6 +23,9 @@
 - fix: remove unnecessary GitHub sign-in prompt that appeared before every command, even for public registry operations.
 - fix: resolve download hanging when file stream errors during backpressure (e.g., disk full).
 - fix: show update indicators immediately after refresh instead of requiring an extra refresh.
+- fix: store file system watcher event disposables to prevent resource leaks.
+- fix: share a single `SchemaCache` instance across all providers instead of creating separate caches.
+- fix: support deprecated object form (`since`, `message`, `replace-with`) in schema types and diagnostics.
 
 ### Refactoring
 
