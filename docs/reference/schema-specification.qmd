@@ -464,7 +464,9 @@ element-attributes:
 The prompt below can be used with an AI assistant to generate a `_schema.yml` for an existing extension.
 Copy the prompt, attach your extension's `_extension.yml` and Lua source files, and the assistant will produce a schema that matches your extension's actual behaviour.
 
-:::: {.callout-tip collapse="true" title="Prompt for generating `_schema.yml`"}
+::: {.callout-tip}
+
+## Prompt for generating `_schema.yml`
 
 ```markdown
 Generate a `_schema.yml` file for the attached Quarto extension.
@@ -509,4 +511,4 @@ not `enumCaseInsensitive`).
 Add a one-line comment header: `# Schema for the <name> extension`.
 ```
 
-::::
+:::
