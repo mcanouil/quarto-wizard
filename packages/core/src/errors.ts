@@ -131,6 +131,23 @@ export class ManifestError extends QuartoWizardError {
 }
 
 /**
+ * Error when parsing a schema file fails.
+ */
+export class SchemaError extends QuartoWizardError {
+	/** Path to the schema file. */
+	readonly schemaPath?: string;
+
+	constructor(message: string, options?: { schemaPath?: string; cause?: unknown }) {
+		super(message, "SCHEMA_ERROR", {
+			suggestion: options?.schemaPath ? `Check the schema file at: ${options.schemaPath}` : undefined,
+			cause: options?.cause,
+		});
+		this.name = "SchemaError";
+		this.schemaPath = options?.schemaPath;
+	}
+}
+
+/**
  * Error when a version cannot be resolved.
  */
 export class VersionError extends QuartoWizardError {

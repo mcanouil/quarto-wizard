@@ -26,3 +26,14 @@ export {
 } from "./discovery.js";
 
 export { type WalkEntry, type WalkCallback, walkDirectory, collectFiles, copyDirectory, pathExists } from "./walk.js";
+
+export {
+	SCHEMA_FILENAMES,
+	type SchemaReadResult,
+	findSchemaFile,
+	parseSchemaFile,
+	parseSchemaContent,
+	readSchema,
+} from "./schema.js";
+
+export { SchemaCache } from "./schema-cache.js";

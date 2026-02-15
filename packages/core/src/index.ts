@@ -21,6 +21,7 @@ export {
 	NetworkError,
 	SecurityError,
 	ManifestError,
+	SchemaError,
 	VersionError,
 	CancellationError,
 	isQuartoWizardError,
