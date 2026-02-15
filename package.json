@@ -52,10 +52,12 @@
 	},
 	"activationEvents": [
 		"onLanguage:quarto",
+		"onLanguage:yaml",
 		"workspaceContains:**/*.{qmd,rmd}",
 		"workspaceContains:**/_quarto.{yml,yaml}",
 		"workspaceContains:**/_brand.{yml,yaml}",
 		"workspaceContains:**/_extension.{yml,yaml}",
+		"workspaceContains:**/_schema.{yml,yaml}",
 		"onUri"
 	],
 	"main": "./dist/extension",
@@ -82,11 +84,13 @@
 	},
 	"dependencies": {
 		"@quarto-wizard/core": "*",
+		"js-yaml": "^4.1.0",
 		"semver": "^7.7.3"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.2",
 		"@types/mocha": "^10.0.10",
+		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^25.0.3",
 		"@types/semver": "^7.7.1",
 		"@types/vscode": "^1.96.0",

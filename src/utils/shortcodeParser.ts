@@ -201,8 +201,9 @@ function tokenise(beforeCursor: string): ShortcodeParseResult {
 		if (token.type === "keyValue") {
 			attrs[token.key!] = token.value;
 		} else if (token.type === "keyOnly") {
-			// A token ending with = means we are about to type a value
-			if (i === tokens.length - 1 && !endsWithWhitespace) {
+			// A token ending with = means we are about to type a value.
+			// Trailing whitespace does not change this: key= always waits for a value.
+			if (i === tokens.length - 1) {
 				cursorContext = "attributeValue";
 				currentAttributeKey = token.value;
 			} else {
@@ -229,18 +230,25 @@ function tokenise(beforeCursor: string): ShortcodeParseResult {
 	}
 
 	// If the last token was a complete key=value and there is trailing whitespace,
-	// we are ready for a new attribute key
-	if (endsWithWhitespace) {
-		cursorContext = "attributeKey";
-		currentAttributeKey = undefined;
+	// we are ready for a new attribute key.  But keyOnly tokens (key=) always
+	// wait for a value regardless of trailing whitespace.
+	if (endsWithWhitespace && tokens.length > 1) {
+		const lastToken = tokens[tokens.length - 1];
+		if (lastToken.type !== "keyOnly") {
+			cursorContext = "attributeKey";
+			currentAttributeKey = undefined;
+		}
 	}
 
-	// If we ended mid-token (no trailing whitespace) and the last token is a plain word,
-	// it could be a partial attribute key
+	// If we ended mid-token (no trailing whitespace), determine context from the last token.
 	if (!endsWithWhitespace && tokens.length > 1) {
 		const lastToken = tokens[tokens.length - 1];
 		if (lastToken.type === "word" && !lastToken.value.includes("=")) {
 			cursorContext = "attributeKey";
+		} else if (lastToken.type === "keyValue" && !beforeCursor.endsWith('"')) {
+			// Unquoted value still being typed (e.g., key=va with cursor at end).
+			cursorContext = "attributeValue";
+			currentAttributeKey = lastToken.key;
 		}
 	}
 
