@@ -34,6 +34,7 @@ export { type HttpHeader, type AuthConfig, type AuthConfigOptions, createAuthCon
 
 export {
 	type CompletionSpec,
+	type DeprecatedSpec,
 	type FieldDescriptor,
 	type ShortcodeSchema,
 	type ExtensionSchema,

@@ -8,12 +8,7 @@ import {
 	normaliseShortcodeSchema,
 	normaliseSchema,
 } from "../../src/types/schema.js";
-import {
-	findSchemaFile,
-	parseSchemaContent,
-	parseSchemaFile,
-	readSchema,
-} from "../../src/filesystem/schema.js";
+import { findSchemaFile, parseSchemaContent, parseSchemaFile, readSchema } from "../../src/filesystem/schema.js";
 import { SchemaCache } from "../../src/filesystem/schema-cache.js";
 import { SchemaError } from "../../src/errors.js";
 
@@ -85,7 +80,7 @@ describe("normaliseFieldDescriptor", () => {
 		expect(result.default).toBe("left");
 	});
 
-	it("handles aliases and deprecated fields", () => {
+	it("handles aliases and deprecated string", () => {
 		const result = normaliseFieldDescriptor({
 			type: "string",
 			aliases: ["old-name"],
@@ -94,6 +89,32 @@ describe("normaliseFieldDescriptor", () => {
 
 		expect(result.aliases).toEqual(["old-name"]);
 		expect(result.deprecated).toBe("Use new-field instead");
+	});
+
+	it("handles deprecated boolean", () => {
+		const result = normaliseFieldDescriptor({
+			type: "string",
+			deprecated: true,
+		});
+
+		expect(result.deprecated).toBe(true);
+	});
+
+	it("normalises deprecated object with replace-with", () => {
+		const result = normaliseFieldDescriptor({
+			type: "string",
+			deprecated: {
+				since: "1.2",
+				message: "Use colour instead.",
+				"replace-with": "colour",
+			},
+		});
+
+		expect(typeof result.deprecated).toBe("object");
+		const spec = result.deprecated as { since: string; message: string; replaceWith: string };
+		expect(spec.since).toBe("1.2");
+		expect(spec.message).toBe("Use colour instead.");
+		expect(spec.replaceWith).toBe("colour");
 	});
 
 	it("handles completion spec", () => {
@@ -341,6 +362,29 @@ formats:
 		expect(() => parseSchemaContent("", "/path/to/schema.yml")).toThrow(/schema/i);
 	});
 
+	it("parses deprecated object form with replace-with", () => {
+		const yamlContent = `
+options:
+  old_colour:
+    type: string
+    deprecated:
+      since: "1.2"
+      message: "Use colour instead."
+      replace-with: colour
+  colour:
+    type: string
+`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		const deprecated = schema.options!["old_colour"].deprecated;
+		expect(typeof deprecated).toBe("object");
+		const spec = deprecated as { since: string; message: string; replaceWith: string };
+		expect(spec.since).toBe("1.2");
+		expect(spec.message).toBe("Use colour instead.");
+		expect(spec.replaceWith).toBe("colour");
+	});
+
 	it("handles minimal schema with only one section", () => {
 		const yamlContent = `
 options:
@@ -439,10 +483,7 @@ describe("filesystem schema functions", () => {
 	describe("parseSchemaFile", () => {
 		it("parses a schema file", () => {
 			const schemaPath = path.join(tempDir, "_schema.yml");
-			fs.writeFileSync(
-				schemaPath,
-				"options:\n  enabled:\n    type: boolean\n    default: true\n",
-			);
+			fs.writeFileSync(schemaPath, "options:\n  enabled:\n    type: boolean\n    default: true\n");
 
 			const schema = parseSchemaFile(schemaPath);
 
@@ -467,10 +508,7 @@ describe("filesystem schema functions", () => {
 
 	describe("readSchema", () => {
 		it("reads schema from directory", () => {
-			fs.writeFileSync(
-				path.join(tempDir, "_schema.yml"),
-				"options:\n  theme:\n    type: string\n",
-			);
+			fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 			const result = readSchema(tempDir);
 
@@ -530,10 +568,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("loads and caches schema on first access", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		const result = cache.get(tempDir);
 
@@ -543,10 +578,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("returns cached schema on subsequent access", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		const first = cache.get(tempDir);
 		const second = cache.get(tempDir);
@@ -555,10 +587,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("invalidates a specific entry", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		cache.get(tempDir);
 		expect(cache.has(tempDir)).toBe(true);
@@ -570,41 +599,29 @@ describe("SchemaCache", () => {
 	it("invalidates all entries", () => {
 		const tempDir2 = fs.mkdtempSync(path.join(os.tmpdir(), "schema-cache-test2-"));
 		try {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  a:\n    type: string\n",
-		);
-		fs.writeFileSync(
-			path.join(tempDir2, "_schema.yml"),
-			"options:\n  b:\n    type: string\n",
-		);
+			fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  a:\n    type: string\n");
+			fs.writeFileSync(path.join(tempDir2, "_schema.yml"), "options:\n  b:\n    type: string\n");
 
-		cache.get(tempDir);
-		cache.get(tempDir2);
-		expect(cache.has(tempDir)).toBe(true);
-		expect(cache.has(tempDir2)).toBe(true);
+			cache.get(tempDir);
+			cache.get(tempDir2);
+			expect(cache.has(tempDir)).toBe(true);
+			expect(cache.has(tempDir2)).toBe(true);
 
-		cache.invalidateAll();
-		expect(cache.has(tempDir)).toBe(false);
-		expect(cache.has(tempDir2)).toBe(false);
+			cache.invalidateAll();
+			expect(cache.has(tempDir)).toBe(false);
+			expect(cache.has(tempDir2)).toBe(false);
 		} finally {
 			fs.rmSync(tempDir2, { recursive: true, force: true });
 		}
 	});
 
 	it("reloads schema after invalidation", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		const first = cache.get(tempDir);
 		cache.invalidate(tempDir);
 
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  colour:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  colour:\n    type: string\n");
 
 		const second = cache.get(tempDir);
 
@@ -614,10 +631,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("reports has as false before first access", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  test:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  test:\n    type: string\n");
 
 		expect(cache.has(tempDir)).toBe(false);
 

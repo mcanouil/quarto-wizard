@@ -255,10 +255,24 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 			// Deprecated check.
 			if (descriptor.deprecated) {
-				const message =
-					typeof descriptor.deprecated === "string"
-						? `Option "${key}" is deprecated: ${descriptor.deprecated}.`
-						: `Option "${key}" is deprecated.`;
+				let message: string;
+				if (typeof descriptor.deprecated === "string") {
+					message = `Option "${key}" is deprecated: ${descriptor.deprecated}.`;
+				} else if (typeof descriptor.deprecated === "object") {
+					const spec = descriptor.deprecated;
+					const parts = [`Option "${key}" is deprecated`];
+					if (spec.since) {
+						parts[0] += ` since ${spec.since}`;
+					}
+					if (spec.message) {
+						parts.push(spec.message);
+					} else if (spec.replaceWith) {
+						parts.push(`Use "${spec.replaceWith}" instead.`);
+					}
+					message = parts.join(". ") + (parts[parts.length - 1].endsWith(".") ? "" : ".");
+				} else {
+					message = `Option "${key}" is deprecated.`;
+				}
 				diagnostics.push(new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Warning));
 			}
 
