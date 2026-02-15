@@ -191,7 +191,7 @@ suite("Shortcode Parser", () => {
 
 		test("should handle shortcode surrounded by other text", () => {
 			const text = "Some text {{< mysc >}} more text";
-			const result = parseShortcodeAtPosition(text, 16);
+			const result = parseShortcodeAtPosition(text, 18);
 			assert.ok(result);
 			assert.strictEqual(result.name, "mysc");
 		});
