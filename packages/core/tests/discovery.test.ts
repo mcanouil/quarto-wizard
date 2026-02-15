@@ -202,5 +202,4 @@ describe("discovery.ts", () => {
 			expect(ext!.id.owner).toBeNull();
 		});
 	});
-
 });

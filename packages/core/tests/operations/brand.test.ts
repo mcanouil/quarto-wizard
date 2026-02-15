@@ -127,7 +127,7 @@ describe("checkForBrandExtension", () => {
 				"title: My Brand",
 				"author: Test",
 				"version: 1.0.0",
-				'contributes:',
+				"contributes:",
 				"  metadata:",
 				"    project:",
 				'      brand: ""',
@@ -310,15 +310,7 @@ describe("extractBrandFilePaths", () => {
 	});
 
 	it("should extract logo image paths (string format)", () => {
-		const brandPath = createFile(
-			tempDir,
-			"_brand.yml",
-			[
-				"logo:",
-				"  images:",
-				"    main: images/logo.png",
-			].join("\n"),
-		);
+		const brandPath = createFile(tempDir, "_brand.yml", ["logo:", "  images:", "    main: images/logo.png"].join("\n"));
 
 		const paths = extractBrandFilePaths(brandPath);
 
@@ -329,12 +321,7 @@ describe("extractBrandFilePaths", () => {
 		const brandPath = createFile(
 			tempDir,
 			"_brand.yml",
-			[
-				"logo:",
-				"  small:",
-				"    light: images/small-light.png",
-				"    dark: images/small-dark.png",
-			].join("\n"),
+			["logo:", "  small:", "    light: images/small-light.png", "    dark: images/small-dark.png"].join("\n"),
 		);
 
 		const paths = extractBrandFilePaths(brandPath);
@@ -344,14 +331,7 @@ describe("extractBrandFilePaths", () => {
 	});
 
 	it("should extract logo size path (direct string)", () => {
-		const brandPath = createFile(
-			tempDir,
-			"_brand.yml",
-			[
-				"logo:",
-				"  medium: images/medium.png",
-			].join("\n"),
-		);
+		const brandPath = createFile(tempDir, "_brand.yml", ["logo:", "  medium: images/medium.png"].join("\n"));
 
 		const paths = extractBrandFilePaths(brandPath);
 
@@ -434,12 +414,7 @@ describe("extractBrandFilePaths", () => {
 		const brandPath = createFile(
 			tempDir,
 			"_brand.yml",
-			[
-				"logo:",
-				"  images:",
-				"    remote: https://example.com/logo.png",
-				"    local: images/logo.png",
-			].join("\n"),
+			["logo:", "  images:", "    remote: https://example.com/logo.png", "    local: images/logo.png"].join("\n"),
 		);
 
 		const paths = extractBrandFilePaths(brandPath);
@@ -452,12 +427,7 @@ describe("extractBrandFilePaths", () => {
 		const brandPath = createFile(
 			tempDir,
 			"_brand.yml",
-			[
-				"logo:",
-				"  images:",
-				"    main: logos/logo.svg",
-				"  small: logos/logo.svg",
-			].join("\n"),
+			["logo:", "  images:", "    main: logos/logo.svg", "  small: logos/logo.svg"].join("\n"),
 		);
 
 		const paths = extractBrandFilePaths(brandPath);
@@ -620,13 +590,7 @@ describe("useBrand", () => {
 		createFile(
 			sourceDir,
 			"_brand.yml",
-			[
-				"logo:",
-				"  images:",
-				"    main:",
-				"      path: logos/logo.svg",
-				'      alt: "Logo"',
-			].join("\n"),
+			["logo:", "  images:", "    main:", "      path: logos/logo.svg", '      alt: "Logo"'].join("\n"),
 		);
 		createFile(sourceDir, "logos/logo.svg", "<svg></svg>");
 
@@ -656,13 +620,7 @@ describe("useBrand", () => {
 		createFile(
 			sourceDir,
 			"_extensions/owner/my-brand/brand.yml",
-			[
-				"logo:",
-				"  images:",
-				"    light:",
-				"      path: logos/light.svg",
-				'      alt: "Light"',
-			].join("\n"),
+			["logo:", "  images:", "    light:", "      path: logos/light.svg", '      alt: "Light"'].join("\n"),
 		);
 		createFile(sourceDir, "_extensions/owner/my-brand/logos/light.svg", "<svg>light</svg>");
 
@@ -717,13 +675,7 @@ describe("useBrand", () => {
 	});
 
 	it("should create new files even when overwrite is declined", async () => {
-		const brandYaml = [
-			"logo:",
-			"  images:",
-			"    main:",
-			"      path: logo.png",
-			'      alt: "Logo"',
-		].join("\n");
+		const brandYaml = ["logo:", "  images:", "    main:", "      path: logo.png", '      alt: "Logo"'].join("\n");
 
 		// Pre-existing brand file.
 		createFile(path.join(projectDir, "_brand"), "_brand.yml", "old content");
@@ -787,13 +739,7 @@ describe("useBrand", () => {
 		createFile(
 			sourceDir,
 			"_brand.yml",
-			[
-				"logo:",
-				"  images:",
-				"    main:",
-				"      path: logos/missing.svg",
-				'      alt: "Missing"',
-			].join("\n"),
+			["logo:", "  images:", "    main:", "      path: logos/missing.svg", '      alt: "Missing"'].join("\n"),
 		);
 		// Do not create logos/missing.svg.
 
