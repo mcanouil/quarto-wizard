@@ -15,6 +15,7 @@ import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
 import { setManualToken, clearManualToken } from "./utils/auth";
+import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
 
 /**
  * This method is called when the extension is activated.
@@ -121,6 +122,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Initialise the Extensions Installed tree view provider
 	new ExtensionsInstalled(context);
+
+	// Register shortcode completion provider for Quarto documents
+	registerShortcodeCompletionProvider(context);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(
