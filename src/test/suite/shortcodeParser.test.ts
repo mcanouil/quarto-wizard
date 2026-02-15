@@ -37,12 +37,18 @@ suite("Shortcode Parser", () => {
 			assert.strictEqual(bounds.start, 0);
 		});
 
-		test("should handle cursor at the closing delimiter", () => {
+		test("should handle cursor inside the closing delimiter", () => {
 			const text = "{{< mysc >}}";
-			const bounds = getShortcodeBounds(text, 12);
+			const bounds = getShortcodeBounds(text, 11);
 			assert.ok(bounds);
 			assert.strictEqual(bounds.start, 0);
 			assert.strictEqual(bounds.end, 12);
+		});
+
+		test("should return null when cursor is at the exclusive end", () => {
+			const text = "{{< mysc >}}";
+			const bounds = getShortcodeBounds(text, 12);
+			assert.strictEqual(bounds, null);
 		});
 
 		test("should handle multiple shortcodes and pick the correct one", () => {

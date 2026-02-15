@@ -48,9 +48,9 @@ export class ExtensionsInstalled {
 
 		// Watch for changes to _extensions directories for real-time tree view updates
 		const extensionWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_extension.{yml,yaml}");
-		extensionWatcher.onDidCreate(() => this.treeDataProvider.refresh());
-		extensionWatcher.onDidDelete(() => this.treeDataProvider.refresh());
-		extensionWatcher.onDidChange(() => this.treeDataProvider.refresh());
+		context.subscriptions.push(extensionWatcher.onDidCreate(() => this.treeDataProvider.refresh()));
+		context.subscriptions.push(extensionWatcher.onDidDelete(() => this.treeDataProvider.refresh()));
+		context.subscriptions.push(extensionWatcher.onDidChange(() => this.treeDataProvider.refresh()));
 		context.subscriptions.push(extensionWatcher);
 
 		// Watch for changes to schema files for real-time tree view updates
@@ -59,9 +59,9 @@ export class ExtensionsInstalled {
 			schemaCache.invalidate(path.dirname(uri.fsPath));
 			this.treeDataProvider.refresh();
 		};
-		schemaWatcher.onDidCreate(invalidateSchemaAndRefresh);
-		schemaWatcher.onDidDelete(invalidateSchemaAndRefresh);
-		schemaWatcher.onDidChange(invalidateSchemaAndRefresh);
+		context.subscriptions.push(schemaWatcher.onDidCreate(invalidateSchemaAndRefresh));
+		context.subscriptions.push(schemaWatcher.onDidDelete(invalidateSchemaAndRefresh));
+		context.subscriptions.push(schemaWatcher.onDidChange(invalidateSchemaAndRefresh));
 		context.subscriptions.push(schemaWatcher);
 
 		context.subscriptions.push(view);

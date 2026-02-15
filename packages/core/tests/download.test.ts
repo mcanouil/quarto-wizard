@@ -51,6 +51,7 @@ describe("drain-wait during stream error", () => {
 		const stream = createErroringStream();
 
 		// Suppress the uncaught error from stream.destroy() in this test
+		// eslint-disable-next-line @typescript-eslint/no-empty-function
 		stream.on("error", () => {});
 
 		// Start the drain wait
