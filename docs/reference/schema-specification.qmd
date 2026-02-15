@@ -72,8 +72,7 @@ Users set these values in `_quarto.yml`, `_metadata.yml`, or document front matt
 
 Given a `_schema.yml` for an extension called `spotlight`:
 
-```yaml
-# _extensions/spotlight/_schema.yml
+```{.yaml filename="_extensions/spotlight/_schema.yml"}
 options:
   size:
     type: number
@@ -87,8 +86,7 @@ options:
 
 The corresponding user configuration in `_quarto.yml` would be:
 
-```yaml
-# _quarto.yml
+```{.yaml filename="_quarto.yml"}
 extensions:
   spotlight:
     size: 80
@@ -97,7 +95,7 @@ extensions:
 
 The same structure works in `_metadata.yml` or document front matter:
 
-```yaml
+```{.yaml filename="presentation.qmd"}
 ---
 title: "My Presentation"
 extensions:
@@ -327,8 +325,7 @@ badge:
 
 A filter extension that reads configuration from YAML metadata.
 
-```yaml
-# _schema.yml
+```{.yaml filename="_schema.yml"}
 options:
   enabled:
     type: boolean
@@ -346,8 +343,7 @@ options:
 
 A shortcode extension with positional arguments and named attributes.
 
-```yaml
-# _schema.yml
+```{.yaml filename="_schema.yml"}
 shortcodes:
   iconify:
     description: "Renders an Iconify icon."
@@ -373,8 +369,7 @@ shortcodes:
 
 A format extension with format-specific options.
 
-```yaml
-# _schema.yml
+```{.yaml filename="_schema.yml"}
 formats:
   letter-pdf:
     address:
@@ -395,8 +390,7 @@ formats:
 
 A filter extension that processes element attributes with IDE colour picker support.
 
-```yaml
-# _schema.yml
+```{.yaml filename="_schema.yml"}
 element-attributes:
   _any:
     colour:
@@ -423,8 +417,7 @@ element-attributes:
 
 An extension that defines options, shortcodes, and element attributes together.
 
-```yaml
-# _schema.yml
+```{.yaml filename="_schema.yml"}
 options:
   size:
     type: string
