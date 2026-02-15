@@ -79,7 +79,7 @@ export function getShortcodeBounds(text: string, offset: number): ShortcodeBound
 	}
 
 	// The cursor must be between start and end
-	if (offset < start || offset > end) {
+	if (offset < start || offset >= end) {
 		return null;
 	}
 

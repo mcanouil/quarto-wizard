@@ -33,9 +33,9 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 		logMessage(`Schema cache invalidated for ${dir}.`, "debug");
 	};
 
-	schemaWatcher.onDidChange(invalidateAndRevalidate);
-	schemaWatcher.onDidCreate(invalidateAndRevalidate);
-	schemaWatcher.onDidDelete(invalidateAndRevalidate);
+	context.subscriptions.push(schemaWatcher.onDidChange(invalidateAndRevalidate));
+	context.subscriptions.push(schemaWatcher.onDidCreate(invalidateAndRevalidate));
+	context.subscriptions.push(schemaWatcher.onDidDelete(invalidateAndRevalidate));
 	context.subscriptions.push(schemaWatcher);
 
 	logMessage("YAML completion and diagnostics providers registered.", "info");

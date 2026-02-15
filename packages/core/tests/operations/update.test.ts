@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { checkForUpdates, type UpdateInfo } from "../../src/operations/update.js";
+import { checkForUpdates } from "../../src/operations/update.js";
 
 vi.mock("../../src/registry/fetcher.js", () => ({
 	fetchRegistry: vi.fn(),

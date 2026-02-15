@@ -75,7 +75,7 @@ export interface ShortcodeSchema {
 	/** Human-readable description of the shortcode. */
 	description?: string;
 	/** Positional arguments accepted by the shortcode. */
-	arguments?: Array<FieldDescriptor & { name: string }>;
+	arguments?: (FieldDescriptor & { name: string })[];
 	/** Named attributes accepted by the shortcode. */
 	attributes?: Record<string, FieldDescriptor>;
 }

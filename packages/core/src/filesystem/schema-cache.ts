@@ -16,7 +16,7 @@ import { readSchema } from "./schema.js";
  * Schemas are loaded lazily on first access.
  */
 export class SchemaCache {
-	private cache: Map<string, ExtensionSchema> = new Map();
+	private cache = new Map<string, ExtensionSchema>();
 
 	/**
 	 * Get the schema for an extension directory.
