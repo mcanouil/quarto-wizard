@@ -121,10 +121,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			const isObject = item.kind === vscode.CompletionItemKind.Module;
 
 			if (isObject) {
-				item.insertText = `\n${childIndent}${label}:\n${childIndent}  `;
+				item.insertText = new vscode.SnippetString(`\n${childIndent}${label}:\n${childIndent}  $0`);
 				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 			} else {
-				item.insertText = `\n${childIndent}${label}: `;
+				item.insertText = new vscode.SnippetString(`\n${childIndent}${label}: $0`);
 			}
 			item.filterText = label;
 			item.range = replaceRange;

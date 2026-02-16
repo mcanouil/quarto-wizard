@@ -4,7 +4,16 @@ import type { SchemaCache } from "@quarto-wizard/core";
 import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletionProvider";
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { YamlHoverProvider } from "./yamlHoverProvider";
+import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
+
+/**
+ * Check whether a document matches the YAML document selector used by
+ * the completion provider.
+ */
+function matchesYamlSelector(document: vscode.TextDocument): boolean {
+	return vscode.languages.match(YAML_DOCUMENT_SELECTOR, document) > 0;
+}
 
 /**
  * Register YAML completion and diagnostics providers for Quarto
@@ -28,6 +37,33 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	// Register diagnostics provider.
 	const diagnosticsProvider = new YamlDiagnosticsProvider(schemaCache);
 	context.subscriptions.push(diagnosticsProvider);
+
+	// Re-trigger suggestions on backspace.  Backspace is not a valid
+	// trigger character, so we listen for text document changes that
+	// look like single-character deletions and re-invoke the suggest
+	// widget after a short debounce.
+	const retriggerSuggest = debounce(() => {
+		vscode.commands.executeCommand("editor.action.triggerSuggest");
+	}, 50);
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeTextDocument((event) => {
+			if (!matchesYamlSelector(event.document)) {
+				return;
+			}
+			const editor = vscode.window.activeTextEditor;
+			if (!editor || editor.document !== event.document) {
+				return;
+			}
+			const isDeletion =
+				event.contentChanges.length === 1 &&
+				event.contentChanges[0].text === "" &&
+				event.contentChanges[0].rangeLength > 0;
+			if (isDeletion) {
+				retriggerSuggest();
+			}
+		}),
+	);
+	context.subscriptions.push({ dispose: () => retriggerSuggest.cancel() });
 
 	// Watch for _schema.yml changes to invalidate the cache and revalidate.
 	const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_schema.{yml,yaml}");
