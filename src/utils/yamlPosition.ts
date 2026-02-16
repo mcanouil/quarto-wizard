@@ -75,10 +75,19 @@ interface IndentFrame {
  * @param lines - All lines of the document.
  * @param lineIndex - Zero-based line number of the cursor.
  * @param languageId - The VS Code language ID.
+ * @param cursorIndent - When provided and the target line is blank, trims
+ *   the stack so only frames with indent strictly less than this value
+ *   remain.  This makes the path match the cursor's indentation level
+ *   rather than the deepest ancestor.
  * @returns The key path as a string array, or an empty array when the
  *          position is outside a YAML region.
  */
-export function getYamlKeyPath(lines: string[], lineIndex: number, languageId: string): string[] {
+export function getYamlKeyPath(
+	lines: string[],
+	lineIndex: number,
+	languageId: string,
+	cursorIndent?: number,
+): string[] {
 	if (!isInYamlRegion(lines, lineIndex, languageId)) {
 		return [];
 	}
@@ -128,6 +137,17 @@ export function getYamlKeyPath(lines: string[], lineIndex: number, languageId: s
 		const keyMatch = /^\s*([^\s:][^:]*?)\s*:\s*/.exec(effective);
 		if (keyMatch) {
 			stack.push({ indent, key: keyMatch[1] });
+		}
+	}
+
+	// When cursorIndent is provided and the target line is blank, trim the
+	// stack so the path reflects the cursor's indentation level.
+	if (cursorIndent !== undefined) {
+		const targetLine = lines[lineIndex];
+		if (targetLine.trim() === "") {
+			while (stack.length > 0 && stack[stack.length - 1].indent >= cursorIndent) {
+				stack.pop();
+			}
 		}
 	}
 
