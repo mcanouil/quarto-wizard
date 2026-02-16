@@ -92,6 +92,18 @@ export async function extractArchive(archivePath: string, options: ExtractOption
 	}
 }
 
+/**
+ * Check whether a file exists using async FS operations.
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+	try {
+		await fs.promises.access(filePath);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /** Maximum recursion depth for findExtensionRoot to prevent stack overflow on crafted archives. */
 const MAX_FIND_DEPTH = 5;
 
@@ -112,7 +124,7 @@ export async function findExtensionRoot(extractDir: string, depth = 0): Promise<
 
 	for (const name of MANIFEST_FILENAMES) {
 		const directPath = path.join(extractDir, name);
-		if (fs.existsSync(directPath)) {
+		if (await fileExists(directPath)) {
 			return extractDir;
 		}
 	}
@@ -125,7 +137,7 @@ export async function findExtensionRoot(extractDir: string, depth = 0): Promise<
 
 		for (const name of MANIFEST_FILENAMES) {
 			const manifestPath = path.join(dirPath, name);
-			if (fs.existsSync(manifestPath)) {
+			if (await fileExists(manifestPath)) {
 				return dirPath;
 			}
 		}
@@ -196,7 +208,7 @@ export async function findAllExtensionRoots(extractDir: string): Promise<Discove
 		// Check for manifest in current directory
 		for (const name of MANIFEST_FILENAMES) {
 			const manifestPath = path.join(dir, name);
-			if (fs.existsSync(manifestPath)) {
+			if (await fileExists(manifestPath)) {
 				// Found an extension, derive its ID from path
 				const id = deriveExtensionIdFromPath(dir, extractDir);
 				const relativePath = path.relative(extractDir, dir);

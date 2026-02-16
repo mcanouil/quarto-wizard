@@ -29,7 +29,12 @@ export const MAX_FILE_COUNT = 10_000;
 export function checkPathTraversal(filePath: string): void {
 	const normalised = path.normalize(filePath);
 
-	if (normalised.includes("..") || path.isAbsolute(normalised)) {
+	if (path.isAbsolute(normalised)) {
+		throw new SecurityError(`Path traversal detected in archive: "${filePath}"`);
+	}
+
+	const segments = normalised.split(path.sep);
+	if (segments.some((segment) => segment === "..")) {
 		throw new SecurityError(`Path traversal detected in archive: "${filePath}"`);
 	}
 }

@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { getShowLogsLink, logMessage } from "./log";
+import { logMessage, showMessageWithLogs } from "./log";
 
 /**
  * Creates a new Quarto reprex (REPRoducible EXample) file based on the specified language.
@@ -23,7 +23,7 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 		default: {
 			const message = `Unsupported language: ${language}.`;
 			logMessage(message, "error");
-			vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
+			showMessageWithLogs(message, "error");
 			return;
 		}
 	}
@@ -37,6 +37,6 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 	} catch (error) {
 		const message = `Failed to read the template file: ${error instanceof Error ? error.message : String(error)}.`;
 		logMessage(message, "error");
-		vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
+		showMessageWithLogs(message, "error");
 	}
 }

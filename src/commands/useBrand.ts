@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { getShowLogsLink, logMessage } from "../utils/log";
+import { getShowLogsLink, logMessage, showMessageWithLogs } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { useQuartoBrand } from "../utils/quarto";
 import { confirmTrustAuthors, confirmInstall } from "../utils/ask";
@@ -61,13 +61,12 @@ async function useBrandFromSource(
 					message = `Brand applied successfully (${totalFiles} file(s) in _brand/).`;
 				}
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+				showMessageWithLogs(message, "info");
 			} else if (!token.isCancellationRequested) {
 				// result === null without cancellation can mean either an actual error or
 				// the user declining authentication. Show a neutral message and point to
 				// logs where the specific reason is recorded.
-				const message = `Brand operation did not complete. See ${getShowLogsLink()} for details.`;
-				vscode.window.showWarningMessage(message);
+				showMessageWithLogs("Brand operation did not complete. See logs for details.", "warning");
 			}
 		},
 	);

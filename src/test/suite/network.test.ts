@@ -89,7 +89,6 @@ suite("Network Utils Test Suite", () => {
 		assert.ok(logMessages[0].includes("No internet connection"));
 		assert.strictEqual(errorMessages.length, 1);
 		assert.ok(errorMessages[0].includes("No internet connection"));
-		assert.ok(errorMessages[0].includes("Show logs"));
 	});
 
 	test("should return false when fetch throws an error", async () => {
@@ -105,7 +104,6 @@ suite("Network Utils Test Suite", () => {
 		assert.ok(logMessages[0].includes("No internet connection"));
 		assert.strictEqual(errorMessages.length, 1);
 		assert.ok(errorMessages[0].includes("No internet connection"));
-		assert.ok(errorMessages[0].includes("Show logs"));
 	});
 
 	test("should use custom URL when provided", async () => {
