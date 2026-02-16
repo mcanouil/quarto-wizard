@@ -57,8 +57,11 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				case "attributeValue":
 					return this.completeAttributeValue(schemas, parsed.name, parsed.currentAttributeKey);
 
-				case "argument":
-					return this.completeArgument(schemas, parsed.name, parsed.arguments);
+				case "argument": {
+					const argItems = this.completeArgument(schemas, parsed.name, parsed.arguments);
+					const attrItems = this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
+					return [...argItems, ...attrItems];
+				}
 
 				default:
 					return null;
@@ -214,7 +217,14 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		}
 
 		const argDescriptor = schema.arguments[argIndex];
-		return this.buildValueCompletions(argDescriptor);
+		const items = this.buildValueCompletions(argDescriptor);
+
+		// Trigger the next completion automatically after accepting a positional argument.
+		for (const item of items) {
+			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+		}
+
+		return items;
 	}
 
 	/**

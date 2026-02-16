@@ -14,6 +14,8 @@
 
 ### Bug Fixes
 
+- fix: enable shortcode positional argument completion by correctly setting the cursor context to "argument" when no named attributes have been typed.
+- fix: prevent YAML completion from suggesting keys that already exist at the current level, avoiding duplicate YAML keys.
 - fix: detect updates for extensions installed from commits (no GitHub releases) by delegating to the core library's update detection.
 - fix: clear tree view badge when no updates are available instead of showing "0 updates".
 - fix: hide "Update" button for extensions with unknown versions in the registry.

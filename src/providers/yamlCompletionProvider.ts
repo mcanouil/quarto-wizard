@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes } from "@quarto-wizard/core";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor, InstalledExtension } from "@quarto-wizard/core";
-import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion } from "../utils/yamlPosition";
+import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
 /**
@@ -65,12 +65,15 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			const keyColonMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(currentLine);
 			const isValuePosition = keyColonMatch !== null && position.character > currentLine.indexOf(":");
 
+			// Compute existing sibling keys at the current path for deduplication.
+			const existingKeys = getExistingKeysAtPath(lines, keyPath, languageId);
+
 			// At root level, suggest "extensions" as a top-level key.
 			if (keyPath.length === 0 && !isValuePosition) {
-				return this.completeTopLevelKeys(schemaMap);
+				return this.completeTopLevelKeys(schemaMap, existingKeys);
 			}
 
-			const items = this.resolveCompletions(keyPath, schemaMap, extMap);
+			const items = this.resolveCompletions(keyPath, schemaMap, extMap, existingKeys);
 			if (!items || items.length === 0) {
 				return undefined;
 			}
@@ -126,9 +129,12 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		}
 	}
 
-	private completeTopLevelKeys(schemaMap: Map<string, ExtensionSchema>): vscode.CompletionItem[] | undefined {
+	private completeTopLevelKeys(
+		schemaMap: Map<string, ExtensionSchema>,
+		existingKeys: Set<string>,
+	): vscode.CompletionItem[] | undefined {
 		const hasOptions = Array.from(schemaMap.values()).some((schema) => schema.options);
-		if (!hasOptions) {
+		if (!hasOptions || existingKeys.has("extensions")) {
 			return undefined;
 		}
 
@@ -144,6 +150,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		keyPath: string[],
 		schemaMap: Map<string, ExtensionSchema>,
 		extMap: Map<string, InstalledExtension>,
+		existingKeys: Set<string>,
 	): vscode.CompletionItem[] | undefined {
 		if (keyPath.length === 0) {
 			return undefined;
@@ -153,7 +160,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 		// Under "extensions:" suggest installed extension names that have schemas.
 		if (topKey === "extensions" && keyPath.length === 1) {
-			return this.completeExtensionNames(schemaMap, extMap);
+			return this.completeExtensionNames(schemaMap, extMap, existingKeys);
 		}
 
 		// Under "extensions.<name>:" suggest option keys.
@@ -165,10 +172,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			}
 
 			if (keyPath.length === 2) {
-				return this.completeFieldKeys(schema.options);
+				return this.completeFieldKeys(schema.options, existingKeys);
 			}
 
-			return this.completeNestedFieldKeys(schema.options, keyPath.slice(2));
+			return this.completeNestedFieldKeys(schema.options, keyPath.slice(2), existingKeys);
 		}
 
 		// Under "format.<format-name>:" suggest format-specific keys.
@@ -180,10 +187,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			}
 
 			if (keyPath.length === 2) {
-				return this.completeFieldKeys(formatFields);
+				return this.completeFieldKeys(formatFields, existingKeys);
 			}
 
-			return this.completeNestedFieldKeys(formatFields, keyPath.slice(2));
+			return this.completeNestedFieldKeys(formatFields, keyPath.slice(2), existingKeys);
 		}
 
 		return undefined;
@@ -192,12 +199,13 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	private completeExtensionNames(
 		schemaMap: Map<string, ExtensionSchema>,
 		extMap: Map<string, InstalledExtension>,
+		existingKeys: Set<string>,
 	): vscode.CompletionItem[] {
 		const items: vscode.CompletionItem[] = [];
 		const seen = new Set<string>();
 
 		for (const [name, schema] of schemaMap.entries()) {
-			if (seen.has(name) || !schema.options) {
+			if (seen.has(name) || !schema.options || existingKeys.has(name)) {
 				continue;
 			}
 			seen.add(name);
@@ -226,7 +234,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		return items;
 	}
 
-	private completeFieldKeys(fields: Record<string, FieldDescriptor> | undefined): vscode.CompletionItem[] | undefined {
+	private completeFieldKeys(
+		fields: Record<string, FieldDescriptor> | undefined,
+		existingKeys: Set<string>,
+	): vscode.CompletionItem[] | undefined {
 		if (!fields) {
 			return undefined;
 		}
@@ -234,6 +245,12 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		const items: vscode.CompletionItem[] = [];
 
 		for (const [key, descriptor] of Object.entries(fields)) {
+			// Skip the entire field (canonical + aliases) when any name is already present.
+			const isOccupied = existingKeys.has(key) || descriptor.aliases?.some((a) => existingKeys.has(a));
+			if (isOccupied) {
+				continue;
+			}
+
 			const item = this.fieldToCompletionItem(key, descriptor);
 			items.push(item);
 
@@ -253,9 +270,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	private completeNestedFieldKeys(
 		fields: Record<string, FieldDescriptor> | undefined,
 		remainingPath: string[],
+		existingKeys: Set<string>,
 	): vscode.CompletionItem[] | undefined {
 		if (!fields || remainingPath.length === 0) {
-			return this.completeFieldKeys(fields);
+			return this.completeFieldKeys(fields, existingKeys);
 		}
 
 		const currentKey = remainingPath[0];
@@ -267,7 +285,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 		// If the descriptor has properties (type "object"), walk deeper.
 		if (descriptor.properties) {
-			return this.completeNestedFieldKeys(descriptor.properties, remainingPath.slice(1));
+			return this.completeNestedFieldKeys(descriptor.properties, remainingPath.slice(1), existingKeys);
 		}
 
 		// At a leaf: suggest enum values or boolean values.
