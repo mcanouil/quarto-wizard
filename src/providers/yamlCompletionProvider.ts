@@ -3,6 +3,7 @@ import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes } fro
 import type { SchemaCache, ExtensionSchema, FieldDescriptor, InstalledExtension } from "@quarto-wizard/core";
 import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
+import { hasCompletableValues } from "../utils/schemaDocumentation";
 import { logMessage } from "../utils/log";
 
 /**
@@ -379,8 +380,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		} else {
 			item.insertText = `${key}: `;
 			// Chain to value completions for fields with known values.
-			const hasCompletableValues = descriptor.enum || descriptor.type === "boolean" || isFilePathDescriptor(descriptor);
-			if (hasCompletableValues) {
+			if (hasCompletableValues(descriptor)) {
 				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 			}
 		}
