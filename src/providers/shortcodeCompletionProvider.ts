@@ -245,8 +245,11 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		const items = await this.buildValueCompletions(argDescriptor, documentUri);
 
 		// Trigger the next completion automatically after accepting a positional argument.
+		// File items are excluded: accepting a file should close the suggest widget.
 		for (const item of items) {
-			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			if (item.kind !== vscode.CompletionItemKind.File) {
+				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			}
 		}
 
 		return items;
@@ -284,7 +287,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		}
 
 		if (isFilePathDescriptor(descriptor)) {
-			const fileItems = await buildFilePathCompletions(descriptor, documentUri);
+			const fileItems = await buildFilePathCompletions(descriptor, documentUri, { includeFolders: true });
 			items.push(...fileItems);
 		}
 

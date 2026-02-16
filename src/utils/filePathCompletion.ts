@@ -20,6 +20,7 @@ export function isFilePathDescriptor(descriptor: FieldDescriptor): boolean {
 export async function buildFilePathCompletions(
 	descriptor: FieldDescriptor,
 	documentUri: vscode.Uri,
+	options?: { includeFolders?: boolean },
 ): Promise<vscode.CompletionItem[]> {
 	if (!isFilePathDescriptor(descriptor)) {
 		return [];
@@ -39,11 +40,11 @@ export async function buildFilePathCompletions(
 	const items: vscode.CompletionItem[] = [];
 	const workspaceRoot = workspaceFolder.uri.fsPath;
 	const documentDir = path.dirname(documentUri.fsPath);
-	const directories = new Set<string>();
+	const directories = options?.includeFolders ? new Set<string>() : null;
 
 	for (const fileUri of files) {
-		const relativePath = path.relative(documentDir, fileUri.fsPath);
-		const workspacePath = path.relative(workspaceRoot, fileUri.fsPath);
+		const relativePath = path.relative(documentDir, fileUri.fsPath).split(path.sep).join("/");
+		const workspacePath = path.relative(workspaceRoot, fileUri.fsPath).split(path.sep).join("/");
 
 		const item = new vscode.CompletionItem(relativePath, vscode.CompletionItemKind.File);
 		item.detail = workspacePath;
@@ -56,25 +57,28 @@ export async function buildFilePathCompletions(
 
 		items.push(item);
 
-		// Collect cumulative directory prefixes for folder items.
-		const dir = path.dirname(relativePath);
-		if (dir !== ".") {
-			const segments = dir.split(path.sep);
-			let cumulative = "";
-			for (const segment of segments) {
-				cumulative = cumulative ? `${cumulative}/${segment}` : segment;
-				directories.add(cumulative);
+		if (directories) {
+			const dir = path.dirname(relativePath);
+			if (dir !== ".") {
+				const segments = dir.split("/");
+				let cumulative = "";
+				for (const segment of segments) {
+					cumulative = cumulative ? `${cumulative}/${segment}` : segment;
+					directories.add(cumulative);
+				}
 			}
 		}
 	}
 
-	for (const dir of directories) {
-		const label = `${dir}/`;
-		const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Folder);
-		item.filterText = label;
-		item.sortText = "0_" + label;
-		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
-		items.push(item);
+	if (directories) {
+		for (const dir of directories) {
+			const label = `${dir}/`;
+			const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Folder);
+			item.filterText = label;
+			item.sortText = "0_" + label;
+			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			items.push(item);
+		}
 	}
 
 	return items;
