@@ -95,6 +95,24 @@ suite("Element Attribute Parser", () => {
 			assert.strictEqual(bounds.start, 5);
 			assert.strictEqual(bounds.elementType, "Div");
 		});
+
+		test("should return bounds for an image link attribute block", () => {
+			const text = "![alt](url){.class}";
+			const bounds = getAttributeBounds(text, 14);
+			assert.ok(bounds);
+			assert.strictEqual(bounds.start, 11);
+			assert.strictEqual(bounds.end, 19);
+			assert.strictEqual(bounds.elementType, "Span");
+		});
+
+		test("should return bounds for a link attribute block", () => {
+			const text = "[text](url){.class}";
+			const bounds = getAttributeBounds(text, 14);
+			assert.ok(bounds);
+			assert.strictEqual(bounds.start, 11);
+			assert.strictEqual(bounds.end, 19);
+			assert.strictEqual(bounds.elementType, "Span");
+		});
 	});
 
 	suite("parseAttributeAtPosition", () => {
@@ -245,6 +263,24 @@ suite("Element Attribute Parser", () => {
 			assert.strictEqual(result.cursorContext, "attributeKey");
 			assert.deepStrictEqual(result.classes, []);
 			assert.deepStrictEqual(result.attributes, {});
+		});
+
+		test("should parse attributes for image link syntax", () => {
+			const text = "![alt](url){.class }";
+			const result = parseAttributeAtPosition(text, 19);
+			assert.ok(result);
+			assert.strictEqual(result.elementType, "Span");
+			assert.deepStrictEqual(result.classes, ["class"]);
+			assert.strictEqual(result.cursorContext, "attributeKey");
+		});
+
+		test("should parse attributes for link syntax", () => {
+			const text = "[text](url){.class }";
+			const result = parseAttributeAtPosition(text, 19);
+			assert.ok(result);
+			assert.strictEqual(result.elementType, "Span");
+			assert.deepStrictEqual(result.classes, ["class"]);
+			assert.strictEqual(result.cursorContext, "attributeKey");
 		});
 	});
 });

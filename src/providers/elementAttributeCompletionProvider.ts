@@ -415,7 +415,13 @@ export function registerElementAttributeProviders(context: vscode.ExtensionConte
 	const selector: vscode.DocumentSelector = { language: "quarto" };
 
 	const completionProvider = new ElementAttributeCompletionProvider(schemaCache);
-	const completionDisposable = vscode.languages.registerCompletionItemProvider(selector, completionProvider, " ", "=");
+	const completionDisposable = vscode.languages.registerCompletionItemProvider(
+		selector,
+		completionProvider,
+		" ",
+		"=",
+		"{",
+	);
 	context.subscriptions.push(completionDisposable);
 
 	const hoverProvider = new ElementAttributeHoverProvider(schemaCache);

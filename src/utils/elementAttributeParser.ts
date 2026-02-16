@@ -1,6 +1,8 @@
 /**
  * Lightweight parser for Pandoc element attribute syntax:
  * - Spans:      [text]{.class attr=value}
+ * - Links:      [text](url){.class attr=value}
+ * - Images:     ![alt](url){.class attr=value}
  * - Divs:       ::: {.class attr=value}
  * - Code spans: `code`{.class attr=value}
  *
@@ -54,8 +56,9 @@ export interface AttributeBounds {
 /**
  * Find the bounds of a Pandoc attribute block surrounding the given offset.
  *
- * Validates that the `{` is preceded by `]` (span), `:::` with optional spaces (div),
- * or `` ` `` (code span), confirming a Pandoc attribute context rather than YAML.
+ * Validates that the `{` is preceded by `]` (span), `)` (link/image),
+ * `:::` with optional spaces (div), or `` ` `` (code span), confirming a
+ * Pandoc attribute context rather than YAML.
  *
  * @param text - The full document text.
  * @param offset - The cursor offset within the text.
@@ -123,6 +126,7 @@ export function getAttributeBounds(text: string, offset: number): AttributeBound
  *
  * Valid contexts:
  * - `]` immediately before `{` (Span)
+ * - `)` immediately before `{` (Span) — link/image: `[text](url){` or `![alt](url){`
  * - `` ` `` immediately before `{` (Code)
  * - `:::` with optional spaces before `{` (Div)
  * - `# Heading text ` before `{` at line start (Header)
@@ -138,6 +142,11 @@ function isPandocAttributeContext(text: string, bracePos: number): PandocElement
 
 	// Span: ]{...}
 	if (charBefore === "]") {
+		return "Span";
+	}
+
+	// Link / Image: [text](url){...} or ![alt](url){...}
+	if (charBefore === ")") {
 		return "Span";
 	}
 
