@@ -7,11 +7,21 @@ import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePat
 import { logMessage } from "../utils/log";
 
 /**
+ * Which category of group key matched the element.
+ * - `classOrId`: a class or ID-prefix group (e.g. `"modal"`, `"panel"`).
+ * - `elementType`: a Pandoc element-type group (`Div`, `Span`, `Code`, `Header`, `CodeBlock`).
+ * - `any`: the catch-all `_any` group.
+ */
+export type GroupOrigin = "classOrId" | "elementType" | "any";
+
+/**
  * A field descriptor paired with the name of the extension that provides it.
  */
 export interface AttributeWithSource {
 	descriptor: FieldDescriptor;
 	source: string;
+	/** Set during merging to indicate which group category matched. */
+	groupOrigin?: GroupOrigin;
 }
 
 /**
@@ -79,30 +89,29 @@ export function mergeApplicableAttributes(
 ): Record<string, AttributeWithSource> {
 	const merged: Record<string, AttributeWithSource> = {};
 
-	// Always include _any.
-	if (schemas["_any"]) {
-		Object.assign(merged, schemas["_any"]);
-	}
-
 	// Include groups matching extracted classes.
 	for (const cls of classes) {
-		mergeGroup(schemas, cls, merged);
+		mergeGroup(schemas, cls, merged, "classOrId");
 	}
 
 	// Include groups matching ID prefixes (text before the first hyphen).
 	for (const id of ids) {
 		const hyphenIndex = id.indexOf("-");
 		if (hyphenIndex > 0) {
-			mergeGroup(schemas, id.substring(0, hyphenIndex), merged);
+			mergeGroup(schemas, id.substring(0, hyphenIndex), merged, "classOrId");
 		}
 	}
 
 	// Include groups matching the Pandoc element type (Div, Span, Code, Header).
-	mergeGroup(schemas, elementType, merged);
+	mergeGroup(schemas, elementType, merged, "elementType");
 	// Also match CodeBlock for Code elements (common schema convention).
 	if (elementType === "Code") {
-		mergeGroup(schemas, "CodeBlock", merged);
+		mergeGroup(schemas, "CodeBlock", merged, "elementType");
 	}
+
+	// Include _any last so specific groups take precedence, and tag entries
+	// so they sort after specific-group attributes.
+	mergeGroup(schemas, "_any", merged, "any");
 
 	return merged;
 }
@@ -114,14 +123,44 @@ function mergeGroup(
 	schemas: ElementAttributeSchemas,
 	groupKey: string,
 	merged: Record<string, AttributeWithSource>,
+	origin: GroupOrigin,
 ): void {
 	if (!schemas[groupKey]) {
 		return;
 	}
 	for (const [attrName, entry] of Object.entries(schemas[groupKey])) {
 		if (!(attrName in merged)) {
-			merged[attrName] = entry;
+			merged[attrName] = { ...entry, groupOrigin: origin };
 		}
+	}
+}
+
+/**
+ * Compute a single-character sort tier for an attribute.
+ *
+ * Lower values sort first (top of the completion menu):
+ * - 0: class/ID required
+ * - 1: class/ID optional or alias
+ * - 2: element-type required
+ * - 3: element-type optional or alias
+ * - 4: _any required
+ * - 5: _any optional or alias
+ * - 9: deprecated
+ *
+ * Aliases are never "required", so they use the optional tier within their group.
+ */
+function attributeSortTier(descriptor: FieldDescriptor, origin: GroupOrigin = "any", isAlias?: boolean): string {
+	if (descriptor.deprecated) {
+		return "9";
+	}
+	const req = descriptor.required && !isAlias;
+	switch (origin) {
+		case "classOrId":
+			return req ? "0" : "1";
+		case "elementType":
+			return req ? "2" : "3";
+		case "any":
+			return req ? "4" : "5";
 	}
 }
 
@@ -215,7 +254,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 		const items: vscode.CompletionItem[] = [];
 		const occupied = new Set(Object.keys(existingAttributes));
 
-		for (const [attrName, { descriptor, source }] of Object.entries(attributes)) {
+		for (const [attrName, { descriptor, source, groupOrigin }] of Object.entries(attributes)) {
 			// Skip the entire field (canonical + aliases) when any name is already present.
 			const isOccupied = occupied.has(attrName) || descriptor.aliases?.some((a) => occupied.has(a));
 			if (isOccupied) {
@@ -231,7 +270,8 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			}
 
 			item.detail = source;
-			item.sortText = `!${source}_${descriptor.required ? "0" : "1"}_${attrName}`;
+			const tier = attributeSortTier(descriptor, groupOrigin);
+			item.sortText = `!${tier}_${source}_${attrName}`;
 
 			if (descriptor.deprecated) {
 				item.tags = [vscode.CompletionItemTag.Deprecated];
@@ -248,7 +288,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 					const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 					aliasItem.insertText = new vscode.SnippetString(`${alias}=`);
 					aliasItem.detail = `${source} (alias for ${attrName})`;
-					aliasItem.sortText = `!${source}_1_${alias}`;
+					aliasItem.sortText = `!${attributeSortTier(descriptor, groupOrigin, true)}_${source}_${alias}`;
 					if (docs) {
 						aliasItem.documentation = docs;
 					}

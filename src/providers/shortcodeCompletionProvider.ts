@@ -77,6 +77,30 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				case "argument": {
 					const argItems = await this.completeArgument(schemas, parsed.name, parsed.arguments, document.uri);
 					const attrItems = this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
+
+					// Look up whether the current positional argument is required.
+					const argSchema = parsed.name ? schemas.get(parsed.name) : undefined;
+					const argIndex = parsed.arguments.length;
+					const argRequired = argSchema?.arguments?.[argIndex]?.required ?? false;
+
+					// Shift argument value tiers: required args to 0-1, optional args to 2-3.
+					for (const item of argItems) {
+						if (item.sortText?.startsWith("!1")) {
+							item.sortText = (argRequired ? "!0" : "!2") + item.sortText.slice(2);
+						} else if (item.sortText?.startsWith("!2")) {
+							item.sortText = (argRequired ? "!1" : "!3") + item.sortText.slice(2);
+						}
+					}
+
+					// Shift attribute key tiers below all argument values.
+					for (const item of attrItems) {
+						if (item.sortText?.startsWith("!0")) {
+							item.sortText = "!4" + item.sortText.slice(2);
+						} else if (item.sortText?.startsWith("!1")) {
+							item.sortText = "!5" + item.sortText.slice(2);
+						}
+					}
+
 					const allItems = [...argItems, ...attrItems];
 					const hasFilePaths = argItems.some(
 						(i) => i.kind === vscode.CompletionItemKind.File || i.kind === vscode.CompletionItemKind.Folder,
@@ -164,7 +188,8 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				item.documentation = docs;
 			}
 
-			item.sortText = descriptor.required ? `!0_${attrName}` : `!1_${attrName}`;
+			const tier = descriptor.deprecated ? "9" : descriptor.required ? "0" : "1";
+			item.sortText = `!${tier}_${attrName}`;
 
 			if (descriptor.deprecated) {
 				item.tags = [vscode.CompletionItemTag.Deprecated];
@@ -177,10 +202,12 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			items.push(item);
 
 			if (descriptor.aliases) {
+				const aliasTier = descriptor.deprecated ? "9" : "1";
 				for (const alias of descriptor.aliases) {
 					const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 					aliasItem.insertText = new vscode.SnippetString(`${alias}=`);
 					aliasItem.detail = `Alias for ${attrName}`;
+					aliasItem.sortText = `!${aliasTier}_${alias}`;
 					if (docs) {
 						aliasItem.documentation = docs;
 					}

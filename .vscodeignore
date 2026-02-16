@@ -11,6 +11,8 @@
 .markdownlint.yml
 .luarc.json
 .eslintcache
+.beads
+.claude
 
 # Build configuration
 tsconfig.json
