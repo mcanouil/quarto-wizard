@@ -66,8 +66,10 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 						(i) => i.kind === vscode.CompletionItemKind.File || i.kind === vscode.CompletionItemKind.Folder,
 					);
 					if (hasFilePaths) {
-						this.setFilePathRange(items, text, offset, document, position);
-						return new vscode.CompletionList(items, true);
+						const tokenStart = this.getTokenStart(text, offset);
+						const filtered = this.filterToCurrentLevel(items, text, tokenStart, offset);
+						this.setFilePathRange(filtered, tokenStart, document, position);
+						return new vscode.CompletionList(filtered, true);
 					}
 					return items;
 				}
@@ -80,8 +82,10 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 						(i) => i.kind === vscode.CompletionItemKind.File || i.kind === vscode.CompletionItemKind.Folder,
 					);
 					if (hasFilePaths) {
-						this.setFilePathRange(allItems, text, offset, document, position);
-						return new vscode.CompletionList(allItems, true);
+						const tokenStart = this.getTokenStart(text, offset);
+						const filtered = this.filterToCurrentLevel(allItems, text, tokenStart, offset);
+						this.setFilePathRange(filtered, tokenStart, document, position);
+						return new vscode.CompletionList(filtered, true);
 					}
 					return allItems;
 				}
@@ -300,25 +304,67 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 	}
 
 	/**
+	 * Compute the start offset of the current token by scanning backwards
+	 * from the cursor until hitting a shortcode delimiter.
+	 */
+	private getTokenStart(text: string, offset: number): number {
+		let i = offset;
+		while (i > 0) {
+			const ch = text[i - 1];
+			if (ch === " " || ch === "\t" || ch === "=" || ch === '"' || ch === "'" || ch === "<") {
+				break;
+			}
+			i--;
+		}
+		return i;
+	}
+
+	/**
+	 * Filter file-path and folder items to show only the current directory
+	 * level.  Files in subdirectories are hidden until the user navigates
+	 * into the containing folder.
+	 */
+	private filterToCurrentLevel(
+		items: vscode.CompletionItem[],
+		text: string,
+		tokenStart: number,
+		offset: number,
+	): vscode.CompletionItem[] {
+		const typedText = text.slice(tokenStart, offset);
+		const lastSlash = typedText.lastIndexOf("/");
+		const dirPrefix = lastSlash >= 0 ? typedText.slice(0, lastSlash + 1) : "";
+
+		return items.filter((item) => {
+			if (item.kind === vscode.CompletionItemKind.File) {
+				const label = typeof item.label === "string" ? item.label : item.label.label;
+				if (!label.startsWith(dirPrefix)) {
+					return false;
+				}
+				return !label.slice(dirPrefix.length).includes("/");
+			}
+			if (item.kind === vscode.CompletionItemKind.Folder) {
+				const ft = item.filterText || (typeof item.label === "string" ? item.label : item.label.label);
+				if (!ft.startsWith(dirPrefix)) {
+					return false;
+				}
+				const segments = ft.slice(dirPrefix.length).split("/").filter(Boolean);
+				return segments.length === 1;
+			}
+			return true;
+		});
+	}
+
+	/**
 	 * Set an explicit replacement range on file-path and folder completion items.
 	 * This ensures path separators (/ and .) that fall outside the language's
 	 * word pattern are included in the replaced text.
 	 */
 	private setFilePathRange(
 		items: vscode.CompletionItem[],
-		text: string,
-		offset: number,
+		tokenStart: number,
 		document: vscode.TextDocument,
 		position: vscode.Position,
 	): void {
-		let tokenStart = offset;
-		while (tokenStart > 0) {
-			const ch = text[tokenStart - 1];
-			if (ch === " " || ch === "\t" || ch === "=" || ch === '"' || ch === "'" || ch === "<") {
-				break;
-			}
-			tokenStart--;
-		}
 		const range = new vscode.Range(document.positionAt(tokenStart), position);
 		for (const item of items) {
 			if (item.kind === vscode.CompletionItemKind.File || item.kind === vscode.CompletionItemKind.Folder) {
