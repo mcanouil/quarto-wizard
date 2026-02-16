@@ -133,5 +133,37 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.deepStrictEqual(getYamlKeyPath(lines, 1, "yaml"), ["author"]);
 			assert.deepStrictEqual(getYamlKeyPath(lines, 2, "yaml"), ["format"]);
 		});
+
+		suite("cursorIndent parameter", () => {
+			test("Should trim path to match cursor indent 4 (child of iconify)", () => {
+				const lines = ["extensions:", "  iconify:", "    "];
+				const result = getYamlKeyPath(lines, 2, "yaml", 4);
+				assert.deepStrictEqual(result, ["extensions", "iconify"]);
+			});
+
+			test("Should trim path to match cursor indent 2 (sibling of iconify)", () => {
+				const lines = ["extensions:", "  iconify:", "  "];
+				const result = getYamlKeyPath(lines, 2, "yaml", 2);
+				assert.deepStrictEqual(result, ["extensions"]);
+			});
+
+			test("Should trim path to match cursor indent 0 (root level)", () => {
+				const lines = ["extensions:", "  iconify:", ""];
+				const result = getYamlKeyPath(lines, 2, "yaml", 0);
+				assert.deepStrictEqual(result, []);
+			});
+
+			test("Should not affect non-blank lines", () => {
+				const lines = ["extensions:", "  iconify:", "    size: large"];
+				const result = getYamlKeyPath(lines, 2, "yaml", 0);
+				assert.deepStrictEqual(result, ["extensions", "iconify", "size"]);
+			});
+
+			test("Should behave normally without cursorIndent", () => {
+				const lines = ["extensions:", "  iconify:", "    "];
+				const result = getYamlKeyPath(lines, 2, "yaml");
+				assert.deepStrictEqual(result, ["extensions", "iconify"]);
+			});
+		});
 	});
 });

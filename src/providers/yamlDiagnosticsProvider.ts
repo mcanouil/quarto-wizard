@@ -40,10 +40,9 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			}),
 		);
 
-		// Clear diagnostics and cancel pending validation when a document is closed.
+		// Clear diagnostics when a document is closed.
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
-				this.debouncedValidate.cancel();
 				this.diagnosticCollection.delete(document.uri);
 			}),
 		);
@@ -189,7 +188,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				const formatFields: Record<string, FieldDescriptor> = {};
 				for (const schema of schemaMap.values()) {
 					if (schema.formats && schema.formats[formatName]) {
-						Object.assign(formatFields, schema.formats[formatName]);
+						for (const [key, descriptor] of Object.entries(schema.formats[formatName])) {
+							if (!(key in formatFields)) {
+								formatFields[key] = descriptor;
+							}
+						}
 					}
 				}
 
@@ -280,10 +283,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			if (descriptor.type && value !== null && value !== undefined) {
 				const typeError = this.checkType(value, descriptor.type);
 				if (typeError) {
+					const valueStr = typeof value === "string" ? `"${value}"` : String(value);
 					diagnostics.push(
 						new vscode.Diagnostic(
 							range,
-							`Option "${key}": expected type "${descriptor.type}", got ${typeError}.`,
+							`Option "${key}": expected type "${descriptor.type}", got ${typeError} ${valueStr}.`,
 							vscode.DiagnosticSeverity.Error,
 						),
 					);

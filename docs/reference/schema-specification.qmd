@@ -163,8 +163,14 @@ projects:
 
 ### element-attributes
 
-Attributes accepted by filter extensions on Pandoc Div, Span, and CodeBlock elements.
-Grouped by CSS class or element type.
+Attributes accepted by filter extensions on Pandoc Div, Span, CodeBlock, and Header elements.
+Groups are matched against the current element using five strategies:
+
+- `_any`: matches any element regardless of class, ID, or type.
+- **CSS class name** (e.g. `panel`, `highlight`): matches elements that carry that class.
+- **ID prefix** (e.g. `modal` matches `#modal-example`): matches elements whose ID starts with that prefix followed by a hyphen.
+- **Pandoc element type** (`Div`, `Span`, `Code`, `CodeBlock`, `Header`): matches based on the structural context (fenced div `:::`, bracketed span `]`, backtick code `` ` ``, or ATX heading `#`).
+
 Use `_any` for attributes accepted on any element regardless of class.
 
 ```yaml
@@ -182,6 +188,16 @@ element-attributes:
       description: "Background colour."
       completion:
         type: color
+  Header:
+    toc-depth:
+      type: number
+      min: 1
+      max: 6
+      description: "Override table-of-contents depth for this heading."
+  CodeBlock:
+    filename:
+      type: string
+      description: "Display filename label for the code block."
 ```
 
 ## Field Descriptor Properties
@@ -448,7 +464,7 @@ shortcodes:
         description: "Button label text."
 
 element-attributes:
-  _any:
+  modal:
     size:
       type: string
       enum: ["", sm, lg, xl]

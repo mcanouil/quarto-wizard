@@ -18,6 +18,8 @@ import { setManualToken, clearManualToken } from "./utils/auth";
 import { SchemaCache } from "@quarto-wizard/core";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
 import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
+import { registerElementAttributeProviders } from "./providers/elementAttributeCompletionProvider";
+import { registerInlineAttributeDiagnostics } from "./providers/inlineAttributeDiagnosticsProvider";
 
 /**
  * This method is called when the extension is activated.
@@ -133,6 +135,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register shortcode completion provider for Quarto documents
 	registerShortcodeCompletionProvider(context, schemaCache);
+
+	// Register element attribute completion and hover providers for Quarto documents
+	registerElementAttributeProviders(context, schemaCache);
+
+	// Register inline attribute diagnostics for spaces around = and schema validation
+	registerInlineAttributeDiagnostics(context, schemaCache);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(
