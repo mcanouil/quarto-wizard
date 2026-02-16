@@ -39,6 +39,7 @@ export async function buildFilePathCompletions(
 	const items: vscode.CompletionItem[] = [];
 	const workspaceRoot = workspaceFolder.uri.fsPath;
 	const documentDir = path.dirname(documentUri.fsPath);
+	const directories = new Set<string>();
 
 	for (const fileUri of files) {
 		const relativePath = path.relative(documentDir, fileUri.fsPath);
@@ -46,13 +47,33 @@ export async function buildFilePathCompletions(
 
 		const item = new vscode.CompletionItem(relativePath, vscode.CompletionItemKind.File);
 		item.detail = workspacePath;
-		item.filterText = path.basename(relativePath);
-		item.sortText = "0_" + path.basename(relativePath);
+		item.filterText = relativePath;
+		item.sortText = "0_" + relativePath;
 
 		if (descriptor.description) {
 			item.documentation = new vscode.MarkdownString(descriptor.description);
 		}
 
+		items.push(item);
+
+		// Collect cumulative directory prefixes for folder items.
+		const dir = path.dirname(relativePath);
+		if (dir !== ".") {
+			const segments = dir.split(path.sep);
+			let cumulative = "";
+			for (const segment of segments) {
+				cumulative = cumulative ? `${cumulative}/${segment}` : segment;
+				directories.add(cumulative);
+			}
+		}
+	}
+
+	for (const dir of directories) {
+		const label = `${dir}/`;
+		const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Folder);
+		item.filterText = label;
+		item.sortText = "0_" + label;
+		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 		items.push(item);
 	}
 

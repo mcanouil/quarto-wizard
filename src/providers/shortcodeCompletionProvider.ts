@@ -62,16 +62,28 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 						parsed.currentAttributeKey,
 						document.uri,
 					);
-					const hasFilePaths = items.some((i) => i.kind === vscode.CompletionItemKind.File);
-					return hasFilePaths ? new vscode.CompletionList(items, true) : items;
+					const hasFilePaths = items.some(
+						(i) => i.kind === vscode.CompletionItemKind.File || i.kind === vscode.CompletionItemKind.Folder,
+					);
+					if (hasFilePaths) {
+						this.setFilePathRange(items, text, offset, document, position);
+						return new vscode.CompletionList(items, true);
+					}
+					return items;
 				}
 
 				case "argument": {
 					const argItems = await this.completeArgument(schemas, parsed.name, parsed.arguments, document.uri);
 					const attrItems = this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
 					const allItems = [...argItems, ...attrItems];
-					const hasFilePaths = argItems.some((i) => i.kind === vscode.CompletionItemKind.File);
-					return hasFilePaths ? new vscode.CompletionList(allItems, true) : allItems;
+					const hasFilePaths = argItems.some(
+						(i) => i.kind === vscode.CompletionItemKind.File || i.kind === vscode.CompletionItemKind.Folder,
+					);
+					if (hasFilePaths) {
+						this.setFilePathRange(allItems, text, offset, document, position);
+						return new vscode.CompletionList(allItems, true);
+					}
+					return allItems;
 				}
 
 				default:
@@ -282,6 +294,34 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		}
 
 		return items;
+	}
+
+	/**
+	 * Set an explicit replacement range on file-path and folder completion items.
+	 * This ensures path separators (/ and .) that fall outside the language's
+	 * word pattern are included in the replaced text.
+	 */
+	private setFilePathRange(
+		items: vscode.CompletionItem[],
+		text: string,
+		offset: number,
+		document: vscode.TextDocument,
+		position: vscode.Position,
+	): void {
+		let tokenStart = offset;
+		while (tokenStart > 0) {
+			const ch = text[tokenStart - 1];
+			if (ch === " " || ch === "\t" || ch === "=" || ch === '"' || ch === "'" || ch === "<") {
+				break;
+			}
+			tokenStart--;
+		}
+		const range = new vscode.Range(document.positionAt(tokenStart), position);
+		for (const item of items) {
+			if (item.kind === vscode.CompletionItemKind.File || item.kind === vscode.CompletionItemKind.Folder) {
+				item.range = range;
+			}
+		}
 	}
 
 	/**
