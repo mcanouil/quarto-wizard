@@ -488,6 +488,9 @@ export class ShortcodeHoverProvider implements vscode.HoverProvider {
 				case "attributeValue":
 					return this.hoverAttributeValue(schemas, parsed.name, parsed.currentAttributeKey);
 
+				case "argument":
+					return this.hoverArgument(schemas, parsed.name, parsed.arguments, word, text, offset);
+
 				default:
 					return null;
 			}
@@ -495,6 +498,45 @@ export class ShortcodeHoverProvider implements vscode.HoverProvider {
 			logMessage(`Shortcode hover error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
 			return null;
 		}
+	}
+
+	private hoverArgument(
+		schemas: Map<string, ShortcodeSchema>,
+		name: string | null,
+		existingArgs: string[],
+		word: string,
+		text: string,
+		offset: number,
+	): vscode.Hover | null {
+		if (!name) {
+			return null;
+		}
+
+		// The parser returns "argument" when no prior named attributes
+		// exist, but the word might be an attribute key.  Check whether
+		// the character after the word is "=" to distinguish the two.
+		let end = offset;
+		while (end < text.length && /[\w-]/.test(text[end])) {
+			end++;
+		}
+		if (end < text.length && text[end] === "=") {
+			return this.hoverAttributeKey(schemas, name, word);
+		}
+
+		// Positional argument: show the argument descriptor.
+		const schema = schemas.get(name);
+		if (!schema?.arguments) {
+			return null;
+		}
+		const argIndex = existingArgs.length;
+		if (argIndex >= schema.arguments.length) {
+			return null;
+		}
+		const docs = buildAttributeDoc(schema.arguments[argIndex]);
+		if (!docs) {
+			return null;
+		}
+		return new vscode.Hover(docs);
 	}
 
 	private hoverShortcodeName(schemas: Map<string, ShortcodeSchema>, word: string): vscode.Hover | null {
