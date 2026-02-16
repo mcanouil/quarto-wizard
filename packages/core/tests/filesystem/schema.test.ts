@@ -185,6 +185,25 @@ describe("normaliseShortcodeSchema", () => {
 		expect(result.arguments).toBeUndefined();
 		expect(result.attributes).toBeUndefined();
 	});
+
+	it("preserves file-path completion spec on arguments", () => {
+		const result = normaliseShortcodeSchema({
+			description: "Include external content",
+			arguments: [
+				{
+					name: "file",
+					type: "string",
+					required: true,
+					completion: { type: "file", extensions: [".md", ".qmd"] },
+				},
+			],
+		});
+
+		expect(result.arguments).toHaveLength(1);
+		expect(result.arguments![0].completion).toBeDefined();
+		expect(result.arguments![0].completion!.type).toBe("file");
+		expect(result.arguments![0].completion!.extensions).toEqual([".md", ".qmd"]);
+	});
 });
 
 describe("normaliseSchema", () => {
@@ -340,6 +359,33 @@ formats:
 		expect(schema.formats).toBeDefined();
 		expect(schema.formats!["html"]["toc"].type).toBe("boolean");
 		expect(schema.formats!["pdf"]["margin"].default).toBe("1in");
+	});
+
+	it("parses shortcode argument with file-path completion spec", () => {
+		const yamlContent = `
+shortcodes:
+  external:
+    description: Include external content
+    arguments:
+      - name: file
+        type: string
+        required: true
+        completion:
+          type: file
+          extensions:
+            - .md
+            - .qmd
+`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.shortcodes).toBeDefined();
+		expect(schema.shortcodes!["external"].arguments).toHaveLength(1);
+		const arg = schema.shortcodes!["external"].arguments![0];
+		expect(arg.name).toBe("file");
+		expect(arg.completion).toBeDefined();
+		expect(arg.completion!.type).toBe("file");
+		expect(arg.completion!.extensions).toEqual([".md", ".qmd"]);
 	});
 
 	it("throws SchemaError on empty content", () => {
