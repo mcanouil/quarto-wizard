@@ -20,6 +20,7 @@ export function isFilePathDescriptor(descriptor: FieldDescriptor): boolean {
 export async function buildFilePathCompletions(
 	descriptor: FieldDescriptor,
 	documentUri: vscode.Uri,
+	options?: { includeFolders?: boolean },
 ): Promise<vscode.CompletionItem[]> {
 	if (!isFilePathDescriptor(descriptor)) {
 		return [];
@@ -39,20 +40,45 @@ export async function buildFilePathCompletions(
 	const items: vscode.CompletionItem[] = [];
 	const workspaceRoot = workspaceFolder.uri.fsPath;
 	const documentDir = path.dirname(documentUri.fsPath);
+	const directories = options?.includeFolders ? new Set<string>() : null;
 
 	for (const fileUri of files) {
-		const relativePath = path.relative(documentDir, fileUri.fsPath);
-		const workspacePath = path.relative(workspaceRoot, fileUri.fsPath);
+		const relativePath = path.relative(documentDir, fileUri.fsPath).split(path.sep).join("/");
+		const workspacePath = path.relative(workspaceRoot, fileUri.fsPath).split(path.sep).join("/");
 
 		const item = new vscode.CompletionItem(relativePath, vscode.CompletionItemKind.File);
 		item.detail = workspacePath;
-		item.sortText = relativePath;
+		item.filterText = relativePath;
+		item.sortText = "!2_" + relativePath;
 
 		if (descriptor.description) {
 			item.documentation = new vscode.MarkdownString(descriptor.description);
 		}
 
 		items.push(item);
+
+		if (directories) {
+			const dir = path.dirname(relativePath);
+			if (dir !== ".") {
+				const segments = dir.split("/");
+				let cumulative = "";
+				for (const segment of segments) {
+					cumulative = cumulative ? `${cumulative}/${segment}` : segment;
+					directories.add(cumulative);
+				}
+			}
+		}
+	}
+
+	if (directories) {
+		for (const dir of directories) {
+			const label = `${dir}/`;
+			const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Folder);
+			item.filterText = label;
+			item.sortText = "!2_" + label;
+			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			items.push(item);
+		}
 	}
 
 	return items;

@@ -16,3 +16,8 @@ cat >> "${TEMP_IGNORE}" << 'EOF'
 EOF
 
 npx @vscode/vsce package --pre-release --ignoreFile "${TEMP_IGNORE}" "$@"
+
+VSIX=$(find . -maxdepth 1 -name '*.vsix' -print0 | xargs -0 stat -f '%m %N' | sort -rn | head -1 | cut -d' ' -f2-)
+if [ -n "${VSIX}" ]; then
+  code --install-extension "${VSIX}"
+fi

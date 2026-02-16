@@ -24,7 +24,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 	async provideCompletionItems(
 		document: vscode.TextDocument,
 		position: vscode.Position,
-	): Promise<vscode.CompletionItem[] | null> {
+	): Promise<vscode.CompletionItem[] | vscode.CompletionList | null> {
 		try {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
@@ -55,13 +55,39 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				case "attributeKey":
 					return this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
 
-				case "attributeValue":
-					return this.completeAttributeValue(schemas, parsed.name, parsed.currentAttributeKey, document.uri);
+				case "attributeValue": {
+					const items = await this.completeAttributeValue(
+						schemas,
+						parsed.name,
+						parsed.currentAttributeKey,
+						document.uri,
+					);
+					const hasFilePaths = items.some(
+						(i) => i.kind === vscode.CompletionItemKind.File || i.kind === vscode.CompletionItemKind.Folder,
+					);
+					if (hasFilePaths) {
+						const tokenStart = this.getTokenStart(text, offset);
+						const filtered = this.filterToCurrentLevel(items, text, tokenStart, offset);
+						this.setFilePathRange(filtered, tokenStart, document, position);
+						return new vscode.CompletionList(filtered, true);
+					}
+					return items;
+				}
 
 				case "argument": {
 					const argItems = await this.completeArgument(schemas, parsed.name, parsed.arguments, document.uri);
 					const attrItems = this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
-					return [...argItems, ...attrItems];
+					const allItems = [...argItems, ...attrItems];
+					const hasFilePaths = argItems.some(
+						(i) => i.kind === vscode.CompletionItemKind.File || i.kind === vscode.CompletionItemKind.Folder,
+					);
+					if (hasFilePaths) {
+						const tokenStart = this.getTokenStart(text, offset);
+						const filtered = this.filterToCurrentLevel(allItems, text, tokenStart, offset);
+						this.setFilePathRange(filtered, tokenStart, document, position);
+						return new vscode.CompletionList(filtered, true);
+					}
+					return allItems;
 				}
 
 				default:
@@ -96,6 +122,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				item.documentation = new vscode.MarkdownString(schema.description);
 			}
 			item.detail = "Quarto shortcode";
+			item.sortText = `!1_${name}`;
 			items.push(item);
 		}
 
@@ -137,9 +164,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				item.documentation = docs;
 			}
 
-			if (descriptor.required) {
-				item.sortText = `0_${attrName}`;
-			}
+			item.sortText = descriptor.required ? `!0_${attrName}` : `!1_${attrName}`;
 
 			if (descriptor.deprecated) {
 				item.tags = [vscode.CompletionItemTag.Deprecated];
@@ -223,8 +248,11 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		const items = await this.buildValueCompletions(argDescriptor, documentUri);
 
 		// Trigger the next completion automatically after accepting a positional argument.
+		// File items are excluded: accepting a file should close the suggest widget.
 		for (const item of items) {
-			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			if (item.kind !== vscode.CompletionItemKind.File) {
+				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			}
 		}
 
 		return items;
@@ -243,6 +271,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			for (const value of descriptor.enum) {
 				const label = String(value);
 				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
+				item.sortText = `!1_${label}`;
 				if (descriptor.description) {
 					item.documentation = new vscode.MarkdownString(descriptor.description);
 				}
@@ -257,21 +286,96 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 					continue;
 				}
 				const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
+				item.sortText = `!1_${value}`;
 				items.push(item);
 			}
 		}
 
 		if (isFilePathDescriptor(descriptor)) {
-			const fileItems = await buildFilePathCompletions(descriptor, documentUri);
+			const fileItems = await buildFilePathCompletions(descriptor, documentUri, { includeFolders: true });
 			items.push(...fileItems);
 		}
 
 		if (descriptor.type === "boolean" && items.length === 0) {
-			items.push(new vscode.CompletionItem("true", vscode.CompletionItemKind.Value));
-			items.push(new vscode.CompletionItem("false", vscode.CompletionItemKind.Value));
+			const trueItem = new vscode.CompletionItem("true", vscode.CompletionItemKind.Value);
+			trueItem.sortText = "!1_true";
+			items.push(trueItem);
+			const falseItem = new vscode.CompletionItem("false", vscode.CompletionItemKind.Value);
+			falseItem.sortText = "!1_false";
+			items.push(falseItem);
 		}
 
 		return items;
+	}
+
+	/**
+	 * Compute the start offset of the current token by scanning backwards
+	 * from the cursor until hitting a shortcode delimiter.
+	 */
+	private getTokenStart(text: string, offset: number): number {
+		let i = offset;
+		while (i > 0) {
+			const ch = text[i - 1];
+			if (ch === " " || ch === "\t" || ch === "=" || ch === '"' || ch === "'" || ch === "<") {
+				break;
+			}
+			i--;
+		}
+		return i;
+	}
+
+	/**
+	 * Filter file-path and folder items to show only the current directory
+	 * level.  Files in subdirectories are hidden until the user navigates
+	 * into the containing folder.
+	 */
+	private filterToCurrentLevel(
+		items: vscode.CompletionItem[],
+		text: string,
+		tokenStart: number,
+		offset: number,
+	): vscode.CompletionItem[] {
+		const typedText = text.slice(tokenStart, offset);
+		const lastSlash = typedText.lastIndexOf("/");
+		const dirPrefix = lastSlash >= 0 ? typedText.slice(0, lastSlash + 1) : "";
+
+		return items.filter((item) => {
+			if (item.kind === vscode.CompletionItemKind.File) {
+				const label = typeof item.label === "string" ? item.label : item.label.label;
+				if (!label.startsWith(dirPrefix)) {
+					return false;
+				}
+				return !label.slice(dirPrefix.length).includes("/");
+			}
+			if (item.kind === vscode.CompletionItemKind.Folder) {
+				const ft = item.filterText || (typeof item.label === "string" ? item.label : item.label.label);
+				if (!ft.startsWith(dirPrefix)) {
+					return false;
+				}
+				const segments = ft.slice(dirPrefix.length).split("/").filter(Boolean);
+				return segments.length === 1;
+			}
+			return true;
+		});
+	}
+
+	/**
+	 * Set an explicit replacement range on file-path and folder completion items.
+	 * This ensures path separators (/ and .) that fall outside the language's
+	 * word pattern are included in the replaced text.
+	 */
+	private setFilePathRange(
+		items: vscode.CompletionItem[],
+		tokenStart: number,
+		document: vscode.TextDocument,
+		position: vscode.Position,
+	): void {
+		const range = new vscode.Range(document.positionAt(tokenStart), position);
+		for (const item of items) {
+			if (item.kind === vscode.CompletionItemKind.File || item.kind === vscode.CompletionItemKind.Folder) {
+				item.range = range;
+			}
+		}
 	}
 
 	/**
@@ -389,6 +493,9 @@ export class ShortcodeHoverProvider implements vscode.HoverProvider {
 				case "attributeValue":
 					return this.hoverAttributeValue(schemas, parsed.name, parsed.currentAttributeKey);
 
+				case "argument":
+					return this.hoverArgument(schemas, parsed.name, parsed.arguments, word, text, offset);
+
 				default:
 					return null;
 			}
@@ -396,6 +503,45 @@ export class ShortcodeHoverProvider implements vscode.HoverProvider {
 			logMessage(`Shortcode hover error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
 			return null;
 		}
+	}
+
+	private hoverArgument(
+		schemas: Map<string, ShortcodeSchema>,
+		name: string | null,
+		existingArgs: string[],
+		word: string,
+		text: string,
+		offset: number,
+	): vscode.Hover | null {
+		if (!name) {
+			return null;
+		}
+
+		// The parser returns "argument" when no prior named attributes
+		// exist, but the word might be an attribute key.  Check whether
+		// the character after the word is "=" to distinguish the two.
+		let end = offset;
+		while (end < text.length && /[\w-]/.test(text[end])) {
+			end++;
+		}
+		if (end < text.length && text[end] === "=") {
+			return this.hoverAttributeKey(schemas, name, word);
+		}
+
+		// Positional argument: show the argument descriptor.
+		const schema = schemas.get(name);
+		if (!schema?.arguments) {
+			return null;
+		}
+		const argIndex = existingArgs.length;
+		if (argIndex >= schema.arguments.length) {
+			return null;
+		}
+		const docs = buildAttributeDoc(schema.arguments[argIndex]);
+		if (!docs) {
+			return null;
+		}
+		return new vscode.Hover(docs);
 	}
 
 	private hoverShortcodeName(schemas: Map<string, ShortcodeSchema>, word: string): vscode.Hover | null {

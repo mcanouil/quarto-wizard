@@ -5,6 +5,7 @@ import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletion
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { YamlHoverProvider } from "./yamlHoverProvider";
 import { debounce } from "../utils/debounce";
+import { isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
 /**
@@ -58,7 +59,12 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 				event.contentChanges.length === 1 &&
 				event.contentChanges[0].text === "" &&
 				event.contentChanges[0].rangeLength > 0;
-			if (isDeletion) {
+			if (!isDeletion) {
+				return;
+			}
+			const lines = event.document.getText().split("\n");
+			const cursorLine = editor.selection.active.line;
+			if (isInYamlRegion(lines, cursorLine, event.document.languageId)) {
 				retriggerSuggest();
 			}
 		}),
