@@ -191,16 +191,21 @@ function tokenise(beforeCursor: string): ShortcodeParseResult {
 		};
 	}
 
-	// Process remaining tokens
+	// Process remaining tokens.
+	// Track whether any named attribute (key=value or key=) has been seen.
+	// Before the first named attribute, bare words are positional arguments.
 	let cursorContext: CursorContext = "attributeKey";
 	let currentAttributeKey: string | undefined;
+	let hasNamedAttributes = false;
 
 	for (let i = 1; i < tokens.length; i++) {
 		const token = tokens[i];
 
 		if (token.type === "keyValue") {
+			hasNamedAttributes = true;
 			attrs[token.key!] = token.value;
 		} else if (token.type === "keyOnly") {
+			hasNamedAttributes = true;
 			// A token ending with = means we are about to type a value.
 			// Trailing whitespace does not change this: key= always waits for a value.
 			if (i === tokens.length - 1) {
@@ -213,6 +218,7 @@ function tokenise(beforeCursor: string): ShortcodeParseResult {
 			// Positional argument or attribute name
 			// If it contains =, it is a partial key=value
 			if (token.value.includes("=")) {
+				hasNamedAttributes = true;
 				const eqIdx = token.value.indexOf("=");
 				const key = token.value.slice(0, eqIdx);
 				const val = token.value.slice(eqIdx + 1);
@@ -230,21 +236,30 @@ function tokenise(beforeCursor: string): ShortcodeParseResult {
 	}
 
 	// If the last token was a complete key=value and there is trailing whitespace,
-	// we are ready for a new attribute key.  But keyOnly tokens (key=) always
-	// wait for a value regardless of trailing whitespace.
+	// we are ready for a new attribute key (or argument if no named attrs yet).
+	// keyOnly tokens (key=) always wait for a value regardless of trailing whitespace.
 	if (endsWithWhitespace && tokens.length > 1) {
 		const lastToken = tokens[tokens.length - 1];
 		if (lastToken.type !== "keyOnly") {
-			cursorContext = "attributeKey";
+			cursorContext = hasNamedAttributes ? "attributeKey" : "argument";
 			currentAttributeKey = undefined;
 		}
+	}
+
+	// Right after the name with trailing whitespace: argument context.
+	if (endsWithWhitespace && tokens.length === 1) {
+		cursorContext = "argument";
 	}
 
 	// If we ended mid-token (no trailing whitespace), determine context from the last token.
 	if (!endsWithWhitespace && tokens.length > 1) {
 		const lastToken = tokens[tokens.length - 1];
 		if (lastToken.type === "word" && !lastToken.value.includes("=")) {
-			cursorContext = "attributeKey";
+			cursorContext = hasNamedAttributes ? "attributeKey" : "argument";
+			// The last bare word is the partial text being typed, not a completed argument.
+			if (!hasNamedAttributes) {
+				args.pop();
+			}
 		} else if (lastToken.type === "keyValue" && !beforeCursor.endsWith('"')) {
 			// Unquoted value still being typed (e.g., key=va with cursor at end).
 			cursorContext = "attributeValue";

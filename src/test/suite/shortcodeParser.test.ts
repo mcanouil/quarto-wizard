@@ -100,19 +100,19 @@ suite("Shortcode Parser", () => {
 			assert.strictEqual(result.name, "my");
 		});
 
-		test("should detect attributeKey context after name and space", () => {
+		test("should detect argument context after name and space (no named attrs)", () => {
 			const text = "{{< mysc  >}}";
 			const result = parseShortcodeAtPosition(text, 9);
 			assert.ok(result);
-			assert.strictEqual(result.cursorContext, "attributeKey");
+			assert.strictEqual(result.cursorContext, "argument");
 			assert.strictEqual(result.name, "mysc");
 		});
 
-		test("should detect attributeKey context when typing an attribute name", () => {
+		test("should detect argument context when typing a bare word (no named attrs)", () => {
 			const text = "{{< mysc ke >}}";
 			const result = parseShortcodeAtPosition(text, 11);
 			assert.ok(result);
-			assert.strictEqual(result.cursorContext, "attributeKey");
+			assert.strictEqual(result.cursorContext, "argument");
 			assert.strictEqual(result.name, "mysc");
 		});
 
@@ -208,6 +208,47 @@ suite("Shortcode Parser", () => {
 			assert.ok(result);
 			assert.strictEqual(result.cursorContext, "attributeValue");
 			assert.strictEqual(result.currentAttributeKey, "key");
+		});
+
+		test("should detect argument context after name and space", () => {
+			const text = "{{< name  >}}";
+			const result = parseShortcodeAtPosition(text, 9);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "argument");
+			assert.strictEqual(result.name, "name");
+		});
+
+		test("should detect argument context after first positional arg and space", () => {
+			const text = '{{< name "arg1"  >}}';
+			const result = parseShortcodeAtPosition(text, 16);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "argument");
+			assert.deepStrictEqual(result.arguments, ["arg1"]);
+		});
+
+		test("should detect argument context when mid-typing a partial arg", () => {
+			const text = "{{< name fi >}}";
+			const result = parseShortcodeAtPosition(text, 11);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "argument");
+			assert.deepStrictEqual(result.arguments, []);
+		});
+
+		test("should switch to attributeKey after a named attribute is seen", () => {
+			const text = '{{< name "arg1" key="val"  >}}';
+			const result = parseShortcodeAtPosition(text, 26);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "attributeKey");
+			assert.deepStrictEqual(result.arguments, ["arg1"]);
+			assert.strictEqual(result.attributes["key"], "val");
+		});
+
+		test("should not include partial text in args when mid-typing", () => {
+			const text = "{{< name partia >}}";
+			const result = parseShortcodeAtPosition(text, 15);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "argument");
+			assert.deepStrictEqual(result.arguments, []);
 		});
 	});
 });
