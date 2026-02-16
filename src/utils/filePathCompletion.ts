@@ -46,7 +46,8 @@ export async function buildFilePathCompletions(
 
 		const item = new vscode.CompletionItem(relativePath, vscode.CompletionItemKind.File);
 		item.detail = workspacePath;
-		item.sortText = relativePath;
+		item.filterText = path.basename(relativePath);
+		item.sortText = "0_" + path.basename(relativePath);
 
 		if (descriptor.description) {
 			item.documentation = new vscode.MarkdownString(descriptor.description);
