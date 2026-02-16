@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
-import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
-import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
+import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes } from "@quarto-wizard/core";
+import type { SchemaCache, ExtensionSchema, FieldDescriptor, InstalledExtension } from "@quarto-wizard/core";
+import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
 /**
@@ -23,7 +23,9 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return undefined;
 			}
 
-			const keyPath = getYamlKeyPath(lines, position.line, languageId);
+			const currentLineText = lines[position.line];
+			const isBlankLine = currentLineText.trim() === "";
+			const keyPath = getYamlKeyPath(lines, position.line, languageId, isBlankLine ? position.character : undefined);
 
 			const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
 			if (!workspaceFolder) {
@@ -33,8 +35,9 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			const projectDir = workspaceFolder.uri.fsPath;
 			const extensions = await discoverInstalledExtensions(projectDir);
 
-			// Build a map of extension name to schema for quick lookup.
+			// Build maps of extension name to schema and metadata for quick lookup.
 			const schemaMap = new Map<string, ExtensionSchema>();
+			const extMap = new Map<string, InstalledExtension>();
 			for (const ext of extensions) {
 				const schema = this.schemaCache.get(ext.directory);
 				if (schema) {
@@ -44,6 +47,12 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 					if (!schemaMap.has(shortName)) {
 						schemaMap.set(shortName, schema);
 					}
+					if (!extMap.has(id)) {
+						extMap.set(id, ext);
+					}
+					if (!extMap.has(shortName)) {
+						extMap.set(shortName, ext);
+					}
 				}
 			}
 
@@ -51,19 +60,91 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return undefined;
 			}
 
-			// Determine completion context from the key path.
-			return this.resolveCompletions(keyPath, schemaMap);
+			// Check whether the cursor sits after the colon on a key line.
+			const currentLine = lines[position.line];
+			const keyColonMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(currentLine);
+			const isValuePosition = keyColonMatch !== null && position.character > currentLine.indexOf(":");
+
+			// At root level, suggest "extensions" as a top-level key.
+			if (keyPath.length === 0 && !isValuePosition) {
+				return this.completeTopLevelKeys(schemaMap);
+			}
+
+			const items = this.resolveCompletions(keyPath, schemaMap, extMap);
+			if (!items || items.length === 0) {
+				return undefined;
+			}
+
+			// When the cursor is after a colon, key completions must be
+			// inserted on the next line with proper indentation so that the
+			// resulting YAML is valid.
+			if (isValuePosition) {
+				this.adjustForValuePosition(items, position, currentLine);
+			}
+
+			return items;
 		} catch (error) {
 			logMessage(`YAML completion error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
 			return undefined;
 		}
 	}
 
+	/**
+	 * Transform completion items when the cursor is in value position (after
+	 * a colon).  Key completions are moved to the next line with proper
+	 * indentation.  Value completions get a replacement range covering
+	 * everything after the colon so the leading space is not doubled.
+	 */
+	private adjustForValuePosition(items: vscode.CompletionItem[], position: vscode.Position, currentLine: string): void {
+		const colonIndex = currentLine.indexOf(":");
+		const replaceRange = new vscode.Range(position.line, colonIndex + 1, position.line, position.character);
+		const currentIndent = getYamlIndentLevel(currentLine);
+		const childIndent = " ".repeat(currentIndent + 2);
+
+		for (const item of items) {
+			const isKey = item.kind === vscode.CompletionItemKind.Module || item.kind === vscode.CompletionItemKind.Property;
+
+			if (!isKey) {
+				// Value completions (enum, boolean): set the range so the
+				// leading space in insertText replaces any existing whitespace
+				// between the colon and the cursor.
+				item.range = replaceRange;
+				continue;
+			}
+
+			const label = typeof item.label === "string" ? item.label : item.label.label;
+			const isObject = item.kind === vscode.CompletionItemKind.Module;
+
+			if (isObject) {
+				item.insertText = `\n${childIndent}${label}:\n${childIndent}  `;
+				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			} else {
+				item.insertText = `\n${childIndent}${label}: `;
+			}
+			item.filterText = label;
+			item.range = replaceRange;
+		}
+	}
+
+	private completeTopLevelKeys(schemaMap: Map<string, ExtensionSchema>): vscode.CompletionItem[] | undefined {
+		const hasOptions = Array.from(schemaMap.values()).some((schema) => schema.options);
+		if (!hasOptions) {
+			return undefined;
+		}
+
+		const item = new vscode.CompletionItem("extensions", vscode.CompletionItemKind.Module);
+		item.detail = "Quarto extension options";
+		item.documentation = new vscode.MarkdownString("Configure options for installed Quarto extensions.");
+		item.insertText = new vscode.SnippetString("extensions:\n  $0");
+		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+		return [item];
+	}
+
 	private resolveCompletions(
 		keyPath: string[],
 		schemaMap: Map<string, ExtensionSchema>,
+		extMap: Map<string, InstalledExtension>,
 	): vscode.CompletionItem[] | undefined {
-		// Context: at the top level or under a key that isn't extension-related.
 		if (keyPath.length === 0) {
 			return undefined;
 		}
@@ -72,7 +153,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 		// Under "extensions:" suggest installed extension names that have schemas.
 		if (topKey === "extensions" && keyPath.length === 1) {
-			return this.completeExtensionNames(schemaMap);
+			return this.completeExtensionNames(schemaMap, extMap);
 		}
 
 		// Under "extensions.<name>:" suggest option keys.
@@ -87,7 +168,6 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return this.completeFieldKeys(schema.options);
 			}
 
-			// Deeper nesting: walk into nested object properties.
 			return this.completeNestedFieldKeys(schema.options, keyPath.slice(2));
 		}
 
@@ -109,18 +189,37 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		return undefined;
 	}
 
-	private completeExtensionNames(schemaMap: Map<string, ExtensionSchema>): vscode.CompletionItem[] {
+	private completeExtensionNames(
+		schemaMap: Map<string, ExtensionSchema>,
+		extMap: Map<string, InstalledExtension>,
+	): vscode.CompletionItem[] {
 		const items: vscode.CompletionItem[] = [];
 		const seen = new Set<string>();
 
-		for (const name of schemaMap.keys()) {
-			if (seen.has(name)) {
+		for (const [name, schema] of schemaMap.entries()) {
+			if (seen.has(name) || !schema.options) {
 				continue;
 			}
 			seen.add(name);
 
 			const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Module);
-			item.detail = "Quarto extension";
+			const ext = extMap.get(name);
+			item.detail = ext?.manifest.title || "Quarto extension";
+			if (ext) {
+				const types = getExtensionTypes(ext.manifest);
+				const docParts: string[] = [];
+				if (types.length > 0) {
+					docParts.push(`Provides: ${types.join(", ")}`);
+				}
+				if (ext.manifest.author) {
+					docParts.push(`**Author:** ${ext.manifest.author}`);
+				}
+				if (docParts.length > 0) {
+					item.documentation = new vscode.MarkdownString(docParts.join("  \n"));
+				}
+			}
+			item.insertText = new vscode.SnippetString(`${name}:\n  $0`);
+			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 			items.push(item);
 		}
 
@@ -171,7 +270,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			return this.completeNestedFieldKeys(descriptor.properties, remainingPath.slice(1));
 		}
 
-		// At a value position: suggest enum values or boolean values.
+		// At a leaf: suggest enum values or boolean values.
 		return this.completeFieldValues(descriptor);
 	}
 
@@ -182,6 +281,8 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			for (const value of descriptor.enum) {
 				const label = String(value);
 				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.EnumMember);
+				item.insertText = ` ${label}`;
+				item.filterText = label;
 				if (descriptor.description) {
 					item.documentation = new vscode.MarkdownString(descriptor.description);
 				}
@@ -190,36 +291,66 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		}
 
 		if (descriptor.type === "boolean") {
-			items.push(new vscode.CompletionItem("true", vscode.CompletionItemKind.Value));
-			items.push(new vscode.CompletionItem("false", vscode.CompletionItemKind.Value));
+			for (const label of ["true", "false"]) {
+				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
+				item.insertText = ` ${label}`;
+				item.filterText = label;
+				items.push(item);
+			}
 		}
 
 		return items.length > 0 ? items : undefined;
 	}
 
 	private fieldToCompletionItem(key: string, descriptor: FieldDescriptor): vscode.CompletionItem {
-		const kind = descriptor.type === "object" ? vscode.CompletionItemKind.Module : vscode.CompletionItemKind.Property;
+		const isObject = descriptor.type === "object" || descriptor.properties !== undefined;
+		const kind = isObject ? vscode.CompletionItemKind.Module : vscode.CompletionItemKind.Property;
 		const item = new vscode.CompletionItem(key, kind);
 
-		const parts: string[] = [];
-		if (descriptor.type) {
-			parts.push(descriptor.type);
-		}
-		if (descriptor.required) {
-			parts.push("required");
-		}
 		if (descriptor.deprecated) {
-			parts.push("deprecated");
 			item.tags = [vscode.CompletionItemTag.Deprecated];
 		}
-		item.detail = parts.length > 0 ? parts.join(" | ") : undefined;
 
-		if (descriptor.description) {
-			item.documentation = new vscode.MarkdownString(descriptor.description);
+		item.detail = descriptor.description;
+
+		const meta: string[] = [];
+		if (descriptor.type) {
+			meta.push(`**Type:** \`${descriptor.type}\``);
+		}
+		if (descriptor.required) {
+			meta.push("**Required**");
+		}
+		if (descriptor.default !== undefined) {
+			meta.push(`**Default:** \`${String(descriptor.default)}\``);
+		}
+		if (descriptor.enum) {
+			meta.push(`**Values:** ${descriptor.enum.map((v) => `\`${String(v)}\``).join(", ")}`);
+		}
+		if (descriptor.deprecated) {
+			meta.push("**Deprecated**");
+		}
+		if (meta.length > 0) {
+			const docParts: string[] = [];
+			if (descriptor.description) {
+				docParts.push(descriptor.description);
+			}
+			docParts.push(meta.join("  \n"));
+			item.documentation = new vscode.MarkdownString(docParts.join("\n\n"));
 		}
 
-		// Insert "key: " so the user can immediately type the value.
-		item.insertText = `${key}: `;
+		// For object types or fields with nested properties, place the cursor
+		// on the next line with increased indentation.
+		if (isObject) {
+			item.insertText = new vscode.SnippetString(`${key}:\n  $0`);
+			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+		} else {
+			item.insertText = `${key}: `;
+			// Chain to value completions for fields with known values.
+			const hasCompletableValues = descriptor.enum || descriptor.type === "boolean";
+			if (hasCompletableValues) {
+				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			}
+		}
 
 		return item;
 	}
@@ -238,7 +369,11 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 			const formatFields = schema.formats[formatName];
 			if (formatFields) {
-				Object.assign(merged, formatFields);
+				for (const [key, descriptor] of Object.entries(formatFields)) {
+					if (!(key in merged)) {
+						merged[key] = descriptor;
+					}
+				}
 				found = true;
 			}
 		}
