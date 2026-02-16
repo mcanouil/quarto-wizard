@@ -24,7 +24,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 	async provideCompletionItems(
 		document: vscode.TextDocument,
 		position: vscode.Position,
-	): Promise<vscode.CompletionItem[] | null> {
+	): Promise<vscode.CompletionItem[] | vscode.CompletionList | null> {
 		try {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
@@ -55,13 +55,23 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				case "attributeKey":
 					return this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
 
-				case "attributeValue":
-					return this.completeAttributeValue(schemas, parsed.name, parsed.currentAttributeKey, document.uri);
+				case "attributeValue": {
+					const items = await this.completeAttributeValue(
+						schemas,
+						parsed.name,
+						parsed.currentAttributeKey,
+						document.uri,
+					);
+					const hasFilePaths = items.some((i) => i.kind === vscode.CompletionItemKind.File);
+					return hasFilePaths ? new vscode.CompletionList(items, true) : items;
+				}
 
 				case "argument": {
 					const argItems = await this.completeArgument(schemas, parsed.name, parsed.arguments, document.uri);
 					const attrItems = this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
-					return [...argItems, ...attrItems];
+					const allItems = [...argItems, ...attrItems];
+					const hasFilePaths = argItems.some((i) => i.kind === vscode.CompletionItemKind.File);
+					return hasFilePaths ? new vscode.CompletionList(allItems, true) : allItems;
 				}
 
 				default:
