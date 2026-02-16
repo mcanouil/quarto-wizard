@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { SchemaCache } from "@quarto-wizard/core";
 import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletionProvider";
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
+import { YamlHoverProvider } from "./yamlHoverProvider";
 import { logMessage } from "../utils/log";
 
 /**
@@ -14,11 +15,15 @@ import { logMessage } from "../utils/log";
  * @param schemaCache - Shared schema cache instance.
  */
 export function registerYamlProviders(context: vscode.ExtensionContext, schemaCache: SchemaCache): void {
-	// Register completion provider.
+	// Register completion provider with trigger characters for proactive suggestions.
 	const completionProvider = new YamlCompletionProvider(schemaCache);
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(YAML_DOCUMENT_SELECTOR, completionProvider),
+		vscode.languages.registerCompletionItemProvider(YAML_DOCUMENT_SELECTOR, completionProvider, ":", "\n", " "),
 	);
+
+	// Register hover provider.
+	const hoverProvider = new YamlHoverProvider(schemaCache);
+	context.subscriptions.push(vscode.languages.registerHoverProvider(YAML_DOCUMENT_SELECTOR, hoverProvider));
 
 	// Register diagnostics provider.
 	const diagnosticsProvider = new YamlDiagnosticsProvider(schemaCache);
@@ -38,5 +43,5 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	context.subscriptions.push(schemaWatcher.onDidDelete(invalidateAndRevalidate));
 	context.subscriptions.push(schemaWatcher);
 
-	logMessage("YAML completion and diagnostics providers registered.", "info");
+	logMessage("YAML completion, hover, and diagnostics providers registered.", "info");
 }

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/core";
 import { discoverInstalledExtensions } from "@quarto-wizard/core";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
+import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { logMessage } from "../utils/log";
 
 /**
@@ -27,6 +28,13 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
+			// Suppress suggestions when the cursor is immediately followed by
+			// an alphanumeric character or a quote, which indicates the cursor
+			// is in the middle of an existing token rather than at a boundary.
+			if (offset < text.length && /[\w"']/.test(text[offset])) {
+				return null;
+			}
+
 			const parsed = parseShortcodeAtPosition(text, offset);
 			if (!parsed) {
 				return null;
@@ -38,8 +46,10 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			}
 
 			switch (parsed.cursorContext) {
-				case "name":
-					return this.completeShortcodeName(schemas, parsed.name);
+				case "name": {
+					const needsLeadingSpace = offset > 0 && text[offset - 1] !== " ";
+					return this.completeShortcodeName(schemas, parsed.name, needsLeadingSpace);
+				}
 
 				case "attributeKey":
 					return this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
@@ -65,6 +75,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 	private completeShortcodeName(
 		schemas: Map<string, ShortcodeSchema>,
 		partial: string | null,
+		needsLeadingSpace: boolean,
 	): vscode.CompletionItem[] {
 		const items: vscode.CompletionItem[] = [];
 
@@ -74,6 +85,9 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			}
 
 			const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Function);
+			if (needsLeadingSpace) {
+				item.insertText = ` ${name}`;
+			}
 			if (schema.description) {
 				item.documentation = new vscode.MarkdownString(schema.description);
 			}
@@ -102,17 +116,19 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		}
 
 		const items: vscode.CompletionItem[] = [];
+		const occupied = new Set(Object.keys(existingAttributes));
 
 		for (const [attrName, descriptor] of Object.entries(schema.attributes)) {
-			// Skip attributes already present
-			if (attrName in existingAttributes) {
+			// Skip the entire field (canonical + aliases) when any name is already present.
+			const isOccupied = occupied.has(attrName) || descriptor.aliases?.some((a) => occupied.has(a));
+			if (isOccupied) {
 				continue;
 			}
 
 			const item = new vscode.CompletionItem(attrName, vscode.CompletionItemKind.Property);
 			item.insertText = new vscode.SnippetString(`${attrName}=`);
 
-			const docs = this.buildAttributeDocumentation(descriptor);
+			const docs = buildAttributeDoc(descriptor);
 			if (docs) {
 				item.documentation = docs;
 			}
@@ -125,19 +141,22 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				item.tags = [vscode.CompletionItemTag.Deprecated];
 			}
 
+			if (hasCompletableValues(descriptor)) {
+				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			}
+
 			items.push(item);
 
-			// Include aliases
 			if (descriptor.aliases) {
 				for (const alias of descriptor.aliases) {
-					if (alias in existingAttributes) {
-						continue;
-					}
 					const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 					aliasItem.insertText = new vscode.SnippetString(`${alias}=`);
 					aliasItem.detail = `Alias for ${attrName}`;
 					if (docs) {
 						aliasItem.documentation = docs;
+					}
+					if (hasCompletableValues(descriptor)) {
+						aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 					}
 					items.push(aliasItem);
 				}
@@ -164,7 +183,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			return [];
 		}
 
-		const descriptor = this.resolveAttribute(schema, attributeKey);
+		const descriptor = resolveShortcodeAttribute(schema, attributeKey);
 		if (!descriptor) {
 			return [];
 		}
@@ -196,28 +215,6 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 
 		const argDescriptor = schema.arguments[argIndex];
 		return this.buildValueCompletions(argDescriptor);
-	}
-
-	/**
-	 * Resolve an attribute descriptor, checking aliases.
-	 */
-	private resolveAttribute(schema: ShortcodeSchema, key: string): FieldDescriptor | undefined {
-		if (!schema.attributes) {
-			return undefined;
-		}
-
-		if (key in schema.attributes) {
-			return schema.attributes[key];
-		}
-
-		// Check aliases
-		for (const descriptor of Object.values(schema.attributes)) {
-			if (descriptor.aliases?.includes(key)) {
-				return descriptor;
-			}
-		}
-
-		return undefined;
 	}
 
 	/**
@@ -257,102 +254,218 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 	}
 
 	/**
-	 * Build a markdown documentation string for an attribute.
-	 */
-	private buildAttributeDocumentation(descriptor: FieldDescriptor): vscode.MarkdownString | undefined {
-		const parts: string[] = [];
-
-		if (descriptor.description) {
-			parts.push(descriptor.description);
-		}
-
-		const meta: string[] = [];
-		if (descriptor.type) {
-			meta.push(`Type: \`${descriptor.type}\``);
-		}
-		if (descriptor.required) {
-			meta.push("Required");
-		}
-		if (descriptor.default !== undefined) {
-			meta.push(`Default: \`${String(descriptor.default)}\``);
-		}
-		if (descriptor.enum) {
-			meta.push(`Values: ${descriptor.enum.map((v) => `\`${String(v)}\``).join(", ")}`);
-		}
-		if (descriptor.deprecated) {
-			const msg = typeof descriptor.deprecated === "string" ? descriptor.deprecated : "This attribute is deprecated.";
-			meta.push(`Deprecated: ${msg}`);
-		}
-
-		if (meta.length > 0) {
-			parts.push(meta.join(" | "));
-		}
-
-		if (parts.length === 0) {
-			return undefined;
-		}
-
-		return new vscode.MarkdownString(parts.join("\n\n"));
-	}
-
-	/**
 	 * Discover all shortcode schemas from installed extensions in the workspace.
 	 */
 	private async collectShortcodeSchemas(): Promise<Map<string, ShortcodeSchema>> {
-		const result = new Map<string, ShortcodeSchema>();
-		const workspaceFolders = vscode.workspace.workspaceFolders;
-
-		if (!workspaceFolders) {
-			return result;
-		}
-
-		for (const folder of workspaceFolders) {
-			try {
-				const extensions = await discoverInstalledExtensions(folder.uri.fsPath);
-
-				for (const ext of extensions) {
-					const schema = this.schemaCache.get(ext.directory);
-					if (!schema?.shortcodes) {
-						continue;
-					}
-
-					for (const [name, shortcodeSchema] of Object.entries(schema.shortcodes)) {
-						if (!result.has(name)) {
-							result.set(name, shortcodeSchema);
-						}
-					}
-				}
-			} catch (error) {
-				logMessage(
-					`Failed to discover shortcode schemas in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
-					"warn",
-				);
-			}
-		}
-
-		return result;
+		return collectShortcodeSchemas(this.schemaCache);
 	}
 }
 
 /**
- * Register the shortcode completion provider.
+ * Discover all shortcode schemas from installed extensions in the workspace.
+ *
+ * @param schemaCache - Shared schema cache instance.
+ * @returns A map of shortcode name to schema.
+ */
+export async function collectShortcodeSchemas(schemaCache: SchemaCache): Promise<Map<string, ShortcodeSchema>> {
+	const result = new Map<string, ShortcodeSchema>();
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+
+	if (!workspaceFolders) {
+		return result;
+	}
+
+	for (const folder of workspaceFolders) {
+		try {
+			const extensions = await discoverInstalledExtensions(folder.uri.fsPath);
+
+			for (const ext of extensions) {
+				const schema = schemaCache.get(ext.directory);
+				if (!schema?.shortcodes) {
+					continue;
+				}
+
+				for (const [name, shortcodeSchema] of Object.entries(schema.shortcodes)) {
+					if (!result.has(name)) {
+						result.set(name, shortcodeSchema);
+					}
+				}
+			}
+		} catch (error) {
+			logMessage(
+				`Failed to discover shortcode schemas in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
+				"warn",
+			);
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Resolve an attribute descriptor by name or alias from a shortcode schema.
+ */
+export function resolveShortcodeAttribute(schema: ShortcodeSchema, key: string): FieldDescriptor | undefined {
+	if (!schema.attributes) {
+		return undefined;
+	}
+
+	if (key in schema.attributes) {
+		return schema.attributes[key];
+	}
+
+	for (const descriptor of Object.values(schema.attributes)) {
+		if (descriptor.aliases?.includes(key)) {
+			return descriptor;
+		}
+	}
+
+	return undefined;
+}
+
+/**
+ * Provides hover information for Quarto shortcodes ({{< name key="value" >}}).
+ *
+ * Shows documentation for:
+ * 1. Shortcode names: the shortcode description.
+ * 2. Attribute keys: the attribute description, type, default, enum values, deprecation.
+ * 3. Attribute values: the parent attribute description.
+ */
+export class ShortcodeHoverProvider implements vscode.HoverProvider {
+	private schemaCache: SchemaCache;
+
+	constructor(schemaCache: SchemaCache) {
+		this.schemaCache = schemaCache;
+	}
+
+	async provideHover(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Hover | null> {
+		try {
+			const text = document.getText();
+			const offset = document.offsetAt(position);
+
+			const parsed = parseShortcodeAtPosition(text, offset);
+			if (!parsed) {
+				return null;
+			}
+
+			const schemas = await collectShortcodeSchemas(this.schemaCache);
+			if (schemas.size === 0) {
+				return null;
+			}
+
+			const word = getWordAtOffset(text, offset);
+			if (!word) {
+				return null;
+			}
+
+			switch (parsed.cursorContext) {
+				case "name":
+					return this.hoverShortcodeName(schemas, word);
+
+				case "attributeKey":
+					return this.hoverAttributeKey(schemas, parsed.name, word);
+
+				case "attributeValue":
+					return this.hoverAttributeValue(schemas, parsed.name, parsed.currentAttributeKey);
+
+				default:
+					return null;
+			}
+		} catch (error) {
+			logMessage(`Shortcode hover error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			return null;
+		}
+	}
+
+	private hoverShortcodeName(schemas: Map<string, ShortcodeSchema>, word: string): vscode.Hover | null {
+		const schema = schemas.get(word);
+		if (!schema?.description) {
+			return null;
+		}
+
+		const md = new vscode.MarkdownString();
+		md.appendMarkdown(`**Shortcode: \`${word}\`**\n\n`);
+		md.appendMarkdown(schema.description);
+		return new vscode.Hover(md);
+	}
+
+	private hoverAttributeKey(
+		schemas: Map<string, ShortcodeSchema>,
+		name: string | null,
+		word: string,
+	): vscode.Hover | null {
+		if (!name) {
+			return null;
+		}
+
+		const schema = schemas.get(name);
+		if (!schema) {
+			return null;
+		}
+
+		const descriptor = resolveShortcodeAttribute(schema, word);
+		if (!descriptor) {
+			return null;
+		}
+
+		const docs = buildAttributeDoc(descriptor);
+		if (!docs) {
+			return null;
+		}
+
+		return new vscode.Hover(docs);
+	}
+
+	private hoverAttributeValue(
+		schemas: Map<string, ShortcodeSchema>,
+		name: string | null,
+		attributeKey: string | undefined,
+	): vscode.Hover | null {
+		if (!name || !attributeKey) {
+			return null;
+		}
+
+		const schema = schemas.get(name);
+		if (!schema) {
+			return null;
+		}
+
+		const descriptor = resolveShortcodeAttribute(schema, attributeKey);
+		if (!descriptor) {
+			return null;
+		}
+
+		const docs = buildAttributeDoc(descriptor);
+		if (!docs) {
+			return null;
+		}
+
+		return new vscode.Hover(docs);
+	}
+}
+
+/**
+ * Register the shortcode completion and hover providers.
  *
  * @param context - The extension context.
  * @param schemaCache - Shared schema cache instance.
- * @returns The disposable for the registered provider.
  */
-export function registerShortcodeCompletionProvider(
-	context: vscode.ExtensionContext,
-	schemaCache: SchemaCache,
-): vscode.Disposable {
-	const provider = new ShortcodeCompletionProvider(schemaCache);
+export function registerShortcodeCompletionProvider(context: vscode.ExtensionContext, schemaCache: SchemaCache): void {
 	const selector: vscode.DocumentSelector = { language: "quarto" };
-	const triggerCharacters = [" ", "=", "<"];
 
-	const disposable = vscode.languages.registerCompletionItemProvider(selector, provider, ...triggerCharacters);
-	context.subscriptions.push(disposable);
+	const completionProvider = new ShortcodeCompletionProvider(schemaCache);
+	const completionDisposable = vscode.languages.registerCompletionItemProvider(
+		selector,
+		completionProvider,
+		" ",
+		"=",
+		"<",
+	);
+	context.subscriptions.push(completionDisposable);
 
-	logMessage("Shortcode completion provider registered.", "info");
+	const hoverProvider = new ShortcodeHoverProvider(schemaCache);
+	const hoverDisposable = vscode.languages.registerHoverProvider(selector, hoverProvider);
+	context.subscriptions.push(hoverDisposable);
 
-	return disposable;
+	logMessage("Shortcode completion and hover providers registered.", "info");
 }
