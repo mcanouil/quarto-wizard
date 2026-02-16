@@ -3,6 +3,7 @@ import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wiza
 import { discoverInstalledExtensions } from "@quarto-wizard/core";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
+import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { logMessage } from "../utils/log";
 
 /**
@@ -55,10 +56,10 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 					return this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
 
 				case "attributeValue":
-					return this.completeAttributeValue(schemas, parsed.name, parsed.currentAttributeKey);
+					return this.completeAttributeValue(schemas, parsed.name, parsed.currentAttributeKey, document.uri);
 
 				case "argument": {
-					const argItems = this.completeArgument(schemas, parsed.name, parsed.arguments);
+					const argItems = await this.completeArgument(schemas, parsed.name, parsed.arguments, document.uri);
 					const attrItems = this.completeAttributeKey(schemas, parsed.name, parsed.attributes);
 					return [...argItems, ...attrItems];
 				}
@@ -172,11 +173,12 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 	/**
 	 * Suggest values for the given attribute.
 	 */
-	private completeAttributeValue(
+	private async completeAttributeValue(
 		schemas: Map<string, ShortcodeSchema>,
 		name: string | null,
 		attributeKey: string | undefined,
-	): vscode.CompletionItem[] {
+		documentUri: vscode.Uri,
+	): Promise<vscode.CompletionItem[]> {
 		if (!name || !attributeKey) {
 			return [];
 		}
@@ -191,17 +193,18 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			return [];
 		}
 
-		return this.buildValueCompletions(descriptor);
+		return this.buildValueCompletions(descriptor, documentUri);
 	}
 
 	/**
 	 * Suggest positional argument values.
 	 */
-	private completeArgument(
+	private async completeArgument(
 		schemas: Map<string, ShortcodeSchema>,
 		name: string | null,
 		existingArgs: string[],
-	): vscode.CompletionItem[] {
+		documentUri: vscode.Uri,
+	): Promise<vscode.CompletionItem[]> {
 		if (!name) {
 			return [];
 		}
@@ -217,7 +220,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		}
 
 		const argDescriptor = schema.arguments[argIndex];
-		const items = this.buildValueCompletions(argDescriptor);
+		const items = await this.buildValueCompletions(argDescriptor, documentUri);
 
 		// Trigger the next completion automatically after accepting a positional argument.
 		for (const item of items) {
@@ -228,9 +231,12 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 	}
 
 	/**
-	 * Build completion items from a field descriptor's enum or completion spec.
+	 * Build completion items from a field descriptor's enum, completion spec, or file paths.
 	 */
-	private buildValueCompletions(descriptor: FieldDescriptor): vscode.CompletionItem[] {
+	private async buildValueCompletions(
+		descriptor: FieldDescriptor,
+		documentUri: vscode.Uri,
+	): Promise<vscode.CompletionItem[]> {
 		const items: vscode.CompletionItem[] = [];
 
 		if (descriptor.enum) {
@@ -253,6 +259,11 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
 				items.push(item);
 			}
+		}
+
+		if (isFilePathDescriptor(descriptor)) {
+			const fileItems = await buildFilePathCompletions(descriptor, documentUri);
+			items.push(...fileItems);
 		}
 
 		if (descriptor.type === "boolean" && items.length === 0) {

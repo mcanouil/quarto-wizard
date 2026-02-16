@@ -20,10 +20,15 @@ export function getWordAtOffset(text: string, offset: number): string | null {
 }
 
 /**
- * Whether a descriptor has values that can be completed (enum, boolean, or completion spec).
+ * Whether a descriptor has values that can be completed (enum, boolean, completion spec values, or file paths).
  */
 export function hasCompletableValues(descriptor: FieldDescriptor): boolean {
-	return !!(descriptor.enum || descriptor.type === "boolean" || descriptor.completion?.values);
+	return !!(
+		descriptor.enum ||
+		descriptor.type === "boolean" ||
+		descriptor.completion?.values ||
+		descriptor.completion?.type === "file"
+	);
 }
 
 /**

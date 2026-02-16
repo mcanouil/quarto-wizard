@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes } from "@quarto-wizard/core";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor, InstalledExtension } from "@quarto-wizard/core";
 import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
+import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { logMessage } from "../utils/log";
 
 /**
@@ -73,7 +74,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return this.completeTopLevelKeys(schemaMap, existingKeys);
 			}
 
-			const items = this.resolveCompletions(keyPath, schemaMap, extMap, existingKeys);
+			const items = await this.resolveCompletions(keyPath, schemaMap, extMap, existingKeys, document.uri);
 			if (!items || items.length === 0) {
 				return undefined;
 			}
@@ -108,7 +109,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			const isKey = item.kind === vscode.CompletionItemKind.Module || item.kind === vscode.CompletionItemKind.Property;
 
 			if (!isKey) {
-				// Value completions (enum, boolean): set the range so the
+				// Value completions (enum, boolean, file): set the range so the
 				// leading space in insertText replaces any existing whitespace
 				// between the colon and the cursor.
 				item.range = replaceRange;
@@ -146,12 +147,13 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		return [item];
 	}
 
-	private resolveCompletions(
+	private async resolveCompletions(
 		keyPath: string[],
 		schemaMap: Map<string, ExtensionSchema>,
 		extMap: Map<string, InstalledExtension>,
 		existingKeys: Set<string>,
-	): vscode.CompletionItem[] | undefined {
+		documentUri: vscode.Uri,
+	): Promise<vscode.CompletionItem[] | undefined> {
 		if (keyPath.length === 0) {
 			return undefined;
 		}
@@ -175,7 +177,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return this.completeFieldKeys(schema.options, existingKeys);
 			}
 
-			return this.completeNestedFieldKeys(schema.options, keyPath.slice(2), existingKeys);
+			return this.completeNestedFieldKeys(schema.options, keyPath.slice(2), existingKeys, documentUri);
 		}
 
 		// Under "format.<format-name>:" suggest format-specific keys.
@@ -190,7 +192,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return this.completeFieldKeys(formatFields, existingKeys);
 			}
 
-			return this.completeNestedFieldKeys(formatFields, keyPath.slice(2), existingKeys);
+			return this.completeNestedFieldKeys(formatFields, keyPath.slice(2), existingKeys, documentUri);
 		}
 
 		return undefined;
@@ -267,11 +269,12 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		return items.length > 0 ? items : undefined;
 	}
 
-	private completeNestedFieldKeys(
+	private async completeNestedFieldKeys(
 		fields: Record<string, FieldDescriptor> | undefined,
 		remainingPath: string[],
 		existingKeys: Set<string>,
-	): vscode.CompletionItem[] | undefined {
+		documentUri: vscode.Uri,
+	): Promise<vscode.CompletionItem[] | undefined> {
 		if (!fields || remainingPath.length === 0) {
 			return this.completeFieldKeys(fields, existingKeys);
 		}
@@ -285,14 +288,17 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 		// If the descriptor has properties (type "object"), walk deeper.
 		if (descriptor.properties) {
-			return this.completeNestedFieldKeys(descriptor.properties, remainingPath.slice(1), existingKeys);
+			return this.completeNestedFieldKeys(descriptor.properties, remainingPath.slice(1), existingKeys, documentUri);
 		}
 
-		// At a leaf: suggest enum values or boolean values.
-		return this.completeFieldValues(descriptor);
+		// At a leaf: suggest enum values, boolean values, or file paths.
+		return this.completeFieldValues(descriptor, documentUri);
 	}
 
-	private completeFieldValues(descriptor: FieldDescriptor): vscode.CompletionItem[] | undefined {
+	private async completeFieldValues(
+		descriptor: FieldDescriptor,
+		documentUri: vscode.Uri,
+	): Promise<vscode.CompletionItem[] | undefined> {
 		const items: vscode.CompletionItem[] = [];
 
 		if (descriptor.enum) {
@@ -314,6 +320,15 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				item.insertText = ` ${label}`;
 				item.filterText = label;
 				items.push(item);
+			}
+		}
+
+		if (isFilePathDescriptor(descriptor)) {
+			const fileItems = await buildFilePathCompletions(descriptor, documentUri);
+			for (const fileItem of fileItems) {
+				fileItem.insertText = ` ${typeof fileItem.label === "string" ? fileItem.label : fileItem.label.label}`;
+				fileItem.filterText = typeof fileItem.label === "string" ? fileItem.label : fileItem.label.label;
+				items.push(fileItem);
 			}
 		}
 
@@ -364,7 +379,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		} else {
 			item.insertText = `${key}: `;
 			// Chain to value completions for fields with known values.
-			const hasCompletableValues = descriptor.enum || descriptor.type === "boolean";
+			const hasCompletableValues = descriptor.enum || descriptor.type === "boolean" || isFilePathDescriptor(descriptor);
 			if (hasCompletableValues) {
 				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 			}

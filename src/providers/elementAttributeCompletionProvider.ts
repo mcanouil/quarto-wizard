@@ -3,6 +3,7 @@ import type { FieldDescriptor, SchemaCache, ExtensionSchema } from "@quarto-wiza
 import { discoverInstalledExtensions } from "@quarto-wizard/core";
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
+import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { logMessage } from "../utils/log";
 
 /**
@@ -193,7 +194,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 					return this.completeAttributeKey(applicable, parsed.attributes);
 
 				case "attributeValue":
-					return this.completeAttributeValue(applicable, parsed.currentAttributeKey);
+					return this.completeAttributeValue(applicable, parsed.currentAttributeKey, document.uri);
 
 				default:
 					return null;
@@ -262,10 +263,11 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 		return items;
 	}
 
-	private completeAttributeValue(
+	private async completeAttributeValue(
 		attributes: Record<string, AttributeWithSource>,
 		attributeKey: string | undefined,
-	): vscode.CompletionItem[] {
+		documentUri: vscode.Uri,
+	): Promise<vscode.CompletionItem[]> {
 		if (!attributeKey) {
 			return [];
 		}
@@ -298,6 +300,14 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
 				item.detail = source;
 				items.push(item);
+			}
+		}
+
+		if (isFilePathDescriptor(descriptor)) {
+			const fileItems = await buildFilePathCompletions(descriptor, documentUri);
+			for (const fileItem of fileItems) {
+				fileItem.detail = source;
+				items.push(fileItem);
 			}
 		}
 
