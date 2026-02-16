@@ -164,7 +164,8 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				item.documentation = docs;
 			}
 
-			item.sortText = descriptor.required ? `!0_${attrName}` : `!1_${attrName}`;
+			const tier = descriptor.deprecated ? "9" : descriptor.required ? "0" : "1";
+			item.sortText = `!${tier}_${attrName}`;
 
 			if (descriptor.deprecated) {
 				item.tags = [vscode.CompletionItemTag.Deprecated];
@@ -177,10 +178,12 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			items.push(item);
 
 			if (descriptor.aliases) {
+				const aliasTier = descriptor.deprecated ? "9" : "1";
 				for (const alias of descriptor.aliases) {
 					const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 					aliasItem.insertText = new vscode.SnippetString(`${alias}=`);
 					aliasItem.detail = `Alias for ${attrName}`;
+					aliasItem.sortText = `!${aliasTier}_${alias}`;
 					if (docs) {
 						aliasItem.documentation = docs;
 					}

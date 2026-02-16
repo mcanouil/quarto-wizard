@@ -12,6 +12,8 @@ import { logMessage } from "../utils/log";
 export interface AttributeWithSource {
 	descriptor: FieldDescriptor;
 	source: string;
+	/** Whether the attribute originates from the catch-all `_any` group. */
+	fromAny?: boolean;
 }
 
 /**
@@ -79,11 +81,6 @@ export function mergeApplicableAttributes(
 ): Record<string, AttributeWithSource> {
 	const merged: Record<string, AttributeWithSource> = {};
 
-	// Always include _any.
-	if (schemas["_any"]) {
-		Object.assign(merged, schemas["_any"]);
-	}
-
 	// Include groups matching extracted classes.
 	for (const cls of classes) {
 		mergeGroup(schemas, cls, merged);
@@ -102,6 +99,16 @@ export function mergeApplicableAttributes(
 	// Also match CodeBlock for Code elements (common schema convention).
 	if (elementType === "Code") {
 		mergeGroup(schemas, "CodeBlock", merged);
+	}
+
+	// Include _any last so specific groups take precedence, and tag entries
+	// so they sort after specific-group attributes.
+	if (schemas["_any"]) {
+		for (const [attrName, entry] of Object.entries(schemas["_any"])) {
+			if (!(attrName in merged)) {
+				merged[attrName] = { ...entry, fromAny: true };
+			}
+		}
 	}
 
 	return merged;
@@ -123,6 +130,22 @@ function mergeGroup(
 			merged[attrName] = entry;
 		}
 	}
+}
+
+/**
+ * Compute a single-character sort tier for an attribute.
+ *
+ * Ordering: required (0) > optional (1) > _any required (2) > _any optional (3) > deprecated (9).
+ * Aliases are never "required", so they use the optional tier within their group.
+ */
+function attributeSortTier(descriptor: FieldDescriptor, fromAny?: boolean, isAlias?: boolean): string {
+	if (descriptor.deprecated) {
+		return "9";
+	}
+	if (fromAny) {
+		return descriptor.required && !isAlias ? "2" : "3";
+	}
+	return descriptor.required && !isAlias ? "0" : "1";
 }
 
 /**
@@ -215,7 +238,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 		const items: vscode.CompletionItem[] = [];
 		const occupied = new Set(Object.keys(existingAttributes));
 
-		for (const [attrName, { descriptor, source }] of Object.entries(attributes)) {
+		for (const [attrName, { descriptor, source, fromAny }] of Object.entries(attributes)) {
 			// Skip the entire field (canonical + aliases) when any name is already present.
 			const isOccupied = occupied.has(attrName) || descriptor.aliases?.some((a) => occupied.has(a));
 			if (isOccupied) {
@@ -231,7 +254,8 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			}
 
 			item.detail = source;
-			item.sortText = `!${source}_${descriptor.required ? "0" : "1"}_${attrName}`;
+			const tier = attributeSortTier(descriptor, fromAny);
+			item.sortText = `!${source}_${tier}_${attrName}`;
 
 			if (descriptor.deprecated) {
 				item.tags = [vscode.CompletionItemTag.Deprecated];
@@ -248,7 +272,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 					const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 					aliasItem.insertText = new vscode.SnippetString(`${alias}=`);
 					aliasItem.detail = `${source} (alias for ${attrName})`;
-					aliasItem.sortText = `!${source}_1_${alias}`;
+					aliasItem.sortText = `!${source}_${attributeSortTier(descriptor, fromAny, true)}_${alias}`;
 					if (docs) {
 						aliasItem.documentation = docs;
 					}
