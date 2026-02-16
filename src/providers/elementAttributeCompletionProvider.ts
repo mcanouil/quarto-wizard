@@ -231,7 +231,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			}
 
 			item.detail = source;
-			item.sortText = `${source}_${descriptor.required ? "0" : "1"}_${attrName}`;
+			item.sortText = `!${source}_${descriptor.required ? "0" : "1"}_${attrName}`;
 
 			if (descriptor.deprecated) {
 				item.tags = [vscode.CompletionItemTag.Deprecated];
@@ -248,7 +248,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 					const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 					aliasItem.insertText = new vscode.SnippetString(`${alias}=`);
 					aliasItem.detail = `${source} (alias for ${attrName})`;
-					aliasItem.sortText = `${source}_1_${alias}`;
+					aliasItem.sortText = `!${source}_1_${alias}`;
 					if (docs) {
 						aliasItem.documentation = docs;
 					}
@@ -285,6 +285,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				const label = String(value);
 				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
 				item.detail = source;
+				item.sortText = `!1_${label}`;
 				if (descriptor.description) {
 					item.documentation = new vscode.MarkdownString(descriptor.description);
 				}
@@ -299,6 +300,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				}
 				const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
 				item.detail = source;
+				item.sortText = `!1_${value}`;
 				items.push(item);
 			}
 		}
@@ -315,6 +317,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			for (const label of ["true", "false"]) {
 				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
 				item.detail = source;
+				item.sortText = `!1_${label}`;
 				items.push(item);
 			}
 		}

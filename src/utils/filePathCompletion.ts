@@ -49,7 +49,7 @@ export async function buildFilePathCompletions(
 		const item = new vscode.CompletionItem(relativePath, vscode.CompletionItemKind.File);
 		item.detail = workspacePath;
 		item.filterText = relativePath;
-		item.sortText = "0_" + relativePath;
+		item.sortText = "!2_" + relativePath;
 
 		if (descriptor.description) {
 			item.documentation = new vscode.MarkdownString(descriptor.description);
@@ -75,7 +75,7 @@ export async function buildFilePathCompletions(
 			const label = `${dir}/`;
 			const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Folder);
 			item.filterText = label;
-			item.sortText = "0_" + label;
+			item.sortText = "!2_" + label;
 			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 			items.push(item);
 		}

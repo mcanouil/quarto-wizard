@@ -122,6 +122,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				item.documentation = new vscode.MarkdownString(schema.description);
 			}
 			item.detail = "Quarto shortcode";
+			item.sortText = `!1_${name}`;
 			items.push(item);
 		}
 
@@ -163,9 +164,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				item.documentation = docs;
 			}
 
-			if (descriptor.required) {
-				item.sortText = `0_${attrName}`;
-			}
+			item.sortText = descriptor.required ? `!0_${attrName}` : `!1_${attrName}`;
 
 			if (descriptor.deprecated) {
 				item.tags = [vscode.CompletionItemTag.Deprecated];
@@ -272,6 +271,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			for (const value of descriptor.enum) {
 				const label = String(value);
 				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
+				item.sortText = `!1_${label}`;
 				if (descriptor.description) {
 					item.documentation = new vscode.MarkdownString(descriptor.description);
 				}
@@ -286,6 +286,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 					continue;
 				}
 				const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
+				item.sortText = `!1_${value}`;
 				items.push(item);
 			}
 		}
@@ -296,8 +297,12 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 		}
 
 		if (descriptor.type === "boolean" && items.length === 0) {
-			items.push(new vscode.CompletionItem("true", vscode.CompletionItemKind.Value));
-			items.push(new vscode.CompletionItem("false", vscode.CompletionItemKind.Value));
+			const trueItem = new vscode.CompletionItem("true", vscode.CompletionItemKind.Value);
+			trueItem.sortText = "!1_true";
+			items.push(trueItem);
+			const falseItem = new vscode.CompletionItem("false", vscode.CompletionItemKind.Value);
+			falseItem.sortText = "!1_false";
+			items.push(falseItem);
 		}
 
 		return items;
