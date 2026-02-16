@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { minimatch } from "minimatch";
-import { getShowLogsLink, logMessage } from "../utils/log";
+import { logMessage, showMessageWithLogs } from "../utils/log";
 import type { FileSelectionResult } from "@quarto-wizard/core";
 
 /**
@@ -53,7 +53,7 @@ function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promi
 					return true;
 				} else if (result?.label !== "Yes") {
 					logMessage(config.cancelMessage, "info");
-					vscode.window.showInformationMessage(`${config.cancelMessage} ${getShowLogsLink()}.`);
+					showMessageWithLogs(config.cancelMessage, "info");
 					return false;
 				}
 			}

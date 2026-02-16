@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { QW_LOG, STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "./constants";
-import { getShowLogsLink, logMessage } from "./utils/log";
+import { logMessage, showMessageWithLogs } from "./utils/log";
 import {
 	installQuartoExtensionCommand,
 	useQuartoTemplateCommand,
@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 			context.globalState.update(STORAGE_KEY_RECENTLY_USED, []);
 			const message = "Recently installed Quarto extensions have been cleared.";
 			logMessage(message, "info");
-			vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+			showMessageWithLogs(message, "info");
 		}),
 	);
 
@@ -87,7 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 			if (token) {
 				await setManualToken(context, token);
-				vscode.window.showInformationMessage(`GitHub token stored securely. ${getShowLogsLink()}.`);
+				showMessageWithLogs("GitHub token stored securely.", "info");
 			}
 		}),
 	);
@@ -96,9 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearGitHubToken", async () => {
 			await clearManualToken(context);
-			vscode.window.showInformationMessage(
-				`Manual token cleared. Will use VSCode GitHub session or environment variables. ${getShowLogsLink()}.`,
-			);
+			showMessageWithLogs("Manual token cleared. Will use VSCode GitHub session or environment variables.", "info");
 		}),
 	);
 

@@ -71,8 +71,8 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
 
-		// Format version for installation commands
-		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
+		// Store the clean version string (without '@' prefix) for display and commands.
+		this.latestVersion = latestVersion !== "unknown" ? latestVersion : "";
 		this.workspaceFolder = workspacePath;
 
 		// Store repository for update commands

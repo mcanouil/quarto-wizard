@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { AuthConfig } from "@quarto-wizard/core";
 import { installQuartoExtension, useQuartoExtension } from "./quarto";
-import { getShowLogsLink, logMessage } from "../utils/log";
+import { logMessage, showMessageWithLogs } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { createFileSelectionCallback, createTargetSubdirCallback } from "../utils/ask";
@@ -60,7 +60,7 @@ async function handleUriAction(
 	if (confirmed === "No") {
 		const message = "Operation cancelled by the user.";
 		logMessage(message, "info");
-		vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+		showMessageWithLogs(message, "info");
 		return;
 	}
 

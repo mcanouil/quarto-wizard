@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "../constants";
-import { getShowLogsLink, logMessage } from "../utils/log";
+import { getShowLogsLink, logMessage, showMessageWithLogs } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { installQuartoExtension, useQuartoExtension } from "../utils/quarto";
 import {
@@ -66,7 +66,7 @@ async function installQuartoExtensions(
 				}
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+				showMessageWithLogs(message, "info");
 			});
 
 			const installedExtensions: string[] = [];
@@ -166,7 +166,7 @@ async function installQuartoExtensions(
 					failedExtensions.length > 1 ? "them" : "it",
 					` manually with \`quarto ${template ? "use" : "add"} <extension>\`:`,
 				].join("");
-				vscode.window.showErrorMessage(`${message} ${failedExtensions.join(", ")}. ${getShowLogsLink()}.`);
+				showMessageWithLogs(`${message} ${failedExtensions.join(", ")}.`, "error");
 			} else if (installedCount > 0) {
 				// Only show success message if at least one extension was processed
 				const message = [
@@ -176,7 +176,7 @@ async function installQuartoExtensions(
 					` ${actionPast} successfully.`,
 				].join("");
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+				showMessageWithLogs(message, "info");
 			}
 			// If installedCount === 0 and failedExtensions.length === 0, the operation was cancelled - no message needed
 			completed = true;
@@ -311,7 +311,7 @@ async function installFromSource(
 			token.onCancellationRequested(() => {
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+				showMessageWithLogs(message, "info");
 			});
 
 			// Check if already cancelled before starting
@@ -350,13 +350,13 @@ async function installFromSource(
 			if (result === true) {
 				const message = template ? "Template used successfully." : "Extension installed successfully.";
 				logMessage(message, "info");
-				vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+				showMessageWithLogs(message, "info");
 			} else if (result === false) {
 				// Only show error message for actual failures, not cancellations
 				const message = template
 					? `Failed to use template from ${source}.`
 					: `Failed to install extension from ${source}.`;
-				vscode.window.showErrorMessage(`${message} ${getShowLogsLink()}.`);
+				showMessageWithLogs(message, "error");
 			}
 			// result === null means cancelled by user, no message needed
 		},

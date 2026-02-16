@@ -6,7 +6,7 @@ import {
 	STORAGE_KEY_RECENTLY_INSTALLED,
 	STORAGE_KEY_RECENTLY_USED,
 } from "../constants";
-import { logMessage, logMessageDebounced, getShowLogsLink } from "./log";
+import { logMessage, logMessageDebounced, showMessageWithLogs } from "./log";
 import { generateHashKey } from "./hash";
 
 /**
@@ -145,5 +145,5 @@ export async function clearExtensionsCache(context: vscode.ExtensionContext): Pr
 
 	const message = "Extension cache and recent lists cleared successfully.";
 	logMessage(message, "info");
-	vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+	showMessageWithLogs(message, "info");
 }
