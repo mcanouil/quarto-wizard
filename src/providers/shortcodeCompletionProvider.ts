@@ -661,5 +661,5 @@ export function registerShortcodeCompletionProvider(context: vscode.ExtensionCon
 	const hoverDisposable = vscode.languages.registerHoverProvider(selector, hoverProvider);
 	context.subscriptions.push(hoverDisposable);
 
-	logMessage("Shortcode completion and hover providers registered.", "info");
+	logMessage("Shortcode completion and hover providers registered.", "debug");
 }

@@ -967,5 +967,5 @@ export function registerInlineAttributeDiagnostics(context: vscode.ExtensionCont
 	);
 	context.subscriptions.push(codeActionProvider);
 
-	logMessage("Inline attribute diagnostics provider registered.", "info");
+	logMessage("Inline attribute diagnostics provider registered.", "debug");
 }

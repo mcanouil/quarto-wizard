@@ -85,5 +85,5 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	context.subscriptions.push(schemaWatcher.onDidDelete(invalidateAndRevalidate));
 	context.subscriptions.push(schemaWatcher);
 
-	logMessage("YAML completion, hover, and diagnostics providers registered.", "info");
+	logMessage("YAML completion, hover, and diagnostics providers registered.", "debug");
 }

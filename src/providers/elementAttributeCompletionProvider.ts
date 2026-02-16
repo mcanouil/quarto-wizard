@@ -468,5 +468,5 @@ export function registerElementAttributeProviders(context: vscode.ExtensionConte
 	const hoverDisposable = vscode.languages.registerHoverProvider(selector, hoverProvider);
 	context.subscriptions.push(hoverDisposable);
 
-	logMessage("Element attribute completion and hover providers registered.", "info");
+	logMessage("Element attribute completion and hover providers registered.", "debug");
 }
