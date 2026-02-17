@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
-import { normaliseVersion, SchemaCache } from "@quarto-wizard/core";
-import { logMessage, getShowLogsLink } from "../utils/log";
+import { normaliseVersion } from "@quarto-wizard/core";
+import type { SchemaCache } from "@quarto-wizard/core";
+import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
@@ -21,14 +22,13 @@ export class ExtensionsInstalled {
 	 *
 	 * @param context - The extension context.
 	 */
-	private initialise(context: vscode.ExtensionContext) {
+	private initialise(context: vscode.ExtensionContext, schemaCache: SchemaCache) {
 		const workspaceFolders = vscode.workspace.workspaceFolders || [];
 		if (workspaceFolders.length === 0) {
 			logMessage("No workspace folders open. Extensions view not initialised.", "debug");
 			return;
 		}
 
-		const schemaCache = new SchemaCache();
 		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders, schemaCache);
 		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
@@ -48,9 +48,9 @@ export class ExtensionsInstalled {
 
 		// Watch for changes to _extensions directories for real-time tree view updates
 		const extensionWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_extension.{yml,yaml}");
-		extensionWatcher.onDidCreate(() => this.treeDataProvider.refresh());
-		extensionWatcher.onDidDelete(() => this.treeDataProvider.refresh());
-		extensionWatcher.onDidChange(() => this.treeDataProvider.refresh());
+		context.subscriptions.push(extensionWatcher.onDidCreate(() => this.treeDataProvider.refresh()));
+		context.subscriptions.push(extensionWatcher.onDidDelete(() => this.treeDataProvider.refresh()));
+		context.subscriptions.push(extensionWatcher.onDidChange(() => this.treeDataProvider.refresh()));
 		context.subscriptions.push(extensionWatcher);
 
 		// Watch for changes to schema files for real-time tree view updates
@@ -59,9 +59,9 @@ export class ExtensionsInstalled {
 			schemaCache.invalidate(path.dirname(uri.fsPath));
 			this.treeDataProvider.refresh();
 		};
-		schemaWatcher.onDidCreate(invalidateSchemaAndRefresh);
-		schemaWatcher.onDidDelete(invalidateSchemaAndRefresh);
-		schemaWatcher.onDidChange(invalidateSchemaAndRefresh);
+		context.subscriptions.push(schemaWatcher.onDidCreate(invalidateSchemaAndRefresh));
+		context.subscriptions.push(schemaWatcher.onDidDelete(invalidateSchemaAndRefresh));
+		context.subscriptions.push(schemaWatcher.onDidChange(invalidateSchemaAndRefresh));
 		context.subscriptions.push(schemaWatcher);
 
 		context.subscriptions.push(view);
@@ -103,15 +103,16 @@ export class ExtensionsInstalled {
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
-				const latestVersion = item.latestVersion?.replace(/^@/, "");
+				const latestVersion = item.latestVersion;
 				const latestSemver = latestVersion ? (normaliseVersion(latestVersion) ?? latestVersion) : undefined;
 				const auth = await getAuthConfig(context);
 				// result is true (success), false (failure), or null (cancelled)
 				const result = await withProgressNotification(
 					`Updating "${item.repository ?? item.label}" to ${latestSemver} ...`,
 					async (token) => {
+						const versionSuffix = latestVersion ? `@${latestVersion}` : "";
 						return installQuartoExtension(
-							`${item.repository ?? item.label}${item.latestVersion}`,
+							`${item.repository ?? item.label}${versionSuffix}`,
 							item.workspaceFolder,
 							auth,
 							undefined,
@@ -126,13 +127,12 @@ export class ExtensionsInstalled {
 				} else if (result === false) {
 					// Only show error for actual failures, not cancellations
 					if (!item.repository) {
-						vscode.window.showErrorMessage(
-							`Failed to update extension "${item.label}". ` +
-								`Source not found in extension manifest. ` +
-								`${getShowLogsLink()}.`,
+						showMessageWithLogs(
+							`Failed to update extension "${item.label}". Source not found in extension manifest.`,
+							"error",
 						);
 					} else {
-						vscode.window.showErrorMessage(`Failed to update extension "${item.label}". ${getShowLogsLink()}.`);
+						showMessageWithLogs(`Failed to update extension "${item.label}".`, "error");
 					}
 				}
 				// result === null means cancelled by user, no message needed
@@ -152,7 +152,7 @@ export class ExtensionsInstalled {
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else {
-					vscode.window.showErrorMessage(`Failed to remove extension "${item.label}". ${getShowLogsLink()}.`);
+					showMessageWithLogs(`Failed to remove extension "${item.label}".`, "error");
 				}
 			}),
 		);
@@ -167,9 +167,7 @@ export class ExtensionsInstalled {
 					// Early return if resourceUri is not available
 					if (!item.resourceUri) {
 						logMessage(`Cannot reveal "${item.label}": resource URI not available.`, "warn");
-						vscode.window.showWarningMessage(
-							`Cannot reveal extension "${item.label}" in Explorer. ${getShowLogsLink()}.`,
-						);
+						showMessageWithLogs(`Cannot reveal extension "${item.label}" in Explorer.`, "warning");
 						return;
 					}
 
@@ -178,9 +176,7 @@ export class ExtensionsInstalled {
 						await vscode.workspace.fs.stat(item.resourceUri);
 					} catch {
 						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}.`, "warn");
-						vscode.window.showWarningMessage(
-							`Extension directory for "${item.label}" not found. ${getShowLogsLink()}.`,
-						);
+						showMessageWithLogs(`Extension directory for "${item.label}" not found.`, "warning");
 						return;
 					}
 
@@ -212,9 +208,7 @@ export class ExtensionsInstalled {
 					} catch (error) {
 						const errorMessage = error instanceof Error ? error.message : String(error);
 						logMessage(`Failed to reveal "${item.label}" in Explorer: ${errorMessage}`, "error");
-						vscode.window.showErrorMessage(
-							`Failed to reveal extension "${item.label}" in Explorer. ${getShowLogsLink()}.`,
-						);
+						showMessageWithLogs(`Failed to reveal extension "${item.label}" in Explorer.`, "error");
 					}
 				},
 			),
@@ -280,7 +274,7 @@ export class ExtensionsInstalled {
 						`Successfully updated ${successCount} extension(s)${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
 					);
 				} else {
-					vscode.window.showErrorMessage(`Failed to update extensions. ${getShowLogsLink()}.`);
+					showMessageWithLogs("Failed to update extensions.", "error");
 				}
 
 				this.treeDataProvider.refreshAfterAction(context, view);
@@ -336,7 +330,7 @@ export class ExtensionsInstalled {
 							`Successfully removed ${result.successCount} extension(s)${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
 						);
 					} else {
-						vscode.window.showErrorMessage(`Failed to remove extensions. ${getShowLogsLink()}.`);
+						showMessageWithLogs("Failed to remove extensions.", "error");
 					}
 
 					this.treeDataProvider.refreshAfterAction(context, view);
@@ -345,7 +339,7 @@ export class ExtensionsInstalled {
 		);
 	}
 
-	constructor(context: vscode.ExtensionContext) {
-		this.initialise(context);
+	constructor(context: vscode.ExtensionContext, schemaCache: SchemaCache) {
+		this.initialise(context, schemaCache);
 	}
 }

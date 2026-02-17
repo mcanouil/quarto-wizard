@@ -7,13 +7,10 @@ import {
 	normaliseFieldDescriptorMap,
 	normaliseShortcodeSchema,
 	normaliseSchema,
+	typeIncludes,
+	formatType,
 } from "../../src/types/schema.js";
-import {
-	findSchemaFile,
-	parseSchemaContent,
-	parseSchemaFile,
-	readSchema,
-} from "../../src/filesystem/schema.js";
+import { findSchemaFile, parseSchemaContent, parseSchemaFile, readSchema } from "../../src/filesystem/schema.js";
 import { SchemaCache } from "../../src/filesystem/schema-cache.js";
 import { SchemaError } from "../../src/errors.js";
 
@@ -85,7 +82,7 @@ describe("normaliseFieldDescriptor", () => {
 		expect(result.default).toBe("left");
 	});
 
-	it("handles aliases and deprecated fields", () => {
+	it("handles aliases and deprecated string", () => {
 		const result = normaliseFieldDescriptor({
 			type: "string",
 			aliases: ["old-name"],
@@ -94,6 +91,32 @@ describe("normaliseFieldDescriptor", () => {
 
 		expect(result.aliases).toEqual(["old-name"]);
 		expect(result.deprecated).toBe("Use new-field instead");
+	});
+
+	it("handles deprecated boolean", () => {
+		const result = normaliseFieldDescriptor({
+			type: "string",
+			deprecated: true,
+		});
+
+		expect(result.deprecated).toBe(true);
+	});
+
+	it("normalises deprecated object with replace-with", () => {
+		const result = normaliseFieldDescriptor({
+			type: "string",
+			deprecated: {
+				since: "1.2",
+				message: "Use colour instead.",
+				"replace-with": "colour",
+			},
+		});
+
+		expect(typeof result.deprecated).toBe("object");
+		const spec = result.deprecated as { since: string; message: string; replaceWith: string };
+		expect(spec.since).toBe("1.2");
+		expect(spec.message).toBe("Use colour instead.");
+		expect(spec.replaceWith).toBe("colour");
 	});
 
 	it("handles completion spec", () => {
@@ -108,6 +131,16 @@ describe("normaliseFieldDescriptor", () => {
 		expect(result.completion).toBeDefined();
 		expect(result.completion!.type).toBe("file");
 		expect(result.completion!.extensions).toEqual([".lua"]);
+	});
+
+	it("preserves type when it is an array of strings", () => {
+		const result = normaliseFieldDescriptor({
+			type: ["number", "boolean"],
+			default: 100,
+		});
+
+		expect(result.type).toEqual(["number", "boolean"]);
+		expect(result.default).toBe(100);
 	});
 });
 
@@ -163,6 +196,25 @@ describe("normaliseShortcodeSchema", () => {
 		expect(result.description).toBeUndefined();
 		expect(result.arguments).toBeUndefined();
 		expect(result.attributes).toBeUndefined();
+	});
+
+	it("preserves file-path completion spec on arguments", () => {
+		const result = normaliseShortcodeSchema({
+			description: "Include external content",
+			arguments: [
+				{
+					name: "file",
+					type: "string",
+					required: true,
+					completion: { type: "file", extensions: [".md", ".qmd"] },
+				},
+			],
+		});
+
+		expect(result.arguments).toHaveLength(1);
+		expect(result.arguments![0].completion).toBeDefined();
+		expect(result.arguments![0].completion!.type).toBe("file");
+		expect(result.arguments![0].completion!.extensions).toEqual([".md", ".qmd"]);
 	});
 });
 
@@ -321,6 +373,33 @@ formats:
 		expect(schema.formats!["pdf"]["margin"].default).toBe("1in");
 	});
 
+	it("parses shortcode argument with file-path completion spec", () => {
+		const yamlContent = `
+shortcodes:
+  external:
+    description: Include external content
+    arguments:
+      - name: file
+        type: string
+        required: true
+        completion:
+          type: file
+          extensions:
+            - .md
+            - .qmd
+`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.shortcodes).toBeDefined();
+		expect(schema.shortcodes!["external"].arguments).toHaveLength(1);
+		const arg = schema.shortcodes!["external"].arguments![0];
+		expect(arg.name).toBe("file");
+		expect(arg.completion).toBeDefined();
+		expect(arg.completion!.type).toBe("file");
+		expect(arg.completion!.extensions).toEqual([".md", ".qmd"]);
+	});
+
 	it("throws SchemaError on empty content", () => {
 		expect(() => parseSchemaContent("")).toThrow(SchemaError);
 	});
@@ -339,6 +418,29 @@ formats:
 
 	it("includes source path in error for empty content", () => {
 		expect(() => parseSchemaContent("", "/path/to/schema.yml")).toThrow(/schema/i);
+	});
+
+	it("parses deprecated object form with replace-with", () => {
+		const yamlContent = `
+options:
+  old_colour:
+    type: string
+    deprecated:
+      since: "1.2"
+      message: "Use colour instead."
+      replace-with: colour
+  colour:
+    type: string
+`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		const deprecated = schema.options!["old_colour"].deprecated;
+		expect(typeof deprecated).toBe("object");
+		const spec = deprecated as { since: string; message: string; replaceWith: string };
+		expect(spec.since).toBe("1.2");
+		expect(spec.message).toBe("Use colour instead.");
+		expect(spec.replaceWith).toBe("colour");
 	});
 
 	it("handles minimal schema with only one section", () => {
@@ -387,6 +489,57 @@ options:
 		expect(schema.options!["config"].properties).toBeDefined();
 		expect(schema.options!["config"].properties!["name"].required).toBe(true);
 		expect(schema.options!["config"].properties!["nested"].properties!["level"].type).toBe("number");
+	});
+
+	it("round-trips union type from YAML", () => {
+		const yamlContent = `
+options:
+  fadeInAndOut:
+    type: [number, boolean]
+    default: 100
+    description: "Duration in ms. Set to false to disable."
+`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.options!["fadeInAndOut"].type).toEqual(["number", "boolean"]);
+		expect(schema.options!["fadeInAndOut"].default).toBe(100);
+	});
+});
+
+describe("typeIncludes", () => {
+	it("returns true for matching single string", () => {
+		expect(typeIncludes("boolean", "boolean")).toBe(true);
+	});
+
+	it("returns false for non-matching single string", () => {
+		expect(typeIncludes("string", "boolean")).toBe(false);
+	});
+
+	it("returns true when array contains the type", () => {
+		expect(typeIncludes(["number", "boolean"], "boolean")).toBe(true);
+	});
+
+	it("returns false when array does not contain the type", () => {
+		expect(typeIncludes(["number", "boolean"], "string")).toBe(false);
+	});
+
+	it("returns false for undefined", () => {
+		expect(typeIncludes(undefined, "boolean")).toBe(false);
+	});
+});
+
+describe("formatType", () => {
+	it("returns single type name unchanged", () => {
+		expect(formatType("number")).toBe("number");
+	});
+
+	it("joins array types with pipe separator", () => {
+		expect(formatType(["number", "boolean"])).toBe("number | boolean");
+	});
+
+	it("returns empty string for undefined", () => {
+		expect(formatType(undefined)).toBe("");
 	});
 });
 
@@ -439,10 +592,7 @@ describe("filesystem schema functions", () => {
 	describe("parseSchemaFile", () => {
 		it("parses a schema file", () => {
 			const schemaPath = path.join(tempDir, "_schema.yml");
-			fs.writeFileSync(
-				schemaPath,
-				"options:\n  enabled:\n    type: boolean\n    default: true\n",
-			);
+			fs.writeFileSync(schemaPath, "options:\n  enabled:\n    type: boolean\n    default: true\n");
 
 			const schema = parseSchemaFile(schemaPath);
 
@@ -467,10 +617,7 @@ describe("filesystem schema functions", () => {
 
 	describe("readSchema", () => {
 		it("reads schema from directory", () => {
-			fs.writeFileSync(
-				path.join(tempDir, "_schema.yml"),
-				"options:\n  theme:\n    type: string\n",
-			);
+			fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 			const result = readSchema(tempDir);
 
@@ -530,10 +677,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("loads and caches schema on first access", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		const result = cache.get(tempDir);
 
@@ -543,10 +687,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("returns cached schema on subsequent access", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		const first = cache.get(tempDir);
 		const second = cache.get(tempDir);
@@ -555,10 +696,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("invalidates a specific entry", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		cache.get(tempDir);
 		expect(cache.has(tempDir)).toBe(true);
@@ -570,41 +708,29 @@ describe("SchemaCache", () => {
 	it("invalidates all entries", () => {
 		const tempDir2 = fs.mkdtempSync(path.join(os.tmpdir(), "schema-cache-test2-"));
 		try {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  a:\n    type: string\n",
-		);
-		fs.writeFileSync(
-			path.join(tempDir2, "_schema.yml"),
-			"options:\n  b:\n    type: string\n",
-		);
+			fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  a:\n    type: string\n");
+			fs.writeFileSync(path.join(tempDir2, "_schema.yml"), "options:\n  b:\n    type: string\n");
 
-		cache.get(tempDir);
-		cache.get(tempDir2);
-		expect(cache.has(tempDir)).toBe(true);
-		expect(cache.has(tempDir2)).toBe(true);
+			cache.get(tempDir);
+			cache.get(tempDir2);
+			expect(cache.has(tempDir)).toBe(true);
+			expect(cache.has(tempDir2)).toBe(true);
 
-		cache.invalidateAll();
-		expect(cache.has(tempDir)).toBe(false);
-		expect(cache.has(tempDir2)).toBe(false);
+			cache.invalidateAll();
+			expect(cache.has(tempDir)).toBe(false);
+			expect(cache.has(tempDir2)).toBe(false);
 		} finally {
 			fs.rmSync(tempDir2, { recursive: true, force: true });
 		}
 	});
 
 	it("reloads schema after invalidation", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  theme:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  theme:\n    type: string\n");
 
 		const first = cache.get(tempDir);
 		cache.invalidate(tempDir);
 
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  colour:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  colour:\n    type: string\n");
 
 		const second = cache.get(tempDir);
 
@@ -614,10 +740,7 @@ describe("SchemaCache", () => {
 	});
 
 	it("reports has as false before first access", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.yml"),
-			"options:\n  test:\n    type: string\n",
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  test:\n    type: string\n");
 
 		expect(cache.has(tempDir)).toBe(false);
 

@@ -5,9 +5,19 @@
 ### New Features
 
 - feat: add `Quarto Wizard: Use Brand` command to download and apply a Quarto brand to the project's `_brand/` directory, supporting GitHub, URL, and local sources.
+- feat: add `_schema.yml` support for Quarto extensions.
+  Extensions can ship a `_schema.yml` file that declares options, shortcode parameters, format keys, and element attributes.
+  Quarto Wizard reads the schema to provide autocompletion, hover documentation, and diagnostics in YAML configuration files.
+- feat: add shortcode completion provider.
+  Shortcode names, positional arguments, and named attributes defined in `_schema.yml` are suggested inside `{{< >}}` delimiters.
+- feat: display schema information in the installed extensions tree view, showing option counts and types per extension.
+- feat: add file-path completion for shortcode arguments, YAML values, and element attributes.
+  When a `_schema.yml` declares `completion.type: file` (with optional `extensions` filter), the editor suggests workspace files matching the specified extensions.
 
 ### Bug Fixes
 
+- fix: enable shortcode positional argument completion by correctly setting the cursor context to "argument" when no named attributes have been typed.
+- fix: prevent YAML completion from suggesting keys that already exist at the current level, avoiding duplicate YAML keys.
 - fix: detect updates for extensions installed from commits (no GitHub releases) by delegating to the core library's update detection.
 - fix: clear tree view badge when no updates are available instead of showing "0 updates".
 - fix: hide "Update" button for extensions with unknown versions in the registry.
@@ -17,6 +27,9 @@
 - fix: remove unnecessary GitHub sign-in prompt that appeared before every command, even for public registry operations.
 - fix: resolve download hanging when file stream errors during backpressure (e.g., disk full).
 - fix: show update indicators immediately after refresh instead of requiring an extra refresh.
+- fix: store file system watcher event disposables to prevent resource leaks.
+- fix: share a single `SchemaCache` instance across all providers instead of creating separate caches.
+- fix: support deprecated object form (`since`, `message`, `replace-with`) in schema types and diagnostics.
 
 ### Refactoring
 

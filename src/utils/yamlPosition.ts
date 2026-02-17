@@ -75,10 +75,19 @@ interface IndentFrame {
  * @param lines - All lines of the document.
  * @param lineIndex - Zero-based line number of the cursor.
  * @param languageId - The VS Code language ID.
+ * @param cursorIndent - When provided and the target line is blank, trims
+ *   the stack so only frames with indent strictly less than this value
+ *   remain.  This makes the path match the cursor's indentation level
+ *   rather than the deepest ancestor.
  * @returns The key path as a string array, or an empty array when the
  *          position is outside a YAML region.
  */
-export function getYamlKeyPath(lines: string[], lineIndex: number, languageId: string): string[] {
+export function getYamlKeyPath(
+	lines: string[],
+	lineIndex: number,
+	languageId: string,
+	cursorIndent?: number,
+): string[] {
 	if (!isInYamlRegion(lines, lineIndex, languageId)) {
 		return [];
 	}
@@ -131,5 +140,127 @@ export function getYamlKeyPath(lines: string[], lineIndex: number, languageId: s
 		}
 	}
 
+	// When cursorIndent is provided and the target line is blank, trim the
+	// stack so the path reflects the cursor's indentation level.
+	if (cursorIndent !== undefined) {
+		const targetLine = lines[lineIndex];
+		if (targetLine.trim() === "") {
+			while (stack.length > 0 && stack[stack.length - 1].indent >= cursorIndent) {
+				stack.pop();
+			}
+		}
+	}
+
 	return stack.map((frame) => frame.key);
+}
+
+/**
+ * Collect the set of existing sibling keys at a given parent path.
+ *
+ * For example, given the YAML:
+ * ```yaml
+ * extensions:
+ *   modal:
+ *     size: large
+ *     colour: red
+ * ```
+ * Calling with `parentPath = ["extensions", "modal"]` returns `{"size", "colour"}`.
+ * Calling with `parentPath = []` returns root-level keys.
+ *
+ * @param lines - All lines of the document.
+ * @param parentPath - The key path to the parent node. Empty array for root-level keys.
+ * @param languageId - The VS Code language ID (e.g. "yaml", "quarto").
+ * @returns The set of key names that already exist at the target level.
+ */
+export function getExistingKeysAtPath(lines: string[], parentPath: string[], languageId: string): Set<string> {
+	const result = new Set<string>();
+
+	// Determine the range of YAML lines to scan.
+	let startLine = 0;
+	if (languageId !== "yaml") {
+		// Skip past the opening --- delimiter for .qmd files.
+		for (let i = 0; i < lines.length; i++) {
+			if (lines[i].trim() === "---") {
+				startLine = i + 1;
+				break;
+			}
+		}
+	}
+
+	// Find the YAML end boundary for .qmd files.
+	let endLine = lines.length;
+	if (languageId !== "yaml") {
+		for (let i = startLine; i < lines.length; i++) {
+			if (lines[i].trim() === "---") {
+				endLine = i;
+				break;
+			}
+		}
+	}
+
+	// Walk lines to locate the parent path.
+	let targetLine = startLine;
+	let targetIndent = 0;
+
+	for (const segment of parentPath) {
+		let found = false;
+		for (let i = targetLine; i < endLine; i++) {
+			const trimmed = lines[i].trim();
+			if (trimmed === "" || trimmed.startsWith("#")) {
+				continue;
+			}
+
+			const indent = getYamlIndentLevel(lines[i]);
+
+			// Left the parent scope entirely.
+			if (indent < targetIndent) {
+				break;
+			}
+
+			// Skip deeper lines (children of siblings).
+			if (indent > targetIndent) {
+				continue;
+			}
+
+			const keyMatch = /^\s*([^\s:][^:]*?)\s*:/.exec(lines[i]);
+			if (keyMatch && keyMatch[1] === segment) {
+				// Found this segment; children are at indent + 2.
+				targetLine = i + 1;
+				targetIndent = indent + 2;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return result;
+		}
+	}
+
+	// Collect direct children at targetIndent.
+	for (let i = targetLine; i < endLine; i++) {
+		const trimmed = lines[i].trim();
+		if (trimmed === "" || trimmed.startsWith("#")) {
+			continue;
+		}
+
+		const indent = getYamlIndentLevel(lines[i]);
+
+		// A line at shallower indent means we left the parent scope.
+		if (indent < targetIndent) {
+			break;
+		}
+
+		// Skip deeper lines (grandchildren).
+		if (indent > targetIndent) {
+			continue;
+		}
+
+		// Extract the key at the target indentation level.
+		const keyMatch = /^\s*([^\s:][^:]*?)\s*:/.exec(lines[i]);
+		if (keyMatch) {
+			result.add(keyMatch[1]);
+		}
+	}
+
+	return result;
 }

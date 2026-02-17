@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
-import { SchemaCache, discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
-import type { ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, formatExtensionId, formatType } from "@quarto-wizard/core";
+import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
@@ -188,7 +188,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				const formatFields: Record<string, FieldDescriptor> = {};
 				for (const schema of schemaMap.values()) {
 					if (schema.formats && schema.formats[formatName]) {
-						Object.assign(formatFields, schema.formats[formatName]);
+						for (const [key, descriptor] of Object.entries(schema.formats[formatName])) {
+							if (!(key in formatFields)) {
+								formatFields[key] = descriptor;
+							}
+						}
 					}
 				}
 
@@ -254,10 +258,24 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 			// Deprecated check.
 			if (descriptor.deprecated) {
-				const message =
-					typeof descriptor.deprecated === "string"
-						? `Option "${key}" is deprecated: ${descriptor.deprecated}.`
-						: `Option "${key}" is deprecated.`;
+				let message: string;
+				if (typeof descriptor.deprecated === "string") {
+					message = `Option "${key}" is deprecated: ${descriptor.deprecated}.`;
+				} else if (typeof descriptor.deprecated === "object") {
+					const spec = descriptor.deprecated;
+					const parts = [`Option "${key}" is deprecated`];
+					if (spec.since) {
+						parts[0] += ` since ${spec.since}`;
+					}
+					if (spec.message) {
+						parts.push(spec.message);
+					} else if (spec.replaceWith) {
+						parts.push(`Use "${spec.replaceWith}" instead.`);
+					}
+					message = parts.join(". ") + (parts[parts.length - 1].endsWith(".") ? "" : ".");
+				} else {
+					message = `Option "${key}" is deprecated.`;
+				}
 				diagnostics.push(new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Warning));
 			}
 
@@ -265,10 +283,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			if (descriptor.type && value !== null && value !== undefined) {
 				const typeError = this.checkType(value, descriptor.type);
 				if (typeError) {
+					const valueStr = typeof value === "string" ? `"${value}"` : String(value);
 					diagnostics.push(
 						new vscode.Diagnostic(
 							range,
-							`Option "${key}": expected type "${descriptor.type}", got ${typeError}.`,
+							`Option "${key}": expected type "${formatType(descriptor.type)}", got ${typeError} ${valueStr}.`,
 							vscode.DiagnosticSeverity.Error,
 						),
 					);
@@ -315,8 +334,8 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 
-			// Pattern check.
-			if (descriptor.pattern && typeof value === "string") {
+			// Pattern check (skip patterns exceeding 1024 chars to mitigate ReDoS risk).
+			if (descriptor.pattern && typeof value === "string" && descriptor.pattern.length <= 1024) {
 				try {
 					const regex = descriptor.patternExact
 						? new RegExp(`^${descriptor.pattern}$`)
@@ -386,7 +405,26 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		return undefined;
 	}
 
-	private checkType(value: unknown, expectedType: string): string | undefined {
+	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object"]);
+
+	private checkType(value: unknown, expectedType: string | string[]): string | undefined {
+		if (Array.isArray(expectedType)) {
+			const knownTypes = expectedType.filter((t) => YamlDiagnosticsProvider.KNOWN_TYPES.has(t));
+			if (knownTypes.length === 0) {
+				return undefined;
+			}
+			for (const t of knownTypes) {
+				if (this.checkType(value, t) === undefined) {
+					return undefined;
+				}
+			}
+			return Array.isArray(value) ? "array" : typeof value;
+		}
+
+		if (!YamlDiagnosticsProvider.KNOWN_TYPES.has(expectedType)) {
+			return undefined;
+		}
+
 		switch (expectedType) {
 			case "string":
 				if (typeof value !== "string") {

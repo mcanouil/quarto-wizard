@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/core";
+import { formatType } from "@quarto-wizard/core";
 import { getExtensionRepository, type InstalledExtension } from "../utils/extensions";
 
 /**
@@ -71,8 +72,8 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
 
-		// Format version for installation commands
-		this.latestVersion = latestVersion !== "unknown" ? `@${latestVersion}` : "";
+		// Store the clean version string (without '@' prefix) for display and commands.
+		this.latestVersion = latestVersion !== "unknown" ? latestVersion : "";
 		this.workspaceFolder = workspacePath;
 
 		// Store repository for update commands
@@ -145,7 +146,7 @@ export class SchemaFieldTreeItem extends vscode.TreeItem {
 
 		const parts: string[] = [];
 		if (field.type) {
-			parts.push(field.type);
+			parts.push(formatType(field.type));
 		}
 		if (field.required) {
 			parts.push("required");

@@ -34,6 +34,7 @@ export { type HttpHeader, type AuthConfig, type AuthConfigOptions, createAuthCon
 
 export {
 	type CompletionSpec,
+	type DeprecatedSpec,
 	type FieldDescriptor,
 	type ShortcodeSchema,
 	type ExtensionSchema,
@@ -42,4 +43,6 @@ export {
 	normaliseFieldDescriptorMap,
 	normaliseShortcodeSchema,
 	normaliseSchema,
+	typeIncludes,
+	formatType,
 } from "./schema.js";

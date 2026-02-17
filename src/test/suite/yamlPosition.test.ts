@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { getYamlKeyPath, isInYamlRegion, getYamlIndentLevel } from "../../utils/yamlPosition";
+import { getYamlKeyPath, isInYamlRegion, getYamlIndentLevel, getExistingKeysAtPath } from "../../utils/yamlPosition";
 
 suite("YAML Position Utils Test Suite", () => {
 	suite("getYamlIndentLevel", () => {
@@ -132,6 +132,94 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.deepStrictEqual(getYamlKeyPath(lines, 0, "yaml"), ["title"]);
 			assert.deepStrictEqual(getYamlKeyPath(lines, 1, "yaml"), ["author"]);
 			assert.deepStrictEqual(getYamlKeyPath(lines, 2, "yaml"), ["format"]);
+		});
+
+		suite("cursorIndent parameter", () => {
+			test("Should trim path to match cursor indent 4 (child of iconify)", () => {
+				const lines = ["extensions:", "  iconify:", "    "];
+				const result = getYamlKeyPath(lines, 2, "yaml", 4);
+				assert.deepStrictEqual(result, ["extensions", "iconify"]);
+			});
+
+			test("Should trim path to match cursor indent 2 (sibling of iconify)", () => {
+				const lines = ["extensions:", "  iconify:", "  "];
+				const result = getYamlKeyPath(lines, 2, "yaml", 2);
+				assert.deepStrictEqual(result, ["extensions"]);
+			});
+
+			test("Should trim path to match cursor indent 0 (root level)", () => {
+				const lines = ["extensions:", "  iconify:", ""];
+				const result = getYamlKeyPath(lines, 2, "yaml", 0);
+				assert.deepStrictEqual(result, []);
+			});
+
+			test("Should not affect non-blank lines", () => {
+				const lines = ["extensions:", "  iconify:", "    size: large"];
+				const result = getYamlKeyPath(lines, 2, "yaml", 0);
+				assert.deepStrictEqual(result, ["extensions", "iconify", "size"]);
+			});
+
+			test("Should behave normally without cursorIndent", () => {
+				const lines = ["extensions:", "  iconify:", "    "];
+				const result = getYamlKeyPath(lines, 2, "yaml");
+				assert.deepStrictEqual(result, ["extensions", "iconify"]);
+			});
+		});
+	});
+
+	suite("getExistingKeysAtPath", () => {
+		test("Should return root-level keys from a plain YAML document", () => {
+			const lines = ["title: Test", "author: Me", "format: html"];
+			const result = getExistingKeysAtPath(lines, [], "yaml");
+			assert.deepStrictEqual(result, new Set(["title", "author", "format"]));
+		});
+
+		test("Should return child keys under a specific parent path", () => {
+			const lines = ["extensions:", "  modal:", "    size: large", "    colour: red"];
+			const result = getExistingKeysAtPath(lines, ["extensions", "modal"], "yaml");
+			assert.deepStrictEqual(result, new Set(["size", "colour"]));
+		});
+
+		test("Should return children at the correct nesting depth (skips grandchildren)", () => {
+			const lines = ["extensions:", "  modal:", "    style:", "      background: blue", "    size: large"];
+			const result = getExistingKeysAtPath(lines, ["extensions", "modal"], "yaml");
+			assert.deepStrictEqual(result, new Set(["style", "size"]));
+		});
+
+		test("Should handle .qmd front matter (skips --- delimiter)", () => {
+			const lines = ["---", "title: Test", "author: Me", "---", "Body text"];
+			const result = getExistingKeysAtPath(lines, [], "quarto");
+			assert.deepStrictEqual(result, new Set(["title", "author"]));
+		});
+
+		test("Should return empty set when the parent path does not exist", () => {
+			const lines = ["extensions:", "  modal:", "    size: large"];
+			const result = getExistingKeysAtPath(lines, ["extensions", "nonexistent"], "yaml");
+			assert.deepStrictEqual(result, new Set());
+		});
+
+		test("Should ignore comments and blank lines", () => {
+			const lines = ["extensions:", "  # A comment", "", "  modal:", "  iconify:"];
+			const result = getExistingKeysAtPath(lines, ["extensions"], "yaml");
+			assert.deepStrictEqual(result, new Set(["modal", "iconify"]));
+		});
+
+		test("Should return first-level children under extensions:", () => {
+			const lines = ["extensions:", "  modal:", "    size: large", "  iconify:", "    version: 2"];
+			const result = getExistingKeysAtPath(lines, ["extensions"], "yaml");
+			assert.deepStrictEqual(result, new Set(["modal", "iconify"]));
+		});
+
+		test("Should stop collecting at a shallower indent", () => {
+			const lines = ["extensions:", "  modal:", "    size: large", "format:", "  html:"];
+			const result = getExistingKeysAtPath(lines, ["extensions", "modal"], "yaml");
+			assert.deepStrictEqual(result, new Set(["size"]));
+		});
+
+		test("Should find a segment that appears after other siblings at the same level", () => {
+			const lines = ["extensions:", "  other:", "    x: 1", "  another:", "    y: 2", "  modal:", "    size: large"];
+			const result = getExistingKeysAtPath(lines, ["extensions", "modal"], "yaml");
+			assert.deepStrictEqual(result, new Set(["size"]));
 		});
 	});
 });

@@ -28,12 +28,25 @@ export interface CompletionSpec {
 }
 
 /**
+ * Structured deprecation specification for a field.
+ * Provides version, message, and optional auto-forwarding to a replacement key.
+ */
+export interface DeprecatedSpec {
+	/** Version since which the field is deprecated. */
+	since?: string;
+	/** Human-readable deprecation message. */
+	message?: string;
+	/** Replacement key name to auto-forward the value to. */
+	replaceWith?: string;
+}
+
+/**
  * Descriptor for a single field in an extension schema.
  * Describes the type, constraints, and metadata for a configuration option.
  */
 export interface FieldDescriptor {
-	/** Data type of the field (e.g., "string", "number", "boolean", "object", "array"). */
-	type?: string;
+	/** Data type of the field. A single type name or an array of type names for union types. */
+	type?: string | string[];
 	/** Whether the field is required. */
 	required?: boolean;
 	/** Default value for the field. */
@@ -58,8 +71,8 @@ export interface FieldDescriptor {
 	maxLength?: number;
 	/** Alternative names for the field. */
 	aliases?: string[];
-	/** Whether the field is deprecated. */
-	deprecated?: boolean | string;
+	/** Whether the field is deprecated. Accepts boolean, message string, or structured spec. */
+	deprecated?: boolean | string | DeprecatedSpec;
 	/** Completion specification for the field. */
 	completion?: CompletionSpec;
 	/** Schema for array items when type is "array". */
@@ -75,7 +88,7 @@ export interface ShortcodeSchema {
 	/** Human-readable description of the shortcode. */
 	description?: string;
 	/** Positional arguments accepted by the shortcode. */
-	arguments?: Array<FieldDescriptor & { name: string }>;
+	arguments?: (FieldDescriptor & { name: string })[];
 	/** Named attributes accepted by the shortcode. */
 	attributes?: Record<string, FieldDescriptor>;
 }
@@ -117,7 +130,23 @@ const KEBAB_TO_CAMEL: Record<string, string> = {
 	"pattern-exact": "patternExact",
 	"min-length": "minLength",
 	"max-length": "maxLength",
+	"replace-with": "replaceWith",
 };
+
+/**
+ * Normalise a raw deprecated spec object from YAML, converting kebab-case keys to camelCase.
+ *
+ * @param raw - Raw deprecated spec object from YAML
+ * @returns Normalised DeprecatedSpec
+ */
+function normaliseDeprecatedSpec(raw: Record<string, unknown>): DeprecatedSpec {
+	const result: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(raw)) {
+		const camelKey = KEBAB_TO_CAMEL[key] ?? key;
+		result[camelKey] = value;
+	}
+	return result as DeprecatedSpec;
+}
 
 /**
  * Normalise a raw field descriptor from YAML, converting kebab-case keys to camelCase.
@@ -135,6 +164,8 @@ export function normaliseFieldDescriptor(raw: Record<string, unknown>): FieldDes
 			result[camelKey] = normaliseFieldDescriptor(value as Record<string, unknown>);
 		} else if (camelKey === "properties" && value && typeof value === "object" && !Array.isArray(value)) {
 			result[camelKey] = normaliseFieldDescriptorMap(value as Record<string, unknown>);
+		} else if (camelKey === "deprecated" && value && typeof value === "object" && !Array.isArray(value)) {
+			result[camelKey] = normaliseDeprecatedSpec(value as Record<string, unknown>);
 		} else {
 			result[camelKey] = value;
 		}
@@ -241,4 +272,31 @@ export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 	}
 
 	return result;
+}
+
+/**
+ * Check whether a type spec includes a given type name.
+ *
+ * @param typeSpec - Type spec (string, string array, or undefined).
+ * @param name - Type name to look for.
+ * @returns True if the type spec includes the given name.
+ */
+export function typeIncludes(typeSpec: string | string[] | undefined, name: string): boolean {
+	if (Array.isArray(typeSpec)) {
+		return typeSpec.includes(name);
+	}
+	return typeSpec === name;
+}
+
+/**
+ * Format a type spec for display (e.g., "number | boolean").
+ *
+ * @param typeSpec - Type spec (string, string array, or undefined).
+ * @returns Human-readable type string.
+ */
+export function formatType(typeSpec: string | string[] | undefined): string {
+	if (Array.isArray(typeSpec)) {
+		return typeSpec.join(" | ");
+	}
+	return typeSpec ?? "";
 }

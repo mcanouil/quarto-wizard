@@ -128,7 +128,10 @@ describe("use with targetSubdir", () => {
 
 	it("should copy files to subdirectory when targetSubdir is provided", async () => {
 		// Create source with extension and template files
-		createSourceFile("_extensions/owner/my-ext/_extension.yml", "title: Test\ncontributes:\n  shortcodes:\n    - test.lua");
+		createSourceFile(
+			"_extensions/owner/my-ext/_extension.yml",
+			"title: Test\ncontributes:\n  shortcodes:\n    - test.lua",
+		);
 		createSourceFile("_extensions/owner/my-ext/test.lua", "-- test");
 		createSourceFile("template.qmd", "---\ntitle: Template\n---");
 		createSourceFile("assets/style.css", "body {}");
@@ -155,7 +158,10 @@ describe("use with targetSubdir", () => {
 	});
 
 	it("should auto-create subdirectory if it does not exist", async () => {
-		createSourceFile("_extensions/owner/my-ext/_extension.yml", "title: Test\ncontributes:\n  shortcodes:\n    - test.lua");
+		createSourceFile(
+			"_extensions/owner/my-ext/_extension.yml",
+			"title: Test\ncontributes:\n  shortcodes:\n    - test.lua",
+		);
 		createSourceFile("_extensions/owner/my-ext/test.lua", "-- test");
 		createSourceFile("template.qmd", "content");
 
@@ -174,7 +180,10 @@ describe("use with targetSubdir", () => {
 	});
 
 	it("should detect existing files in target subdirectory", async () => {
-		createSourceFile("_extensions/owner/my-ext/_extension.yml", "title: Test\ncontributes:\n  shortcodes:\n    - test.lua");
+		createSourceFile(
+			"_extensions/owner/my-ext/_extension.yml",
+			"title: Test\ncontributes:\n  shortcodes:\n    - test.lua",
+		);
 		createSourceFile("_extensions/owner/my-ext/test.lua", "-- test");
 		createSourceFile("template.qmd", "new content");
 
@@ -199,7 +208,10 @@ describe("use with targetSubdir", () => {
 	});
 
 	it("should use project root when targetSubdir is empty", async () => {
-		createSourceFile("_extensions/owner/my-ext/_extension.yml", "title: Test\ncontributes:\n  shortcodes:\n    - test.lua");
+		createSourceFile(
+			"_extensions/owner/my-ext/_extension.yml",
+			"title: Test\ncontributes:\n  shortcodes:\n    - test.lua",
+		);
 		createSourceFile("_extensions/owner/my-ext/test.lua", "-- test");
 		createSourceFile("template.qmd", "content");
 
@@ -216,7 +228,10 @@ describe("use with targetSubdir", () => {
 	});
 
 	it("should use project root when targetSubdir is not provided", async () => {
-		createSourceFile("_extensions/owner/my-ext/_extension.yml", "title: Test\ncontributes:\n  shortcodes:\n    - test.lua");
+		createSourceFile(
+			"_extensions/owner/my-ext/_extension.yml",
+			"title: Test\ncontributes:\n  shortcodes:\n    - test.lua",
+		);
 		createSourceFile("_extensions/owner/my-ext/test.lua", "-- test");
 		createSourceFile("template.qmd", "content");
 

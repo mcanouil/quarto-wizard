@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { QW_LOG, STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "./constants";
-import { getShowLogsLink, logMessage } from "./utils/log";
+import { logMessage, showMessageWithLogs } from "./utils/log";
 import {
 	installQuartoExtensionCommand,
 	useQuartoTemplateCommand,
@@ -15,8 +15,11 @@ import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
 import { setManualToken, clearManualToken } from "./utils/auth";
+import { SchemaCache } from "@quarto-wizard/core";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
 import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
+import { registerElementAttributeProviders } from "./providers/elementAttributeCompletionProvider";
+import { registerInlineAttributeDiagnostics } from "./providers/inlineAttributeDiagnosticsProvider";
 
 /**
  * This method is called when the extension is activated.
@@ -37,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 			context.globalState.update(STORAGE_KEY_RECENTLY_USED, []);
 			const message = "Recently installed Quarto extensions have been cleared.";
 			logMessage(message, "info");
-			vscode.window.showInformationMessage(`${message} ${getShowLogsLink()}.`);
+			showMessageWithLogs(message, "info");
 		}),
 	);
 
@@ -84,7 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 			if (token) {
 				await setManualToken(context, token);
-				vscode.window.showInformationMessage(`GitHub token stored securely. ${getShowLogsLink()}.`);
+				showMessageWithLogs("GitHub token stored securely.", "info");
 			}
 		}),
 	);
@@ -93,9 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand("quartoWizard.clearGitHubToken", async () => {
 			await clearManualToken(context);
-			vscode.window.showInformationMessage(
-				`Manual token cleared. Will use VSCode GitHub session or environment variables. ${getShowLogsLink()}.`,
-			);
+			showMessageWithLogs("Manual token cleared. Will use VSCode GitHub session or environment variables.", "info");
 		}),
 	);
 
@@ -121,14 +122,23 @@ export function activate(context: vscode.ExtensionContext) {
 		),
 	);
 
+	// Shared schema cache for all providers and tree view
+	const schemaCache = new SchemaCache();
+
 	// Initialise the Extensions Installed tree view provider
-	new ExtensionsInstalled(context);
+	new ExtensionsInstalled(context, schemaCache);
 
 	// Register YAML completion and diagnostics providers for extension schemas
-	registerYamlProviders(context);
+	registerYamlProviders(context, schemaCache);
 
 	// Register shortcode completion provider for Quarto documents
-	registerShortcodeCompletionProvider(context);
+	registerShortcodeCompletionProvider(context, schemaCache);
+
+	// Register element attribute completion and hover providers for Quarto documents
+	registerElementAttributeProviders(context, schemaCache);
+
+	// Register inline attribute diagnostics for spaces around = and schema validation
+	registerInlineAttributeDiagnostics(context, schemaCache);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(
