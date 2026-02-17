@@ -78,6 +78,10 @@ jobs:
         shell: bash
         run: npm run docs:api
 
+      - name: Build dev VSIX
+        shell: bash
+        run: npx vsce package --pre-release --out docs/quarto-wizard-dev.vsix
+
       - name: Render dev site
         shell: bash
         working-directory: ./docs

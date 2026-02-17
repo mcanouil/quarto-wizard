@@ -1,5 +1,7 @@
 project:
   output-dir: _site/dev
+  resources:
+    - quarto-wizard-dev.vsix
 
 website:
   title: "Quarto Wizard (Development)"
@@ -7,6 +9,6 @@ website:
   announcement:
     icon: exclamation-circle
     dismissable: false
-    content: "**Development** - This documentation is for the development version of Quarto Wizard. For the stable version, please visit [the main documentation](https://m.canouil.dev/quarto-wizard)."
+    content: "**Development** - This documentation is for the [development version of Quarto Wizard](quarto-wizard-dev.vsix). For the stable version, please visit [the main documentation](https://m.canouil.dev/quarto-wizard)."
     type: warning
     position: above-navbar
