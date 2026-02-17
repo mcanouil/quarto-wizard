@@ -43,4 +43,6 @@ export {
 	normaliseFieldDescriptorMap,
 	normaliseShortcodeSchema,
 	normaliseSchema,
+	typeIncludes,
+	formatType,
 } from "./schema.js";

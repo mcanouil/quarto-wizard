@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
-import { discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, formatExtensionId, formatType } from "@quarto-wizard/core";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
@@ -287,7 +287,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 					diagnostics.push(
 						new vscode.Diagnostic(
 							range,
-							`Option "${key}": expected type "${descriptor.type}", got ${typeError} ${valueStr}.`,
+							`Option "${key}": expected type "${formatType(descriptor.type)}", got ${typeError} ${valueStr}.`,
 							vscode.DiagnosticSeverity.Error,
 						),
 					);
@@ -407,9 +407,21 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object"]);
 
-	private checkType(value: unknown, expectedType: string): string | undefined {
+	private checkType(value: unknown, expectedType: string | string[]): string | undefined {
+		if (Array.isArray(expectedType)) {
+			const knownTypes = expectedType.filter((t) => YamlDiagnosticsProvider.KNOWN_TYPES.has(t));
+			if (knownTypes.length === 0) {
+				return undefined;
+			}
+			for (const t of knownTypes) {
+				if (this.checkType(value, t) === undefined) {
+					return undefined;
+				}
+			}
+			return Array.isArray(value) ? "array" : typeof value;
+		}
+
 		if (!YamlDiagnosticsProvider.KNOWN_TYPES.has(expectedType)) {
-			// Unknown type in schema; skip validation rather than producing false positives.
 			return undefined;
 		}
 

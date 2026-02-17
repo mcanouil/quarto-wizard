@@ -382,5 +382,72 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.strictEqual(findings.length, 1);
 			assert.strictEqual(findings[0].code, "schema-type-mismatch");
 		});
+
+		test("union type [number, boolean]: accepts valid number", () => {
+			const descriptor: FieldDescriptor = { type: ["number", "boolean"] };
+			const findings = validateInlineValue("val", "42", descriptor);
+			assert.strictEqual(findings.length, 0);
+		});
+
+		test("union type [number, boolean]: accepts valid boolean", () => {
+			const descriptor: FieldDescriptor = { type: ["number", "boolean"] };
+			const findings = validateInlineValue("val", "true", descriptor);
+			assert.strictEqual(findings.length, 0);
+		});
+
+		test("union type [number, boolean]: rejects invalid value", () => {
+			const descriptor: FieldDescriptor = { type: ["number", "boolean"] };
+			const findings = validateInlineValue("val", "hello", descriptor);
+			assert.strictEqual(findings.length, 1);
+			assert.strictEqual(findings[0].code, "schema-type-mismatch");
+		});
+
+		test("union type [number, array]: validates number component", () => {
+			const descriptor: FieldDescriptor = { type: ["number", "array"] };
+			const findings = validateInlineValue("val", "42", descriptor);
+			assert.strictEqual(findings.length, 0);
+		});
+
+		test("union type [number, array]: rejects non-number string", () => {
+			const descriptor: FieldDescriptor = { type: ["number", "array"] };
+			const findings = validateInlineValue("val", "hello", descriptor);
+			assert.strictEqual(findings.length, 1);
+			assert.strictEqual(findings[0].code, "schema-type-mismatch");
+		});
+
+		test("union type [string, array]: accepts any string", () => {
+			const descriptor: FieldDescriptor = { type: ["string", "array"] };
+			const findings = validateInlineValue("val", "anything", descriptor);
+			assert.strictEqual(findings.length, 0);
+		});
+
+		test("union type [boolean, array]: accepts valid boolean", () => {
+			const descriptor: FieldDescriptor = { type: ["boolean", "array"] };
+			const findings = validateInlineValue("val", "false", descriptor);
+			assert.strictEqual(findings.length, 0);
+		});
+
+		test("union type [boolean, array]: rejects non-boolean string", () => {
+			const descriptor: FieldDescriptor = { type: ["boolean", "array"] };
+			const findings = validateInlineValue("val", "hello", descriptor);
+			assert.strictEqual(findings.length, 1);
+			assert.strictEqual(findings[0].code, "schema-type-mismatch");
+		});
+
+		test("pure non-inline union [array, object]: skipped", () => {
+			const descriptor: FieldDescriptor = { type: ["array", "object"] };
+			const findings = validateInlineValue("val", "anything", descriptor);
+			assert.strictEqual(findings.length, 0);
+		});
+
+		test("deprecated field with pure non-inline union still warns", () => {
+			const descriptor: FieldDescriptor = {
+				type: ["array", "object"],
+				deprecated: { message: "Use 'items' instead." },
+			};
+			const findings = validateInlineValue("old", "val", descriptor);
+			assert.strictEqual(findings.length, 1);
+			assert.strictEqual(findings[0].code, "schema-deprecated");
+		});
 	});
 });

@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes, formatType } from "@quarto-wizard/core";
 import type {
 	SchemaCache,
 	ExtensionSchema,
@@ -259,7 +259,7 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 
 		const details: string[] = [];
 		if (descriptor.type) {
-			details.push(`**Type:** \`${descriptor.type}\``);
+			details.push(`**Type:** \`${formatType(descriptor.type)}\``);
 		}
 		if (descriptor.required) {
 			details.push("**Required:** yes");

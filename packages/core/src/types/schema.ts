@@ -45,8 +45,8 @@ export interface DeprecatedSpec {
  * Describes the type, constraints, and metadata for a configuration option.
  */
 export interface FieldDescriptor {
-	/** Data type of the field (e.g., "string", "number", "boolean", "object", "array", "content"). */
-	type?: string;
+	/** Data type of the field. A single type name or an array of type names for union types. */
+	type?: string | string[];
 	/** Whether the field is required. */
 	required?: boolean;
 	/** Default value for the field. */
@@ -272,4 +272,31 @@ export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 	}
 
 	return result;
+}
+
+/**
+ * Check whether a type spec includes a given type name.
+ *
+ * @param typeSpec - Type spec (string, string array, or undefined).
+ * @param name - Type name to look for.
+ * @returns True if the type spec includes the given name.
+ */
+export function typeIncludes(typeSpec: string | string[] | undefined, name: string): boolean {
+	if (Array.isArray(typeSpec)) {
+		return typeSpec.includes(name);
+	}
+	return typeSpec === name;
+}
+
+/**
+ * Format a type spec for display (e.g., "number | boolean").
+ *
+ * @param typeSpec - Type spec (string, string array, or undefined).
+ * @returns Human-readable type string.
+ */
+export function formatType(typeSpec: string | string[] | undefined): string {
+	if (Array.isArray(typeSpec)) {
+		return typeSpec.join(" | ");
+	}
+	return typeSpec ?? "";
 }

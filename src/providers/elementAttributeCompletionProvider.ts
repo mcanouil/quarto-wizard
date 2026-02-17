@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { FieldDescriptor, SchemaCache, ExtensionSchema } from "@quarto-wizard/core";
-import { discoverInstalledExtensions } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, typeIncludes } from "@quarto-wizard/core";
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
@@ -353,7 +353,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			}
 		}
 
-		if (descriptor.type === "boolean" && items.length === 0) {
+		if (typeIncludes(descriptor.type, "boolean") && items.length === 0) {
 			for (const label of ["true", "false"]) {
 				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
 				item.detail = source;

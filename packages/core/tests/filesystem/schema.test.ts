@@ -7,6 +7,8 @@ import {
 	normaliseFieldDescriptorMap,
 	normaliseShortcodeSchema,
 	normaliseSchema,
+	typeIncludes,
+	formatType,
 } from "../../src/types/schema.js";
 import { findSchemaFile, parseSchemaContent, parseSchemaFile, readSchema } from "../../src/filesystem/schema.js";
 import { SchemaCache } from "../../src/filesystem/schema-cache.js";
@@ -129,6 +131,16 @@ describe("normaliseFieldDescriptor", () => {
 		expect(result.completion).toBeDefined();
 		expect(result.completion!.type).toBe("file");
 		expect(result.completion!.extensions).toEqual([".lua"]);
+	});
+
+	it("preserves type when it is an array of strings", () => {
+		const result = normaliseFieldDescriptor({
+			type: ["number", "boolean"],
+			default: 100,
+		});
+
+		expect(result.type).toEqual(["number", "boolean"]);
+		expect(result.default).toBe(100);
 	});
 });
 
@@ -477,6 +489,57 @@ options:
 		expect(schema.options!["config"].properties).toBeDefined();
 		expect(schema.options!["config"].properties!["name"].required).toBe(true);
 		expect(schema.options!["config"].properties!["nested"].properties!["level"].type).toBe("number");
+	});
+
+	it("round-trips union type from YAML", () => {
+		const yamlContent = `
+options:
+  fadeInAndOut:
+    type: [number, boolean]
+    default: 100
+    description: "Duration in ms. Set to false to disable."
+`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.options!["fadeInAndOut"].type).toEqual(["number", "boolean"]);
+		expect(schema.options!["fadeInAndOut"].default).toBe(100);
+	});
+});
+
+describe("typeIncludes", () => {
+	it("returns true for matching single string", () => {
+		expect(typeIncludes("boolean", "boolean")).toBe(true);
+	});
+
+	it("returns false for non-matching single string", () => {
+		expect(typeIncludes("string", "boolean")).toBe(false);
+	});
+
+	it("returns true when array contains the type", () => {
+		expect(typeIncludes(["number", "boolean"], "boolean")).toBe(true);
+	});
+
+	it("returns false when array does not contain the type", () => {
+		expect(typeIncludes(["number", "boolean"], "string")).toBe(false);
+	});
+
+	it("returns false for undefined", () => {
+		expect(typeIncludes(undefined, "boolean")).toBe(false);
+	});
+});
+
+describe("formatType", () => {
+	it("returns single type name unchanged", () => {
+		expect(formatType("number")).toBe("number");
+	});
+
+	it("joins array types with pipe separator", () => {
+		expect(formatType(["number", "boolean"])).toBe("number | boolean");
+	});
+
+	it("returns empty string for undefined", () => {
+		expect(formatType(undefined)).toBe("");
 	});
 });
 

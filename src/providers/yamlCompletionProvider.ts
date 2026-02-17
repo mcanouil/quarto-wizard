@@ -1,5 +1,11 @@
 import * as vscode from "vscode";
-import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes } from "@quarto-wizard/core";
+import {
+	discoverInstalledExtensions,
+	formatExtensionId,
+	getExtensionTypes,
+	typeIncludes,
+	formatType,
+} from "@quarto-wizard/core";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor, InstalledExtension } from "@quarto-wizard/core";
 import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
@@ -315,7 +321,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			}
 		}
 
-		if (descriptor.type === "boolean") {
+		if (typeIncludes(descriptor.type, "boolean")) {
 			for (const label of ["true", "false"]) {
 				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
 				item.insertText = ` ${label}`;
@@ -337,7 +343,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	}
 
 	private fieldToCompletionItem(key: string, descriptor: FieldDescriptor): vscode.CompletionItem {
-		const isObject = descriptor.type === "object" || descriptor.properties !== undefined;
+		const isObject = typeIncludes(descriptor.type, "object") || descriptor.properties !== undefined;
 		const kind = isObject ? vscode.CompletionItemKind.Module : vscode.CompletionItemKind.Property;
 		const item = new vscode.CompletionItem(key, kind);
 
@@ -349,7 +355,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 		const meta: string[] = [];
 		if (descriptor.type) {
-			meta.push(`**Type:** \`${descriptor.type}\``);
+			meta.push(`**Type:** \`${formatType(descriptor.type)}\``);
 		}
 		if (descriptor.required) {
 			meta.push("**Required**");

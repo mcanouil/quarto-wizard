@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { SchemaCache, FieldDescriptor, DeprecatedSpec, ShortcodeSchema } from "@quarto-wizard/core";
+import { typeIncludes, formatType } from "@quarto-wizard/core";
 import { parseAttributeAtPosition } from "../utils/elementAttributeParser";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import {
@@ -429,39 +430,38 @@ export function validateInlineValue(
 
 	// Type check (coerce from string).
 	if (descriptor.type) {
-		switch (descriptor.type) {
-			case "number": {
-				const num = Number(value);
-				if (!Number.isFinite(num)) {
-					findings.push({
-						message: `Attribute "${key}": expected type "number", got string "${value}".`,
-						severity: "error",
-						code: "schema-type-mismatch",
-					});
-					return findings;
-				}
-				break;
+		// Early exit when the type has no inline-representable members.
+		const hasInlineType =
+			typeIncludes(descriptor.type, "string") ||
+			typeIncludes(descriptor.type, "number") ||
+			typeIncludes(descriptor.type, "boolean");
+		if (!hasInlineType) {
+			return findings;
+		}
+
+		// If "string" is in the union, any string value is valid.
+		if (!typeIncludes(descriptor.type, "string")) {
+			let typeValid = false;
+
+			if (typeIncludes(descriptor.type, "number") && Number.isFinite(Number(value))) {
+				typeValid = true;
 			}
-			case "boolean": {
+
+			if (!typeValid && typeIncludes(descriptor.type, "boolean")) {
 				const lower = value.toLowerCase();
-				if (lower !== "true" && lower !== "false") {
-					findings.push({
-						message: `Attribute "${key}": expected type "boolean" ("true" or "false"), got string "${value}".`,
-						severity: "error",
-						code: "schema-type-mismatch",
-					});
-					return findings;
+				if (lower === "true" || lower === "false") {
+					typeValid = true;
 				}
-				break;
 			}
-			case "string":
-				// Always valid.
-				break;
-			case "array":
-			case "object":
-			case "content":
-				// Not representable inline; skip all further checks.
+
+			if (!typeValid) {
+				findings.push({
+					message: `Attribute "${key}": expected type "${formatType(descriptor.type)}", got string "${value}".`,
+					severity: "error",
+					code: "schema-type-mismatch",
+				});
 				return findings;
+			}
 		}
 	}
 
