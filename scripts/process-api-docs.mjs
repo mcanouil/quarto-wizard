@@ -805,7 +805,7 @@ function generateReferenceSidebar() {
           contents:
             - reference/commands.qmd
             - reference/configuration.qmd
-						- reference/schema-specification.qmd
+            - reference/schema-specification.qmd
             - reference/environment-variables.qmd
 `;
 
