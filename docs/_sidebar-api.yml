@@ -12,6 +12,7 @@ website:
               contents:
                 - api/core/archive.qmd
                 - api/core/auth.qmd
+                - api/core/constants.qmd
                 - api/core/errors.qmd
                 - api/core/filesystem.qmd
                 - api/core/github.qmd

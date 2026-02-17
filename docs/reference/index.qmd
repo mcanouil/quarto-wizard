@@ -38,11 +38,10 @@ See [Configuration Reference](configuration.qmd) for all available options.
 | `quartoWizard.ask.confirmInstall` | `ask`                                      | Prompt before installing.       |
 | `quartoWizard.cache.ttlMinutes`   | `30`                                       | Cache duration in minutes.      |
 | `quartoWizard.registry.url`       | [see docs](configuration.qmd#registry-url) | Custom registry URL.            |
-| `quartoWizard.log.level`          | `info`                                     | Logging verbosity.              |
 
 ## Extension Schema
 
-Quarto extensions can provide a `_schema.yml` file to declare their configuration options, shortcode parameters, and element attributes.
+Quarto extensions can provide a `_schema.yml` file to declare their configuration options, shortcode parameters, formats options, and element attributes.
 See [Extension Schema Specification](schema-specification.qmd) for the full format reference.
 
 ## API Reference

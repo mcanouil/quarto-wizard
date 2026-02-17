@@ -12,7 +12,7 @@ Handles downloading release archives from GitHub repositories.
 
 #### DownloadOptions
 
-Defined in: [packages/core/src/github/download.ts:34](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L34)
+Defined in: [packages/core/src/github/download.ts:37](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L37)
 
 Options for downloading archives.
 
@@ -22,31 +22,32 @@ Options for downloading archives.
 
 ##### Properties
 
-| Property                                              | Type                                                    | Description                                         | Inherited from                                                                                                      | Defined in                                                                                                                                                                  |
-| ----------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="auth"></a> `auth?`                             | [`AuthConfig`](auth.qmd#authconfig)                     | Authentication configuration.                       | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`auth`](github.qmd#auth-1)                             | [packages/core/src/github/releases.ts:83](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L83) |
-| <a id="defaultbranch"></a> `defaultBranch?`           | `string`                                                | Default branch to use when no releases/tags exist.  | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`defaultBranch`](github.qmd#defaultbranch)             | [packages/core/src/github/releases.ts:95](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L95) |
-| <a id="downloaddir"></a> `downloadDir?`               | `string`                                                | Custom download directory (uses temp by default).   | -                                                                                                                   | [packages/core/src/github/download.ts:40](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L40) |
-| <a id="format"></a> `format?`                         | `"zip"` \| `"tarball"`                                  | Preferred archive format.                           | -                                                                                                                   | [packages/core/src/github/download.ts:36](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L36) |
-| <a id="includeprereleases"></a> `includePrereleases?` | `boolean`                                               | Include prereleases when resolving versions.        | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`includePrereleases`](github.qmd#includeprereleases-1) | [packages/core/src/github/releases.ts:87](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L87) |
-| <a id="latestcommit"></a> `latestCommit?`             | `string`                                                | Latest commit SHA on default branch (for fallback). | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`latestCommit`](github.qmd#latestcommit)               | [packages/core/src/github/releases.ts:97](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L97) |
-| <a id="onprogress"></a> `onProgress?`                 | [`DownloadProgressCallback`](#downloadprogresscallback) | Progress callback.                                  | -                                                                                                                   | [packages/core/src/github/download.ts:38](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L38) |
-| <a id="timeout"></a> `timeout?`                       | `number`                                                | Request timeout in milliseconds.                    | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`timeout`](github.qmd#timeout-1)                       | [packages/core/src/github/releases.ts:85](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L85) |
+| Property                                                       | Type                                                    | Description                                         | Inherited from                                                                                                               | Defined in                                                                                                                                                                    |
+| -------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-auth"></a> `auth?`                             | [`AuthConfig`](auth.qmd#authconfig)                     | Authentication configuration.                       | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`auth`](github.qmd#property-auth-1)                             | [packages/core/src/github/releases.ts:84](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L84)   |
+| <a id="property-defaultbranch"></a> `defaultBranch?`           | `string`                                                | Default branch to use when no releases/tags exist.  | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`defaultBranch`](github.qmd#property-defaultbranch)             | [packages/core/src/github/releases.ts:98](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L98)   |
+| <a id="property-downloaddir"></a> `downloadDir?`               | `string`                                                | Custom download directory (uses temp by default).   | -                                                                                                                            | [packages/core/src/github/download.ts:43](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L43)   |
+| <a id="property-format"></a> `format?`                         | `"zip"` \| `"tarball"`                                  | Preferred archive format.                           | -                                                                                                                            | [packages/core/src/github/download.ts:39](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L39)   |
+| <a id="property-includeprereleases"></a> `includePrereleases?` | `boolean`                                               | Include prereleases when resolving versions.        | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`includePrereleases`](github.qmd#property-includeprereleases-1) | [packages/core/src/github/releases.ts:88](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L88)   |
+| <a id="property-latestcommit"></a> `latestCommit?`             | `string`                                                | Latest commit SHA on default branch (for fallback). | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`latestCommit`](github.qmd#property-latestcommit)               | [packages/core/src/github/releases.ts:100](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L100) |
+| <a id="property-onprogress"></a> `onProgress?`                 | [`DownloadProgressCallback`](#downloadprogresscallback) | Progress callback.                                  | -                                                                                                                            | [packages/core/src/github/download.ts:41](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L41)   |
+| <a id="property-signal"></a> `signal?`                         | `AbortSignal`                                           | AbortSignal for cancellation.                       | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`signal`](github.qmd#property-signal-1)                         | [packages/core/src/github/releases.ts:90](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L90)   |
+| <a id="property-timeout"></a> `timeout?`                       | `number`                                                | Request timeout in milliseconds.                    | [`ResolveVersionOptions`](github.qmd#resolveversionoptions).[`timeout`](github.qmd#property-timeout-1)                       | [packages/core/src/github/releases.ts:86](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L86)   |
 
 #### DownloadResult
 
-Defined in: [packages/core/src/github/download.ts:46](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L46)
+Defined in: [packages/core/src/github/download.ts:49](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L49)
 
 Result of a download operation.
 
 ##### Properties
 
-| Property                               | Type                   | Description                                              | Defined in                                                                                                                                                                  |
-| -------------------------------------- | ---------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="archivepath"></a> `archivePath` | `string`               | Path to the downloaded archive.                          | [packages/core/src/github/download.ts:48](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L48) |
-| <a id="commitsha"></a> `commitSha?`    | `string`               | Commit SHA if resolved to a commit (first 7 characters). | [packages/core/src/github/download.ts:54](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L54) |
-| <a id="format-1"></a> `format`         | `"zip"` \| `"tarball"` | Archive format.                                          | [packages/core/src/github/download.ts:52](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L52) |
-| <a id="tagname"></a> `tagName`         | `string`               | Resolved tag/version name.                               | [packages/core/src/github/download.ts:50](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L50) |
+| Property                                        | Type                   | Description                                              | Defined in                                                                                                                                                                  |
+| ----------------------------------------------- | ---------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-archivepath"></a> `archivePath` | `string`               | Path to the downloaded archive.                          | [packages/core/src/github/download.ts:51](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L51) |
+| <a id="property-commitsha"></a> `commitSha?`    | `string`               | Commit SHA if resolved to a commit (first 7 characters). | [packages/core/src/github/download.ts:57](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L57) |
+| <a id="property-format-1"></a> `format`         | `"zip"` \| `"tarball"` | Archive format.                                          | [packages/core/src/github/download.ts:55](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L55) |
+| <a id="property-tagname"></a> `tagName`         | `string`               | Resolved tag/version name.                               | [packages/core/src/github/download.ts:53](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L53) |
 
 ### Type Aliases
 
@@ -56,7 +57,7 @@ Result of a download operation.
 type DownloadProgressCallback = (progress) => void;
 ```
 
-Defined in: [packages/core/src/github/download.ts:23](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L23)
+Defined in: [packages/core/src/github/download.ts:26](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L26)
 
 Progress callback for downloads.
 
@@ -80,24 +81,25 @@ Progress callback for downloads.
 #### downloadArchive()
 
 ```{.ts filename="TypeScript"}
-function downloadArchive(url, options): Promise<string>;
+function downloadArchive(url, options?): Promise<string>;
 ```
 
-Defined in: [packages/core/src/github/download.ts:112](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L112)
+Defined in: [packages/core/src/github/download.ts:125](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L125)
 
 Download an archive from a URL.
 
 ##### Parameters
 
-| Parameter              | Type                                                                                                                                                                                                | Description      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `url`                  | `string`                                                                                                                                                                                            | URL to download  |
-| `options`              | \{ `auth?`: [`AuthConfig`](auth.qmd#authconfig); `downloadDir?`: `string`; `extension?`: `string`; `onProgress?`: [`DownloadProgressCallback`](#downloadprogresscallback); `timeout?`: `number`; \} | Download options |
-| `options.auth?`        | [`AuthConfig`](auth.qmd#authconfig)                                                                                                                                                                 | -                |
-| `options.downloadDir?` | `string`                                                                                                                                                                                            | -                |
-| `options.extension?`   | `string`                                                                                                                                                                                            | -                |
-| `options.onProgress?`  | [`DownloadProgressCallback`](#downloadprogresscallback)                                                                                                                                             | -                |
-| `options.timeout?`     | `number`                                                                                                                                                                                            | -                |
+| Parameter              | Type                                                                                                                                                                                                                          | Description      |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `url`                  | `string`                                                                                                                                                                                                                      | URL to download  |
+| `options`              | \{ `auth?`: [`AuthConfig`](auth.qmd#authconfig); `downloadDir?`: `string`; `extension?`: `string`; `onProgress?`: [`DownloadProgressCallback`](#downloadprogresscallback); `signal?`: `AbortSignal`; `timeout?`: `number`; \} | Download options |
+| `options.auth?`        | [`AuthConfig`](auth.qmd#authconfig)                                                                                                                                                                                           | -                |
+| `options.downloadDir?` | `string`                                                                                                                                                                                                                      | -                |
+| `options.extension?`   | `string`                                                                                                                                                                                                                      | -                |
+| `options.onProgress?`  | [`DownloadProgressCallback`](#downloadprogresscallback)                                                                                                                                                                       | -                |
+| `options.signal?`      | `AbortSignal`                                                                                                                                                                                                                 | -                |
+| `options.timeout?`     | `number`                                                                                                                                                                                                                      | -                |
 
 ##### Returns
 
@@ -108,23 +110,24 @@ Path to downloaded file
 #### downloadFromUrl()
 
 ```{.ts filename="TypeScript"}
-function downloadFromUrl(url, options): Promise<string>;
+function downloadFromUrl(url, options?): Promise<string>;
 ```
 
-Defined in: [packages/core/src/github/download.ts:219](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L219)
+Defined in: [packages/core/src/github/download.ts:285](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L285)
 
 Download from a custom URL (non-GitHub).
 
 ##### Parameters
 
-| Parameter              | Type                                                                                                                                                                        | Description      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `url`                  | `string`                                                                                                                                                                    | URL to download  |
-| `options`              | \{ `auth?`: [`AuthConfig`](auth.qmd#authconfig); `downloadDir?`: `string`; `onProgress?`: [`DownloadProgressCallback`](#downloadprogresscallback); `timeout?`: `number`; \} | Download options |
-| `options.auth?`        | [`AuthConfig`](auth.qmd#authconfig)                                                                                                                                         | -                |
-| `options.downloadDir?` | `string`                                                                                                                                                                    | -                |
-| `options.onProgress?`  | [`DownloadProgressCallback`](#downloadprogresscallback)                                                                                                                     | -                |
-| `options.timeout?`     | `number`                                                                                                                                                                    | -                |
+| Parameter              | Type                                                                                                                                                                                                  | Description      |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `url`                  | `string`                                                                                                                                                                                              | URL to download  |
+| `options`              | \{ `auth?`: [`AuthConfig`](auth.qmd#authconfig); `downloadDir?`: `string`; `onProgress?`: [`DownloadProgressCallback`](#downloadprogresscallback); `signal?`: `AbortSignal`; `timeout?`: `number`; \} | Download options |
+| `options.auth?`        | [`AuthConfig`](auth.qmd#authconfig)                                                                                                                                                                   | -                |
+| `options.downloadDir?` | `string`                                                                                                                                                                                              | -                |
+| `options.onProgress?`  | [`DownloadProgressCallback`](#downloadprogresscallback)                                                                                                                                               | -                |
+| `options.signal?`      | `AbortSignal`                                                                                                                                                                                         | -                |
+| `options.timeout?`     | `number`                                                                                                                                                                                              | -                |
 
 ##### Returns
 
@@ -139,10 +142,10 @@ function downloadGitHubArchive(
    owner,
    repo,
    version,
-options): Promise<DownloadResult>;
+options?): Promise<DownloadResult>;
 ```
 
-Defined in: [packages/core/src/github/download.ts:66](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/download.ts#L66)
+Defined in: [packages/core/src/github/download.ts:69](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/download.ts#L69)
 
 Download an archive from GitHub.
 
@@ -173,7 +176,7 @@ Provides functions to query and resolve GitHub release versions.
 
 #### GitHubOptions
 
-Defined in: [packages/core/src/github/releases.ts:81](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L81)
+Defined in: [packages/core/src/github/releases.ts:82](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L82)
 
 Options for GitHub API requests.
 
@@ -183,64 +186,65 @@ Options for GitHub API requests.
 
 ##### Properties
 
-| Property                                              | Type                                | Description                                  | Defined in                                                                                                                                                                  |
-| ----------------------------------------------------- | ----------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="auth"></a> `auth?`                             | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration.                | [packages/core/src/github/releases.ts:83](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L83) |
-| <a id="includeprereleases"></a> `includePrereleases?` | `boolean`                           | Include prereleases when resolving versions. | [packages/core/src/github/releases.ts:87](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L87) |
-| <a id="timeout"></a> `timeout?`                       | `number`                            | Request timeout in milliseconds.             | [packages/core/src/github/releases.ts:85](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L85) |
+| Property                                                       | Type                                | Description                                  | Defined in                                                                                                                                                                  |
+| -------------------------------------------------------------- | ----------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-auth"></a> `auth?`                             | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration.                | [packages/core/src/github/releases.ts:84](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L84) |
+| <a id="property-includeprereleases"></a> `includePrereleases?` | `boolean`                           | Include prereleases when resolving versions. | [packages/core/src/github/releases.ts:88](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L88) |
+| <a id="property-signal"></a> `signal?`                         | `AbortSignal`                       | AbortSignal for cancellation.                | [packages/core/src/github/releases.ts:90](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L90) |
+| <a id="property-timeout"></a> `timeout?`                       | `number`                            | Request timeout in milliseconds.             | [packages/core/src/github/releases.ts:86](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L86) |
 
 #### GitHubRelease
 
-Defined in: [packages/core/src/github/releases.ts:21](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L21)
+Defined in: [packages/core/src/github/releases.ts:22](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L22)
 
 GitHub release information.
 
 ##### Properties
 
-| Property                               | Type      | Description                        | Defined in                                                                                                                                                                  |
-| -------------------------------------- | --------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="draft"></a> `draft`             | `boolean` | Whether this is a draft.           | [packages/core/src/github/releases.ts:37](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L37) |
-| <a id="htmlurl"></a> `htmlUrl`         | `string`  | URL to the release page.           | [packages/core/src/github/releases.ts:31](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L31) |
-| <a id="name"></a> `name`               | `string`  | Release name/title.                | [packages/core/src/github/releases.ts:25](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L25) |
-| <a id="prerelease"></a> `prerelease`   | `boolean` | Whether this is a prerelease.      | [packages/core/src/github/releases.ts:35](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L35) |
-| <a id="publishedat"></a> `publishedAt` | `string`  | ISO timestamp when published.      | [packages/core/src/github/releases.ts:33](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L33) |
-| <a id="tagname"></a> `tagName`         | `string`  | Release tag name (e.g., "v1.0.0"). | [packages/core/src/github/releases.ts:23](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L23) |
-| <a id="tarballurl"></a> `tarballUrl`   | `string`  | URL to download the tarball.       | [packages/core/src/github/releases.ts:29](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L29) |
-| <a id="zipballurl"></a> `zipballUrl`   | `string`  | URL to download the zipball.       | [packages/core/src/github/releases.ts:27](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L27) |
+| Property                                        | Type      | Description                        | Defined in                                                                                                                                                                  |
+| ----------------------------------------------- | --------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-draft"></a> `draft`             | `boolean` | Whether this is a draft.           | [packages/core/src/github/releases.ts:38](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L38) |
+| <a id="property-htmlurl"></a> `htmlUrl`         | `string`  | URL to the release page.           | [packages/core/src/github/releases.ts:32](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L32) |
+| <a id="property-name"></a> `name`               | `string`  | Release name/title.                | [packages/core/src/github/releases.ts:26](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L26) |
+| <a id="property-prerelease"></a> `prerelease`   | `boolean` | Whether this is a prerelease.      | [packages/core/src/github/releases.ts:36](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L36) |
+| <a id="property-publishedat"></a> `publishedAt` | `string`  | ISO timestamp when published.      | [packages/core/src/github/releases.ts:34](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L34) |
+| <a id="property-tagname"></a> `tagName`         | `string`  | Release tag name (e.g., "v1.0.0"). | [packages/core/src/github/releases.ts:24](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L24) |
+| <a id="property-tarballurl"></a> `tarballUrl`   | `string`  | URL to download the tarball.       | [packages/core/src/github/releases.ts:30](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L30) |
+| <a id="property-zipballurl"></a> `zipballUrl`   | `string`  | URL to download the zipball.       | [packages/core/src/github/releases.ts:28](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L28) |
 
 #### GitHubTag
 
-Defined in: [packages/core/src/github/releases.ts:43](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L43)
+Defined in: [packages/core/src/github/releases.ts:44](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L44)
 
 GitHub tag information.
 
 ##### Properties
 
-| Property                               | Type     | Description                  | Defined in                                                                                                                                                                  |
-| -------------------------------------- | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="name-1"></a> `name`             | `string` | Tag name.                    | [packages/core/src/github/releases.ts:45](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L45) |
-| <a id="sha"></a> `sha`                 | `string` | Commit SHA.                  | [packages/core/src/github/releases.ts:47](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L47) |
-| <a id="tarballurl-1"></a> `tarballUrl` | `string` | URL to download the tarball. | [packages/core/src/github/releases.ts:51](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L51) |
-| <a id="zipballurl-1"></a> `zipballUrl` | `string` | URL to download the zipball. | [packages/core/src/github/releases.ts:49](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L49) |
+| Property                                        | Type     | Description                  | Defined in                                                                                                                                                                  |
+| ----------------------------------------------- | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-name-1"></a> `name`             | `string` | Tag name.                    | [packages/core/src/github/releases.ts:46](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L46) |
+| <a id="property-sha"></a> `sha`                 | `string` | Commit SHA.                  | [packages/core/src/github/releases.ts:48](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L48) |
+| <a id="property-tarballurl-1"></a> `tarballUrl` | `string` | URL to download the tarball. | [packages/core/src/github/releases.ts:52](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L52) |
+| <a id="property-zipballurl-1"></a> `zipballUrl` | `string` | URL to download the zipball. | [packages/core/src/github/releases.ts:50](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L50) |
 
 #### ResolvedVersion
 
-Defined in: [packages/core/src/github/releases.ts:103](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L103)
+Defined in: [packages/core/src/github/releases.ts:106](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L106)
 
 Result of version resolution.
 
 ##### Properties
 
-| Property                               | Type     | Description                                              | Defined in                                                                                                                                                                    |
-| -------------------------------------- | -------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="commitsha"></a> `commitSha?`    | `string` | Commit SHA if resolved to a commit (first 7 characters). | [packages/core/src/github/releases.ts:111](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L111) |
-| <a id="tagname-1"></a> `tagName`       | `string` | Resolved tag/version name.                               | [packages/core/src/github/releases.ts:105](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L105) |
-| <a id="tarballurl-2"></a> `tarballUrl` | `string` | URL to download the tarball.                             | [packages/core/src/github/releases.ts:109](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L109) |
-| <a id="zipballurl-2"></a> `zipballUrl` | `string` | URL to download the zipball.                             | [packages/core/src/github/releases.ts:107](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L107) |
+| Property                                        | Type     | Description                                              | Defined in                                                                                                                                                                    |
+| ----------------------------------------------- | -------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-commitsha"></a> `commitSha?`    | `string` | Commit SHA if resolved to a commit (first 7 characters). | [packages/core/src/github/releases.ts:114](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L114) |
+| <a id="property-tagname-1"></a> `tagName`       | `string` | Resolved tag/version name.                               | [packages/core/src/github/releases.ts:108](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L108) |
+| <a id="property-tarballurl-2"></a> `tarballUrl` | `string` | URL to download the tarball.                             | [packages/core/src/github/releases.ts:112](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L112) |
+| <a id="property-zipballurl-2"></a> `zipballUrl` | `string` | URL to download the zipball.                             | [packages/core/src/github/releases.ts:110](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L110) |
 
 #### ResolveVersionOptions
 
-Defined in: [packages/core/src/github/releases.ts:93](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L93)
+Defined in: [packages/core/src/github/releases.ts:96](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L96)
 
 Options for version resolution.
 
@@ -254,13 +258,14 @@ Options for version resolution.
 
 ##### Properties
 
-| Property                                                | Type                                | Description                                         | Inherited from                                                                | Defined in                                                                                                                                                                  |
-| ------------------------------------------------------- | ----------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="auth-1"></a> `auth?`                             | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration.                       | [`GitHubOptions`](#githuboptions).[`auth`](#auth)                             | [packages/core/src/github/releases.ts:83](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L83) |
-| <a id="defaultbranch"></a> `defaultBranch?`             | `string`                            | Default branch to use when no releases/tags exist.  | -                                                                             | [packages/core/src/github/releases.ts:95](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L95) |
-| <a id="includeprereleases-1"></a> `includePrereleases?` | `boolean`                           | Include prereleases when resolving versions.        | [`GitHubOptions`](#githuboptions).[`includePrereleases`](#includeprereleases) | [packages/core/src/github/releases.ts:87](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L87) |
-| <a id="latestcommit"></a> `latestCommit?`               | `string`                            | Latest commit SHA on default branch (for fallback). | -                                                                             | [packages/core/src/github/releases.ts:97](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L97) |
-| <a id="timeout-1"></a> `timeout?`                       | `number`                            | Request timeout in milliseconds.                    | [`GitHubOptions`](#githuboptions).[`timeout`](#timeout)                       | [packages/core/src/github/releases.ts:85](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L85) |
+| Property                                                         | Type                                | Description                                         | Inherited from                                                                         | Defined in                                                                                                                                                                    |
+| ---------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-auth-1"></a> `auth?`                             | [`AuthConfig`](auth.qmd#authconfig) | Authentication configuration.                       | [`GitHubOptions`](#githuboptions).[`auth`](#property-auth)                             | [packages/core/src/github/releases.ts:84](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L84)   |
+| <a id="property-defaultbranch"></a> `defaultBranch?`             | `string`                            | Default branch to use when no releases/tags exist.  | -                                                                                      | [packages/core/src/github/releases.ts:98](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L98)   |
+| <a id="property-includeprereleases-1"></a> `includePrereleases?` | `boolean`                           | Include prereleases when resolving versions.        | [`GitHubOptions`](#githuboptions).[`includePrereleases`](#property-includeprereleases) | [packages/core/src/github/releases.ts:88](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L88)   |
+| <a id="property-latestcommit"></a> `latestCommit?`               | `string`                            | Latest commit SHA on default branch (for fallback). | -                                                                                      | [packages/core/src/github/releases.ts:100](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L100) |
+| <a id="property-signal-1"></a> `signal?`                         | `AbortSignal`                       | AbortSignal for cancellation.                       | [`GitHubOptions`](#githuboptions).[`signal`](#property-signal)                         | [packages/core/src/github/releases.ts:90](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L90)   |
+| <a id="property-timeout-1"></a> `timeout?`                       | `number`                            | Request timeout in milliseconds.                    | [`GitHubOptions`](#githuboptions).[`timeout`](#property-timeout)                       | [packages/core/src/github/releases.ts:86](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L86)   |
 
 ### Functions
 
@@ -272,10 +277,10 @@ function constructArchiveUrl(
    repo,
    ref,
    refType,
-   format): string;
+   format?): string;
 ```
 
-Defined in: [packages/core/src/github/releases.ts:135](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L135)
+Defined in: [packages/core/src/github/releases.ts:146](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L146)
 
 Construct a GitHub archive URL.
 
@@ -301,10 +306,10 @@ Archive URL
 function fetchReleases(
    owner,
    repo,
-options): Promise<GitHubRelease[]>;
+options?): Promise<GitHubRelease[]>;
 ```
 
-Defined in: [packages/core/src/github/releases.ts:247](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L247)
+Defined in: [packages/core/src/github/releases.ts:263](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L263)
 
 Fetch releases for a repository.
 
@@ -328,10 +333,10 @@ Array of releases
 function fetchTags(
    owner,
    repo,
-options): Promise<GitHubTag[]>;
+options?): Promise<GitHubTag[]>;
 ```
 
-Defined in: [packages/core/src/github/releases.ts:287](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L287)
+Defined in: [packages/core/src/github/releases.ts:304](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L304)
 
 Fetch tags for a repository.
 
@@ -355,10 +360,10 @@ Array of tags
 function getLatestRelease(
    owner,
    repo,
-options): Promise<GitHubRelease | null>;
+options?): Promise<GitHubRelease | null>;
 ```
 
-Defined in: [packages/core/src/github/releases.ts:317](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L317)
+Defined in: [packages/core/src/github/releases.ts:335](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L335)
 
 Get the latest release for a repository.
 
@@ -385,10 +390,10 @@ function resolveVersion(
    owner,
    repo,
    version,
-options): Promise<ResolvedVersion>;
+options?): Promise<ResolvedVersion>;
 ```
 
-Defined in: [packages/core/src/github/releases.ts:335](https://github.com/mcanouil/quarto-wizard/blob/12480d3abfa11660103611e77a0802a2a0e85802/packages/core/src/github/releases.ts#L335)
+Defined in: [packages/core/src/github/releases.ts:353](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/github/releases.ts#L353)
 
 Resolve a version specification to a release or tag.
 

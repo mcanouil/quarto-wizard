@@ -81,27 +81,6 @@ URL to the Quarto extensions registry JSON file. Change this to use a custom reg
 }
 ```
 
-## Logging
-
-### Log Level
-
-**Setting**: `quartoWizard.log.level`
-
-The level of logging to use. `error` to only log errors, `warn` to log warnings and errors, `info` to log info, warnings, and errors, `debug` to log everything.
-
-| Value   | Description                                  |
-| ------- | -------------------------------------------- |
-| `error` | Only log errors.                             |
-| `warn`  | Log warnings and errors.                     |
-| `info`  | Log info, warnings, and errors (default).    |
-| `debug` | Log everything, including debug information. |
-
-```json
-{
-  "quartoWizard.log.level": "info"
-}
-```
-
 ## Workspace vs User Settings
 
 All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
@@ -121,7 +100,6 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.ask.trustAuthors": "ask",
   "quartoWizard.ask.confirmInstall": "ask",
   "quartoWizard.cache.ttlMinutes": 30,
-  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json",
-  "quartoWizard.log.level": "info"
+  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
 }
 ```
