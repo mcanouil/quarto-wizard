@@ -9,7 +9,7 @@
   Extensions can ship a `_schema.yml` file that declares options, shortcode parameters, format keys, and element attributes.
   Quarto Wizard reads the schema to provide autocompletion, hover documentation, and diagnostics in YAML configuration files.
 - feat: add shortcode completion provider.
-  Shortcode names, positional arguments, and named attributes defined in `_schema.yml` are suggested inside `{{< >}}` delimiters.
+  Shortcode names, positional arguments, and named attributes defined in `_schema.yml` are suggested inside `{{< ... >}}` shortcode delimiters.
 - feat: display schema information in the installed extensions tree view, showing option counts and types per extension.
 - feat: add file-path completion for shortcode arguments, YAML values, and element attributes.
   When a `_schema.yml` declares `completion.type: file` (with optional `extensions` filter), the editor suggests workspace files matching the specified extensions.
