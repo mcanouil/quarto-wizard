@@ -22,6 +22,11 @@ See [Configuration Reference](configuration.qmd) for all available options.
 
 {{CONFIGURATION_TABLE}}
 
+## Extension Schema
+
+Quarto extensions can provide a `_schema.yml` file to declare their configuration options, shortcode parameters, formats options, and element attributes.
+See [Extension Schema Specification](schema-specification.qmd) for the full format reference.
+
 ## API Reference
 
 For developers integrating with the `@quarto-wizard/core` package, see the [API Reference](../api/index.qmd).
