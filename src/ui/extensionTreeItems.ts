@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/core";
+import { formatType } from "@quarto-wizard/core";
 import { getExtensionRepository, type InstalledExtension } from "../utils/extensions";
 
 /**
@@ -145,7 +146,7 @@ export class SchemaFieldTreeItem extends vscode.TreeItem {
 
 		const parts: string[] = [];
 		if (field.type) {
-			parts.push(field.type);
+			parts.push(formatType(field.type));
 		}
 		if (field.required) {
 			parts.push("required");

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/core";
+import { typeIncludes, formatType } from "@quarto-wizard/core";
 
 /**
  * Extract the word at a given offset in the text.
@@ -25,7 +26,7 @@ export function getWordAtOffset(text: string, offset: number): string | null {
 export function hasCompletableValues(descriptor: FieldDescriptor): boolean {
 	return !!(
 		descriptor.enum ||
-		descriptor.type === "boolean" ||
+		typeIncludes(descriptor.type, "boolean") ||
 		descriptor.completion?.values ||
 		descriptor.completion?.type === "file"
 	);
@@ -50,7 +51,7 @@ export function buildAttributeDoc(descriptor: FieldDescriptor, source?: string):
 
 	const meta: string[] = [];
 	if (descriptor.type) {
-		meta.push(`Type: \`${descriptor.type}\``);
+		meta.push(`Type: \`${formatType(descriptor.type)}\``);
 	}
 	if (descriptor.required) {
 		meta.push("Required");

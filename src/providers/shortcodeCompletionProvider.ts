@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/core";
-import { discoverInstalledExtensions } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, typeIncludes } from "@quarto-wizard/core";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
@@ -323,7 +323,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 			items.push(...fileItems);
 		}
 
-		if (descriptor.type === "boolean" && items.length === 0) {
+		if (typeIncludes(descriptor.type, "boolean") && items.length === 0) {
 			const trueItem = new vscode.CompletionItem("true", vscode.CompletionItemKind.Value);
 			trueItem.sortText = "!1_true";
 			items.push(trueItem);
