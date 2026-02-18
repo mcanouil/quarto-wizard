@@ -9,7 +9,7 @@ import { OptionDefaults } from "typedoc";
 
 /** @type {Partial<import("typedoc").TypeDocOptions>} */
 const config = {
-	entryPoints: ["packages/core/src"],
+	entryPoints: ["packages/schema/src", "packages/core/src"],
 	entryPointStrategy: "expand",
 	exclude: ["**/index.ts"],
 	tsconfig: "packages/core/tsconfig.json",

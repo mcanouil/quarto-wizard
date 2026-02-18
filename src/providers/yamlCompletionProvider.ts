@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
+import { typeIncludes, formatType } from "@quarto-wizard/schema";
+import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
 import {
 	discoverInstalledExtensions,
 	formatExtensionId,
 	getExtensionTypes,
-	typeIncludes,
-	formatType,
+	type InstalledExtension,
 } from "@quarto-wizard/core";
-import type { SchemaCache, ExtensionSchema, FieldDescriptor, InstalledExtension } from "@quarto-wizard/core";
 import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { hasCompletableValues } from "../utils/schemaDocumentation";

@@ -15,7 +15,7 @@ import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
 import { setManualToken, clearManualToken } from "./utils/auth";
-import { SchemaCache } from "@quarto-wizard/core";
+import { SchemaCache } from "@quarto-wizard/schema";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
 import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
 import { registerElementAttributeProviders } from "./providers/elementAttributeCompletionProvider";

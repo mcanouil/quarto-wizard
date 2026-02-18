@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/core";
-import { formatType } from "@quarto-wizard/core";
+import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/schema";
+import { formatType } from "@quarto-wizard/schema";
 import { getExtensionRepository, type InstalledExtension } from "../utils/extensions";
 
 /**

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import type { FieldDescriptor } from "@quarto-wizard/core";
+import type { FieldDescriptor } from "@quarto-wizard/schema";
 
 /**
  * Whether a field descriptor declares file-path completion.

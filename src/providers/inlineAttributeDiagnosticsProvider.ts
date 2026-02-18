@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import type { SchemaCache, FieldDescriptor, DeprecatedSpec, ShortcodeSchema } from "@quarto-wizard/core";
-import { typeIncludes, formatType } from "@quarto-wizard/core";
+import type { SchemaCache, FieldDescriptor, DeprecatedSpec, ShortcodeSchema } from "@quarto-wizard/schema";
+import { typeIncludes, formatType } from "@quarto-wizard/schema";
 import { parseAttributeAtPosition } from "../utils/elementAttributeParser";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import {

@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
-import { discoverInstalledExtensions, formatExtensionId, formatType } from "@quarto-wizard/core";
-import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/core";
+import { formatType } from "@quarto-wizard/schema";
+import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
+import { discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";

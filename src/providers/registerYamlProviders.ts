@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
-import type { SchemaCache } from "@quarto-wizard/core";
+import type { SchemaCache } from "@quarto-wizard/schema";
 import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletionProvider";
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { YamlHoverProvider } from "./yamlHoverProvider";

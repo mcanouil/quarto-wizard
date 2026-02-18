@@ -7,7 +7,7 @@ import {
 	extractBareWords,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
-import type { FieldDescriptor } from "@quarto-wizard/core";
+import type { FieldDescriptor } from "@quarto-wizard/schema";
 
 suite("Inline Attribute Diagnostics", () => {
 	suite("findSpacesAroundEquals", () => {

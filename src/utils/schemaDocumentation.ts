@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import type { FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/core";
-import { typeIncludes, formatType } from "@quarto-wizard/core";
+import type { FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/schema";
+import { typeIncludes, formatType } from "@quarto-wizard/schema";
 
 /**
  * Extract the word at a given offset in the text.

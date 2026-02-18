@@ -10,7 +10,7 @@ import {
 	fieldDescriptorMetadata,
 	shortcodeEntryMetadata,
 	rootKeyMetadata,
-} from "@quarto-wizard/core";
+} from "@quarto-wizard/schema";
 import { getYamlKeyPath, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
