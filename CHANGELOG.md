@@ -4,6 +4,8 @@
 
 ### New Features
 
+- feat: add bare attribute and empty-value diagnostics for inline attribute blocks and shortcodes.
+  Warn when a known attribute appears without `=value` (`{key}`) or with an empty assignment (`{key=}`), with a quick fix to insert `key=""`.
 - feat: add `Quarto Wizard: Use Brand` command to download and apply a Quarto brand to the project's `_brand/` directory, supporting GitHub, URL, and local sources.
 - feat: add `_schema.yml` support for Quarto extensions.
   Extensions can ship a `_schema.yml` file that declares options, shortcode parameters, format keys, and element attributes.
