@@ -523,7 +523,7 @@ It can be used by any JSON Schema-aware tool for validation and autocompletion.
 
 Example instances showing every supported property are also available:
 
-- [`extension-schema.yml`](/assets/schema/v1/extension-schema.yml) (YAML example, kebab-case keys).
+- [`extension-schema-example.yml`](/assets/schema/v1/extension-schema-example.yml) (YAML example, kebab-case keys).
 - [`extension-schema-example.json`](/assets/schema/v1/extension-schema-example.json) (JSON example, camelCase keys).
 
 ## Generating a Schema with AI
