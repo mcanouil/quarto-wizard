@@ -7,6 +7,9 @@ import {
 	ALLOWED_TYPES,
 	ALLOWED_SHORTCODE_KEYS,
 	SCHEMA_VERSION_URI,
+	fieldDescriptorMetadata,
+	shortcodeEntryMetadata,
+	rootKeyMetadata,
 } from "@quarto-wizard/core";
 import { getYamlKeyPath, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
@@ -28,61 +31,6 @@ export type SchemaContext =
 	| { kind: "shortcode-entry" }
 	| { kind: "value"; valueType: "type" | "boolean" | "schema-uri" }
 	| null;
-
-/**
- * camelCase field property keys excluded from YAML completions.
- * YAML schema files use kebab-case; these duplicates are only
- * relevant in JSON.
- */
-const CAMEL_CASE_EXCLUSIONS = new Set([
-	"enumCaseInsensitive",
-	"patternExact",
-	"minLength",
-	"maxLength",
-	"minItems",
-	"maxItems",
-	"exclusiveMinimum",
-	"exclusiveMaximum",
-]);
-
-/** JSON Schema-style aliases excluded from YAML completions. */
-const JSON_SCHEMA_ALIASES = new Set(["minimum", "maximum"]);
-
-/** Boolean-valued field descriptor properties. */
-const BOOLEAN_PROPERTIES = new Set(["required", "deprecated", "enum-case-insensitive", "pattern-exact"]);
-
-/** Field descriptor properties that open a nested mapping or list. */
-const NESTED_PROPERTIES = new Set(["items", "properties", "completion"]);
-
-/** Field descriptor properties with known value completions. */
-const VALUE_TRIGGER_PROPERTIES = new Set(["type", ...BOOLEAN_PROPERTIES]);
-
-/** One-line documentation for each field descriptor property. */
-const PROPERTY_DOCS: Record<string, string> = {
-	type: "Data type (string, number, integer, boolean, array, object, content).",
-	required: "Whether this field is required.",
-	default: "Default value when not specified.",
-	description: "Human-readable description shown in editor hints.",
-	enum: "List of allowed values.",
-	"enum-case-insensitive": "Whether enum matching ignores case.",
-	pattern: "Regular expression the value must match.",
-	"pattern-exact": "Whether the pattern must match the entire value.",
-	min: "Minimum numeric value.",
-	max: "Maximum numeric value.",
-	"exclusive-minimum": "Exclusive minimum (value must be strictly greater).",
-	"exclusive-maximum": "Exclusive maximum (value must be strictly less).",
-	"min-length": "Minimum string length.",
-	"max-length": "Maximum string length.",
-	"min-items": "Minimum number of items (for arrays).",
-	"max-items": "Maximum number of items (for arrays).",
-	const: "Fixed value the field must equal.",
-	aliases: "Alternative names for the field.",
-	deprecated: "Whether the field is deprecated.",
-	completion: "Completion specification for the field.",
-	items: "Schema for array items (when type is array).",
-	properties: "Schema for nested object properties (when type is object).",
-	name: "Name of the shortcode argument (required).",
-};
 
 /**
  * Determine the schema context for a given key path.
@@ -107,7 +55,7 @@ export function getSchemaContext(keyPath: string[], isValuePosition: boolean): S
 			if (lastKey === "type") {
 				return { kind: "value", valueType: "type" };
 			}
-			if (BOOLEAN_PROPERTIES.has(lastKey)) {
+			if (fieldDescriptorMetadata.booleanProperties.has(lastKey)) {
 				return { kind: "value", valueType: "boolean" };
 			}
 		}
@@ -306,8 +254,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 			if (existingKeys.has(key)) {
 				continue;
 			}
-			// Skip "elementAttributes" in YAML; use "element-attributes" instead.
-			if (key === "elementAttributes") {
+			if (rootKeyMetadata.yamlHidden.has(key)) {
 				continue;
 			}
 
@@ -336,16 +283,17 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 			if (existingKeys.has(key)) {
 				continue;
 			}
-			if (CAMEL_CASE_EXCLUSIONS.has(key) || JSON_SCHEMA_ALIASES.has(key)) {
+			if (fieldDescriptorMetadata.yamlHidden.has(key)) {
 				continue;
 			}
-			if (key === "name" && !allowName) {
+			if (fieldDescriptorMetadata.shortcodeArgumentOnly.has(key) && !allowName) {
 				continue;
 			}
 
-			const doc = PROPERTY_DOCS[key];
+			const doc = fieldDescriptorMetadata.propertyDocs[key];
+			const snippet = fieldDescriptorMetadata.snippetOverrides[key];
 
-			if (NESTED_PROPERTIES.has(key)) {
+			if (fieldDescriptorMetadata.nestedProperties.has(key)) {
 				const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Module);
 				if (doc) {
 					item.detail = doc;
@@ -353,12 +301,12 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				item.insertText = new vscode.SnippetString(`${key}:\n  $0`);
 				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 				items.push(item);
-			} else if (key === "enum" || key === "aliases") {
+			} else if (snippet) {
 				const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
 				if (doc) {
 					item.detail = doc;
 				}
-				item.insertText = new vscode.SnippetString(`${key}:\n  - $0`);
+				item.insertText = new vscode.SnippetString(`${key}${snippet}`);
 				items.push(item);
 			} else {
 				const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
@@ -366,7 +314,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 					item.detail = doc;
 				}
 				item.insertText = `${key}: `;
-				if (VALUE_TRIGGER_PROPERTIES.has(key)) {
+				if (fieldDescriptorMetadata.valueTriggerProperties.has(key)) {
 					item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 				}
 				items.push(item);
@@ -384,22 +332,23 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				continue;
 			}
 
-			if (key === "description") {
+			const doc = shortcodeEntryMetadata.propertyDocs[key];
+			const snippet = shortcodeEntryMetadata.snippetOverrides[key];
+
+			if (shortcodeEntryMetadata.nestedProperties.has(key)) {
+				const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Module);
+				if (doc) {
+					item.detail = doc;
+				}
+				item.insertText = new vscode.SnippetString(`${key}${snippet ?? ":\n  $0"}`);
+				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+				items.push(item);
+			} else {
 				const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
-				item.detail = "Human-readable description of the shortcode.";
+				if (doc) {
+					item.detail = doc;
+				}
 				item.insertText = `${key}: `;
-				items.push(item);
-			} else if (key === "arguments") {
-				const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Module);
-				item.detail = "Positional arguments accepted by the shortcode.";
-				item.insertText = new vscode.SnippetString(`arguments:\n  - $0`);
-				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
-				items.push(item);
-			} else if (key === "attributes") {
-				const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Module);
-				item.detail = "Named attributes accepted by the shortcode.";
-				item.insertText = new vscode.SnippetString(`attributes:\n  $0`);
-				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 				items.push(item);
 			}
 		}

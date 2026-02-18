@@ -9,6 +9,12 @@
  */
 
 import * as yaml from "js-yaml";
+import {
+	ALLOWED_TOP_LEVEL_KEYS,
+	ALLOWED_FIELD_PROPERTIES,
+	ALLOWED_TYPES,
+	ALLOWED_SHORTCODE_KEYS,
+} from "./schema-derived.js";
 
 /**
  * Severity level for a schema definition finding.
@@ -32,60 +38,6 @@ export interface SchemaDefinitionFinding {
 	/** Dot-separated key path to the problematic location. */
 	keyPath?: string;
 }
-
-/** Allowed top-level keys in a schema definition file. */
-export const ALLOWED_TOP_LEVEL_KEYS = new Set([
-	"$schema",
-	"options",
-	"shortcodes",
-	"formats",
-	"projects",
-	"element-attributes",
-	"elementAttributes",
-]);
-
-/** Allowed properties on a field descriptor (both camelCase and kebab-case). */
-export const ALLOWED_FIELD_PROPERTIES = new Set([
-	"type",
-	"required",
-	"default",
-	"description",
-	"enum",
-	"enumCaseInsensitive",
-	"enum-case-insensitive",
-	"pattern",
-	"patternExact",
-	"pattern-exact",
-	"min",
-	"max",
-	"minimum",
-	"maximum",
-	"exclusiveMinimum",
-	"exclusive-minimum",
-	"exclusiveMaximum",
-	"exclusive-maximum",
-	"minLength",
-	"min-length",
-	"maxLength",
-	"max-length",
-	"minItems",
-	"min-items",
-	"maxItems",
-	"max-items",
-	"const",
-	"aliases",
-	"deprecated",
-	"completion",
-	"items",
-	"properties",
-	"name",
-]);
-
-/** Allowed type values for a field descriptor. */
-export const ALLOWED_TYPES = new Set(["string", "number", "integer", "boolean", "array", "object", "content"]);
-
-/** Allowed top-level keys inside a shortcode entry. */
-export const ALLOWED_SHORTCODE_KEYS = new Set(["description", "arguments", "attributes"]);
 
 /**
  * Resolve a numeric value from a raw field, accepting both camelCase and kebab-case.
