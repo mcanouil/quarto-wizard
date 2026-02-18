@@ -25,7 +25,7 @@ export interface SchemaReadResult {
 	schema: ExtensionSchema;
 	/** Full path to the schema file. */
 	schemaPath: string;
-	/** Filename used (e.g., "_schema.yml"). */
+	/** Filename used (e.g., "_schema.yml" or "_schema.json"). */
 	filename: string;
 }
 

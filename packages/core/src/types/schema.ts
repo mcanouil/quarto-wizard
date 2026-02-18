@@ -1,6 +1,6 @@
 /**
  * @title Schema Types Module
- * @description Extension schema types for parsing _schema.yml files.
+ * @description Extension schema types for parsing _schema.yml, _schema.yaml, and _schema.json files.
  *
  * Defines types for field descriptors, completion specs, shortcode schemas,
  * and the overall extension schema structure.
