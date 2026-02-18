@@ -46,3 +46,6 @@ export * from "./operations/index.js";
 
 // Proxy exports
 export * from "./proxy/index.js";
+
+// Validation exports
+export * from "./validation/index.js";

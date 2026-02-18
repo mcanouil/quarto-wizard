@@ -15,6 +15,11 @@
   When a `_schema.yml` declares `completion.type: file` (with optional `extensions` filter), the editor suggests workspace files matching the specified extensions.
 - feat: add bare attribute and empty-value diagnostics for inline attribute blocks and shortcodes.
   Warn when a known attribute appears without `=value` (`{key}`) or with an empty assignment (`{key=}`), with a quick fix to insert `key=""`.
+- feat: add schema definition file diagnostics for `_schema.yml`, `_schema.yaml`, and `_schema.json`.
+  Validates syntax, structure, and semantic consistency (unknown keys, invalid types, contradictory constraints) directly in the schema editor when `_extension.yml` is present in the same directory.
+- feat: add YAML completion provider for schema definition files (`_schema.yml`, `_schema.yaml`).
+  Suggests allowed top-level sections, field descriptor properties (kebab-case), shortcode entry keys, type values, and boolean values as extension authors edit their schema files.
+  Only activates when `_extension.yml` is present in the same directory.
 
 ### Bug Fixes
 

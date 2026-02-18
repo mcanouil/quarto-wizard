@@ -1,11 +1,16 @@
-# Extension Schema Reference
-# ==========================
+# Extension Schema Reference (Example Instance)
+# ===============================================
+# This file is an EXAMPLE instance of _schema.yml, not the meta-schema
+# itself. The JSON Schema meta-schema that formally describes the
+# structure of _schema.yml / _schema.json files lives at
+# extension-schema.json in this directory.
+#
 # This file documents every property accepted in a _schema.yml file
 # for Quarto extensions. Place _schema.yml alongside _extension.yml
 # inside an extension directory.
 #
 # YAML files use kebab-case for multi-word property names.
-# JSON files use camelCase (see extension-schema.json).
+# JSON files use camelCase (see extension-schema-example.json).
 
 # Schema version URI. Declares which schema format this file follows.
 # Quarto Wizard warns on unrecognised versions but does not reject them.
@@ -249,10 +254,7 @@ element-attributes:
 # ---------------------------------------------------------------------------
 # projects
 # ---------------------------------------------------------------------------
-# Project-level options. Each key is a project type name.
+# Project types contributed by the extension.
+# Listed as values for project.type in _quarto.yml.
 projects:
-  my-website:
-    output-dir:
-      type: string
-      default: _site
-      description: "Output directory for the built website."
+  - my-website

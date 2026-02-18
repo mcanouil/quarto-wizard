@@ -1,0 +1,202 @@
+{
+	"$schema": "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json",
+	"options": {
+		"theme": {
+			"type": "string",
+			"description": "Colour theme for the extension output.",
+			"required": false,
+			"default": "light",
+			"enum": ["light", "dark", "auto"],
+			"enumCaseInsensitive": true,
+			"aliases": ["colour-scheme"]
+		},
+		"opacity": {
+			"type": "number",
+			"description": "Opacity level between 0 and 1 (exclusive of both endpoints).",
+			"default": 0.5,
+			"exclusiveMinimum": 0,
+			"exclusiveMaximum": 1
+		},
+		"count": {
+			"type": "number",
+			"description": "Number of items to display.",
+			"default": 3,
+			"min": 1,
+			"max": 100
+		},
+		"slug": {
+			"type": "string",
+			"description": "URL-safe identifier for the output.",
+			"pattern": "^[a-z0-9-]+$",
+			"patternExact": true,
+			"minLength": 1,
+			"maxLength": 64
+		},
+		"enabled": {
+			"type": "boolean",
+			"description": "Enable or disable the extension.",
+			"default": true
+		},
+		"version": {
+			"type": "string",
+			"const": "1.0",
+			"description": "Schema version marker (must be exactly '1.0')."
+		},
+		"fadeDuration": {
+			"type": ["number", "boolean"],
+			"default": 100,
+			"description": "Fade duration in milliseconds. Set to false to disable."
+		},
+		"tags": {
+			"type": "array",
+			"description": "List of classification tags.",
+			"minItems": 1,
+			"maxItems": 10,
+			"items": {
+				"type": "string",
+				"minLength": 1
+			}
+		},
+		"badge": {
+			"type": "object",
+			"description": "Badge configuration.",
+			"properties": {
+				"key": {
+					"type": "string",
+					"required": true,
+					"description": "Unique identifier for the badge."
+				},
+				"colour": {
+					"type": "string",
+					"aliases": ["color"],
+					"description": "Background colour.",
+					"completion": {
+						"type": "color"
+					}
+				}
+			}
+		},
+		"oldFlag": {
+			"type": "boolean",
+			"deprecated": true
+		},
+		"legacyMode": {
+			"type": "string",
+			"deprecated": "Use 'theme' instead."
+		},
+		"oldColour": {
+			"type": "string",
+			"deprecated": {
+				"since": "1.2",
+				"message": "Use 'theme' instead.",
+				"replaceWith": "theme"
+			}
+		},
+		"logo": {
+			"type": "string",
+			"description": "Path to a logo image file.",
+			"completion": {
+				"type": "file",
+				"extensions": [".png", ".svg", ".jpg"]
+			}
+		},
+		"customCss": {
+			"type": "string",
+			"description": "Custom CSS class name.",
+			"completion": {
+				"type": "freeform",
+				"placeholder": "e.g. my-custom-class"
+			}
+		},
+		"brandColour": {
+			"type": "string",
+			"description": "Colour from the project brand palette.",
+			"completion": {
+				"type": "enum",
+				"dynamic": true,
+				"source": "brand-colors"
+			}
+		}
+	},
+	"shortcodes": {
+		"placeholder": {
+			"description": "Generate a placeholder image with specified dimensions.",
+			"arguments": [
+				{
+					"name": "width",
+					"type": "number",
+					"required": true,
+					"description": "Image width in pixels.",
+					"min": 1
+				},
+				{
+					"name": "height",
+					"type": "number",
+					"description": "Image height in pixels.",
+					"default": 150
+				},
+				{
+					"name": "caption",
+					"type": "content",
+					"description": "Caption text or Pandoc content for the image."
+				}
+			],
+			"attributes": {
+				"format": {
+					"type": "string",
+					"enum": ["png", "jpg", "svg"],
+					"default": "png",
+					"description": "Output image format."
+				},
+				"alt": {
+					"type": "string",
+					"description": "Alternative text for accessibility.",
+					"maxLength": 200
+				}
+			}
+		}
+	},
+	"formats": {
+		"letter-pdf": {
+			"address": {
+				"type": "array",
+				"required": true,
+				"description": "Recipient address lines.",
+				"items": {
+					"type": "string"
+				}
+			},
+			"opening": {
+				"type": "string",
+				"default": "Dear Sir or Madam,",
+				"description": "Opening salutation."
+			}
+		}
+	},
+	"elementAttributes": {
+		"_any": {
+			"colour": {
+				"type": "string",
+				"aliases": ["color", "ink", "fg"],
+				"description": "Text (foreground) colour.",
+				"completion": {
+					"type": "color"
+				}
+			}
+		},
+		"panel": {
+			"title": {
+				"type": "string",
+				"description": "Panel heading text.",
+				"required": true
+			}
+		},
+		"CodeBlock": {
+			"filename": {
+				"type": "string",
+				"description": "Display filename label for the code block."
+			}
+		}
+	},
+	"projects": ["my-website"]
+}

@@ -9,8 +9,8 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsc",
-		"watch": "tsc --watch",
+		"build": "tsc && cp src/validation/extension-schema.json dist/validation/ && cp src/validation/extension-schema.json ../../assets/schema/v1/extension-schema.json",
+		"watch": "cp src/validation/extension-schema.json dist/validation/ && tsc --watch",
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest",
