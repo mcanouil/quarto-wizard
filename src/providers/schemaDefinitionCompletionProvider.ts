@@ -78,12 +78,9 @@ export function getSchemaContext(keyPath: string[], isValuePosition: boolean): S
 		return resolveFieldDescriptorContext(keyPath.slice(2));
 	}
 
-	// "projects" section (same structure as options).
+	// "projects" is a simple array of strings; no structured completions.
 	if (first === "projects") {
-		if (keyPath.length === 1) {
-			return null;
-		}
-		return resolveFieldDescriptorContext(keyPath.slice(2));
+		return null;
 	}
 
 	// "formats" section.
@@ -230,11 +227,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 		}
 	}
 
-	private buildCompletions(context: SchemaContext, existingKeys: Set<string>): vscode.CompletionItem[] | undefined {
-		if (!context) {
-			return undefined;
-		}
-
+	private buildCompletions(context: NonNullable<SchemaContext>, existingKeys: Set<string>): vscode.CompletionItem[] {
 		switch (context.kind) {
 			case "root":
 				return this.completeRootKeys(existingKeys);

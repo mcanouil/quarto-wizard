@@ -198,13 +198,5 @@
 			}
 		}
 	},
-	"projects": {
-		"my-website": {
-			"outputDir": {
-				"type": "string",
-				"default": "_site",
-				"description": "Output directory for the built website."
-			}
-		}
-	}
+	"projects": ["my-website"]
 }

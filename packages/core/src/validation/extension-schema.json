@@ -24,8 +24,9 @@
 			"description": "Per-format options."
 		},
 		"projects": {
-			"$ref": "#/$defs/fieldDescriptorMap",
-			"description": "Project-level options."
+			"type": "array",
+			"items": { "type": "string" },
+			"description": "Project types contributed by the extension (suggested for project.type)."
 		},
 		"element-attributes": {
 			"$ref": "#/$defs/elementAttributesMap",

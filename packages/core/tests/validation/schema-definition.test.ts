@@ -83,7 +83,7 @@ describe("validateSchemaDefinitionStructure", () => {
 			options: {},
 			shortcodes: {},
 			formats: {},
-			projects: {},
+			projects: [],
 			"element-attributes": {},
 		});
 		expect(findings.filter((f) => f.code === "unknown-top-level-key")).toHaveLength(0);
@@ -99,18 +99,72 @@ describe("validateSchemaDefinitionStructure", () => {
 		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "formats")).toBe(true);
 	});
 
-	it("reports non-object projects section", () => {
+	it("reports non-array projects section", () => {
 		const findings = validateSchemaDefinitionStructure({ projects: 42 });
 		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "projects")).toBe(true);
+	});
+
+	it("accepts valid projects array of strings", () => {
+		const findings = validateSchemaDefinitionStructure({ projects: ["my-website", "my-book"] });
+		expect(findings.filter((f) => f.keyPath?.startsWith("projects"))).toHaveLength(0);
+	});
+
+	it("reports non-string entries in projects array", () => {
+		const findings = validateSchemaDefinitionStructure({ projects: ["valid", 42] });
+		expect(findings.some((f) => f.code === "invalid-project-type")).toBe(true);
 	});
 
 	it("reports non-object shortcodes section", () => {
 		const findings = validateSchemaDefinitionStructure({ shortcodes: true });
 		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "shortcodes")).toBe(true);
 	});
+
+	it("reports non-object element-attributes section", () => {
+		const findings = validateSchemaDefinitionStructure({ "element-attributes": "bad" });
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "element-attributes")).toBe(true);
+	});
+
+	it("validates element-attributes field descriptors inside groups", () => {
+		const findings = validateSchemaDefinitionStructure({
+			"element-attributes": {
+				_any: {
+					colour: { type: "string", description: "Text colour." },
+				},
+			},
+		});
+		expect(findings.filter((f) => f.severity === "error")).toHaveLength(0);
+	});
+
+	it("reports non-object element-attributes group value", () => {
+		const findings = validateSchemaDefinitionStructure({
+			"element-attributes": {
+				_any: "bad",
+			},
+		});
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "element-attributes._any")).toBe(
+			true,
+		);
+	});
+
+	it("warns when both element-attributes and elementAttributes are present", () => {
+		const findings = validateSchemaDefinitionStructure({
+			"element-attributes": { _any: {} },
+			elementAttributes: { _any: {} },
+		});
+		expect(findings.some((f) => f.code === "duplicate-element-attributes")).toBe(true);
+	});
 });
 
 describe("field descriptor validation", () => {
+	it("reports non-object field descriptor entries", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { myField: "not an object" },
+		});
+		expect(
+			findings.some((f) => f.code === "invalid-field-descriptor" && f.keyPath === "options.myField"),
+		).toBe(true);
+	});
+
 	it("warns about unknown field properties", () => {
 		const findings = validateSchemaDefinitionStructure({
 			options: {
@@ -298,7 +352,7 @@ describe("semantic checks", () => {
 		expect(findings.filter((f) => f.code === "min-greater-than-max")).toHaveLength(0);
 	});
 
-	it("reports min > max with kebab-case aliases", () => {
+	it("reports min > max with JSON Schema aliases (minimum/maximum)", () => {
 		const findings = validateSchemaDefinitionStructure({
 			options: { f: { type: "number", minimum: 10, maximum: 5 } },
 		});
@@ -331,6 +385,20 @@ describe("semantic checks", () => {
 			options: { f: { type: "array", "min-items": 10, "max-items": 2 } },
 		});
 		expect(findings.some((f) => f.code === "min-items-greater-than-max-items")).toBe(true);
+	});
+
+	it("reports exclusiveMinimum > exclusiveMaximum", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { f: { type: "number", exclusiveMinimum: 10, exclusiveMaximum: 5 } },
+		});
+		expect(findings.some((f) => f.code === "exclusive-min-greater-than-exclusive-max")).toBe(true);
+	});
+
+	it("reports exclusive-minimum > exclusive-maximum with kebab-case", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { f: { type: "number", "exclusive-minimum": 10, "exclusive-maximum": 5 } },
+		});
+		expect(findings.some((f) => f.code === "exclusive-min-greater-than-exclusive-max")).toBe(true);
 	});
 
 	it("warns when items is defined without array type", () => {

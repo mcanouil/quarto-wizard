@@ -202,8 +202,8 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		if (schema.formats && Object.keys(schema.formats).length > 0) {
 			sections.push(new SchemaSectionTreeItem("Formats", "formats", schema, Object.keys(schema.formats).length));
 		}
-		if (schema.projects && Object.keys(schema.projects).length > 0) {
-			sections.push(new SchemaSectionTreeItem("Projects", "projects", schema, Object.keys(schema.projects).length));
+		if (schema.projects && schema.projects.length > 0) {
+			sections.push(new SchemaSectionTreeItem("Projects", "projects", schema, schema.projects.length));
 		}
 		if (schema.elementAttributes && Object.keys(schema.elementAttributes).length > 0) {
 			sections.push(
@@ -230,7 +230,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			case "formats":
 				return this.formatItems(schema.formats ?? {});
 			case "projects":
-				return this.fieldItems(schema.projects ?? {});
+				return (schema.projects ?? []).map(
+					(name) => new SchemaFieldTreeItem(name, { type: "string", const: name }, false),
+				);
 			case "elementAttributes":
 				return this.formatItems(schema.elementAttributes ?? {});
 		}

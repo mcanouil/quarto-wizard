@@ -100,7 +100,7 @@ export function parseSchemaContent(
 		// Warn on unrecognised $schema versions (do not reject for forward-compatibility).
 		if (schema.$schema && !SUPPORTED_SCHEMA_VERSIONS.has(schema.$schema)) {
 			const known = [...SUPPORTED_SCHEMA_VERSIONS].join(", ");
-			// eslint-disable-next-line no-console
+			 
 			console.warn(
 				`Unknown schema version "${schema.$schema}" in ${sourcePath ?? "schema"}. Known versions: ${known}.`,
 			);

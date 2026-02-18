@@ -254,10 +254,7 @@ element-attributes:
 # ---------------------------------------------------------------------------
 # projects
 # ---------------------------------------------------------------------------
-# Project-level options. Each key is a project type name.
+# Project types contributed by the extension.
+# Listed as values for project.type in _quarto.yml.
 projects:
-  my-website:
-    output-dir:
-      type: string
-      default: _site
-      description: "Output directory for the built website."
+  - my-website

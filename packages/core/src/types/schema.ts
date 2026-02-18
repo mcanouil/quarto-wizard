@@ -116,8 +116,8 @@ export interface ExtensionSchema {
 	shortcodes?: Record<string, ShortcodeSchema>;
 	/** Format-specific options the extension supports. */
 	formats?: Record<string, Record<string, FieldDescriptor>>;
-	/** Project-level options the extension supports. */
-	projects?: Record<string, FieldDescriptor>;
+	/** Project types contributed by the extension (suggested for project.type). */
+	projects?: string[];
 	/** Element-level attributes grouped by CSS class or element type (e.g., "_any", "panel", "card"). */
 	elementAttributes?: Record<string, Record<string, FieldDescriptor>>;
 }
@@ -131,7 +131,7 @@ export interface RawSchema {
 	options?: Record<string, unknown>;
 	shortcodes?: Record<string, unknown>;
 	formats?: Record<string, unknown>;
-	projects?: Record<string, unknown>;
+	projects?: unknown[];
 	"element-attributes"?: Record<string, unknown>;
 	elementAttributes?: Record<string, unknown>;
 }
@@ -295,8 +295,8 @@ export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 		result.formats = formats;
 	}
 
-	if (raw.projects && typeof raw.projects === "object" && !Array.isArray(raw.projects)) {
-		result.projects = normaliseFieldDescriptorMap(raw.projects);
+	if (Array.isArray(raw.projects)) {
+		result.projects = raw.projects.filter((v): v is string => typeof v === "string");
 	}
 
 	// Accept both "element-attributes" (YAML kebab-case) and "elementAttributes" (JSON camelCase).

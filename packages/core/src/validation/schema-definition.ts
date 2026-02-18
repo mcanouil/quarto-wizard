@@ -180,13 +180,22 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 		}
 	}
 
-	// Validate "projects" section.
+	// Validate "projects" section (array of project type strings).
 	if (root["projects"] !== undefined) {
-		if (root["projects"] && typeof root["projects"] === "object" && !Array.isArray(root["projects"])) {
-			validateFieldDescriptorMap(root["projects"] as Record<string, unknown>, "projects", findings);
+		if (Array.isArray(root["projects"])) {
+			for (let i = 0; i < root["projects"].length; i++) {
+				if (typeof root["projects"][i] !== "string") {
+					findings.push({
+						message: `Project type at index ${i} must be a string.`,
+						severity: "error",
+						code: "invalid-project-type",
+						keyPath: `projects[${i}]`,
+					});
+				}
+			}
 		} else {
 			findings.push({
-				message: '"projects" must be an object.',
+				message: '"projects" must be an array of project type strings.',
 				severity: "error",
 				code: "invalid-section-type",
 				keyPath: "projects",
@@ -195,6 +204,14 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 	}
 
 	// Validate "element-attributes" / "elementAttributes" section.
+	if (root["element-attributes"] !== undefined && root["elementAttributes"] !== undefined) {
+		findings.push({
+			message: 'Both "element-attributes" and "elementAttributes" are present. Use only one.',
+			severity: "warning",
+			code: "duplicate-element-attributes",
+			keyPath: "elementAttributes",
+		});
+	}
 	const elementAttributesKey = root["element-attributes"] !== undefined ? "element-attributes" : "elementAttributes";
 	const elementAttributes = root[elementAttributesKey];
 	if (elementAttributes !== undefined) {
@@ -251,6 +268,13 @@ function validateFieldDescriptorMap(
 		const keyPath = `${parentPath}.${key}`;
 		if (value && typeof value === "object" && !Array.isArray(value)) {
 			validateFieldDescriptor(value as Record<string, unknown>, keyPath, findings);
+		} else {
+			findings.push({
+				message: `Field descriptor "${key}" must be an object.`,
+				severity: "error",
+				code: "invalid-field-descriptor",
+				keyPath,
+			});
 		}
 	}
 }
@@ -332,6 +356,18 @@ function validateFieldSemantics(
 			message: `"min" (${min}) is greater than "max" (${max}).`,
 			severity: "error",
 			code: "min-greater-than-max",
+			keyPath,
+		});
+	}
+
+	// exclusiveMinimum > exclusiveMaximum.
+	const exclusiveMin = resolveNumber(raw, "exclusiveMinimum", "exclusive-minimum");
+	const exclusiveMax = resolveNumber(raw, "exclusiveMaximum", "exclusive-maximum");
+	if (exclusiveMin !== undefined && exclusiveMax !== undefined && exclusiveMin > exclusiveMax) {
+		findings.push({
+			message: `"exclusiveMinimum" (${exclusiveMin}) is greater than "exclusiveMaximum" (${exclusiveMax}).`,
+			severity: "error",
+			code: "exclusive-min-greater-than-exclusive-max",
 			keyPath,
 		});
 	}

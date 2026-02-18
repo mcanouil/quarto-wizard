@@ -233,9 +233,7 @@ describe("normaliseSchema", () => {
 					toc: { type: "boolean", default: true },
 				},
 			},
-			projects: {
-				output: { type: "string" },
-			},
+			projects: ["my-website"],
 			"element-attributes": {
 				_any: {
 					width: { type: "number" },
@@ -250,7 +248,7 @@ describe("normaliseSchema", () => {
 		expect(result.formats).toBeDefined();
 		expect(result.formats!["html"]["toc"].type).toBe("boolean");
 		expect(result.projects).toBeDefined();
-		expect(result.projects!["output"].type).toBe("string");
+		expect(result.projects).toEqual(["my-website"]);
 		expect(result.elementAttributes).toBeDefined();
 		expect(result.elementAttributes!["_any"]["width"].type).toBe("number");
 	});

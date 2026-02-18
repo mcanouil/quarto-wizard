@@ -74,11 +74,10 @@ formats:
   <format-name>:
     <option-name>: <field-descriptor>
 
-# Per-project schemas (one entry per contributed project type).
-# Configured under project: in YAML metadata.
+# Project types contributed by the extension.
+# Suggested for project.type in _quarto.yml.
 projects:
-  <project-type>:
-    <option-name>: <field-descriptor>
+  - <project-type>
 
 # Element attributes accepted by filters on Div/Span/CodeBlock elements.
 # Used in: [text]{.class attr=value} or ::: {.class attr=value}
@@ -173,15 +172,12 @@ formats:
 
 ### projects
 
-Per-project-type options, keyed by the project type name.
+An array of project type strings contributed by the extension.
+These values are suggested for `project.type` in `_quarto.yml`.
 
 ```yaml
 projects:
-  my-website:
-    output-dir:
-      type: string
-      default: "_site"
-      description: "Output directory for the website build."
+  - my-website
 ```
 
 ### element-attributes
