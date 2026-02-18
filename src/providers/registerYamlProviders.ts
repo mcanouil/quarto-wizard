@@ -5,16 +5,20 @@ import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletion
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { YamlHoverProvider } from "./yamlHoverProvider";
 import { SchemaDiagnosticsProvider } from "./schemaDiagnosticsProvider";
+import { SchemaDefinitionCompletionProvider, SCHEMA_DEFINITION_SELECTOR } from "./schemaDefinitionCompletionProvider";
 import { debounce } from "../utils/debounce";
 import { isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
 /**
- * Check whether a document matches the YAML document selector used by
- * the completion provider.
+ * Check whether a document matches one of the YAML document selectors
+ * used by completion providers.
  */
 function matchesYamlSelector(document: vscode.TextDocument): boolean {
-	return vscode.languages.match(YAML_DOCUMENT_SELECTOR, document) > 0;
+	return (
+		vscode.languages.match(YAML_DOCUMENT_SELECTOR, document) > 0 ||
+		vscode.languages.match(SCHEMA_DEFINITION_SELECTOR, document) > 0
+	);
 }
 
 /**
@@ -43,6 +47,18 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	// Register diagnostics provider for schema definition files (_schema.yml, _schema.json).
 	const schemaDiagnosticsProvider = new SchemaDiagnosticsProvider();
 	context.subscriptions.push(schemaDiagnosticsProvider);
+
+	// Register completion provider for schema definition YAML files.
+	const schemaDefinitionCompletionProvider = new SchemaDefinitionCompletionProvider();
+	context.subscriptions.push(
+		vscode.languages.registerCompletionItemProvider(
+			SCHEMA_DEFINITION_SELECTOR,
+			schemaDefinitionCompletionProvider,
+			":",
+			"\n",
+			" ",
+		),
+	);
 
 	// Re-trigger suggestions on backspace.  Backspace is not a valid
 	// trigger character, so we listen for text document changes that

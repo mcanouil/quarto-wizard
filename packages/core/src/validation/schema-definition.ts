@@ -34,7 +34,7 @@ export interface SchemaDefinitionFinding {
 }
 
 /** Allowed top-level keys in a schema definition file. */
-const ALLOWED_TOP_LEVEL_KEYS = new Set([
+export const ALLOWED_TOP_LEVEL_KEYS = new Set([
 	"$schema",
 	"options",
 	"shortcodes",
@@ -45,7 +45,7 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
 ]);
 
 /** Allowed properties on a field descriptor (both camelCase and kebab-case). */
-const ALLOWED_FIELD_PROPERTIES = new Set([
+export const ALLOWED_FIELD_PROPERTIES = new Set([
 	"type",
 	"required",
 	"default",
@@ -82,10 +82,10 @@ const ALLOWED_FIELD_PROPERTIES = new Set([
 ]);
 
 /** Allowed type values for a field descriptor. */
-const ALLOWED_TYPES = new Set(["string", "number", "integer", "boolean", "array", "object", "content"]);
+export const ALLOWED_TYPES = new Set(["string", "number", "integer", "boolean", "array", "object", "content"]);
 
 /** Allowed top-level keys inside a shortcode entry. */
-const ALLOWED_SHORTCODE_KEYS = new Set(["description", "arguments", "attributes"]);
+export const ALLOWED_SHORTCODE_KEYS = new Set(["description", "arguments", "attributes"]);
 
 /**
  * Resolve a numeric value from a raw field, accepting both camelCase and kebab-case.
