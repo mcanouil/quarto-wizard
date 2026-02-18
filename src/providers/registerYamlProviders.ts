@@ -4,6 +4,7 @@ import type { SchemaCache } from "@quarto-wizard/core";
 import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletionProvider";
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { YamlHoverProvider } from "./yamlHoverProvider";
+import { SchemaDiagnosticsProvider } from "./schemaDiagnosticsProvider";
 import { debounce } from "../utils/debounce";
 import { isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
@@ -35,9 +36,13 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	const hoverProvider = new YamlHoverProvider(schemaCache);
 	context.subscriptions.push(vscode.languages.registerHoverProvider(YAML_DOCUMENT_SELECTOR, hoverProvider));
 
-	// Register diagnostics provider.
+	// Register diagnostics provider for user documents (_quarto.yml, .qmd).
 	const diagnosticsProvider = new YamlDiagnosticsProvider(schemaCache);
 	context.subscriptions.push(diagnosticsProvider);
+
+	// Register diagnostics provider for schema definition files (_schema.yml, _schema.json).
+	const schemaDiagnosticsProvider = new SchemaDiagnosticsProvider();
+	context.subscriptions.push(schemaDiagnosticsProvider);
 
 	// Re-trigger suggestions on backspace.  Backspace is not a valid
 	// trigger character, so we listen for text document changes that
@@ -77,6 +82,7 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 		const dir = path.normalize(vscode.Uri.joinPath(uri, "..").fsPath);
 		schemaCache.invalidate(dir);
 		diagnosticsProvider.revalidateAll();
+		schemaDiagnosticsProvider.revalidateAll();
 		logMessage(`Schema cache invalidated for ${dir}.`, "debug");
 	};
 
