@@ -9,7 +9,7 @@
 
 # Schema version URI. Declares which schema format this file follows.
 # Quarto Wizard warns on unrecognised versions but does not reject them.
-$schema: https://mcanouil.github.io/quarto-wizard/schemas/extension/v1
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json
 
 # ---------------------------------------------------------------------------
 # options

@@ -34,7 +34,7 @@ Schema files may include a `$schema` key at the top level to declare the schema 
 This is optional but recommended for forward-compatibility.
 
 ```yaml
-$schema: https://mcanouil.github.io/quarto-wizard/schemas/extension/v1
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json
 options:
   threshold:
     type: number
@@ -42,7 +42,7 @@ options:
 
 The currently supported URI is:
 
-- `https://mcanouil.github.io/quarto-wizard/schemas/extension/v1`
+- `https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json`
 
 When an unrecognised version URI is encountered, Quarto Wizard emits a warning but does not reject the schema.
 This allows older tooling to gracefully handle schemas written for newer versions.
@@ -516,8 +516,8 @@ element-attributes:
 
 The machine-readable schema definitions for validating `_schema.yml` and `_schema.json` files are available at:
 
-- `packages/core/assets/schema/extension-schema.yml` (YAML format, kebab-case keys).
-- `packages/core/assets/schema/extension-schema.json` (JSON format, camelCase keys).
+- [`extension-schema.yml`](../assets/schema/v1/extension-schema.yml) (YAML format, kebab-case keys).
+- [`extension-schema.json`](../assets/schema/v1/extension-schema.json) (JSON format, camelCase keys).
 
 These files describe the structure and constraints of every property documented on this page.
 
@@ -584,7 +584,7 @@ Output only the YAML content of `_schema.yml`, nothing else.
 Use kebab-case for multi-word property names (`enum-case-insensitive`,
 not `enumCaseInsensitive`).
 Add a one-line comment header: `# Schema for the <name> extension`.
-Optionally include `$schema: https://mcanouil.github.io/quarto-wizard/schemas/extension/v1`
+Optionally include `$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json`
 at the top level.
 ```
 

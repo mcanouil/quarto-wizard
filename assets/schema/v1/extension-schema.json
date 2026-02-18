@@ -1,5 +1,5 @@
 {
-	"$schema": "https://mcanouil.github.io/quarto-wizard/schemas/extension/v1",
+	"$schema": "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json",
 	"options": {
 		"theme": {
 			"type": "string",

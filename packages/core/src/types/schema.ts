@@ -108,7 +108,7 @@ export interface ShortcodeSchema {
  * All sections are optional and default to empty objects or arrays.
  */
 export interface ExtensionSchema {
-	/** Schema version URI (e.g., "https://mcanouil.github.io/quarto-wizard/schemas/extension/v1"). */
+	/** Schema version URI (e.g., "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json"). */
 	$schema?: string;
 	/** Options (top-level YAML keys) the extension accepts. */
 	options?: Record<string, FieldDescriptor>;
@@ -139,7 +139,7 @@ export interface RawSchema {
 /**
  * Canonical schema version URI for the current format.
  */
-export const SCHEMA_VERSION_URI = "https://mcanouil.github.io/quarto-wizard/schemas/extension/v1";
+export const SCHEMA_VERSION_URI = "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json";
 
 /**
  * Set of recognised schema version URIs.
