@@ -480,8 +480,9 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("should flag only trailing key= when intermediate one precedes another token", () => {
 			const results = findEmptyValueAssignments("bc= fg=");
-			// Only fg= is flagged: bc= is followed by non-whitespace after
-			// space, making it ambiguous (findSpacesAroundEquals handles that).
+			// Only fg= is flagged: bc= is followed by a non-whitespace
+			// character after the space, so the forward lookahead treats it
+			// as a (possibly spaced) value assignment rather than empty.
 			assert.strictEqual(results.length, 1);
 			assert.strictEqual(results[0].key, "fg");
 		});
@@ -500,6 +501,17 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("should not flag key=<tab>value as empty", () => {
 			const results = findEmptyValueAssignments("bc=\tblue");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should flag key<tab>= as empty (tab before =)", () => {
+			const results = findEmptyValueAssignments("bc\t=");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+		});
+
+		test("should not flag key<tab>=value as empty", () => {
+			const results = findEmptyValueAssignments("bc\t=blue");
 			assert.strictEqual(results.length, 0);
 		});
 

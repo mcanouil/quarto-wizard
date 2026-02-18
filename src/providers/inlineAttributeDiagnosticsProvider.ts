@@ -133,6 +133,9 @@ export interface EmptyValueAssignment {
  * Does not overlap with `findSpacesAroundEquals`, which skips `=` with no
  * value after it.
  *
+ * Note: this function does not special-case `}` because `extractBlocks`
+ * already strips delimiters before passing content here.
+ *
  * Returns one entry per assignment where `=` has no value following it.
  */
 export function findEmptyValueAssignments(text: string): EmptyValueAssignment[] {
@@ -1168,8 +1171,8 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 }
 
 /**
- * Code action provider that offers quick fixes for
- * `spaces-around-equals` diagnostics.
+ * Code action provider that offers quick fixes for syntax-level
+ * diagnostics (spaces around `=`, empty-value assignments).
  */
 export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvider {
 	static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
@@ -1180,12 +1183,19 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 		context: vscode.CodeActionContext,
 	): vscode.CodeAction[] {
 		const actions: vscode.CodeAction[] = [];
+		const relevant = context.diagnostics.filter(
+			(d) => d.code === SPACES_AROUND_EQUALS_CODE || d.code === EMPTY_VALUE_CODE,
+		);
+		if (relevant.length === 0) {
+			return actions;
+		}
 
-		for (const diagnostic of context.diagnostics) {
-			if (diagnostic.code === SPACES_AROUND_EQUALS_CODE) {
-				const text = document.getText();
-				const blocks = extractBlocks(text);
-				for (const block of blocks) {
+		const text = document.getText();
+		const blocks = extractBlocks(text);
+
+		for (const diagnostic of relevant) {
+			for (const block of blocks) {
+				if (diagnostic.code === SPACES_AROUND_EQUALS_CODE) {
 					this.addFixActions(
 						document,
 						diagnostic,
@@ -1194,16 +1204,12 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 						findSpacesAroundEquals(block.content),
 						block.contentOffset,
 					);
-				}
-			} else if (diagnostic.code === EMPTY_VALUE_CODE) {
-				const text = document.getText();
-				const blocks = extractBlocks(text);
-				for (const block of blocks) {
+				} else if (diagnostic.code === EMPTY_VALUE_CODE) {
 					this.addFixActions(
 						document,
 						diagnostic,
 						actions,
-						"Add explicit empty value",
+						undefined,
 						findEmptyValueAssignments(block.content),
 						block.contentOffset,
 					);
@@ -1214,11 +1220,15 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 		return actions;
 	}
 
+	/**
+	 * Add quick-fix code actions for findings that match the diagnostic range.
+	 * When `title` is undefined, a dynamic label `Replace with <replacement>` is used.
+	 */
 	private addFixActions(
 		document: vscode.TextDocument,
 		diagnostic: vscode.Diagnostic,
 		actions: vscode.CodeAction[],
-		title: string,
+		title: string | undefined,
 		findings: readonly { start: number; replacement: string }[],
 		contentOffset: number,
 	): void {
@@ -1230,7 +1240,8 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 				continue;
 			}
 
-			const action = new vscode.CodeAction(title, vscode.CodeActionKind.QuickFix);
+			const actionTitle = title ?? `Replace with ${finding.replacement}`;
+			const action = new vscode.CodeAction(actionTitle, vscode.CodeActionKind.QuickFix);
 			action.diagnostics = [diagnostic];
 			action.isPreferred = true;
 
