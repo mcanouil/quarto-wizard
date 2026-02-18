@@ -1019,4 +1019,99 @@ describe("elementAttributes key variants", () => {
 		expect(result.elementAttributes).toBeDefined();
 		expect(result.elementAttributes!["panel"]["title"].type).toBe("string");
 	});
+
+	it("prefers element-attributes over elementAttributes when both present", () => {
+		const result = normaliseSchema({
+			"element-attributes": {
+				_any: { width: { type: "number" } },
+			},
+			elementAttributes: {
+				_any: { height: { type: "string" } },
+			},
+		});
+
+		expect(result.elementAttributes).toBeDefined();
+		expect(result.elementAttributes!["_any"]["width"]).toBeDefined();
+		expect(result.elementAttributes!["_any"]["height"]).toBeUndefined();
+	});
+});
+
+describe("$schema key in JSON format", () => {
+	it("preserves $schema when parsing JSON content", () => {
+		const jsonContent = JSON.stringify({
+			$schema: SCHEMA_VERSION_URI,
+			options: { test: { type: "string" } },
+		});
+		const schema = parseSchemaContent(jsonContent, undefined, "json");
+		expect(schema.$schema).toBe(SCHEMA_VERSION_URI);
+	});
+
+	it("warns on unknown $schema in JSON format", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const jsonContent = JSON.stringify({
+				$schema: "https://example.com/unknown/v99",
+				options: { test: { type: "boolean" } },
+			});
+			const schema = parseSchemaContent(jsonContent, undefined, "json");
+			expect(warnSpy).toHaveBeenCalledOnce();
+			expect(warnSpy.mock.calls[0][0]).toContain("Unknown schema version");
+			expect(schema.options!["test"].type).toBe("boolean");
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+});
+
+describe("JSON file integration through readSchema", () => {
+	let tempDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "schema-json-integration-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("reads _schema.json with elementAttributes through readSchema", () => {
+		const jsonContent = JSON.stringify({
+			$schema: SCHEMA_VERSION_URI,
+			elementAttributes: {
+				panel: {
+					title: { type: "string", required: true },
+				},
+			},
+		});
+		fs.writeFileSync(path.join(tempDir, "_schema.json"), jsonContent);
+		const result = readSchema(tempDir);
+		expect(result).not.toBeNull();
+		expect(result!.schema.elementAttributes).toBeDefined();
+		expect(result!.schema.elementAttributes!["panel"]["title"].type).toBe("string");
+		expect(result!.schema.elementAttributes!["panel"]["title"].required).toBe(true);
+		expect(result!.filename).toBe("_schema.json");
+	});
+});
+
+describe("SchemaCache error caching for JSON", () => {
+	let tempDir: string;
+	let cache: SchemaCache;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "schema-cache-json-error-"));
+		cache = new SchemaCache();
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("caches error for invalid JSON schema file", () => {
+		fs.writeFileSync(path.join(tempDir, "_schema.json"), "{ not valid json");
+		const result = cache.get(tempDir);
+		expect(result).toBeNull();
+		const error = cache.getError(tempDir);
+		expect(error).not.toBeNull();
+		expect(error).toContain("Failed to parse schema");
+	});
 });

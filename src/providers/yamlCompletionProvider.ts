@@ -14,7 +14,7 @@ import { logMessage } from "../utils/log";
 
 /**
  * Provides YAML completions for Quarto extension options
- * defined in _schema.yml files.
+ * defined in extension schema files.
  */
 export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	constructor(private schemaCache: SchemaCache) {}

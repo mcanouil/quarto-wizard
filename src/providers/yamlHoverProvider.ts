@@ -12,7 +12,7 @@ import { logMessage } from "../utils/log";
 
 /**
  * Provides hover information for Quarto extension options
- * defined in _schema.yml files.
+ * defined in extension schema files.
  */
 export class YamlHoverProvider implements vscode.HoverProvider {
 	constructor(private schemaCache: SchemaCache) {}

@@ -108,7 +108,7 @@ function validateSingleValue(value: unknown, descriptor: FieldDescriptor): strin
 
 /**
  * Provides diagnostics for Quarto YAML configuration files
- * by validating values against extension _schema.yml definitions.
+ * by validating values against extension schema definitions.
  */
 export class YamlDiagnosticsProvider implements vscode.Disposable {
 	private diagnosticCollection: vscode.DiagnosticCollection;
@@ -395,115 +395,10 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 
-			// Const check.
-			if (descriptor.const !== undefined && value !== null && value !== undefined) {
-				if (value !== descriptor.const) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value must be ${JSON.stringify(descriptor.const)}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-				}
-			}
-
-			// Enum check.
-			if (descriptor.enum && value !== null && value !== undefined) {
-				const allowed = descriptor.enum;
-				const match = descriptor.enumCaseInsensitive
-					? allowed.some((v) => String(v).toLowerCase() === String(value).toLowerCase())
-					: allowed.includes(value);
-				if (!match) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value "${String(value)}" is not in the allowed values (${allowed.map(String).join(", ")}).`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-				}
-			}
-
-			// Numeric range check.
-			if (typeof value === "number") {
-				if (descriptor.min !== undefined && value < descriptor.min) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value ${value} is below the minimum of ${descriptor.min}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-				}
-				if (descriptor.max !== undefined && value > descriptor.max) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value ${value} exceeds the maximum of ${descriptor.max}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-				}
-				if (descriptor.exclusiveMinimum !== undefined && value <= descriptor.exclusiveMinimum) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value ${value} must be greater than ${descriptor.exclusiveMinimum}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-				}
-				if (descriptor.exclusiveMaximum !== undefined && value >= descriptor.exclusiveMaximum) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value ${value} must be less than ${descriptor.exclusiveMaximum}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-				}
-			}
-
-			// Pattern check (skip patterns exceeding 1024 chars to mitigate ReDoS risk).
-			if (descriptor.pattern && typeof value === "string" && descriptor.pattern.length <= 1024) {
-				try {
-					const regex = descriptor.patternExact
-						? new RegExp(`^${descriptor.pattern}$`)
-						: new RegExp(descriptor.pattern);
-					if (!regex.test(value)) {
-						diagnostics.push(
-							new vscode.Diagnostic(
-								range,
-								`Option "${key}": value "${value}" does not match the required pattern "${descriptor.pattern}".`,
-								vscode.DiagnosticSeverity.Error,
-							),
-						);
-					}
-				} catch {
-					// Invalid regex in schema; skip validation.
-				}
-			}
-
-			// String length checks.
-			if (typeof value === "string") {
-				if (descriptor.minLength !== undefined && value.length < descriptor.minLength) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value length ${value.length} is below the minimum of ${descriptor.minLength}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-				}
-				if (descriptor.maxLength !== undefined && value.length > descriptor.maxLength) {
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": value length ${value.length} exceeds the maximum of ${descriptor.maxLength}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
+			// Value constraint checks (const, enum, numeric range, pattern, string length).
+			if (value !== null && value !== undefined) {
+				for (const msg of validateSingleValue(value, descriptor)) {
+					diagnostics.push(new vscode.Diagnostic(range, `Option "${key}": ${msg}`, vscode.DiagnosticSeverity.Error));
 				}
 			}
 
