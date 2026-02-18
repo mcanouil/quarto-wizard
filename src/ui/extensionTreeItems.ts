@@ -100,7 +100,7 @@ export class SchemaTreeItem extends vscode.TreeItem {
 	) {
 		super("Schema", vscode.TreeItemCollapsibleState.Collapsed);
 		this.iconPath = new vscode.ThemeIcon("symbol-namespace");
-		this.tooltip = "Extension schema from _schema.yml";
+		this.tooltip = "Extension schema";
 	}
 }
 

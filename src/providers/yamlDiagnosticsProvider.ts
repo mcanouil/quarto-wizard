@@ -600,8 +600,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				}
 				break;
 			case "integer":
-				if (typeof value !== "number" || !Number.isInteger(value)) {
+				if (typeof value !== "number") {
 					return Array.isArray(value) ? "array" : typeof value;
+				}
+				if (!Number.isInteger(value)) {
+					return "non-integer number";
 				}
 				break;
 			case "boolean":
