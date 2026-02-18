@@ -1,0 +1,282 @@
+---
+title: "Filesystem"
+---
+
+## Schema Cache Module
+
+In-memory cache for parsed extension schemas.
+
+Provides lazy-loading schema caching without file watchers.
+File watching belongs in the VSCode extension layer.
+
+### Classes
+
+- [SchemaCache](filesystem.Class.SchemaCache.qmd)
+
+## Schema Parsing Module
+
+Schema parsing for \_schema.yml, \_schema.yaml, and \_schema.json files.
+
+Provides functions to find, parse, and read Quarto extension schemas.
+
+### Interfaces
+
+- [SchemaReadResult](filesystem.Interface.SchemaReadResult.qmd)
+
+### Variables
+
+- [SCHEMA_FILENAMES](filesystem.Variable.SCHEMA_FILENAMES.qmd)
+
+### Functions
+
+- [findSchemaFile](filesystem.Function.findSchemaFile.qmd)
+- [parseSchemaContent](filesystem.Function.parseSchemaContent.qmd)
+- [parseSchemaFile](filesystem.Function.parseSchemaFile.qmd)
+- [readSchema](filesystem.Function.readSchema.qmd)
+
+## Filesystem
+
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:18](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema-cache.ts#L18)
+
+Cache for parsed extension schemas.
+Schemas are loaded lazily on first access.
+
+### Constructors
+
+#### Constructor
+
+```{.ts filename="TypeScript"}
+new SchemaCache(): SchemaCache;
+```
+
+##### Returns
+
+`SchemaCache`
+
+### Methods
+
+#### get()
+
+```{.ts filename="TypeScript"}
+get(extensionDir): ExtensionSchema | null;
+```
+
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:29](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema-cache.ts#L29)
+
+Get the schema for an extension directory.
+Loads and caches the schema on first access.
+
+##### Parameters
+
+| Parameter      | Type     | Description                     |
+| -------------- | -------- | ------------------------------- |
+| `extensionDir` | `string` | Path to the extension directory |
+
+##### Returns
+
+[`ExtensionSchema`](types.Interface.ExtensionSchema.qmd) \| `null`
+
+Parsed schema or null if no schema file exists
+
+#### getError()
+
+```{.ts filename="TypeScript"}
+getError(extensionDir): string | null;
+```
+
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:56](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema-cache.ts#L56)
+
+Get the parse error for a schema in the given directory, if any.
+
+##### Parameters
+
+| Parameter      | Type     | Description                     |
+| -------------- | -------- | ------------------------------- |
+| `extensionDir` | `string` | Path to the extension directory |
+
+##### Returns
+
+`string` \| `null`
+
+Error message or null if no error occurred
+
+#### has()
+
+```{.ts filename="TypeScript"}
+has(extensionDir): boolean;
+```
+
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:66](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema-cache.ts#L66)
+
+Check whether a schema is cached for the given directory.
+
+##### Parameters
+
+| Parameter      | Type     | Description                     |
+| -------------- | -------- | ------------------------------- |
+| `extensionDir` | `string` | Path to the extension directory |
+
+##### Returns
+
+`boolean`
+
+True if a schema is cached
+
+#### invalidate()
+
+```{.ts filename="TypeScript"}
+invalidate(extensionDir): void;
+```
+
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:75](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema-cache.ts#L75)
+
+Invalidate the cached schema for a specific extension directory.
+
+##### Parameters
+
+| Parameter      | Type     | Description                     |
+| -------------- | -------- | ------------------------------- |
+| `extensionDir` | `string` | Path to the extension directory |
+
+##### Returns
+
+`void`
+
+#### invalidateAll()
+
+```{.ts filename="TypeScript"}
+invalidateAll(): void;
+```
+
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:83](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema-cache.ts#L83)
+
+Invalidate all cached schemas.
+
+##### Returns
+
+`void`
+
+## Filesystem
+
+```{.ts filename="TypeScript"}
+function findSchemaFile(directory): string | null;
+```
+
+Defined in: [packages/schema/src/filesystem/schema.ts:38](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L38)
+
+Find the schema file in a directory.
+
+### Parameters
+
+| Parameter   | Type     | Description         |
+| ----------- | -------- | ------------------- |
+| `directory` | `string` | Directory to search |
+
+### Returns
+
+`string` \| `null`
+
+Path to schema file or null if not found
+
+## Filesystem
+
+```{.ts filename="TypeScript"}
+function parseSchemaContent(
+   content,
+   sourcePath?,
+   format?): ExtensionSchema;
+```
+
+Defined in: [packages/schema/src/filesystem/schema.ts:86](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L86)
+
+Parse schema content from a YAML or JSON string.
+
+### Parameters
+
+| Parameter     | Type                 | Default value | Description                                |
+| ------------- | -------------------- | ------------- | ------------------------------------------ |
+| `content`     | `string`             | `undefined`   | Schema content (YAML or JSON)              |
+| `sourcePath?` | `string`             | `undefined`   | Source path for error messages (optional)  |
+| `format?`     | `"json"` \| `"yaml"` | `"yaml"`      | Content format: "yaml" (default) or "json" |
+
+### Returns
+
+[`ExtensionSchema`](types.Interface.ExtensionSchema.qmd)
+
+Parsed schema
+
+### Throws
+
+SchemaError if parsing fails
+
+## Filesystem
+
+```{.ts filename="TypeScript"}
+function parseSchemaFile(schemaPath): ExtensionSchema;
+```
+
+Defined in: [packages/schema/src/filesystem/schema.ts:62](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L62)
+
+Parse a schema file from a path.
+
+### Parameters
+
+| Parameter    | Type     | Description                  |
+| ------------ | -------- | ---------------------------- |
+| `schemaPath` | `string` | Full path to the schema file |
+
+### Returns
+
+[`ExtensionSchema`](types.Interface.ExtensionSchema.qmd)
+
+Parsed schema
+
+### Throws
+
+SchemaError if parsing fails
+
+## Filesystem
+
+```{.ts filename="TypeScript"}
+function readSchema(directory): SchemaReadResult | null;
+```
+
+Defined in: [packages/schema/src/filesystem/schema.ts:127](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L127)
+
+Read a schema from a directory.
+
+### Parameters
+
+| Parameter   | Type     | Description                     |
+| ----------- | -------- | ------------------------------- |
+| `directory` | `string` | Directory containing the schema |
+
+### Returns
+
+[`SchemaReadResult`](filesystem.Interface.SchemaReadResult.qmd) \| `null`
+
+SchemaReadResult or null if no schema found
+
+## Filesystem
+
+Defined in: [packages/schema/src/filesystem/schema.ts:23](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L23)
+
+Result of reading a schema file.
+
+### Properties
+
+| Property                                      | Type                                                     | Description                                              | Defined in                                                                                                                                                                          |
+| --------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-filename"></a> `filename`     | `string`                                                 | Filename used (e.g., "\_schema.yml" or "\_schema.json"). | [packages/schema/src/filesystem/schema.ts:29](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L29) |
+| <a id="property-schema"></a> `schema`         | [`ExtensionSchema`](types.Interface.ExtensionSchema.qmd) | Parsed schema data.                                      | [packages/schema/src/filesystem/schema.ts:25](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L25) |
+| <a id="property-schemapath"></a> `schemaPath` | `string`                                                 | Full path to the schema file.                            | [packages/schema/src/filesystem/schema.ts:27](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L27) |
+
+## Filesystem
+
+```{.ts filename="TypeScript"}
+const SCHEMA_FILENAMES: readonly ["_schema.json", "_schema.yml", "_schema.yaml"];
+```
+
+Defined in: [packages/schema/src/filesystem/schema.ts:18](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/filesystem/schema.ts#L18)
+
+Supported schema file names, ordered by precedence (JSON first).

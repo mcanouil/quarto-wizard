@@ -20,3 +20,10 @@ website:
                 - api/core/proxy.qmd
                 - api/core/registry.qmd
                 - api/core/types.qmd
+            - section: "@quarto-wizard/schema"
+              href: api/schema/index.qmd
+              contents:
+                - api/schema/errors.qmd
+                - api/schema/filesystem.qmd
+                - api/schema/types.qmd
+                - api/schema/validation.qmd

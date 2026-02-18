@@ -76,7 +76,7 @@
 		"format": "prettier --write \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
 		"format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
 		"sync-metadata": "node scripts/sync-package-metadata.mjs",
-		"docs:api": "typedoc --options typedoc.config.mjs && node scripts/process-api-docs.mjs && npm run docs:format",
+		"docs:api": "node scripts/process-api-docs.mjs && npm run docs:format",
 		"docs:build": "npm run docs:api && cd docs && quarto render",
 		"docs:preview": "npm run docs:api && cd docs && quarto preview",
 		"docs:clean": "rm -rf docs/api docs/_site",
