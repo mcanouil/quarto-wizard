@@ -13,6 +13,8 @@
 - feat: display schema information in the installed extensions tree view, showing option counts and types per extension.
 - feat: add file-path completion for shortcode arguments, YAML values, and element attributes.
   When a `_schema.yml` declares `completion.type: file` (with optional `extensions` filter), the editor suggests workspace files matching the specified extensions.
+- feat: add bare attribute and empty-value diagnostics for inline attribute blocks and shortcodes.
+  Warn when a known attribute appears without `=value` (`{key}`) or with an empty assignment (`{key=}`), with a quick fix to insert `key=""`.
 
 ### Bug Fixes
 

@@ -1,8 +1,10 @@
 import * as assert from "assert";
 import {
 	findSpacesAroundEquals,
+	findEmptyValueAssignments,
 	findKeyValueOffset,
 	findArgumentOffset,
+	extractBareWords,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
 import type { FieldDescriptor } from "@quarto-wizard/core";
@@ -448,6 +450,177 @@ suite("Inline Attribute Diagnostics", () => {
 			const findings = validateInlineValue("old", "val", descriptor);
 			assert.strictEqual(findings.length, 1);
 			assert.strictEqual(findings[0].code, "schema-deprecated");
+		});
+	});
+
+	suite("findEmptyValueAssignments", () => {
+		test("should flag key= at end of content", () => {
+			const results = findEmptyValueAssignments("bc=");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+			assert.strictEqual(results[0].replacement, 'bc=""');
+		});
+
+		test("should flag key= followed by whitespace", () => {
+			const results = findEmptyValueAssignments("bc= ");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+			assert.strictEqual(results[0].replacement, 'bc=""');
+		});
+
+		test("should not flag key=value", () => {
+			const results = findEmptyValueAssignments('bc="blue"');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not flag key=unquoted", () => {
+			const results = findEmptyValueAssignments("bc=blue");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should flag only trailing key= when intermediate one precedes another token", () => {
+			const results = findEmptyValueAssignments("bc= fg=");
+			// Only fg= is flagged: bc= is followed by a non-whitespace
+			// character after the space, so the forward lookahead treats it
+			// as a (possibly spaced) value assignment rather than empty.
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "fg");
+		});
+
+		test("should flag key= followed by only whitespace until end", () => {
+			const results = findEmptyValueAssignments("bc=   ");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+		});
+
+		test("should flag key= followed by tab", () => {
+			const results = findEmptyValueAssignments("bc=\t");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+		});
+
+		test("should not flag key=<tab>value as empty", () => {
+			const results = findEmptyValueAssignments("bc=\tblue");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should flag key<tab>= as empty (tab before =)", () => {
+			const results = findEmptyValueAssignments("bc\t=");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+		});
+
+		test("should not flag key<tab>=value as empty", () => {
+			const results = findEmptyValueAssignments("bc\t=blue");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not flag = inside quotes", () => {
+			const results = findEmptyValueAssignments('bc="a="');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should handle hyphenated attribute names", () => {
+			const results = findEmptyValueAssignments("border-color=");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "border-color");
+			assert.strictEqual(results[0].replacement, 'border-color=""');
+		});
+
+		test("should not flag key= when followed by another token after space", () => {
+			// bc= followed by fg="red" is ambiguous (the space before fg
+			// is handled by findSpacesAroundEquals instead).
+			const results = findEmptyValueAssignments('bc= fg="red"');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should return correct offsets", () => {
+			const text = ".class bc=";
+			const results = findEmptyValueAssignments(text);
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(text.slice(results[0].start, results[0].end), "bc=");
+		});
+
+		test("should not flag = not preceded by an identifier", () => {
+			const results = findEmptyValueAssignments("=");
+			assert.strictEqual(results.length, 0);
+		});
+	});
+
+	suite("extractBareWords", () => {
+		test("should extract bare word from element content", () => {
+			const results = extractBareWords(".class myword");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "myword");
+		});
+
+		test("should not match class prefixes", () => {
+			const results = extractBareWords(".class");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not match id prefixes", () => {
+			const results = extractBareWords("#my-id");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not match key=value pairs", () => {
+			const results = extractBareWords('bc="blue"');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not match key= (empty value)", () => {
+			const results = extractBareWords("bc=");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should extract multiple bare words", () => {
+			const results = extractBareWords(".class foo bar");
+			assert.strictEqual(results.length, 2);
+			assert.strictEqual(results[0].word, "foo");
+			assert.strictEqual(results[1].word, "bar");
+		});
+
+		test("should extract bare word among mixed tokens", () => {
+			const results = extractBareWords('.class #id bc="blue" myword');
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "myword");
+		});
+
+		test("should return correct offsets", () => {
+			const content = ".class myword";
+			const results = extractBareWords(content);
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(content.slice(results[0].start, results[0].end), "myword");
+		});
+
+		test("should handle empty content", () => {
+			const results = extractBareWords("");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should skip quoted strings", () => {
+			const results = extractBareWords('"hello" world');
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "world");
+		});
+
+		test("should not treat lone . as class prefix consuming next word", () => {
+			const results = extractBareWords(". foo");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "foo");
+		});
+
+		test("should not treat lone # as id prefix consuming next word", () => {
+			const results = extractBareWords("# bar");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "bar");
+		});
+
+		test("should not emit bare hyphen as a word", () => {
+			const results = extractBareWords(".class - foo");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "foo");
 		});
 	});
 });
