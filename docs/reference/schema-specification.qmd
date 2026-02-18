@@ -514,12 +514,17 @@ element-attributes:
 
 ## Reference Schema Files
 
-The machine-readable schema definitions for validating `_schema.yml` and `_schema.json` files are available at:
+The JSON Schema meta-schema that formally describes the structure of `_schema.yml` and `_schema.json` files is published at:
 
-- [`extension-schema.yml`](/assets/schema/v1/extension-schema.yml) (YAML format, kebab-case keys).
-- [`extension-schema.json`](/assets/schema/v1/extension-schema.json) (JSON format, camelCase keys).
+- [`extension-schema.json`](/assets/schema/v1/extension-schema.json) (JSON Schema draft 2020-12).
 
-These files describe the structure and constraints of every property documented on this page.
+This is the same schema referenced by the `$schema` key at the top of schema definition files.
+It can be used by any JSON Schema-aware tool for validation and autocompletion.
+
+Example instances showing every supported property are also available:
+
+- [`extension-schema.yml`](/assets/schema/v1/extension-schema.yml) (YAML example, kebab-case keys).
+- [`extension-schema-example.json`](/assets/schema/v1/extension-schema-example.json) (JSON example, camelCase keys).
 
 ## Generating a Schema with AI
 
