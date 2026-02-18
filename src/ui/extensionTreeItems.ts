@@ -154,7 +154,7 @@ export class SchemaSectionTreeItem extends vscode.TreeItem {
 export class SchemaFieldTreeItem extends vscode.TreeItem {
 	contextValue = "quartoSchemaField";
 
-	constructor(label: string, field: FieldDescriptor, deprecated: boolean) {
+	constructor(label: string, field: FieldDescriptor, deprecated: boolean, icon = "symbol-field") {
 		super(label, vscode.TreeItemCollapsibleState.None);
 
 		const parts: string[] = [];
@@ -174,7 +174,7 @@ export class SchemaFieldTreeItem extends vscode.TreeItem {
 			this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
 			this.tooltip = reason;
 		} else {
-			this.iconPath = new vscode.ThemeIcon("symbol-field");
+			this.iconPath = new vscode.ThemeIcon(icon);
 			this.tooltip = field.description ?? label;
 		}
 	}
@@ -186,12 +186,16 @@ export class SchemaFieldTreeItem extends vscode.TreeItem {
 export class SchemaShortcodeTreeItem extends vscode.TreeItem {
 	contextValue = "quartoSchemaField";
 
-	constructor(label: string, shortcode: ShortcodeSchema) {
-		super(label, vscode.TreeItemCollapsibleState.None);
-
-		const parts: string[] = [];
+	constructor(
+		label: string,
+		public readonly shortcode: ShortcodeSchema,
+	) {
 		const argCount = shortcode.arguments?.length ?? 0;
 		const attrCount = shortcode.attributes ? Object.keys(shortcode.attributes).length : 0;
+		const hasChildren = argCount > 0 || attrCount > 0;
+		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+
+		const parts: string[] = [];
 		if (argCount > 0) {
 			parts.push(`${argCount} arg${argCount === 1 ? "" : "s"}`);
 		}
