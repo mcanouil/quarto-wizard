@@ -40,9 +40,9 @@ suite("Schema Definition Completion Test Suite", () => {
 				assert.strictEqual(result, null);
 			});
 
-			test("['projects', 'myProj'] returns field-descriptor", () => {
+			test("['projects', 'myProj'] returns null (flat string array)", () => {
 				const result = getSchemaContext(["projects", "myProj"], false);
-				assert.deepStrictEqual(result, { kind: "field-descriptor", allowName: false });
+				assert.strictEqual(result, null);
 			});
 
 			test("['formats'] returns null", () => {
