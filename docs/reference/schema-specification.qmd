@@ -516,8 +516,8 @@ element-attributes:
 
 The machine-readable schema definitions for validating `_schema.yml` and `_schema.json` files are available at:
 
-- [`extension-schema.yml`](../assets/schema/v1/extension-schema.yml) (YAML format, kebab-case keys).
-- [`extension-schema.json`](../assets/schema/v1/extension-schema.json) (JSON format, camelCase keys).
+- [`extension-schema.yml`](/assets/schema/v1/extension-schema.yml) (YAML format, kebab-case keys).
+- [`extension-schema.json`](/assets/schema/v1/extension-schema.json) (JSON format, camelCase keys).
 
 These files describe the structure and constraints of every property documented on this page.
 
