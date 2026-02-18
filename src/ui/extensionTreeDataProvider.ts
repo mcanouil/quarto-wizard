@@ -10,6 +10,7 @@ import {
 	WorkspaceFolderTreeItem,
 	ExtensionTreeItem,
 	SchemaTreeItem,
+	SchemaErrorTreeItem,
 	SchemaSectionTreeItem,
 	SchemaFieldTreeItem,
 	SchemaShortcodeTreeItem,
@@ -172,6 +173,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		const schema = this.schemaCache.get(ext.directory);
 		if (schema) {
 			items.push(new SchemaTreeItem(ext.directory, schema));
+		} else {
+			const schemaError = this.schemaCache.getError(ext.directory);
+			if (schemaError) {
+				items.push(new SchemaErrorTreeItem(schemaError));
+			}
 		}
 
 		return items;

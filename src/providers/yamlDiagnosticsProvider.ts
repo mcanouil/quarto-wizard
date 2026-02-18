@@ -7,6 +7,106 @@ import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
 /**
+ * Validate a single value against a field descriptor, returning error messages.
+ * Used for array item validation where each item is checked independently.
+ */
+function validateSingleValue(value: unknown, descriptor: FieldDescriptor): string[] {
+	const errors: string[] = [];
+
+	if (value === null || value === undefined) {
+		return errors;
+	}
+
+	// Type check.
+	if (descriptor.type) {
+		const knownTypes = new Set(["string", "number", "boolean", "array", "object", "integer"]);
+		const types = Array.isArray(descriptor.type) ? descriptor.type : [descriptor.type];
+		const relevantTypes = types.filter((t) => knownTypes.has(t));
+		if (relevantTypes.length > 0) {
+			const matchesAny = relevantTypes.some((t) => {
+				switch (t) {
+					case "string":
+						return typeof value === "string";
+					case "number":
+						return typeof value === "number";
+					case "integer":
+						return typeof value === "number" && Number.isInteger(value);
+					case "boolean":
+						return typeof value === "boolean";
+					case "array":
+						return Array.isArray(value);
+					case "object":
+						return typeof value === "object" && !Array.isArray(value);
+					default:
+						return false;
+				}
+			});
+			if (!matchesAny) {
+				errors.push(
+					`expected type "${formatType(descriptor.type)}", got ${Array.isArray(value) ? "array" : typeof value}.`,
+				);
+				return errors;
+			}
+		}
+	}
+
+	// Const check.
+	if (descriptor.const !== undefined && value !== descriptor.const) {
+		errors.push(`value must be ${JSON.stringify(descriptor.const)}.`);
+	}
+
+	// Enum check.
+	if (descriptor.enum) {
+		const match = descriptor.enumCaseInsensitive
+			? descriptor.enum.some((v) => String(v).toLowerCase() === String(value).toLowerCase())
+			: descriptor.enum.includes(value);
+		if (!match) {
+			errors.push(`value "${String(value)}" is not in the allowed values (${descriptor.enum.map(String).join(", ")}).`);
+		}
+	}
+
+	// Numeric range checks.
+	if (typeof value === "number") {
+		if (descriptor.min !== undefined && value < descriptor.min) {
+			errors.push(`value ${value} is below the minimum of ${descriptor.min}.`);
+		}
+		if (descriptor.max !== undefined && value > descriptor.max) {
+			errors.push(`value ${value} exceeds the maximum of ${descriptor.max}.`);
+		}
+		if (descriptor.exclusiveMinimum !== undefined && value <= descriptor.exclusiveMinimum) {
+			errors.push(`value ${value} must be greater than ${descriptor.exclusiveMinimum}.`);
+		}
+		if (descriptor.exclusiveMaximum !== undefined && value >= descriptor.exclusiveMaximum) {
+			errors.push(`value ${value} must be less than ${descriptor.exclusiveMaximum}.`);
+		}
+	}
+
+	// Pattern check.
+	if (descriptor.pattern && typeof value === "string" && descriptor.pattern.length <= 1024) {
+		try {
+			const regex = descriptor.patternExact ? new RegExp(`^${descriptor.pattern}$`) : new RegExp(descriptor.pattern);
+			if (!regex.test(value)) {
+				errors.push(`value "${value}" does not match the required pattern "${descriptor.pattern}".`);
+			}
+		} catch {
+			// Invalid regex in schema; skip.
+		}
+	}
+
+	// String length checks.
+	if (typeof value === "string") {
+		if (descriptor.minLength !== undefined && value.length < descriptor.minLength) {
+			errors.push(`value length ${value.length} is below the minimum of ${descriptor.minLength}.`);
+		}
+		if (descriptor.maxLength !== undefined && value.length > descriptor.maxLength) {
+			errors.push(`value length ${value.length} exceeds the maximum of ${descriptor.maxLength}.`);
+		}
+	}
+
+	return errors;
+}
+
+/**
  * Provides diagnostics for Quarto YAML configuration files
  * by validating values against extension _schema.yml definitions.
  */
@@ -295,6 +395,19 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 
+			// Const check.
+			if (descriptor.const !== undefined && value !== null && value !== undefined) {
+				if (value !== descriptor.const) {
+					diagnostics.push(
+						new vscode.Diagnostic(
+							range,
+							`Option "${key}": value must be ${JSON.stringify(descriptor.const)}.`,
+							vscode.DiagnosticSeverity.Error,
+						),
+					);
+				}
+			}
+
 			// Enum check.
 			if (descriptor.enum && value !== null && value !== undefined) {
 				const allowed = descriptor.enum;
@@ -328,6 +441,24 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 						new vscode.Diagnostic(
 							range,
 							`Option "${key}": value ${value} exceeds the maximum of ${descriptor.max}.`,
+							vscode.DiagnosticSeverity.Error,
+						),
+					);
+				}
+				if (descriptor.exclusiveMinimum !== undefined && value <= descriptor.exclusiveMinimum) {
+					diagnostics.push(
+						new vscode.Diagnostic(
+							range,
+							`Option "${key}": value ${value} must be greater than ${descriptor.exclusiveMinimum}.`,
+							vscode.DiagnosticSeverity.Error,
+						),
+					);
+				}
+				if (descriptor.exclusiveMaximum !== undefined && value >= descriptor.exclusiveMaximum) {
+					diagnostics.push(
+						new vscode.Diagnostic(
+							range,
+							`Option "${key}": value ${value} must be less than ${descriptor.exclusiveMaximum}.`,
 							vscode.DiagnosticSeverity.Error,
 						),
 					);
@@ -376,6 +507,38 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 
+			// Array length checks and item validation.
+			if (Array.isArray(value)) {
+				if (descriptor.minItems !== undefined && value.length < descriptor.minItems) {
+					diagnostics.push(
+						new vscode.Diagnostic(
+							range,
+							`Option "${key}": array has ${value.length} item(s), minimum is ${descriptor.minItems}.`,
+							vscode.DiagnosticSeverity.Error,
+						),
+					);
+				}
+				if (descriptor.maxItems !== undefined && value.length > descriptor.maxItems) {
+					diagnostics.push(
+						new vscode.Diagnostic(
+							range,
+							`Option "${key}": array has ${value.length} item(s), maximum is ${descriptor.maxItems}.`,
+							vscode.DiagnosticSeverity.Error,
+						),
+					);
+				}
+				if (descriptor.items) {
+					for (let i = 0; i < value.length; i++) {
+						const itemErrors = validateSingleValue(value[i], descriptor.items);
+						for (const msg of itemErrors) {
+							diagnostics.push(
+								new vscode.Diagnostic(range, `Item ${i + 1} of "${key}": ${msg}`, vscode.DiagnosticSeverity.Error),
+							);
+						}
+					}
+				}
+			}
+
 			// Recurse into nested objects.
 			if (descriptor.properties && value && typeof value === "object" && !Array.isArray(value)) {
 				this.validateFields(
@@ -405,7 +568,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		return undefined;
 	}
 
-	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object"]);
+	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object", "integer"]);
 
 	private checkType(value: unknown, expectedType: string | string[]): string | undefined {
 		if (Array.isArray(expectedType)) {
@@ -434,6 +597,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			case "number":
 				if (typeof value !== "number") {
 					return typeof value;
+				}
+				break;
+			case "integer":
+				if (typeof value !== "number" || !Number.isInteger(value)) {
+					return Array.isArray(value) ? "array" : typeof value;
 				}
 				break;
 			case "boolean":

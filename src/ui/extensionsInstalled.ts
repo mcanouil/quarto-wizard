@@ -54,7 +54,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(extensionWatcher);
 
 		// Watch for changes to schema files for real-time tree view updates
-		const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_schema.{yml,yaml}");
+		const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_schema.{yml,yaml,json}");
 		const invalidateSchemaAndRefresh = (uri: vscode.Uri) => {
 			schemaCache.invalidate(path.dirname(uri.fsPath));
 			this.treeDataProvider.refresh();

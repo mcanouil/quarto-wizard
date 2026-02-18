@@ -105,7 +105,7 @@ export function mergeApplicableAttributes(
 	// Include groups matching the Pandoc element type (Div, Span, Code, Header).
 	mergeGroup(schemas, elementType, merged, "elementType");
 	// Also match CodeBlock for Code elements (common schema convention).
-	if (elementType === "Code") {
+	if (elementType.toLowerCase() === "code") {
 		mergeGroup(schemas, "CodeBlock", merged, "elementType");
 	}
 
@@ -125,12 +125,15 @@ function mergeGroup(
 	merged: Record<string, AttributeWithSource>,
 	origin: GroupOrigin,
 ): void {
-	if (!schemas[groupKey]) {
-		return;
-	}
-	for (const [attrName, entry] of Object.entries(schemas[groupKey])) {
-		if (!(attrName in merged)) {
-			merged[attrName] = { ...entry, groupOrigin: origin };
+	const lowerKey = groupKey.toLowerCase();
+	for (const schemaKey of Object.keys(schemas)) {
+		if (schemaKey.toLowerCase() !== lowerKey) {
+			continue;
+		}
+		for (const [attrName, entry] of Object.entries(schemas[schemaKey])) {
+			if (!(attrName in merged)) {
+				merged[attrName] = { ...entry, groupOrigin: origin };
+			}
 		}
 	}
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -9,6 +9,7 @@ import {
 	normaliseSchema,
 	typeIncludes,
 	formatType,
+	SCHEMA_VERSION_URI,
 } from "../../src/types/schema.js";
 import { findSchemaFile, parseSchemaContent, parseSchemaFile, readSchema } from "../../src/filesystem/schema.js";
 import { SchemaCache } from "../../src/filesystem/schema-cache.js";
@@ -762,5 +763,260 @@ describe("SchemaCache", () => {
 		const result = cache.get(tempDir);
 
 		expect(result).toBeNull();
+	});
+
+	describe("error caching", () => {
+		it("returns error message for invalid schemas", () => {
+			fs.writeFileSync(path.join(tempDir, "_schema.yml"), "");
+
+			cache.get(tempDir);
+			const error = cache.getError(tempDir);
+
+			expect(error).not.toBeNull();
+			expect(typeof error).toBe("string");
+		});
+
+		it("returns null for valid schemas", () => {
+			fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  test:\n    type: string\n");
+
+			cache.get(tempDir);
+			const error = cache.getError(tempDir);
+
+			expect(error).toBeNull();
+		});
+
+		it("returns null for non-existent schemas", () => {
+			cache.get(tempDir);
+			const error = cache.getError(tempDir);
+
+			expect(error).toBeNull();
+		});
+
+		it("clears error on invalidation", () => {
+			fs.writeFileSync(path.join(tempDir, "_schema.yml"), "");
+
+			cache.get(tempDir);
+			expect(cache.getError(tempDir)).not.toBeNull();
+
+			cache.invalidate(tempDir);
+			expect(cache.getError(tempDir)).toBeNull();
+		});
+	});
+});
+
+describe("$schema key", () => {
+	it("stores valid schema version URI on result", () => {
+		const yamlContent = `$schema: ${SCHEMA_VERSION_URI}\noptions:\n  test:\n    type: string\n`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.$schema).toBe(SCHEMA_VERSION_URI);
+	});
+
+	it("warns on unknown schema version URI but still parses", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		try {
+			const yamlContent = `$schema: https://example.com/unknown/v99\noptions:\n  test:\n    type: string\n`;
+
+			const schema = parseSchemaContent(yamlContent);
+
+			expect(warnSpy).toHaveBeenCalledOnce();
+			expect(warnSpy.mock.calls[0][0]).toContain("Unknown schema version");
+			expect(schema.options).toBeDefined();
+			expect(schema.options!["test"].type).toBe("string");
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it("defaults to undefined when absent", () => {
+		const yamlContent = `options:\n  test:\n    type: string\n`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.$schema).toBeUndefined();
+	});
+
+	it("is not treated as a section key", () => {
+		const yamlContent = `$schema: ${SCHEMA_VERSION_URI}\noptions:\n  test:\n    type: string\n`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.options).toBeDefined();
+		expect(schema.shortcodes).toBeUndefined();
+		expect(schema.formats).toBeUndefined();
+		expect(schema.projects).toBeUndefined();
+		expect(schema.elementAttributes).toBeUndefined();
+	});
+});
+
+describe("JSON parsing", () => {
+	let tempDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "schema-json-test-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("findSchemaFile finds _schema.json with precedence over .yml", () => {
+		fs.writeFileSync(
+			path.join(tempDir, "_schema.json"),
+			JSON.stringify({ options: { test: { type: "string" } } }),
+		);
+		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  test:\n    type: number\n");
+
+		const result = findSchemaFile(tempDir);
+
+		expect(result).toBe(path.join(tempDir, "_schema.json"));
+	});
+
+	it("parseSchemaContent parses JSON content when format is json", () => {
+		const jsonContent = JSON.stringify({
+			options: {
+				theme: { type: "string", enum: ["light", "dark"] },
+			},
+		});
+
+		const schema = parseSchemaContent(jsonContent, undefined, "json");
+
+		expect(schema.options).toBeDefined();
+		expect(schema.options!["theme"].type).toBe("string");
+		expect(schema.options!["theme"].enum).toEqual(["light", "dark"]);
+	});
+
+	it("preserves camelCase keys without conversion in JSON", () => {
+		const jsonContent = JSON.stringify({
+			options: {
+				name: { type: "string", minLength: 1, maxLength: 100 },
+				count: { type: "number", minItems: 2, maxItems: 10 },
+			},
+		});
+
+		const schema = parseSchemaContent(jsonContent, undefined, "json");
+
+		expect(schema.options!["name"].minLength).toBe(1);
+		expect(schema.options!["name"].maxLength).toBe(100);
+		expect(schema.options!["count"].minItems).toBe(2);
+		expect(schema.options!["count"].maxItems).toBe(10);
+	});
+
+	it("throws SchemaError on invalid JSON", () => {
+		expect(() => parseSchemaContent("{invalid json", undefined, "json")).toThrow(SchemaError);
+	});
+});
+
+describe("KEY_ALIASES entries", () => {
+	it("maps minimum to min", () => {
+		const result = normaliseFieldDescriptor({ type: "number", minimum: 0 });
+
+		expect(result.min).toBe(0);
+	});
+
+	it("maps maximum to max", () => {
+		const result = normaliseFieldDescriptor({ type: "number", maximum: 100 });
+
+		expect(result.max).toBe(100);
+	});
+
+	it("maps min-items to minItems", () => {
+		const result = normaliseFieldDescriptor({ type: "array", "min-items": 1 });
+
+		expect(result.minItems).toBe(1);
+	});
+
+	it("maps max-items to maxItems", () => {
+		const result = normaliseFieldDescriptor({ type: "array", "max-items": 5 });
+
+		expect(result.maxItems).toBe(5);
+	});
+
+	it("maps exclusive-minimum to exclusiveMinimum", () => {
+		const result = normaliseFieldDescriptor({ type: "number", "exclusive-minimum": 0 });
+
+		expect(result.exclusiveMinimum).toBe(0);
+	});
+
+	it("maps exclusive-maximum to exclusiveMaximum", () => {
+		const result = normaliseFieldDescriptor({ type: "number", "exclusive-maximum": 100 });
+
+		expect(result.exclusiveMaximum).toBe(100);
+	});
+});
+
+describe("FieldDescriptor properties preserved through normalisation", () => {
+	it("preserves const value", () => {
+		const result = normaliseFieldDescriptor({ type: "string", const: "fixed-value" });
+
+		expect(result.const).toBe("fixed-value");
+	});
+
+	it("preserves minItems and maxItems", () => {
+		const result = normaliseFieldDescriptor({ type: "array", minItems: 1, maxItems: 10 });
+
+		expect(result.minItems).toBe(1);
+		expect(result.maxItems).toBe(10);
+	});
+
+	it("preserves exclusiveMinimum and exclusiveMaximum", () => {
+		const result = normaliseFieldDescriptor({
+			type: "number",
+			exclusiveMinimum: 0,
+			exclusiveMaximum: 100,
+		});
+
+		expect(result.exclusiveMinimum).toBe(0);
+		expect(result.exclusiveMaximum).toBe(100);
+	});
+
+	it("preserves items sub-schema", () => {
+		const result = normaliseFieldDescriptor({
+			type: "array",
+			items: { type: "string", minLength: 1 },
+		});
+
+		expect(result.items).toBeDefined();
+		expect(result.items!.type).toBe("string");
+		expect(result.items!.minLength).toBe(1);
+	});
+});
+
+describe("integer type", () => {
+	it("preserves integer as a valid type", () => {
+		const result = normaliseFieldDescriptor({ type: "integer", min: 0 });
+
+		expect(result.type).toBe("integer");
+		expect(result.min).toBe(0);
+	});
+});
+
+describe("elementAttributes key variants", () => {
+	it("handles element-attributes (YAML kebab-case) at top level", () => {
+		const result = normaliseSchema({
+			"element-attributes": {
+				_any: {
+					width: { type: "number" },
+				},
+			},
+		});
+
+		expect(result.elementAttributes).toBeDefined();
+		expect(result.elementAttributes!["_any"]["width"].type).toBe("number");
+	});
+
+	it("handles elementAttributes (JSON camelCase) at top level", () => {
+		const result = normaliseSchema({
+			elementAttributes: {
+				panel: {
+					title: { type: "string" },
+				},
+			},
+		});
+
+		expect(result.elementAttributes).toBeDefined();
+		expect(result.elementAttributes!["panel"]["title"].type).toBe("string");
 	});
 });

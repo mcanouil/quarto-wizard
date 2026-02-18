@@ -308,6 +308,18 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	): Promise<vscode.CompletionItem[] | undefined> {
 		const items: vscode.CompletionItem[] = [];
 
+		// Const takes precedence: offer the single fixed value.
+		if (descriptor.const !== undefined) {
+			const label = String(descriptor.const);
+			const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Constant);
+			item.insertText = ` ${label}`;
+			item.filterText = label;
+			if (descriptor.description) {
+				item.documentation = new vscode.MarkdownString(descriptor.description);
+			}
+			return [item];
+		}
+
 		if (descriptor.enum) {
 			for (const value of descriptor.enum) {
 				const label = String(value);

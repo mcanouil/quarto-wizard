@@ -105,6 +105,19 @@ export class SchemaTreeItem extends vscode.TreeItem {
 }
 
 /**
+ * Represents a schema file that failed to parse.
+ */
+export class SchemaErrorTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSchemaError";
+
+	constructor(public readonly errorMessage: string) {
+		super("Schema (invalid)", vscode.TreeItemCollapsibleState.None);
+		this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
+		this.tooltip = errorMessage;
+	}
+}
+
+/**
  * Type of schema section, used to determine children and icons.
  */
 export type SchemaSectionKind = "options" | "shortcodes" | "formats" | "projects" | "elementAttributes";
@@ -238,6 +251,7 @@ export type TreeItemType =
 	| WorkspaceFolderTreeItem
 	| ExtensionTreeItem
 	| SchemaTreeItem
+	| SchemaErrorTreeItem
 	| SchemaSectionTreeItem
 	| SchemaFieldTreeItem
 	| SchemaShortcodeTreeItem

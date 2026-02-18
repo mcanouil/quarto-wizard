@@ -17,6 +17,7 @@ import { readSchema } from "./schema.js";
  */
 export class SchemaCache {
 	private cache = new Map<string, ExtensionSchema>();
+	private errors = new Map<string, string>();
 
 	/**
 	 * Get the schema for an extension directory.
@@ -37,11 +38,23 @@ export class SchemaCache {
 				return null;
 			}
 
+			this.errors.delete(extensionDir);
 			this.cache.set(extensionDir, result.schema);
 			return result.schema;
-		} catch {
+		} catch (error) {
+			this.errors.set(extensionDir, error instanceof Error ? error.message : String(error));
 			return null;
 		}
+	}
+
+	/**
+	 * Get the parse error for a schema in the given directory, if any.
+	 *
+	 * @param extensionDir - Path to the extension directory
+	 * @returns Error message or null if no error occurred
+	 */
+	getError(extensionDir: string): string | null {
+		return this.errors.get(extensionDir) ?? null;
 	}
 
 	/**
@@ -61,6 +74,7 @@ export class SchemaCache {
 	 */
 	invalidate(extensionDir: string): void {
 		this.cache.delete(extensionDir);
+		this.errors.delete(extensionDir);
 	}
 
 	/**
@@ -68,5 +82,6 @@ export class SchemaCache {
 	 */
 	invalidateAll(): void {
 		this.cache.clear();
+		this.errors.clear();
 	}
 }

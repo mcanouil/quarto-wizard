@@ -39,6 +39,8 @@ export {
 	type ShortcodeSchema,
 	type ExtensionSchema,
 	type RawSchema,
+	SCHEMA_VERSION_URI,
+	SUPPORTED_SCHEMA_VERSIONS,
 	normaliseFieldDescriptor,
 	normaliseFieldDescriptorMap,
 	normaliseShortcodeSchema,

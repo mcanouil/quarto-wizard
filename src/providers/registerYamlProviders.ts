@@ -72,7 +72,7 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	context.subscriptions.push({ dispose: () => retriggerSuggest.cancel() });
 
 	// Watch for _schema.yml changes to invalidate the cache and revalidate.
-	const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_schema.{yml,yaml}");
+	const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_schema.{yml,yaml,json}");
 	const invalidateAndRevalidate = (uri: vscode.Uri) => {
 		const dir = path.normalize(vscode.Uri.joinPath(uri, "..").fsPath);
 		schemaCache.invalidate(dir);

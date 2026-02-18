@@ -434,6 +434,7 @@ export function validateInlineValue(
 		const hasInlineType =
 			typeIncludes(descriptor.type, "string") ||
 			typeIncludes(descriptor.type, "number") ||
+			typeIncludes(descriptor.type, "integer") ||
 			typeIncludes(descriptor.type, "boolean");
 		if (!hasInlineType) {
 			return findings;
@@ -445,6 +446,13 @@ export function validateInlineValue(
 
 			if (typeIncludes(descriptor.type, "number") && Number.isFinite(Number(value))) {
 				typeValid = true;
+			}
+
+			if (!typeValid && typeIncludes(descriptor.type, "integer")) {
+				const n = Number(value);
+				if (Number.isFinite(n) && Number.isInteger(n)) {
+					typeValid = true;
+				}
 			}
 
 			if (!typeValid && typeIncludes(descriptor.type, "boolean")) {
@@ -462,6 +470,17 @@ export function validateInlineValue(
 				});
 				return findings;
 			}
+		}
+	}
+
+	// Const check.
+	if (descriptor.const !== undefined) {
+		if (value !== String(descriptor.const)) {
+			findings.push({
+				message: `Attribute "${key}": value must be ${JSON.stringify(descriptor.const)}.`,
+				severity: "error",
+				code: "schema-const",
+			});
 		}
 	}
 
@@ -492,6 +511,20 @@ export function validateInlineValue(
 		if (descriptor.max !== undefined && numericValue > descriptor.max) {
 			findings.push({
 				message: `Attribute "${key}": value ${numericValue} exceeds the maximum of ${descriptor.max}.`,
+				severity: "error",
+				code: "schema-range",
+			});
+		}
+		if (descriptor.exclusiveMinimum !== undefined && numericValue <= descriptor.exclusiveMinimum) {
+			findings.push({
+				message: `Attribute "${key}": value ${numericValue} must be greater than ${descriptor.exclusiveMinimum}.`,
+				severity: "error",
+				code: "schema-range",
+			});
+		}
+		if (descriptor.exclusiveMaximum !== undefined && numericValue >= descriptor.exclusiveMaximum) {
+			findings.push({
+				message: `Attribute "${key}": value ${numericValue} must be less than ${descriptor.exclusiveMaximum}.`,
 				severity: "error",
 				code: "schema-range",
 			});

@@ -65,10 +65,20 @@ export interface FieldDescriptor {
 	min?: number;
 	/** Maximum numeric value. */
 	max?: number;
+	/** Exclusive minimum numeric value (value must be strictly greater). */
+	exclusiveMinimum?: number;
+	/** Exclusive maximum numeric value (value must be strictly less). */
+	exclusiveMaximum?: number;
 	/** Minimum string length. */
 	minLength?: number;
 	/** Maximum string length. */
 	maxLength?: number;
+	/** Minimum number of items (for arrays). */
+	minItems?: number;
+	/** Maximum number of items (for arrays). */
+	maxItems?: number;
+	/** Fixed value the field must equal. */
+	const?: unknown;
 	/** Alternative names for the field. */
 	aliases?: string[];
 	/** Whether the field is deprecated. Accepts boolean, message string, or structured spec. */
@@ -94,10 +104,12 @@ export interface ShortcodeSchema {
 }
 
 /**
- * Complete extension schema parsed from a _schema.yml file.
+ * Complete extension schema parsed from a _schema.yml or _schema.json file.
  * All sections are optional and default to empty objects or arrays.
  */
 export interface ExtensionSchema {
+	/** Schema version URI (e.g., "https://mcanouil.github.io/quarto-wizard/schemas/extension/v1"). */
+	$schema?: string;
 	/** Options (top-level YAML keys) the extension accepts. */
 	options?: Record<string, FieldDescriptor>;
 	/** Shortcodes the extension provides. */
@@ -111,26 +123,48 @@ export interface ExtensionSchema {
 }
 
 /**
- * Raw schema data as parsed from YAML.
- * Uses kebab-case keys matching the _schema.yml structure.
+ * Raw schema data as parsed from YAML or JSON.
+ * YAML files use kebab-case keys; JSON files use camelCase keys.
  */
 export interface RawSchema {
+	$schema?: string;
 	options?: Record<string, unknown>;
 	shortcodes?: Record<string, unknown>;
 	formats?: Record<string, unknown>;
 	projects?: Record<string, unknown>;
 	"element-attributes"?: Record<string, unknown>;
+	elementAttributes?: Record<string, unknown>;
 }
 
 /**
- * Mapping of kebab-case YAML field descriptor keys to camelCase TypeScript keys.
+ * Canonical schema version URI for the current format.
  */
-const KEBAB_TO_CAMEL: Record<string, string> = {
+export const SCHEMA_VERSION_URI = "https://mcanouil.github.io/quarto-wizard/schemas/extension/v1";
+
+/**
+ * Set of recognised schema version URIs.
+ * Unknown versions produce a warning but are not rejected (forward-compatible).
+ */
+export const SUPPORTED_SCHEMA_VERSIONS = new Set([SCHEMA_VERSION_URI]);
+
+/**
+ * Mapping of alternate key names to canonical TypeScript property names.
+ * Handles kebab-case YAML keys and JSON Schema-style aliases.
+ */
+const KEY_ALIASES: Record<string, string> = {
+	// Kebab-case to camelCase conversions.
 	"enum-case-insensitive": "enumCaseInsensitive",
 	"pattern-exact": "patternExact",
 	"min-length": "minLength",
 	"max-length": "maxLength",
+	"min-items": "minItems",
+	"max-items": "maxItems",
+	"exclusive-minimum": "exclusiveMinimum",
+	"exclusive-maximum": "exclusiveMaximum",
 	"replace-with": "replaceWith",
+	// JSON Schema-style aliases (single-word).
+	minimum: "min",
+	maximum: "max",
 };
 
 /**
@@ -142,7 +176,7 @@ const KEBAB_TO_CAMEL: Record<string, string> = {
 function normaliseDeprecatedSpec(raw: Record<string, unknown>): DeprecatedSpec {
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(raw)) {
-		const camelKey = KEBAB_TO_CAMEL[key] ?? key;
+		const camelKey = KEY_ALIASES[key] ?? key;
 		result[camelKey] = value;
 	}
 	return result as DeprecatedSpec;
@@ -158,7 +192,7 @@ export function normaliseFieldDescriptor(raw: Record<string, unknown>): FieldDes
 	const result: Record<string, unknown> = {};
 
 	for (const [key, value] of Object.entries(raw)) {
-		const camelKey = KEBAB_TO_CAMEL[key] ?? key;
+		const camelKey = KEY_ALIASES[key] ?? key;
 
 		if (camelKey === "items" && value && typeof value === "object" && !Array.isArray(value)) {
 			result[camelKey] = normaliseFieldDescriptor(value as Record<string, unknown>);
@@ -232,6 +266,11 @@ export function normaliseShortcodeSchema(raw: Record<string, unknown>): Shortcod
 export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 	const result: ExtensionSchema = {};
 
+	// Preserve the $schema version URI when present.
+	if (typeof raw["$schema"] === "string") {
+		result.$schema = raw["$schema"];
+	}
+
 	if (raw.options && typeof raw.options === "object" && !Array.isArray(raw.options)) {
 		result.options = normaliseFieldDescriptorMap(raw.options);
 	}
@@ -260,7 +299,8 @@ export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 		result.projects = normaliseFieldDescriptorMap(raw.projects);
 	}
 
-	const elementAttributes = raw["element-attributes"];
+	// Accept both "element-attributes" (YAML kebab-case) and "elementAttributes" (JSON camelCase).
+	const elementAttributes = raw["element-attributes"] ?? raw.elementAttributes;
 	if (elementAttributes && typeof elementAttributes === "object" && !Array.isArray(elementAttributes)) {
 		const groups: Record<string, Record<string, FieldDescriptor>> = {};
 		for (const [groupKey, groupValue] of Object.entries(elementAttributes as Record<string, unknown>)) {

@@ -12,7 +12,8 @@ A single schema serves two consumers:
 
 ## File Location
 
-Place `_schema.yml` (or `_schema.yaml`) in the same directory as `_extension.yml`:
+Place `_schema.yml` (or `_schema.yaml`) in the same directory as `_extension.yml`.
+A `_schema.json` file is also supported alongside or instead of the YAML variants.
 
 ```text
 _extensions/
@@ -22,7 +23,29 @@ _extensions/
     my-extension.lua
 ```
 
+When both a JSON and a YAML schema exist in the same directory, the JSON file takes precedence.
+JSON files use camelCase keys natively (e.g., `enumCaseInsensitive`, `patternExact`, `minLength`), whereas YAML files use kebab-case (e.g., `enum-case-insensitive`, `pattern-exact`, `min-length`).
+
 Quarto Wizard discovers schema files automatically when scanning installed extensions.
+
+## Schema Version (`$schema`) {#schema-version}
+
+Schema files may include a `$schema` key at the top level to declare the schema format version.
+This is optional but recommended for forward-compatibility.
+
+```yaml
+$schema: https://mcanouil.github.io/quarto-wizard/schemas/extension/v1
+options:
+  threshold:
+    type: number
+```
+
+The currently supported URI is:
+
+- `https://mcanouil.github.io/quarto-wizard/schemas/extension/v1`
+
+When an unrecognised version URI is encountered, Quarto Wizard emits a warning but does not reject the schema.
+This allows older tooling to gracefully handle schemas written for newer versions.
 
 ## Top-level Structure
 
@@ -171,6 +194,8 @@ Groups are matched against the current element using five strategies:
 - **ID prefix** (e.g. `modal` matches `#modal-example`): matches elements whose ID starts with that prefix followed by a hyphen.
 - **Pandoc element type** (`Div`, `Span`, `Code`, `CodeBlock`, `Header`): matches based on the structural context (fenced div `:::`, bracketed span `]`, backtick code `` ` ``, or ATX heading `#`).
 
+Group key matching is case-insensitive: `div` matches `Div`, `codeblock` matches `CodeBlock`, `header` matches `Header`, and so on.
+
 Use `_any` for attributes accepted on any element regardless of class.
 
 ```yaml
@@ -207,22 +232,34 @@ All properties are optional.
 
 ### Type and Value Constraints
 
-| Property                | Type      | Description                                                                          |
-| ----------------------- | --------- | ------------------------------------------------------------------------------------ |
-| `type`                  | `string`  | Expected value type: `string`, `number`, `boolean`, `array`, `object`, or `content`. |
-| `required`              | `boolean` | Whether the field must be present. Default: `false`.                                 |
-| `default`               | any       | Default value applied when not provided.                                             |
-| `enum`                  | array     | List of allowed values.                                                              |
-| `enum-case-insensitive` | `boolean` | Case-insensitive enum matching. Default: `false`.                                    |
-| `pattern`               | `string`  | Regular expression the value must match (JS regex syntax).                           |
-| `pattern-exact`         | `boolean` | Treat `pattern` as an exact string match. Default: `false`.                          |
-| `min`                   | `number`  | Minimum value (inclusive, for `type: number`).                                       |
-| `max`                   | `number`  | Maximum value (inclusive, for `type: number`).                                       |
-| `min-length`            | `integer` | Minimum array length (for `type: array`).                                            |
-| `max-length`            | `integer` | Maximum array length (for `type: array`).                                            |
+| Property                | Type      | Description                                                                                      |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `type`                  | `string`  | Expected value type: `string`, `number`, `integer`, `boolean`, `array`, `object`, or `content`.  |
+| `required`              | `boolean` | Whether the field must be present. Default: `false`.                                             |
+| `default`               | any       | Default value applied when not provided.                                                         |
+| `const`                 | any       | Fixed value the field must equal.                                                                |
+| `enum`                  | array     | List of allowed values.                                                                          |
+| `enum-case-insensitive` | `boolean` | Case-insensitive enum matching. Default: `false`.                                                |
+| `pattern`               | `string`  | Regular expression the value must match (JS regex syntax).                                       |
+| `pattern-exact`         | `boolean` | Anchor the pattern to match the entire value (wraps in `^...$`). Default: `false`.               |
+| `min`                   | `number`  | Minimum value (inclusive, for `type: number` or `type: integer`).                                |
+| `max`                   | `number`  | Maximum value (inclusive, for `type: number` or `type: integer`).                                |
+| `minimum`               | `number`  | Alias for `min`.                                                                                 |
+| `maximum`               | `number`  | Alias for `max`.                                                                                 |
+| `exclusive-minimum`     | `number`  | Exclusive minimum (value must be strictly greater).                                              |
+| `exclusive-maximum`     | `number`  | Exclusive maximum (value must be strictly less).                                                 |
+| `min-length`            | `integer` | Minimum string length (for `type: string`).                                                      |
+| `max-length`            | `integer` | Maximum string length (for `type: string`).                                                      |
+| `min-items`             | `integer` | Minimum number of items (for `type: array`).                                                     |
+| `max-items`             | `integer` | Maximum number of items (for `type: array`).                                                     |
+
+The `integer` type validates that the value is a whole number.
+It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`).
 
 The `content` type is specific to shortcode arguments and accepts any Pandoc Inlines, Blocks, or string value.
 Validation only checks presence (for `required`); no further type or pattern checking applies.
+
+In JSON schema files, the properties above use camelCase equivalents: `enumCaseInsensitive`, `patternExact`, `minLength`, `maxLength`, `minItems`, `maxItems`, `exclusiveMinimum`, and `exclusiveMaximum`.
 
 ### Metadata Properties
 
@@ -475,6 +512,15 @@ element-attributes:
       description: "Apply a fade transition for this modal."
 ```
 
+## Reference Schema Files
+
+The machine-readable schema definitions for validating `_schema.yml` and `_schema.json` files are available at:
+
+- `packages/core/assets/schema/extension-schema.yml` (YAML format, kebab-case keys).
+- `packages/core/assets/schema/extension-schema.json` (JSON format, camelCase keys).
+
+These files describe the structure and constraints of every property documented on this page.
+
 ## Generating a Schema with AI
 
 The prompt below can be used with an AI assistant to generate a `_schema.yml` for an existing extension.
@@ -505,16 +551,29 @@ Then read every Lua source file to discover:
 
 For every field use the following properties where applicable:
 
-- `type`: `string`, `number`, `boolean`, `array`, `object`, or
-  `content` (for shortcode arguments that receive Pandoc content).
+- `type`: `string`, `number`, `integer`, `boolean`, `array`, `object`,
+  or `content` (for shortcode arguments that receive Pandoc content).
+  Use `integer` when only whole numbers are valid.
 - `required`: set to `true` only when the code raises an error or
   returns early for missing values.
 - `default`: the fallback value used in the code.
+- `const`: a fixed value the field must equal, when the code expects
+  exactly one value.
 - `enum`: list of allowed values when the code checks against a
   fixed set.
 - `enum-case-insensitive`: `true` when the code lowercases or
   case-folds before comparing.
+- `pattern`: regular expression the value must match (JS syntax).
+- `pattern-exact`: `true` to anchor the pattern with `^...$`.
+- `min` / `max`: inclusive numeric bounds
+  (`minimum` and `maximum` are accepted as aliases).
+- `exclusive-minimum` / `exclusive-maximum`: exclusive numeric bounds
+  (value must be strictly greater / strictly less).
+- `min-length` / `max-length`: string length constraints.
+- `min-items` / `max-items`: array item count constraints.
 - `aliases`: alternative key names accepted by the code.
+- `deprecated`: `true`, a message string, or an object with `since`,
+  `message`, and `replace-with` keys.
 - `description`: one sentence in British English explaining the option.
 - `completion`: add `type: color` for CSS colour values, `type: file`
   with `extensions` for file paths, or omit to let the IDE infer
@@ -525,6 +584,8 @@ Output only the YAML content of `_schema.yml`, nothing else.
 Use kebab-case for multi-word property names (`enum-case-insensitive`,
 not `enumCaseInsensitive`).
 Add a one-line comment header: `# Schema for the <name> extension`.
+Optionally include `$schema: https://mcanouil.github.io/quarto-wizard/schemas/extension/v1`
+at the top level.
 ```
 
 :::
