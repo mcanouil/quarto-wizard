@@ -1,8 +1,11 @@
 import * as assert from "assert";
 import {
 	findSpacesAroundEquals,
+	findEmptyValueAssignments,
 	findKeyValueOffset,
 	findArgumentOffset,
+	extractBareWords,
+	findBareWordOffset,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
 import type { FieldDescriptor } from "@quarto-wizard/core";
@@ -448,6 +451,179 @@ suite("Inline Attribute Diagnostics", () => {
 			const findings = validateInlineValue("old", "val", descriptor);
 			assert.strictEqual(findings.length, 1);
 			assert.strictEqual(findings[0].code, "schema-deprecated");
+		});
+	});
+
+	suite("findEmptyValueAssignments", () => {
+		test("should flag key= at end of content", () => {
+			const results = findEmptyValueAssignments("bc=");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+			assert.strictEqual(results[0].replacement, 'bc=""');
+		});
+
+		test("should flag key= followed by whitespace", () => {
+			const results = findEmptyValueAssignments("bc= ");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+			assert.strictEqual(results[0].replacement, 'bc=""');
+		});
+
+		test("should not flag key=value", () => {
+			const results = findEmptyValueAssignments('bc="blue"');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not flag key=unquoted", () => {
+			const results = findEmptyValueAssignments("bc=blue");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should flag multiple empty assignments at end of content", () => {
+			// Both key= at end of content or followed by only whitespace.
+			const results = findEmptyValueAssignments("bc= fg=");
+			// Only fg= is flagged: bc= is followed by non-whitespace after
+			// space, making it ambiguous (findSpacesAroundEquals handles that).
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "fg");
+		});
+
+		test("should flag key= followed by only whitespace until end", () => {
+			const results = findEmptyValueAssignments("bc=   ");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+		});
+
+		test("should not flag = inside quotes", () => {
+			const results = findEmptyValueAssignments('bc="a="');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should handle hyphenated attribute names", () => {
+			const results = findEmptyValueAssignments("border-color=");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "border-color");
+			assert.strictEqual(results[0].replacement, 'border-color=""');
+		});
+
+		test("should not flag key= when followed by another token after space", () => {
+			// bc= followed by fg="red" is ambiguous (the space before fg
+			// is handled by findSpacesAroundEquals instead).
+			const results = findEmptyValueAssignments('bc= fg="red"');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should return correct offsets", () => {
+			const text = ".class bc=";
+			const results = findEmptyValueAssignments(text);
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(text.slice(results[0].start, results[0].end), "bc=");
+		});
+
+		test("should not flag = not preceded by an identifier", () => {
+			const results = findEmptyValueAssignments("=");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should flag key= before closing brace", () => {
+			const results = findEmptyValueAssignments("bc=}");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].key, "bc");
+		});
+	});
+
+	suite("extractBareWords", () => {
+		test("should extract bare word from element content", () => {
+			const results = extractBareWords(".class myword");
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "myword");
+		});
+
+		test("should not match class prefixes", () => {
+			const results = extractBareWords(".class");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not match id prefixes", () => {
+			const results = extractBareWords("#my-id");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not match key=value pairs", () => {
+			const results = extractBareWords('bc="blue"');
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should not match key= (empty value)", () => {
+			const results = extractBareWords("bc=");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should extract multiple bare words", () => {
+			const results = extractBareWords(".class foo bar");
+			assert.strictEqual(results.length, 2);
+			assert.strictEqual(results[0].word, "foo");
+			assert.strictEqual(results[1].word, "bar");
+		});
+
+		test("should extract bare word among mixed tokens", () => {
+			const results = extractBareWords('.class #id bc="blue" myword');
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "myword");
+		});
+
+		test("should return correct offsets", () => {
+			const content = ".class myword";
+			const results = extractBareWords(content);
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(content.slice(results[0].start, results[0].end), "myword");
+		});
+
+		test("should handle empty content", () => {
+			const results = extractBareWords("");
+			assert.strictEqual(results.length, 0);
+		});
+
+		test("should skip quoted strings", () => {
+			const results = extractBareWords('"hello" world');
+			assert.strictEqual(results.length, 1);
+			assert.strictEqual(results[0].word, "world");
+		});
+	});
+
+	suite("findBareWordOffset", () => {
+		test("should find bare word in element content", () => {
+			const content = ".class myword";
+			const result = findBareWordOffset(content, "myword");
+			assert.notStrictEqual(result, null);
+			assert.strictEqual(content.slice(result!.start, result!.end), "myword");
+		});
+
+		test("should return null for class prefix", () => {
+			const result = findBareWordOffset(".class", "class");
+			assert.strictEqual(result, null);
+		});
+
+		test("should return null for id prefix", () => {
+			const result = findBareWordOffset("#my-id", "my-id");
+			assert.strictEqual(result, null);
+		});
+
+		test("should return null for key in key=value", () => {
+			const result = findBareWordOffset('bc="blue"', "bc");
+			assert.strictEqual(result, null);
+		});
+
+		test("should return null for missing word", () => {
+			const result = findBareWordOffset(".class foo", "bar");
+			assert.strictEqual(result, null);
+		});
+
+		test("should find first matching bare word among multiple", () => {
+			const content = ".class foo bar";
+			const result = findBareWordOffset(content, "bar");
+			assert.notStrictEqual(result, null);
+			assert.strictEqual(content.slice(result!.start, result!.end), "bar");
 		});
 	});
 });

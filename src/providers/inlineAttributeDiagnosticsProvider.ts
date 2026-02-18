@@ -113,6 +113,95 @@ export function findSpacesAroundEquals(text: string): SpaceAroundEquals[] {
 }
 
 /**
+ * Describes a `key=` assignment with no value following the `=`.
+ */
+export interface EmptyValueAssignment {
+	/** The attribute name preceding the `=`. */
+	key: string;
+	/** Start offset in the source text (beginning of the identifier). */
+	start: number;
+	/** End offset (exclusive), past the `=` and any spaces between key and `=`. */
+	end: number;
+	/** The corrected text: `key=""`. */
+	replacement: string;
+}
+
+/**
+ * Find all occurrences of `key=` (with no value after `=`) in the given text.
+ *
+ * Tracks quoted strings so that `=` inside quoted values is not flagged.
+ * Does not overlap with `findSpacesAroundEquals`, which skips `=` with no
+ * value after it.
+ *
+ * Returns one entry per assignment where `=` has no value following it.
+ */
+export function findEmptyValueAssignments(text: string): EmptyValueAssignment[] {
+	const results: EmptyValueAssignment[] = [];
+	let i = 0;
+
+	while (i < text.length) {
+		const ch = text[i];
+
+		// Skip quoted strings.
+		if (ch === '"' || ch === "'") {
+			i = skipQuotedString(text, i);
+			continue;
+		}
+
+		if (ch !== "=") {
+			i++;
+			continue;
+		}
+
+		// We found an `=` outside of quotes.
+		// Look backward past optional spaces to find an identifier.
+		let j = i - 1;
+		while (j >= 0 && text[j] === " ") {
+			j--;
+		}
+
+		// The character before the spaces must be a word character.
+		if (j < 0 || !/[\w-]/.test(text[j])) {
+			i++;
+			continue;
+		}
+
+		// Look forward: skip any whitespace after `=`.
+		let k = i + 1;
+		while (k < text.length && text[k] === " ") {
+			k++;
+		}
+
+		// If there IS a non-whitespace character after the `=`, this is not empty.
+		if (k < text.length && !/[\s}]/.test(text[k])) {
+			i = k;
+			continue;
+		}
+
+		// Build the identifier.
+		const idEnd = j + 1;
+		let idStart = idEnd;
+		while (idStart > 0 && /[\w-]/.test(text[idStart - 1])) {
+			idStart--;
+		}
+		const identifier = text.slice(idStart, idEnd);
+
+		// Range covers from identifier start through `=` (and any spaces between).
+		const rangeEnd = i + 1;
+		results.push({
+			key: identifier,
+			start: idStart,
+			end: rangeEnd,
+			replacement: `${identifier}=""`,
+		});
+
+		i = rangeEnd;
+	}
+
+	return results;
+}
+
+/**
  * Advance past a quoted string, handling backslash escapes.
  * Returns the index after the closing quote (or end of text).
  */
@@ -387,6 +476,99 @@ export function findArgumentOffset(content: string, argIndex: number): ArgumentO
 }
 
 // ---------------------------------------------------------------------------
+// Bare-word extraction helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * A bare word token (not `.class`, `#id`, or `key=value`) with its
+ * offset within the content string.
+ */
+export interface BareWord {
+	word: string;
+	start: number;
+	end: number;
+}
+
+/**
+ * Extract all bare word tokens from element attribute content.
+ *
+ * Bare words are tokens that are not class prefixes (`.name`), id
+ * prefixes (`#name`), or key-value assignments (`key=value`).
+ */
+export function extractBareWords(content: string): BareWord[] {
+	const results: BareWord[] = [];
+	let i = 0;
+
+	while (i < content.length) {
+		// Skip whitespace.
+		while (i < content.length && /\s/.test(content[i])) {
+			i++;
+		}
+
+		if (i >= content.length) {
+			break;
+		}
+
+		// Skip class (.name) and id (#name) prefixes.
+		if (content[i] === "." || content[i] === "#") {
+			i++;
+			while (i < content.length && /[\w-]/.test(content[i])) {
+				i++;
+			}
+			continue;
+		}
+
+		// Skip quoted strings.
+		if (content[i] === '"' || content[i] === "'") {
+			i = skipQuotedString(content, i);
+			continue;
+		}
+
+		// Read a word token.
+		const wordStart = i;
+		while (i < content.length && /[\w-]/.test(content[i])) {
+			i++;
+		}
+
+		if (i === wordStart) {
+			// Non-word, non-quote character (e.g. `=`); skip it.
+			i++;
+			continue;
+		}
+
+		const word = content.slice(wordStart, i);
+
+		// Check for `=` following the word (key=value or key=).
+		if (i < content.length && content[i] === "=") {
+			// This is a key=value or key= assignment; skip past the value.
+			i++; // skip =
+			if (i < content.length && (content[i] === '"' || content[i] === "'")) {
+				i = skipQuotedString(content, i);
+			} else {
+				while (i < content.length && !/\s/.test(content[i])) {
+					i++;
+				}
+			}
+			continue;
+		}
+
+		results.push({ word, start: wordStart, end: i });
+	}
+
+	return results;
+}
+
+/**
+ * Find the offset of a specific bare word in element attribute content.
+ *
+ * @returns The offset, or null if the word is not found as a bare token.
+ */
+export function findBareWordOffset(content: string, word: string): BareWord | null {
+	const bareWords = extractBareWords(content);
+	return bareWords.find((bw) => bw.word === word) ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Inline value validation (pure, no VS Code dependency)
 // ---------------------------------------------------------------------------
 
@@ -593,6 +775,8 @@ function buildDeprecatedMessage(key: string, deprecated: boolean | string | Depr
 // ---------------------------------------------------------------------------
 
 const DIAGNOSTIC_CODE = "spaces-around-equals";
+const EMPTY_VALUE_CODE = "empty-attribute-value";
+const BARE_ATTRIBUTE_CODE = "schema-bare-attribute";
 
 /**
  * Convert inline validation findings into VS Code diagnostics for a
@@ -730,6 +914,30 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			}
 		}
 
+		// Phase 1b: empty-value assignments (synchronous, always runs).
+		for (const block of blocks) {
+			const emptyFindings = findEmptyValueAssignments(block.content);
+
+			for (const finding of emptyFindings) {
+				const absoluteStart = block.contentOffset + finding.start;
+				const absoluteEnd = block.contentOffset + finding.end;
+
+				const startPos = document.positionAt(absoluteStart);
+				const endPos = document.positionAt(absoluteEnd);
+				const range = new vscode.Range(startPos, endPos);
+
+				const diagnostic = new vscode.Diagnostic(
+					range,
+					`Attribute "${finding.key}" has no value. Use ${finding.key}="" for an explicit empty value.`,
+					vscode.DiagnosticSeverity.Warning,
+				);
+				diagnostic.code = EMPTY_VALUE_CODE;
+				diagnostic.source = "quarto-wizard";
+
+				diagnostics.push(diagnostic);
+			}
+		}
+
 		// Phase 2: schema-based validation (async).
 		try {
 			const [elementSchemas, shortcodeSchemas] = await Promise.all([
@@ -835,6 +1043,26 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 
 			appendKeyValueDiagnostics(findings, kv, block, document, diagnostics);
 		}
+
+		// Validate bare words that match known attribute names.
+		const bareWords = extractBareWords(block.content);
+		for (const bw of bareWords) {
+			const entry = resolveElementAttribute(applicable, bw.word);
+			if (!entry) {
+				continue;
+			}
+			const absStart = block.contentOffset + bw.start;
+			const absEnd = block.contentOffset + bw.end;
+			const range = new vscode.Range(document.positionAt(absStart), document.positionAt(absEnd));
+			const diagnostic = new vscode.Diagnostic(
+				range,
+				`Attribute "${bw.word}" requires a value assignment. Use ${bw.word}="value".`,
+				vscode.DiagnosticSeverity.Warning,
+			);
+			diagnostic.code = BARE_ATTRIBUTE_CODE;
+			diagnostic.source = "quarto-wizard";
+			diagnostics.push(diagnostic);
+		}
 	}
 
 	private validateShortcodeBlock(
@@ -927,6 +1155,36 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 		}
+
+		// Validate positional arguments beyond defined slots that match
+		// known attribute names (bare words used as attributes).
+		if (schema.attributes) {
+			const positionalSlots = schema.arguments?.length ?? 0;
+			for (let i = positionalSlots; i < parsed.arguments.length; i++) {
+				const argValue = parsed.arguments[i];
+				const descriptor = resolveShortcodeAttribute(schema, argValue);
+				if (!descriptor) {
+					continue;
+				}
+
+				const argOffset = findArgumentOffset(block.content, i);
+				if (!argOffset) {
+					continue;
+				}
+
+				const absStart = block.contentOffset + argOffset.start;
+				const absEnd = block.contentOffset + argOffset.end;
+				const range = new vscode.Range(document.positionAt(absStart), document.positionAt(absEnd));
+				const diagnostic = new vscode.Diagnostic(
+					range,
+					`Attribute "${argValue}" requires a value assignment. Use ${argValue}="value".`,
+					vscode.DiagnosticSeverity.Warning,
+				);
+				diagnostic.code = BARE_ATTRIBUTE_CODE;
+				diagnostic.source = "quarto-wizard";
+				diagnostics.push(diagnostic);
+			}
+		}
 	}
 }
 
@@ -945,38 +1203,74 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 		const actions: vscode.CodeAction[] = [];
 
 		for (const diagnostic of context.diagnostics) {
-			if (diagnostic.code !== DIAGNOSTIC_CODE) {
-				continue;
-			}
-
-			const text = document.getText();
-			const blocks = extractBlocks(text);
-
-			// Find the matching finding for this diagnostic range.
-			const diagStart = document.offsetAt(diagnostic.range.start);
-
-			for (const block of blocks) {
-				const findings = findSpacesAroundEquals(block.content);
-				for (const finding of findings) {
-					const absoluteStart = block.contentOffset + finding.start;
-					if (absoluteStart !== diagStart) {
-						continue;
-					}
-
-					const action = new vscode.CodeAction('Remove spaces around "="', vscode.CodeActionKind.QuickFix);
-					action.diagnostics = [diagnostic];
-					action.isPreferred = true;
-
-					const edit = new vscode.WorkspaceEdit();
-					edit.replace(document.uri, diagnostic.range, finding.replacement);
-					action.edit = edit;
-
-					actions.push(action);
-				}
+			if (diagnostic.code === DIAGNOSTIC_CODE) {
+				this.addSpacesAroundEqualsAction(document, diagnostic, actions);
+			} else if (diagnostic.code === EMPTY_VALUE_CODE) {
+				this.addEmptyValueAction(document, diagnostic, actions);
 			}
 		}
 
 		return actions;
+	}
+
+	private addSpacesAroundEqualsAction(
+		document: vscode.TextDocument,
+		diagnostic: vscode.Diagnostic,
+		actions: vscode.CodeAction[],
+	): void {
+		const text = document.getText();
+		const blocks = extractBlocks(text);
+		const diagStart = document.offsetAt(diagnostic.range.start);
+
+		for (const block of blocks) {
+			const findings = findSpacesAroundEquals(block.content);
+			for (const finding of findings) {
+				const absoluteStart = block.contentOffset + finding.start;
+				if (absoluteStart !== diagStart) {
+					continue;
+				}
+
+				const action = new vscode.CodeAction('Remove spaces around "="', vscode.CodeActionKind.QuickFix);
+				action.diagnostics = [diagnostic];
+				action.isPreferred = true;
+
+				const edit = new vscode.WorkspaceEdit();
+				edit.replace(document.uri, diagnostic.range, finding.replacement);
+				action.edit = edit;
+
+				actions.push(action);
+			}
+		}
+	}
+
+	private addEmptyValueAction(
+		document: vscode.TextDocument,
+		diagnostic: vscode.Diagnostic,
+		actions: vscode.CodeAction[],
+	): void {
+		const text = document.getText();
+		const blocks = extractBlocks(text);
+		const diagStart = document.offsetAt(diagnostic.range.start);
+
+		for (const block of blocks) {
+			const findings = findEmptyValueAssignments(block.content);
+			for (const finding of findings) {
+				const absoluteStart = block.contentOffset + finding.start;
+				if (absoluteStart !== diagStart) {
+					continue;
+				}
+
+				const action = new vscode.CodeAction(`Replace with ${finding.replacement}`, vscode.CodeActionKind.QuickFix);
+				action.diagnostics = [diagnostic];
+				action.isPreferred = true;
+
+				const edit = new vscode.WorkspaceEdit();
+				edit.replace(document.uri, diagnostic.range, finding.replacement);
+				action.edit = edit;
+
+				actions.push(action);
+			}
+		}
 	}
 }
 
