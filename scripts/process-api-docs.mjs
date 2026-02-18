@@ -20,6 +20,7 @@ import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdir
 import { basename, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
+import { OptionDefaults } from "typedoc";
 
 // =============================================================================
 // Configuration
@@ -43,6 +44,8 @@ const config = {
 	})),
 	paths: Object.fromEntries(Object.entries(rawConfig.paths).map(([key, value]) => [key, resolve(rootDir, value)])),
 };
+
+const typedocBlockTags = [...OptionDefaults.blockTags, "@title", "@description", "@envvar", "@pattern", "@note"];
 config.paths.rootDir = rootDir;
 
 const { packages, languageFilenames, envVarSources, commandGroups, configGroups, paths } = config;
@@ -514,8 +517,9 @@ function processApiDocs() {
 			rmSync(typedocTmpDir, { recursive: true });
 		}
 		console.log(`  Running TypeDoc for ${pkg.name}...`);
+		const blockTagsArgs = typedocBlockTags.map((tag) => `--blockTags ${tag}`).join(" ");
 		execSync(
-			`npx typedoc --entryPointStrategy expand --entryPoints src --tsconfig tsconfig.json --out "${typedocTmpDir}" --plugin typedoc-plugin-markdown --flattenOutputFiles --readme none --excludePrivate --excludeProtected --excludeInternal --hideGenerator --useCodeBlocks --parametersFormat table --interfacePropertiesFormat table --exclude "**/index.ts"`,
+			`npx typedoc --entryPointStrategy expand --entryPoints src --tsconfig tsconfig.json --out "${typedocTmpDir}" --plugin typedoc-plugin-markdown --flattenOutputFiles --readme none --excludePrivate --excludeProtected --excludeInternal --hideGenerator --useCodeBlocks --parametersFormat table --interfacePropertiesFormat table --exclude "**/index.ts" ${blockTagsArgs}`,
 			{ cwd: packageDir, stdio: "inherit" },
 		);
 
