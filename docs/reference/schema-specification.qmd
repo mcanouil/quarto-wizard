@@ -228,26 +228,26 @@ All properties are optional.
 
 ### Type and Value Constraints
 
-| Property                | Type      | Description                                                                                      |
-| ----------------------- | --------- | ------------------------------------------------------------------------------------------------ |
-| `type`                  | `string`  | Expected value type: `string`, `number`, `integer`, `boolean`, `array`, `object`, or `content`.  |
-| `required`              | `boolean` | Whether the field must be present. Default: `false`.                                             |
-| `default`               | any       | Default value applied when not provided.                                                         |
-| `const`                 | any       | Fixed value the field must equal.                                                                |
-| `enum`                  | array     | List of allowed values.                                                                          |
-| `enum-case-insensitive` | `boolean` | Case-insensitive enum matching. Default: `false`.                                                |
-| `pattern`               | `string`  | Regular expression the value must match (JS regex syntax).                                       |
-| `pattern-exact`         | `boolean` | Anchor the pattern to match the entire value (wraps in `^...$`). Default: `false`.               |
-| `min`                   | `number`  | Minimum value (inclusive, for `type: number` or `type: integer`).                                |
-| `max`                   | `number`  | Maximum value (inclusive, for `type: number` or `type: integer`).                                |
-| `minimum`               | `number`  | Alias for `min`.                                                                                 |
-| `maximum`               | `number`  | Alias for `max`.                                                                                 |
-| `exclusive-minimum`     | `number`  | Exclusive minimum (value must be strictly greater).                                              |
-| `exclusive-maximum`     | `number`  | Exclusive maximum (value must be strictly less).                                                 |
-| `min-length`            | `integer` | Minimum string length (for `type: string`).                                                      |
-| `max-length`            | `integer` | Maximum string length (for `type: string`).                                                      |
-| `min-items`             | `integer` | Minimum number of items (for `type: array`).                                                     |
-| `max-items`             | `integer` | Maximum number of items (for `type: array`).                                                     |
+| Property                | Type      | Description                                                                                     |
+| ----------------------- | --------- | ----------------------------------------------------------------------------------------------- |
+| `type`                  | `string`  | Expected value type: `string`, `number`, `integer`, `boolean`, `array`, `object`, or `content`. |
+| `required`              | `boolean` | Whether the field must be present. Default: `false`.                                            |
+| `default`               | any       | Default value applied when not provided.                                                        |
+| `const`                 | any       | Fixed value the field must equal.                                                               |
+| `enum`                  | array     | List of allowed values.                                                                         |
+| `enum-case-insensitive` | `boolean` | Case-insensitive enum matching. Default: `false`.                                               |
+| `pattern`               | `string`  | Regular expression the value must match (JS regex syntax).                                      |
+| `pattern-exact`         | `boolean` | Anchor the pattern to match the entire value (wraps in `^...$`). Default: `false`.              |
+| `min`                   | `number`  | Minimum value (inclusive, for `type: number` or `type: integer`).                               |
+| `max`                   | `number`  | Maximum value (inclusive, for `type: number` or `type: integer`).                               |
+| `minimum`               | `number`  | Alias for `min`.                                                                                |
+| `maximum`               | `number`  | Alias for `max`.                                                                                |
+| `exclusive-minimum`     | `number`  | Exclusive minimum (value must be strictly greater).                                             |
+| `exclusive-maximum`     | `number`  | Exclusive maximum (value must be strictly less).                                                |
+| `min-length`            | `integer` | Minimum string length (for `type: string`).                                                     |
+| `max-length`            | `integer` | Maximum string length (for `type: string`).                                                     |
+| `min-items`             | `integer` | Minimum number of items (for `type: array`).                                                    |
+| `max-items`             | `integer` | Maximum number of items (for `type: array`).                                                    |
 
 The `integer` type validates that the value is a whole number.
 It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`).
