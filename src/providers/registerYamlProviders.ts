@@ -19,7 +19,7 @@ function matchesYamlSelector(document: vscode.TextDocument): boolean {
 /**
  * Register YAML completion and diagnostics providers for Quarto
  * extension schemas, and set up a file watcher that invalidates the
- * schema cache when _schema.yml files change.
+ * schema cache when schema files change.
  *
  * @param context - The VS Code extension context.
  * @param schemaCache - Shared schema cache instance.
@@ -71,8 +71,8 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	);
 	context.subscriptions.push({ dispose: () => retriggerSuggest.cancel() });
 
-	// Watch for _schema.yml changes to invalidate the cache and revalidate.
-	const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_schema.{yml,yaml}");
+	// Watch for schema file changes to invalidate the cache and revalidate.
+	const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_schema.{yml,yaml,json}");
 	const invalidateAndRevalidate = (uri: vscode.Uri) => {
 		const dir = path.normalize(vscode.Uri.joinPath(uri, "..").fsPath);
 		schemaCache.invalidate(dir);

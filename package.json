@@ -57,7 +57,7 @@
 		"workspaceContains:**/_quarto.{yml,yaml}",
 		"workspaceContains:**/_brand.{yml,yaml}",
 		"workspaceContains:**/_extension.{yml,yaml}",
-		"workspaceContains:**/_schema.{yml,yaml}",
+		"workspaceContains:**/_schema.{yml,yaml,json}",
 		"onUri"
 	],
 	"main": "./dist/extension",

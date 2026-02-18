@@ -1,6 +1,8 @@
 project:
   type: mcanouil
   output-dir: _site
+  resources:
+    - assets/schema
 
 lang: en
 # date: today

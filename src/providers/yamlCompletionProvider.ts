@@ -14,7 +14,7 @@ import { logMessage } from "../utils/log";
 
 /**
  * Provides YAML completions for Quarto extension options
- * defined in _schema.yml files.
+ * defined in extension schema files.
  */
 export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	constructor(private schemaCache: SchemaCache) {}
@@ -307,6 +307,18 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		documentUri: vscode.Uri,
 	): Promise<vscode.CompletionItem[] | undefined> {
 		const items: vscode.CompletionItem[] = [];
+
+		// Const takes precedence: offer the single fixed value.
+		if (descriptor.const !== undefined) {
+			const label = String(descriptor.const);
+			const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Constant);
+			item.insertText = ` ${label}`;
+			item.filterText = label;
+			if (descriptor.description) {
+				item.documentation = new vscode.MarkdownString(descriptor.description);
+			}
+			return [item];
+		}
 
 		if (descriptor.enum) {
 			for (const value of descriptor.enum) {

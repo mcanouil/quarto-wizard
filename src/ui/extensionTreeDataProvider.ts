@@ -10,6 +10,7 @@ import {
 	WorkspaceFolderTreeItem,
 	ExtensionTreeItem,
 	SchemaTreeItem,
+	SchemaErrorTreeItem,
 	SchemaSectionTreeItem,
 	SchemaFieldTreeItem,
 	SchemaShortcodeTreeItem,
@@ -83,6 +84,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 		if (element instanceof SchemaFormatTreeItem) {
 			return Promise.resolve(this.getFormatFieldItems(element));
+		}
+
+		if (element instanceof SchemaShortcodeTreeItem) {
+			return Promise.resolve(this.getShortcodeChildItems(element));
 		}
 
 		return Promise.resolve([]);
@@ -172,6 +177,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		const schema = this.schemaCache.get(ext.directory);
 		if (schema) {
 			items.push(new SchemaTreeItem(ext.directory, schema));
+		} else {
+			const schemaError = this.schemaCache.getError(ext.directory);
+			if (schemaError) {
+				items.push(new SchemaErrorTreeItem(schemaError));
+			}
 		}
 
 		return items;
@@ -228,6 +238,17 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	private getFormatFieldItems(element: SchemaFormatTreeItem): SchemaFieldTreeItem[] {
 		return this.fieldItems(element.fields);
+	}
+
+	private getShortcodeChildItems(element: SchemaShortcodeTreeItem): SchemaFieldTreeItem[] {
+		const items: SchemaFieldTreeItem[] = [];
+		for (const arg of element.shortcode.arguments ?? []) {
+			items.push(new SchemaFieldTreeItem(arg.name, arg, !!arg.deprecated, "symbol-parameter"));
+		}
+		for (const [name, attr] of Object.entries(element.shortcode.attributes ?? {})) {
+			items.push(new SchemaFieldTreeItem(name, attr, !!attr.deprecated));
+		}
+		return items;
 	}
 
 	private fieldItems(fields: Record<string, FieldDescriptor>): SchemaFieldTreeItem[] {

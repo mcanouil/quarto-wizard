@@ -12,7 +12,7 @@ import { logMessage } from "../utils/log";
 
 /**
  * Provides hover information for Quarto extension options
- * defined in _schema.yml files.
+ * defined in extension schema files.
  */
 export class YamlHoverProvider implements vscode.HoverProvider {
 	constructor(private schemaCache: SchemaCache) {}
@@ -270,14 +270,33 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 		if (descriptor.enum && !isOnValue) {
 			details.push(`**Allowed values:** ${descriptor.enum.map((v) => `\`${String(v)}\``).join(", ")}`);
 		}
-		if (descriptor.min !== undefined || descriptor.max !== undefined) {
-			const range = [
+		if (descriptor.const !== undefined) {
+			details.push(`**Const:** \`${JSON.stringify(descriptor.const)}\``);
+		}
+		if (
+			descriptor.min !== undefined ||
+			descriptor.max !== undefined ||
+			descriptor.exclusiveMinimum !== undefined ||
+			descriptor.exclusiveMaximum !== undefined
+		) {
+			const rangeParts = [
 				descriptor.min !== undefined ? `min: ${descriptor.min}` : "",
+				descriptor.exclusiveMinimum !== undefined ? `exclusiveMin: ${descriptor.exclusiveMinimum}` : "",
 				descriptor.max !== undefined ? `max: ${descriptor.max}` : "",
+				descriptor.exclusiveMaximum !== undefined ? `exclusiveMax: ${descriptor.exclusiveMaximum}` : "",
 			]
 				.filter(Boolean)
 				.join(", ");
-			details.push(`**Range:** ${range}`);
+			details.push(`**Range:** ${rangeParts}`);
+		}
+		if (descriptor.minItems !== undefined || descriptor.maxItems !== undefined) {
+			const itemsParts = [
+				descriptor.minItems !== undefined ? `min: ${descriptor.minItems}` : "",
+				descriptor.maxItems !== undefined ? `max: ${descriptor.maxItems}` : "",
+			]
+				.filter(Boolean)
+				.join(", ");
+			details.push(`**Items:** ${itemsParts}`);
 		}
 		if (descriptor.pattern) {
 			details.push(`**Pattern:** \`${descriptor.pattern}\``);

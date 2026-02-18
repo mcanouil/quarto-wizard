@@ -4,7 +4,6 @@ project:
     - quarto-wizard-dev.vsix
 
 website:
-  title: "Quarto Wizard (Development)"
   site-url: "https://m.canouil.dev/quarto-wizard/dev"
   announcement:
     icon: exclamation-circle
