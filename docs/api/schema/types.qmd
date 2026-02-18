@@ -38,7 +38,7 @@ and the overall extension schema structure.
 function formatType(typeSpec): string;
 ```
 
-Defined in: [packages/schema/src/types/schema.ts:337](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L337)
+Defined in: [packages/schema/src/types/schema.ts:337](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L337)
 
 Format a type spec for display (e.g., "number | boolean").
 
@@ -60,7 +60,7 @@ Human-readable type string.
 function normaliseFieldDescriptor(raw): FieldDescriptor;
 ```
 
-Defined in: [packages/schema/src/types/schema.ts:191](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L191)
+Defined in: [packages/schema/src/types/schema.ts:191](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L191)
 
 Normalise a raw field descriptor from YAML, converting kebab-case keys to camelCase.
 
@@ -82,7 +82,7 @@ Normalised FieldDescriptor
 function normaliseFieldDescriptorMap(raw): Record<string, FieldDescriptor>;
 ```
 
-Defined in: [packages/schema/src/types/schema.ts:217](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L217)
+Defined in: [packages/schema/src/types/schema.ts:217](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L217)
 
 Normalise a map of field descriptors from YAML.
 
@@ -106,7 +106,7 @@ Normalised map of FieldDescriptor objects
 function normaliseSchema(raw): ExtensionSchema;
 ```
 
-Defined in: [packages/schema/src/types/schema.ts:266](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L266)
+Defined in: [packages/schema/src/types/schema.ts:266](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L266)
 
 Normalise a raw schema from YAML to an ExtensionSchema.
 
@@ -128,7 +128,7 @@ Normalised ExtensionSchema
 function normaliseShortcodeSchema(raw): ShortcodeSchema;
 ```
 
-Defined in: [packages/schema/src/types/schema.ts:235](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L235)
+Defined in: [packages/schema/src/types/schema.ts:235](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L235)
 
 Normalise a raw shortcode schema from YAML.
 
@@ -150,7 +150,7 @@ Normalised ShortcodeSchema
 function typeIncludes(typeSpec, name): boolean;
 ```
 
-Defined in: [packages/schema/src/types/schema.ts:324](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L324)
+Defined in: [packages/schema/src/types/schema.ts:324](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L324)
 
 Check whether a type spec includes a given type name.
 
@@ -169,7 +169,7 @@ True if the type spec includes the given name.
 
 ## Types
 
-Defined in: [packages/schema/src/types/schema.ts:15](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L15)
+Defined in: [packages/schema/src/types/schema.ts:15](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L15)
 
 Completion specification for a field.
 Describes how a field's value should be completed in an editor.
@@ -178,16 +178,16 @@ Describes how a field's value should be completed in an editor.
 
 | Property                                         | Type       | Description                                         | Defined in                                                                                                                                                                |
 | ------------------------------------------------ | ---------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-dynamic"></a> `dynamic?`         | `boolean`  | Whether completion values are dynamically resolved. | [packages/schema/src/types/schema.ts:25](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L25) |
-| <a id="property-extensions"></a> `extensions?`   | `string[]` | File extensions to filter (for file completions).   | [packages/schema/src/types/schema.ts:19](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L19) |
-| <a id="property-placeholder"></a> `placeholder?` | `string`   | Placeholder text shown in the editor.               | [packages/schema/src/types/schema.ts:21](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L21) |
-| <a id="property-source"></a> `source?`           | `string`   | Source for dynamic completion values.               | [packages/schema/src/types/schema.ts:27](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L27) |
-| <a id="property-type"></a> `type?`               | `string`   | Type of completion (e.g., "file", "value").         | [packages/schema/src/types/schema.ts:17](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L17) |
-| <a id="property-values"></a> `values?`           | `string[]` | Static list of allowed values.                      | [packages/schema/src/types/schema.ts:23](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L23) |
+| <a id="property-dynamic"></a> `dynamic?`         | `boolean`  | Whether completion values are dynamically resolved. | [packages/schema/src/types/schema.ts:25](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L25) |
+| <a id="property-extensions"></a> `extensions?`   | `string[]` | File extensions to filter (for file completions).   | [packages/schema/src/types/schema.ts:19](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L19) |
+| <a id="property-placeholder"></a> `placeholder?` | `string`   | Placeholder text shown in the editor.               | [packages/schema/src/types/schema.ts:21](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L21) |
+| <a id="property-source"></a> `source?`           | `string`   | Source for dynamic completion values.               | [packages/schema/src/types/schema.ts:27](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L27) |
+| <a id="property-type"></a> `type?`               | `string`   | Type of completion (e.g., "file", "value").         | [packages/schema/src/types/schema.ts:17](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L17) |
+| <a id="property-values"></a> `values?`           | `string[]` | Static list of allowed values.                      | [packages/schema/src/types/schema.ts:23](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L23) |
 
 ## Types
 
-Defined in: [packages/schema/src/types/schema.ts:34](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L34)
+Defined in: [packages/schema/src/types/schema.ts:34](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L34)
 
 Structured deprecation specification for a field.
 Provides version, message, and optional auto-forwarding to a replacement key.
@@ -196,13 +196,13 @@ Provides version, message, and optional auto-forwarding to a replacement key.
 
 | Property                                         | Type     | Description                                        | Defined in                                                                                                                                                                |
 | ------------------------------------------------ | -------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-message"></a> `message?`         | `string` | Human-readable deprecation message.                | [packages/schema/src/types/schema.ts:38](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L38) |
-| <a id="property-replacewith"></a> `replaceWith?` | `string` | Replacement key name to auto-forward the value to. | [packages/schema/src/types/schema.ts:40](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L40) |
-| <a id="property-since"></a> `since?`             | `string` | Version since which the field is deprecated.       | [packages/schema/src/types/schema.ts:36](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L36) |
+| <a id="property-message"></a> `message?`         | `string` | Human-readable deprecation message.                | [packages/schema/src/types/schema.ts:38](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L38) |
+| <a id="property-replacewith"></a> `replaceWith?` | `string` | Replacement key name to auto-forward the value to. | [packages/schema/src/types/schema.ts:40](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L40) |
+| <a id="property-since"></a> `since?`             | `string` | Version since which the field is deprecated.       | [packages/schema/src/types/schema.ts:36](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L36) |
 
 ## Types
 
-Defined in: [packages/schema/src/types/schema.ts:110](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L110)
+Defined in: [packages/schema/src/types/schema.ts:110](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L110)
 
 Complete extension schema parsed from a \_schema.yml or \_schema.json file.
 All sections are optional and default to empty objects or arrays.
@@ -211,26 +211,26 @@ All sections are optional and default to empty objects or arrays.
 
 | Property                                                     | Type       | Description                                                                                              | Defined in                                                                                                                                                                  |
 | ------------------------------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-schema"></a> `$schema?`                      | `string`   | Schema version URI (e.g., "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json"). | [packages/schema/src/types/schema.ts:112](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L112) |
+| <a id="property-schema"></a> `$schema?`                      | `string`   | Schema version URI (e.g., "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json"). | [packages/schema/src/types/schema.ts:112](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L112) |
 | <a id="property-elementattributes"></a> `elementAttributes?` | ```{=html} |
 
 <code>Record&lt;string, Record<string, <a href="types.Interface.FieldDescriptor.qmd" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
 
-````> | Element-level attributes grouped by CSS class or element type (e.g., "_any", "panel", "card"). | [packages/schema/src/types/schema.ts:122](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L122) |
+````> | Element-level attributes grouped by CSS class or element type (e.g., "_any", "panel", "card"). | [packages/schema/src/types/schema.ts:122](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L122) |
 | <a id="property-formats"></a> `formats?` | ```{=html}
 <code>Record&lt;string, Record<string, <a href="types.Interface.FieldDescriptor.qmd" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-```\> | Format-specific options the extension supports. | [packages/schema/src/types/schema.ts:118](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L118) |
+```\> | Format-specific options the extension supports. | [packages/schema/src/types/schema.ts:118](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L118) |
 | <a id="property-options"></a> `options?` | ```{=html}
 <code>Record&lt;string, <a href="types.Interface.FieldDescriptor.qmd" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-``` | Options (top-level YAML keys) the extension accepts. | [packages/schema/src/types/schema.ts:114](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L114) |
-| <a id="property-projects"></a> `projects?` | `string[]` | Project types contributed by the extension (suggested for project.type). | [packages/schema/src/types/schema.ts:120](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L120) |
+``` | Options (top-level YAML keys) the extension accepts. | [packages/schema/src/types/schema.ts:114](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L114) |
+| <a id="property-projects"></a> `projects?` | `string[]` | Project types contributed by the extension (suggested for project.type). | [packages/schema/src/types/schema.ts:120](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L120) |
 | <a id="property-shortcodes"></a> `shortcodes?` | ```{=html}
 <code>Record&lt;string, <a href="types.Interface.ShortcodeSchema.qmd" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">ShortcodeSchema</a>&gt;</code>
-``` | Shortcodes the extension provides. | [packages/schema/src/types/schema.ts:116](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L116) |
+``` | Shortcodes the extension provides. | [packages/schema/src/types/schema.ts:116](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L116) |
 
 ## Types
 
-Defined in: [packages/schema/src/types/schema.ts:47](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L47)
+Defined in: [packages/schema/src/types/schema.ts:47](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L47)
 
 Descriptor for a single field in an extension schema.
 Describes the type, constraints, and metadata for a configuration option.
@@ -239,32 +239,32 @@ Describes the type, constraints, and metadata for a configuration option.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-aliases"></a> `aliases?` | `string[]` | Alternative names for the field. | [packages/schema/src/types/schema.ts:83](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L83) |
-| <a id="property-completion"></a> `completion?` | [`CompletionSpec`](types.Interface.CompletionSpec.qmd) | Completion specification for the field. | [packages/schema/src/types/schema.ts:87](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L87) |
-| <a id="property-const"></a> `const?` | `unknown` | Fixed value the field must equal. | [packages/schema/src/types/schema.ts:81](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L81) |
-| <a id="property-default"></a> `default?` | `unknown` | Default value for the field. | [packages/schema/src/types/schema.ts:53](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L53) |
-| <a id="property-deprecated"></a> `deprecated?` | `string` \| `boolean` \| [`DeprecatedSpec`](types.Interface.DeprecatedSpec.qmd) | Whether the field is deprecated. Accepts boolean, message string, or structured spec. | [packages/schema/src/types/schema.ts:85](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L85) |
-| <a id="property-description"></a> `description?` | `string` | Human-readable description of the field. | [packages/schema/src/types/schema.ts:55](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L55) |
-| <a id="property-enum"></a> `enum?` | `unknown[]` | Allowed values for the field. | [packages/schema/src/types/schema.ts:57](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L57) |
-| <a id="property-enumcaseinsensitive"></a> `enumCaseInsensitive?` | `boolean` | Whether enum matching is case-insensitive. | [packages/schema/src/types/schema.ts:59](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L59) |
-| <a id="property-exclusivemaximum"></a> `exclusiveMaximum?` | `number` | Exclusive maximum numeric value (value must be strictly less). | [packages/schema/src/types/schema.ts:71](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L71) |
-| <a id="property-exclusiveminimum"></a> `exclusiveMinimum?` | `number` | Exclusive minimum numeric value (value must be strictly greater). | [packages/schema/src/types/schema.ts:69](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L69) |
-| <a id="property-items"></a> `items?` | `FieldDescriptor` | Schema for array items when type is "array". | [packages/schema/src/types/schema.ts:89](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L89) |
-| <a id="property-max"></a> `max?` | `number` | Maximum numeric value. | [packages/schema/src/types/schema.ts:67](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L67) |
-| <a id="property-maxitems"></a> `maxItems?` | `number` | Maximum number of items (for arrays). | [packages/schema/src/types/schema.ts:79](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L79) |
-| <a id="property-maxlength"></a> `maxLength?` | `number` | Maximum string length. | [packages/schema/src/types/schema.ts:75](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L75) |
-| <a id="property-min"></a> `min?` | `number` | Minimum numeric value. | [packages/schema/src/types/schema.ts:65](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L65) |
-| <a id="property-minitems"></a> `minItems?` | `number` | Minimum number of items (for arrays). | [packages/schema/src/types/schema.ts:77](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L77) |
-| <a id="property-minlength"></a> `minLength?` | `number` | Minimum string length. | [packages/schema/src/types/schema.ts:73](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L73) |
-| <a id="property-pattern"></a> `pattern?` | `string` | Regular expression pattern the value must match. | [packages/schema/src/types/schema.ts:61](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L61) |
-| <a id="property-patternexact"></a> `patternExact?` | `boolean` | Whether the pattern must match the entire value. | [packages/schema/src/types/schema.ts:63](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L63) |
-| <a id="property-properties"></a> `properties?` | `Record<string, FieldDescriptor>` | Schema for object properties when type is "object". | [packages/schema/src/types/schema.ts:91](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L91) |
-| <a id="property-required"></a> `required?` | `boolean` | Whether the field is required. | [packages/schema/src/types/schema.ts:51](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L51) |
-| <a id="property-type"></a> `type?` | `string` \| `string[]` | Data type of the field. A single type name or an array of type names for union types. | [packages/schema/src/types/schema.ts:49](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L49) |
+| <a id="property-aliases"></a> `aliases?` | `string[]` | Alternative names for the field. | [packages/schema/src/types/schema.ts:83](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L83) |
+| <a id="property-completion"></a> `completion?` | [`CompletionSpec`](types.Interface.CompletionSpec.qmd) | Completion specification for the field. | [packages/schema/src/types/schema.ts:87](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L87) |
+| <a id="property-const"></a> `const?` | `unknown` | Fixed value the field must equal. | [packages/schema/src/types/schema.ts:81](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L81) |
+| <a id="property-default"></a> `default?` | `unknown` | Default value for the field. | [packages/schema/src/types/schema.ts:53](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L53) |
+| <a id="property-deprecated"></a> `deprecated?` | `string` \| `boolean` \| [`DeprecatedSpec`](types.Interface.DeprecatedSpec.qmd) | Whether the field is deprecated. Accepts boolean, message string, or structured spec. | [packages/schema/src/types/schema.ts:85](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L85) |
+| <a id="property-description"></a> `description?` | `string` | Human-readable description of the field. | [packages/schema/src/types/schema.ts:55](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L55) |
+| <a id="property-enum"></a> `enum?` | `unknown[]` | Allowed values for the field. | [packages/schema/src/types/schema.ts:57](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L57) |
+| <a id="property-enumcaseinsensitive"></a> `enumCaseInsensitive?` | `boolean` | Whether enum matching is case-insensitive. | [packages/schema/src/types/schema.ts:59](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L59) |
+| <a id="property-exclusivemaximum"></a> `exclusiveMaximum?` | `number` | Exclusive maximum numeric value (value must be strictly less). | [packages/schema/src/types/schema.ts:71](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L71) |
+| <a id="property-exclusiveminimum"></a> `exclusiveMinimum?` | `number` | Exclusive minimum numeric value (value must be strictly greater). | [packages/schema/src/types/schema.ts:69](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L69) |
+| <a id="property-items"></a> `items?` | `FieldDescriptor` | Schema for array items when type is "array". | [packages/schema/src/types/schema.ts:89](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L89) |
+| <a id="property-max"></a> `max?` | `number` | Maximum numeric value. | [packages/schema/src/types/schema.ts:67](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L67) |
+| <a id="property-maxitems"></a> `maxItems?` | `number` | Maximum number of items (for arrays). | [packages/schema/src/types/schema.ts:79](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L79) |
+| <a id="property-maxlength"></a> `maxLength?` | `number` | Maximum string length. | [packages/schema/src/types/schema.ts:75](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L75) |
+| <a id="property-min"></a> `min?` | `number` | Minimum numeric value. | [packages/schema/src/types/schema.ts:65](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L65) |
+| <a id="property-minitems"></a> `minItems?` | `number` | Minimum number of items (for arrays). | [packages/schema/src/types/schema.ts:77](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L77) |
+| <a id="property-minlength"></a> `minLength?` | `number` | Minimum string length. | [packages/schema/src/types/schema.ts:73](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L73) |
+| <a id="property-pattern"></a> `pattern?` | `string` | Regular expression pattern the value must match. | [packages/schema/src/types/schema.ts:61](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L61) |
+| <a id="property-patternexact"></a> `patternExact?` | `boolean` | Whether the pattern must match the entire value. | [packages/schema/src/types/schema.ts:63](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L63) |
+| <a id="property-properties"></a> `properties?` | `Record<string, FieldDescriptor>` | Schema for object properties when type is "object". | [packages/schema/src/types/schema.ts:91](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L91) |
+| <a id="property-required"></a> `required?` | `boolean` | Whether the field is required. | [packages/schema/src/types/schema.ts:51](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L51) |
+| <a id="property-type"></a> `type?` | `string` \| `string[]` | Data type of the field. A single type name or an array of type names for union types. | [packages/schema/src/types/schema.ts:49](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L49) |
 
 ## Types
 
-Defined in: [packages/schema/src/types/schema.ts:129](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L129)
+Defined in: [packages/schema/src/types/schema.ts:129](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L129)
 
 Raw schema data as parsed from YAML or JSON.
 YAML files use kebab-case keys; JSON files use camelCase keys.
@@ -273,17 +273,17 @@ YAML files use kebab-case keys; JSON files use camelCase keys.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-schema"></a> `$schema?` | `string` | [packages/schema/src/types/schema.ts:130](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L130) |
-| <a id="property-element-attributes"></a> `element-attributes?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:135](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L135) |
-| <a id="property-elementattributes"></a> `elementAttributes?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:136](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L136) |
-| <a id="property-formats"></a> `formats?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:133](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L133) |
-| <a id="property-options"></a> `options?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:131](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L131) |
-| <a id="property-projects"></a> `projects?` | `unknown[]` | [packages/schema/src/types/schema.ts:134](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L134) |
-| <a id="property-shortcodes"></a> `shortcodes?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:132](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L132) |
+| <a id="property-schema"></a> `$schema?` | `string` | [packages/schema/src/types/schema.ts:130](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L130) |
+| <a id="property-element-attributes"></a> `element-attributes?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:135](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L135) |
+| <a id="property-elementattributes"></a> `elementAttributes?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:136](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L136) |
+| <a id="property-formats"></a> `formats?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:133](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L133) |
+| <a id="property-options"></a> `options?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:131](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L131) |
+| <a id="property-projects"></a> `projects?` | `unknown[]` | [packages/schema/src/types/schema.ts:134](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L134) |
+| <a id="property-shortcodes"></a> `shortcodes?` | `Record<string, unknown>` | [packages/schema/src/types/schema.ts:132](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L132) |
 
 ## Types
 
-Defined in: [packages/schema/src/types/schema.ts:97](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L97)
+Defined in: [packages/schema/src/types/schema.ts:97](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L97)
 
 Schema for a shortcode, including its arguments and attributes.
 
@@ -291,11 +291,11 @@ Schema for a shortcode, including its arguments and attributes.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-arguments"></a> `arguments?` | [`FieldDescriptor`](types.Interface.FieldDescriptor.qmd) & `object[]` | Positional arguments accepted by the shortcode. | [packages/schema/src/types/schema.ts:101](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L101) |
+| <a id="property-arguments"></a> `arguments?` | [`FieldDescriptor`](types.Interface.FieldDescriptor.qmd) & `object[]` | Positional arguments accepted by the shortcode. | [packages/schema/src/types/schema.ts:101](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L101) |
 | <a id="property-attributes"></a> `attributes?` | ```{=html}
 <code>Record&lt;string, <a href="types.Interface.FieldDescriptor.qmd" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-``` | Named attributes accepted by the shortcode. | [packages/schema/src/types/schema.ts:103](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L103) |
-| <a id="property-description"></a> `description?` | `string` | Human-readable description of the shortcode. | [packages/schema/src/types/schema.ts:99](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L99) |
+``` | Named attributes accepted by the shortcode. | [packages/schema/src/types/schema.ts:103](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L103) |
+| <a id="property-description"></a> `description?` | `string` | Human-readable description of the shortcode. | [packages/schema/src/types/schema.ts:99](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L99) |
 
 ## Types
 
@@ -303,7 +303,7 @@ Schema for a shortcode, including its arguments and attributes.
 const SCHEMA_VERSION_URI: "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json" = "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json";
 ````
 
-Defined in: [packages/schema/src/types/schema.ts:142](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L142)
+Defined in: [packages/schema/src/types/schema.ts:142](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L142)
 
 Canonical schema version URI for the current format.
 
@@ -313,7 +313,7 @@ Canonical schema version URI for the current format.
 const SUPPORTED_SCHEMA_VERSIONS: Set<string>;
 ```
 
-Defined in: [packages/schema/src/types/schema.ts:148](https://github.com/mcanouil/quarto-wizard/blob/37bf2e9d3de84ff4271bbf66623282b21f7c155e/packages/schema/src/types/schema.ts#L148)
+Defined in: [packages/schema/src/types/schema.ts:148](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/types/schema.ts#L148)
 
 Set of recognised schema version URIs.
 Unknown versions produce a warning but are not rejected (forward-compatible).
