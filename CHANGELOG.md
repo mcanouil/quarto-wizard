@@ -21,7 +21,6 @@
 
 ### Refactoring
 
-- refactor: remove backspace re-trigger for the suggest widget in YAML and schema definition files.
 - refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
 - refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
 
