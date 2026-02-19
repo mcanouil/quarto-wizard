@@ -170,6 +170,37 @@ function resolveFieldDescriptorContext(segments: string[], allowName = false): S
 }
 
 /**
+ * Pre-check whether backspace should re-trigger the suggest widget
+ * in schema definition files.
+ *
+ * Returns `true` only when `getSchemaContext` would produce a
+ * non-null context for the current cursor position, mirroring the
+ * logic in `SchemaDefinitionCompletionProvider.provideCompletionItems`.
+ *
+ * @param lines - All lines of the document.
+ * @param cursorLine - Zero-based line number of the cursor.
+ * @param cursorCharacter - Zero-based column of the cursor.
+ * @param languageId - The VS Code language ID.
+ * @returns True when re-triggering suggestions is likely to produce results.
+ */
+export function shouldRetriggerSchemaFileSuggest(
+	lines: string[],
+	cursorLine: number,
+	cursorCharacter: number,
+	languageId: string,
+): boolean {
+	const currentLineText = lines[cursorLine] ?? "";
+	const isBlankLine = currentLineText.trim() === "";
+	const keyPath = getYamlKeyPath(lines, cursorLine, languageId, isBlankLine ? cursorCharacter : undefined);
+
+	const keyColonMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(currentLineText);
+	const colonIndex = currentLineText.indexOf(":");
+	const isValuePosition = keyColonMatch !== null && cursorCharacter > colonIndex;
+
+	return getSchemaContext(keyPath, isValuePosition) !== null;
+}
+
+/**
  * Provides YAML completions for Quarto extension schema definition
  * files (_schema.yml, _schema.yaml).
  */
