@@ -87,4 +87,42 @@ suite("Insert Snippet Test Suite", () => {
 		const text = editor.document.getText().replace(/\r\n/g, "\n");
 		assert.strictEqual(text, "line1\nline2\nline3");
 	});
+
+	test("Insert snippet on non-empty line inserts on a new line", async () => {
+		const doc = await vscode.workspace.openTextDocument({ content: "existing content", language: "markdown" });
+		const editor = await vscode.window.showTextDocument(doc);
+
+		// Place cursor in the middle of the existing line
+		editor.selection = new vscode.Selection(new vscode.Position(0, 5), new vscode.Position(0, 5));
+
+		const definition: SnippetDefinition = {
+			prefix: "test",
+			body: "inserted snippet",
+		};
+
+		await vscode.commands.executeCommand("quartoWizard.extensionsInstalled.insertSnippet", definition);
+
+		const text = editor.document.getText().replace(/\r\n/g, "\n");
+		const lines = text.split("\n");
+		assert.strictEqual(lines[0], "existing content", "Original non-empty line should remain unchanged");
+		assert.strictEqual(lines[1], "inserted snippet", "Snippet should be appended on a new line");
+		assert.strictEqual(lines.length, 2, "Inserting on non-empty line should not split the existing line");
+	});
+
+	test("Insert snippet on empty line inserts at cursor position", async () => {
+		const doc = await vscode.workspace.openTextDocument({ content: "", language: "markdown" });
+		const editor = await vscode.window.showTextDocument(doc);
+
+		editor.selection = new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0));
+
+		const definition: SnippetDefinition = {
+			prefix: "test",
+			body: "inserted snippet",
+		};
+
+		await vscode.commands.executeCommand("quartoWizard.extensionsInstalled.insertSnippet", definition);
+
+		const text = editor.document.getText().replace(/\r\n/g, "\n");
+		assert.strictEqual(text, "inserted snippet");
+	});
 });

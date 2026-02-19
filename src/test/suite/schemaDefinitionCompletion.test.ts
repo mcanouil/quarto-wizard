@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { getSchemaContext, shouldRetriggerSchemaFileSuggest } from "../../providers/schemaDefinitionCompletionProvider";
+import { getSchemaContext } from "../../providers/schemaDefinitionCompletionProvider";
 import type { SchemaContext } from "../../providers/schemaDefinitionCompletionProvider";
 
 suite("Schema Definition Completion Test Suite", () => {
@@ -160,87 +160,6 @@ suite("Schema Definition Completion Test Suite", () => {
 			test("['shortcodes', 'mysc', 'arguments', 'type'] with value returns type", () => {
 				const result = getSchemaContext(["shortcodes", "mysc", "arguments", "type"], true);
 				assert.deepStrictEqual(result, { kind: "value", valueType: "type" });
-			});
-		});
-	});
-
-	suite("shouldRetriggerSchemaFileSuggest", () => {
-		suite("returns true", () => {
-			test("root level (empty document)", () => {
-				const lines = [""];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 0, 0, "yaml"), true);
-			});
-
-			test("field descriptor key under options.<name>", () => {
-				const lines = ["options:", "  myField:", "    typ"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 2, 7, "yaml"), true);
-			});
-
-			test("shortcode entry key under shortcodes.<name>", () => {
-				const lines = ["shortcodes:", "  mysc:", "    arg"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 2, 7, "yaml"), true);
-			});
-
-			test("value position for type:", () => {
-				const lines = ["options:", "  myField:", "    type: str"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 2, 13, "yaml"), true);
-			});
-
-			test("value position for $schema:", () => {
-				const lines = ["$schema: http"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 0, 13, "yaml"), true);
-			});
-
-			test("value position for boolean property (required:)", () => {
-				const lines = ["options:", "  myField:", "    required: t"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 2, 15, "yaml"), true);
-			});
-
-			test("blank line at field descriptor indent", () => {
-				const lines = ["options:", "  myField:", "    type: string", "    "];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 3, 4, "yaml"), true);
-			});
-		});
-
-		suite("returns false", () => {
-			test("under options: at depth 1 (user-defined name)", () => {
-				const lines = ["options:", "  my"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 1, 4, "yaml"), false);
-			});
-
-			test("under projects:", () => {
-				const lines = ["projects:", "  proj"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 1, 6, "yaml"), false);
-			});
-
-			test("under formats: at depth 1 (user-defined format)", () => {
-				const lines = ["formats:", "  htm"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 1, 5, "yaml"), false);
-			});
-
-			test("under formats: at depth 2 (user-defined field name)", () => {
-				const lines = ["formats:", "  html:", "    col"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 2, 7, "yaml"), false);
-			});
-
-			test("under shortcodes: at depth 1 (user-defined shortcode name)", () => {
-				const lines = ["shortcodes:", "  my"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 1, 4, "yaml"), false);
-			});
-
-			test("under shortcodes.<name>.attributes: at depth 3 (user-defined attr)", () => {
-				const lines = ["shortcodes:", "  mysc:", "    attributes:", "      fla"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 3, 9, "yaml"), false);
-			});
-
-			test("value position for non-completable key (description:)", () => {
-				const lines = ["options:", "  myField:", "    description: some text"];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 2, 25, "yaml"), false);
-			});
-
-			test("blank line at user-defined name indent under options:", () => {
-				const lines = ["options:", "  "];
-				assert.strictEqual(shouldRetriggerSchemaFileSuggest(lines, 1, 2, "yaml"), false);
 			});
 		});
 	});

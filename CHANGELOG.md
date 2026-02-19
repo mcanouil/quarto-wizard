@@ -13,7 +13,6 @@
 
 ### Bug Fixes
 
-- fix: improve completion UX by suppressing empty suggestion lists on backspace and keeping valid schema completions active while typing.
 - fix: improve update detection and update UI for commit-based installs, unknown registry versions, badge clearing, and refresh timing.
 - fix: improve operation flow by supporting cancellation for update actions and removing unnecessary GitHub sign-in prompts for public registry usage.
 - fix: harden network and security handling for stream backpressure failures and path traversal checks.

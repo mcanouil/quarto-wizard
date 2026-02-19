@@ -310,7 +310,13 @@ export class ExtensionsInstalled {
 					}
 					const definition: SnippetDefinition = arg instanceof SnippetItemTreeItem ? arg.definition : arg;
 					const body = Array.isArray(definition.body) ? definition.body.join("\n") : definition.body;
-					await editor.insertSnippet(new vscode.SnippetString(body));
+					const position = editor.selection.active;
+					const line = editor.document.lineAt(position.line);
+					if (line.text.trim().length > 0) {
+						await editor.insertSnippet(new vscode.SnippetString("\n" + body), line.range.end);
+					} else {
+						await editor.insertSnippet(new vscode.SnippetString(body));
+					}
 				},
 			),
 		);
