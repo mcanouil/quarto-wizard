@@ -15,7 +15,6 @@ title: "Changelog"
 
 ### Bug Fixes
 
-- fix: improve completion UX by suppressing empty suggestion lists on backspace and keeping valid schema completions active while typing.
 - fix: improve update detection and update UI for commit-based installs, unknown registry versions, badge clearing, and refresh timing.
 - fix: improve operation flow by supporting cancellation for update actions and removing unnecessary GitHub sign-in prompts for public registry usage.
 - fix: harden network and security handling for stream backpressure failures and path traversal checks.
@@ -24,6 +23,7 @@ title: "Changelog"
 
 ### Refactoring
 
+- refactor: remove backspace re-trigger for the suggest widget in YAML and schema definition files.
 - refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
 - refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
 

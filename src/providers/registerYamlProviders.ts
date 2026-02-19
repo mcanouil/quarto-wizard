@@ -5,25 +5,8 @@ import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletion
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { YamlHoverProvider } from "./yamlHoverProvider";
 import { SchemaDiagnosticsProvider } from "./schemaDiagnosticsProvider";
-import {
-	SchemaDefinitionCompletionProvider,
-	SCHEMA_DEFINITION_SELECTOR,
-	shouldRetriggerSchemaFileSuggest,
-} from "./schemaDefinitionCompletionProvider";
-import { debounce } from "../utils/debounce";
-import { shouldRetriggerSuggest } from "../utils/yamlPosition";
+import { SchemaDefinitionCompletionProvider, SCHEMA_DEFINITION_SELECTOR } from "./schemaDefinitionCompletionProvider";
 import { logMessage } from "../utils/log";
-
-/**
- * Check whether a document matches one of the YAML document selectors
- * used by completion providers.
- */
-function matchesYamlSelector(document: vscode.TextDocument): boolean {
-	return (
-		vscode.languages.match(YAML_DOCUMENT_SELECTOR, document) > 0 ||
-		vscode.languages.match(SCHEMA_DEFINITION_SELECTOR, document) > 0
-	);
-}
 
 /**
  * Register YAML completion and diagnostics providers for Quarto
@@ -63,43 +46,6 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 			" ",
 		),
 	);
-
-	// Re-trigger suggestions on backspace.  Backspace is not a valid
-	// trigger character, so we listen for text document changes that
-	// look like single-character deletions and re-invoke the suggest
-	// widget after a short debounce.
-	const retriggerSuggest = debounce(() => {
-		vscode.commands.executeCommand("editor.action.triggerSuggest");
-	}, 50);
-	context.subscriptions.push(
-		vscode.workspace.onDidChangeTextDocument((event) => {
-			if (!matchesYamlSelector(event.document)) {
-				return;
-			}
-			const editor = vscode.window.activeTextEditor;
-			if (!editor || editor.document !== event.document) {
-				return;
-			}
-			const isDeletion =
-				event.contentChanges.length === 1 &&
-				event.contentChanges[0].text === "" &&
-				event.contentChanges[0].rangeLength > 0;
-			if (!isDeletion) {
-				return;
-			}
-			const lines = event.document.getText().split("\n");
-			const cursorLine = editor.selection.active.line;
-			const cursorCharacter = editor.selection.active.character;
-			const isSchemaFile = vscode.languages.match(SCHEMA_DEFINITION_SELECTOR, event.document) > 0;
-			const shouldTrigger = isSchemaFile
-				? shouldRetriggerSchemaFileSuggest(lines, cursorLine, cursorCharacter, event.document.languageId)
-				: shouldRetriggerSuggest(lines, cursorLine, cursorCharacter, event.document.languageId);
-			if (shouldTrigger) {
-				retriggerSuggest();
-			}
-		}),
-	);
-	context.subscriptions.push({ dispose: () => retriggerSuggest.cancel() });
 
 	// Watch for schema file changes to invalidate the cache and revalidate.
 	const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_schema.{yml,yaml,json}");
