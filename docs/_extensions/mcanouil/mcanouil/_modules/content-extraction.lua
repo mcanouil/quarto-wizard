@@ -1,5 +1,5 @@
 --- MC Content Extraction - Content processing and extraction utilities for Quarto extensions
---- @module content-extraction
+--- @module content_extraction
 --- @license MIT
 --- @copyright 2026 Mickaël Canouil
 --- @author Mickaël Canouil

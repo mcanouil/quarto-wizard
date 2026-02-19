@@ -70,3 +70,7 @@ format:
 execute:
   freeze: auto
   echo: false
+
+extensions:
+  mcanouil:
+    hide-navbar-title: false
