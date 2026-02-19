@@ -1,6 +1,14 @@
 {
 	"packages": [
 		{
+			"name": "@quarto-wizard/schema",
+			"shortName": "schema",
+			"sourceDir": "packages/schema/src",
+			"outputDir": "docs/api/schema",
+			"description": "Schema types, parsing, validation, and caching for Quarto extension schemas.",
+			"overview": "The `@quarto-wizard/schema` package provides schema functionality for Quarto extensions.\nIt handles schema type definitions, file parsing, validation, and in-memory caching."
+		},
+		{
 			"name": "@quarto-wizard/core",
 			"shortName": "core",
 			"sourceDir": "packages/core/src",

@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import { isFilePathDescriptor } from "../../utils/filePathCompletion";
 import { hasCompletableValues } from "../../utils/schemaDocumentation";
-import type { FieldDescriptor } from "@quarto-wizard/core";
+import type { FieldDescriptor } from "@quarto-wizard/schema";
 
 suite("File Path Completion", () => {
 	suite("isFilePathDescriptor", () => {

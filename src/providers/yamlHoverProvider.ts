@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
-import { discoverInstalledExtensions, formatExtensionId, getExtensionTypes, formatType } from "@quarto-wizard/core";
-import type {
-	SchemaCache,
-	ExtensionSchema,
-	FieldDescriptor,
-	DeprecatedSpec,
-	InstalledExtension,
+import { formatType } from "@quarto-wizard/schema";
+import type { SchemaCache, ExtensionSchema, FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/schema";
+import {
+	discoverInstalledExtensions,
+	formatExtensionId,
+	getExtensionTypes,
+	type InstalledExtension,
 } from "@quarto-wizard/core";
 import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";

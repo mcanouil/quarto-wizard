@@ -9,7 +9,7 @@
 	],
 	"publisher": "mcanouil",
 	"author": {
-		"name": "Micka\u00ebl CANOUIL",
+		"name": "Mickaël CANOUIL",
 		"url": "https://mickael.canouil.fr"
 	},
 	"license": "MIT",
@@ -62,11 +62,12 @@
 	],
 	"main": "./dist/extension",
 	"scripts": {
+		"build:schema": "cd packages/schema && npm run build",
 		"build:core": "cd packages/core && npm run build",
-		"vscode:prepublish": "npm run format && npm run build:core && npx webpack --mode production",
-		"webpack": "npm run format && npm run build:core && npx webpack --mode development --stats-error-details",
-		"watch": "npm run format && npm run build:core && npx webpack --watch --mode development --stats-error-details",
-		"test-compile": "npm run format && npm run build:core && npx tsc -p ./",
+		"vscode:prepublish": "npm run format && npm run build:schema && npm run build:core && npx webpack --mode production",
+		"webpack": "npm run format && npm run build:schema && npm run build:core && npx webpack --mode development --stats-error-details",
+		"watch": "npm run format && npm run build:schema && npm run build:core && npx webpack --watch --mode development --stats-error-details",
+		"test-compile": "npm run format && npm run build:schema && npm run build:core && npx tsc -p ./",
 		"pretest": "npm run test-compile && npm run lint",
 		"test": "vscode-test",
 		"test:watch": "npm run test-compile && vscode-test",
@@ -75,7 +76,7 @@
 		"format": "prettier --write \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
 		"format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
 		"sync-metadata": "node scripts/sync-package-metadata.mjs",
-		"docs:api": "typedoc --options typedoc.config.mjs && node scripts/process-api-docs.mjs && npm run docs:format",
+		"docs:api": "node scripts/process-api-docs.mjs && npm run docs:format",
 		"docs:build": "npm run docs:api && cd docs && quarto render",
 		"docs:preview": "npm run docs:api && cd docs && quarto preview",
 		"docs:clean": "rm -rf docs/api docs/_site",
@@ -84,6 +85,7 @@
 	},
 	"dependencies": {
 		"@quarto-wizard/core": "*",
+		"@quarto-wizard/schema": "*",
 		"js-yaml": "^4.1.0",
 		"semver": "^7.7.3"
 	},

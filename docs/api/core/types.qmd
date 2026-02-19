@@ -10,36 +10,430 @@ Defines types for extension IDs, version specifications, and references.
 
 ### Interfaces
 
-#### ExtensionId
+- [ExtensionId](types.Interface.ExtensionId.qmd)
+- [ExtensionRef](types.Interface.ExtensionRef.qmd)
 
-Defined in: [packages/core/src/types/extension.ts:14](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L14)
+### Type Aliases
+
+- [ExtensionType](types.TypeAlias.ExtensionType.qmd)
+- [VersionSpec](types.TypeAlias.VersionSpec.qmd)
+
+### Functions
+
+- [formatExtensionId](types.Function.formatExtensionId.qmd)
+- [formatExtensionRef](types.Function.formatExtensionRef.qmd)
+- [parseExtensionId](types.Function.parseExtensionId.qmd)
+- [parseExtensionRef](types.Function.parseExtensionRef.qmd)
+- [parseVersionSpec](types.Function.parseVersionSpec.qmd)
+
+## Manifest Types Module
+
+Extension manifest types for parsing \_extension.yml files.
+
+Defines types for extension contributions and manifest structure.
+
+### Interfaces
+
+- [Contributes](types.Interface.Contributes.qmd)
+- [ExtensionManifest](types.Interface.ExtensionManifest.qmd)
+- [RawManifest](types.Interface.RawManifest.qmd)
+
+### Functions
+
+- [getExtensionTypes](types.Function.getExtensionTypes.qmd)
+- [normaliseManifest](types.Function.normaliseManifest.qmd)
+
+## Registry Types Module
+
+Registry types for the Quarto extensions registry.
+
+Defines types for registry entries and the registry data structure.
+
+### Interfaces
+
+- [RawRegistryEntry](types.Interface.RawRegistryEntry.qmd)
+- [RegistryEntry](types.Interface.RegistryEntry.qmd)
+
+### Type Aliases
+
+- [Registry](types.TypeAlias.Registry.qmd)
+
+### Functions
+
+- [parseRegistry](types.Function.parseRegistry.qmd)
+- [parseRegistryEntry](types.Function.parseRegistryEntry.qmd)
+
+## Types
+
+```{.ts filename="TypeScript"}
+function formatExtensionId(id): string;
+```
+
+Defined in: [packages/core/src/types/extension.ts:93](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L93)
+
+Format an ExtensionId object as a string.
+
+### Parameters
+
+| Parameter | Type                                             | Description           |
+| --------- | ------------------------------------------------ | --------------------- |
+| `id`      | [`ExtensionId`](types.Interface.ExtensionId.qmd) | ExtensionId to format |
+
+### Returns
+
+`string`
+
+Formatted string (e.g., "quarto-ext/lightbox" or "lightbox")
+
+## Types
+
+```{.ts filename="TypeScript"}
+function formatExtensionRef(ref): string;
+```
+
+Defined in: [packages/core/src/types/extension.ts:158](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L158)
+
+Format an ExtensionRef object as a string.
+
+### Parameters
+
+| Parameter | Type                                               | Description            |
+| --------- | -------------------------------------------------- | ---------------------- |
+| `ref`     | [`ExtensionRef`](types.Interface.ExtensionRef.qmd) | ExtensionRef to format |
+
+### Returns
+
+`string`
+
+Formatted string (e.g., "quarto-ext/lightbox@v1.0.0")
+
+## Types
+
+```{.ts filename="TypeScript"}
+function getExtensionTypes(manifest): ExtensionType[];
+```
+
+Defined in: [packages/core/src/types/manifest.ts:75](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L75)
+
+Get the extension types from a manifest based on its contributions.
+
+### Parameters
+
+| Parameter  | Type                                                         | Description                   |
+| ---------- | ------------------------------------------------------------ | ----------------------------- |
+| `manifest` | [`ExtensionManifest`](types.Interface.ExtensionManifest.qmd) | Extension manifest to analyse |
+
+### Returns
+
+`<code><a href="types.TypeAlias.ExtensionType.md" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">ExtensionType</a>[]</code>`{=html}
+
+Array of extension types
+
+## Types
+
+```{.ts filename="TypeScript"}
+function normaliseManifest(raw): ExtensionManifest;
+```
+
+Defined in: [packages/core/src/types/manifest.ts:112](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L112)
+
+Convert a raw manifest from YAML to a normalised ExtensionManifest.
+
+### Parameters
+
+| Parameter | Type                                             | Description                         |
+| --------- | ------------------------------------------------ | ----------------------------------- |
+| `raw`     | [`RawManifest`](types.Interface.RawManifest.qmd) | Raw manifest data from YAML parsing |
+
+### Returns
+
+[`ExtensionManifest`](types.Interface.ExtensionManifest.qmd)
+
+Normalised ExtensionManifest
+
+## Types
+
+```{.ts filename="TypeScript"}
+function parseExtensionId(input): ExtensionId;
+```
+
+Defined in: [packages/core/src/types/extension.ts:50](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L50)
+
+Parse an extension ID string into an ExtensionId object.
+
+### Parameters
+
+| Parameter | Type     | Description                                                     |
+| --------- | -------- | --------------------------------------------------------------- |
+| `input`   | `string` | Extension ID string (e.g., "quarto-ext/lightbox" or "lightbox") |
+
+### Returns
+
+[`ExtensionId`](types.Interface.ExtensionId.qmd)
+
+Parsed ExtensionId object
+
+## Types
+
+```{.ts filename="TypeScript"}
+function parseExtensionRef(input): ExtensionRef;
+```
+
+Defined in: [packages/core/src/types/extension.ts:132](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L132)
+
+Parse an extension reference string into an ExtensionRef object.
+
+### Parameters
+
+| Parameter | Type     | Description                                                     |
+| --------- | -------- | --------------------------------------------------------------- |
+| `input`   | `string` | Extension reference string (e.g., "quarto-ext/lightbox@v1.0.0") |
+
+### Returns
+
+[`ExtensionRef`](types.Interface.ExtensionRef.qmd)
+
+Parsed ExtensionRef object
+
+## Types
+
+```{.ts filename="TypeScript"}
+function parseRegistry(raw): Registry;
+```
+
+Defined in: [packages/core/src/types/registry.ts:150](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L150)
+
+Parse a raw registry object into a normalised Registry.
+
+### Parameters
+
+| Parameter | Type       | Description |
+| --------- | ---------- | ----------- |
+| `raw`     | ```{=html} |
+
+<code>Record&lt;string, <a href="types.Interface.RawRegistryEntry.qmd" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">RawRegistryEntry</a>&gt;</code>
+
+````| Raw registry object from JSON |
+
+### Returns
+
+[`Registry`](types.TypeAlias.Registry.qmd)
+
+Normalised Registry
+
+## Types
+
+```{.ts filename="TypeScript"}
+function parseRegistryEntry(key, raw): RegistryEntry;
+````
+
+Defined in: [packages/core/src/types/registry.ts:120](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L120)
+
+Parse a raw registry entry into a normalised RegistryEntry.
+
+### Parameters
+
+| Parameter | Type                                                       | Description                           |
+| --------- | ---------------------------------------------------------- | ------------------------------------- |
+| `key`     | `string`                                                   | The registry key (usually owner/repo) |
+| `raw`     | [`RawRegistryEntry`](types.Interface.RawRegistryEntry.qmd) | Raw entry from the JSON API           |
+
+### Returns
+
+[`RegistryEntry`](types.Interface.RegistryEntry.qmd)
+
+Normalised RegistryEntry
+
+## Types
+
+```{.ts filename="TypeScript"}
+function parseVersionSpec(input): VersionSpec;
+```
+
+Defined in: [packages/core/src/types/extension.ts:105](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L105)
+
+Parse a version specification string.
+
+Resolution order: tag > commit > branch
+
+### Parameters
+
+| Parameter | Type     | Description                                                  |
+| --------- | -------- | ------------------------------------------------------------ |
+| `input`   | `string` | Version string (e.g., "v1.0.0", "abc1234", "main", "latest") |
+
+### Returns
+
+[`VersionSpec`](types.TypeAlias.VersionSpec.qmd)
+
+Parsed VersionSpec
+
+## Types
+
+Defined in: [packages/core/src/types/manifest.ts:16](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L16)
+
+Contributions an extension can provide to Quarto.
+Uses singular forms normalised from YAML plural keys.
+
+### Properties
+
+| Property                                               | Type                      | Description                                  | Defined in                                                                                                                                                                |
+| ------------------------------------------------------ | ------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-filter"></a> `filter?`                 | `string[]`                | Lua filters provided by the extension.       | [packages/core/src/types/manifest.ts:18](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L18) |
+| <a id="property-format"></a> `format?`                 | `Record<string, unknown>` | Custom formats provided by the extension.    | [packages/core/src/types/manifest.ts:22](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L22) |
+| <a id="property-metadata"></a> `metadata?`             | `unknown`                 | Metadata contributions.                      | [packages/core/src/types/manifest.ts:28](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L28) |
+| <a id="property-project"></a> `project?`               | `unknown`                 | Project type contributions.                  | [packages/core/src/types/manifest.ts:24](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L24) |
+| <a id="property-revealjsplugin"></a> `revealjsPlugin?` | `string[]`                | Reveal.js plugins provided by the extension. | [packages/core/src/types/manifest.ts:26](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L26) |
+| <a id="property-shortcode"></a> `shortcode?`           | `string[]`                | Shortcodes provided by the extension.        | [packages/core/src/types/manifest.ts:20](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L20) |
+
+## Types
+
+Defined in: [packages/core/src/types/extension.ts:14](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L14)
 
 Unique identifier for a Quarto extension.
 Supports both "owner/name" and name-only patterns.
 
-##### Properties
+### Properties
 
 | Property                            | Type               | Description                                        | Defined in                                                                                                                                                                  |
 | ----------------------------------- | ------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-name"></a> `name`   | `string`           | The name of the extension.                         | [packages/core/src/types/extension.ts:18](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L18) |
-| <a id="property-owner"></a> `owner` | `string` \| `null` | The owner (user or organisation) of the extension. | [packages/core/src/types/extension.ts:16](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L16) |
+| <a id="property-name"></a> `name`   | `string`           | The name of the extension.                         | [packages/core/src/types/extension.ts:18](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L18) |
+| <a id="property-owner"></a> `owner` | `string` \| `null` | The owner (user or organisation) of the extension. | [packages/core/src/types/extension.ts:16](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L16) |
 
-#### ExtensionRef
+## Types
 
-Defined in: [packages/core/src/types/extension.ts:34](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L34)
+Defined in: [packages/core/src/types/manifest.ts:34](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L34)
+
+Parsed extension manifest from \_extension.yml.
+
+### Properties
+
+| Property                                               | Type                                             | Description                                          | Defined in                                                                                                                                                                |
+| ------------------------------------------------------ | ------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-author"></a> `author`                  | `string`                                         | Author of the extension.                             | [packages/core/src/types/manifest.ts:38](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L38) |
+| <a id="property-contributes"></a> `contributes`        | [`Contributes`](types.Interface.Contributes.qmd) | Contributions provided by the extension.             | [packages/core/src/types/manifest.ts:44](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L44) |
+| <a id="property-quartorequired"></a> `quartoRequired?` | `string`                                         | Minimum required Quarto version.                     | [packages/core/src/types/manifest.ts:42](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L42) |
+| <a id="property-source"></a> `source?`                 | `string`                                         | Source URL or reference (added during installation). | [packages/core/src/types/manifest.ts:46](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L46) |
+| <a id="property-title"></a> `title`                    | `string`                                         | Display title of the extension.                      | [packages/core/src/types/manifest.ts:36](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L36) |
+| <a id="property-version"></a> `version`                | `string`                                         | Version string of the extension.                     | [packages/core/src/types/manifest.ts:40](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L40) |
+
+## Types
+
+Defined in: [packages/core/src/types/extension.ts:34](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L34)
 
 Reference to an extension with optional version specification.
 
-##### Properties
+### Properties
 
-| Property                                | Type                          | Defined in                                                                                                                                                                  |
-| --------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-id"></a> `id`           | [`ExtensionId`](#extensionid) | [packages/core/src/types/extension.ts:35](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L35) |
-| <a id="property-version"></a> `version` | [`VersionSpec`](#versionspec) | [packages/core/src/types/extension.ts:36](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L36) |
+| Property                                | Type                                             | Defined in                                                                                                                                                                  |
+| --------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-id"></a> `id`           | [`ExtensionId`](types.Interface.ExtensionId.qmd) | [packages/core/src/types/extension.ts:35](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L35) |
+| <a id="property-version"></a> `version` | [`VersionSpec`](types.TypeAlias.VersionSpec.qmd) | [packages/core/src/types/extension.ts:36](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L36) |
 
-### Type Aliases
+## Types
 
-#### ExtensionType
+Defined in: [packages/core/src/types/manifest.ts:53](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L53)
+
+Raw manifest data as parsed from YAML.
+This matches the structure of \_extension.yml files.
+
+### Properties
+
+| Property                                                 | Type                      | Defined in                                                                                                                                                                |
+| -------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-author"></a> `author?`                   | `string`                  | [packages/core/src/types/manifest.ts:55](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L55) |
+| <a id="property-contributes"></a> `contributes?`         | `object`                  | [packages/core/src/types/manifest.ts:58](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L58) |
+| `contributes.filters?`                                   | `string[]`                | [packages/core/src/types/manifest.ts:59](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L59) |
+| `contributes.formats?`                                   | `Record<string, unknown>` | [packages/core/src/types/manifest.ts:61](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L61) |
+| `contributes.metadata?`                                  | `unknown`                 | [packages/core/src/types/manifest.ts:64](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L64) |
+| `contributes.project?`                                   | `unknown`                 | [packages/core/src/types/manifest.ts:62](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L62) |
+| `contributes.revealjs-plugins?`                          | `string[]`                | [packages/core/src/types/manifest.ts:63](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L63) |
+| `contributes.shortcodes?`                                | `string[]`                | [packages/core/src/types/manifest.ts:60](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L60) |
+| <a id="property-quarto-required"></a> `quarto-required?` | `string`                  | [packages/core/src/types/manifest.ts:57](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L57) |
+| <a id="property-source"></a> `source?`                   | `string`                  | [packages/core/src/types/manifest.ts:66](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L66) |
+| <a id="property-title"></a> `title?`                     | `string`                  | [packages/core/src/types/manifest.ts:54](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L54) |
+| <a id="property-version"></a> `version?`                 | `string` \| `number`      | [packages/core/src/types/manifest.ts:56](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/manifest.ts#L56) |
+
+## Types
+
+Defined in: [packages/core/src/types/registry.ts:82](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L82)
+
+Raw registry entry as returned from the JSON API.
+
+This is the expected format for entries in custom registry JSON files.
+The registry JSON file should be an object mapping extension IDs (e.g., "owner/repo")
+to `RawRegistryEntry` objects.
+
+### Example
+
+```{.json filename="JSON"}
+{
+  "quarto-ext/lightbox": {
+    "owner": "quarto-ext",
+    "title": "Lightbox",
+    "nameWithOwner": "quarto-ext/lightbox",
+    "description": "Create lightbox treatments for images",
+    "repositoryTopics": ["quarto", "quarto-extension", "shortcode"],
+    "contributes": ["shortcode"],
+    "latestRelease": "v0.1.4",
+    "latestReleaseUrl": "https://github.com/quarto-ext/lightbox/releases/tag/v0.1.4",
+    "stargazerCount": 42,
+    "licenseInfo": "MIT",
+    "url": "https://github.com/quarto-ext/lightbox",
+    "template": false,
+    "defaultBranchRef": "main",
+    "latestCommit": "abc1234567890"
+  }
+}
+```
+
+### Properties
+
+| Property                                                   | Type               | Description                                                                                                       | Defined in                                                                                                                                                                  |
+| ---------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-contributes"></a> `contributes?`           | `string[]`         | What the extension contributes (e.g., "filter", "shortcode", "format", "project", "revealjs-plugin", "metadata"). | [packages/core/src/types/registry.ts:94](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L94)   |
+| <a id="property-defaultbranchref"></a> `defaultBranchRef?` | `string` \| `null` | Default branch name (e.g., "main", "master").                                                                     | [packages/core/src/types/registry.ts:108](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L108) |
+| <a id="property-description"></a> `description?`           | `string` \| `null` | Extension description.                                                                                            | [packages/core/src/types/registry.ts:90](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L90)   |
+| <a id="property-latestcommit"></a> `latestCommit?`         | `string` \| `null` | SHA of the latest commit on the default branch.                                                                   | [packages/core/src/types/registry.ts:110](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L110) |
+| <a id="property-latestrelease"></a> `latestRelease?`       | `string` \| `null` | Latest release tag (e.g., "v1.0.0").                                                                              | [packages/core/src/types/registry.ts:96](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L96)   |
+| <a id="property-latestreleaseurl"></a> `latestReleaseUrl?` | `string` \| `null` | URL to the latest release page on GitHub.                                                                         | [packages/core/src/types/registry.ts:98](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L98)   |
+| <a id="property-licenseinfo"></a> `licenseInfo?`           | `string` \| `null` | SPDX licence identifier (e.g., "MIT", "GPL-3.0").                                                                 | [packages/core/src/types/registry.ts:102](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L102) |
+| <a id="property-namewithowner"></a> `nameWithOwner`        | `string`           | Full repository name in "owner/repo" format. Required.                                                            | [packages/core/src/types/registry.ts:88](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L88)   |
+| <a id="property-owner"></a> `owner`                        | `string`           | Repository owner (GitHub username or organisation). Required.                                                     | [packages/core/src/types/registry.ts:84](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L84)   |
+| <a id="property-repositorytopics"></a> `repositoryTopics?` | `string[]`         | GitHub repository topics/tags for categorisation.                                                                 | [packages/core/src/types/registry.ts:92](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L92)   |
+| <a id="property-stargazercount"></a> `stargazerCount?`     | `number`           | GitHub star count.                                                                                                | [packages/core/src/types/registry.ts:100](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L100) |
+| <a id="property-template"></a> `template?`                 | `boolean`          | Whether this extension provides project templates.                                                                | [packages/core/src/types/registry.ts:106](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L106) |
+| <a id="property-title"></a> `title`                        | `string`           | Display name/title of the extension. Required.                                                                    | [packages/core/src/types/registry.ts:86](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L86)   |
+| <a id="property-url"></a> `url`                            | `string`           | GitHub repository URL. Required.                                                                                  | [packages/core/src/types/registry.ts:104](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L104) |
+
+## Types
+
+Defined in: [packages/core/src/types/registry.ts:13](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L13)
+
+Entry for an extension in the registry.
+
+### Properties
+
+| Property                                                  | Type               | Description                                                          | Defined in                                                                                                                                                                |
+| --------------------------------------------------------- | ------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-contributes"></a> `contributes`           | `string[]`         | What the extension contributes (e.g., filters, formats, shortcodes). | [packages/core/src/types/registry.ts:27](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L27) |
+| <a id="property-defaultbranchref"></a> `defaultBranchRef` | `string` \| `null` | Default branch name (e.g., "main", "master").                        | [packages/core/src/types/registry.ts:43](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L43) |
+| <a id="property-description"></a> `description`           | `string` \| `null` | Extension description.                                               | [packages/core/src/types/registry.ts:23](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L23) |
+| <a id="property-fullname"></a> `fullName`                 | `string`           | The full repository name (owner/repo format).                        | [packages/core/src/types/registry.ts:21](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L21) |
+| <a id="property-htmlurl"></a> `htmlUrl`                   | `string`           | GitHub repository URL.                                               | [packages/core/src/types/registry.ts:39](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L39) |
+| <a id="property-id"></a> `id`                             | `string`           | Unique key in the registry (usually owner/repo).                     | [packages/core/src/types/registry.ts:15](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L15) |
+| <a id="property-latestcommit"></a> `latestCommit`         | `string` \| `null` | SHA of the latest commit on the default branch.                      | [packages/core/src/types/registry.ts:45](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L45) |
+| <a id="property-latestreleaseurl"></a> `latestReleaseUrl` | `string` \| `null` | URL to the latest release page.                                      | [packages/core/src/types/registry.ts:33](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L33) |
+| <a id="property-latesttag"></a> `latestTag`               | `string` \| `null` | Latest release tag (with 'v' prefix if present).                     | [packages/core/src/types/registry.ts:31](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L31) |
+| <a id="property-latestversion"></a> `latestVersion`       | `string` \| `null` | Latest version (without 'v' prefix).                                 | [packages/core/src/types/registry.ts:29](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L29) |
+| <a id="property-licence"></a> `licence`                   | `string` \| `null` | Licence information.                                                 | [packages/core/src/types/registry.ts:37](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L37) |
+| <a id="property-name"></a> `name`                         | `string`           | The display name/title.                                              | [packages/core/src/types/registry.ts:19](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L19) |
+| <a id="property-owner"></a> `owner`                       | `string`           | The owner (user or organisation).                                    | [packages/core/src/types/registry.ts:17](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L17) |
+| <a id="property-stars"></a> `stars`                       | `number`           | GitHub star count.                                                   | [packages/core/src/types/registry.ts:35](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L35) |
+| <a id="property-template"></a> `template`                 | `boolean`          | Whether this extension provides templates.                           | [packages/core/src/types/registry.ts:41](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L41) |
+| <a id="property-topics"></a> `topics`                     | `string[]`         | Repository topics/tags.                                              | [packages/core/src/types/registry.ts:25](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L25) |
+
+## Types
 
 ```{.ts filename="TypeScript"}
 type ExtensionType =
@@ -51,11 +445,21 @@ type ExtensionType =
   | "metadata";
 ```
 
-Defined in: [packages/core/src/types/extension.ts:42](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L42)
+Defined in: [packages/core/src/types/extension.ts:42](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L42)
 
 Types of contributions an extension can provide.
 
-#### VersionSpec
+## Types
+
+```{.ts filename="TypeScript"}
+type Registry = Record<string, RegistryEntry>;
+```
+
+Defined in: [packages/core/src/types/registry.ts:51](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/registry.ts#L51)
+
+The full registry mapping extension IDs to their entries.
+
+## Types
 
 ```{.ts filename="TypeScript"}
 type VersionSpec =
@@ -80,655 +484,6 @@ type VersionSpec =
 };
 ```
 
-Defined in: [packages/core/src/types/extension.ts:24](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L24)
+Defined in: [packages/core/src/types/extension.ts:24](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/core/src/types/extension.ts#L24)
 
 Version specification for extension references.
-
-### Functions
-
-#### formatExtensionId()
-
-```{.ts filename="TypeScript"}
-function formatExtensionId(id): string;
-```
-
-Defined in: [packages/core/src/types/extension.ts:93](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L93)
-
-Format an ExtensionId object as a string.
-
-##### Parameters
-
-| Parameter | Type                          | Description           |
-| --------- | ----------------------------- | --------------------- |
-| `id`      | [`ExtensionId`](#extensionid) | ExtensionId to format |
-
-##### Returns
-
-`string`
-
-Formatted string (e.g., "quarto-ext/lightbox" or "lightbox")
-
-#### formatExtensionRef()
-
-```{.ts filename="TypeScript"}
-function formatExtensionRef(ref): string;
-```
-
-Defined in: [packages/core/src/types/extension.ts:158](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L158)
-
-Format an ExtensionRef object as a string.
-
-##### Parameters
-
-| Parameter | Type                            | Description            |
-| --------- | ------------------------------- | ---------------------- |
-| `ref`     | [`ExtensionRef`](#extensionref) | ExtensionRef to format |
-
-##### Returns
-
-`string`
-
-Formatted string (e.g., "quarto-ext/lightbox@v1.0.0")
-
-#### parseExtensionId()
-
-```{.ts filename="TypeScript"}
-function parseExtensionId(input): ExtensionId;
-```
-
-Defined in: [packages/core/src/types/extension.ts:50](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L50)
-
-Parse an extension ID string into an ExtensionId object.
-
-##### Parameters
-
-| Parameter | Type     | Description                                                     |
-| --------- | -------- | --------------------------------------------------------------- |
-| `input`   | `string` | Extension ID string (e.g., "quarto-ext/lightbox" or "lightbox") |
-
-##### Returns
-
-[`ExtensionId`](#extensionid)
-
-Parsed ExtensionId object
-
-#### parseExtensionRef()
-
-```{.ts filename="TypeScript"}
-function parseExtensionRef(input): ExtensionRef;
-```
-
-Defined in: [packages/core/src/types/extension.ts:132](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L132)
-
-Parse an extension reference string into an ExtensionRef object.
-
-##### Parameters
-
-| Parameter | Type     | Description                                                     |
-| --------- | -------- | --------------------------------------------------------------- |
-| `input`   | `string` | Extension reference string (e.g., "quarto-ext/lightbox@v1.0.0") |
-
-##### Returns
-
-[`ExtensionRef`](#extensionref)
-
-Parsed ExtensionRef object
-
-#### parseVersionSpec()
-
-```{.ts filename="TypeScript"}
-function parseVersionSpec(input): VersionSpec;
-```
-
-Defined in: [packages/core/src/types/extension.ts:105](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/extension.ts#L105)
-
-Parse a version specification string.
-
-Resolution order: tag > commit > branch
-
-##### Parameters
-
-| Parameter | Type     | Description                                                  |
-| --------- | -------- | ------------------------------------------------------------ |
-| `input`   | `string` | Version string (e.g., "v1.0.0", "abc1234", "main", "latest") |
-
-##### Returns
-
-[`VersionSpec`](#versionspec)
-
-Parsed VersionSpec
-
-## Manifest Types Module
-
-Extension manifest types for parsing \_extension.yml files.
-
-Defines types for extension contributions and manifest structure.
-
-### Interfaces
-
-#### Contributes
-
-Defined in: [packages/core/src/types/manifest.ts:16](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L16)
-
-Contributions an extension can provide to Quarto.
-Uses singular forms normalised from YAML plural keys.
-
-##### Properties
-
-| Property                                               | Type                      | Description                                  | Defined in                                                                                                                                                                |
-| ------------------------------------------------------ | ------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-filter"></a> `filter?`                 | `string[]`                | Lua filters provided by the extension.       | [packages/core/src/types/manifest.ts:18](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L18) |
-| <a id="property-format"></a> `format?`                 | `Record<string, unknown>` | Custom formats provided by the extension.    | [packages/core/src/types/manifest.ts:22](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L22) |
-| <a id="property-metadata"></a> `metadata?`             | `unknown`                 | Metadata contributions.                      | [packages/core/src/types/manifest.ts:28](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L28) |
-| <a id="property-project"></a> `project?`               | `unknown`                 | Project type contributions.                  | [packages/core/src/types/manifest.ts:24](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L24) |
-| <a id="property-revealjsplugin"></a> `revealjsPlugin?` | `string[]`                | Reveal.js plugins provided by the extension. | [packages/core/src/types/manifest.ts:26](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L26) |
-| <a id="property-shortcode"></a> `shortcode?`           | `string[]`                | Shortcodes provided by the extension.        | [packages/core/src/types/manifest.ts:20](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L20) |
-
-#### ExtensionManifest
-
-Defined in: [packages/core/src/types/manifest.ts:34](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L34)
-
-Parsed extension manifest from \_extension.yml.
-
-##### Properties
-
-| Property                                               | Type                          | Description                                          | Defined in                                                                                                                                                                |
-| ------------------------------------------------------ | ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-author"></a> `author`                  | `string`                      | Author of the extension.                             | [packages/core/src/types/manifest.ts:38](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L38) |
-| <a id="property-contributes"></a> `contributes`        | [`Contributes`](#contributes) | Contributions provided by the extension.             | [packages/core/src/types/manifest.ts:44](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L44) |
-| <a id="property-quartorequired"></a> `quartoRequired?` | `string`                      | Minimum required Quarto version.                     | [packages/core/src/types/manifest.ts:42](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L42) |
-| <a id="property-source"></a> `source?`                 | `string`                      | Source URL or reference (added during installation). | [packages/core/src/types/manifest.ts:46](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L46) |
-| <a id="property-title"></a> `title`                    | `string`                      | Display title of the extension.                      | [packages/core/src/types/manifest.ts:36](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L36) |
-| <a id="property-version"></a> `version`                | `string`                      | Version string of the extension.                     | [packages/core/src/types/manifest.ts:40](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L40) |
-
-#### RawManifest
-
-Defined in: [packages/core/src/types/manifest.ts:53](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L53)
-
-Raw manifest data as parsed from YAML.
-This matches the structure of \_extension.yml files.
-
-##### Properties
-
-| Property                                                 | Type                      | Defined in                                                                                                                                                                |
-| -------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-author-1"></a> `author?`                 | `string`                  | [packages/core/src/types/manifest.ts:55](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L55) |
-| <a id="property-contributes-1"></a> `contributes?`       | `object`                  | [packages/core/src/types/manifest.ts:58](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L58) |
-| `contributes.filters?`                                   | `string[]`                | [packages/core/src/types/manifest.ts:59](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L59) |
-| `contributes.formats?`                                   | `Record<string, unknown>` | [packages/core/src/types/manifest.ts:61](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L61) |
-| `contributes.metadata?`                                  | `unknown`                 | [packages/core/src/types/manifest.ts:64](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L64) |
-| `contributes.project?`                                   | `unknown`                 | [packages/core/src/types/manifest.ts:62](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L62) |
-| `contributes.revealjs-plugins?`                          | `string[]`                | [packages/core/src/types/manifest.ts:63](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L63) |
-| `contributes.shortcodes?`                                | `string[]`                | [packages/core/src/types/manifest.ts:60](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L60) |
-| <a id="property-quarto-required"></a> `quarto-required?` | `string`                  | [packages/core/src/types/manifest.ts:57](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L57) |
-| <a id="property-source-1"></a> `source?`                 | `string`                  | [packages/core/src/types/manifest.ts:66](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L66) |
-| <a id="property-title-1"></a> `title?`                   | `string`                  | [packages/core/src/types/manifest.ts:54](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L54) |
-| <a id="property-version-1"></a> `version?`               | `string` \| `number`      | [packages/core/src/types/manifest.ts:56](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L56) |
-
-### Functions
-
-#### getExtensionTypes()
-
-```{.ts filename="TypeScript"}
-function getExtensionTypes(manifest): ExtensionType[];
-```
-
-Defined in: [packages/core/src/types/manifest.ts:75](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L75)
-
-Get the extension types from a manifest based on its contributions.
-
-##### Parameters
-
-| Parameter  | Type                                      | Description                   |
-| ---------- | ----------------------------------------- | ----------------------------- |
-| `manifest` | [`ExtensionManifest`](#extensionmanifest) | Extension manifest to analyse |
-
-##### Returns
-
-`<code><a href="types.qmd#extensiontype" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">ExtensionType</a>[]</code>`{=html}
-
-Array of extension types
-
-#### normaliseManifest()
-
-```{.ts filename="TypeScript"}
-function normaliseManifest(raw): ExtensionManifest;
-```
-
-Defined in: [packages/core/src/types/manifest.ts:112](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/manifest.ts#L112)
-
-Convert a raw manifest from YAML to a normalised ExtensionManifest.
-
-##### Parameters
-
-| Parameter | Type                          | Description                         |
-| --------- | ----------------------------- | ----------------------------------- |
-| `raw`     | [`RawManifest`](#rawmanifest) | Raw manifest data from YAML parsing |
-
-##### Returns
-
-[`ExtensionManifest`](#extensionmanifest)
-
-Normalised ExtensionManifest
-
-## Registry Types Module
-
-Registry types for the Quarto extensions registry.
-
-Defines types for registry entries and the registry data structure.
-
-### Interfaces
-
-#### RawRegistryEntry
-
-Defined in: [packages/core/src/types/registry.ts:82](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L82)
-
-Raw registry entry as returned from the JSON API.
-
-This is the expected format for entries in custom registry JSON files.
-The registry JSON file should be an object mapping extension IDs (e.g., "owner/repo")
-to `RawRegistryEntry` objects.
-
-##### Example
-
-```{.json filename="JSON"}
-{
-  "quarto-ext/lightbox": {
-    "owner": "quarto-ext",
-    "title": "Lightbox",
-    "nameWithOwner": "quarto-ext/lightbox",
-    "description": "Create lightbox treatments for images",
-    "repositoryTopics": ["quarto", "quarto-extension", "shortcode"],
-    "contributes": ["shortcode"],
-    "latestRelease": "v0.1.4",
-    "latestReleaseUrl": "https://github.com/quarto-ext/lightbox/releases/tag/v0.1.4",
-    "stargazerCount": 42,
-    "licenseInfo": "MIT",
-    "url": "https://github.com/quarto-ext/lightbox",
-    "template": false,
-    "defaultBranchRef": "main",
-    "latestCommit": "abc1234567890"
-  }
-}
-```
-
-##### Properties
-
-| Property                                                   | Type               | Description                                                                                                       | Defined in                                                                                                                                                                  |
-| ---------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-contributes"></a> `contributes?`           | `string[]`         | What the extension contributes (e.g., "filter", "shortcode", "format", "project", "revealjs-plugin", "metadata"). | [packages/core/src/types/registry.ts:94](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L94)   |
-| <a id="property-defaultbranchref"></a> `defaultBranchRef?` | `string` \| `null` | Default branch name (e.g., "main", "master").                                                                     | [packages/core/src/types/registry.ts:108](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L108) |
-| <a id="property-description"></a> `description?`           | `string` \| `null` | Extension description.                                                                                            | [packages/core/src/types/registry.ts:90](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L90)   |
-| <a id="property-latestcommit"></a> `latestCommit?`         | `string` \| `null` | SHA of the latest commit on the default branch.                                                                   | [packages/core/src/types/registry.ts:110](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L110) |
-| <a id="property-latestrelease"></a> `latestRelease?`       | `string` \| `null` | Latest release tag (e.g., "v1.0.0").                                                                              | [packages/core/src/types/registry.ts:96](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L96)   |
-| <a id="property-latestreleaseurl"></a> `latestReleaseUrl?` | `string` \| `null` | URL to the latest release page on GitHub.                                                                         | [packages/core/src/types/registry.ts:98](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L98)   |
-| <a id="property-licenseinfo"></a> `licenseInfo?`           | `string` \| `null` | SPDX licence identifier (e.g., "MIT", "GPL-3.0").                                                                 | [packages/core/src/types/registry.ts:102](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L102) |
-| <a id="property-namewithowner"></a> `nameWithOwner`        | `string`           | Full repository name in "owner/repo" format. Required.                                                            | [packages/core/src/types/registry.ts:88](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L88)   |
-| <a id="property-owner"></a> `owner`                        | `string`           | Repository owner (GitHub username or organisation). Required.                                                     | [packages/core/src/types/registry.ts:84](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L84)   |
-| <a id="property-repositorytopics"></a> `repositoryTopics?` | `string[]`         | GitHub repository topics/tags for categorisation.                                                                 | [packages/core/src/types/registry.ts:92](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L92)   |
-| <a id="property-stargazercount"></a> `stargazerCount?`     | `number`           | GitHub star count.                                                                                                | [packages/core/src/types/registry.ts:100](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L100) |
-| <a id="property-template"></a> `template?`                 | `boolean`          | Whether this extension provides project templates.                                                                | [packages/core/src/types/registry.ts:106](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L106) |
-| <a id="property-title"></a> `title`                        | `string`           | Display name/title of the extension. Required.                                                                    | [packages/core/src/types/registry.ts:86](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L86)   |
-| <a id="property-url"></a> `url`                            | `string`           | GitHub repository URL. Required.                                                                                  | [packages/core/src/types/registry.ts:104](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L104) |
-
-#### RegistryEntry
-
-Defined in: [packages/core/src/types/registry.ts:13](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L13)
-
-Entry for an extension in the registry.
-
-##### Properties
-
-| Property                                                    | Type               | Description                                                          | Defined in                                                                                                                                                                |
-| ----------------------------------------------------------- | ------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-contributes-1"></a> `contributes`           | `string[]`         | What the extension contributes (e.g., filters, formats, shortcodes). | [packages/core/src/types/registry.ts:27](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L27) |
-| <a id="property-defaultbranchref-1"></a> `defaultBranchRef` | `string` \| `null` | Default branch name (e.g., "main", "master").                        | [packages/core/src/types/registry.ts:43](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L43) |
-| <a id="property-description-1"></a> `description`           | `string` \| `null` | Extension description.                                               | [packages/core/src/types/registry.ts:23](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L23) |
-| <a id="property-fullname"></a> `fullName`                   | `string`           | The full repository name (owner/repo format).                        | [packages/core/src/types/registry.ts:21](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L21) |
-| <a id="property-htmlurl"></a> `htmlUrl`                     | `string`           | GitHub repository URL.                                               | [packages/core/src/types/registry.ts:39](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L39) |
-| <a id="property-id"></a> `id`                               | `string`           | Unique key in the registry (usually owner/repo).                     | [packages/core/src/types/registry.ts:15](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L15) |
-| <a id="property-latestcommit-1"></a> `latestCommit`         | `string` \| `null` | SHA of the latest commit on the default branch.                      | [packages/core/src/types/registry.ts:45](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L45) |
-| <a id="property-latestreleaseurl-1"></a> `latestReleaseUrl` | `string` \| `null` | URL to the latest release page.                                      | [packages/core/src/types/registry.ts:33](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L33) |
-| <a id="property-latesttag"></a> `latestTag`                 | `string` \| `null` | Latest release tag (with 'v' prefix if present).                     | [packages/core/src/types/registry.ts:31](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L31) |
-| <a id="property-latestversion"></a> `latestVersion`         | `string` \| `null` | Latest version (without 'v' prefix).                                 | [packages/core/src/types/registry.ts:29](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L29) |
-| <a id="property-licence"></a> `licence`                     | `string` \| `null` | Licence information.                                                 | [packages/core/src/types/registry.ts:37](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L37) |
-| <a id="property-name"></a> `name`                           | `string`           | The display name/title.                                              | [packages/core/src/types/registry.ts:19](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L19) |
-| <a id="property-owner-1"></a> `owner`                       | `string`           | The owner (user or organisation).                                    | [packages/core/src/types/registry.ts:17](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L17) |
-| <a id="property-stars"></a> `stars`                         | `number`           | GitHub star count.                                                   | [packages/core/src/types/registry.ts:35](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L35) |
-| <a id="property-template-1"></a> `template`                 | `boolean`          | Whether this extension provides templates.                           | [packages/core/src/types/registry.ts:41](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L41) |
-| <a id="property-topics"></a> `topics`                       | `string[]`         | Repository topics/tags.                                              | [packages/core/src/types/registry.ts:25](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L25) |
-
-### Type Aliases
-
-#### Registry
-
-```{.ts filename="TypeScript"}
-type Registry = Record<string, RegistryEntry>;
-```
-
-Defined in: [packages/core/src/types/registry.ts:51](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L51)
-
-The full registry mapping extension IDs to their entries.
-
-### Functions
-
-#### parseRegistry()
-
-```{.ts filename="TypeScript"}
-function parseRegistry(raw): Registry;
-```
-
-Defined in: [packages/core/src/types/registry.ts:150](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L150)
-
-Parse a raw registry object into a normalised Registry.
-
-##### Parameters
-
-| Parameter | Type       | Description |
-| --------- | ---------- | ----------- |
-| `raw`     | ```{=html} |
-
-<code>Record&lt;string, <a href="#rawregistryentry" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">RawRegistryEntry</a>&gt;</code>
-
-````| Raw registry object from JSON |
-
-##### Returns
-
-[`Registry`](#registry)
-
-Normalised Registry
-
-#### parseRegistryEntry()
-
-```{.ts filename="TypeScript"}
-function parseRegistryEntry(key, raw): RegistryEntry;
-````
-
-Defined in: [packages/core/src/types/registry.ts:120](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/registry.ts#L120)
-
-Parse a raw registry entry into a normalised RegistryEntry.
-
-##### Parameters
-
-| Parameter | Type                                    | Description                           |
-| --------- | --------------------------------------- | ------------------------------------- |
-| `key`     | `string`                                | The registry key (usually owner/repo) |
-| `raw`     | [`RawRegistryEntry`](#rawregistryentry) | Raw entry from the JSON API           |
-
-##### Returns
-
-[`RegistryEntry`](#registryentry)
-
-Normalised RegistryEntry
-
-## Schema Types Module
-
-Extension schema types for parsing \_schema.yml files.
-
-Defines types for field descriptors, completion specs, shortcode schemas,
-and the overall extension schema structure.
-
-### Interfaces
-
-#### CompletionSpec
-
-Defined in: [packages/core/src/types/schema.ts:15](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L15)
-
-Completion specification for a field.
-Describes how a field's value should be completed in an editor.
-
-##### Properties
-
-| Property                                         | Type       | Description                                         | Defined in                                                                                                                                                            |
-| ------------------------------------------------ | ---------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-dynamic"></a> `dynamic?`         | `boolean`  | Whether completion values are dynamically resolved. | [packages/core/src/types/schema.ts:25](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L25) |
-| <a id="property-extensions"></a> `extensions?`   | `string[]` | File extensions to filter (for file completions).   | [packages/core/src/types/schema.ts:19](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L19) |
-| <a id="property-placeholder"></a> `placeholder?` | `string`   | Placeholder text shown in the editor.               | [packages/core/src/types/schema.ts:21](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L21) |
-| <a id="property-source"></a> `source?`           | `string`   | Source for dynamic completion values.               | [packages/core/src/types/schema.ts:27](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L27) |
-| <a id="property-type"></a> `type?`               | `string`   | Type of completion (e.g., "file", "value").         | [packages/core/src/types/schema.ts:17](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L17) |
-| <a id="property-values"></a> `values?`           | `string[]` | Static list of allowed values.                      | [packages/core/src/types/schema.ts:23](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L23) |
-
-#### DeprecatedSpec
-
-Defined in: [packages/core/src/types/schema.ts:34](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L34)
-
-Structured deprecation specification for a field.
-Provides version, message, and optional auto-forwarding to a replacement key.
-
-##### Properties
-
-| Property                                         | Type     | Description                                        | Defined in                                                                                                                                                            |
-| ------------------------------------------------ | -------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-message"></a> `message?`         | `string` | Human-readable deprecation message.                | [packages/core/src/types/schema.ts:38](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L38) |
-| <a id="property-replacewith"></a> `replaceWith?` | `string` | Replacement key name to auto-forward the value to. | [packages/core/src/types/schema.ts:40](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L40) |
-| <a id="property-since"></a> `since?`             | `string` | Version since which the field is deprecated.       | [packages/core/src/types/schema.ts:36](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L36) |
-
-#### ExtensionSchema
-
-Defined in: [packages/core/src/types/schema.ts:100](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L100)
-
-Complete extension schema parsed from a \_schema.yml file.
-All sections are optional and default to empty objects or arrays.
-
-##### Properties
-
-| Property                                                     | Type       | Description | Defined in |
-| ------------------------------------------------------------ | ---------- | ----------- | ---------- |
-| <a id="property-elementattributes"></a> `elementAttributes?` | ```{=html} |
-
-<code>Record&lt;string, Record<string, <a href="#fielddescriptor" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-
-````> | Element-level attributes grouped by CSS class or element type (e.g., "_any", "panel", "card"). | [packages/core/src/types/schema.ts:110](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L110) |
-| <a id="property-formats"></a> `formats?` | ```{=html}
-<code>Record&lt;string, Record<string, <a href="#fielddescriptor" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-```\> | Format-specific options the extension supports. | [packages/core/src/types/schema.ts:106](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L106) |
-| <a id="property-options"></a> `options?` | ```{=html}
-<code>Record&lt;string, <a href="#fielddescriptor" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-``` | Options (top-level YAML keys) the extension accepts. | [packages/core/src/types/schema.ts:102](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L102) |
-| <a id="property-projects"></a> `projects?` | ```{=html}
-<code>Record&lt;string, <a href="#fielddescriptor" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-``` | Project-level options the extension supports. | [packages/core/src/types/schema.ts:108](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L108) |
-| <a id="property-shortcodes"></a> `shortcodes?` | ```{=html}
-<code>Record&lt;string, <a href="#shortcodeschema" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">ShortcodeSchema</a>&gt;</code>
-``` | Shortcodes the extension provides. | [packages/core/src/types/schema.ts:104](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L104) |
-
-#### FieldDescriptor
-
-Defined in: [packages/core/src/types/schema.ts:47](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L47)
-
-Descriptor for a single field in an extension schema.
-Describes the type, constraints, and metadata for a configuration option.
-
-##### Properties
-
-| Property | Type | Description | Defined in |
-| ------ | ------ | ------ | ------ |
-| <a id="property-aliases"></a> `aliases?` | `string[]` | Alternative names for the field. | [packages/core/src/types/schema.ts:73](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L73) |
-| <a id="property-completion"></a> `completion?` | [`CompletionSpec`](#completionspec) | Completion specification for the field. | [packages/core/src/types/schema.ts:77](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L77) |
-| <a id="property-default"></a> `default?` | `unknown` | Default value for the field. | [packages/core/src/types/schema.ts:53](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L53) |
-| <a id="property-deprecated"></a> `deprecated?` | `string` \| `boolean` \| [`DeprecatedSpec`](#deprecatedspec) | Whether the field is deprecated. Accepts boolean, message string, or structured spec. | [packages/core/src/types/schema.ts:75](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L75) |
-| <a id="property-description"></a> `description?` | `string` | Human-readable description of the field. | [packages/core/src/types/schema.ts:55](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L55) |
-| <a id="property-enum"></a> `enum?` | `unknown[]` | Allowed values for the field. | [packages/core/src/types/schema.ts:57](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L57) |
-| <a id="property-enumcaseinsensitive"></a> `enumCaseInsensitive?` | `boolean` | Whether enum matching is case-insensitive. | [packages/core/src/types/schema.ts:59](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L59) |
-| <a id="property-items"></a> `items?` | [`FieldDescriptor`](#fielddescriptor) | Schema for array items when type is "array". | [packages/core/src/types/schema.ts:79](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L79) |
-| <a id="property-max"></a> `max?` | `number` | Maximum numeric value. | [packages/core/src/types/schema.ts:67](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L67) |
-| <a id="property-maxlength"></a> `maxLength?` | `number` | Maximum string length. | [packages/core/src/types/schema.ts:71](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L71) |
-| <a id="property-min"></a> `min?` | `number` | Minimum numeric value. | [packages/core/src/types/schema.ts:65](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L65) |
-| <a id="property-minlength"></a> `minLength?` | `number` | Minimum string length. | [packages/core/src/types/schema.ts:69](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L69) |
-| <a id="property-pattern"></a> `pattern?` | `string` | Regular expression pattern the value must match. | [packages/core/src/types/schema.ts:61](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L61) |
-| <a id="property-patternexact"></a> `patternExact?` | `boolean` | Whether the pattern must match the entire value. | [packages/core/src/types/schema.ts:63](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L63) |
-| <a id="property-properties"></a> `properties?` | ```{=html}
-<code>Record&lt;string, <a href="#fielddescriptor" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-``` | Schema for object properties when type is "object". | [packages/core/src/types/schema.ts:81](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L81) |
-| <a id="property-required"></a> `required?` | `boolean` | Whether the field is required. | [packages/core/src/types/schema.ts:51](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L51) |
-| <a id="property-type-1"></a> `type?` | `string` \| `string[]` | Data type of the field. A single type name or an array of type names for union types. | [packages/core/src/types/schema.ts:49](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L49) |
-
-#### RawSchema
-
-Defined in: [packages/core/src/types/schema.ts:117](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L117)
-
-Raw schema data as parsed from YAML.
-Uses kebab-case keys matching the _schema.yml structure.
-
-##### Properties
-
-| Property | Type | Defined in |
-| ------ | ------ | ------ |
-| <a id="property-element-attributes"></a> `element-attributes?` | `Record<string, unknown>` | [packages/core/src/types/schema.ts:122](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L122) |
-| <a id="property-formats-1"></a> `formats?` | `Record<string, unknown>` | [packages/core/src/types/schema.ts:120](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L120) |
-| <a id="property-options-1"></a> `options?` | `Record<string, unknown>` | [packages/core/src/types/schema.ts:118](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L118) |
-| <a id="property-projects-1"></a> `projects?` | `Record<string, unknown>` | [packages/core/src/types/schema.ts:121](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L121) |
-| <a id="property-shortcodes-1"></a> `shortcodes?` | `Record<string, unknown>` | [packages/core/src/types/schema.ts:119](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L119) |
-
-#### ShortcodeSchema
-
-Defined in: [packages/core/src/types/schema.ts:87](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L87)
-
-Schema for a shortcode, including its arguments and attributes.
-
-##### Properties
-
-| Property | Type | Description | Defined in |
-| ------ | ------ | ------ | ------ |
-| <a id="property-arguments"></a> `arguments?` | [`FieldDescriptor`](#fielddescriptor) & `object[]` | Positional arguments accepted by the shortcode. | [packages/core/src/types/schema.ts:91](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L91) |
-| <a id="property-attributes"></a> `attributes?` | ```{=html}
-<code>Record&lt;string, <a href="#fielddescriptor" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-``` | Named attributes accepted by the shortcode. | [packages/core/src/types/schema.ts:93](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L93) |
-| <a id="property-description-1"></a> `description?` | `string` | Human-readable description of the shortcode. | [packages/core/src/types/schema.ts:89](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L89) |
-
-### Functions
-
-#### formatType()
-
-```{.ts filename="TypeScript"}
-function formatType(typeSpec): string;
-````
-
-Defined in: [packages/core/src/types/schema.ts:297](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L297)
-
-Format a type spec for display (e.g., "number | boolean").
-
-##### Parameters
-
-| Parameter  | Type                                  | Description                                     |
-| ---------- | ------------------------------------- | ----------------------------------------------- |
-| `typeSpec` | `string` \| `string[]` \| `undefined` | Type spec (string, string array, or undefined). |
-
-##### Returns
-
-`string`
-
-Human-readable type string.
-
-#### normaliseFieldDescriptor()
-
-```{.ts filename="TypeScript"}
-function normaliseFieldDescriptor(raw): FieldDescriptor;
-```
-
-Defined in: [packages/core/src/types/schema.ts:157](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L157)
-
-Normalise a raw field descriptor from YAML, converting kebab-case keys to camelCase.
-
-##### Parameters
-
-| Parameter | Type                      | Description                           |
-| --------- | ------------------------- | ------------------------------------- |
-| `raw`     | `Record<string, unknown>` | Raw field descriptor object from YAML |
-
-##### Returns
-
-[`FieldDescriptor`](#fielddescriptor)
-
-Normalised FieldDescriptor
-
-#### normaliseFieldDescriptorMap()
-
-```{.ts filename="TypeScript"}
-function normaliseFieldDescriptorMap(raw): Record<string, FieldDescriptor>;
-```
-
-Defined in: [packages/core/src/types/schema.ts:183](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L183)
-
-Normalise a map of field descriptors from YAML.
-
-##### Parameters
-
-| Parameter | Type                      | Description                                   |
-| --------- | ------------------------- | --------------------------------------------- |
-| `raw`     | `Record<string, unknown>` | Raw object mapping field names to descriptors |
-
-##### Returns
-
-```{=html}
-<code>Record&lt;string, <a href="#fielddescriptor" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">FieldDescriptor</a>&gt;</code>
-```
-
-Normalised map of FieldDescriptor objects
-
-#### normaliseSchema()
-
-```{.ts filename="TypeScript"}
-function normaliseSchema(raw): ExtensionSchema;
-```
-
-Defined in: [packages/core/src/types/schema.ts:232](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L232)
-
-Normalise a raw schema from YAML to an ExtensionSchema.
-
-##### Parameters
-
-| Parameter | Type                      | Description                       |
-| --------- | ------------------------- | --------------------------------- |
-| `raw`     | [`RawSchema`](#rawschema) | Raw schema data from YAML parsing |
-
-##### Returns
-
-[`ExtensionSchema`](#extensionschema)
-
-Normalised ExtensionSchema
-
-#### normaliseShortcodeSchema()
-
-```{.ts filename="TypeScript"}
-function normaliseShortcodeSchema(raw): ShortcodeSchema;
-```
-
-Defined in: [packages/core/src/types/schema.ts:201](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L201)
-
-Normalise a raw shortcode schema from YAML.
-
-##### Parameters
-
-| Parameter | Type                      | Description                           |
-| --------- | ------------------------- | ------------------------------------- |
-| `raw`     | `Record<string, unknown>` | Raw shortcode schema object from YAML |
-
-##### Returns
-
-[`ShortcodeSchema`](#shortcodeschema)
-
-Normalised ShortcodeSchema
-
-#### typeIncludes()
-
-```{.ts filename="TypeScript"}
-function typeIncludes(typeSpec, name): boolean;
-```
-
-Defined in: [packages/core/src/types/schema.ts:284](https://github.com/mcanouil/quarto-wizard/blob/1b7ddd6788090d94e09a162ca8a18481f0bfa728/packages/core/src/types/schema.ts#L284)
-
-Check whether a type spec includes a given type name.
-
-##### Parameters
-
-| Parameter  | Type                                  | Description                                     |
-| ---------- | ------------------------------------- | ----------------------------------------------- |
-| `typeSpec` | `string` \| `string[]` \| `undefined` | Type spec (string, string array, or undefined). |
-| `name`     | `string`                              | Type name to look for.                          |
-
-##### Returns
-
-`boolean`
-
-True if the type spec includes the given name.

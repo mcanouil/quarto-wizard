@@ -19,6 +19,8 @@
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, rmSync } from "node:fs";
 import { basename, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { OptionDefaults } from "typedoc";
 
 // =============================================================================
 // Configuration
@@ -42,6 +44,8 @@ const config = {
 	})),
 	paths: Object.fromEntries(Object.entries(rawConfig.paths).map(([key, value]) => [key, resolve(rootDir, value)])),
 };
+
+const typedocBlockTags = [...OptionDefaults.blockTags, "@title", "@description", "@envvar", "@pattern", "@note"];
 config.paths.rootDir = rootDir;
 
 const { packages, languageFilenames, envVarSources, commandGroups, configGroups, paths } = config;
@@ -497,11 +501,7 @@ ${packageSections}
  * Main API documentation processing function.
  */
 function processApiDocs() {
-	if (!existsSync(docsApiDir)) {
-		console.error(`Error: ${docsApiDir} not found.`);
-		console.error("Run 'npm run docs:api' first to generate TypeDoc output.");
-		process.exit(1);
-	}
+	mkdirSync(docsApiDir, { recursive: true });
 
 	const packagesWithModules = [];
 	let totalModules = 0;
@@ -509,7 +509,21 @@ function processApiDocs() {
 	for (const pkg of packages) {
 		console.log(`\nProcessing package: ${pkg.name}`);
 
-		const mdFiles = findMarkdownFiles(docsApiDir);
+		// Run TypeDoc for this package using its own tsconfig.
+		// Use a temp directory so TypeDoc does not wipe previously generated output.
+		const packageDir = join(rootDir, "packages", pkg.shortName);
+		const typedocTmpDir = join(rootDir, ".typedoc-tmp");
+		if (existsSync(typedocTmpDir)) {
+			rmSync(typedocTmpDir, { recursive: true });
+		}
+		console.log(`  Running TypeDoc for ${pkg.name}...`);
+		const blockTagsArgs = typedocBlockTags.map((tag) => `--blockTags ${tag}`).join(" ");
+		execSync(
+			`npx typedoc --entryPointStrategy expand --entryPoints src --tsconfig tsconfig.json --out "${typedocTmpDir}" --plugin typedoc-plugin-markdown --flattenOutputFiles --readme none --excludePrivate --excludeProtected --excludeInternal --hideGenerator --useCodeBlocks --parametersFormat table --interfacePropertiesFormat table --exclude "**/index.ts" ${blockTagsArgs}`,
+			{ cwd: packageDir, stdio: "inherit" },
+		);
+
+		const mdFiles = findMarkdownFiles(typedocTmpDir);
 
 		if (mdFiles.length === 0) {
 			console.log(`  Skipping ${pkg.name}: no markdown files found.`);
@@ -543,20 +557,15 @@ function processApiDocs() {
 		packagesWithModules.push({ pkg, moduleNames });
 		totalModules += moduleGroups.size;
 
-		// Clean up original markdown files
-		console.log("  Cleaning up original files...");
-		for (const file of mdFiles) {
-			unlinkSync(file);
-		}
-		const readmePath = join(docsApiDir, "README.md");
-		if (existsSync(readmePath)) {
-			unlinkSync(readmePath);
+		// Clean up TypeDoc temp directory
+		console.log("  Cleaning up TypeDoc output...");
+		if (existsSync(typedocTmpDir)) {
+			rmSync(typedocTmpDir, { recursive: true });
 		}
 	}
 
 	if (packagesWithModules.length === 0) {
 		console.error("Error: No markdown files found for any package.");
-		console.error("Run 'npm run docs:api' first to generate TypeDoc output.");
 		process.exit(1);
 	}
 

@@ -1,0 +1,301 @@
+---
+title: "Validation"
+---
+
+## Schema Definition Validation
+
+Pure validation logic for \_schema.yml / \_schema.json files.
+
+Validates syntax, structure, and semantic correctness of extension schema
+definition files. Returns an array of findings with severity levels.
+
+### Interfaces
+
+- [SchemaDefinitionFinding](validation.Interface.SchemaDefinitionFinding.qmd)
+
+### Type Aliases
+
+- [SchemaDefinitionSeverity](validation.TypeAlias.SchemaDefinitionSeverity.qmd)
+
+### Functions
+
+- [validateSchemaDefinition](validation.Function.validateSchemaDefinition.qmd)
+- [validateSchemaDefinitionStructure](validation.Function.validateSchemaDefinitionStructure.qmd)
+- [validateSchemaDefinitionSyntax](validation.Function.validateSchemaDefinitionSyntax.qmd)
+
+## Schema-Derived Constants
+
+Derives validation constants and completion metadata from the
+
+JSON Schema meta-schema (extension-schema.json).
+
+All derivation runs once at module load time.
+
+### Variables
+
+- [ALLOWED_FIELD_PROPERTIES](validation.Variable.ALLOWED_FIELD_PROPERTIES.qmd)
+- [ALLOWED_SHORTCODE_KEYS](validation.Variable.ALLOWED_SHORTCODE_KEYS.qmd)
+- [ALLOWED_TOP_LEVEL_KEYS](validation.Variable.ALLOWED_TOP_LEVEL_KEYS.qmd)
+- [ALLOWED_TYPES](validation.Variable.ALLOWED_TYPES.qmd)
+- [fieldDescriptorMetadata](validation.Variable.fieldDescriptorMetadata.qmd)
+- [rootKeyMetadata](validation.Variable.rootKeyMetadata.qmd)
+- [SCHEMA_META_SCHEMA](validation.Variable.SCHEMA_META_SCHEMA.qmd)
+- [shortcodeEntryMetadata](validation.Variable.shortcodeEntryMetadata.qmd)
+
+## Validation
+
+```{.ts filename="TypeScript"}
+function validateSchemaDefinition(content, format): SchemaDefinitionFinding[];
+```
+
+Defined in: [packages/schema/src/validation/schema-definition.ts:57](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L57)
+
+Validate a schema definition file and return all findings.
+
+### Parameters
+
+| Parameter | Type                 | Description                             |
+| --------- | -------------------- | --------------------------------------- |
+| `content` | `string`             | Raw file content (YAML or JSON string). |
+| `format`  | `"json"` \| `"yaml"` | File format: "yaml" or "json".          |
+
+### Returns
+
+`<code><a href="validation.Interface.SchemaDefinitionFinding.md" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">SchemaDefinitionFinding</a>[]</code>`{=html}
+
+Array of validation findings.
+
+## Validation
+
+```{.ts filename="TypeScript"}
+function validateSchemaDefinitionStructure(parsed): SchemaDefinitionFinding[];
+```
+
+Defined in: [packages/schema/src/validation/schema-definition.ts:113](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L113)
+
+Validate the structure and semantics of a parsed schema definition.
+
+### Parameters
+
+| Parameter | Type      | Description                  |
+| --------- | --------- | ---------------------------- |
+| `parsed`  | `unknown` | The parsed YAML/JSON object. |
+
+### Returns
+
+`<code><a href="validation.Interface.SchemaDefinitionFinding.md" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">SchemaDefinitionFinding</a>[]</code>`{=html}
+
+Array of validation findings.
+
+## Validation
+
+```{.ts filename="TypeScript"}
+function validateSchemaDefinitionSyntax(content, format):
+  | {
+  error: SchemaDefinitionFinding[];
+}
+  | {
+  error: null;
+  parsed: unknown;
+};
+```
+
+Defined in: [packages/schema/src/validation/schema-definition.ts:72](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L72)
+
+Validate syntax of a schema definition file.
+
+### Parameters
+
+| Parameter | Type                 | Description       |
+| --------- | -------------------- | ----------------- |
+| `content` | `string`             | Raw file content. |
+| `format`  | `"json"` \| `"yaml"` | File format.      |
+
+### Returns
+
+\| \{
+`error`: `<code><a href="validation.Interface.SchemaDefinitionFinding.md" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">SchemaDefinitionFinding</a>[]</code>`{=html};
+\}
+\| \{
+`error`: `null`;
+`parsed`: `unknown`;
+\}
+
+Either an error array or the parsed object.
+
+## Validation
+
+Defined in: [packages/schema/src/validation/schema-definition.ts:27](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L27)
+
+A single validation finding from schema definition analysis.
+
+### Properties
+
+| Property                                  | Type                                                                            | Description                                                   | Defined in                                                                                                                                                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-code"></a> `code`         | `string`                                                                        | Machine-readable code identifying the check.                  | [packages/schema/src/validation/schema-definition.ts:33](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L33) |
+| <a id="property-column"></a> `column?`    | `number`                                                                        | Zero-based column number (when available from syntax errors). | [packages/schema/src/validation/schema-definition.ts:37](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L37) |
+| <a id="property-keypath"></a> `keyPath?`  | `string`                                                                        | Dot-separated key path to the problematic location.           | [packages/schema/src/validation/schema-definition.ts:39](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L39) |
+| <a id="property-line"></a> `line?`        | `number`                                                                        | Zero-based line number (when available from syntax errors).   | [packages/schema/src/validation/schema-definition.ts:35](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L35) |
+| <a id="property-message"></a> `message`   | `string`                                                                        | Human-readable description of the issue.                      | [packages/schema/src/validation/schema-definition.ts:29](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L29) |
+| <a id="property-severity"></a> `severity` | [`SchemaDefinitionSeverity`](validation.TypeAlias.SchemaDefinitionSeverity.qmd) | Severity level.                                               | [packages/schema/src/validation/schema-definition.ts:31](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L31) |
+
+## Validation
+
+```{.ts filename="TypeScript"}
+type SchemaDefinitionSeverity = "error" | "warning" | "information";
+```
+
+Defined in: [packages/schema/src/validation/schema-definition.ts:22](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-definition.ts#L22)
+
+Severity level for a schema definition finding.
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const ALLOWED_FIELD_PROPERTIES: Set<string>;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:50](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L50)
+
+Allowed properties on a field descriptor (both camelCase and kebab-case).
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const ALLOWED_SHORTCODE_KEYS: Set<string>;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:56](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L56)
+
+Allowed top-level keys inside a shortcode entry.
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const ALLOWED_TOP_LEVEL_KEYS: Set<string>;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:47](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L47)
+
+Allowed top-level keys in a schema definition file.
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const ALLOWED_TYPES: Set<string>;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:53](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L53)
+
+Allowed type values for a field descriptor.
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const fieldDescriptorMetadata: object;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:121](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L121)
+
+### Type Declaration
+
+#### booleanProperties
+
+```{.ts filename="TypeScript"}
+booleanProperties: Set<string>;
+```
+
+#### nestedProperties
+
+```{.ts filename="TypeScript"}
+nestedProperties: Set<string>;
+```
+
+#### propertyDocs
+
+```{.ts filename="TypeScript"}
+propertyDocs: Record<string, string>;
+```
+
+#### shortcodeArgumentOnly
+
+```{.ts filename="TypeScript"}
+shortcodeArgumentOnly: Set<string>;
+```
+
+#### snippetOverrides
+
+```{.ts filename="TypeScript"}
+snippetOverrides: Record<string, string>;
+```
+
+#### valueTriggerProperties
+
+```{.ts filename="TypeScript"}
+valueTriggerProperties: Set<string>;
+```
+
+#### yamlHidden
+
+```{.ts filename="TypeScript"}
+yamlHidden: Set<string>;
+```
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const rootKeyMetadata: object;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:173](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L173)
+
+### Type Declaration
+
+#### propertyDocs
+
+```{.ts filename="TypeScript"}
+propertyDocs: Record<string, string>;
+```
+
+#### yamlHidden
+
+```{.ts filename="TypeScript"}
+yamlHidden: Set<string>;
+```
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const SCHEMA_META_SCHEMA: Record<string, unknown> = metaSchema;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:40](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L40)
+
+## Validation
+
+```{.ts filename="TypeScript"}
+const shortcodeEntryMetadata: object;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:149](https://github.com/mcanouil/quarto-wizard/blob/822d94613eeb34a3c5b14076e6a6982efaf7eb74/packages/schema/src/validation/schema-derived.ts#L149)
+
+### Type Declaration
+
+#### nestedProperties
+
+```{.ts filename="TypeScript"}
+nestedProperties: Set<string>;
+```
+
+#### propertyDocs
+
+```{.ts filename="TypeScript"}
+propertyDocs: Record<string, string>;
+```
+
+#### snippetOverrides
+
+```{.ts filename="TypeScript"}
+snippetOverrides: Record<string, string>;
+```

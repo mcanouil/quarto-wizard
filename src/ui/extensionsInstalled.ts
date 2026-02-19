@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
+import type { SchemaCache } from "@quarto-wizard/schema";
 import { normaliseVersion } from "@quarto-wizard/core";
-import type { SchemaCache } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";

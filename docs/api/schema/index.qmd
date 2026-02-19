@@ -1,0 +1,20 @@
+---
+title: "@quarto-wizard/schema"
+description: "Schema types, parsing, validation, and caching for Quarto extension schemas."
+listing:
+  - id: modules
+    contents: "*.qmd"
+    type: table
+    fields: [title, description]
+    sort: title
+    filter-ui: false
+    sort-ui: false
+---
+
+The `@quarto-wizard/schema` package provides schema functionality for Quarto extensions.
+It handles schema type definitions, file parsing, validation, and in-memory caching.
+
+## Modules
+
+::: {#modules}
+:::

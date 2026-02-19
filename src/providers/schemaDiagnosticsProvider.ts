@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { validateSchemaDefinition } from "@quarto-wizard/core";
-import type { SchemaDefinitionFinding, SchemaDefinitionSeverity } from "@quarto-wizard/core";
+import { validateSchemaDefinition } from "@quarto-wizard/schema";
+import type { SchemaDefinitionFinding, SchemaDefinitionSeverity } from "@quarto-wizard/schema";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";

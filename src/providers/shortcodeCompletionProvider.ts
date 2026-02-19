@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
-import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/core";
-import { discoverInstalledExtensions, typeIncludes } from "@quarto-wizard/core";
+import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
+import { typeIncludes } from "@quarto-wizard/schema";
+import { discoverInstalledExtensions } from "@quarto-wizard/core";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";

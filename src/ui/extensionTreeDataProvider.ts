@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
+import type { SchemaCache, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/schema";
 import { checkForUpdates, formatExtensionId } from "@quarto-wizard/core";
-import type { SchemaCache, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/core";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionRepository, getExtensionContributes } from "../utils/extensions";

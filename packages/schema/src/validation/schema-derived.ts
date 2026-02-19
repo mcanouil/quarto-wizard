@@ -33,10 +33,11 @@ interface MetaSchemaShape {
 		};
 		[key: string]: Record<string, unknown>;
 	};
+	[key: string]: unknown;
 }
 
 // Re-export the raw meta-schema for consumers that need the full object.
-export const SCHEMA_META_SCHEMA = metaSchema;
+export const SCHEMA_META_SCHEMA: Record<string, unknown> = metaSchema;
 
 // ---------------------------------------------------------------------------
 // Core validation constants (replace the former hardcoded Sets).

@@ -10,6 +10,9 @@ node_modules
 # Cache files
 .eslintcache
 
+# TypeDoc temp output
+.typedoc-tmp
+
 # Test directories
 .vscode-test
 

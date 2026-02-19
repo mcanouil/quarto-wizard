@@ -1,16 +1,16 @@
 {
-	"name": "@quarto-wizard/core",
-	"displayName": "Quarto Wizard Core",
+	"name": "@quarto-wizard/schema",
+	"displayName": "Quarto Wizard Schema",
 	"version": "2.1.3",
-	"description": "Core library for Quarto extension management",
+	"description": "Schema types, parsing, validation, and caching for Quarto extension schemas",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"files": [
 		"dist"
 	],
 	"scripts": {
-		"build": "tsc",
-		"watch": "tsc --watch",
+		"build": "tsc && cp src/validation/extension-schema.json dist/validation/ && cp src/validation/extension-schema.json ../../assets/schema/v1/extension-schema.json",
+		"watch": "mkdir -p dist/validation && cp src/validation/extension-schema.json dist/validation/ && tsc --watch",
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest",
@@ -19,7 +19,7 @@
 	"keywords": [
 		"quarto",
 		"extension",
-		"management"
+		"schema"
 	],
 	"author": {
 		"name": "Mickaël CANOUIL",
@@ -29,25 +29,15 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/mcanouil/quarto-wizard",
-		"directory": "packages/core"
+		"directory": "packages/schema"
 	},
 	"dependencies": {
-		"glob": "^13.0.0",
-		"js-yaml": "^4.1.0",
-		"minimatch": "^10.0.0",
-		"semver": "^7.7.3",
-		"tar": "^7.5.7",
-		"undici": "^7.20.0",
-		"unzipper": "^0.12.0"
+		"js-yaml": "^4.1.0"
 	},
 	"devDependencies": {
-		"@types/archiver": "^7.0.0",
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^25.0.3",
-		"@types/semver": "^7.7.0",
-		"@types/unzipper": "^0.10.10",
 		"@vitest/coverage-v8": "^4.0.16",
-		"archiver": "^7.0.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.16"
 	},
