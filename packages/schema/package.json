@@ -9,7 +9,7 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsc && cp src/validation/extension-schema.json dist/validation/ && cp src/validation/extension-schema.json ../../assets/schema/v1/extension-schema.json",
+		"build": "tsc && cp src/validation/extension-schema.json dist/validation/ && cp src/validation/extension-schema.json ../../docs/assets/schema/v1/extension-schema.json",
 		"watch": "mkdir -p dist/validation && cp src/validation/extension-schema.json dist/validation/ && tsc --watch",
 		"clean": "rm -rf dist",
 		"test": "vitest run",
