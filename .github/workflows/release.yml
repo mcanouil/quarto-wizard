@@ -282,12 +282,20 @@ jobs:
           npm pack
           mv quarto-wizard-core-*.tgz "${GITHUB_WORKSPACE}/"
 
+      - name: Package schema library
+        shell: bash
+        run: |
+          cd packages/schema
+          npm pack
+          mv quarto-wizard-schema-*.tgz "${GITHUB_WORKSPACE}/"
+
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
         with:
           subject-path: |
             ${{ github.workspace }}/quarto-wizard-${{ env.VERSION }}.vsix
             ${{ github.workspace }}/quarto-wizard-core-${{ env.VERSION }}.tgz
+            ${{ github.workspace }}/quarto-wizard-schema-${{ env.VERSION }}.tgz
 
       - name: Release extension on GitHub
         env:
@@ -301,6 +309,7 @@ jobs:
             gh release create ${VERSION} \
               "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
               "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)" \
+              "./quarto-wizard-schema-${VERSION}.tgz#Quarto Wizard Schema (tgz)" \
               --prerelease \
               --title ${VERSION} \
               --notes-file ${CHANGELOG} \
@@ -309,6 +318,7 @@ jobs:
             gh release create ${VERSION} \
               "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
               "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)" \
+              "./quarto-wizard-schema-${VERSION}.tgz#Quarto Wizard Schema (tgz)" \
               --title ${VERSION} \
               --notes-file ${CHANGELOG} \
               --generate-notes
