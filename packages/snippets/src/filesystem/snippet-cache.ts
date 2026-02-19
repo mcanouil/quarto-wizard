@@ -17,6 +17,7 @@ import { readSnippets } from "./snippets.js";
  */
 export class SnippetCache {
 	private cache = new Map<string, SnippetCollection>();
+	private missing = new Set<string>();
 	private errors = new Map<string, string>();
 
 	/**
@@ -30,18 +31,25 @@ export class SnippetCache {
 		if (this.cache.has(extensionDir)) {
 			return this.cache.get(extensionDir)!;
 		}
+		if (this.missing.has(extensionDir)) {
+			return null;
+		}
 
 		try {
 			const result = readSnippets(extensionDir);
 
 			if (!result) {
+				this.errors.delete(extensionDir);
+				this.missing.add(extensionDir);
 				return null;
 			}
 
 			this.errors.delete(extensionDir);
+			this.missing.delete(extensionDir);
 			this.cache.set(extensionDir, result.snippets);
 			return result.snippets;
 		} catch (error) {
+			this.missing.delete(extensionDir);
 			this.errors.set(extensionDir, error instanceof Error ? error.message : String(error));
 			return null;
 		}
@@ -74,6 +82,7 @@ export class SnippetCache {
 	 */
 	invalidate(extensionDir: string): void {
 		this.cache.delete(extensionDir);
+		this.missing.delete(extensionDir);
 		this.errors.delete(extensionDir);
 	}
 
@@ -82,6 +91,7 @@ export class SnippetCache {
 	 */
 	invalidateAll(): void {
 		this.cache.clear();
+		this.missing.clear();
 		this.errors.clear();
 	}
 }

@@ -52,6 +52,15 @@ describe("parseSnippetContent", () => {
 		expect(result["Block"].body).toEqual(["line 1", "line 2", "line 3"]);
 	});
 
+	it("handles body array with blank lines", () => {
+		const json = JSON.stringify({
+			Block: { prefix: "block", body: ["line 1", "", "line 3"] },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(result["Block"].body).toEqual(["line 1", "", "line 3"]);
+	});
+
 	it("skips entries with empty prefix array", () => {
 		const json = JSON.stringify({
 			Valid: { prefix: "ok", body: "good" },
@@ -311,6 +320,19 @@ describe("SnippetCache", () => {
 	it("returns null for directory without snippets", () => {
 		const result = cache.get(tmpDir);
 		expect(result).toBeNull();
+	});
+
+	it("caches missing snippet directories until invalidated", () => {
+		expect(cache.get(tmpDir)).toBeNull();
+
+		fs.writeFileSync(
+			path.join(tmpDir, "_snippets.json"),
+			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
+		);
+
+		expect(cache.get(tmpDir)).toBeNull();
+		cache.invalidate(tmpDir);
+		expect(cache.get(tmpDir)).not.toBeNull();
 	});
 
 	it("loads and caches snippets on first access", () => {
