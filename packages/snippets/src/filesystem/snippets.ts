@@ -48,8 +48,12 @@ function isValidSnippetEntry(value: unknown): value is SnippetDefinition {
 		return false;
 	}
 	const obj = value as Record<string, unknown>;
-	const hasPrefix = typeof obj["prefix"] === "string" || Array.isArray(obj["prefix"]);
-	const hasBody = typeof obj["body"] === "string" || Array.isArray(obj["body"]);
+	const prefix = obj["prefix"];
+	const hasPrefix =
+		typeof prefix === "string" ||
+		(Array.isArray(prefix) && prefix.length > 0 && prefix.every((entry) => typeof entry === "string"));
+	const body = obj["body"];
+	const hasBody = typeof body === "string" || (Array.isArray(body) && body.every((entry) => typeof entry === "string"));
 	return hasPrefix && hasBody;
 }
 

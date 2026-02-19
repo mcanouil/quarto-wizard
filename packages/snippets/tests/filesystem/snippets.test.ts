@@ -52,6 +52,42 @@ describe("parseSnippetContent", () => {
 		expect(result["Block"].body).toEqual(["line 1", "line 2", "line 3"]);
 	});
 
+	it("skips entries with empty prefix array", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good" },
+			Invalid: { prefix: [], body: "bad" },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["Invalid"]).toBeUndefined();
+	});
+
+	it("skips entries with non-string prefix array values", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good" },
+			Invalid: { prefix: ["good", 42], body: "bad" },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["Invalid"]).toBeUndefined();
+	});
+
+	it("skips entries with non-string body array values", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good" },
+			Invalid: { prefix: "bad", body: ["line", { nested: true }] },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["Invalid"]).toBeUndefined();
+	});
+
 	it("skips entries missing prefix", () => {
 		const json = JSON.stringify({
 			Valid: { prefix: "ok", body: "good" },
