@@ -78,6 +78,18 @@ jobs:
         working-directory: packages/schema
         run: npm test
 
+      - name: Lint snippets package
+        id: lint-snippets
+        shell: bash
+        working-directory: packages/snippets
+        run: npm run lint
+
+      - name: Test snippets package
+        id: test-snippets
+        shell: bash
+        working-directory: packages/snippets
+        run: npm test
+
       - name: Lint core package
         id: lint-core
         shell: bash
@@ -157,9 +169,9 @@ jobs:
           fi
 
           # Use steps context to determine overall job status
-          if [[ "${{ steps.lint-schema.outcome }}" == "failure" || "${{ steps.test-schema.outcome }}" == "failure" || "${{ steps.lint-core.outcome }}" == "failure" || "${{ steps.test-core.outcome }}" == "failure" || "${{ steps.webpack.outcome }}" == "failure" || "${{ steps.lint.outcome }}" == "failure" || "${{ steps.format.outcome }}" == "failure" || "${{ steps.test-compile.outcome }}" == "failure" || "$test_outcome" == "failure" || "${{ steps.build-extension.outcome }}" == "failure" ]]; then
+          if [[ "${{ steps.lint-schema.outcome }}" == "failure" || "${{ steps.test-schema.outcome }}" == "failure" || "${{ steps.lint-snippets.outcome }}" == "failure" || "${{ steps.test-snippets.outcome }}" == "failure" || "${{ steps.lint-core.outcome }}" == "failure" || "${{ steps.test-core.outcome }}" == "failure" || "${{ steps.webpack.outcome }}" == "failure" || "${{ steps.lint.outcome }}" == "failure" || "${{ steps.format.outcome }}" == "failure" || "${{ steps.test-compile.outcome }}" == "failure" || "$test_outcome" == "failure" || "${{ steps.build-extension.outcome }}" == "failure" ]]; then
             echo "Status: failure" >> job-summary.txt
-          elif [[ "${{ steps.lint-schema.outcome }}" == "cancelled" || "${{ steps.test-schema.outcome }}" == "cancelled" || "${{ steps.lint-core.outcome }}" == "cancelled" || "${{ steps.test-core.outcome }}" == "cancelled" || "${{ steps.webpack.outcome }}" == "cancelled" || "${{ steps.lint.outcome }}" == "cancelled" || "${{ steps.format.outcome }}" == "cancelled" || "${{ steps.test-compile.outcome }}" == "cancelled" || "$test_outcome" == "cancelled" || "${{ steps.build-extension.outcome }}" == "cancelled" ]]; then
+          elif [[ "${{ steps.lint-schema.outcome }}" == "cancelled" || "${{ steps.test-schema.outcome }}" == "cancelled" || "${{ steps.lint-snippets.outcome }}" == "cancelled" || "${{ steps.test-snippets.outcome }}" == "cancelled" || "${{ steps.lint-core.outcome }}" == "cancelled" || "${{ steps.test-core.outcome }}" == "cancelled" || "${{ steps.webpack.outcome }}" == "cancelled" || "${{ steps.lint.outcome }}" == "cancelled" || "${{ steps.format.outcome }}" == "cancelled" || "${{ steps.test-compile.outcome }}" == "cancelled" || "$test_outcome" == "cancelled" || "${{ steps.build-extension.outcome }}" == "cancelled" ]]; then
             echo "Status: cancelled" >> job-summary.txt
           else
             echo "Status: success" >> job-summary.txt
