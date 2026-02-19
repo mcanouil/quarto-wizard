@@ -168,6 +168,20 @@ describe("parseSnippetContent", () => {
 		expect(result["Valid"]).toBeDefined();
 	});
 
+	it("skips entries with non-string description", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good", description: "A description" },
+			InvalidNum: { prefix: "bad", body: "bad", description: 42 },
+			InvalidArr: { prefix: "bad", body: "bad", description: ["array"] },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["InvalidNum"]).toBeUndefined();
+		expect(result["InvalidArr"]).toBeUndefined();
+	});
+
 	it("skips non-object entries", () => {
 		const json = JSON.stringify({
 			Valid: { prefix: "ok", body: "good" },
@@ -263,6 +277,12 @@ describe("parseSnippetFile", () => {
 	it("throws SnippetError on invalid content", () => {
 		const snippetPath = path.join(tmpDir, "_snippets.json");
 		fs.writeFileSync(snippetPath, "{invalid}");
+
+		expect(() => parseSnippetFile(snippetPath)).toThrow(SnippetError);
+	});
+
+	it("throws SnippetError on non-existent path", () => {
+		const snippetPath = path.join(tmpDir, "does-not-exist.json");
 
 		expect(() => parseSnippetFile(snippetPath)).toThrow(SnippetError);
 	});
@@ -393,6 +413,32 @@ describe("SnippetCache", () => {
 
 		cache.invalidateAll();
 		expect(cache.has(tmpDir)).toBe(false);
+	});
+
+	it("invalidateAll() clears missing entries", () => {
+		// Access a directory without snippets to populate the missing set
+		cache.get(tmpDir);
+		expect(cache.has(tmpDir)).toBe(false);
+
+		// After invalidateAll and adding a snippet file, get() should read from disk
+		cache.invalidateAll();
+		fs.writeFileSync(
+			path.join(tmpDir, "_snippets.json"),
+			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
+		);
+
+		const result = cache.get(tmpDir);
+		expect(result).not.toBeNull();
+		expect(cache.has(tmpDir)).toBe(true);
+	});
+
+	it("invalidateAll() clears error entries", () => {
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), "{invalid}");
+		cache.get(tmpDir);
+		expect(cache.getError(tmpDir)).not.toBeNull();
+
+		cache.invalidateAll();
+		expect(cache.getError(tmpDir)).toBeNull();
 	});
 
 	it("stores and retrieves errors", () => {

@@ -61,7 +61,9 @@ function isValidSnippetEntry(value: unknown): value is SnippetDefinition {
 			body.length > 0 &&
 			body.every((entry) => typeof entry === "string") &&
 			body.some((entry) => entry.length > 0));
-	return hasPrefix && hasBody;
+	const description = obj["description"];
+	const hasValidDescription = description === undefined || typeof description === "string";
+	return hasPrefix && hasBody && hasValidDescription;
 }
 
 /**

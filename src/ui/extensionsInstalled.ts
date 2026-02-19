@@ -300,6 +300,9 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand(
 				"quartoWizard.extensionsInstalled.insertSnippet",
 				async (arg: SnippetItemTreeItem | SnippetDefinition) => {
+					if (!arg) {
+						return;
+					}
 					const editor = vscode.window.activeTextEditor;
 					if (!editor) {
 						vscode.window.showInformationMessage("Open a file in the editor to insert a snippet.");
