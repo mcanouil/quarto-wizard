@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import type { SchemaCache } from "@quarto-wizard/schema";
-import type { SnippetCache } from "@quarto-wizard/snippets";
+import type { SnippetCache, SnippetDefinition } from "@quarto-wizard/snippets";
 import { normaliseVersion } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
-import { WorkspaceFolderTreeItem, ExtensionTreeItem } from "./extensionTreeItems";
+import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
 /**
@@ -291,6 +291,25 @@ export class ExtensionsInstalled {
 
 				this.treeDataProvider.refreshAfterAction(context, view);
 			}),
+		);
+
+		/**
+		 * Inserts a snippet at the cursor position in the active editor.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.insertSnippet",
+				async (arg: SnippetItemTreeItem | SnippetDefinition) => {
+					const editor = vscode.window.activeTextEditor;
+					if (!editor) {
+						vscode.window.showInformationMessage("Open a file in the editor to insert a snippet.");
+						return;
+					}
+					const definition: SnippetDefinition = arg instanceof SnippetItemTreeItem ? arg.definition : arg;
+					const body = Array.isArray(definition.body) ? definition.body.join("\n") : definition.body;
+					await editor.insertSnippet(new vscode.SnippetString(body));
+				},
+			),
 		);
 
 		/**

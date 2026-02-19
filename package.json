@@ -251,6 +251,14 @@
 				"description": "Select and remove multiple extensions at once."
 			},
 			{
+				"command": "quartoWizard.extensionsInstalled.insertSnippet",
+				"title": "Insert Snippet",
+				"shortTitle": "Insert",
+				"icon": "$(insert)",
+				"category": "Quarto Wizard",
+				"description": "Insert the selected snippet at the cursor position in the active editor."
+			},
+			{
 				"command": "quartoWizard.setGitHubToken",
 				"title": "Set GitHub Token (Manual)",
 				"shortTitle": "Set Token",
@@ -431,6 +439,16 @@
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@4"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.insertSnippet",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoSnippetItem",
+					"group": "inline@1"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.insertSnippet",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoSnippetItem",
+					"group": "navigation@1"
 				}
 			],
 			"commandPalette": [
@@ -464,6 +482,10 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.insertSnippet",
 					"when": "false"
 				}
 			]

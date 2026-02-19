@@ -264,15 +264,23 @@ export class SnippetsErrorTreeItem extends vscode.TreeItem {
  */
 export class SnippetItemTreeItem extends vscode.TreeItem {
 	contextValue = "quartoSnippetItem";
+	public readonly definition: SnippetDefinition;
 
 	constructor(label: string, snippet: SnippetDefinition, namespace: string) {
 		super(label, vscode.TreeItemCollapsibleState.None);
+		this.definition = snippet;
 		this.iconPath = new vscode.ThemeIcon("symbol-snippet");
 
 		const prefixes = Array.isArray(snippet.prefix) ? snippet.prefix : [snippet.prefix];
 		const qualifiedPrefixes = prefixes.map((p) => qualifySnippetPrefix(namespace, p));
 		this.description = qualifiedPrefixes.join(", ");
 		this.tooltip = snippet.description ?? label;
+
+		this.command = {
+			command: "quartoWizard.extensionsInstalled.insertSnippet",
+			title: "Insert Snippet",
+			arguments: [snippet],
+		};
 	}
 }
 
