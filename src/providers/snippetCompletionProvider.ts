@@ -25,9 +25,8 @@ class SnippetCompletionProvider implements vscode.CompletionItemProvider {
 	): Promise<vscode.CompletionItem[] | null> {
 		try {
 			// Suppress suggestions when cursor is mid-token (same heuristic as shortcode provider)
-			const text = document.getText();
-			const offset = document.offsetAt(position);
-			if (offset < text.length && /[\w"']/.test(text[offset])) {
+			const line = document.lineAt(position.line).text;
+			if (position.character < line.length && /[\w"']/.test(line[position.character])) {
 				return null;
 			}
 
@@ -115,7 +114,7 @@ class SnippetCompletionProvider implements vscode.CompletionItemProvider {
 export function registerSnippetCompletionProvider(context: vscode.ExtensionContext, snippetCache: SnippetCache): void {
 	const selector: vscode.DocumentSelector = { language: "quarto" };
 	const provider = new SnippetCompletionProvider(snippetCache);
-	const disposable = vscode.languages.registerCompletionItemProvider(selector, provider);
+	const disposable = vscode.languages.registerCompletionItemProvider(selector, provider, ":");
 	context.subscriptions.push(disposable);
 
 	logMessage("Snippet completion provider registered.", "debug");

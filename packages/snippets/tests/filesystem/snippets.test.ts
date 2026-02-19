@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -76,10 +76,58 @@ describe("parseSnippetContent", () => {
 		expect(result["Invalid"]).toBeUndefined();
 	});
 
+	it("skips entries with empty body array", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good" },
+			Invalid: { prefix: "bad", body: [] },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["Invalid"]).toBeUndefined();
+	});
+
 	it("skips entries with non-string body array values", () => {
 		const json = JSON.stringify({
 			Valid: { prefix: "ok", body: "good" },
 			Invalid: { prefix: "bad", body: ["line", { nested: true }] },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["Invalid"]).toBeUndefined();
+	});
+
+	it("skips entries with empty prefix string", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good" },
+			Invalid: { prefix: "", body: "bad" },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["Invalid"]).toBeUndefined();
+	});
+
+	it("skips entries with empty body string", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good" },
+			Invalid: { prefix: "bad", body: "" },
+		});
+
+		const result = parseSnippetContent(json);
+		expect(Object.keys(result)).toHaveLength(1);
+		expect(result["Valid"]).toBeDefined();
+		expect(result["Invalid"]).toBeUndefined();
+	});
+
+	it("skips entries with body array containing only empty strings", () => {
+		const json = JSON.stringify({
+			Valid: { prefix: "ok", body: "good" },
+			Invalid: { prefix: "bad", body: ["", ""] },
 		});
 
 		const result = parseSnippetContent(json);
@@ -238,6 +286,12 @@ describe("readSnippets", () => {
 	it("returns null when no snippet file exists", () => {
 		const result = readSnippets(tmpDir);
 		expect(result).toBeNull();
+	});
+
+	it("throws SnippetError when snippet file contains invalid JSON", () => {
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), "{invalid}");
+
+		expect(() => readSnippets(tmpDir)).toThrow(SnippetError);
 	});
 });
 

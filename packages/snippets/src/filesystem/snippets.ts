@@ -50,10 +50,17 @@ function isValidSnippetEntry(value: unknown): value is SnippetDefinition {
 	const obj = value as Record<string, unknown>;
 	const prefix = obj["prefix"];
 	const hasPrefix =
-		typeof prefix === "string" ||
-		(Array.isArray(prefix) && prefix.length > 0 && prefix.every((entry) => typeof entry === "string"));
+		(typeof prefix === "string" && prefix.length > 0) ||
+		(Array.isArray(prefix) &&
+			prefix.length > 0 &&
+			prefix.every((entry) => typeof entry === "string" && entry.length > 0));
 	const body = obj["body"];
-	const hasBody = typeof body === "string" || (Array.isArray(body) && body.every((entry) => typeof entry === "string"));
+	const hasBody =
+		(typeof body === "string" && body.length > 0) ||
+		(Array.isArray(body) &&
+			body.length > 0 &&
+			body.every((entry) => typeof entry === "string") &&
+			body.some((entry) => entry.length > 0));
 	return hasPrefix && hasBody;
 }
 
