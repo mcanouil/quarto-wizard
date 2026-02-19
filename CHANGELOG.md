@@ -21,6 +21,11 @@
   Suggests allowed top-level sections, field descriptor properties (kebab-case), shortcode entry keys, type values, and boolean values as extension authors edit their schema files.
   Only activates when `_extension.yml` is present in the same directory.
 
+- feat: add extension-provided code snippets.
+  Extensions can ship a `_snippets.json` file with VS Code-compatible snippet definitions.
+  Snippets appear in the tree view and as IntelliSense completions with namespace-qualified prefixes.
+  Clicking a snippet node inserts it at the cursor position in the active editor.
+
 ### Bug Fixes
 
 - fix: suppress suggest menu when no completions are available on backspace in non-completable YAML positions (e.g., `title: My title`).

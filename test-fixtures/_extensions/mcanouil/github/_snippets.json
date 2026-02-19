@@ -1,0 +1,12 @@
+{
+	"GitHub Issue Link": {
+		"prefix": "issue",
+		"body": "[#${1:number}](https://github.com/${2:owner}/${3:repo}/issues/${1:number})",
+		"description": "Insert a GitHub issue link"
+	},
+	"GitHub PR Link": {
+		"prefix": ["pr", "pull"],
+		"body": "[PR #${1:number}](https://github.com/${2:owner}/${3:repo}/pull/${1:number})",
+		"description": "Insert a GitHub pull request link"
+	}
+}

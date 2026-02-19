@@ -58,16 +58,18 @@
 		"workspaceContains:**/_brand.{yml,yaml}",
 		"workspaceContains:**/_extension.{yml,yaml}",
 		"workspaceContains:**/_schema.{yml,yaml,json}",
+		"workspaceContains:**/_extensions/**/_snippets.json",
 		"onUri"
 	],
 	"main": "./dist/extension",
 	"scripts": {
 		"build:schema": "cd packages/schema && npm run build",
+		"build:snippets": "cd packages/snippets && npm run build",
 		"build:core": "cd packages/core && npm run build",
-		"vscode:prepublish": "npm run format && npm run build:schema && npm run build:core && npx webpack --mode production",
-		"webpack": "npm run format && npm run build:schema && npm run build:core && npx webpack --mode development --stats-error-details",
-		"watch": "npm run format && npm run build:schema && npm run build:core && npx webpack --watch --mode development --stats-error-details",
-		"test-compile": "npm run format && npm run build:schema && npm run build:core && npx tsc -p ./",
+		"vscode:prepublish": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --mode production",
+		"webpack": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --mode development --stats-error-details",
+		"watch": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --watch --mode development --stats-error-details",
+		"test-compile": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx tsc -p ./",
 		"pretest": "npm run test-compile && npm run lint",
 		"test": "vscode-test",
 		"test:watch": "npm run test-compile && vscode-test",
@@ -86,6 +88,7 @@
 	"dependencies": {
 		"@quarto-wizard/core": "*",
 		"@quarto-wizard/schema": "*",
+		"@quarto-wizard/snippets": "*",
 		"js-yaml": "^4.1.0",
 		"semver": "^7.7.3"
 	},
@@ -246,6 +249,14 @@
 				"icon": "$(trash)",
 				"category": "Quarto Wizard",
 				"description": "Select and remove multiple extensions at once."
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.insertSnippet",
+				"title": "Insert Snippet",
+				"shortTitle": "Insert",
+				"icon": "$(insert)",
+				"category": "Quarto Wizard",
+				"description": "Insert the selected snippet at the cursor position in the active editor."
 			},
 			{
 				"command": "quartoWizard.setGitHubToken",
@@ -428,6 +439,16 @@
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@4"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.insertSnippet",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoSnippetItem",
+					"group": "inline@1"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.insertSnippet",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoSnippetItem",
+					"group": "navigation@1"
 				}
 			],
 			"commandPalette": [
@@ -461,6 +482,10 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.insertSnippet",
 					"when": "false"
 				}
 			]

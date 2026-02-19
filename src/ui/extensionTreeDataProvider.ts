@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 import type { SchemaCache, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/schema";
+import type { SnippetCache } from "@quarto-wizard/snippets";
+import { snippetNamespace } from "@quarto-wizard/snippets";
 import { checkForUpdates, formatExtensionId } from "@quarto-wizard/core";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
@@ -15,6 +17,9 @@ import {
 	SchemaFieldTreeItem,
 	SchemaShortcodeTreeItem,
 	SchemaFormatTreeItem,
+	SnippetsTreeItem,
+	SnippetsErrorTreeItem,
+	SnippetItemTreeItem,
 	type TreeItemType,
 	type FolderCache,
 } from "./extensionTreeItems";
@@ -37,6 +42,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	constructor(
 		private workspaceFolders: readonly vscode.WorkspaceFolder[],
 		private schemaCache: SchemaCache,
+		private snippetCache: SnippetCache,
 	) {
 		this.refreshAllExtensionsData();
 	}
@@ -88,6 +94,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 		if (element instanceof SchemaShortcodeTreeItem) {
 			return Promise.resolve(this.getShortcodeChildItems(element));
+		}
+
+		if (element instanceof SnippetsTreeItem) {
+			return Promise.resolve(this.getSnippetItems(element));
 		}
 
 		return Promise.resolve([]);
@@ -184,6 +194,16 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			}
 		}
 
+		const snippets = this.snippetCache.get(ext.directory);
+		if (snippets && Object.keys(snippets).length > 0) {
+			items.push(new SnippetsTreeItem(ext.id, snippets));
+		} else {
+			const snippetError = this.snippetCache.getError(ext.directory);
+			if (snippetError) {
+				items.push(new SnippetsErrorTreeItem(snippetError));
+			}
+		}
+
 		return items;
 	}
 
@@ -251,6 +271,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			items.push(new SchemaFieldTreeItem(name, attr, !!attr.deprecated));
 		}
 		return items;
+	}
+
+	private getSnippetItems(element: SnippetsTreeItem): SnippetItemTreeItem[] {
+		const namespace = snippetNamespace(element.extensionId);
+		return Object.entries(element.snippets).map(([name, snippet]) => new SnippetItemTreeItem(name, snippet, namespace));
 	}
 
 	private fieldItems(fields: Record<string, FieldDescriptor>): SchemaFieldTreeItem[] {

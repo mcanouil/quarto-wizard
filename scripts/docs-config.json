@@ -9,6 +9,14 @@
 			"overview": "The `@quarto-wizard/schema` package provides schema functionality for Quarto extensions.\nIt handles schema type definitions, file parsing, validation, and in-memory caching."
 		},
 		{
+			"name": "@quarto-wizard/snippets",
+			"shortName": "snippets",
+			"sourceDir": "packages/snippets/src",
+			"outputDir": "docs/api/snippets",
+			"description": "Snippet types, parsing, and caching for Quarto extension snippets.",
+			"overview": "The `@quarto-wizard/snippets` package provides snippet functionality for Quarto extensions.\nIt handles snippet type definitions, file parsing, and in-memory caching."
+		},
+		{
 			"name": "@quarto-wizard/core",
 			"shortName": "core",
 			"sourceDir": "packages/core/src",

@@ -16,10 +16,12 @@ import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDet
 import { handleUri } from "./utils/handleUri";
 import { setManualToken, clearManualToken } from "./utils/auth";
 import { SchemaCache } from "@quarto-wizard/schema";
+import { SnippetCache } from "@quarto-wizard/snippets";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
 import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
 import { registerElementAttributeProviders } from "./providers/elementAttributeCompletionProvider";
 import { registerInlineAttributeDiagnostics } from "./providers/inlineAttributeDiagnosticsProvider";
+import { registerSnippetCompletionProvider } from "./providers/snippetCompletionProvider";
 
 /**
  * This method is called when the extension is activated.
@@ -125,8 +127,11 @@ export function activate(context: vscode.ExtensionContext) {
 	// Shared schema cache for all providers and tree view
 	const schemaCache = new SchemaCache();
 
+	// Shared snippet cache for completion provider and tree view
+	const snippetCache = new SnippetCache();
+
 	// Initialise the Extensions Installed tree view provider
-	new ExtensionsInstalled(context, schemaCache);
+	new ExtensionsInstalled(context, schemaCache, snippetCache);
 
 	// Register YAML completion and diagnostics providers for extension schemas
 	registerYamlProviders(context, schemaCache);
@@ -139,6 +144,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register inline attribute diagnostics for spaces around = and schema validation
 	registerInlineAttributeDiagnostics(context, schemaCache);
+
+	// Register snippet completion provider for Quarto documents
+	registerSnippetCompletionProvider(context, snippetCache);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(

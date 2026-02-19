@@ -1,13 +1,14 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import type { SchemaCache } from "@quarto-wizard/schema";
+import type { SnippetCache, SnippetDefinition } from "@quarto-wizard/snippets";
 import { normaliseVersion } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
-import { WorkspaceFolderTreeItem, ExtensionTreeItem } from "./extensionTreeItems";
+import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
 /**
@@ -22,14 +23,14 @@ export class ExtensionsInstalled {
 	 *
 	 * @param context - The extension context.
 	 */
-	private initialise(context: vscode.ExtensionContext, schemaCache: SchemaCache) {
+	private initialise(context: vscode.ExtensionContext, schemaCache: SchemaCache, snippetCache: SnippetCache) {
 		const workspaceFolders = vscode.workspace.workspaceFolders || [];
 		if (workspaceFolders.length === 0) {
 			logMessage("No workspace folders open. Extensions view not initialised.", "debug");
 			return;
 		}
 
-		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders, schemaCache);
+		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders, schemaCache, snippetCache);
 		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
@@ -63,6 +64,17 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(schemaWatcher.onDidDelete(invalidateSchemaAndRefresh));
 		context.subscriptions.push(schemaWatcher.onDidChange(invalidateSchemaAndRefresh));
 		context.subscriptions.push(schemaWatcher);
+
+		// Watch for changes to snippet files for real-time tree view updates
+		const snippetWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_snippets.json");
+		const invalidateSnippetAndRefresh = (uri: vscode.Uri) => {
+			snippetCache.invalidate(path.dirname(uri.fsPath));
+			this.treeDataProvider.refresh();
+		};
+		context.subscriptions.push(snippetWatcher.onDidCreate(invalidateSnippetAndRefresh));
+		context.subscriptions.push(snippetWatcher.onDidDelete(invalidateSnippetAndRefresh));
+		context.subscriptions.push(snippetWatcher.onDidChange(invalidateSnippetAndRefresh));
+		context.subscriptions.push(snippetWatcher);
 
 		context.subscriptions.push(view);
 		context.subscriptions.push(
@@ -282,6 +294,28 @@ export class ExtensionsInstalled {
 		);
 
 		/**
+		 * Inserts a snippet at the cursor position in the active editor.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.insertSnippet",
+				async (arg: SnippetItemTreeItem | SnippetDefinition) => {
+					if (!arg) {
+						return;
+					}
+					const editor = vscode.window.activeTextEditor;
+					if (!editor) {
+						vscode.window.showInformationMessage("Open a file in the editor to insert a snippet.");
+						return;
+					}
+					const definition: SnippetDefinition = arg instanceof SnippetItemTreeItem ? arg.definition : arg;
+					const body = Array.isArray(definition.body) ? definition.body.join("\n") : definition.body;
+					await editor.insertSnippet(new vscode.SnippetString(body));
+				},
+			),
+		);
+
+		/**
 		 * Removes multiple selected extensions from a workspace folder.
 		 */
 		context.subscriptions.push(
@@ -339,7 +373,7 @@ export class ExtensionsInstalled {
 		);
 	}
 
-	constructor(context: vscode.ExtensionContext, schemaCache: SchemaCache) {
-		this.initialise(context, schemaCache);
+	constructor(context: vscode.ExtensionContext, schemaCache: SchemaCache, snippetCache: SnippetCache) {
+		this.initialise(context, schemaCache, snippetCache);
 	}
 }

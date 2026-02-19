@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/schema";
 import { formatType } from "@quarto-wizard/schema";
+import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@quarto-wizard/snippets";
+import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
 import { getExtensionRepository, type InstalledExtension } from "../utils/extensions";
 
 /**
@@ -226,6 +228,62 @@ export class SchemaFormatTreeItem extends vscode.TreeItem {
 	}
 }
 
+/**
+ * Represents the top-level "Snippets" node under an extension.
+ */
+export class SnippetsTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSnippetsItem";
+
+	constructor(
+		public readonly extensionId: SnippetExtensionId,
+		public readonly snippets: SnippetCollection,
+	) {
+		const count = Object.keys(snippets).length;
+		super("Snippets", vscode.TreeItemCollapsibleState.Collapsed);
+		this.iconPath = new vscode.ThemeIcon("symbol-snippet");
+		this.description = `${count} snippet${count === 1 ? "" : "s"}`;
+		this.tooltip = "Extension-provided code snippets";
+	}
+}
+
+/**
+ * Represents a snippet file that failed to parse.
+ */
+export class SnippetsErrorTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSnippetsError";
+
+	constructor(public readonly errorMessage: string) {
+		super("Snippets (invalid)", vscode.TreeItemCollapsibleState.None);
+		this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
+		this.tooltip = errorMessage;
+	}
+}
+
+/**
+ * Represents an individual snippet within the Snippets section.
+ */
+export class SnippetItemTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSnippetItem";
+	public readonly definition: SnippetDefinition;
+
+	constructor(label: string, snippet: SnippetDefinition, namespace: string) {
+		super(label, vscode.TreeItemCollapsibleState.None);
+		this.definition = snippet;
+		this.iconPath = new vscode.ThemeIcon("symbol-snippet");
+
+		const prefixes = Array.isArray(snippet.prefix) ? snippet.prefix : [snippet.prefix];
+		const qualifiedPrefixes = prefixes.map((p) => qualifySnippetPrefix(namespace, p));
+		this.description = qualifiedPrefixes.join(", ");
+		this.tooltip = snippet.description ?? label;
+
+		this.command = {
+			command: "quartoWizard.extensionsInstalled.insertSnippet",
+			title: "Insert Snippet",
+			arguments: [snippet],
+		};
+	}
+}
+
 function singularLabel(kind: SchemaSectionKind): string {
 	const labels: Record<SchemaSectionKind, string> = {
 		options: "option",
@@ -259,7 +317,10 @@ export type TreeItemType =
 	| SchemaSectionTreeItem
 	| SchemaFieldTreeItem
 	| SchemaShortcodeTreeItem
-	| SchemaFormatTreeItem;
+	| SchemaFormatTreeItem
+	| SnippetsTreeItem
+	| SnippetsErrorTreeItem
+	| SnippetItemTreeItem;
 
 /**
  * Cached data for a workspace folder.
