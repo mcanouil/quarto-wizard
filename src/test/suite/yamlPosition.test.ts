@@ -204,6 +204,11 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(shouldRetriggerSuggest(lines, 0, 22, "yaml"), false);
 		});
 
+		test("Should use indentation depth, not cursor column, on blank lines", () => {
+			const lines = ["title: My doc", ""];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 1, 5, "yaml"), true);
+		});
+
 		test("Should return false under title: in QMD front matter", () => {
 			const lines = ["---", "title: My doc", "---", "Body text"];
 			assert.strictEqual(shouldRetriggerSuggest(lines, 1, 13, "quarto"), false);

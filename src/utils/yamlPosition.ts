@@ -181,7 +181,9 @@ export function shouldRetriggerSuggest(
 		return false;
 	}
 
-	const keyPath = getYamlKeyPath(lines, cursorLine, languageId, cursorCharacter);
+	const linePrefix = (lines[cursorLine] ?? "").slice(0, cursorCharacter);
+	const cursorIndent = getYamlIndentLevel(linePrefix);
+	const keyPath = getYamlKeyPath(lines, cursorLine, languageId, cursorIndent);
 
 	if (keyPath.length === 0) {
 		return true;
