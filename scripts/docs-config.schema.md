@@ -91,7 +91,7 @@ Object containing relative paths to documentation directories and files.
 | `docsRefDir`       | Reference documentation output directory. |
 | `templatesDir`     | Directory containing Quarto templates.    |
 | `packageJsonPath`  | Path to package.json for metadata.        |
-| `variablesYmlPath` | Path to Quarto variables file.            |
+| `envVariablesPath` | Path to Quarto variables file.            |
 | `changelogMdPath`  | Path to source CHANGELOG.md.              |
 | `changelogQmdPath` | Path to generated changelog.qmd.          |
 

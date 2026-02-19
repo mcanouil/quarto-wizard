@@ -11,7 +11,7 @@
  * 6. Creates landing pages with Quarto listing.
  * 7. Generates the sidebar configuration files.
  * 8. Generates reference documentation from package.json.
- * 9. Updates docs/_variables.yml with the current version from package.json.
+ * 9. Updates docs/_environment with the current version from package.json.
  *
  * @module process-api-docs
  */
@@ -55,7 +55,7 @@ const {
 	docsRefDir,
 	templatesDir,
 	packageJsonPath,
-	variablesYmlPath,
+	envVariablesPath,
 	changelogMdPath,
 	changelogQmdPath,
 } = paths;
@@ -63,6 +63,8 @@ const {
 /** Shared style for HTML links in generated documentation. */
 const HTML_LINK_STYLE =
 	"text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;";
+const TYPE_DOC_SYMBOL_KINDS =
+	"Class|Interface|TypeAlias|Function|Variable|Enumeration|Enum|Namespace|Constructor|Property|Method|Accessor";
 
 // =============================================================================
 // Utility Functions
@@ -76,6 +78,54 @@ const HTML_LINK_STYLE =
 function capitalise(str) {
 	if (!str) return str;
 	return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Build a stable anchor id for merged TypeDoc symbol sections.
+ * @param {string} kind - TypeDoc symbol kind (e.g., Interface, Function).
+ * @param {string} symbolName - Symbol name.
+ * @returns {string} Anchor id.
+ */
+function buildSymbolAnchorId(kind, symbolName) {
+	return `symbol-${normaliseAnchorToken(kind)}-${normaliseAnchorToken(symbolName)}`;
+}
+
+/**
+ * Normalise a token so it can be used safely in anchor IDs.
+ * @param {string} value - Raw token value.
+ * @returns {string} Normalised anchor token.
+ */
+function normaliseAnchorToken(value) {
+	return value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Build a stable anchor id for symbol members (constructor, properties, methods).
+ * @param {string} kind - TypeDoc symbol kind (e.g., Class, Interface).
+ * @param {string} symbolName - Symbol name.
+ * @param {string} memberName - Member heading/fragment.
+ * @returns {string} Member anchor id.
+ */
+function buildSymbolMemberAnchorId(kind, symbolName, memberName) {
+	return `symbol-${normaliseAnchorToken(kind)}-${normaliseAnchorToken(symbolName)}-${normaliseAnchorToken(memberName)}`;
+}
+
+/**
+ * Parse a merged TypeDoc symbol file name.
+ * @param {string} moduleName - Top-level module name.
+ * @param {string} fileBaseName - File base name without extension.
+ * @returns {{kind: string, name: string, anchorId: string} | null} Parsed symbol info.
+ */
+function parseSymbolFileName(moduleName, fileBaseName) {
+	const symbolPattern = new RegExp(`^${moduleName}\\.(${TYPE_DOC_SYMBOL_KINDS})\\.(.+)$`);
+	const match = fileBaseName.match(symbolPattern);
+	if (!match) return null;
+	const kind = match[1];
+	const name = match[2];
+	return { kind, name, anchorId: buildSymbolAnchorId(kind, name) };
 }
 
 /**
@@ -162,7 +212,7 @@ function fixLinkedArrayTypes(content) {
  */
 function updateLinks(content, moduleNames) {
 	// Update .md extensions to .qmd
-	content = content.replace(/\.md([)#])/g, ".qmd$1");
+	content = content.replace(/\.md([)#"'])/g, ".qmd$1");
 
 	// Update README references to index.qmd
 	content = content.replace(/README\.qmd/g, "index.qmd");
@@ -178,6 +228,19 @@ function updateLinks(content, moduleNames) {
 		const hyphenPattern = new RegExp(`\\(${mod}-\\d+\\.qmd(#[^)]+)?\\)`, "g");
 		content = content.replace(hyphenPattern, `(${mod}.qmd$1)`);
 	}
+
+	// Rewrite TypeDoc symbol page links to merged module anchors.
+	// Example: types.Interface.FieldDescriptor.qmd -> types.qmd#symbol-interface-fielddescriptor
+	const symbolLinkPattern = new RegExp(
+		`([A-Za-z0-9_\\/-]+?)\\.(${TYPE_DOC_SYMBOL_KINDS})\\.([A-Za-z0-9_%-]+)\\.qmd(#[A-Za-z0-9_\\-]+)?`,
+		"g",
+	);
+	content = content.replace(symbolLinkPattern, (_match, modulePath, kind, symbolName, symbolMemberAnchor) => {
+		if (symbolMemberAnchor) {
+			return `${modulePath}.qmd#${buildSymbolMemberAnchorId(kind, symbolName, symbolMemberAnchor.slice(1))}`;
+		}
+		return `${modulePath}.qmd#${buildSymbolAnchorId(kind, symbolName)}`;
+	});
 
 	return content;
 }
@@ -205,14 +268,14 @@ function cleanTypeExpressions(content) {
 			return `\`${typeName}<${cleaned}>\``;
 		}
 
-		// Complex case with links: convert to HTML
+		// Complex case with links: convert to inline raw HTML code.
 		const htmlContent = innerContent
 			.replace(/\[`([^`]+)`\]\(([^)]+)\)/g, `<a href="$2" style="${HTML_LINK_STYLE}">$1</a>`)
 			.replace(/`([^`]+)`/g, "$1")
 			.replace(/\s*\\\|\s*/g, " | ")
 			.replace(/\\/g, "");
 
-		return "```{=html}\n<code>" + typeName + "&lt;" + htmlContent + "&gt;</code>\n```";
+		return `\`<code>${typeName}&lt;${htmlContent}&gt;</code>\`{=html}`;
 	});
 }
 
@@ -411,6 +474,8 @@ function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 	const moduleTitle = capitalise(moduleName);
 
 	for (const file of files) {
+		const fileBaseName = basename(file, ".md");
+		const symbolInfo = parseSymbolFileName(moduleName, fileBaseName);
 		const rawContent = readFileSync(file, "utf-8");
 		const transformed = transformSubmoduleContent(rawContent, packageName);
 
@@ -422,9 +487,16 @@ function mergeModuleFiles(moduleName, files, allModuleNames, packageName) {
 			content = content.replace(/^### /gm, "#### ");
 			content = content.replace(/^## /gm, "### ");
 
+			if (symbolInfo) {
+				content = content.replace(/^#### ([^\n{]+)$/gm, (_match, headingText) => {
+					return `#### ${headingText} {#${buildSymbolMemberAnchorId(symbolInfo.kind, symbolInfo.name, headingText)}}`;
+				});
+			}
+
 			// Build section with H2 title and description
-			const sectionTitle = transformed.title || capitalise(moduleName);
-			let sectionContent = `## ${sectionTitle}\n\n`;
+			const sectionTitle = symbolInfo?.name || transformed.title || capitalise(moduleName);
+			const sectionAnchor = symbolInfo ? ` {#${symbolInfo.anchorId}}` : "";
+			let sectionContent = `## ${sectionTitle}${sectionAnchor}\n\n`;
 			if (transformed.description) {
 				sectionContent += `${transformed.description}\n\n`;
 			}
@@ -1011,19 +1083,19 @@ function processReferenceDocs(pkg) {
 // =============================================================================
 
 /**
- * Update the _variables.yml file with the current version.
+ * Update the _environment file with the current version.
  * @param {object} pkg - Parsed package.json content.
  */
 function updateVariablesYml(pkg) {
-	console.log("\nUpdating _variables.yml...");
+	console.log("\nUpdating _environment...");
 
 	if (!pkg.version) {
 		console.error("Error: No version found in package.json.");
 		return;
 	}
 
-	writeFileSync(variablesYmlPath, `version: ${pkg.version}\n`, "utf-8");
-	console.log(`  Updated _variables.yml with version: ${pkg.version}`);
+	writeFileSync(envVariablesPath, `VERSION=${pkg.version}\n`, "utf-8");
+	console.log(`  Updated _environment with version: ${pkg.version}`);
 }
 
 /**
