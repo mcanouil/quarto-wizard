@@ -5,9 +5,13 @@ import { YamlCompletionProvider, YAML_DOCUMENT_SELECTOR } from "./yamlCompletion
 import { YamlDiagnosticsProvider } from "./yamlDiagnosticsProvider";
 import { YamlHoverProvider } from "./yamlHoverProvider";
 import { SchemaDiagnosticsProvider } from "./schemaDiagnosticsProvider";
-import { SchemaDefinitionCompletionProvider, SCHEMA_DEFINITION_SELECTOR } from "./schemaDefinitionCompletionProvider";
+import {
+	SchemaDefinitionCompletionProvider,
+	SCHEMA_DEFINITION_SELECTOR,
+	shouldRetriggerSchemaFileSuggest,
+} from "./schemaDefinitionCompletionProvider";
 import { debounce } from "../utils/debounce";
-import { isInYamlRegion, shouldRetriggerSuggest } from "../utils/yamlPosition";
+import { shouldRetriggerSuggest } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
 /**
@@ -88,7 +92,7 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 			const cursorCharacter = editor.selection.active.character;
 			const isSchemaFile = vscode.languages.match(SCHEMA_DEFINITION_SELECTOR, event.document) > 0;
 			const shouldTrigger = isSchemaFile
-				? isInYamlRegion(lines, cursorLine, event.document.languageId)
+				? shouldRetriggerSchemaFileSuggest(lines, cursorLine, cursorCharacter, event.document.languageId)
 				: shouldRetriggerSuggest(lines, cursorLine, cursorCharacter, event.document.languageId);
 			if (shouldTrigger) {
 				retriggerSuggest();
