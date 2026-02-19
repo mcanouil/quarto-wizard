@@ -36,7 +36,7 @@ Provides functions to find, parse, and read Quarto extension snippet files.
 
 ## Filesystem
 
-Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:18](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippet-cache.ts#L18)
+Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:18](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippet-cache.ts#L18)
 
 Cache for parsed extension snippets.
 Snippets are loaded lazily on first access.
@@ -61,7 +61,7 @@ new SnippetCache(): SnippetCache;
 get(extensionDir): SnippetCollection | null;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:30](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippet-cache.ts#L30)
+Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:30](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippet-cache.ts#L30)
 
 Get the snippets for an extension directory.
 Loads and caches the snippets on first access.
@@ -84,7 +84,7 @@ Parsed snippet collection or null if no snippet file exists.
 getError(extensionDir): string | null;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:64](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippet-cache.ts#L64)
+Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:64](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippet-cache.ts#L64)
 
 Get the parse error for snippets in the given directory, if any.
 
@@ -106,7 +106,7 @@ Error message or null if no error occurred.
 has(extensionDir): boolean;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:74](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippet-cache.ts#L74)
+Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:74](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippet-cache.ts#L74)
 
 Check whether snippets are cached for the given directory.
 
@@ -128,7 +128,7 @@ True if snippets are cached.
 invalidate(extensionDir): void;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:83](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippet-cache.ts#L83)
+Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:83](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippet-cache.ts#L83)
 
 Invalidate the cached snippets for a specific extension directory.
 
@@ -148,7 +148,7 @@ Invalidate the cached snippets for a specific extension directory.
 invalidateAll(): void;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:92](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippet-cache.ts#L92)
+Defined in: [packages/snippets/src/filesystem/snippet-cache.ts:92](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippet-cache.ts#L92)
 
 Invalidate all cached snippets.
 
@@ -162,7 +162,7 @@ Invalidate all cached snippets.
 function findSnippetFile(directory): string | null;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippets.ts:34](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L34)
+Defined in: [packages/snippets/src/filesystem/snippets.ts:34](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L34)
 
 Find the snippet file in a directory.
 
@@ -184,7 +184,7 @@ Path to the snippet file or null if not found.
 function parseSnippetContent(content, sourcePath?): SnippetCollection;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippets.ts:78](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L78)
+Defined in: [packages/snippets/src/filesystem/snippets.ts:78](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L78)
 
 Parse snippet content from a JSON string.
 Entries missing `prefix` or `body` are silently skipped.
@@ -212,7 +212,7 @@ SnippetError if the JSON is invalid or the root is not an object.
 function parseSnippetFile(snippetPath): SnippetCollection;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippets.ts:110](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L110)
+Defined in: [packages/snippets/src/filesystem/snippets.ts:110](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L110)
 
 Parse a snippet file from a path.
 
@@ -238,7 +238,7 @@ SnippetError if reading or parsing fails.
 function readSnippets(directory): SnippetReadResult | null;
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippets.ts:131](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L131)
+Defined in: [packages/snippets/src/filesystem/snippets.ts:131](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L131)
 
 Read snippets from an extension directory.
 
@@ -256,7 +256,7 @@ SnippetReadResult or null if no snippet file found.
 
 ## Filesystem
 
-Defined in: [packages/snippets/src/filesystem/snippets.ts:21](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L21)
+Defined in: [packages/snippets/src/filesystem/snippets.ts:21](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L21)
 
 Result of reading a snippet file.
 
@@ -264,8 +264,8 @@ Result of reading a snippet file.
 
 | Property                                        | Type                                                         | Description                    | Defined in                                                                                                                                                                                  |
 | ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-snippetpath"></a> `snippetPath` | `string`                                                     | Full path to the snippet file. | [packages/snippets/src/filesystem/snippets.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L25) |
-| <a id="property-snippets"></a> `snippets`       | [`SnippetCollection`](types.TypeAlias.SnippetCollection.qmd) | Parsed snippet collection.     | [packages/snippets/src/filesystem/snippets.ts:23](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L23) |
+| <a id="property-snippetpath"></a> `snippetPath` | `string`                                                     | Full path to the snippet file. | [packages/snippets/src/filesystem/snippets.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L25) |
+| <a id="property-snippets"></a> `snippets`       | [`SnippetCollection`](types.TypeAlias.SnippetCollection.qmd) | Parsed snippet collection.     | [packages/snippets/src/filesystem/snippets.ts:23](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L23) |
 
 ## Filesystem
 
@@ -273,6 +273,6 @@ Result of reading a snippet file.
 const SNIPPET_FILENAME: "_snippets.json" = "_snippets.json";
 ```
 
-Defined in: [packages/snippets/src/filesystem/snippets.ts:16](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/filesystem/snippets.ts#L16)
+Defined in: [packages/snippets/src/filesystem/snippets.ts:16](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/filesystem/snippets.ts#L16)
 
 The snippet filename convention.

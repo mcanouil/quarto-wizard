@@ -12,7 +12,7 @@ Error types for @quarto-wizard/snippets.
 
 ## Errors
 
-Defined in: [packages/snippets/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L11)
+Defined in: [packages/snippets/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L11)
 
 Error when parsing a snippet file fails.
 
@@ -28,7 +28,7 @@ Error when parsing a snippet file fails.
 new SnippetError(message, options?): SnippetError;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L19)
+Defined in: [packages/snippets/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L19)
 
 ##### Parameters
 
@@ -71,7 +71,7 @@ Error.cause
 readonly code: "SNIPPET_ERROR" = "SNIPPET_ERROR";
 ```
 
-Defined in: [packages/snippets/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L13)
+Defined in: [packages/snippets/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L13)
 
 Error code for programmatic handling.
 
@@ -109,7 +109,7 @@ Error.name
 readonly optional snippetPath: string;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L15)
+Defined in: [packages/snippets/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L15)
 
 Path to the snippet file.
 
@@ -133,7 +133,7 @@ Error.stack
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L17)
+Defined in: [packages/snippets/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L17)
 
 Suggestion for how to resolve the error.
 
@@ -169,7 +169,7 @@ Error.stackTraceLimit
 format(): string;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L33)
+Defined in: [packages/snippets/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L33)
 
 Format the error for display.
 

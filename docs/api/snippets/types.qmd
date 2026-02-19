@@ -26,7 +26,7 @@ Types for VS Code snippet JSON format and namespace utilities.
 function qualifySnippetPrefix(namespace, rawPrefix): string;
 ```
 
-Defined in: [packages/snippets/src/types.ts:56](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L56)
+Defined in: [packages/snippets/src/types.ts:56](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L56)
 
 Qualify a snippet prefix with its extension namespace.
 Format: "namespace:rawPrefix".
@@ -50,7 +50,7 @@ Qualified prefix string.
 function snippetNamespace(id): string;
 ```
 
-Defined in: [packages/snippets/src/types.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L44)
+Defined in: [packages/snippets/src/types.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L44)
 
 Compute the namespace string for an extension.
 Format: "owner-name" when an owner exists, "name" otherwise.
@@ -69,7 +69,7 @@ Namespace string.
 
 ## Types
 
-Defined in: [packages/snippets/src/types.ts:22](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L22)
+Defined in: [packages/snippets/src/types.ts:22](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L22)
 
 A single snippet definition in VS Code snippet JSON format.
 
@@ -77,13 +77,13 @@ A single snippet definition in VS Code snippet JSON format.
 
 | Property                                         | Type                   | Description                                                    | Defined in                                                                                                                                                      |
 | ------------------------------------------------ | ---------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-body"></a> `body`                | `string` \| `string[]` | Body lines of the snippet (joined with newlines on insertion). | [packages/snippets/src/types.ts:26](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L26) |
-| <a id="property-description"></a> `description?` | `string`               | Human-readable description shown in IntelliSense.              | [packages/snippets/src/types.ts:28](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L28) |
-| <a id="property-prefix"></a> `prefix`            | `string` \| `string[]` | Trigger prefix(es) for the snippet.                            | [packages/snippets/src/types.ts:24](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L24) |
+| <a id="property-body"></a> `body`                | `string` \| `string[]` | Body lines of the snippet (joined with newlines on insertion). | [packages/snippets/src/types.ts:26](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L26) |
+| <a id="property-description"></a> `description?` | `string`               | Human-readable description shown in IntelliSense.              | [packages/snippets/src/types.ts:28](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L28) |
+| <a id="property-prefix"></a> `prefix`            | `string` \| `string[]` | Trigger prefix(es) for the snippet.                            | [packages/snippets/src/types.ts:24](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L24) |
 
 ## Types
 
-Defined in: [packages/snippets/src/types.ts:12](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L12)
+Defined in: [packages/snippets/src/types.ts:12](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L12)
 
 Extension identifier for snippet namespacing.
 Structurally compatible with @quarto-wizard/core's ExtensionId.
@@ -92,8 +92,8 @@ Structurally compatible with @quarto-wizard/core's ExtensionId.
 
 | Property                            | Type               | Description                                                            | Defined in                                                                                                                                                      |
 | ----------------------------------- | ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-name"></a> `name`   | `string`           | The name of the extension.                                             | [packages/snippets/src/types.ts:16](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L16) |
-| <a id="property-owner"></a> `owner` | `string` \| `null` | The owner (user or organisation) of the extension, or null if unowned. | [packages/snippets/src/types.ts:14](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L14) |
+| <a id="property-name"></a> `name`   | `string`           | The name of the extension.                                             | [packages/snippets/src/types.ts:16](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L16) |
+| <a id="property-owner"></a> `owner` | `string` \| `null` | The owner (user or organisation) of the extension, or null if unowned. | [packages/snippets/src/types.ts:14](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L14) |
 
 ## Types
 
@@ -101,7 +101,7 @@ Structurally compatible with @quarto-wizard/core's ExtensionId.
 type SnippetCollection = Record<string, SnippetDefinition>;
 ```
 
-Defined in: [packages/snippets/src/types.ts:35](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/types.ts#L35)
+Defined in: [packages/snippets/src/types.ts:35](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/types.ts#L35)
 
 A collection of named snippet definitions.
 Keys are human-readable snippet names; values are the definitions.
