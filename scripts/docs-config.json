@@ -57,6 +57,7 @@
 			"commands": [
 				"quartoWizard.installExtension",
 				"quartoWizard.useTemplate",
+				"quartoWizard.useBrand",
 				"quartoWizard.newQuartoReprex",
 				"quartoWizard.showOutput",
 				"quartoWizard.clearRecent",

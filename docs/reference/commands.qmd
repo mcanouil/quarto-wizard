@@ -20,6 +20,12 @@ Opens the extension browser to browse and install Quarto extensions from the reg
 
 Opens the template browser to select and install Quarto templates.
 
+### Use Brand
+
+**Command**: `Quarto Wizard: Use Brand`
+
+Download and apply a Quarto brand to your project.
+
 ### Quarto Reproducible Document
 
 **Command**: `Quarto Wizard: Quarto Reproducible Document`
@@ -164,6 +170,7 @@ For scripting or keybinding purposes, here are the internal command identifiers:
 | ----------------------------------- | ----------------------------------- |
 | Install Extensions                  | `quartoWizard.installExtension`     |
 | Use Template                        | `quartoWizard.useTemplate`          |
+| Use Brand                           | `quartoWizard.useBrand`             |
 | Quarto Reproducible Document        | `quartoWizard.newQuartoReprex`      |
 | Show Quarto Wizard Log Output       | `quartoWizard.showOutput`           |
 | Clear Recently Installed Extensions | `quartoWizard.clearRecent`          |

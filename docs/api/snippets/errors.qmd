@@ -4,17 +4,17 @@ title: "Errors"
 
 ## Errors
 
-Error types for @quarto-wizard/schema.
+Error types for @quarto-wizard/snippets.
 
 ### Classes
 
-- [SchemaError](errors.Class.SchemaError.qmd)
+- [SnippetError](errors.Class.SnippetError.qmd)
 
 ## Errors
 
-Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/schema/src/errors.ts#L11)
+Defined in: [packages/snippets/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L11)
 
-Error when parsing a schema file fails.
+Error when parsing a snippet file fails.
 
 ### Extends
 
@@ -25,23 +25,23 @@ Error when parsing a schema file fails.
 #### Constructor
 
 ```{.ts filename="TypeScript"}
-new SchemaError(message, options?): SchemaError;
+new SnippetError(message, options?): SnippetError;
 ```
 
-Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/schema/src/errors.ts#L19)
+Defined in: [packages/snippets/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L19)
 
 ##### Parameters
 
-| Parameter             | Type                                                |
-| --------------------- | --------------------------------------------------- |
-| `message`             | `string`                                            |
-| `options?`            | \{ `cause?`: `unknown`; `schemaPath?`: `string`; \} |
-| `options.cause?`      | `unknown`                                           |
-| `options.schemaPath?` | `string`                                            |
+| Parameter              | Type                                                 |
+| ---------------------- | ---------------------------------------------------- |
+| `message`              | `string`                                             |
+| `options?`             | \{ `cause?`: `unknown`; `snippetPath?`: `string`; \} |
+| `options.cause?`       | `unknown`                                            |
+| `options.snippetPath?` | `string`                                             |
 
 ##### Returns
 
-`SchemaError`
+`SnippetError`
 
 ##### Overrides
 
@@ -68,10 +68,10 @@ Error.cause
 #### code
 
 ```{.ts filename="TypeScript"}
-readonly code: "SCHEMA_ERROR" = "SCHEMA_ERROR";
+readonly code: "SNIPPET_ERROR" = "SNIPPET_ERROR";
 ```
 
-Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/schema/src/errors.ts#L13)
+Defined in: [packages/snippets/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L13)
 
 Error code for programmatic handling.
 
@@ -103,15 +103,15 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 Error.name
 ```
 
-#### schemaPath?
+#### snippetPath?
 
 ```{.ts filename="TypeScript"}
-readonly optional schemaPath: string;
+readonly optional snippetPath: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/schema/src/errors.ts#L15)
+Defined in: [packages/snippets/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L15)
 
-Path to the schema file.
+Path to the snippet file.
 
 #### stack?
 
@@ -133,7 +133,7 @@ Error.stack
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/schema/src/errors.ts#L17)
+Defined in: [packages/snippets/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L17)
 
 Suggestion for how to resolve the error.
 
@@ -169,7 +169,7 @@ Error.stackTraceLimit
 format(): string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/schema/src/errors.ts#L33)
+Defined in: [packages/snippets/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/fcd340ba21bbee84d8185c1fc5aba147199bf88b/packages/snippets/src/errors.ts#L33)
 
 Format the error for display.
 

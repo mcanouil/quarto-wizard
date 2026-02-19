@@ -5,45 +5,25 @@
 ### New Features
 
 - feat: add `Quarto Wizard: Use Brand` command to download and apply a Quarto brand to the project's `_brand/` directory, supporting GitHub, URL, and local sources.
-- feat: add `_schema.yml` support for Quarto extensions.
-  Extensions can ship a `_schema.yml` file that declares options, shortcode parameters, format keys, and element attributes.
-  Quarto Wizard reads the schema to provide autocompletion, hover documentation, and diagnostics in YAML configuration files.
-- feat: add shortcode completion provider.
-  Shortcode names, positional arguments, and named attributes defined in `_schema.yml` are suggested inside `{{< ... >}}` shortcode delimiters.
-- feat: display schema information in the installed extensions tree view, showing option counts and types per extension.
-- feat: add file-path completion for shortcode arguments, YAML values, and element attributes.
-  When a `_schema.yml` declares `completion.type: file` (with optional `extensions` filter), the editor suggests workspace files matching the specified extensions.
-- feat: add bare attribute and empty-value diagnostics for inline attribute blocks and shortcodes.
-  Warn when a known attribute appears without `=value` (`{key}`) or with an empty assignment (`{key=}`), with a quick fix to insert `key=""`.
-- feat: add schema definition file diagnostics for `_schema.yml`, `_schema.yaml`, and `_schema.json`.
-  Validates syntax, structure, and semantic consistency (unknown keys, invalid types, contradictory constraints) directly in the schema editor when `_extension.yml` is present in the same directory.
-- feat: add YAML completion provider for schema definition files (`_schema.yml`, `_schema.yaml`).
-  Suggests allowed top-level sections, field descriptor properties (kebab-case), shortcode entry keys, type values, and boolean values as extension authors edit their schema files.
-  Only activates when `_extension.yml` is present in the same directory.
-
-- feat: add extension-provided code snippets.
-  Extensions can ship a `_snippets.json` file with VS Code-compatible snippet definitions.
-  Snippets appear in the tree view and as IntelliSense completions with namespace-qualified prefixes.
-  Clicking a snippet node inserts it at the cursor position in the active editor.
+- feat: add extension schema support via `_schema.yml`, `_schema.yaml`, and `_schema.json` to drive completion, hover help, and diagnostics for YAML options, shortcodes, and element attributes.
+- feat: add schema authoring support with diagnostics and YAML completion for extension schema definition files when `_extension.yml` is present.
+- feat: add file-path completion for schema fields using `completion.type: file` (with optional extension filters).
+- feat: display schema contribution details in the installed extensions tree view.
+- feat: add extension-provided snippets from `_snippets.json`, surfaced in the tree view and IntelliSense with direct insertion from snippet nodes.
 
 ### Bug Fixes
 
-- fix: suppress suggest menu when no completions are available on backspace in non-completable YAML positions (e.g., `title: My title`).
-- fix: detect updates for extensions installed from commits (no GitHub releases) by delegating to the core library's update detection.
-- fix: clear tree view badge when no updates are available instead of showing "0 updates".
-- fix: hide "Update" button for extensions with unknown versions in the registry.
-- fix: allow cancelling update and update-all operations from the progress notification.
-- fix: display correct contribution types in extension details instead of listing all possible types.
-- fix: show "N/A" instead of "undefined" for missing fields in extension details.
-- fix: remove unnecessary GitHub sign-in prompt that appeared before every command, even for public registry operations.
-- fix: resolve download hanging when file stream errors during backpressure (e.g., disk full).
-- fix: show update indicators immediately after refresh instead of requiring an extra refresh.
+- fix: improve completion UX by suppressing empty suggestion lists on backspace and keeping valid schema completions active while typing.
+- fix: improve update detection and update UI for commit-based installs, unknown registry versions, badge clearing, and refresh timing.
+- fix: improve operation flow by supporting cancellation for update actions and removing unnecessary GitHub sign-in prompts for public registry usage.
+- fix: harden network and security handling for stream backpressure failures and path traversal checks.
+- fix: improve schema provider robustness with better cache sharing, merge consistency, type handling, and completion ranking.
 - fix: store file system watcher event disposables to prevent resource leaks.
 
 ### Refactoring
 
-- refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
 - refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
+- refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
 
 ## 2.1.3 (2026-02-05)
 

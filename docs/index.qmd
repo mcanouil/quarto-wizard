@@ -1,7 +1,7 @@
 ---
 title: "Quarto Wizard {{< var version >}}"
 subtitle: "A Visual Studio Code Extension for Quarto Projects"
-description: "Easily manage Quarto extensions and templates with a user-friendly interface."
+description: "Easily manage Quarto extensions, templates, brands, and schema-powered authoring with a user-friendly interface."
 language:
   title-block-affiliation-single: "Homepage"
 author:
@@ -50,6 +50,12 @@ Keep your extensions up to date effortlessly.
 
 Use Templates
 : Quick-start documents with pre-configured templates for papers, presentations, and more.
+
+Use Brands
+: Apply Quarto brand assets to your project from GitHub, URL, or local sources.
+
+Insert Extension Snippets
+: Use snippets shipped by installed extensions directly from the Explorer view.
 
 ## Quick Start
 

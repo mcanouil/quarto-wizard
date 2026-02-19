@@ -134,6 +134,12 @@ You can also use dedicated commands to skip the source picker:
 - `Quarto Wizard: Install Extension from URL` - Prompt for archive URL.
 - `Quarto Wizard: Install Extension from Local` - Open file picker dialog.
 
+## Using Brands
+
+Quarto Wizard also provides `Quarto Wizard: Use Brand` to apply Quarto brand assets to your project.
+Like extension and template installation, it supports GitHub, URL, and local sources.
+Brand files are downloaded to your project's `_brand/` directory.
+
 ## Installing from Local Sources
 
 You can install Quarto extensions from local directories or archive files.

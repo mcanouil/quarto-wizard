@@ -17,7 +17,9 @@ It enhances your Quarto development experience by making extension management si
 - **Browse Extensions**: View a comprehensive list of available Quarto extensions.
 - **Install Extensions**: Install selected Quarto extensions with a single click.
 - **Use Templates**: Quick-start documents with pre-configured templates.
+- **Use Brands**: Download and apply Quarto brand assets from GitHub, URL, or local sources.
 - **Manage Extensions**: View, update, and remove installed extensions from the Explorer view.
+- **Insert Extension Snippets**: Insert extension-provided snippets directly from the Explorer view.
 - **Create Reproducible Documents**: Generate reproducible examples for R, Python, or Julia.
 - **Install from Local Sources**: Install extensions from local directories or archive files.
 
