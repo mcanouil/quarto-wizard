@@ -155,7 +155,7 @@
 				"shortTitle": "Use Brand",
 				"icon": "$(symbol-color)",
 				"category": "Quarto Wizard",
-				"description": "Download and apply a Quarto brand to your project's _brand/ directory."
+				"description": "Download and apply a Quarto brand to your project."
 			},
 			{
 				"command": "quartoWizard.showOutput",

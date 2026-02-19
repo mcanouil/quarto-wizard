@@ -57,6 +57,7 @@
 			"commands": [
 				"quartoWizard.installExtension",
 				"quartoWizard.useTemplate",
+				"quartoWizard.useBrand",
 				"quartoWizard.newQuartoReprex",
 				"quartoWizard.showOutput",
 				"quartoWizard.clearRecent",
@@ -124,7 +125,7 @@
 		"docsRefDir": "docs/reference",
 		"templatesDir": "docs/_templates",
 		"packageJsonPath": "package.json",
-		"variablesYmlPath": "docs/_variables.yml",
+		"envVariablesPath": "docs/_environment",
 		"changelogMdPath": "CHANGELOG.md",
 		"changelogQmdPath": "docs/changelog.qmd"
 	}

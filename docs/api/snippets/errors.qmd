@@ -4,17 +4,17 @@ title: "Errors"
 
 ## Errors
 
-Error types for @quarto-wizard/schema.
+Error types for @quarto-wizard/snippets.
 
 ### Classes
 
-- [SchemaError](errors.qmd#symbol-class-schemaerror)
+- [SnippetError](errors.qmd#symbol-class-snippeterror)
 
-## SchemaError {#symbol-class-schemaerror}
+## SnippetError {#symbol-class-snippeterror}
 
-Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L11)
+Defined in: [packages/snippets/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L11)
 
-Error when parsing a schema file fails.
+Error when parsing a snippet file fails.
 
 ### Extends
 
@@ -22,26 +22,26 @@ Error when parsing a schema file fails.
 
 ### Constructors
 
-#### Constructor {#symbol-class-schemaerror-constructor}
+#### Constructor {#symbol-class-snippeterror-constructor}
 
 ```{.ts filename="TypeScript"}
-new SchemaError(message, options?): SchemaError;
+new SnippetError(message, options?): SnippetError;
 ```
 
-Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L19)
+Defined in: [packages/snippets/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L19)
 
 ##### Parameters
 
-| Parameter             | Type                                                |
-| --------------------- | --------------------------------------------------- |
-| `message`             | `string`                                            |
-| `options?`            | \{ `cause?`: `unknown`; `schemaPath?`: `string`; \} |
-| `options.cause?`      | `unknown`                                           |
-| `options.schemaPath?` | `string`                                            |
+| Parameter              | Type                                                 |
+| ---------------------- | ---------------------------------------------------- |
+| `message`              | `string`                                             |
+| `options?`             | \{ `cause?`: `unknown`; `snippetPath?`: `string`; \} |
+| `options.cause?`       | `unknown`                                            |
+| `options.snippetPath?` | `string`                                             |
 
 ##### Returns
 
-`SchemaError`
+`SnippetError`
 
 ##### Overrides
 
@@ -51,7 +51,7 @@ Error.constructor
 
 ### Properties
 
-#### cause? {#symbol-class-schemaerror-cause}
+#### cause? {#symbol-class-snippeterror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -65,17 +65,17 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 Error.cause
 ```
 
-#### code {#symbol-class-schemaerror-code}
+#### code {#symbol-class-snippeterror-code}
 
 ```{.ts filename="TypeScript"}
-readonly code: "SCHEMA_ERROR" = "SCHEMA_ERROR";
+readonly code: "SNIPPET_ERROR" = "SNIPPET_ERROR";
 ```
 
-Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L13)
+Defined in: [packages/snippets/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L13)
 
 Error code for programmatic handling.
 
-#### message {#symbol-class-schemaerror-message}
+#### message {#symbol-class-snippeterror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -89,7 +89,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 Error.message
 ```
 
-#### name {#symbol-class-schemaerror-name}
+#### name {#symbol-class-snippeterror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -103,17 +103,17 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 Error.name
 ```
 
-#### schemaPath? {#symbol-class-schemaerror-schemapath}
+#### snippetPath? {#symbol-class-snippeterror-snippetpath}
 
 ```{.ts filename="TypeScript"}
-readonly optional schemaPath: string;
+readonly optional snippetPath: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L15)
+Defined in: [packages/snippets/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L15)
 
-Path to the schema file.
+Path to the snippet file.
 
-#### stack? {#symbol-class-schemaerror-stack}
+#### stack? {#symbol-class-snippeterror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -127,17 +127,17 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 Error.stack
 ```
 
-#### suggestion? {#symbol-class-schemaerror-suggestion}
+#### suggestion? {#symbol-class-snippeterror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L17)
+Defined in: [packages/snippets/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L17)
 
 Suggestion for how to resolve the error.
 
-#### stackTraceLimit {#symbol-class-schemaerror-stacktracelimit}
+#### stackTraceLimit {#symbol-class-snippeterror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -163,13 +163,13 @@ Error.stackTraceLimit
 
 ### Methods
 
-#### format() {#symbol-class-schemaerror-format}
+#### format() {#symbol-class-snippeterror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L33)
+Defined in: [packages/snippets/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L33)
 
 Format the error for display.
 
@@ -177,7 +177,7 @@ Format the error for display.
 
 `string`
 
-#### captureStackTrace() {#symbol-class-schemaerror-capturestacktrace}
+#### captureStackTrace() {#symbol-class-snippeterror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -246,7 +246,7 @@ a();
 Error.captureStackTrace
 ```
 
-#### prepareStackTrace() {#symbol-class-schemaerror-preparestacktrace}
+#### prepareStackTrace() {#symbol-class-snippeterror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;

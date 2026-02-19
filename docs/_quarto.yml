@@ -13,7 +13,7 @@ license: MIT
 image: "assets/social/social-card.png"
 
 website:
-  title: "Quarto Wizard {{< var version >}}"
+  title: "Quarto Wizard {{< env VERSION >}}"
   description: "A Visual Studio Code extension that helps you manage Quarto projects and extensions."
   favicon: "assets/logo/logo.svg"
   image: "assets/social/social-card.png"

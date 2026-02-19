@@ -27,3 +27,9 @@ website:
                 - api/schema/filesystem.qmd
                 - api/schema/types.qmd
                 - api/schema/validation.qmd
+            - section: "@quarto-wizard/snippets"
+              href: api/snippets/index.qmd
+              contents:
+                - api/snippets/errors.qmd
+                - api/snippets/filesystem.qmd
+                - api/snippets/types.qmd

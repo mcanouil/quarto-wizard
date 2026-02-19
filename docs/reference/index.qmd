@@ -15,6 +15,7 @@ See [Commands Reference](commands.qmd) for the complete list.
 | ----------------------------------- | -------------------------------------------------------------------------------------- |
 | Install Extensions                  | Opens the extension browser to browse and install Quarto extensions from the registry. |
 | Use Template                        | Opens the template browser to select and install Quarto templates.                     |
+| Use Brand                           | Download and apply a Quarto brand to your project.                                     |
 | Quarto Reproducible Document        | Creates a new reproducible example document for R, Python, or Julia.                   |
 | Show Quarto Wizard Log Output       | Displays the extension's output log for debugging and troubleshooting.                 |
 | Clear Recently Installed Extensions | Clears the list of recently installed extensions and templates.                        |
@@ -41,9 +42,9 @@ See [Configuration Reference](configuration.qmd) for all available options.
 
 ## Extension Schema
 
-Quarto extensions can provide a `_schema.yml` file to declare their configuration options, shortcode parameters, formats options, and element attributes.
+Quarto extensions can provide a `_schema.yml` file to declare their configuration options, shortcode parameters, format options, and element attributes.
 See [Extension Schema Specification](schema-specification.qmd) for the full format reference.
 
 ## API Reference
 
-For developers integrating with the `@quarto-wizard/core` package, see the [API Reference](../api/index.qmd).
+For developers integrating with the `@quarto-wizard/core`, `@quarto-wizard/schema`, or `@quarto-wizard/snippets` packages, see the [API Reference](../api/index.qmd).

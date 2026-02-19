@@ -39,6 +39,7 @@ The Explorer View displays:
 
 - **Workspace folders**: Each folder in your workspace that can contain extensions.
 - **Installed extensions**: Extensions found in the `_extensions` directory.
+- **Extension snippets**: Snippets declared by extensions via `_snippets.json` files.
 - **Version information**: Current version and available updates.
 - **Action buttons**: Quick access to common operations.
 
@@ -67,6 +68,12 @@ For each installed extension, you can:
 - **Remove**: Delete the extension from the `_extensions` directory.
 - **Open Source**: View the extension's GitHub repository.
 - **Reveal in Explorer**: Open the extension folder in the file explorer.
+
+### Snippet Actions
+
+For each snippet entry shown under an extension, you can:
+
+- **Insert Snippet**: Insert the selected snippet at the cursor position in the active editor.
 
 ## Toolbar Actions
 
