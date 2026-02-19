@@ -155,6 +155,43 @@ export function getYamlKeyPath(
 }
 
 /**
+ * Pre-check whether backspace should re-trigger the suggest widget.
+ *
+ * Returns `true` only when the cursor is in a YAML region AND the key
+ * path is one where `YamlCompletionProvider` can actually produce
+ * results: root level (can suggest `extensions`/`format`), or under
+ * `extensions` or `format`.
+ *
+ * This avoids showing "No suggestions." when the user presses
+ * backspace in non-completable positions such as `title: My title`.
+ *
+ * @param lines - All lines of the document.
+ * @param cursorLine - Zero-based line number of the cursor.
+ * @param cursorCharacter - Zero-based column of the cursor.
+ * @param languageId - The VS Code language ID.
+ * @returns True when re-triggering suggestions is likely to produce results.
+ */
+export function shouldRetriggerSuggest(
+	lines: string[],
+	cursorLine: number,
+	cursorCharacter: number,
+	languageId: string,
+): boolean {
+	if (!isInYamlRegion(lines, cursorLine, languageId)) {
+		return false;
+	}
+
+	const keyPath = getYamlKeyPath(lines, cursorLine, languageId, cursorCharacter);
+
+	if (keyPath.length === 0) {
+		return true;
+	}
+
+	const root = keyPath[0];
+	return root === "extensions" || root === "format";
+}
+
+/**
  * Collect the set of existing sibling keys at a given parent path.
  *
  * For example, given the YAML:

@@ -1,5 +1,11 @@
 import * as assert from "assert";
-import { getYamlKeyPath, isInYamlRegion, getYamlIndentLevel, getExistingKeysAtPath } from "../../utils/yamlPosition";
+import {
+	getYamlKeyPath,
+	isInYamlRegion,
+	getYamlIndentLevel,
+	getExistingKeysAtPath,
+	shouldRetriggerSuggest,
+} from "../../utils/yamlPosition";
 
 suite("YAML Position Utils Test Suite", () => {
 	suite("getYamlIndentLevel", () => {
@@ -164,6 +170,58 @@ suite("YAML Position Utils Test Suite", () => {
 				const result = getYamlKeyPath(lines, 2, "yaml");
 				assert.deepStrictEqual(result, ["extensions", "iconify"]);
 			});
+		});
+	});
+
+	suite("shouldRetriggerSuggest", () => {
+		test("Should return true for root-level blank line in YAML", () => {
+			const lines = [""];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 0, 0, "yaml"), true);
+		});
+
+		test("Should return false under title: in YAML", () => {
+			const lines = ["title: My title"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 0, 15, "yaml"), false);
+		});
+
+		test("Should return true under extensions: in YAML", () => {
+			const lines = ["extensions:", "  modal:"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 1, 8, "yaml"), true);
+		});
+
+		test("Should return true under format: in YAML", () => {
+			const lines = ["format:", "  html:"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 1, 7, "yaml"), true);
+		});
+
+		test("Should return true under extensions.modal.size: in YAML", () => {
+			const lines = ["extensions:", "  modal:", "    size: large"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 2, 15, "yaml"), true);
+		});
+
+		test("Should return false under bibliography: in YAML", () => {
+			const lines = ["bibliography: refs.bib"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 0, 22, "yaml"), false);
+		});
+
+		test("Should return false under title: in QMD front matter", () => {
+			const lines = ["---", "title: My doc", "---", "Body text"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 1, 13, "quarto"), false);
+		});
+
+		test("Should return true under extensions: in QMD front matter", () => {
+			const lines = ["---", "extensions:", "  modal:", "---", "Body text"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 2, 8, "quarto"), true);
+		});
+
+		test("Should return false outside QMD front matter", () => {
+			const lines = ["---", "title: Test", "---", "Body text"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 3, 5, "quarto"), false);
+		});
+
+		test("Should return false when not in YAML region", () => {
+			const lines = ["Some text", "More text"];
+			assert.strictEqual(shouldRetriggerSuggest(lines, 0, 5, "quarto"), false);
 		});
 	});
 
