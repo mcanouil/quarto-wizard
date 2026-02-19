@@ -37,6 +37,7 @@
 ### Refactoring
 
 - refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
+- refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
 
 ## 2.1.3 (2026-02-05)
 
