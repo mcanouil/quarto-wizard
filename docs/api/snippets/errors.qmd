@@ -8,11 +8,11 @@ Error types for @quarto-wizard/snippets.
 
 ### Classes
 
-- [SnippetError](errors.Class.SnippetError.qmd)
+- [SnippetError](errors.qmd#symbol-class-snippeterror)
 
-## Errors
+## SnippetError {#symbol-class-snippeterror}
 
-Defined in: [packages/snippets/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L11)
+Defined in: [packages/snippets/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L11)
 
 Error when parsing a snippet file fails.
 
@@ -22,13 +22,13 @@ Error when parsing a snippet file fails.
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-snippeterror-constructor}
 
 ```{.ts filename="TypeScript"}
 new SnippetError(message, options?): SnippetError;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L19)
+Defined in: [packages/snippets/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L19)
 
 ##### Parameters
 
@@ -51,7 +51,7 @@ Error.constructor
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-snippeterror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -65,17 +65,17 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 Error.cause
 ```
 
-#### code
+#### code {#symbol-class-snippeterror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: "SNIPPET_ERROR" = "SNIPPET_ERROR";
 ```
 
-Defined in: [packages/snippets/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L13)
+Defined in: [packages/snippets/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L13)
 
 Error code for programmatic handling.
 
-#### message
+#### message {#symbol-class-snippeterror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -89,7 +89,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 Error.message
 ```
 
-#### name
+#### name {#symbol-class-snippeterror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -103,17 +103,17 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 Error.name
 ```
 
-#### snippetPath?
+#### snippetPath? {#symbol-class-snippeterror-snippetpath}
 
 ```{.ts filename="TypeScript"}
 readonly optional snippetPath: string;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L15)
+Defined in: [packages/snippets/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L15)
 
 Path to the snippet file.
 
-#### stack?
+#### stack? {#symbol-class-snippeterror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -127,17 +127,17 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 Error.stack
 ```
 
-#### suggestion?
+#### suggestion? {#symbol-class-snippeterror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L17)
+Defined in: [packages/snippets/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L17)
 
 Suggestion for how to resolve the error.
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-snippeterror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -163,13 +163,13 @@ Error.stackTraceLimit
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-snippeterror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/snippets/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/snippets/src/errors.ts#L33)
+Defined in: [packages/snippets/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/snippets/src/errors.ts#L33)
 
 Format the error for display.
 
@@ -177,7 +177,7 @@ Format the error for display.
 
 `string`
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-snippeterror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -246,7 +246,7 @@ a();
 Error.captureStackTrace
 ```
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-snippeterror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;

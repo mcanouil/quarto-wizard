@@ -10,45 +10,45 @@ Provides typed error classes for handling various failure scenarios.
 
 ### Classes
 
-- [AuthenticationError](errors.Class.AuthenticationError.qmd)
-- [CancellationError](errors.Class.CancellationError.qmd)
-- [ExtensionError](errors.Class.ExtensionError.qmd)
-- [ManifestError](errors.Class.ManifestError.qmd)
-- [NetworkError](errors.Class.NetworkError.qmd)
-- [QuartoWizardError](errors.Class.QuartoWizardError.qmd)
-- [RepositoryNotFoundError](errors.Class.RepositoryNotFoundError.qmd)
-- [SecurityError](errors.Class.SecurityError.qmd)
-- [VersionError](errors.Class.VersionError.qmd)
+- [AuthenticationError](errors.qmd#symbol-class-authenticationerror)
+- [CancellationError](errors.qmd#symbol-class-cancellationerror)
+- [ExtensionError](errors.qmd#symbol-class-extensionerror)
+- [ManifestError](errors.qmd#symbol-class-manifesterror)
+- [NetworkError](errors.qmd#symbol-class-networkerror)
+- [QuartoWizardError](errors.qmd#symbol-class-quartowizarderror)
+- [RepositoryNotFoundError](errors.qmd#symbol-class-repositorynotfounderror)
+- [SecurityError](errors.qmd#symbol-class-securityerror)
+- [VersionError](errors.qmd#symbol-class-versionerror)
 
 ### Interfaces
 
-- [QuartoWizardErrorOptions](errors.Interface.QuartoWizardErrorOptions.qmd)
+- [QuartoWizardErrorOptions](errors.qmd#symbol-interface-quartowizarderroroptions)
 
 ### Functions
 
-- [isCancellationError](errors.Function.isCancellationError.qmd)
-- [isQuartoWizardError](errors.Function.isQuartoWizardError.qmd)
-- [wrapError](errors.Function.wrapError.qmd)
+- [isCancellationError](errors.qmd#symbol-function-iscancellationerror)
+- [isQuartoWizardError](errors.qmd#symbol-function-isquartowizarderror)
+- [wrapError](errors.qmd#symbol-function-wraperror)
 
-## Errors
+## AuthenticationError {#symbol-class-authenticationerror}
 
-Defined in: [packages/core/src/errors.ts:66](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L66)
+Defined in: [packages/core/src/errors.ts:66](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L66)
 
 Error when authentication is required or failed.
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-authenticationerror-constructor}
 
 ```{.ts filename="TypeScript"}
 new AuthenticationError(message, options?): AuthenticationError;
 ```
 
-Defined in: [packages/core/src/errors.ts:67](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L67)
+Defined in: [packages/core/src/errors.ts:67](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L67)
 
 ##### Parameters
 
@@ -64,11 +64,11 @@ Defined in: [packages/core/src/errors.ts:67](https://github.com/mcanouil/quarto-
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-authenticationerror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -78,23 +78,23 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-authenticationerror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### message
+#### message {#symbol-class-authenticationerror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -104,9 +104,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-authenticationerror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -116,9 +116,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-authenticationerror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -128,23 +128,23 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### suggestion?
+#### suggestion? {#symbol-class-authenticationerror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-authenticationerror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -164,17 +164,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-authenticationerror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -184,9 +184,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-authenticationerror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -251,9 +251,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-authenticationerror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -278,11 +278,11 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## CancellationError {#symbol-class-cancellationerror}
 
-Defined in: [packages/core/src/errors.ts:150](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L150)
+Defined in: [packages/core/src/errors.ts:150](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L150)
 
 Error thrown when an operation is cancelled by the user.
 
@@ -292,17 +292,17 @@ fragile string matching.
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-cancellationerror-constructor}
 
 ```{.ts filename="TypeScript"}
 new CancellationError(message?): CancellationError;
 ```
 
-Defined in: [packages/core/src/errors.ts:151](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L151)
+Defined in: [packages/core/src/errors.ts:151](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L151)
 
 ##### Parameters
 
@@ -316,11 +316,11 @@ Defined in: [packages/core/src/errors.ts:151](https://github.com/mcanouil/quarto
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-cancellationerror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -330,23 +330,23 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-cancellationerror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### message
+#### message {#symbol-class-cancellationerror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -356,9 +356,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-cancellationerror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -368,9 +368,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-cancellationerror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -380,23 +380,23 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### suggestion?
+#### suggestion? {#symbol-class-cancellationerror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-cancellationerror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -416,17 +416,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-cancellationerror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -436,9 +436,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-cancellationerror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -503,9 +503,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-cancellationerror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -530,34 +530,34 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## ExtensionError {#symbol-class-extensionerror}
 
-Defined in: [packages/core/src/errors.ts:56](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L56)
+Defined in: [packages/core/src/errors.ts:56](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L56)
 
 Error related to extension operations (install, update, remove).
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-extensionerror-constructor}
 
 ```{.ts filename="TypeScript"}
 new ExtensionError(message, options?): ExtensionError;
 ```
 
-Defined in: [packages/core/src/errors.ts:57](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L57)
+Defined in: [packages/core/src/errors.ts:57](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L57)
 
 ##### Parameters
 
-| Parameter  | Type                                                                        |
-| ---------- | --------------------------------------------------------------------------- |
-| `message`  | `string`                                                                    |
-| `options?` | [`QuartoWizardErrorOptions`](errors.Interface.QuartoWizardErrorOptions.qmd) |
+| Parameter  | Type                                                                               |
+| ---------- | ---------------------------------------------------------------------------------- |
+| `message`  | `string`                                                                           |
+| `options?` | [`QuartoWizardErrorOptions`](errors.qmd#symbol-interface-quartowizarderroroptions) |
 
 ##### Returns
 
@@ -565,11 +565,11 @@ Defined in: [packages/core/src/errors.ts:57](https://github.com/mcanouil/quarto-
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-extensionerror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -579,23 +579,23 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-extensionerror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### message
+#### message {#symbol-class-extensionerror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -605,9 +605,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-extensionerror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -617,9 +617,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-extensionerror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -629,23 +629,23 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### suggestion?
+#### suggestion? {#symbol-class-extensionerror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-extensionerror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -665,17 +665,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-extensionerror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -685,9 +685,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-extensionerror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -752,9 +752,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-extensionerror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -779,27 +779,27 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## ManifestError {#symbol-class-manifesterror}
 
-Defined in: [packages/core/src/errors.ts:119](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L119)
+Defined in: [packages/core/src/errors.ts:119](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L119)
 
 Error when parsing a manifest file fails.
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-manifesterror-constructor}
 
 ```{.ts filename="TypeScript"}
 new ManifestError(message, options?): ManifestError;
 ```
 
-Defined in: [packages/core/src/errors.ts:123](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L123)
+Defined in: [packages/core/src/errors.ts:123](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L123)
 
 ##### Parameters
 
@@ -816,11 +816,11 @@ Defined in: [packages/core/src/errors.ts:123](https://github.com/mcanouil/quarto
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-manifesterror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -830,33 +830,33 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-manifesterror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### manifestPath?
+#### manifestPath? {#symbol-class-manifesterror-manifestpath}
 
 ```{.ts filename="TypeScript"}
 readonly optional manifestPath: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:121](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L121)
+Defined in: [packages/core/src/errors.ts:121](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L121)
 
 Path to the manifest file.
 
-#### message
+#### message {#symbol-class-manifesterror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -866,9 +866,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-manifesterror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -878,9 +878,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-manifesterror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -890,23 +890,23 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### suggestion?
+#### suggestion? {#symbol-class-manifesterror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-manifesterror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -926,17 +926,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-manifesterror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -946,9 +946,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-manifesterror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -1013,9 +1013,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-manifesterror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -1040,27 +1040,27 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## NetworkError {#symbol-class-networkerror}
 
-Defined in: [packages/core/src/errors.ts:92](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L92)
+Defined in: [packages/core/src/errors.ts:92](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L92)
 
 Error related to network operations.
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-networkerror-constructor}
 
 ```{.ts filename="TypeScript"}
 new NetworkError(message, options?): NetworkError;
 ```
 
-Defined in: [packages/core/src/errors.ts:96](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L96)
+Defined in: [packages/core/src/errors.ts:96](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L96)
 
 ##### Parameters
 
@@ -1077,11 +1077,11 @@ Defined in: [packages/core/src/errors.ts:96](https://github.com/mcanouil/quarto-
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-networkerror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -1091,23 +1091,23 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-networkerror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### message
+#### message {#symbol-class-networkerror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -1117,9 +1117,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-networkerror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -1129,9 +1129,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-networkerror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -1141,33 +1141,33 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### statusCode?
+#### statusCode? {#symbol-class-networkerror-statuscode}
 
 ```{.ts filename="TypeScript"}
 readonly optional statusCode: number;
 ```
 
-Defined in: [packages/core/src/errors.ts:94](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L94)
+Defined in: [packages/core/src/errors.ts:94](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L94)
 
 HTTP status code if available.
 
-#### suggestion?
+#### suggestion? {#symbol-class-networkerror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-networkerror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -1187,17 +1187,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-networkerror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1207,9 +1207,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-networkerror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -1274,9 +1274,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-networkerror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -1301,11 +1301,11 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## QuartoWizardError {#symbol-class-quartowizarderror}
 
-Defined in: [packages/core/src/errors.ts:23](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L23)
+Defined in: [packages/core/src/errors.ts:23](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L23)
 
 Base error class for all Quarto Wizard errors.
 
@@ -1315,18 +1315,18 @@ Base error class for all Quarto Wizard errors.
 
 ### Extended by
 
-- [`ExtensionError`](errors.Class.ExtensionError.qmd)
-- [`AuthenticationError`](errors.Class.AuthenticationError.qmd)
-- [`RepositoryNotFoundError`](errors.Class.RepositoryNotFoundError.qmd)
-- [`NetworkError`](errors.Class.NetworkError.qmd)
-- [`SecurityError`](errors.Class.SecurityError.qmd)
-- [`ManifestError`](errors.Class.ManifestError.qmd)
-- [`VersionError`](errors.Class.VersionError.qmd)
-- [`CancellationError`](errors.Class.CancellationError.qmd)
+- [`ExtensionError`](errors.qmd#symbol-class-extensionerror)
+- [`AuthenticationError`](errors.qmd#symbol-class-authenticationerror)
+- [`RepositoryNotFoundError`](errors.qmd#symbol-class-repositorynotfounderror)
+- [`NetworkError`](errors.qmd#symbol-class-networkerror)
+- [`SecurityError`](errors.qmd#symbol-class-securityerror)
+- [`ManifestError`](errors.qmd#symbol-class-manifesterror)
+- [`VersionError`](errors.qmd#symbol-class-versionerror)
+- [`CancellationError`](errors.qmd#symbol-class-cancellationerror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-quartowizarderror-constructor}
 
 ```{.ts filename="TypeScript"}
 new QuartoWizardError(
@@ -1335,15 +1335,15 @@ new QuartoWizardError(
    options?): QuartoWizardError;
 ```
 
-Defined in: [packages/core/src/errors.ts:29](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L29)
+Defined in: [packages/core/src/errors.ts:29](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L29)
 
 ##### Parameters
 
-| Parameter  | Type                                                                        |
-| ---------- | --------------------------------------------------------------------------- |
-| `message`  | `string`                                                                    |
-| `code`     | `string`                                                                    |
-| `options?` | [`QuartoWizardErrorOptions`](errors.Interface.QuartoWizardErrorOptions.qmd) |
+| Parameter  | Type                                                                               |
+| ---------- | ---------------------------------------------------------------------------------- |
+| `message`  | `string`                                                                           |
+| `code`     | `string`                                                                           |
+| `options?` | [`QuartoWizardErrorOptions`](errors.qmd#symbol-interface-quartowizarderroroptions) |
 
 ##### Returns
 
@@ -1357,7 +1357,7 @@ Error.constructor
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-quartowizarderror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -1371,17 +1371,17 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 Error.cause
 ```
 
-#### code
+#### code {#symbol-class-quartowizarderror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
-#### message
+#### message {#symbol-class-quartowizarderror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -1395,7 +1395,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 Error.message
 ```
 
-#### name
+#### name {#symbol-class-quartowizarderror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -1409,7 +1409,7 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 Error.name
 ```
 
-#### stack?
+#### stack? {#symbol-class-quartowizarderror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -1423,17 +1423,17 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 Error.stack
 ```
 
-#### suggestion?
+#### suggestion? {#symbol-class-quartowizarderror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-quartowizarderror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -1459,13 +1459,13 @@ Error.stackTraceLimit
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-quartowizarderror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1473,7 +1473,7 @@ Format the error for display.
 
 `string`
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-quartowizarderror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -1542,7 +1542,7 @@ a();
 Error.captureStackTrace
 ```
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-quartowizarderror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -1571,25 +1571,25 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 Error.prepareStackTrace
 ```
 
-## Errors
+## RepositoryNotFoundError {#symbol-class-repositorynotfounderror}
 
-Defined in: [packages/core/src/errors.ts:79](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L79)
+Defined in: [packages/core/src/errors.ts:79](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L79)
 
 Error when a repository or resource is not found.
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-repositorynotfounderror-constructor}
 
 ```{.ts filename="TypeScript"}
 new RepositoryNotFoundError(message, options?): RepositoryNotFoundError;
 ```
 
-Defined in: [packages/core/src/errors.ts:80](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L80)
+Defined in: [packages/core/src/errors.ts:80](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L80)
 
 ##### Parameters
 
@@ -1606,11 +1606,11 @@ Defined in: [packages/core/src/errors.ts:80](https://github.com/mcanouil/quarto-
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-repositorynotfounderror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -1620,23 +1620,23 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-repositorynotfounderror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### message
+#### message {#symbol-class-repositorynotfounderror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -1646,9 +1646,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-repositorynotfounderror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -1658,9 +1658,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-repositorynotfounderror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -1670,23 +1670,23 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### suggestion?
+#### suggestion? {#symbol-class-repositorynotfounderror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-repositorynotfounderror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -1706,17 +1706,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-repositorynotfounderror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1726,9 +1726,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-repositorynotfounderror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -1793,9 +1793,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-repositorynotfounderror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -1820,27 +1820,27 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## SecurityError {#symbol-class-securityerror}
 
-Defined in: [packages/core/src/errors.ts:109](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L109)
+Defined in: [packages/core/src/errors.ts:109](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L109)
 
 Error related to security issues (path traversal, zip bombs, etc.).
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-securityerror-constructor}
 
 ```{.ts filename="TypeScript"}
 new SecurityError(message, options?): SecurityError;
 ```
 
-Defined in: [packages/core/src/errors.ts:110](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L110)
+Defined in: [packages/core/src/errors.ts:110](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L110)
 
 ##### Parameters
 
@@ -1856,11 +1856,11 @@ Defined in: [packages/core/src/errors.ts:110](https://github.com/mcanouil/quarto
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-securityerror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -1870,23 +1870,23 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-securityerror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### message
+#### message {#symbol-class-securityerror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -1896,9 +1896,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-securityerror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -1908,9 +1908,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-securityerror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -1920,23 +1920,23 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### suggestion?
+#### suggestion? {#symbol-class-securityerror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-securityerror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -1956,17 +1956,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-securityerror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -1976,9 +1976,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-securityerror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -2043,9 +2043,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-securityerror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -2070,34 +2070,34 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## VersionError {#symbol-class-versionerror}
 
-Defined in: [packages/core/src/errors.ts:136](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L136)
+Defined in: [packages/core/src/errors.ts:136](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L136)
 
 Error when a version cannot be resolved.
 
 ### Extends
 
-- [`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+- [`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
 ### Constructors
 
-#### Constructor
+#### Constructor {#symbol-class-versionerror-constructor}
 
 ```{.ts filename="TypeScript"}
 new VersionError(message, options?): VersionError;
 ```
 
-Defined in: [packages/core/src/errors.ts:137](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L137)
+Defined in: [packages/core/src/errors.ts:137](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L137)
 
 ##### Parameters
 
-| Parameter  | Type                                                                        |
-| ---------- | --------------------------------------------------------------------------- |
-| `message`  | `string`                                                                    |
-| `options?` | [`QuartoWizardErrorOptions`](errors.Interface.QuartoWizardErrorOptions.qmd) |
+| Parameter  | Type                                                                               |
+| ---------- | ---------------------------------------------------------------------------------- |
+| `message`  | `string`                                                                           |
+| `options?` | [`QuartoWizardErrorOptions`](errors.qmd#symbol-interface-quartowizarderroroptions) |
 
 ##### Returns
 
@@ -2105,11 +2105,11 @@ Defined in: [packages/core/src/errors.ts:137](https://github.com/mcanouil/quarto
 
 ##### Overrides
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`constructor`](errors.Class.QuartoWizardError.qmd#constructor)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`constructor`](errors.qmd#symbol-class-quartowizarderror-constructor)
 
 ### Properties
 
-#### cause?
+#### cause? {#symbol-class-versionerror-cause}
 
 ```{.ts filename="TypeScript"}
 optional cause: unknown;
@@ -2119,23 +2119,23 @@ Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`cause`](errors.Class.QuartoWizardError.qmd#cause)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`cause`](errors.qmd#symbol-class-quartowizarderror-cause)
 
-#### code
+#### code {#symbol-class-versionerror-code}
 
 ```{.ts filename="TypeScript"}
 readonly code: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L25)
+Defined in: [packages/core/src/errors.ts:25](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L25)
 
 Error code for programmatic handling.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`code`](errors.Class.QuartoWizardError.qmd#code)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`code`](errors.qmd#symbol-class-quartowizarderror-code)
 
-#### message
+#### message {#symbol-class-versionerror-message}
 
 ```{.ts filename="TypeScript"}
 message: string;
@@ -2145,9 +2145,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`message`](errors.Class.QuartoWizardError.qmd#message)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`message`](errors.qmd#symbol-class-quartowizarderror-message)
 
-#### name
+#### name {#symbol-class-versionerror-name}
 
 ```{.ts filename="TypeScript"}
 name: string;
@@ -2157,9 +2157,9 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`name`](errors.Class.QuartoWizardError.qmd#name)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`name`](errors.qmd#symbol-class-quartowizarderror-name)
 
-#### stack?
+#### stack? {#symbol-class-versionerror-stack}
 
 ```{.ts filename="TypeScript"}
 optional stack: string;
@@ -2169,23 +2169,23 @@ Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stack`](errors.Class.QuartoWizardError.qmd#stack)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stack`](errors.qmd#symbol-class-quartowizarderror-stack)
 
-#### suggestion?
+#### suggestion? {#symbol-class-versionerror-suggestion}
 
 ```{.ts filename="TypeScript"}
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L27)
+Defined in: [packages/core/src/errors.ts:27](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L27)
 
 Suggestion for how to resolve the error.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`suggestion`](errors.Class.QuartoWizardError.qmd#suggestion)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`suggestion`](errors.qmd#symbol-class-quartowizarderror-suggestion)
 
-#### stackTraceLimit
+#### stackTraceLimit {#symbol-class-versionerror-stacktracelimit}
 
 ```{.ts filename="TypeScript"}
 static stackTraceLimit: number;
@@ -2205,17 +2205,17 @@ not capture any frames.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`stackTraceLimit`](errors.Class.QuartoWizardError.qmd#stacktracelimit)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`stackTraceLimit`](errors.qmd#symbol-class-quartowizarderror-stacktracelimit)
 
 ### Methods
 
-#### format()
+#### format() {#symbol-class-versionerror-format}
 
 ```{.ts filename="TypeScript"}
 format(): string;
 ```
 
-Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L44)
+Defined in: [packages/core/src/errors.ts:44](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L44)
 
 Format the error for display.
 
@@ -2225,9 +2225,9 @@ Format the error for display.
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`format`](errors.Class.QuartoWizardError.qmd#format)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`format`](errors.qmd#symbol-class-quartowizarderror-format)
 
-#### captureStackTrace()
+#### captureStackTrace() {#symbol-class-versionerror-capturestacktrace}
 
 ```{.ts filename="TypeScript"}
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -2292,9 +2292,9 @@ a();
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`captureStackTrace`](errors.Class.QuartoWizardError.qmd#capturestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`captureStackTrace`](errors.qmd#symbol-class-quartowizarderror-capturestacktrace)
 
-#### prepareStackTrace()
+#### prepareStackTrace() {#symbol-class-versionerror-preparestacktrace}
 
 ```{.ts filename="TypeScript"}
 static prepareStackTrace(err, stackTraces): any;
@@ -2319,15 +2319,15 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 ##### Inherited from
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd).[`prepareStackTrace`](errors.Class.QuartoWizardError.qmd#preparestacktrace)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror).[`prepareStackTrace`](errors.qmd#symbol-class-quartowizarderror-preparestacktrace)
 
-## Errors
+## isCancellationError {#symbol-function-iscancellationerror}
 
 ```{.ts filename="TypeScript"}
 function isCancellationError(error): error is CancellationError;
 ```
 
-Defined in: [packages/core/src/errors.ts:160](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L160)
+Defined in: [packages/core/src/errors.ts:160](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L160)
 
 Check if an error is a CancellationError.
 
@@ -2341,13 +2341,13 @@ Check if an error is a CancellationError.
 
 `error is CancellationError`
 
-## Errors
+## isQuartoWizardError {#symbol-function-isquartowizarderror}
 
 ```{.ts filename="TypeScript"}
 function isQuartoWizardError(error): error is QuartoWizardError;
 ```
 
-Defined in: [packages/core/src/errors.ts:167](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L167)
+Defined in: [packages/core/src/errors.ts:167](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L167)
 
 Check if an error is a QuartoWizardError.
 
@@ -2361,13 +2361,13 @@ Check if an error is a QuartoWizardError.
 
 `error is QuartoWizardError`
 
-## Errors
+## wrapError {#symbol-function-wraperror}
 
 ```{.ts filename="TypeScript"}
 function wrapError(error, context?): QuartoWizardError;
 ```
 
-Defined in: [packages/core/src/errors.ts:174](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L174)
+Defined in: [packages/core/src/errors.ts:174](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L174)
 
 Wrap an unknown error as a QuartoWizardError.
 
@@ -2380,11 +2380,11 @@ Wrap an unknown error as a QuartoWizardError.
 
 ### Returns
 
-[`QuartoWizardError`](errors.Class.QuartoWizardError.qmd)
+[`QuartoWizardError`](errors.qmd#symbol-class-quartowizarderror)
 
-## Errors
+## QuartoWizardErrorOptions {#symbol-interface-quartowizarderroroptions}
 
-Defined in: [packages/core/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L13)
+Defined in: [packages/core/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L13)
 
 Options for constructing a QuartoWizardError.
 
@@ -2392,5 +2392,5 @@ Options for constructing a QuartoWizardError.
 
 | Property                                       | Type      | Description                              | Defined in                                                                                                                                                |
 | ---------------------------------------------- | --------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-cause"></a> `cause?`           | `unknown` | Original error that caused this error.   | [packages/core/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L17) |
-| <a id="property-suggestion"></a> `suggestion?` | `string`  | Suggestion for how to resolve the error. | [packages/core/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/5281fcabef795b4e5f03a1140e0ebe2e3c1b4100/packages/core/src/errors.ts#L15) |
+| <a id="property-cause"></a> `cause?`           | `unknown` | Original error that caused this error.   | [packages/core/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L17) |
+| <a id="property-suggestion"></a> `suggestion?` | `string`  | Suggestion for how to resolve the error. | [packages/core/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/core/src/errors.ts#L15) |
