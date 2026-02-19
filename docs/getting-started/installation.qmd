@@ -77,8 +77,8 @@ You can download, verify attestation, and install in one go using the [GitHub CL
 ### Visual Studio Code
 
 ```{.bash filename="Terminal"}
-gh release download "{{< var version >}}" --repo mcanouil/quarto-wizard --pattern "*.vsix"
-gh attestation verify "quarto-wizard-{{< var version >}}.vsix" --repo mcanouil/quarto-wizard
+gh release download "{{< env VERSION >}}" --repo mcanouil/quarto-wizard --pattern "*.vsix"
+gh attestation verify "quarto-wizard-{{< env VERSION >}}.vsix" --repo mcanouil/quarto-wizard
 code --install-extension mcanouil.quarto-wizard
 ```
 
@@ -87,8 +87,8 @@ Via [GitHub Release](https://github.com/mcanouil/quarto-wizard/releases/latest).
 ### Positron
 
 ```{.bash filename="Terminal"}
-gh release download "{{< var version >}}" --repo mcanouil/quarto-wizard --pattern "*.vsix"
-gh attestation verify "quarto-wizard-{{< var version >}}.vsix" --repo mcanouil/quarto-wizard
+gh release download "{{< env VERSION >}}" --repo mcanouil/quarto-wizard --pattern "*.vsix"
+gh attestation verify "quarto-wizard-{{< env VERSION >}}.vsix" --repo mcanouil/quarto-wizard
 positron --install-extension mcanouil.quarto-wizard
 ```
 

@@ -1,5 +1,5 @@
 ---
-title: "Quarto Wizard {{< var version >}}"
+title: "Quarto Wizard {{< env VERSION >}}"
 subtitle: "A Visual Studio Code Extension for Quarto Projects"
 description: "Easily manage Quarto extensions, templates, brands, and schema-powered authoring with a user-friendly interface."
 language:
