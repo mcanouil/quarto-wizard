@@ -83,6 +83,8 @@ suite("Insert Snippet Test Suite", () => {
 		const body = lines.join("\n");
 		await editor.insertSnippet(new vscode.SnippetString(body));
 
-		assert.strictEqual(editor.document.getText(), "line1\nline2\nline3");
+		// Normalise line endings for cross-platform compatibility (Windows uses \r\n)
+		const text = editor.document.getText().replace(/\r\n/g, "\n");
+		assert.strictEqual(text, "line1\nline2\nline3");
 	});
 });
