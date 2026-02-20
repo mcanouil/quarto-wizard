@@ -1,0 +1,39 @@
+---
+title: "Extension Snippet Specification"
+---
+
+Quarto extensions can provide a `_snippets.json` file for snippet completion and insertion in Quarto Wizard.
+The file format follows the standard VS Code snippet JSON specification.
+For the complete format reference, see [VS Code: Snippet syntax](https://code.visualstudio.com/docs/editor/userdefinedsnippets#_snippet-syntax).
+
+## File Location
+
+Place `_snippets.json` in the same directory as `_extension.yml`.
+
+```text
+_extensions/
+  my-extension/
+    _extension.yml
+    _snippets.json
+```
+
+Quarto Wizard discovers snippet files automatically when scanning installed extensions.
+
+## Minimal Example
+
+```json
+{
+  "Callout Note": {
+    "prefix": "callout-note",
+    "body": ["::: {.callout-note}", "$0", ":::"],
+    "description": "Insert a callout note block."
+  }
+}
+```
+
+## Quarto Wizard Behaviour
+
+- Snippets are shown under each installed extension in the Explorer view.
+- Snippets are available in IntelliSense for Quarto documents.
+- Snippet prefixes are namespaced as `<owner>-<extension>:<prefix>` (or `<extension>:<prefix>` when no owner exists) to avoid collisions.
+- Selecting **Insert Snippet** from the Explorer inserts the snippet body into the active editor.
