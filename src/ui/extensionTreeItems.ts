@@ -274,7 +274,7 @@ export class SnippetItemTreeItem extends vscode.TreeItem {
 		const prefixes = Array.isArray(snippet.prefix) ? snippet.prefix : [snippet.prefix];
 		const qualifiedPrefixes = prefixes.map((p) => qualifySnippetPrefix(namespace, p));
 		this.description = qualifiedPrefixes.join(", ");
-		this.tooltip = snippet.description ?? label;
+		this.tooltip = buildSnippetTooltip(snippet);
 
 		this.command = {
 			command: "quartoWizard.extensionsInstalled.insertSnippet",
@@ -282,6 +282,26 @@ export class SnippetItemTreeItem extends vscode.TreeItem {
 			arguments: [snippet],
 		};
 	}
+}
+
+const SNIPPET_TOOLTIP_PREVIEW_MAX_LINES = 15;
+
+function buildSnippetTooltip(snippet: SnippetDefinition): vscode.MarkdownString {
+	const tooltip = new vscode.MarkdownString();
+	if (snippet.description?.trim()) {
+		tooltip.appendText(snippet.description);
+		tooltip.appendMarkdown("\n\n");
+	}
+
+	const bodyLines = Array.isArray(snippet.body) ? snippet.body : snippet.body.split(/\r?\n/);
+	const previewLines = bodyLines.slice(0, SNIPPET_TOOLTIP_PREVIEW_MAX_LINES);
+	tooltip.appendCodeblock(previewLines.join("\n"), "markdown");
+
+	if (bodyLines.length > SNIPPET_TOOLTIP_PREVIEW_MAX_LINES) {
+		tooltip.appendMarkdown("\n\n_(Preview truncated)_");
+	}
+
+	return tooltip;
 }
 
 function singularLabel(kind: SchemaSectionKind): string {

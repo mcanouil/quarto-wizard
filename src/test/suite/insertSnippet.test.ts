@@ -65,6 +65,32 @@ suite("Insert Snippet Test Suite", () => {
 		assert.strictEqual(body, "line1\nline2\nline3");
 	});
 
+	test("Snippet tooltip includes description and body preview", () => {
+		const definition: SnippetDefinition = {
+			prefix: "greet",
+			body: "Hello, ${1:world}!\nBye.",
+			description: "Greeting snippet",
+		};
+		const item = new SnippetItemTreeItem("Greeting", definition, "ext");
+		assert.ok(item.tooltip instanceof vscode.MarkdownString);
+		assert.ok(item.tooltip.value.includes("Greeting snippet"));
+		assert.ok(item.tooltip.value.includes("```markdown"));
+		assert.ok(item.tooltip.value.includes("Hello, ${1:world}!"));
+		assert.ok(item.tooltip.value.includes("Bye."));
+	});
+
+	test("Snippet tooltip truncates long previews", () => {
+		const definition: SnippetDefinition = {
+			prefix: "long",
+			body: Array.from({ length: 16 }, (_, i) => String(i + 1)),
+		};
+		const item = new SnippetItemTreeItem("Long", definition, "ext");
+		assert.ok(item.tooltip instanceof vscode.MarkdownString);
+		assert.ok(item.tooltip.value.includes("_(Preview truncated)_"));
+		assert.ok(item.tooltip.value.includes("15"));
+		assert.ok(!item.tooltip.value.includes("16"));
+	});
+
 	test("Insert snippet into active editor via insertSnippet API", async () => {
 		const doc = await vscode.workspace.openTextDocument({ content: "", language: "markdown" });
 		const editor = await vscode.window.showTextDocument(doc);
