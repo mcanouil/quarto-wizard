@@ -12,7 +12,7 @@ Error types for @quarto-wizard/schema.
 
 ## SchemaError {#symbol-class-schemaerror}
 
-Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L11)
+Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/0316fd26127259fca98c9bd9bc0f5239eb07007f/packages/schema/src/errors.ts#L11)
 
 Error when parsing a schema file fails.
 
@@ -28,7 +28,7 @@ Error when parsing a schema file fails.
 new SchemaError(message, options?): SchemaError;
 ```
 
-Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L19)
+Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/0316fd26127259fca98c9bd9bc0f5239eb07007f/packages/schema/src/errors.ts#L19)
 
 ##### Parameters
 
@@ -71,7 +71,7 @@ Error.cause
 readonly code: "SCHEMA_ERROR" = "SCHEMA_ERROR";
 ```
 
-Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L13)
+Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/0316fd26127259fca98c9bd9bc0f5239eb07007f/packages/schema/src/errors.ts#L13)
 
 Error code for programmatic handling.
 
@@ -109,7 +109,7 @@ Error.name
 readonly optional schemaPath: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L15)
+Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/0316fd26127259fca98c9bd9bc0f5239eb07007f/packages/schema/src/errors.ts#L15)
 
 Path to the schema file.
 
@@ -133,7 +133,7 @@ Error.stack
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L17)
+Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/0316fd26127259fca98c9bd9bc0f5239eb07007f/packages/schema/src/errors.ts#L17)
 
 Suggestion for how to resolve the error.
 
@@ -169,7 +169,7 @@ Error.stackTraceLimit
 format(): string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/fc7e2189e9911e712439991c71b70ef60c9acd06/packages/schema/src/errors.ts#L33)
+Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/0316fd26127259fca98c9bd9bc0f5239eb07007f/packages/schema/src/errors.ts#L33)
 
 Format the error for display.
 
