@@ -280,6 +280,19 @@ function cleanTypeExpressions(content) {
 }
 
 /**
+ * Fix trailing escaped generic closers left after HTML type conversion.
+ * @param {string} content - The file content.
+ * @returns {string} The processed content.
+ */
+function fixTrailingEscapedGenericClosers(content) {
+	const trailingCloserPattern = /`<code>([\s\S]*?)<\/code>`\{=html\}((?:\\>)+)/g;
+	return content.replace(trailingCloserPattern, (_match, htmlContent, trailingClosers) => {
+		const extraClosers = trailingClosers.replaceAll("\\>", "&gt;");
+		return `\`<code>${htmlContent}${extraClosers}</code>\`{=html}`;
+	});
+}
+
+/**
  * Add blank lines before and after lists for proper markdown formatting.
  * @param {string} content - The file content.
  * @returns {string} The processed content.
@@ -341,9 +354,10 @@ function removeReferencesSection(content) {
 function applyContentTransformations(content, moduleNames) {
 	content = convertCodeBlocks(content);
 	content = fixArrayTypes(content);
-	content = fixLinkedArrayTypes(content);
 	content = updateLinks(content, moduleNames);
 	content = cleanTypeExpressions(content);
+	content = fixTrailingEscapedGenericClosers(content);
+	content = fixLinkedArrayTypes(content);
 	content = addBlankLinesAroundLists(content);
 	return content;
 }
