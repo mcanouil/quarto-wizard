@@ -168,6 +168,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
+				`Quarto required: ${manifest.quartoRequired || "N/A"}`,
+				vscode.TreeItemCollapsibleState.None,
+				element.workspaceFolder,
+			),
+			new ExtensionTreeItem(
 				`Contributes: ${getExtensionContributes(ext) ?? "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,

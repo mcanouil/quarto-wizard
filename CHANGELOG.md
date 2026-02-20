@@ -10,6 +10,7 @@
 - feat: add file-path completion for schema fields using `completion.type: file` (with optional extension filters).
 - feat: display schema contribution details in the installed extensions tree view.
 - feat: add extension-provided snippets from `_snippets.json`, surfaced in the tree view and IntelliSense with direct insertion from snippet nodes.
+- feat: display `quarto-required` version constraints in extension detail rows in the installed extensions tree view.
 
 ### Bug Fixes
 
