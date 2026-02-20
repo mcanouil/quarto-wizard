@@ -5,6 +5,14 @@ import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@
 import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
 import { getExtensionRepository, type InstalledExtension } from "../utils/extensions";
 
+export type ExtensionCompatibilityStatus = "compatible" | "incompatible" | "not-specified" | "unknown";
+
+export interface ExtensionCompatibility {
+	status: ExtensionCompatibilityStatus;
+	detail: string;
+	warningMessage?: string;
+}
+
 /**
  * Represents a tree item for a workspace folder.
  */
@@ -39,6 +47,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		icon?: string,
 		latestVersion?: string,
 		hasIssue?: boolean,
+		compatibilityWarningMessage?: string,
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined && latestVersion !== "unknown";
@@ -55,11 +64,19 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		}
 
 		// Build tooltip with warning if there are issues
+		const warnings: string[] = [];
 		let tooltipText = `${this.label}`;
 		if (hasIssue) {
-			tooltipText += "\n\nCould not parse extension manifest";
-		} else if (noSource) {
-			tooltipText += "\n\nNo source in manifest (cannot check for updates)";
+			warnings.push("Could not parse extension manifest");
+		}
+		if (noSource) {
+			warnings.push("No source in manifest (cannot check for updates)");
+		}
+		if (compatibilityWarningMessage) {
+			warnings.push(compatibilityWarningMessage);
+		}
+		if (warnings.length > 0) {
+			tooltipText += `\n\n${warnings.join("\n")}`;
 		}
 		this.tooltip = tooltipText;
 		this.description = this.extension
@@ -68,7 +85,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		this.contextValue = this.extension ? contextValue : "quartoExtensionItemDetails";
 
 		// Show warning icon if there are issues preventing full functionality
-		if (hasIssue || noSource) {
+		if (hasIssue || noSource || compatibilityWarningMessage) {
 			this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
 		} else if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);
@@ -349,4 +366,5 @@ export interface FolderCache {
 	extensions: Record<string, InstalledExtension>;
 	latestVersions: Record<string, string>;
 	parseErrors: Set<string>;
+	compatibility: Record<string, ExtensionCompatibility>;
 }

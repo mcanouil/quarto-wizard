@@ -8,6 +8,8 @@ import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionRepository, getExtensionContributes } from "../utils/extensions";
 import { getRegistryUrl, getCacheTTL } from "../utils/extensionDetails";
 import { getAuthConfig } from "../utils/auth";
+import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
+import { validateQuartoRequirement } from "../utils/versionValidation";
 import {
 	WorkspaceFolderTreeItem,
 	ExtensionTreeItem,
@@ -22,6 +24,7 @@ import {
 	SnippetItemTreeItem,
 	type TreeItemType,
 	type FolderCache,
+	type ExtensionCompatibility,
 } from "./extensionTreeItems";
 
 /**
@@ -131,18 +134,22 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			];
 		}
 
-		return Object.keys(folderCache.extensions).map(
-			(ext) =>
-				new ExtensionTreeItem(
-					ext,
-					vscode.TreeItemCollapsibleState.Collapsed,
-					workspacePath,
-					folderCache.extensions[ext],
-					"package",
-					folderCache.latestVersions[ext],
-					folderCache.parseErrors.has(ext),
-				),
-		);
+		return Object.keys(folderCache.extensions).map((ext) => {
+			const compatibilityWarning =
+				folderCache.compatibility[ext]?.status === "incompatible"
+					? folderCache.compatibility[ext].warningMessage
+					: undefined;
+			return new ExtensionTreeItem(
+				ext,
+				vscode.TreeItemCollapsibleState.Collapsed,
+				workspacePath,
+				folderCache.extensions[ext],
+				"package",
+				folderCache.latestVersions[ext],
+				folderCache.parseErrors.has(ext),
+				compatibilityWarning,
+			);
+		});
 	}
 
 	private getExtensionDetailItems(element: ExtensionTreeItem): TreeItemType[] {
@@ -151,6 +158,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			return [];
 		}
 		const manifest = ext.manifest;
+		const compatibility = this.getExtensionCompatibility(
+			element.workspaceFolder,
+			element.label,
+			manifest.quartoRequired,
+		);
 		const items: TreeItemType[] = [
 			new ExtensionTreeItem(
 				`Title: ${manifest.title || "N/A"}`,
@@ -169,6 +181,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			),
 			new ExtensionTreeItem(
 				`Quarto required: ${manifest.quartoRequired || "N/A"}`,
+				vscode.TreeItemCollapsibleState.None,
+				element.workspaceFolder,
+			),
+			new ExtensionTreeItem(
+				`Compatibility: ${compatibility.detail}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
@@ -210,6 +227,59 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		}
 
 		return items;
+	}
+
+	private getExtensionCompatibility(
+		workspaceFolder: string,
+		extensionId: string,
+		quartoRequired: string | undefined,
+	): ExtensionCompatibility {
+		const compatibility = this.cache[workspaceFolder]?.compatibility[extensionId];
+		if (compatibility) {
+			return compatibility;
+		}
+		return this.fallbackCompatibility(quartoRequired);
+	}
+
+	private evaluateCompatibility(
+		quartoRequired: string | undefined,
+		quartoInfo: QuartoVersionInfo,
+	): ExtensionCompatibility {
+		if (!quartoRequired) {
+			return {
+				status: "not-specified",
+				detail: "not specified",
+			};
+		}
+		if (!quartoInfo.available || !quartoInfo.version) {
+			return this.fallbackCompatibility(quartoRequired);
+		}
+		const validation = validateQuartoRequirement(quartoRequired, quartoInfo.version);
+		if (!validation.valid) {
+			const warningMessage = validation.message ?? `This extension requires Quarto ${quartoRequired}.`;
+			return {
+				status: "incompatible",
+				detail: "incompatible",
+				warningMessage,
+			};
+		}
+		return {
+			status: "compatible",
+			detail: "compatible",
+		};
+	}
+
+	private fallbackCompatibility(quartoRequired: string | undefined): ExtensionCompatibility {
+		if (!quartoRequired) {
+			return {
+				status: "not-specified",
+				detail: "not specified",
+			};
+		}
+		return {
+			status: "unknown",
+			detail: "unknown (Quarto unavailable)",
+		};
 	}
 
 	private getSchemaSectionItems(element: SchemaTreeItem): SchemaSectionTreeItem[] {
@@ -354,14 +424,17 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 		const doRefresh = async (): Promise<void> => {
 			const newCache: Record<string, FolderCache> = {};
+			const quartoInfo = await getQuartoVersionInfo();
 
 			for (const folder of this.workspaceFolders) {
 				const workspaceFolder = folder.uri.fsPath;
 				const extensions = await getInstalledExtensionsRecord(workspaceFolder);
 
 				const parseErrors = new Set<string>();
+				const compatibility: Record<string, ExtensionCompatibility> = {};
 				for (const [extId, ext] of Object.entries(extensions)) {
 					const manifest = ext.manifest;
+					compatibility[extId] = this.evaluateCompatibility(manifest.quartoRequired, quartoInfo);
 					// Mark as parse error if essential fields are missing
 					if (!manifest.title && !manifest.version && !manifest.contributes) {
 						parseErrors.add(extId);
@@ -372,6 +445,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					extensions,
 					latestVersions: this.cache[workspaceFolder]?.latestVersions || {},
 					parseErrors,
+					compatibility,
 				};
 			}
 

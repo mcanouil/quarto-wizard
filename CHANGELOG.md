@@ -11,6 +11,7 @@
 - feat: display schema contribution details in the installed extensions tree view.
 - feat: add extension-provided snippets from `_snippets.json`, surfaced in the tree view and IntelliSense with direct insertion from snippet nodes.
 - feat: display `quarto-required` version constraints in extension detail rows in the installed extensions tree view.
+- feat: add compatibility status in the installed extensions tree view to highlight version mismatches against `quarto-required` when Quarto is available.
 
 ### Bug Fixes
 
