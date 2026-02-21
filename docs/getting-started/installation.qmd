@@ -159,8 +159,8 @@ fig-alt='{{< meta alt-text.github-token >}}'
 
 Alternatively, Quarto Wizard can use:
 
-- VS Code's built-in GitHub authentication.
 - Environment variables (`GITHUB_TOKEN` or `QUARTO_WIZARD_TOKEN`).
+- VS Code's built-in GitHub authentication (offered automatically when an authentication error occurs).
 
 ## Getting Help
 

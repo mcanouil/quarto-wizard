@@ -17,7 +17,7 @@ These are useful for bug reports, feature requests, or sharing code examples.
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on macOS).
 2. Type `Quarto Wizard: Quarto Reproducible Document` and select it.
 3. Choose the language: R, Python, or Julia.
-4. Select the destination folder for the new document.
+4. A new untitled document opens in the editor with a ready-to-use template.
 
 ::: {layout="[[1, 1], [-0.25, 0.5, -0.25]]"}
 

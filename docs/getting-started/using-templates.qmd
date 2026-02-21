@@ -142,7 +142,7 @@ Common repository files (such as README, LICENSE, and Git configuration) are exc
 Quarto Wizard keeps track of your recently used templates for quick access.
 These appear at the top of the template browser.
 
-To clear this list, use `Quarto Wizard: Clear Recently Installed Extensions`.
+To clear this list, use `Quarto Wizard: Clear Recently Installed Extensions` (this also clears the recently installed extensions list).
 
 ## Accessing Templates from Context Menu
 

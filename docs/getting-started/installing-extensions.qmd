@@ -236,13 +236,13 @@ Quarto Wizard validates this requirement before installation if the [Quarto VS C
    - Options to "Install Anyway" or "Cancel".
 
 ::: {style="text-align: center;"}
-![](images/version-validation-dark.png "Explorer Context Menu"){
+![](images/version-validation-dark.png "Version Validation Dialog"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="250px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.version-validation >}}'
 }
-![](images/version-validation-light.png "Explorer Context Menu"){
+![](images/version-validation-light.png "Version Validation Dialog"){
 .light-content
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="250px" fig-align="center" group="quarto-wizard-light"
