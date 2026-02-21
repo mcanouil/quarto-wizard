@@ -51,6 +51,8 @@ jobs:
 
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: "pre-release"
 
       - name: Update Quarto extensions
         uses: mcanouil/quarto-extensions-updater@v2
