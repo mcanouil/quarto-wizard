@@ -318,10 +318,14 @@ export class SnippetItemTreeItem extends vscode.TreeItem {
 
 const SNIPPET_TOOLTIP_PREVIEW_MAX_LINES = 15;
 
+function escapeMarkdown(text: string): string {
+	return text.replace(/[\\`*_{}[\]()#+\-.!~|>]/g, "\\$&");
+}
+
 function buildSnippetTooltip(snippet: SnippetDefinition): vscode.MarkdownString {
 	const tooltip = new vscode.MarkdownString();
 	if (snippet.description?.trim()) {
-		tooltip.appendText(snippet.description);
+		tooltip.appendMarkdown(escapeMarkdown(snippet.description));
 		tooltip.appendMarkdown("\n\n");
 	}
 
