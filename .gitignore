@@ -21,3 +21,5 @@ node_modules
 
 # Quarto
 /.luarc.json
+/.quarto/
+**/*.quarto_ipynb
