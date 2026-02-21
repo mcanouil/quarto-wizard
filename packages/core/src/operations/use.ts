@@ -466,6 +466,8 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 					effectiveSourceDisplay,
 					true, // force
 					(p) => onProgress?.({ phase: p.phase, message: p.message }),
+					undefined,
+					source.type,
 				);
 
 				if (!primaryInstallResult) {

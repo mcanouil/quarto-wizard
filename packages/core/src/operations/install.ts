@@ -122,6 +122,8 @@ export interface InstallResult {
 	filesCreated: string[];
 	/** Source string for the manifest. */
 	source: string;
+	/** Source type for the manifest. */
+	sourceType?: "github" | "url" | "local" | "registry";
 	/** Path to extracted source root (only set if keepSourceDir was true). */
 	sourceRoot?: string;
 	/** Whether this was a dry run (no files were actually created). */
@@ -496,7 +498,13 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		}
 
 		onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
-		const filesCreated = await writeExtensionToDisk(extensionRoot, targetDir, manifestResult.filename, sourceString);
+		const filesCreated = await writeExtensionToDisk(
+			extensionRoot,
+			targetDir,
+			manifestResult.filename,
+			sourceString,
+			source.type,
+		);
 
 		const manifestPath = path.join(targetDir, manifestResult.filename);
 		const finalManifest = readManifest(targetDir);
@@ -514,6 +522,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 						force,
 						onProgress,
 						options.confirmOverwrite,
+						source.type,
 					);
 					additionalInstalls.push(additionalResult);
 				} catch (error) {
@@ -534,6 +543,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			},
 			filesCreated,
 			source: sourceString,
+			sourceType: source.type,
 			sourceRoot: keepSourceDir ? repoRoot : undefined,
 			additionalInstalls: additionalInstalls.length > 0 ? additionalInstalls : undefined,
 		};
@@ -658,6 +668,7 @@ function formatSourceString(source: InstallSource, tagName?: string, commitSha?:
  * @param targetDir - Destination directory for the extension
  * @param manifestFilename - Name of the manifest file (e.g., "_extension.yml")
  * @param sourceString - Source string to write into the manifest
+ * @param sourceType - Type of source (github, url, local, registry)
  * @returns List of files created
  */
 async function writeExtensionToDisk(
@@ -665,11 +676,12 @@ async function writeExtensionToDisk(
 	targetDir: string,
 	manifestFilename: string,
 	sourceString: string,
+	sourceType?: "github" | "url" | "local" | "registry",
 ): Promise<string[]> {
 	try {
 		const filesCreated = await copyDirectory(sourceDir, targetDir);
 		const manifestPath = path.join(targetDir, manifestFilename);
-		updateManifestSource(manifestPath, sourceString);
+		updateManifestSource(manifestPath, sourceString, sourceType);
 		return filesCreated;
 	} catch (error) {
 		// Rollback: remove partially installed extension to maintain consistency.
@@ -708,6 +720,7 @@ export async function installSingleExtension(
 	force: boolean,
 	onProgress?: InstallProgressCallback,
 	confirmOverwrite?: ConfirmOverwriteCallback,
+	sourceType?: "github" | "url" | "local" | "registry",
 ): Promise<InstallResult> {
 	const manifestResult = readManifest(extension.path);
 
@@ -753,7 +766,13 @@ export async function installSingleExtension(
 	const extIdString = extensionId.owner ? `${extensionId.owner}/${extensionId.name}` : extensionId.name;
 	onProgress?.({ phase: "installing", message: `Installing ${extIdString}...` });
 
-	const filesCreated = await writeExtensionToDisk(extension.path, targetDir, manifestResult.filename, sourceString);
+	const filesCreated = await writeExtensionToDisk(
+		extension.path,
+		targetDir,
+		manifestResult.filename,
+		sourceString,
+		sourceType,
+	);
 
 	const manifestPath = path.join(targetDir, manifestResult.filename);
 	const finalManifest = readManifest(targetDir);
@@ -768,5 +787,6 @@ export async function installSingleExtension(
 		},
 		filesCreated,
 		source: sourceString,
+		sourceType,
 	};
 }

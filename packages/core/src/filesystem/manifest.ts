@@ -149,6 +149,10 @@ export function writeManifest(manifestPath: string, manifest: ExtensionManifest)
 		raw.source = manifest.source;
 	}
 
+	if (manifest.sourceType) {
+		raw["source-type"] = manifest.sourceType;
+	}
+
 	const contributes: RawManifest["contributes"] = {};
 	if (manifest.contributes.filter?.length) {
 		contributes.filters = manifest.contributes.filter;
@@ -188,9 +192,17 @@ export function writeManifest(manifestPath: string, manifest: ExtensionManifest)
  *
  * @param manifestPath - Path to the manifest file
  * @param source - New source value
+ * @param sourceType - Type of source (github, url, local, registry)
  */
-export function updateManifestSource(manifestPath: string, source: string): void {
+export function updateManifestSource(
+	manifestPath: string,
+	source: string,
+	sourceType?: "github" | "url" | "local" | "registry",
+): void {
 	const manifest = parseManifestFile(manifestPath);
 	manifest.source = source;
+	if (sourceType) {
+		manifest.sourceType = sourceType;
+	}
 	writeManifest(manifestPath, manifest);
 }
