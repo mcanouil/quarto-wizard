@@ -37,7 +37,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
 }
 ![](images/extension-source-picker-light.png "Extension Source Picker"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
@@ -52,7 +52,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-1 >}}'
 }
 ![](images/extension-browser-1-light.png "Extension Browser Interface"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-browser-1 >}}'
@@ -67,7 +67,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-2 >}}'
 }
 ![](images/extension-browser-2-light.png "Extension Browser Interface"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-browser-2 >}}'
@@ -161,7 +161,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.context-menu-local >}}'
 }
 ![](images/context-menu-local-light.png "Explorer Context Menu"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.context-menu-local >}}'
@@ -190,7 +190,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-selection >}}'
 }
 ![](images/extension-selection-light.png "Extension Selection Dialog"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-selection >}}'
@@ -214,7 +214,7 @@ width="250px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.conflict-resolution >}}'
 }
 ![](images/conflict-resolution-light.png "Conflict Resolution Dialog"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="250px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.conflict-resolution >}}'
@@ -243,7 +243,7 @@ width="250px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.version-validation >}}'
 }
 ![](images/version-validation-light.png "Version Validation Dialog"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="250px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.version-validation >}}'

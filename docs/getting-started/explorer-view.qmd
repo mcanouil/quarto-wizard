@@ -34,7 +34,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.explorer-view >}}'
 }
 ![](images/explorer-view-light.png "Explorer View Interface"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.explorer-view >}}'
@@ -75,7 +75,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.explorer-view-version >}}'
 }
 ![](images/explorer-view-version-light.png "Extension Compatibility Details"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.explorer-view-version >}}'
@@ -102,7 +102,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.explorer-view-schema >}}'
 }
 ![](images/explorer-view-schema-light.png "Schema Node with Grouped Sections"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.explorer-view-schema >}}'
@@ -124,7 +124,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.explorer-view-snippets >}}'
 }
 ![](images/explorer-view-snippets-light.png "Snippets Node with Tooltip Preview"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.explorer-view-snippets >}}'
@@ -199,7 +199,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.reprex-command-2 >}}'
 }
 ![](images/reprex-command-2-light.png "Explorer Context Menu"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.reprex-command-2 >}}'
@@ -216,7 +216,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.editor-context >}}'
 }
 ![](images/editor-context-light.png "Editor Context Menu"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.editor-context >}}'
