@@ -1,0 +1,120 @@
+{
+  "Value Box": {
+    "prefix": "value-box",
+    "body": [
+      "{{< value-box value=\"${1:0}\" label=\"${2:Label}\" colour=\"${3:info}\" >}}"
+    ],
+    "description": "Insert a value-box shortcode with value, label, and colour."
+  },
+  "Value Box with Icon": {
+    "prefix": "value-box-icon",
+    "body": [
+      "{{< value-box value=\"${1:0}\" unit=\"${2:%}\" label=\"${3:Label}\" icon=\"${4:up}\" colour=\"${5:success}\" >}}"
+    ],
+    "description": "Insert a value-box shortcode with icon and unit."
+  },
+  "Divider": {
+    "prefix": "divider",
+    "body": [
+      "{{< divider style=\"${1|solid,dashed,dotted,ornamental,gradient|}\" >}}"
+    ],
+    "description": "Insert a divider shortcode."
+  },
+  "Divider with Label": {
+    "prefix": "divider-label",
+    "body": [
+      "{{< divider style=\"${1|solid,dashed,dotted,ornamental,gradient|}\" label=\"${2:Section Break}\" >}}"
+    ],
+    "description": "Insert a divider shortcode with a label."
+  },
+  "Progress Bar": {
+    "prefix": "progress",
+    "body": [
+      "{{< progress value=\"${1:50}\" label=\"${2:Label}\" colour=\"${3:info}\" >}}"
+    ],
+    "description": "Insert a progress bar shortcode."
+  },
+  "Badge Shortcode": {
+    "prefix": "badge-shortcode",
+    "body": [
+      "{{< badge text=\"${1:Text}\" colour=\"${2:neutral}\" >}}"
+    ],
+    "description": "Insert a badge shortcode (HTML and Reveal.js only)."
+  },
+  "Panel": {
+    "prefix": "panel",
+    "body": [
+      "::: {.panel style=\"${1|subtle,emphasis,accent,outline,info,success,warning,danger,caution,neutral|}\"}",
+      "$0",
+      ":::"
+    ],
+    "description": "Insert a panel div."
+  },
+  "Panel with Title": {
+    "prefix": "panel-title",
+    "body": [
+      "::: {.panel style=\"${1|subtle,emphasis,accent,outline,info,success,warning,danger,caution,neutral|}\" title=\"${2:Title}\" icon=\"${3}\"}",
+      "$0",
+      ":::"
+    ],
+    "description": "Insert a panel div with title and icon."
+  },
+  "Card": {
+    "prefix": "card",
+    "body": [
+      "::: {.card style=\"${1|subtle,outlined,filled|}\"}",
+      "## ${2:Title}",
+      "",
+      "$0",
+      ":::"
+    ],
+    "description": "Insert a card div."
+  },
+  "Card Grid": {
+    "prefix": "card-grid",
+    "body": [
+      "::: {.card-grid columns=\"${1:3}\"}",
+      "::: {.card}",
+      "## ${2:Title}",
+      "",
+      "$3",
+      ":::",
+      ":::"
+    ],
+    "description": "Insert a card grid with one card."
+  },
+  "Executive Summary": {
+    "prefix": "executive-summary",
+    "body": [
+      "::: {.executive-summary}",
+      "## Executive Summary",
+      "",
+      "$0",
+      ":::"
+    ],
+    "description": "Insert an executive summary section."
+  },
+  "Highlight": {
+    "prefix": "highlight",
+    "body": [
+      "::: {.highlight}",
+      "$0",
+      ":::"
+    ],
+    "description": "Insert a highlight block."
+  },
+  "Badge": {
+    "prefix": "badge",
+    "body": [
+      "[${1:Text}]{.badge colour=\"${2:neutral}\"}"
+    ],
+    "description": "Insert an inline badge span."
+  },
+  "Badge with Icon": {
+    "prefix": "badge-icon",
+    "body": [
+      "[${1:Text}]{.badge colour=\"${2:neutral}\" icon=\"${3}\"}"
+    ],
+    "description": "Insert an inline badge span with icon."
+  }
+}

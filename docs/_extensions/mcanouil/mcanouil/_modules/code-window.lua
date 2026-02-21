@@ -88,6 +88,34 @@ function M.get_filename(block, auto_filename)
 end
 
 -- ============================================================================
+-- LANGUAGE DETECTION
+-- ============================================================================
+
+--- Cache of language detection results (lang -> boolean).
+local known_language_cache = {}
+
+--- Check if a language is recognised by Pandoc's syntax highlighter.
+--- Renders a test CodeBlock to HTML and checks for the sourceCode class.
+--- Results are cached to avoid repeated rendering.
+--- @param lang string Language identifier
+--- @return boolean True if the language is known to Pandoc
+function M.is_known_language(lang)
+  if not lang or lang == '' then
+    return false
+  end
+
+  if known_language_cache[lang] ~= nil then
+    return known_language_cache[lang]
+  end
+
+  local test_block = pandoc.CodeBlock('x', pandoc.Attr('', { lang }))
+  local html = pandoc.write(pandoc.Pandoc({ test_block }), 'html')
+  local is_known = html:find('sourceCode') ~= nil
+  known_language_cache[lang] = is_known
+  return is_known
+end
+
+-- ============================================================================
 -- FORMAT-SPECIFIC PROCESSORS
 -- ============================================================================
 
@@ -196,6 +224,13 @@ function M.process_html(block, config)
   end
 
   local filename = block.classes[1]
+
+  -- Normalise unknown languages to 'default' so Pandoc renders them
+  -- with sourceCode wrapper, copy button, and consistent styling.
+  -- The displayed filename still uses the original language name.
+  if not M.is_known_language(filename) then
+    block.classes[1] = 'default'
+  end
 
   -- Create Quarto-compatible .code-with-filename structure with auto marker:
   -- <div class="code-with-filename code-window-auto">

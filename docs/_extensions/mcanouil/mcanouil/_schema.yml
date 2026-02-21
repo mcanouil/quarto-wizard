@@ -1,0 +1,305 @@
+# Schema for the mcanouil extension
+# Provides configuration validation and IDE support for options,
+# shortcodes, formats, attributes, and classes.
+
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json
+
+options:
+  grid-background:
+    type: boolean
+    default: false
+    description: "Enable a subtle grid background on HTML pages and Reveal.js slides."
+  section-outline:
+    type: boolean
+    default: true
+    description: "Show subsection outline on section slides (Reveal.js)."
+  date-superscript:
+    type: boolean
+    default: true
+    description: "Format ordinal dates with superscript suffixes (1st, 2nd, 3rd)."
+  hide-title-slide-chrome:
+    type: boolean
+    default: true
+    description: "Hide menu, logo, and footer on the title slide (Reveal.js)."
+  favicon-from-logo:
+    type: boolean
+    default: true
+    description: "Generate favicon from the slide logo (Reveal.js)."
+  code-annotation-fragments:
+    type: boolean
+    default: true
+    description: "Enable code annotation fragment navigation (Reveal.js)."
+  debug-borders:
+    type: boolean
+    default: false
+    description: "Show debug borders on slides for layout troubleshooting (Reveal.js)."
+  hide-navbar-title:
+    type: boolean
+    default: true
+    description: "Hide the navbar brand and title (HTML)."
+  code-window:
+    type: object
+    description: "Configuration for macOS-style code block window decorations."
+    properties:
+      enabled:
+        type: boolean
+        default: true
+        description: "Enable code-window styling on code blocks."
+      auto-filename:
+        type: boolean
+        default: true
+        description: "Automatically generate filename labels from the code block language."
+      wrapper:
+        type: string
+        default: "mcanouil-code-window"
+        description: "Typst wrapper function name for code-window rendering."
+
+shortcodes:
+  divider:
+    description: "Render a decorative divider line."
+    attributes:
+      style:
+        type: string
+        default: "solid"
+        enum: [solid, dashed, dotted, ornamental, gradient]
+        description: "Border style of the divider line."
+      label:
+        type: string
+        description: "Optional text label displayed on the divider."
+      thickness:
+        type: string
+        default: "1pt"
+        description: "Thickness of the divider line (CSS length)."
+        completion:
+          type: size
+      width:
+        type: string
+        default: "50%"
+        description: "Width of the divider (CSS length or percentage)."
+        completion:
+          type: size
+
+  value-box:
+    description: "Render a value display box with number, label, and optional icon."
+    attributes:
+      value:
+        type: string
+        default: "0"
+        description: "The numeric or text value to display."
+      unit:
+        type: string
+        description: "Unit label displayed next to the value."
+      label:
+        type: string
+        description: "Descriptive label below the value."
+      icon:
+        type: string
+        description: "Icon character or shortcut name (up, down, stable). Accepts any UTF-8 character."
+      colour:
+        type: string
+        default: "info"
+        aliases: [color]
+        description: "Colour theme or custom colour value."
+        completion:
+          type: color
+
+  progress:
+    description: "Render a progress bar."
+    attributes:
+      value:
+        type: integer
+        default: 0
+        min: 0
+        max: 100
+        description: "Progress percentage (0 to 100)."
+      label:
+        type: string
+        description: "Label displayed above the progress bar."
+      colour:
+        type: string
+        default: "info"
+        aliases: [color]
+        description: "Colour theme or custom colour value."
+        completion:
+          type: color
+      show-value:
+        type: boolean
+        default: true
+        description: "Whether to display the percentage inside the bar."
+      height:
+        type: string
+        description: "Height of the progress bar (CSS length). Defaults to 1.5em for HTML, 1.2em for Reveal.js."
+        completion:
+          type: size
+
+  badge:
+    description: "Render an inline badge (HTML and Reveal.js only; Typst uses span syntax)."
+    attributes:
+      text:
+        type: string
+        description: "Badge label text."
+      icon:
+        type: string
+        description: "Icon character or shortcut name."
+      colour:
+        type: string
+        default: "neutral"
+        aliases: [color]
+        description: "Colour theme for the badge."
+        completion:
+          type: color
+
+formats:
+  mcanouil-html:
+    style:
+      type: string
+      default: "professional"
+      enum: [professional, academic]
+      enum-case-insensitive: true
+      description: "Template style variant for the HTML format."
+
+  mcanouil-typst:
+    document-type:
+      type: string
+      default: "report"
+      enum: [report, invoice, letter, cv]
+      enum-case-insensitive: true
+      description: "Document type template to use."
+    brand-mode:
+      type: string
+      default: "light"
+      enum: [light, dark]
+      description: "Brand colour mode for the document."
+    style:
+      type: string
+      default: "professional"
+      enum: [professional, academic]
+      enum-case-insensitive: true
+      description: "Template style variant."
+    show-corner-brackets:
+      type: boolean
+      default: true
+      description: "Show signature corner bracket decorations."
+    show-margin-decoration:
+      type: boolean
+      default: true
+      description: "Show coloured bars along page margins."
+    show-title-page-background:
+      type: boolean
+      default: true
+      description: "Show geometric background on the title page."
+    show-heading-underlines:
+      type: boolean
+      default: true
+      description: "Show gradient underlines below headings."
+    show-logo:
+      type: boolean
+      default: true
+      description: "Display logo in the header."
+    section-page:
+      type: boolean
+      default: true
+      description: "Insert section title pages before each top-level section."
+    section-pagebreak:
+      type: boolean
+      default: true
+      description: "Insert a page break before each section title page."
+    list-of:
+      type: boolean
+      default: true
+      description: "Include lists of figures and tables."
+
+  mcanouil-revealjs:
+    brand-mode:
+      type: string
+      default: "dark"
+      enum: [light, dark]
+      description: "Brand colour mode for the presentation."
+
+attributes:
+  panel:
+    title:
+      type: string
+      description: "Panel header title."
+    icon:
+      type: string
+      description: "Icon character displayed before the title."
+    style:
+      type: string
+      default: "subtle"
+      description: "Colour theme for the panel border."
+      enum: [info, success, warning, danger, caution, neutral, subtle, emphasis, accent, outline]
+
+  executive-summary:
+    title:
+      type: string
+      default: "Executive Summary"
+      description: "Title for the executive summary section."
+    show-corner-brackets:
+      type: boolean
+      default: true
+      description: "Show decorative corner brackets."
+
+  card-grid:
+    columns:
+      type: string
+      default: "3"
+      description: "Number of columns in the card grid."
+    alt:
+      type: string
+      description: "Alternative text for the card grid (wraps grid in a figure; Typst only)."
+
+  card:
+    title:
+      type: string
+      description: "Card header title."
+    style:
+      type: string
+      default: "subtle"
+      description: "Visual style for the card."
+      enum: [subtle, outlined, filled]
+    colour:
+      type: string
+      aliases: [color]
+      description: "Custom accent colour for the card."
+      completion:
+        type: color
+
+  # Highlight block for emphasising content (no user-facing attributes).
+  highlight: {}
+
+  badge:
+    colour:
+      type: string
+      default: "neutral"
+      aliases: [color]
+      description: "Colour theme for the badge."
+      completion:
+        type: color
+    icon:
+      type: string
+      description: "Icon character displayed before the badge text."
+
+classes:
+  panel:
+    description: "Styled panel container with title, icon, and colour theme."
+  executive-summary:
+    description: "Executive summary section with title and decorative brackets."
+  card-grid:
+    description: "Grid layout for card components."
+  card:
+    description: "Card component with title, style, and colour options."
+  card-footer:
+    description: "Footer section within a card component."
+  highlight:
+    description: "Content emphasis block."
+  badge:
+    description: "Inline badge element with colour and icon."
+  panel-tabset:
+    description: "Tabbed panel container."
+  references:
+    description: "Special section for references."
+  appendix:
+    description: "Special section for appendix content."
+  supplementary:
+    description: "Special section for supplementary material."

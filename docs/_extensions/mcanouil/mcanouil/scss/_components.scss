@@ -761,6 +761,13 @@ $mc-breakpoint-sm: 576px !default;
         border-radius: 0;
       }
     }
+
+    // Plain code blocks (unknown language without sourceCode wrapper)
+    > pre {
+      margin: 0;
+      border: none;
+      border-radius: 0;
+    }
   }
 }
 
