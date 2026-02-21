@@ -2,14 +2,14 @@
 title: "Explorer View"
 alt-text:
   explorer-view: |
-    The Quarto Wizard Explorer View showing workspace folders and installed extensions with action buttons for installing, using templates, and managing extensions.
+    The Quarto Wizard Explorer View showing workspace folders, installed extensions, extension details (including Quarto compatibility), and nested Schema and Snippets nodes.
   reprex-command-2: |
     The context menu showing Quarto Wizard options for installing extensions and using templates.
   editor-context: |
     The editor context menu showing Quarto Wizard options for installing extensions and using templates.
 ---
 
-The Quarto Wizard Explorer View provides a dedicated interface for managing installed Quarto extensions across your workspace folders.
+The Quarto Wizard Explorer View provides a dedicated interface for managing installed Quarto extensions across your workspace folders, including extension metadata, compatibility, schema contributions, and snippets.
 
 ## Opening the Explorer View
 
@@ -39,7 +39,9 @@ The Explorer View displays:
 
 - **Workspace folders**: Each folder in your workspace that can contain extensions.
 - **Installed extensions**: Extensions found in the `_extensions` directory.
-- **Extension snippets**: Snippets declared by extensions via `_snippets.json` files.
+- **Extension details**: Metadata rows such as title, author, version, `quarto-required`, compatibility, contributes (filters, shortcodes, formats, etc.), repository, and source.
+- **Schema contributions**: A `Schema` node when the extension provides a valid `_schema.yml`, `_schema.yaml`, or `_schema.json`.
+- **Extension snippets**: A `Snippets` node when snippets are declared via `_snippets.json`.
 - **Version information**: Current version and available updates.
 - **Action buttons**: Quick access to common operations.
 
@@ -48,7 +50,41 @@ The Explorer View displays:
 Extensions may display different indicators:
 
 - **Update available**: A cloud icon indicates a newer version is available.
-- **No source**: A warning icon indicates the extension lacks source information (cannot check for updates).
+- **Warning state**: A warning icon indicates an `_extension.yml` parse error, missing source information, or an incompatible `quarto-required` constraint.
+
+## Compatibility Status
+
+When an extension is expanded, the details include:
+
+- **Quarto required**: The extension `quarto-required` constraint from `_extension.yml`.
+- **Compatibility**: One of `compatible`, `incompatible`, `not specified`, or `unknown (Quarto unavailable)`.
+
+If compatibility is `incompatible`, Quarto Wizard adds a warning on the extension item and details in the tooltip.
+
+<!-- TODO: Add screenshot showing expanded extension with compatibility rows -->
+
+## Schema and Snippet Nodes
+
+If an extension includes schema contributions, the Explorer View shows a `Schema` node with grouped sections:
+
+- **Options**.
+- **Shortcodes**.
+- **Formats**.
+- **Projects**.
+- **Element Attributes**.
+
+If the schema file cannot be parsed, the tree displays `Schema (invalid)` with a warning.
+
+<!-- TODO: Add screenshot showing Schema node with grouped sections -->
+
+If an extension includes snippets, the Explorer View shows a `Snippets` node with one item per snippet definition.
+Each snippet entry displays its namespace-qualified trigger prefix.
+Hovering over a snippet item shows a tooltip with its description and a preview of its content.
+Selecting a snippet inserts its content into the active editor.
+If no editor is open, a prompt asks you to open a file first.
+If snippets cannot be parsed, the tree displays `Snippets (invalid)` with a warning.
+
+<!-- TODO: Add screenshot showing Snippets node with tooltip preview -->
 
 ## Available Actions
 
@@ -66,8 +102,8 @@ For each installed extension, you can:
 
 - **Update**: Download and install the latest version (if outdated).
 - **Remove**: Delete the extension from the `_extensions` directory.
-- **Open Source**: View the extension's GitHub repository.
-- **Reveal in Explorer**: Open the extension folder in the file explorer.
+- **Open Source**: View the extension's GitHub repository (if source is available).
+- **Reveal in Explorer View**: Open the extension folder in the file explorer.
 
 ### Snippet Actions
 
@@ -84,6 +120,9 @@ The view toolbar provides:
 - **Update All**: Update all outdated extensions in the workspace.
 - **Refresh**: Reload the list of installed extensions.
 
+The tree updates automatically after installations, updates, removals, and local file changes.
+Use **Refresh** when you need to force a manual reload.
+
 ## Update Detection
 
 Quarto Wizard can detect when updates are available for your installed extensions.
@@ -93,14 +132,19 @@ Extensions can only be updated if they were installed by Quarto Wizard or have `
 You can manually add the source field to enable update detection.
 :::
 
+## Visibility
+
+The Explorer View panel is only visible when at least one workspace folder is open.
+If no extensions are installed, the view displays a welcome message with links to install extensions, use a template, or browse the extensions directory.
+
 ## Context Menu
 
 Right-click on an extension to access additional options:
 
 - Update (if available).
 - Remove.
-- Open Source (GitHub repository).
-- Reveal in Explorer.
+- Open Source (if source is available).
+- Reveal in Explorer View.
 
 ::: {style="text-align: center;"}
 ![](images/reprex-command-2-dark.png "Explorer Context Menu"){
