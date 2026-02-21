@@ -3,8 +3,11 @@ project:
   resources:
     - quarto-wizard-dev.vsix
 
+image: "../assets/social/social-card.png"
+
 website:
   site-url: "https://m.canouil.dev/quarto-wizard/dev"
+  image: "../assets/social/social-card.png"
   announcement:
     icon: exclamation-circle
     dismissable: false

@@ -10,6 +10,12 @@ A single schema serves two consumers:
 - **Lua runtime** validates options when Quarto renders, catching configuration errors early with clear messages.
 - **IDE tooling** (Quarto Wizard) reads the same file to provide autocompletion, hover documentation, and diagnostics in `_quarto.yml`, `_metadata.yml`, and document YAML front matter.
 
+::: {.callout-warning}
+Schema specification support in Quarto Wizard may evolve over time.
+Quarto CLI may use, modify, or discard this schema behaviour in future releases.
+No guarantees are provided regarding Quarto CLI native support.
+:::
+
 ## File Location
 
 Place `_schema.yml` (or `_schema.yaml`) in the same directory as `_extension.yml`.
