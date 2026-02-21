@@ -15,12 +15,12 @@ A single schema serves two consumers:
 Place `_schema.yml` (or `_schema.yaml`) in the same directory as `_extension.yml`.
 A `_schema.json` file is also supported alongside or instead of the YAML variants.
 
-```text
+```{.txt filename="Tree"}
 _extensions/
-  my-extension/
-    _extension.yml
-    _schema.yml
-    my-extension.lua
+└── my-extension/
+    ├── _extension.yml
+    ├── _schema.yml
+    └── my-extension.lua
 ```
 
 When both a JSON and a YAML schema exist in the same directory, the JSON file takes precedence.

@@ -10,11 +10,11 @@ For the complete format reference, see [VS Code: Snippet syntax](https://code.vi
 
 Place `_snippets.json` in the same directory as `_extension.yml`.
 
-```text
+```{.txt filename="Tree"}
 _extensions/
-  my-extension/
-    _extension.yml
-    _snippets.json
+└── my-extension/
+    ├── _extension.yml
+    └── _snippets.json
 ```
 
 Quarto Wizard discovers snippet files automatically when scanning installed extensions.
