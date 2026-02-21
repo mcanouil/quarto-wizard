@@ -63,12 +63,83 @@ export async function getInstalledExtensionsRecord(
 
 /**
  * Gets the repository identifier from an installed extension's source.
+ * Returns a value only for GitHub and registry sources.
  *
  * @param ext - The installed extension.
  * @returns The repository identifier (e.g., "owner/repo") or undefined if not available.
  */
 export function getExtensionRepository(ext: InstalledExtension): string | undefined {
-	return ext.manifest.source ? ext.manifest.source.replace(/@.*$/, "") : undefined;
+	if (!ext.manifest.source) {
+		return undefined;
+	}
+	const base = ext.manifest.source.replace(/@.*$/, "");
+	const type = ext.manifest.sourceType;
+	if (type) {
+		return type === "github" || type === "registry" ? base : undefined;
+	}
+	// Fallback for legacy manifests without sourceType
+	if (/^[^/\s:]+\/[^/\s]+$/.test(base) && !base.startsWith(".")) {
+		return base;
+	}
+	return undefined;
+}
+
+/**
+ * Gets the URL to open for an extension's source.
+ *
+ * @param ext - The installed extension.
+ * @returns The source URL/path or undefined if not available.
+ */
+export function getExtensionSourceUrl(ext: InstalledExtension): string | undefined {
+	if (!ext.manifest.source) {
+		return undefined;
+	}
+	const base = ext.manifest.source.replace(/@.*$/, "");
+	const type = ext.manifest.sourceType;
+	if (type === "github" || type === "registry") {
+		return `https://github.com/${base}`;
+	}
+	if (type === "url") {
+		return base;
+	}
+	if (type === "local") {
+		return base;
+	}
+	// Fallback for legacy manifests without sourceType
+	if (/^https?:\/\//.test(base)) {
+		return base;
+	}
+	if (/^[^/\s:]+\/[^/\s]+$/.test(base) && !base.startsWith(".")) {
+		return `https://github.com/${base}`;
+	}
+	return base;
+}
+
+/**
+ * Determines the effective source type from an installed extension.
+ * Uses the explicit sourceType field if available, otherwise infers from the source string.
+ *
+ * @param ext - The installed extension.
+ * @returns The source type or undefined if not determinable.
+ */
+export function getEffectiveSourceType(ext: InstalledExtension): "github" | "url" | "local" | "registry" | undefined {
+	if (ext.manifest.sourceType) {
+		return ext.manifest.sourceType;
+	}
+	if (!ext.manifest.source) {
+		return undefined;
+	}
+	const base = ext.manifest.source.replace(/@.*$/, "");
+	if (/^https?:\/\//.test(base)) {
+		return "url";
+	}
+	if (base.startsWith("/") || base.startsWith("./") || base.startsWith("../") || /^[A-Za-z]:[/\\]/.test(base)) {
+		return "local";
+	}
+	if (/^[^/\s:]+\/[^/\s]+$/.test(base)) {
+		return "github";
+	}
+	return undefined;
 }
 
 /**

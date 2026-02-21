@@ -5,7 +5,7 @@ import { snippetNamespace } from "@quarto-wizard/snippets";
 import { checkForUpdates, formatExtensionId } from "@quarto-wizard/core";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
-import { getInstalledExtensionsRecord, getExtensionRepository, getExtensionContributes } from "../utils/extensions";
+import { getInstalledExtensionsRecord, getExtensionContributes } from "../utils/extensions";
 import { getRegistryUrl, getCacheTTL } from "../utils/extensionDetails";
 import { getAuthConfig } from "../utils/auth";
 import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
@@ -192,11 +192,6 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			),
 			new ExtensionTreeItem(
 				`Contributes: ${getExtensionContributes(ext) ?? "N/A"}`,
-				vscode.TreeItemCollapsibleState.None,
-				element.workspaceFolder,
-			),
-			new ExtensionTreeItem(
-				`Repository: ${getExtensionRepository(ext) ?? "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
@@ -472,13 +467,13 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	getOutdatedExtensions(): {
 		extensionId: string;
 		workspaceFolder: string;
-		repository: string | undefined;
+		source: string | undefined;
 		latestVersion: string;
 	}[] {
 		const outdated: {
 			extensionId: string;
 			workspaceFolder: string;
-			repository: string | undefined;
+			source: string | undefined;
 			latestVersion: string;
 		}[] = [];
 
@@ -494,7 +489,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					outdated.push({
 						extensionId: ext,
 						workspaceFolder: workspacePath,
-						repository: extension ? getExtensionRepository(extension) : undefined,
+						source: extension?.manifest.source,
 						latestVersion: version,
 					});
 				}
