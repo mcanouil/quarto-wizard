@@ -3,8 +3,6 @@ title: "Troubleshooting"
 alt-text:
   output-log: |
     The Output panel showing Quarto Wizard log messages with timestamps and log levels.
-  rate-limit-error: |
-    Example of a rate limit error message in the output log.
 ---
 
 This guide helps you resolve common issues with Quarto Wizard.
@@ -25,7 +23,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.output-log >}}'
 }
 ![](images/output-log-light.png "Output Log: Quarto Wizard"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.output-log >}}'
@@ -91,6 +89,28 @@ You can adjust the log level in [Configuration](../reference/configuration.qmd) 
 1. Click the Refresh button in the Explorer View toolbar.
 2. Ensure the extensions are in the `_extensions` directory.
 3. Check that each extension has a valid `_extension.yml` file.
+
+### Compatibility Warning in Explorer View
+
+**Symptoms**: An extension shows a warning icon and `Compatibility: incompatible` in extension details.
+
+**Solutions**:
+
+1. Expand the extension item and review the `Quarto required` and `Compatibility` rows (see [Explorer View](explorer-view.qmd#compatibility-status)).
+2. Update Quarto to a version that satisfies the extension's `quarto-required` constraint.
+3. Install a different extension version that supports your current Quarto version.
+4. Click Refresh in the Explorer View toolbar after updating your environment.
+
+### `Schema (invalid)` or `Snippets (invalid)` in Explorer View
+
+**Symptoms**: An extension shows `Schema (invalid)` or `Snippets (invalid)` nodes.
+
+**Solutions**:
+
+1. Open the extension files in `_extensions/<extension-id>/` and validate `_schema.yml` / `_schema.yaml` / `_schema.json` or `_snippets.json`.
+2. Fix malformed YAML or JSON content, then save the file.
+3. Refresh the Explorer View if the tree does not update automatically.
+4. Check the Quarto Wizard output log for parse and validation details.
 
 ## Getting Help
 

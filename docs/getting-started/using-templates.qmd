@@ -44,7 +44,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
 }
 ![](images/extension-source-picker-light.png "Extension Source Picker"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
@@ -59,7 +59,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.template-browser >}}'
 }
 ![](images/template-browser-light.png "Template Browser"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.template-browser >}}'
@@ -86,7 +86,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.target-subdir >}}'
 }
 ![](images/target-subdir-light.png "Target Subdirectory Input"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.target-subdir >}}'
@@ -101,7 +101,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.template-files >}}'
 }
 ![](images/template-files-light.png "QuickPick Dialog: Template Files"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.template-files >}}'
@@ -142,7 +142,7 @@ Common repository files (such as README, LICENSE, and Git configuration) are exc
 Quarto Wizard keeps track of your recently used templates for quick access.
 These appear at the top of the template browser.
 
-To clear this list, use `Quarto Wizard: Clear Recently Installed Extensions`.
+To clear this list, use `Quarto Wizard: Clear Recently Installed Extensions` (this also clears the recently installed extensions list).
 
 ## Accessing Templates from Context Menu
 

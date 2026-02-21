@@ -17,9 +17,9 @@ It enhances your Quarto development experience by making extension management si
 - **Browse Extensions**: View a comprehensive list of available Quarto extensions.
 - **Install Extensions**: Install selected Quarto extensions with a single click.
 - **Use Templates**: Quick-start documents with pre-configured templates.
-- **Use Brands**: Download and apply Quarto brand assets from GitHub, URL, or local sources.
-- **Manage Extensions**: View, update, and remove installed extensions from the Explorer view.
-- **Insert Extension Snippets**: Insert extension-provided snippets directly from the Explorer view.
+- **Use Brand**: Download and apply Quarto brand assets from GitHub, URL, or local sources.
+- **Manage Extensions**: View, update, and remove installed extensions from the Explorer View.
+- **Insert Extension Snippets**: Insert extension-provided snippets directly from the Explorer View.
 - **Create Reproducible Documents**: Generate reproducible examples for R, Python, or Julia.
 - **Install from Local Sources**: Install extensions from local directories or archive files.
 
@@ -37,7 +37,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
 ![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.quick-start >}}'

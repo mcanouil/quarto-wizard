@@ -28,7 +28,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.marketplace >}}'
 }
 ![](images/marketplace-light.png "Extensions View: Marketplace"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.marketplace >}}'
@@ -112,7 +112,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
 ![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.quick-start >}}'
@@ -150,7 +150,7 @@ width="500px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.github-token >}}'
 }
 ![](images/github-token-light.png "Command Palette: GitHub Token Input"){
-.light-content
+.light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 width="500px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.github-token >}}'
@@ -159,8 +159,8 @@ fig-alt='{{< meta alt-text.github-token >}}'
 
 Alternatively, Quarto Wizard can use:
 
-- VS Code's built-in GitHub authentication.
 - Environment variables (`GITHUB_TOKEN` or `QUARTO_WIZARD_TOKEN`).
+- VS Code's built-in GitHub authentication (offered automatically when an authentication error occurs).
 
 ## Getting Help
 
