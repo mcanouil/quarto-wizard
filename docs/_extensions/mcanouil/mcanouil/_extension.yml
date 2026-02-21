@@ -1,9 +1,67 @@
 title: Mickaël Canouil's Brand
 author: Mickaël Canouil
-version: 0.15.6
-quarto-required: ">=1.9.17"
-source: mcanouil/quarto-mcanouil@0.15.6
+version: 0.16.1
+quarto-required: ">=1.9.20"
 contributes:
+  metadata:
+    project:
+      brand: brand.yml
+  project:
+    project:
+      type: website
+    extensions:
+      mcanouil:
+        # Reveal.js
+        section-outline: true # Show subsection outline on section slides
+        date-superscript: true # Format ordinal dates (1st, 2nd, 3rd)
+        hide-title-slide-chrome: true # Hide menu/logo/footer on title slide
+        favicon-from-logo: true # Generate favicon from slide logo
+        code-annotation-fragments: true # Enable annotation fragment navigation
+        debug-borders: false # Show debug borders on slides
+        # HTML
+        hide-navbar-title: true
+        # Grid background
+        grid-background: false
+    website:
+      favicon: logos/logo-light-path.svg
+      back-to-top-navigation: true
+      page-navigation: true
+      open-graph: true
+      twitter-card: true
+      repo-actions: [source, issue]
+      repo-link-target: _blank
+      repo-link-rel: noopener noreferrer
+      navbar:
+        background: dark
+        foreground: light
+        search: true
+        logo:
+          light: light
+          dark: dark
+        logo-alt: "Mickaël CANOUIL logo"
+      # sidebar:
+      #   background: dark
+      #   foreground: light
+      #   style: docked
+      #   search: true
+      #   pinned: true
+      #   align: center
+      #   collapse-level: 2
+      #   logo:
+      #     light: light
+      #     dark: dark
+      #   logo-alt: "Mickaël CANOUIL logo"
+      page-footer:
+        border: true
+        # background: dark
+        # foreground: light
+        left: |
+          Powered by [Quarto](https://quarto.org){target="_blank" rel="noopener noreferrer"}.
+        center: |
+          &copy; []{#current-year} [Mickaël CANOUIL](https://mickael.canouil.fr){target="_blank" rel="noopener noreferrer"}.
+        right: |
+          [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/){target="_blank" rel="noopener noreferrer"}.
+    format: mcanouil-html
   formats:
     common:
       author:
@@ -20,7 +78,7 @@ contributes:
             - name: Independent Contractor
               city: Lille
               country: France
-      copyright: © 2026 Mickaël CANOUIL
+      copyright: "© 2026 Mickaël CANOUIL"
       license: CC BY-NC-SA
       lang: en
       code-copy: true
@@ -28,7 +86,7 @@ contributes:
       code-link: false
       code-tools: false
       date: today
-      date-format: dddd[, the] Do [of] MMMM, YYYY
+      date-format: "dddd[, the] Do [of] MMMM, YYYY"
       mermaid:
         theme: dark
       shortcodes:
@@ -49,13 +107,16 @@ contributes:
           path: filters/normalise-extension-paths.lua
       extensions:
         mcanouil:
+          # Grid background
           grid-background: true
     html:
+      # Template
       template-partials:
         - html/partials/title-metadata.html
         - html/partials/_title-metadata-academic.html
         - html/partials/_title-metadata-professional.html
         - html/partials/_title-meta-author.html
+      # Theme
       respect-user-color-scheme: true
       theme:
         light:
@@ -66,17 +127,22 @@ contributes:
           - cosmo
           - brand
           - html/theme.scss
-      highlight-style: github
+      syntax-highlighting: github
+      # Layout
       grid:
         sidebar-width: 300px
         body-width: 900px
         margin-width: 300px
       fig-align: center
+      # Table of contents
       toc: true
       toc-depth: 4
+      # Navigation
       anchor-sections: true
       link-external-newwindow: true
+      # Other
       email-obfuscate: javascript
+      # Include files
       include-after-body:
         - file: html/scripts/ordinal-dates.html
         - file: html/scripts/current-year.html
@@ -84,31 +150,36 @@ contributes:
         - file: html/scripts/modal-clipboardjs.html
         - file: html/scripts/external-links.html
         - file: html/scripts/code-annotation-click.html
+      # HTML-specific filters
       filters:
         - at: pre-quarto
           path: filters/html-options.lua
         - at: post-quarto
           path: filters/code-window.lua
     typst:
+      # Document type
       document-type: report
+      # Brand
       brand-mode: light
-      style: professional
-      show-corner-brackets: true
-      show-margin-decoration: true
-      show-title-page-background: true
-      show-heading-underlines: true
-      show-logo: true
-      highlight-style: none
+      style: "professional"
+      show-corner-brackets: true # Signature corner bracket decorations
+      show-margin-decoration: true # Coloured bars along page margins
+      show-title-page-background: true # Geometric background on title page
+      show-heading-underlines: true # Gradient underlines below headings
+      show-logo: true # Display logo in header
+      syntax-highlighting: idiomatic
+      # Logo/Visual assets
       logo:
         light:
           path: dark
-          alt: Mickaël CANOUIL Logo
+          alt: "Mickaël CANOUIL Logo"
           width: 7cm
         dark:
           path: light
-          alt: Mickaël CANOUIL Logo
+          alt: "Mickaël CANOUIL Logo"
           width: 7cm
       orcid-icon: typst/assets/orcid.svg
+      # Template
       template: typst/template.typ
       template-partials:
         - typst/partials/libs/utilities.typ
@@ -147,6 +218,7 @@ contributes:
         - typst/partials/notes.typ
         - typst/partials/typst-template.typ
         - typst/partials/typst-show.typ
+      # Typst-specific filters
       filters:
         - at: pre-ast
           path: filters/typst-code-annotation.lua
@@ -156,9 +228,11 @@ contributes:
           path: filters/logo-metadata.lua
         - at: pre-quarto
           path: filters/special-sections.lua
-      mainfont: Alegreya Sans
-      sansfont: Alegreya Sans
+      # Typography
+      mainfont: "Alegreya Sans"
+      sansfont: "Alegreya Sans"
       fontsize: 11pt
+      # Page/Layout
       papersize: a4
       margin:
         top: 2.5cm
@@ -167,121 +241,91 @@ contributes:
         right: 2.5cm
       columns: 1
       title-page: true
+      # Section/Numbering
       number-sections: true
-      section-numbering: 1.1.1.
+      section-numbering: "1.1.1."
       section-page: true
       section-pagebreak: true
       special-sections:
         references:
-          name: References
-          numbering: none
-          prefix: false
+          name: "References" # References section name
+          numbering: "none" # References numbering (use "none" for unnumbered)
+          prefix: false # Do not include "References" prefix in headings
         appendix:
-          name: Appendix
-          numbering: A.a.
-          prefix: true
+          name: "Appendix" # Appendix section name
+          numbering: "A.a." # Appendix numbering pattern (A.1, A.2, etc)
+          prefix: true # Include "Appendix" prefix
         supplementary:
-          name: Supplementary
-          numbering: I.i.
-          prefix: true
+          name: "Supplementary" # Supplementary section name
+          numbering: "I.i." # Supplementary numbering pattern (I.1, I.2, etc)
+          prefix: true # Include "Supplementary" prefix
+      # Table of contents
       toc: true
       list-of: true
+      # Other
       bibliographystyle: apa
       citeproc: true
     revealjs:
       embed-resources: true
+      # Brand
       brand-mode: dark
+      # Logo/Visual assets
       logo:
         light: light
         dark: dark
+      # Theme
       theme:
         - default
         - revealjs/theme.scss
         - brand
+      # Template
       template: revealjs/template.html
       template-partials:
         - revealjs/partials/title-slide.html
         - revealjs/partials/closing-slide.html
+      # Plugins
       revealjs-plugins:
         - revealjs-plugin/mcanouil
         - revealjs-plugin/tabset
         - revealjs-plugin/line-fragment-indices
         - revealjs-plugin/code-annotation-fragments
+      # Plugin options under extensions.mcanouil namespace
       extensions:
         mcanouil:
-          section-outline: true
-          date-superscript: true
-          hide-title-slide-chrome: true
-          favicon-from-logo: true
-          code-annotation-fragments: true
-          debug-borders: false
+          # Section slide features
+          section-outline: true # Show subsection outline on section slides
+          # Date formatting
+          date-superscript: true # Format ordinal dates (1st, 2nd, 3rd)
+          # Title slide behaviour
+          hide-title-slide-chrome: true # Hide menu/logo/footer on title slide
+          # Favicon
+          favicon-from-logo: true # Generate favicon from slide logo
+          # Code annotations
+          code-annotation-fragments: true # Enable annotation fragment navigation
+          # Debugging
+          debug-borders: false # Show debug borders on slides
           grid-background: true
+      # Reveal.js-specific filters
       filters:
         - at: post-quarto
           path: filters/code-window.lua
+      # Standard Reveal.js options
       transition: slide
       slide-number: c
       hash: true
       center: false
       code-annotations: select
-      footer: >
+      # Footer/Closing
+      footer: |
         <a href="https://mickael.canouil.fr/" target="_blank" rel="noopener noreferrer">mickael.canouil.fr</a>
-
         |
-
-        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">License:
-        CC BY-NC-SA 4.0</a>
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">License: CC BY-NC-SA 4.0</a>
       closing-slide:
-        photo: https://github.com/mcanouil.png
+        photo: "https://github.com/mcanouil.png"
         social:
           website: https://mickael.canouil.fr
           github: mcanouil
           linkedin: MickaelCanouil
           bluesky: mickael.canouil.fr
           mastodon: https://fosstodon.org/%40MickaelCanouil
-  project:
-    project:
-      type: website
-    extensions:
-      mcanouil:
-        section-outline: true
-        date-superscript: true
-        hide-title-slide-chrome: true
-        favicon-from-logo: true
-        code-annotation-fragments: true
-        debug-borders: false
-        hide-navbar-title: true
-        grid-background: false
-    website:
-      favicon: logos/logo-light-path.svg
-      back-to-top-navigation: true
-      page-navigation: true
-      open-graph: true
-      twitter-card: true
-      repo-actions:
-        - source
-        - issue
-      repo-link-target: _blank
-      repo-link-rel: noopener noreferrer
-      navbar:
-        background: dark
-        foreground: light
-        search: true
-        logo:
-          light: light
-          dark: dark
-        logo-alt: Mickaël CANOUIL logo
-      page-footer:
-        border: true
-        left: |
-          Powered by [Quarto](https://quarto.org){target="_blank" rel="noopener noreferrer"}.
-        center: >
-          &copy; []{#current-year} [Mickaël CANOUIL](https://mickael.canouil.fr){target="_blank" rel="noopener
-          noreferrer"}.
-        right: >
-          [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/){target="_blank" rel="noopener
-          noreferrer"}.
-    format: mcanouil-html
-  metadata:
-    project:
-      brand: brand.yml
+source: mcanouil/quarto-mcanouil@0.16.1
