@@ -203,36 +203,12 @@
 				"description": "Reload the list of installed extensions in the Explorer View."
 			},
 			{
-				"command": "quartoWizard.extensionsInstalled.openSourceGithub",
-				"title": "Open Extension Source",
-				"shortTitle": "Open Source",
-				"icon": "$(github)",
-				"category": "Quarto Wizard",
-				"description": "Open the extension's GitHub repository in a browser."
-			},
-			{
-				"command": "quartoWizard.extensionsInstalled.openSourceUrl",
+				"command": "quartoWizard.extensionsInstalled.openSource",
 				"title": "Open Extension Source",
 				"shortTitle": "Open Source",
 				"icon": "$(link-external)",
 				"category": "Quarto Wizard",
-				"description": "Open the extension's source URL in a browser."
-			},
-			{
-				"command": "quartoWizard.extensionsInstalled.openSourceLocal",
-				"title": "Open Extension Source",
-				"shortTitle": "Open Source",
-				"icon": "$(folder-opened)",
-				"category": "Quarto Wizard",
-				"description": "Open the extension's local source folder."
-			},
-			{
-				"command": "quartoWizard.extensionsInstalled.openSourceRegistry",
-				"title": "Open Extension Source",
-				"shortTitle": "Open Source",
-				"icon": "$(package)",
-				"category": "Quarto Wizard",
-				"description": "Open the extension's registry source in a browser."
+				"description": "Open the extension's source (GitHub, URL, registry, or local folder)."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.reinstall",
@@ -439,77 +415,47 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(Github|Registry)$/",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /quartoExtensionItem(GithubPinned|RegistryPinned|Url|Local)/",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(?!Details)/",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemNoSource",
 					"group": "inline@4"
 				},
 				{
-					"command": "quartoWizard.extensionsInstalled.openSourceGithub",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /quartoExtensionItemGithub/",
-					"group": "inline@5"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceUrl",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemUrl",
-					"group": "inline@5"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceLocal",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemLocal",
-					"group": "inline@5"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceRegistry",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /quartoExtensionItemRegistry/",
+					"command": "quartoWizard.extensionsInstalled.openSource",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
 					"group": "inline@5"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(Github|Registry)$/",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
 					"group": "navigation@1"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /quartoExtensionItem(GithubPinned|RegistryPinned|Url|Local)/",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
 					"group": "navigation@1"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(?!Details)/",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemNoSource",
 					"group": "navigation@2"
 				},
 				{
-					"command": "quartoWizard.extensionsInstalled.openSourceGithub",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /quartoExtensionItemGithub/",
-					"group": "navigation@3"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceUrl",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemUrl",
-					"group": "navigation@3"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceLocal",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemLocal",
-					"group": "navigation@3"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceRegistry",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /quartoExtensionItemRegistry/",
+					"command": "quartoWizard.extensionsInstalled.openSource",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
 					"group": "navigation@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(?!Details)/",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned || view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemNoSource",
 					"group": "navigation@4"
 				},
 				{
@@ -525,19 +471,7 @@
 			],
 			"commandPalette": [
 				{
-					"command": "quartoWizard.extensionsInstalled.openSourceGithub",
-					"when": "false"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceUrl",
-					"when": "false"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceLocal",
-					"when": "false"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.openSourceRegistry",
+					"command": "quartoWizard.extensionsInstalled.openSource",
 					"when": "false"
 				},
 				{

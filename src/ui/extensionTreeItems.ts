@@ -44,6 +44,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 	public workspaceFolder: string;
 	public repository?: string;
 	public sourceUrl?: string;
+	public effectiveSourceType?: string;
 
 	constructor(
 		public readonly label: string,
@@ -68,14 +69,10 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			contextValue = "quartoExtensionItemDetails";
 		} else if (!sourceType) {
 			contextValue = "quartoExtensionItemNoSource";
-		} else if (sourceType === "local") {
-			contextValue = "quartoExtensionItemLocal";
-		} else if (sourceType === "url") {
-			contextValue = "quartoExtensionItemUrl";
-		} else if (sourceType === "registry") {
-			contextValue = hasPinnedVersion ? "quartoExtensionItemRegistryPinned" : "quartoExtensionItemRegistry";
+		} else if (hasPinnedVersion) {
+			contextValue = "quartoExtensionItemPinned";
 		} else {
-			contextValue = hasPinnedVersion ? "quartoExtensionItemGithubPinned" : "quartoExtensionItemGithub";
+			contextValue = "quartoExtensionItem";
 		}
 
 		// Build tooltip with warning if there are issues
@@ -110,10 +107,11 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		this.latestVersion = latestVersion !== "unknown" ? latestVersion : "";
 		this.workspaceFolder = workspacePath;
 
-		// Store repository and source URL for commands
+		// Store repository, source URL, and effective source type for commands
 		if (extension) {
 			this.repository = getExtensionRepository(extension);
 			this.sourceUrl = getExtensionSourceUrl(extension);
+			this.effectiveSourceType = sourceType;
 		}
 
 		// Set resource URI for the extension directory to enable "Reveal in Explorer" functionality

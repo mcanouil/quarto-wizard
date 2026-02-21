@@ -82,42 +82,15 @@ export class ExtensionsInstalled {
 			}),
 		);
 
-		// Per-source-type Open Source commands
+		// Open Source command (branches on effective source type)
 		context.subscriptions.push(
 			vscode.commands.registerCommand(
-				"quartoWizard.extensionsInstalled.openSourceGithub",
-				(item: ExtensionTreeItem) => {
-					if (item.sourceUrl) {
-						void vscode.env.openExternal(vscode.Uri.parse(item.sourceUrl));
-					}
-				},
-			),
-		);
-
-		context.subscriptions.push(
-			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.openSourceUrl", (item: ExtensionTreeItem) => {
-				if (item.sourceUrl) {
-					void vscode.env.openExternal(vscode.Uri.parse(item.sourceUrl));
-				}
-			}),
-		);
-
-		context.subscriptions.push(
-			vscode.commands.registerCommand(
-				"quartoWizard.extensionsInstalled.openSourceRegistry",
-				(item: ExtensionTreeItem) => {
-					if (item.sourceUrl) {
-						void vscode.env.openExternal(vscode.Uri.parse(item.sourceUrl));
-					}
-				},
-			),
-		);
-
-		context.subscriptions.push(
-			vscode.commands.registerCommand(
-				"quartoWizard.extensionsInstalled.openSourceLocal",
+				"quartoWizard.extensionsInstalled.openSource",
 				async (item: ExtensionTreeItem) => {
-					if (item.sourceUrl) {
+					if (!item.sourceUrl) {
+						return;
+					}
+					if (item.effectiveSourceType === "local") {
 						const uri = vscode.Uri.file(item.sourceUrl);
 						const action = await vscode.window.showInformationMessage(
 							"Open extension source folder in a new window?",
@@ -126,6 +99,8 @@ export class ExtensionsInstalled {
 						if (action === "Open") {
 							await vscode.commands.executeCommand("vscode.openFolder", uri, { forceNewWindow: true });
 						}
+					} else {
+						void vscode.env.openExternal(vscode.Uri.parse(item.sourceUrl));
 					}
 				},
 			),
