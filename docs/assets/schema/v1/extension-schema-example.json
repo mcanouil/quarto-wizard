@@ -173,7 +173,7 @@
 			}
 		}
 	},
-	"elementAttributes": {
+	"attributes": {
 		"_any": {
 			"colour": {
 				"type": "string",
@@ -196,6 +196,14 @@
 				"type": "string",
 				"description": "Display filename label for the code block."
 			}
+		}
+	},
+	"classes": {
+		"panel": {
+			"description": "A styled panel container."
+		},
+		"hidden": {
+			"description": "Hides the element from output."
 		}
 	},
 	"projects": ["my-website"]

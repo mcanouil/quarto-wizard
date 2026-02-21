@@ -60,24 +60,34 @@ suite("Schema Definition Completion Test Suite", () => {
 				assert.deepStrictEqual(result, { kind: "field-descriptor", allowName: false });
 			});
 
-			test("['element-attributes'] returns null", () => {
-				const result = getSchemaContext(["element-attributes"], false);
+			test("['attributes'] returns null", () => {
+				const result = getSchemaContext(["attributes"], false);
 				assert.strictEqual(result, null);
 			});
 
-			test("['element-attributes', 'modal'] returns null", () => {
-				const result = getSchemaContext(["element-attributes", "modal"], false);
+			test("['attributes', 'modal'] returns null", () => {
+				const result = getSchemaContext(["attributes", "modal"], false);
 				assert.strictEqual(result, null);
 			});
 
-			test("['element-attributes', 'modal', 'size'] returns field-descriptor", () => {
-				const result = getSchemaContext(["element-attributes", "modal", "size"], false);
+			test("['attributes', 'modal', 'size'] returns field-descriptor", () => {
+				const result = getSchemaContext(["attributes", "modal", "size"], false);
 				assert.deepStrictEqual(result, { kind: "field-descriptor", allowName: false });
 			});
 
-			test("['elementAttributes', 'modal', 'size'] returns field-descriptor", () => {
-				const result = getSchemaContext(["elementAttributes", "modal", "size"], false);
-				assert.deepStrictEqual(result, { kind: "field-descriptor", allowName: false });
+			test("['classes'] returns null (user-defined class names)", () => {
+				const result = getSchemaContext(["classes"], false);
+				assert.strictEqual(result, null);
+			});
+
+			test("['classes', 'panel'] returns class-entry", () => {
+				const result = getSchemaContext(["classes", "panel"], false);
+				assert.deepStrictEqual(result, { kind: "class-entry" });
+			});
+
+			test("['classes', 'panel', 'description'] with value returns null", () => {
+				const result = getSchemaContext(["classes", "panel", "description"], true);
+				assert.strictEqual(result, null);
 			});
 
 			test("['shortcodes'] returns null", () => {

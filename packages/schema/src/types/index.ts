@@ -3,6 +3,7 @@
  */
 
 export {
+	type ClassDefinition,
 	type CompletionSpec,
 	type DeprecatedSpec,
 	type FieldDescriptor,

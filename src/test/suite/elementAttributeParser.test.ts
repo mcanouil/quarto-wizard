@@ -282,5 +282,44 @@ suite("Element Attribute Parser", () => {
 			assert.deepStrictEqual(result.classes, ["class"]);
 			assert.strictEqual(result.cursorContext, "attributeKey");
 		});
+
+		test("should detect className context for partial class name", () => {
+			const text = "[text]{.pan}";
+			// Offset 11 is the }, so beforeCursor is ".pan".
+			const result = parseAttributeAtPosition(text, 11);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "className");
+			assert.strictEqual(result.currentWord, "pan");
+			assert.deepStrictEqual(result.classes, ["pan"]);
+		});
+
+		test("should detect className context for bare dot", () => {
+			const text = "[text]{.}";
+			// Offset 8 is the }, so beforeCursor is ".".
+			const result = parseAttributeAtPosition(text, 8);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "className");
+			assert.strictEqual(result.currentWord, "");
+			assert.deepStrictEqual(result.classes, [""]);
+		});
+
+		test("should detect className context for second class name", () => {
+			const text = "[text]{.highlight .pan}";
+			// Offset 22 is the }, so beforeCursor is ".highlight .pan".
+			const result = parseAttributeAtPosition(text, 22);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "className");
+			assert.strictEqual(result.currentWord, "pan");
+			assert.deepStrictEqual(result.classes, ["highlight", "pan"]);
+		});
+
+		test("should detect attributeKey context for completed class with trailing space", () => {
+			const text = "[text]{.panel }";
+			// Offset 14 is the space before }, so beforeCursor is ".panel ".
+			const result = parseAttributeAtPosition(text, 14);
+			assert.ok(result);
+			assert.strictEqual(result.cursorContext, "attributeKey");
+			assert.deepStrictEqual(result.classes, ["panel"]);
+		});
 	});
 });

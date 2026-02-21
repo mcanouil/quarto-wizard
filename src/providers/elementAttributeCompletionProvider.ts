@@ -31,6 +31,25 @@ export interface AttributeWithSource {
 export type ElementAttributeSchemas = Record<string, Record<string, AttributeWithSource>>;
 
 /**
+ * Group names reserved for Pandoc element types and the catch-all group.
+ * These are not treated as implicit class names when collecting class definitions.
+ */
+const RESERVED_GROUP_NAMES = new Set(["Div", "Span", "Code", "CodeBlock", "Header", "_any"]);
+
+/**
+ * A class name paired with its description and the extension that provides it.
+ */
+export interface ClassWithSource {
+	description?: string;
+	source: string;
+}
+
+/**
+ * Collection of class definitions keyed by class name.
+ */
+export type ClassDefinitions = Record<string, ClassWithSource>;
+
+/**
  * Collect element attribute schemas from all installed extensions in the workspace.
  */
 export async function collectElementAttributeSchemas(schemaCache: SchemaCache): Promise<ElementAttributeSchemas> {
@@ -47,13 +66,13 @@ export async function collectElementAttributeSchemas(schemaCache: SchemaCache): 
 
 			for (const ext of extensions) {
 				const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
-				if (!schema?.elementAttributes) {
+				if (!schema?.attributes) {
 					continue;
 				}
 
 				const source = ext.manifest.title || ext.id.name;
 
-				for (const [groupName, groupAttrs] of Object.entries(schema.elementAttributes)) {
+				for (const [groupName, groupAttrs] of Object.entries(schema.attributes)) {
 					if (!result[groupName]) {
 						result[groupName] = {};
 					}
@@ -67,6 +86,69 @@ export async function collectElementAttributeSchemas(schemaCache: SchemaCache): 
 		} catch (error) {
 			logMessage(
 				`Failed to discover element attribute schemas in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
+				"warn",
+			);
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Collect class definitions from all installed extensions in the workspace.
+ *
+ * Gathers explicit class definitions from `schema.classes` and implicit class
+ * names from `schema.attributes` group keys (excluding reserved element-type
+ * and catch-all groups).
+ */
+export async function collectClassDefinitions(schemaCache: SchemaCache): Promise<ClassDefinitions> {
+	const result: ClassDefinitions = {};
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+
+	if (!workspaceFolders) {
+		return result;
+	}
+
+	for (const folder of workspaceFolders) {
+		try {
+			const extensions = await discoverInstalledExtensions(folder.uri.fsPath);
+
+			for (const ext of extensions) {
+				const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
+				if (!schema) {
+					continue;
+				}
+
+				const source = ext.manifest.title || ext.id.name;
+
+				// Collect explicit class definitions from schema.classes.
+				if (schema.classes) {
+					for (const [className, classDef] of Object.entries(schema.classes)) {
+						if (!(className in result)) {
+							result[className] = {
+								description: classDef.description,
+								source,
+							};
+						}
+					}
+				}
+
+				// Collect implicit class names from schema.attributes group keys,
+				// excluding reserved element-type and catch-all groups.
+				if (schema.attributes) {
+					for (const groupKey of Object.keys(schema.attributes)) {
+						if (RESERVED_GROUP_NAMES.has(groupKey)) {
+							continue;
+						}
+						if (!(groupKey in result)) {
+							result[groupKey] = { source };
+						}
+					}
+				}
+			}
+		} catch (error) {
+			logMessage(
+				`Failed to discover class definitions in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
 				"warn",
 			);
 		}
@@ -222,6 +304,12 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				return null;
 			}
 
+			// Handle class name completion before checking attribute schemas,
+			// as class names can be suggested even without applicable attributes.
+			if (parsed.cursorContext === "className") {
+				return this.completeClassName(parsed.classes, parsed.currentWord);
+			}
+
 			const schemas = await collectElementAttributeSchemas(this.schemaCache);
 			if (Object.keys(schemas).length === 0) {
 				return null;
@@ -234,7 +322,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 
 			switch (parsed.cursorContext) {
 				case "attributeKey":
-					return this.completeAttributeKey(applicable, parsed.attributes);
+					return this.completeAttributeKey(applicable, parsed.attributes, parsed.classes);
 
 				case "attributeValue":
 					return this.completeAttributeValue(applicable, parsed.currentAttributeKey, document.uri);
@@ -251,10 +339,11 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 		}
 	}
 
-	private completeAttributeKey(
+	private async completeAttributeKey(
 		attributes: Record<string, AttributeWithSource>,
 		existingAttributes: Record<string, string>,
-	): vscode.CompletionItem[] {
+		existingClasses: string[],
+	): Promise<vscode.CompletionItem[]> {
 		const items: vscode.CompletionItem[] = [];
 		const occupied = new Set(Object.keys(existingAttributes));
 
@@ -302,6 +391,63 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 					items.push(aliasItem);
 				}
 			}
+		}
+
+		// Include .classname suggestions (class names prefixed with dot), sorted
+		// after attribute suggestions so attributes appear first.
+		const classDefs = await collectClassDefinitions(this.schemaCache);
+		const presentClasses = new Set(existingClasses);
+
+		for (const [className, classDef] of Object.entries(classDefs)) {
+			if (presentClasses.has(className)) {
+				continue;
+			}
+
+			const label = `.${className}`;
+			const classItem = new vscode.CompletionItem(label, vscode.CompletionItemKind.EnumMember);
+			classItem.insertText = label;
+			classItem.detail = classDef.source;
+			classItem.sortText = `#0_${classDef.source}_${className}`;
+
+			if (classDef.description) {
+				classItem.documentation = new vscode.MarkdownString(classDef.description);
+			}
+
+			items.push(classItem);
+		}
+
+		return items;
+	}
+
+	private async completeClassName(
+		existingClasses: string[],
+		currentWord: string | undefined,
+	): Promise<vscode.CompletionItem[]> {
+		const classDefs = await collectClassDefinitions(this.schemaCache);
+		const presentClasses = new Set(existingClasses);
+		const items: vscode.CompletionItem[] = [];
+
+		for (const [className, classDef] of Object.entries(classDefs)) {
+			if (presentClasses.has(className)) {
+				continue;
+			}
+
+			// Filter by prefix when the user has partially typed a class name.
+			if (currentWord && !className.startsWith(currentWord)) {
+				continue;
+			}
+
+			const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.EnumMember);
+			// The dot is already typed, so insert only the class name.
+			item.insertText = className;
+			item.detail = classDef.source;
+			item.sortText = `!0_${classDef.source}_${className}`;
+
+			if (classDef.description) {
+				item.documentation = new vscode.MarkdownString(classDef.description);
+			}
+
+			items.push(item);
 		}
 
 		return items;
@@ -392,6 +538,42 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 				return null;
 			}
 
+			// Handle class name hover before checking attribute schemas.
+			if (parsed.cursorContext === "className") {
+				const word = getWordAtOffset(text, offset);
+				if (!word) {
+					return null;
+				}
+
+				const classDefs = await collectClassDefinitions(this.schemaCache);
+				const classDef = classDefs[word];
+				if (!classDef) {
+					return null;
+				}
+
+				const parts: string[] = [];
+				parts.push(`*From extension:* **${classDef.source}**`);
+
+				if (classDef.description) {
+					parts.push(classDef.description);
+				}
+
+				// Check whether this class has attributes defined in the attribute schemas.
+				const schemas = await collectElementAttributeSchemas(this.schemaCache);
+				const lowerWord = word.toLowerCase();
+				for (const schemaKey of Object.keys(schemas)) {
+					if (schemaKey.toLowerCase() === lowerWord) {
+						const attrNames = Object.keys(schemas[schemaKey]);
+						if (attrNames.length > 0) {
+							parts.push(`Attributes: ${attrNames.map((n) => `\`${n}\``).join(", ")}`);
+						}
+						break;
+					}
+				}
+
+				return new vscode.Hover(new vscode.MarkdownString(parts.join("\n\n")));
+			}
+
 			const schemas = await collectElementAttributeSchemas(this.schemaCache);
 			if (Object.keys(schemas).length === 0) {
 				return null;
@@ -465,6 +647,7 @@ export function registerElementAttributeProviders(context: vscode.ExtensionConte
 		" ",
 		"=",
 		"{",
+		".",
 	);
 	context.subscriptions.push(completionDisposable);
 

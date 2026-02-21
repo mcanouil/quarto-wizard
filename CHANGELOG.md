@@ -2,8 +2,14 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+- breaking: rename `element-attributes` top-level schema key to `attributes` (and `elementAttributes` to `attributes` in JSON schemas).
+
 ### New Features
 
+- feat: add `classes` section to extension schemas for declaring CSS classes contributed by filters, with descriptions.
+- feat: add class name completion and hover support for CSS classes declared in extension schemas.
 - feat: add `Quarto Wizard: Use Brand` command to download and apply a Quarto brand to the project's `_brand/` directory, supporting GitHub, URL, and local sources.
 - feat: add extension schema support via `_schema.yml`, `_schema.yaml`, and `_schema.json` to drive completion, hover help, and diagnostics for YAML options, shortcodes, and element attributes.
 - feat: add schema authoring support with diagnostics and YAML completion for extension schema definition files when `_extension.yml` is present.

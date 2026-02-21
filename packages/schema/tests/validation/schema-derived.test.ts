@@ -28,8 +28,8 @@ describe("ALLOWED_TOP_LEVEL_KEYS", () => {
 			"shortcodes",
 			"formats",
 			"projects",
-			"element-attributes",
-			"elementAttributes",
+			"attributes",
+			"classes",
 		]);
 		expect(ALLOWED_TOP_LEVEL_KEYS).toEqual(expected);
 	});
@@ -176,17 +176,15 @@ describe("shortcodeEntryMetadata", () => {
 });
 
 describe("rootKeyMetadata", () => {
-	it("yamlHidden contains elementAttributes", () => {
-		expect(rootKeyMetadata.yamlHidden.has("elementAttributes")).toBe(true);
-	});
-
-	it("yamlHidden does not contain element-attributes", () => {
-		expect(rootKeyMetadata.yamlHidden.has("element-attributes")).toBe(false);
+	it("yamlHidden is empty", () => {
+		expect(rootKeyMetadata.yamlHidden.size).toBe(0);
 	});
 
 	it("propertyDocs has entries for root keys", () => {
 		expect(rootKeyMetadata.propertyDocs["options"]).toBeDefined();
 		expect(rootKeyMetadata.propertyDocs["shortcodes"]).toBeDefined();
 		expect(rootKeyMetadata.propertyDocs["formats"]).toBeDefined();
+		expect(rootKeyMetadata.propertyDocs["attributes"]).toBeDefined();
+		expect(rootKeyMetadata.propertyDocs["classes"]).toBeDefined();
 	});
 });

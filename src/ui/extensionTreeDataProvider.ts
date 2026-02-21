@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { SchemaCache, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/schema";
+import type { SchemaCache, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import type { SnippetCache } from "@quarto-wizard/snippets";
 import { snippetNamespace } from "@quarto-wizard/snippets";
 import { checkForUpdates, formatExtensionId } from "@quarto-wizard/core";
@@ -19,6 +19,7 @@ import {
 	SchemaFieldTreeItem,
 	SchemaShortcodeTreeItem,
 	SchemaFormatTreeItem,
+	SchemaClassTreeItem,
 	SnippetsTreeItem,
 	SnippetsErrorTreeItem,
 	SnippetItemTreeItem,
@@ -300,15 +301,13 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		if (schema.projects && schema.projects.length > 0) {
 			sections.push(new SchemaSectionTreeItem("Projects", "projects", schema, schema.projects.length));
 		}
-		if (schema.elementAttributes && Object.keys(schema.elementAttributes).length > 0) {
+		if (schema.attributes && Object.keys(schema.attributes).length > 0) {
 			sections.push(
-				new SchemaSectionTreeItem(
-					"Element Attributes",
-					"elementAttributes",
-					schema,
-					Object.keys(schema.elementAttributes).length,
-				),
+				new SchemaSectionTreeItem("Attributes", "attributes", schema, Object.keys(schema.attributes).length),
 			);
+		}
+		if (schema.classes && Object.keys(schema.classes).length > 0) {
+			sections.push(new SchemaSectionTreeItem("Classes", "classes", schema, Object.keys(schema.classes).length));
 		}
 
 		return sections;
@@ -328,8 +327,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				return (schema.projects ?? []).map(
 					(name) => new SchemaFieldTreeItem(name, { type: "string", const: name }, false),
 				);
-			case "elementAttributes":
-				return this.formatItems(schema.elementAttributes ?? {});
+			case "attributes":
+				return this.formatItems(schema.attributes ?? {});
+			case "classes":
+				return this.classItems(schema.classes ?? {});
 		}
 	}
 
@@ -363,6 +364,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	private formatItems(formats: Record<string, Record<string, FieldDescriptor>>): SchemaFormatTreeItem[] {
 		return Object.entries(formats).map(([name, fields]) => new SchemaFormatTreeItem(name, fields));
+	}
+
+	private classItems(classes: Record<string, ClassDefinition>): SchemaClassTreeItem[] {
+		return Object.entries(classes).map(([name, classDef]) => new SchemaClassTreeItem(name, classDef));
 	}
 
 	/**

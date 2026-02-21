@@ -18,8 +18,9 @@ export type PandocElementType = "Div" | "Span" | "Code" | "Header";
  * Cursor context within an element attribute block.
  * - "attributeKey": cursor is in an attribute name position (before =).
  * - "attributeValue": cursor is in an attribute value position (after =).
+ * - "className": cursor is in a class name position (after `.`).
  */
-export type ElementAttributeCursorContext = "attributeKey" | "attributeValue";
+export type ElementAttributeCursorContext = "attributeKey" | "attributeValue" | "className";
 
 /**
  * Result of parsing element attributes at a given cursor position.
@@ -287,6 +288,10 @@ function tokeniseAttributes(beforeCursor: string): TokeniseResult {
 		switch (token.type) {
 			case "class":
 				classes.push(token.value);
+				if (isLast && !endsWithWhitespace) {
+					cursorContext = "className";
+					currentWord = token.value;
+				}
 				break;
 
 			case "id":

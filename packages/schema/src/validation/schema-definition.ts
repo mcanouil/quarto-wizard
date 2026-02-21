@@ -203,26 +203,17 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 		}
 	}
 
-	// Validate "element-attributes" / "elementAttributes" section.
-	if (root["element-attributes"] !== undefined && root["elementAttributes"] !== undefined) {
-		findings.push({
-			message: 'Both "element-attributes" and "elementAttributes" are present. Use only one.',
-			severity: "warning",
-			code: "duplicate-element-attributes",
-			keyPath: "elementAttributes",
-		});
-	}
-	const elementAttributesKey = root["element-attributes"] !== undefined ? "element-attributes" : "elementAttributes";
-	const elementAttributes = root[elementAttributesKey];
-	if (elementAttributes !== undefined) {
-		if (elementAttributes && typeof elementAttributes === "object" && !Array.isArray(elementAttributes)) {
-			for (const [groupKey, groupValue] of Object.entries(elementAttributes as Record<string, unknown>)) {
-				const groupPath = `${elementAttributesKey}.${groupKey}`;
+	// Validate "attributes" section.
+	const attributes = root["attributes"];
+	if (attributes !== undefined) {
+		if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+			for (const [groupKey, groupValue] of Object.entries(attributes as Record<string, unknown>)) {
+				const groupPath = `attributes.${groupKey}`;
 				if (groupValue && typeof groupValue === "object" && !Array.isArray(groupValue)) {
 					validateFieldDescriptorMap(groupValue as Record<string, unknown>, groupPath, findings);
 				} else {
 					findings.push({
-						message: `Element attribute group "${groupKey}" must be an object.`,
+						message: `Attribute group "${groupKey}" must be an object.`,
 						severity: "error",
 						code: "invalid-section-type",
 						keyPath: groupPath,
@@ -231,10 +222,45 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 			}
 		} else {
 			findings.push({
-				message: `"${elementAttributesKey}" must be an object.`,
+				message: '"attributes" must be an object.',
 				severity: "error",
 				code: "invalid-section-type",
-				keyPath: elementAttributesKey,
+				keyPath: "attributes",
+			});
+		}
+	}
+
+	// Validate "classes" section.
+	const classes = root["classes"];
+	if (classes !== undefined) {
+		if (classes && typeof classes === "object" && !Array.isArray(classes)) {
+			for (const [classKey, classValue] of Object.entries(classes as Record<string, unknown>)) {
+				const classPath = `classes.${classKey}`;
+				if (!classValue || typeof classValue !== "object" || Array.isArray(classValue)) {
+					findings.push({
+						message: `Class entry "${classKey}" must be an object.`,
+						severity: "error",
+						code: "invalid-class-entry",
+						keyPath: classPath,
+					});
+					continue;
+				}
+				const classObj = classValue as Record<string, unknown>;
+				if (classObj["description"] !== undefined && typeof classObj["description"] !== "string") {
+					findings.push({
+						message: `Class "${classKey}" description must be a string.`,
+						severity: "error",
+						code: "invalid-class-description",
+						keyPath: `${classPath}.description`,
+					});
+				}
+			}
+		} else {
+			findings.push({
+				message: '"classes" must be an object.',
+				severity: "error",
+				code: "invalid-section-type",
+				keyPath: "classes",
 			});
 		}
 	}

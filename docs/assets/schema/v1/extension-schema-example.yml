@@ -217,7 +217,7 @@ formats:
       description: "Opening salutation."
 
 # ---------------------------------------------------------------------------
-# element-attributes
+# attributes
 # ---------------------------------------------------------------------------
 # Attributes accepted by filter extensions on Pandoc Div, Span, CodeBlock,
 # and Header elements. Groups are matched against the current element:
@@ -227,7 +227,7 @@ formats:
 #   <element-type> - matches by Pandoc element type (Div, Span, Code,
 #                    CodeBlock, Header).
 #   <id-prefix>    - matches elements whose ID starts with <prefix>-.
-element-attributes:
+attributes:
   # Attributes that apply to any element.
   _any:
     colour:
@@ -250,6 +250,17 @@ element-attributes:
     filename:
       type: string
       description: "Display filename label for the code block."
+
+# ---------------------------------------------------------------------------
+# classes
+# ---------------------------------------------------------------------------
+# CSS classes contributed by the extension. Each key is a class name and
+# its value describes the class for documentation and completion purposes.
+classes:
+  panel:
+    description: "A styled panel container."
+  hidden:
+    description: "Hides the element from output."
 
 # ---------------------------------------------------------------------------
 # projects

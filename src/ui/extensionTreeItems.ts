@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/schema";
+import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import { formatType } from "@quarto-wizard/schema";
 import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@quarto-wizard/snippets";
 import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
@@ -139,7 +139,7 @@ export class SchemaErrorTreeItem extends vscode.TreeItem {
 /**
  * Type of schema section, used to determine children and icons.
  */
-export type SchemaSectionKind = "options" | "shortcodes" | "formats" | "projects" | "elementAttributes";
+export type SchemaSectionKind = "options" | "shortcodes" | "formats" | "projects" | "attributes" | "classes";
 
 /**
  * Represents a section within the schema (Options, Shortcodes, etc.).
@@ -161,7 +161,8 @@ export class SchemaSectionTreeItem extends vscode.TreeItem {
 			shortcodes: "symbol-method",
 			formats: "symbol-interface",
 			projects: "symbol-property",
-			elementAttributes: "symbol-class",
+			attributes: "symbol-class",
+			classes: "tag",
 		};
 		this.iconPath = new vscode.ThemeIcon(icons[kind]);
 	}
@@ -246,6 +247,20 @@ export class SchemaFormatTreeItem extends vscode.TreeItem {
 }
 
 /**
+ * Represents an individual class entry within the Classes section.
+ */
+export class SchemaClassTreeItem extends vscode.TreeItem {
+	contextValue = "quartoSchemaClass";
+
+	constructor(label: string, classDef: ClassDefinition) {
+		super(label, vscode.TreeItemCollapsibleState.None);
+		this.iconPath = new vscode.ThemeIcon("tag");
+		this.tooltip = classDef.description ?? label;
+		this.description = classDef.description ?? "";
+	}
+}
+
+/**
  * Represents the top-level "Snippets" node under an extension.
  */
 export class SnippetsTreeItem extends vscode.TreeItem {
@@ -303,10 +318,14 @@ export class SnippetItemTreeItem extends vscode.TreeItem {
 
 const SNIPPET_TOOLTIP_PREVIEW_MAX_LINES = 15;
 
+function escapeMarkdown(text: string): string {
+	return text.replace(/[\\`*_{}[\]()#+\-.!~|>]/g, "\\$&");
+}
+
 function buildSnippetTooltip(snippet: SnippetDefinition): vscode.MarkdownString {
 	const tooltip = new vscode.MarkdownString();
 	if (snippet.description?.trim()) {
-		tooltip.appendText(snippet.description);
+		tooltip.appendMarkdown(escapeMarkdown(snippet.description));
 		tooltip.appendMarkdown("\n\n");
 	}
 
@@ -327,7 +346,8 @@ function singularLabel(kind: SchemaSectionKind): string {
 		shortcodes: "shortcode",
 		formats: "format",
 		projects: "project option",
-		elementAttributes: "attribute",
+		attributes: "attribute",
+		classes: "class",
 	};
 	return labels[kind];
 }
@@ -338,7 +358,8 @@ function pluralLabel(kind: SchemaSectionKind): string {
 		shortcodes: "shortcodes",
 		formats: "formats",
 		projects: "project options",
-		elementAttributes: "attributes",
+		attributes: "attributes",
+		classes: "classes",
 	};
 	return labels[kind];
 }
@@ -355,6 +376,7 @@ export type TreeItemType =
 	| SchemaFieldTreeItem
 	| SchemaShortcodeTreeItem
 	| SchemaFormatTreeItem
+	| SchemaClassTreeItem
 	| SnippetsTreeItem
 	| SnippetsErrorTreeItem
 	| SnippetItemTreeItem;

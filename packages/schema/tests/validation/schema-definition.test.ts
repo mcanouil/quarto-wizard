@@ -84,7 +84,8 @@ describe("validateSchemaDefinitionStructure", () => {
 			shortcodes: {},
 			formats: {},
 			projects: [],
-			"element-attributes": {},
+			attributes: {},
+			classes: {},
 		});
 		expect(findings.filter((f) => f.code === "unknown-top-level-key")).toHaveLength(0);
 	});
@@ -119,14 +120,14 @@ describe("validateSchemaDefinitionStructure", () => {
 		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "shortcodes")).toBe(true);
 	});
 
-	it("reports non-object element-attributes section", () => {
-		const findings = validateSchemaDefinitionStructure({ "element-attributes": "bad" });
-		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "element-attributes")).toBe(true);
+	it("reports non-object attributes section", () => {
+		const findings = validateSchemaDefinitionStructure({ attributes: "bad" });
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "attributes")).toBe(true);
 	});
 
-	it("validates element-attributes field descriptors inside groups", () => {
+	it("validates attributes field descriptors inside groups", () => {
 		const findings = validateSchemaDefinitionStructure({
-			"element-attributes": {
+			attributes: {
 				_any: {
 					colour: { type: "string", description: "Text colour." },
 				},
@@ -135,23 +136,41 @@ describe("validateSchemaDefinitionStructure", () => {
 		expect(findings.filter((f) => f.severity === "error")).toHaveLength(0);
 	});
 
-	it("reports non-object element-attributes group value", () => {
+	it("reports non-object attributes group value", () => {
 		const findings = validateSchemaDefinitionStructure({
-			"element-attributes": {
+			attributes: {
 				_any: "bad",
 			},
 		});
-		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "element-attributes._any")).toBe(
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "attributes._any")).toBe(
 			true,
 		);
 	});
 
-	it("warns when both element-attributes and elementAttributes are present", () => {
+	it("accepts valid classes section", () => {
 		const findings = validateSchemaDefinitionStructure({
-			"element-attributes": { _any: {} },
-			elementAttributes: { _any: {} },
+			classes: { panel: { description: "A panel." } },
 		});
-		expect(findings.some((f) => f.code === "duplicate-element-attributes")).toBe(true);
+		expect(findings.filter((f) => f.severity === "error")).toHaveLength(0);
+	});
+
+	it("reports non-object classes section", () => {
+		const findings = validateSchemaDefinitionStructure({ classes: "bad" });
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "classes")).toBe(true);
+	});
+
+	it("reports non-object class entry", () => {
+		const findings = validateSchemaDefinitionStructure({
+			classes: { panel: "bad" },
+		});
+		expect(findings.some((f) => f.code === "invalid-class-entry")).toBe(true);
+	});
+
+	it("reports non-string class description", () => {
+		const findings = validateSchemaDefinitionStructure({
+			classes: { panel: { description: 42 } },
+		});
+		expect(findings.some((f) => f.code === "invalid-class-description")).toBe(true);
 	});
 });
 
