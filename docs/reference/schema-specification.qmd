@@ -3,7 +3,7 @@ title: "Extension Schema Specification"
 ---
 
 Quarto extensions can provide a `_schema.yml` file alongside their `_extension.yml` manifest.
-This file declares every configurable option, shortcode parameter, format key, and element attribute the extension accepts.
+This file declares every configurable option, shortcode parameter, format key, element attribute, and CSS class the extension accepts.
 
 A single schema serves two consumers:
 
@@ -49,7 +49,7 @@ This allows older tooling to gracefully handle schemas written for newer version
 
 ## Top-level Structure
 
-The schema has five optional top-level sections.
+The schema has six optional top-level sections.
 An extension may define any combination of these.
 
 ```yaml
@@ -82,9 +82,15 @@ projects:
 # Element attributes accepted by filters on Div/Span/CodeBlock elements.
 # Used in: [text]{.class attr=value} or ::: {.class attr=value}
 # These are Pandoc AST element attributes, not metadata options.
-element-attributes:
+attributes:
   <class-or-context>:
     <attribute-name>: <field-descriptor>
+
+# CSS classes contributed by filters, with descriptions.
+# Used in: [text]{.class} or ::: {.class}
+classes:
+  <class-name>:
+    description: <string>
 ```
 
 ### options
@@ -180,7 +186,7 @@ projects:
   - my-website
 ```
 
-### element-attributes
+### attributes
 
 Attributes accepted by filter extensions on Pandoc Div, Span, CodeBlock, and Header elements.
 Groups are matched against the current element using five strategies:
@@ -195,7 +201,7 @@ Group key matching is case-insensitive: `div` matches `Div`, `codeblock` matches
 Use `_any` for attributes accepted on any element regardless of class.
 
 ```yaml
-element-attributes:
+attributes:
   _any:
     colour:
       type: string
@@ -219,6 +225,22 @@ element-attributes:
     filename:
       type: string
       description: "Display filename label for the code block."
+```
+
+### classes
+
+CSS classes contributed by the extension's filters.
+Each entry maps a class name to a descriptor containing a `description`.
+Quarto Wizard uses this information to provide class name completion and hover documentation in fenced divs (`:::`), bracketed spans (`[]`), and code block attributes.
+
+```yaml
+classes:
+  panel:
+    description: "Wraps content in a styled panel box."
+  highlight:
+    description: "Applies highlight styling to the element."
+  callout-note:
+    description: "Renders a note-style callout block."
 ```
 
 ## Field Descriptor Properties
@@ -440,7 +462,7 @@ formats:
 A filter extension that processes element attributes with IDE colour picker support.
 
 ```{.yaml filename="_schema.yml"}
-element-attributes:
+attributes:
   _any:
     colour:
       type: string
@@ -464,7 +486,7 @@ element-attributes:
 
 ### Combined extension
 
-An extension that defines options, shortcodes, and element attributes together.
+An extension that defines options, shortcodes, and attributes together.
 
 ```{.yaml filename="_schema.yml"}
 options:
@@ -496,7 +518,7 @@ shortcodes:
         type: string
         description: "Button label text."
 
-element-attributes:
+attributes:
   modal:
     size:
       type: string
@@ -546,9 +568,11 @@ Then read every Lua source file to discover:
    functions. Record positional arguments (in order) and named
    attributes with their types, defaults, and allowed values.
 3. **Format-specific options** read under a format name in metadata.
-4. **Element attributes** read from `el.attributes` in Div, Span, or
+4. **Attributes** read from `el.attributes` in Div, Span, or
    CodeBlock filter functions. Group them by CSS class (use `_any` when
    the attribute applies regardless of class).
+5. **Classes** contributed by the extension's filters. List each CSS
+   class name the extension handles, with a short description.
 
 For every field use the following properties where applicable:
 

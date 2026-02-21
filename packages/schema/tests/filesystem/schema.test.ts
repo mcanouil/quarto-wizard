@@ -234,7 +234,7 @@ describe("normaliseSchema", () => {
 				},
 			},
 			projects: ["my-website"],
-			"element-attributes": {
+			attributes: {
 				_any: {
 					width: { type: "number" },
 				},
@@ -249,8 +249,8 @@ describe("normaliseSchema", () => {
 		expect(result.formats!["html"]["toc"].type).toBe("boolean");
 		expect(result.projects).toBeDefined();
 		expect(result.projects).toEqual(["my-website"]);
-		expect(result.elementAttributes).toBeDefined();
-		expect(result.elementAttributes!["_any"]["width"].type).toBe("number");
+		expect(result.attributes).toBeDefined();
+		expect(result.attributes!["_any"]["width"].type).toBe("number");
 	});
 
 	it("returns empty object for empty schema", () => {
@@ -260,7 +260,7 @@ describe("normaliseSchema", () => {
 		expect(result.shortcodes).toBeUndefined();
 		expect(result.formats).toBeUndefined();
 		expect(result.projects).toBeUndefined();
-		expect(result.elementAttributes).toBeUndefined();
+		expect(result.attributes).toBeUndefined();
 	});
 });
 
@@ -329,9 +329,9 @@ options:
 		expect(schema.options!["name"].patternExact).toBe(false);
 	});
 
-	it("parses element-attributes section with class grouping", () => {
+	it("parses attributes section with class grouping", () => {
 		const yamlContent = `
-element-attributes:
+attributes:
   _any:
     width:
       type: number
@@ -346,10 +346,10 @@ element-attributes:
 
 		const schema = parseSchemaContent(yamlContent);
 
-		expect(schema.elementAttributes).toBeDefined();
-		expect(schema.elementAttributes!["_any"]["width"].type).toBe("number");
-		expect(schema.elementAttributes!["_any"]["height"].min).toBe(0);
-		expect(schema.elementAttributes!["panel"]["title"].type).toBe("string");
+		expect(schema.attributes).toBeDefined();
+		expect(schema.attributes!["_any"]["width"].type).toBe("number");
+		expect(schema.attributes!["_any"]["height"].min).toBe(0);
+		expect(schema.attributes!["panel"]["title"].type).toBe("string");
 	});
 
 	it("parses formats section with nested format options", () => {
@@ -456,7 +456,7 @@ options:
 		expect(schema.shortcodes).toBeUndefined();
 		expect(schema.formats).toBeUndefined();
 		expect(schema.projects).toBeUndefined();
-		expect(schema.elementAttributes).toBeUndefined();
+		expect(schema.attributes).toBeUndefined();
 	});
 
 	it("parses nested field descriptors with items and properties", () => {
@@ -845,7 +845,7 @@ describe("$schema key", () => {
 		expect(schema.shortcodes).toBeUndefined();
 		expect(schema.formats).toBeUndefined();
 		expect(schema.projects).toBeUndefined();
-		expect(schema.elementAttributes).toBeUndefined();
+		expect(schema.attributes).toBeUndefined();
 	});
 });
 
@@ -991,46 +991,18 @@ describe("integer type", () => {
 	});
 });
 
-describe("elementAttributes key variants", () => {
-	it("handles element-attributes (YAML kebab-case) at top level", () => {
+describe("attributes key handling", () => {
+	it("handles attributes at top level", () => {
 		const result = normaliseSchema({
-			"element-attributes": {
+			attributes: {
 				_any: {
 					width: { type: "number" },
 				},
 			},
 		});
 
-		expect(result.elementAttributes).toBeDefined();
-		expect(result.elementAttributes!["_any"]["width"].type).toBe("number");
-	});
-
-	it("handles elementAttributes (JSON camelCase) at top level", () => {
-		const result = normaliseSchema({
-			elementAttributes: {
-				panel: {
-					title: { type: "string" },
-				},
-			},
-		});
-
-		expect(result.elementAttributes).toBeDefined();
-		expect(result.elementAttributes!["panel"]["title"].type).toBe("string");
-	});
-
-	it("prefers element-attributes over elementAttributes when both present", () => {
-		const result = normaliseSchema({
-			"element-attributes": {
-				_any: { width: { type: "number" } },
-			},
-			elementAttributes: {
-				_any: { height: { type: "string" } },
-			},
-		});
-
-		expect(result.elementAttributes).toBeDefined();
-		expect(result.elementAttributes!["_any"]["width"]).toBeDefined();
-		expect(result.elementAttributes!["_any"]["height"]).toBeUndefined();
+		expect(result.attributes).toBeDefined();
+		expect(result.attributes!["_any"]["width"].type).toBe("number");
 	});
 });
 
@@ -1072,10 +1044,10 @@ describe("JSON file integration through readSchema", () => {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	it("reads _schema.json with elementAttributes through readSchema", () => {
+	it("reads _schema.json with attributes through readSchema", () => {
 		const jsonContent = JSON.stringify({
 			$schema: SCHEMA_VERSION_URI,
-			elementAttributes: {
+			attributes: {
 				panel: {
 					title: { type: "string", required: true },
 				},
@@ -1084,9 +1056,9 @@ describe("JSON file integration through readSchema", () => {
 		fs.writeFileSync(path.join(tempDir, "_schema.json"), jsonContent);
 		const result = readSchema(tempDir);
 		expect(result).not.toBeNull();
-		expect(result!.schema.elementAttributes).toBeDefined();
-		expect(result!.schema.elementAttributes!["panel"]["title"].type).toBe("string");
-		expect(result!.schema.elementAttributes!["panel"]["title"].required).toBe(true);
+		expect(result!.schema.attributes).toBeDefined();
+		expect(result!.schema.attributes!["panel"]["title"].type).toBe("string");
+		expect(result!.schema.attributes!["panel"]["title"].required).toBe(true);
 		expect(result!.filename).toBe("_schema.json");
 	});
 });

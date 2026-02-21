@@ -104,6 +104,14 @@ export interface ShortcodeSchema {
 }
 
 /**
+ * Definition for a CSS class contributed by an extension.
+ */
+export interface ClassDefinition {
+	/** Human-readable description of the class. */
+	description?: string;
+}
+
+/**
  * Complete extension schema parsed from a _schema.yml or _schema.json file.
  * All sections are optional and default to empty objects or arrays.
  */
@@ -119,12 +127,13 @@ export interface ExtensionSchema {
 	/** Project types contributed by the extension (suggested for project.type). */
 	projects?: string[];
 	/** Element-level attributes grouped by CSS class or element type (e.g., "_any", "panel", "card"). */
-	elementAttributes?: Record<string, Record<string, FieldDescriptor>>;
+	attributes?: Record<string, Record<string, FieldDescriptor>>;
+	/** CSS classes contributed by the extension. */
+	classes?: Record<string, ClassDefinition>;
 }
 
 /**
  * Raw schema data as parsed from YAML or JSON.
- * YAML files use kebab-case keys; JSON files use camelCase keys.
  */
 export interface RawSchema {
 	$schema?: string;
@@ -132,8 +141,8 @@ export interface RawSchema {
 	shortcodes?: Record<string, unknown>;
 	formats?: Record<string, unknown>;
 	projects?: unknown[];
-	"element-attributes"?: Record<string, unknown>;
-	elementAttributes?: Record<string, unknown>;
+	attributes?: Record<string, unknown>;
+	classes?: Record<string, unknown>;
 }
 
 /**
@@ -299,16 +308,29 @@ export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 		result.projects = raw.projects.filter((v): v is string => typeof v === "string");
 	}
 
-	// Accept both "element-attributes" (YAML kebab-case) and "elementAttributes" (JSON camelCase).
-	const elementAttributes = raw["element-attributes"] ?? raw.elementAttributes;
-	if (elementAttributes && typeof elementAttributes === "object" && !Array.isArray(elementAttributes)) {
+	if (raw.attributes && typeof raw.attributes === "object" && !Array.isArray(raw.attributes)) {
 		const groups: Record<string, Record<string, FieldDescriptor>> = {};
-		for (const [groupKey, groupValue] of Object.entries(elementAttributes as Record<string, unknown>)) {
+		for (const [groupKey, groupValue] of Object.entries(raw.attributes as Record<string, unknown>)) {
 			if (groupValue && typeof groupValue === "object" && !Array.isArray(groupValue)) {
 				groups[groupKey] = normaliseFieldDescriptorMap(groupValue as Record<string, unknown>);
 			}
 		}
-		result.elementAttributes = groups;
+		result.attributes = groups;
+	}
+
+	if (raw.classes && typeof raw.classes === "object" && !Array.isArray(raw.classes)) {
+		const classes: Record<string, ClassDefinition> = {};
+		for (const [className, classDef] of Object.entries(raw.classes as Record<string, unknown>)) {
+			if (classDef && typeof classDef === "object" && !Array.isArray(classDef)) {
+				const rawDef = classDef as Record<string, unknown>;
+				const definition: ClassDefinition = {};
+				if (typeof rawDef["description"] === "string") {
+					definition.description = rawDef["description"];
+				}
+				classes[className] = definition;
+			}
+		}
+		result.classes = classes;
 	}
 
 	return result;

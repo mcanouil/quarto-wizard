@@ -29,6 +29,7 @@ export type SchemaContext =
 	| { kind: "root" }
 	| { kind: "field-descriptor"; allowName?: boolean }
 	| { kind: "shortcode-entry" }
+	| { kind: "class-entry" }
 	| { kind: "value"; valueType: "type" | "boolean" | "schema-uri" }
 	| null;
 
@@ -91,12 +92,23 @@ export function getSchemaContext(keyPath: string[], isValuePosition: boolean): S
 		return resolveFieldDescriptorContext(keyPath.slice(3));
 	}
 
-	// "element-attributes" section.
-	if (first === "element-attributes" || first === "elementAttributes") {
+	// "attributes" section.
+	if (first === "attributes") {
 		if (keyPath.length <= 2) {
 			return null;
 		}
 		return resolveFieldDescriptorContext(keyPath.slice(3));
+	}
+
+	// "classes" section.
+	if (first === "classes") {
+		if (keyPath.length === 1) {
+			return null; // Children are user-defined class names.
+		}
+		if (keyPath.length === 2) {
+			return { kind: "class-entry" };
+		}
+		return null;
 	}
 
 	// "shortcodes" section.
@@ -235,6 +247,8 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				return this.completeFieldDescriptorKeys(existingKeys, context.allowName);
 			case "shortcode-entry":
 				return this.completeShortcodeEntryKeys(existingKeys);
+			case "class-entry":
+				return this.completeClassEntryKeys(existingKeys);
 			case "value":
 				return this.completeValues(context.valueType);
 		}
@@ -344,6 +358,26 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				item.insertText = `${key}: `;
 				items.push(item);
 			}
+		}
+
+		return items;
+	}
+
+	private completeClassEntryKeys(existingKeys: Set<string>): vscode.CompletionItem[] {
+		const items: vscode.CompletionItem[] = [];
+
+		const classEntryKeys: Record<string, string> = {
+			description: "Human-readable description of the class.",
+		};
+
+		for (const [key, doc] of Object.entries(classEntryKeys)) {
+			if (existingKeys.has(key)) {
+				continue;
+			}
+			const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
+			item.detail = doc;
+			item.insertText = `${key}: `;
+			items.push(item);
 		}
 
 		return items;

@@ -28,14 +28,13 @@
 			"items": { "type": "string" },
 			"description": "Project types contributed by the extension (suggested for project.type)."
 		},
-		"element-attributes": {
-			"$ref": "#/$defs/elementAttributesMap",
-			"description": "Attributes accepted by filter extensions on Pandoc elements."
+		"attributes": {
+			"$ref": "#/$defs/attributesMap",
+			"description": "Attributes accepted by filter extensions on Pandoc elements, grouped by class, ID, or element type."
 		},
-		"elementAttributes": {
-			"$ref": "#/$defs/elementAttributesMap",
-			"description": "Attributes accepted by filter extensions on Pandoc elements (camelCase variant).",
-			"x-yaml-hidden": true
+		"classes": {
+			"$ref": "#/$defs/classesMap",
+			"description": "CSS classes contributed by the extension, with optional descriptions."
 		}
 	},
 	"$defs": {
@@ -301,10 +300,25 @@
 				"$ref": "#/$defs/fieldDescriptorMap"
 			}
 		},
-		"elementAttributesMap": {
+		"attributesMap": {
 			"type": "object",
 			"additionalProperties": {
 				"$ref": "#/$defs/fieldDescriptorMap"
+			}
+		},
+		"classEntry": {
+			"type": "object",
+			"properties": {
+				"description": {
+					"type": "string",
+					"description": "Human-readable description of the class."
+				}
+			}
+		},
+		"classesMap": {
+			"type": "object",
+			"additionalProperties": {
+				"$ref": "#/$defs/classEntry"
 			}
 		}
 	}
