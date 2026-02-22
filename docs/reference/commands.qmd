@@ -138,7 +138,7 @@ Select and remove multiple extensions at once.
 
 **Command**: `Quarto Wizard: Open Extension Source`
 
-Open the extension's GitHub repository in a browser.
+Open the extension's source (GitHub, URL, registry, or local folder).
 
 ### Reveal in Explorer View
 

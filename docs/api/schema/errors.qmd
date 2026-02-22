@@ -10,9 +10,13 @@ Error types for @quarto-wizard/schema.
 
 - [SchemaError](errors.qmd#symbol-class-schemaerror)
 
+### Functions
+
+- [getErrorMessage](errors.qmd#symbol-function-geterrormessage)
+
 ## SchemaError {#symbol-class-schemaerror}
 
-Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/46faccb6120271e673ba936b480c00bbea73bcdc/packages/schema/src/errors.ts#L11)
+Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/errors.ts#L11)
 
 Error when parsing a schema file fails.
 
@@ -28,7 +32,7 @@ Error when parsing a schema file fails.
 new SchemaError(message, options?): SchemaError;
 ```
 
-Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/46faccb6120271e673ba936b480c00bbea73bcdc/packages/schema/src/errors.ts#L19)
+Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/errors.ts#L19)
 
 ##### Parameters
 
@@ -71,7 +75,7 @@ Error.cause
 readonly code: "SCHEMA_ERROR" = "SCHEMA_ERROR";
 ```
 
-Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/46faccb6120271e673ba936b480c00bbea73bcdc/packages/schema/src/errors.ts#L13)
+Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/errors.ts#L13)
 
 Error code for programmatic handling.
 
@@ -109,7 +113,7 @@ Error.name
 readonly optional schemaPath: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/46faccb6120271e673ba936b480c00bbea73bcdc/packages/schema/src/errors.ts#L15)
+Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/errors.ts#L15)
 
 Path to the schema file.
 
@@ -133,7 +137,7 @@ Error.stack
 readonly optional suggestion: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/46faccb6120271e673ba936b480c00bbea73bcdc/packages/schema/src/errors.ts#L17)
+Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/errors.ts#L17)
 
 Suggestion for how to resolve the error.
 
@@ -169,7 +173,7 @@ Error.stackTraceLimit
 format(): string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/46faccb6120271e673ba936b480c00bbea73bcdc/packages/schema/src/errors.ts#L33)
+Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/errors.ts#L33)
 
 Format the error for display.
 
@@ -274,3 +278,23 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 ```{.ts filename="TypeScript"}
 Error.prepareStackTrace
 ```
+
+## getErrorMessage {#symbol-function-geterrormessage}
+
+```{.ts filename="TypeScript"}
+function getErrorMessage(error): string;
+```
+
+Defined in: [packages/schema/src/errors.ts:45](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/errors.ts#L45)
+
+Extract a human-readable message from an unknown error value.
+
+### Parameters
+
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
+
+### Returns
+
+`string`
