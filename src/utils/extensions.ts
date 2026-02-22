@@ -58,17 +58,6 @@ export function getSourceBase(source: string, sourceType?: SourceType): string {
 	return source;
 }
 
-export function hasPinnedSourceRef(ext: InstalledExtension): boolean {
-	if (!ext.manifest.source) {
-		return false;
-	}
-	const sourceType = getEffectiveSourceType(ext);
-	if (sourceType !== "github" && sourceType !== "registry") {
-		return false;
-	}
-	return splitSourceRef(ext.manifest.source).hasRef;
-}
-
 export function resolveLocalSourcePath(sourcePath: string, workspaceFolder: string): string {
 	let candidate = sourcePath;
 	if (candidate === "~") {

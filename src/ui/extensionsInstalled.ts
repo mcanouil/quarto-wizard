@@ -174,7 +174,15 @@ export class ExtensionsInstalled {
 				const baseSource = getSourceBase(source, item.effectiveSourceType);
 				const auth = await getAuthConfig(context);
 				const result = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(baseSource, item.workspaceFolder, auth, undefined, true, token);
+					return installQuartoExtension(
+						baseSource,
+						item.workspaceFolder,
+						auth,
+						undefined,
+						true,
+						token,
+						item.effectiveSourceType,
+					);
 				});
 				if (result === true) {
 					invalidateInstalledExtensionsCache(item.workspaceFolder);
@@ -202,7 +210,15 @@ export class ExtensionsInstalled {
 				}
 				const auth = await getAuthConfig(context);
 				const result = await withProgressNotification(`Reinstalling "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(source, item.workspaceFolder, auth, undefined, true, token);
+					return installQuartoExtension(
+						source,
+						item.workspaceFolder,
+						auth,
+						undefined,
+						true,
+						token,
+						item.effectiveSourceType,
+					);
 				});
 				if (result === true) {
 					invalidateInstalledExtensionsCache(item.workspaceFolder);
@@ -328,6 +344,7 @@ export class ExtensionsInstalled {
 							undefined,
 							true, // skipOverwritePrompt - updates are expected to overwrite
 							token,
+							ext.sourceType,
 						);
 						if (result === true) {
 							successCount++;

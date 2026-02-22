@@ -201,6 +201,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				projectDir,
 				auth,
 				force: true,
+				sourceType: update.extension.manifest.sourceType,
 				onProgress: (p) => {
 					onProgress?.({
 						extension: extName,

@@ -263,6 +263,34 @@ describe("checkForUpdates", () => {
 		expect(updates[0].source).toBe("quarto-ext/fontawesome@v2.0.0");
 	});
 
+	it("should find updates for registry-sourced extension with version ref", async () => {
+		// Simulates: source-type: registry, source: mcanouil/quarto-remember@1.0.0
+		const extDir = path.join(tempDir, "_extensions", "mcanouil", "remember");
+		fs.mkdirSync(extDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(extDir, "_extension.yml"),
+			"title: remember\nversion: 1.0.0\nsource: mcanouil/quarto-remember@1.0.0\nsource-type: registry\n",
+		);
+
+		vi.mocked(fetchRegistry).mockResolvedValue({
+			"mcanouil/quarto-remember": {
+				fullName: "mcanouil/quarto-remember",
+				latestVersion: "1.1.0",
+				latestTag: "1.1.0",
+				latestReleaseUrl: "https://github.com/mcanouil/quarto-remember/releases/tag/1.1.0",
+				latestCommit: null,
+				htmlUrl: "https://github.com/mcanouil/quarto-remember",
+			},
+		});
+
+		const updates = await checkForUpdates({ projectDir: tempDir });
+
+		expect(updates).toHaveLength(1);
+		expect(updates[0].currentVersion).toBe("1.0.0");
+		expect(updates[0].latestVersion).toBe("1.1.0");
+		expect(updates[0].source).toBe("mcanouil/quarto-remember@1.1.0");
+	});
+
 	it("should handle case-insensitive commit comparison", async () => {
 		setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@ABC1234");
 
