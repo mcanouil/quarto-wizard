@@ -2,7 +2,7 @@
  * Archive module exports.
  */
 
-export { checkPathTraversal, checkSymlinkTarget, formatSize, validateUrlProtocol } from "./security.js";
+export { checkPathTraversal, formatSize, validateUrlProtocol } from "./security.js";
 
 export { type ZipExtractOptions, extractZip } from "./zip.js";
 

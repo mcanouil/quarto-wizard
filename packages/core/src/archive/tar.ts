@@ -11,14 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as tar from "tar";
 import { SecurityError } from "../errors.js";
-import {
-	checkPathTraversal,
-	checkSymlinkTarget,
-	formatSize,
-	DEFAULT_MAX_SIZE,
-	MAX_COMPRESSION_RATIO,
-	MAX_FILE_COUNT,
-} from "./security.js";
+import { checkPathTraversal, formatSize, DEFAULT_MAX_SIZE, MAX_COMPRESSION_RATIO, MAX_FILE_COUNT } from "./security.js";
 
 /**
  * Options for TAR extraction.
@@ -87,10 +80,10 @@ export async function extractTar(
 
 			const entryPath = entry.path;
 
-			// Validate symlink targets stay within the extraction directory.
-			if (entry.type === "SymbolicLink" && entry.linkpath) {
-				const entryDir = path.resolve(destDir, path.dirname(entryPath));
-				checkSymlinkTarget(entry.linkpath, entryDir, destDir);
+			// Reject symlinks to match ZIP extraction policy and eliminate
+			// multi-hop chain and TOCTOU attack vectors.
+			if (entry.type === "SymbolicLink") {
+				throw new SecurityError(`Archive contains a symbolic link ("${entryPath}"), which is not permitted.`);
 			}
 
 			if (entry.type === "File" || entry.type === "ContiguousFile") {

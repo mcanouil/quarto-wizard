@@ -40,23 +40,6 @@ export function checkPathTraversal(filePath: string): void {
 }
 
 /**
- * Validate that a symlink target stays within the extraction directory.
- *
- * @param linkTarget - Symlink target path
- * @param entryDir - Directory containing the symlink entry
- * @param destDir - Root extraction directory
- * @throws SecurityError if the symlink escapes destDir
- */
-export function checkSymlinkTarget(linkTarget: string, entryDir: string, destDir: string): void {
-	const resolvedTarget = path.resolve(entryDir, linkTarget);
-	const resolvedDest = path.resolve(destDir);
-
-	if (!resolvedTarget.startsWith(resolvedDest + path.sep) && resolvedTarget !== resolvedDest) {
-		throw new SecurityError(`Symlink target escapes extraction directory: "${linkTarget}"`);
-	}
-}
-
-/**
  * Validate that a URL uses an allowed protocol.
  *
  * Prevents SSRF by rejecting file://, ftp://, and other non-HTTP protocols.

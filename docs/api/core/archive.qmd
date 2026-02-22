@@ -38,7 +38,6 @@ ZIP and TAR extractors.
 ### Functions
 
 - [checkPathTraversal](archive.qmd#symbol-function-checkpathtraversal)
-- [checkSymlinkTarget](archive.qmd#symbol-function-checksymlinktarget)
 - [formatSize](archive.qmd#symbol-function-formatsize)
 - [validateUrlProtocol](archive.qmd#symbol-function-validateurlprotocol)
 
@@ -93,35 +92,6 @@ Check for path traversal attempts in archive entry paths.
 ### Throws
 
 SecurityError if path traversal is detected
-
-## checkSymlinkTarget {#symbol-function-checksymlinktarget}
-
-```{.ts filename="TypeScript"}
-function checkSymlinkTarget(
-   linkTarget,
-   entryDir,
-   destDir): void;
-```
-
-Defined in: [packages/core/src/archive/security.ts:50](https://github.com/mcanouil/quarto-wizard/blob/46faccb6120271e673ba936b480c00bbea73bcdc/packages/core/src/archive/security.ts#L50)
-
-Validate that a symlink target stays within the extraction directory.
-
-### Parameters
-
-| Parameter    | Type     | Description                            |
-| ------------ | -------- | -------------------------------------- |
-| `linkTarget` | `string` | Symlink target path                    |
-| `entryDir`   | `string` | Directory containing the symlink entry |
-| `destDir`    | `string` | Root extraction directory              |
-
-### Returns
-
-`void`
-
-### Throws
-
-SecurityError if the symlink escapes destDir
 
 ## cleanupExtraction {#symbol-function-cleanupextraction}
 
