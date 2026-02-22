@@ -94,8 +94,24 @@ function isRetryableError(error: unknown): boolean {
 /**
  * Sleep for a given number of milliseconds.
  */
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+	if (signal?.aborted) {
+		return Promise.reject(new CancellationError());
+	}
+
+	return new Promise((resolve, reject) => {
+		const onAbort = () => {
+			clearTimeout(timeoutId);
+			reject(new CancellationError());
+		};
+
+		const timeoutId = setTimeout(() => {
+			signal?.removeEventListener("abort", onAbort);
+			resolve();
+		}, ms);
+
+		signal?.addEventListener("abort", onAbort, { once: true });
+	});
 }
 
 /**
@@ -148,7 +164,7 @@ async function fetchWithRetry<T>(
 
 			if (attempt < retries && isRetryableError(error)) {
 				const delay = retryDelay * Math.pow(2, attempt);
-				await sleep(delay);
+				await sleep(delay, signal);
 				continue;
 			}
 
