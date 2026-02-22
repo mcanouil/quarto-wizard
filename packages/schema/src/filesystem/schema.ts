@@ -12,8 +12,7 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import type { ExtensionSchema, RawSchema } from "../types/schema.js";
 import { normaliseSchema, SUPPORTED_SCHEMA_VERSIONS } from "../types/schema.js";
-import { SchemaError } from "../errors.js";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { SchemaError, getErrorMessage } from "../errors.js";
 
 /** Supported schema file names, ordered by precedence (JSON first). */
 export const SCHEMA_FILENAMES = ["_schema.json", "_schema.yml", "_schema.yaml"] as const;
