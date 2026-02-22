@@ -266,8 +266,11 @@ export class ExtensionsInstalled {
 					// Check if extension directory exists
 					try {
 						await vscode.workspace.fs.stat(item.resourceUri);
-					} catch {
-						logMessage(`Extension directory not found: ${item.resourceUri.fsPath}.`, "warn");
+					} catch (error) {
+						logMessage(
+							`Extension directory not accessible: ${item.resourceUri.fsPath}: ${getErrorMessage(error)}.`,
+							"warn",
+						);
 						showMessageWithLogs(`Extension directory for "${item.label}" not found.`, "warning");
 						return;
 					}
