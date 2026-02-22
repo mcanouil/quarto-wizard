@@ -22,6 +22,7 @@
 - fix: harden network and security handling for stream backpressure failures and path traversal checks.
 - fix: improve schema provider robustness with better cache sharing, merge consistency, type handling, and completion ranking.
 - fix: store file system watcher event disposables to prevent resource leaks.
+- fix: prevent directory deselection in the template file picker by updating selection state directly instead of rebuilding items.
 
 ### Refactoring
 
