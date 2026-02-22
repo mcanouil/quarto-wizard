@@ -109,6 +109,52 @@ describe("normaliseManifest", () => {
 
 		expect(manifest.contributes.revealjsPlugin).toEqual(["plugin.js"]);
 	});
+
+	it("maps source-type to sourceType", () => {
+		const raw = {
+			title: "Test",
+			source: "owner/repo",
+			"source-type": "github",
+		};
+
+		const manifest = normaliseManifest(raw);
+
+		expect(manifest.sourceType).toBe("github");
+	});
+
+	it("maps all valid source-type values", () => {
+		for (const type of ["github", "url", "local", "registry"]) {
+			const raw = {
+				title: "Test",
+				"source-type": type,
+			};
+
+			const manifest = normaliseManifest(raw);
+
+			expect(manifest.sourceType).toBe(type);
+		}
+	});
+
+	it("ignores invalid source-type values", () => {
+		const raw = {
+			title: "Test",
+			"source-type": "invalid",
+		};
+
+		const manifest = normaliseManifest(raw);
+
+		expect(manifest.sourceType).toBeUndefined();
+	});
+
+	it("handles missing source-type", () => {
+		const raw = {
+			title: "Test",
+		};
+
+		const manifest = normaliseManifest(raw);
+
+		expect(manifest.sourceType).toBeUndefined();
+	});
 });
 
 describe("getExtensionTypes", () => {
@@ -544,6 +590,65 @@ describe("filesystem manifest functions", () => {
 			const content = fs.readFileSync(manifestPath, "utf-8");
 			expect(content).toContain("source: new/source@v1.0.0");
 			expect(content).not.toContain("old/source");
+		});
+
+		it("writes source-type when provided", () => {
+			const manifestPath = path.join(tempDir, "_extension.yml");
+			fs.writeFileSync(manifestPath, "title: Test\nversion: 1.0.0\n");
+
+			updateManifestSource(manifestPath, "owner/repo", "github");
+
+			const content = fs.readFileSync(manifestPath, "utf-8");
+			expect(content).toContain("source: owner/repo");
+			expect(content).toContain("source-type: github");
+		});
+
+		it("omits source-type when not provided", () => {
+			const manifestPath = path.join(tempDir, "_extension.yml");
+			fs.writeFileSync(manifestPath, "title: Test\nversion: 1.0.0\n");
+
+			updateManifestSource(manifestPath, "owner/repo");
+
+			const content = fs.readFileSync(manifestPath, "utf-8");
+			expect(content).toContain("source: owner/repo");
+			expect(content).not.toContain("source-type");
+		});
+	});
+
+	describe("writeManifest with sourceType", () => {
+		it("writes source-type field", () => {
+			const manifestPath = path.join(tempDir, "_extension.yml");
+			const manifest = {
+				title: "Test",
+				author: "",
+				version: "1.0.0",
+				source: "owner/repo",
+				sourceType: "github" as const,
+				contributes: {},
+			};
+
+			writeManifest(manifestPath, manifest);
+
+			const content = fs.readFileSync(manifestPath, "utf-8");
+			expect(content).toContain("source: owner/repo");
+			expect(content).toContain("source-type: github");
+		});
+
+		it("omits source-type when undefined", () => {
+			const manifestPath = path.join(tempDir, "_extension.yml");
+			const manifest = {
+				title: "Test",
+				author: "",
+				version: "1.0.0",
+				source: "owner/repo",
+				contributes: {},
+			};
+
+			writeManifest(manifestPath, manifest);
+
+			const content = fs.readFileSync(manifestPath, "utf-8");
+			expect(content).toContain("source: owner/repo");
+			expect(content).not.toContain("source-type");
 		});
 	});
 });

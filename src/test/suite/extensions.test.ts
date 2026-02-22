@@ -7,7 +7,10 @@ import {
 	getInstalledExtensions,
 	getInstalledExtensionsRecord,
 	getExtensionRepository,
+	getExtensionSourceUrl,
+	getEffectiveSourceType,
 	getExtensionContributes,
+	resolveLocalSourcePath,
 	formatExtensionId,
 } from "../../utils/extensions";
 
@@ -41,6 +44,7 @@ suite("Extensions Utils Test Suite", () => {
 			version: string;
 			contributes: Record<string, string[]>;
 			source: string;
+			"source-type": string;
 		}> = {},
 	) {
 		const extPath = path.join(extensionsDir, author, name);
@@ -53,7 +57,8 @@ suite("Extensions Utils Test Suite", () => {
 			contributes: {
 				shortcodes: [`${name}.lua`],
 			},
-			source: `https://github.com/${author}/${name}@main`,
+			source: `${author}/${name}@main`,
+			"source-type": "github",
 		};
 
 		const mergedData = { ...defaultData, ...extensionData };
@@ -73,6 +78,10 @@ contributes:\n`;
 
 		if (mergedData.source) {
 			yamlContent += `source: "${mergedData.source}"\n`;
+		}
+
+		if (mergedData["source-type"]) {
+			yamlContent += `source-type: "${mergedData["source-type"]}"\n`;
 		}
 
 		fs.writeFileSync(path.join(extPath, "_extension.yml"), yamlContent);
@@ -168,21 +177,36 @@ contributes:\n`;
 	});
 
 	suite("getExtensionRepository", () => {
-		test("Should extract repository from source", async () => {
+		test("Should extract repository from GitHub source with sourceType", async () => {
 			createTestExtension("quarto-ext", "fancy-text", {
-				source: "https://github.com/quarto-ext/fancy-text@v2.1.0",
+				source: "quarto-ext/fancy-text@v2.1.0",
+				"source-type": "github",
 			});
 
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
 			const repository = getExtensionRepository(ext);
-			assert.strictEqual(repository, "https://github.com/quarto-ext/fancy-text");
+			assert.strictEqual(repository, "quarto-ext/fancy-text");
 		});
 
-		test("Should return undefined for missing source", async () => {
-			createTestExtension("quarto-ext", "no-source", {
-				source: undefined,
+		test("Should extract repository from legacy owner/repo source", async () => {
+			createTestExtension("quarto-ext", "legacy-ext", {
+				source: "quarto-ext/legacy-ext@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const repository = getExtensionRepository(ext);
+			assert.strictEqual(repository, "quarto-ext/legacy-ext");
+		});
+
+		test("Should return undefined for URL source type", async () => {
+			createTestExtension("quarto-ext", "url-ext", {
+				source: "https://example.com/ext.zip",
+				"source-type": "url",
 			});
 
 			const extensions = await getInstalledExtensions(tempDir);
@@ -190,6 +214,266 @@ contributes:\n`;
 
 			const repository = getExtensionRepository(ext);
 			assert.strictEqual(repository, undefined);
+		});
+
+		test("Should return undefined for local source type", async () => {
+			createTestExtension("quarto-ext", "local-ext", {
+				source: "./my-extension",
+				"source-type": "local",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const repository = getExtensionRepository(ext);
+			assert.strictEqual(repository, undefined);
+		});
+
+		test("Should return undefined for missing source", async () => {
+			createTestExtension("quarto-ext", "no-source", {
+				source: undefined,
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const repository = getExtensionRepository(ext);
+			assert.strictEqual(repository, undefined);
+		});
+	});
+
+	suite("getExtensionSourceUrl", () => {
+		test("Should return GitHub URL for GitHub source type", async () => {
+			createTestExtension("quarto-ext", "gh-ext", {
+				source: "quarto-ext/gh-ext@v1.0.0",
+				"source-type": "github",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "https://github.com/quarto-ext/gh-ext");
+		});
+
+		test("Should return URL as-is for URL source type", async () => {
+			createTestExtension("quarto-ext", "url-ext2", {
+				source: "https://example.com/ext.zip",
+				"source-type": "url",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "https://example.com/ext.zip");
+		});
+
+		test("Should preserve @ in URL source type", async () => {
+			createTestExtension("quarto-ext", "url-ext3", {
+				source: "https://user@example.com/ext.zip",
+				"source-type": "url",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "https://user@example.com/ext.zip");
+		});
+
+		test("Should return path for local source type", async () => {
+			createTestExtension("quarto-ext", "local-ext2", {
+				source: "./my-extension",
+				"source-type": "local",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "./my-extension");
+		});
+
+		test("Should preserve @ in local source type", async () => {
+			createTestExtension("quarto-ext", "local-ext3", {
+				source: "/opt/extensions/alice@work/ext",
+				"source-type": "local",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "/opt/extensions/alice@work/ext");
+		});
+
+		test("Should return GitHub URL for registry source type", async () => {
+			createTestExtension("quarto-ext", "reg-ext", {
+				source: "quarto-ext/reg-ext@v1.0.0",
+				"source-type": "registry",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "https://github.com/quarto-ext/reg-ext");
+		});
+
+		test("Should return undefined for missing source", async () => {
+			createTestExtension("quarto-ext", "no-source2", {
+				source: undefined,
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, undefined);
+		});
+
+		test("Should infer GitHub URL for legacy owner/repo source", async () => {
+			createTestExtension("quarto-ext", "legacy-ext2", {
+				source: "quarto-ext/legacy-ext2",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "https://github.com/quarto-ext/legacy-ext2");
+		});
+	});
+
+	suite("getEffectiveSourceType", () => {
+		test("Should return explicit sourceType when present", async () => {
+			createTestExtension("quarto-ext", "typed-ext", {
+				source: "quarto-ext/typed-ext",
+				"source-type": "github",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "github");
+		});
+
+		test("Should infer url from https source", async () => {
+			createTestExtension("quarto-ext", "infer-url", {
+				source: "https://example.com/ext.zip",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "url");
+		});
+
+		test("Should infer local from relative path", async () => {
+			createTestExtension("quarto-ext", "infer-local", {
+				source: "./my-extension",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "local");
+		});
+
+		test("Should infer local from absolute path", async () => {
+			createTestExtension("quarto-ext", "infer-abs", {
+				source: "/opt/extensions/my-ext",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "local");
+		});
+
+		test("Should infer registry from owner/repo pattern without explicit sourceType", async () => {
+			createTestExtension("quarto-ext", "infer-gh", {
+				source: "quarto-ext/infer-gh@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+		});
+
+		test("Should infer registry from owner/repo/subdir pattern without explicit sourceType", async () => {
+			createTestExtension("quarto-ext", "infer-gh-subdir", {
+				source: "quarto-ext/repo/dir/subdir@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+		});
+
+		test("Should infer registry from unrelated owner/repo pattern without explicit sourceType", async () => {
+			createTestExtension("quarto-ext", "infer-local-subdir", {
+				source: "subdir/infer-local-subdir@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+		});
+
+		test("Should not infer local from backslash in non-path source", async () => {
+			createTestExtension("quarto-ext", "infer-backslash", {
+				source: "owner/repo\\\\dir@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), undefined);
+		});
+
+		test("Should return undefined for no source", async () => {
+			createTestExtension("quarto-ext", "no-src", {
+				source: undefined,
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), undefined);
+		});
+	});
+
+	suite("resolveLocalSourcePath", () => {
+		test("Should expand tilde paths to home directory", () => {
+			const resolved = resolveLocalSourcePath("~/my-extension", "/workspace/project");
+			assert.strictEqual(resolved, path.join(os.homedir(), "my-extension"));
+		});
+
+		test("Should resolve relative paths from workspace folder", () => {
+			const resolved = resolveLocalSourcePath("./my-extension", "/workspace/project");
+			assert.strictEqual(resolved, path.resolve("/workspace/project", "./my-extension"));
+		});
+
+		test("Should keep absolute paths unchanged", () => {
+			const absolutePath = path.join(path.sep, "opt", "extensions", "my-extension");
+			const resolved = resolveLocalSourcePath(absolutePath, "/workspace/project");
+			assert.strictEqual(resolved, absolutePath);
 		});
 	});
 

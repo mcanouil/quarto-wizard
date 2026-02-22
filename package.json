@@ -206,9 +206,17 @@
 				"command": "quartoWizard.extensionsInstalled.openSource",
 				"title": "Open Extension Source",
 				"shortTitle": "Open Source",
-				"icon": "$(github)",
+				"icon": "$(link-external)",
 				"category": "Quarto Wizard",
-				"description": "Open the extension's GitHub repository in a browser."
+				"description": "Open the extension's source (GitHub, URL, registry, or local folder)."
+			},
+			{
+				"command": "quartoWizard.extensionsInstalled.reinstall",
+				"title": "Reinstall Extension",
+				"shortTitle": "Reinstall",
+				"icon": "$(sync)",
+				"category": "Quarto Wizard",
+				"description": "Reinstall the extension from its original source."
 			},
 			{
 				"command": "quartoWizard.extensionsInstalled.update",
@@ -407,37 +415,47 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemOutdated",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"group": "inline@3"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.reinstall",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned || viewItem == quartoExtensionItemNoSource)",
 					"group": "inline@4"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated) && viewItem != quartoExtensionItemNoSource",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned)",
 					"group": "inline@5"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemOutdated",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"group": "navigation@1"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.reinstall",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
 					"group": "navigation@1"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@2"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated) && viewItem != quartoExtensionItemNoSource",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned)",
 					"group": "navigation@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemOutdated || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@4"
 				},
 				{
@@ -454,6 +472,10 @@
 			"commandPalette": [
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.reinstall",
 					"when": "false"
 				},
 				{

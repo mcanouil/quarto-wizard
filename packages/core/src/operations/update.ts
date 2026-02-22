@@ -106,6 +106,8 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 			continue;
 		}
 
+		// Strip @ref unconditionally for registry lookup. Non-registry sources
+		// (URLs, local paths) won't match any registry entry and are skipped.
 		const atIndex = source.lastIndexOf("@");
 		const baseName = atIndex > 0 ? source.substring(0, atIndex) : source;
 		const entry = lookupRegistryEntry(registry, baseName);

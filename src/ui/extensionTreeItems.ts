@@ -1,9 +1,16 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
+import type { SourceType } from "@quarto-wizard/core";
 import { formatType } from "@quarto-wizard/schema";
 import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@quarto-wizard/snippets";
 import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
-import { getExtensionRepository, type InstalledExtension } from "../utils/extensions";
+import {
+	getExtensionRepository,
+	getExtensionSourceUrl,
+	getEffectiveSourceType,
+	hasPinnedSourceRef,
+	type InstalledExtension,
+} from "../utils/extensions";
 
 export type ExtensionCompatibilityStatus = "compatible" | "incompatible" | "not-specified" | "unknown";
 
@@ -38,6 +45,8 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 	public latestVersion?: string;
 	public workspaceFolder: string;
 	public repository?: string;
+	public sourceUrl?: string;
+	public effectiveSourceType?: SourceType;
 
 	constructor(
 		public readonly label: string,
@@ -52,15 +61,22 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		super(label, collapsibleState);
 		const needsUpdate = latestVersion !== undefined && latestVersion !== "unknown";
 		const noSource = extension && !extension.manifest.source;
-		const baseContextValue = "quartoExtensionItem";
-		let contextValue = baseContextValue;
 
-		// Set context value based on extension state for VS Code context menus
-		// This determines which commands are available when right-clicking
-		if (needsUpdate) {
-			contextValue = baseContextValue + "Outdated"; // Shows "update" option
-		} else if (noSource) {
-			contextValue = baseContextValue + "NoSource"; // Cannot be updated, shows limited options
+		// Set context value based on source type for VS Code context menus
+		const sourceType = extension ? getEffectiveSourceType(extension) : undefined;
+		const hasPinnedVersion = extension ? hasPinnedSourceRef(extension) : false;
+
+		let contextValue: string;
+		if (!extension) {
+			contextValue = "quartoExtensionItemDetails";
+		} else if (!sourceType) {
+			contextValue = "quartoExtensionItemNoSource";
+		} else if (hasPinnedVersion) {
+			contextValue = "quartoExtensionItemPinned";
+		} else if (sourceType === "github" || needsUpdate) {
+			contextValue = "quartoExtensionItem";
+		} else {
+			contextValue = "quartoExtensionItemUpToDate";
 		}
 
 		// Build tooltip with warning if there are issues
@@ -82,7 +98,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		this.description = this.extension
 			? `${this.extension.manifest.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}`
 			: "";
-		this.contextValue = this.extension ? contextValue : "quartoExtensionItemDetails";
+		this.contextValue = contextValue;
 
 		// Show warning icon if there are issues preventing full functionality
 		if (hasIssue || noSource || compatibilityWarningMessage) {
@@ -95,9 +111,11 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		this.latestVersion = latestVersion !== "unknown" ? latestVersion : "";
 		this.workspaceFolder = workspacePath;
 
-		// Store repository for update commands
+		// Store repository, source URL, and effective source type for commands
 		if (extension) {
 			this.repository = getExtensionRepository(extension);
+			this.sourceUrl = getExtensionSourceUrl(extension);
+			this.effectiveSourceType = sourceType;
 		}
 
 		// Set resource URI for the extension directory to enable "Reveal in Explorer" functionality

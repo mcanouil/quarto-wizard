@@ -2,12 +2,12 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import type { SchemaCache } from "@quarto-wizard/schema";
 import type { SnippetCache, SnippetDefinition } from "@quarto-wizard/snippets";
-import { normaliseVersion } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
+import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
@@ -83,13 +83,48 @@ export class ExtensionsInstalled {
 			}),
 		);
 
+		// Open Source command (branches on effective source type)
 		context.subscriptions.push(
-			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.openSource", (item: ExtensionTreeItem) => {
-				if (item.repository) {
-					const url = `https://github.com/${item.repository}`;
-					void vscode.env.openExternal(vscode.Uri.parse(url));
-				}
-			}),
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.openSource",
+				async (item: ExtensionTreeItem) => {
+					if (!item.sourceUrl) {
+						return;
+					}
+					if (item.effectiveSourceType === "local") {
+						const uri = item.sourceUrl.startsWith("file://")
+							? vscode.Uri.parse(item.sourceUrl)
+							: vscode.Uri.file(resolveLocalSourcePath(item.sourceUrl, item.workspaceFolder));
+						const action = await vscode.window.showInformationMessage(
+							"Open extension source folder in a new window?",
+							"Open",
+						);
+						if (action === "Open") {
+							await vscode.commands.executeCommand("vscode.openFolder", uri, { forceNewWindow: true });
+						}
+					} else {
+						try {
+							const uri = vscode.Uri.parse(item.sourceUrl);
+							const scheme = uri.scheme.toLowerCase();
+							if (scheme !== "http" && scheme !== "https") {
+								showMessageWithLogs(
+									`Failed to open source for "${item.label}". Only HTTP(S) URLs are supported.`,
+									"warning",
+								);
+								return;
+							}
+							const opened = await vscode.env.openExternal(uri);
+							if (!opened) {
+								showMessageWithLogs(`Failed to open source for "${item.label}".`, "error");
+							}
+						} catch (error) {
+							const message = error instanceof Error ? error.message : String(error);
+							logMessage(`Failed to parse source URL for "${item.label}": ${message}.`, "error");
+							showMessageWithLogs(`Failed to open source for "${item.label}".`, "error");
+						}
+					}
+				},
+			),
 		);
 
 		context.subscriptions.push(
@@ -111,43 +146,56 @@ export class ExtensionsInstalled {
 
 		/**
 		 * Updates a Quarto extension to the latest version.
-		 * Uses the source repository information from the extension manifest.
+		 * Uses the source from the extension manifest, stripped of any pinned version.
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
-				const latestVersion = item.latestVersion;
-				const latestSemver = latestVersion ? (normaliseVersion(latestVersion) ?? latestVersion) : undefined;
+				const source = item.extension?.manifest.source;
+				if (!source) {
+					showMessageWithLogs(
+						`Failed to update extension "${item.label}". Source not found in extension manifest.`,
+						"error",
+					);
+					return;
+				}
+				const baseSource = getSourceBase(source, item.effectiveSourceType);
 				const auth = await getAuthConfig(context);
-				// result is true (success), false (failure), or null (cancelled)
-				const result = await withProgressNotification(
-					`Updating "${item.repository ?? item.label}" to ${latestSemver} ...`,
-					async (token) => {
-						const versionSuffix = latestVersion ? `@${latestVersion}` : "";
-						return installQuartoExtension(
-							`${item.repository ?? item.label}${versionSuffix}`,
-							item.workspaceFolder,
-							auth,
-							undefined,
-							true, // skipOverwritePrompt - updates are expected to overwrite
-							token,
-						);
-					},
-				);
+				const result = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
+					return installQuartoExtension(baseSource, item.workspaceFolder, auth, undefined, true, token);
+				});
 				if (result === true) {
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else if (result === false) {
-					// Only show error for actual failures, not cancellations
-					if (!item.repository) {
-						showMessageWithLogs(
-							`Failed to update extension "${item.label}". Source not found in extension manifest.`,
-							"error",
-						);
-					} else {
-						showMessageWithLogs(`Failed to update extension "${item.label}".`, "error");
-					}
+					showMessageWithLogs(`Failed to update extension "${item.label}".`, "error");
 				}
-				// result === null means cancelled by user, no message needed
+			}),
+		);
+
+		/**
+		 * Reinstalls a Quarto extension from its original source.
+		 * Preserves the pinned version or re-downloads as-is.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.reinstall", async (item: ExtensionTreeItem) => {
+				const source = item.extension?.manifest.source;
+				if (!source) {
+					showMessageWithLogs(
+						`Failed to reinstall extension "${item.label}". Source not found in extension manifest.`,
+						"error",
+					);
+					return;
+				}
+				const auth = await getAuthConfig(context);
+				const result = await withProgressNotification(`Reinstalling "${item.label}" ...`, async (token) => {
+					return installQuartoExtension(source, item.workspaceFolder, auth, undefined, true, token);
+				});
+				if (result === true) {
+					vscode.window.showInformationMessage(`Extension "${item.label}" reinstalled successfully.`);
+					this.treeDataProvider.refreshAfterAction(context, view);
+				} else if (result === false) {
+					showMessageWithLogs(`Failed to reinstall extension "${item.label}".`, "error");
+				}
 			}),
 		);
 
@@ -257,10 +305,7 @@ export class ExtensionsInstalled {
 						if (token.isCancellationRequested) {
 							break;
 						}
-						const source = ext.repository
-							? `${ext.repository}@${ext.latestVersion}`
-							: `${ext.extensionId}@${ext.latestVersion}`;
-						// result is true (success), false (failure), or null (cancelled)
+						const source = ext.source ? getSourceBase(ext.source, ext.sourceType) : ext.extensionId;
 						const result = await installQuartoExtension(
 							source,
 							ext.workspaceFolder,

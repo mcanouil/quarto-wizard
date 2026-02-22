@@ -44,6 +44,8 @@ export interface ExtensionManifest {
 	contributes: Contributes;
 	/** Source URL or reference (added during installation). */
 	source?: string;
+	/** Source type indicating how the extension was installed. */
+	sourceType?: SourceType;
 }
 
 /**
@@ -64,6 +66,7 @@ export interface RawManifest {
 		metadata?: unknown;
 	};
 	source?: string;
+	"source-type"?: string;
 }
 
 /**
@@ -124,5 +127,18 @@ export function normaliseManifest(raw: RawManifest): ExtensionManifest {
 			metadata: raw.contributes?.metadata,
 		},
 		source: raw.source,
+		sourceType: parseSourceType(raw["source-type"]),
 	};
+}
+
+/** Valid source types for extension installation. */
+export type SourceType = "github" | "url" | "local" | "registry";
+
+const VALID_SOURCE_TYPES: ReadonlySet<string> = new Set<SourceType>(["github", "url", "local", "registry"]);
+
+function parseSourceType(value: string | undefined): SourceType | undefined {
+	if (!value || !VALID_SOURCE_TYPES.has(value)) {
+		return undefined;
+	}
+	return value as SourceType;
 }

@@ -18,6 +18,7 @@ export {
 	type Contributes,
 	type ExtensionManifest,
 	type RawManifest,
+	type SourceType,
 	getExtensionTypes,
 	normaliseManifest,
 } from "./manifest.js";
