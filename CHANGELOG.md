@@ -30,8 +30,6 @@
 
 ### Refactoring
 
-- refactor: simplify tree view context values from 8 to 4 and replace regex `when` clauses with exact matches.
-- refactor: consolidate four per-source-type "Open Source" commands into a single command that branches on source type.
 - refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
 - refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
 
