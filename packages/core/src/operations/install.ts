@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
-import type { ExtensionManifest } from "../types/manifest.js";
+import type { ExtensionManifest, SourceType } from "../types/manifest.js";
 import { parseExtensionRef } from "../types/extension.js";
 import { ExtensionError } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
@@ -123,7 +123,7 @@ export interface InstallResult {
 	/** Source string for the manifest. */
 	source: string;
 	/** Source type for the manifest. */
-	sourceType?: "github" | "url" | "local" | "registry";
+	sourceType?: SourceType;
 	/** Path to extracted source root (only set if keepSourceDir was true). */
 	sourceRoot?: string;
 	/** Whether this was a dry run (no files were actually created). */
@@ -676,7 +676,7 @@ async function writeExtensionToDisk(
 	targetDir: string,
 	manifestFilename: string,
 	sourceString: string,
-	sourceType?: "github" | "url" | "local" | "registry",
+	sourceType?: SourceType,
 ): Promise<string[]> {
 	try {
 		const filesCreated = await copyDirectory(sourceDir, targetDir);
@@ -720,7 +720,7 @@ export async function installSingleExtension(
 	force: boolean,
 	onProgress?: InstallProgressCallback,
 	confirmOverwrite?: ConfirmOverwriteCallback,
-	sourceType?: "github" | "url" | "local" | "registry",
+	sourceType?: SourceType,
 ): Promise<InstallResult> {
 	const manifestResult = readManifest(extension.path);
 

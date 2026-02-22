@@ -3,6 +3,7 @@ import {
 	formatExtensionId,
 	getExtensionTypes,
 	type InstalledExtension,
+	type SourceType,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
@@ -122,7 +123,7 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
  * @param ext - The installed extension.
  * @returns The source type or undefined if not determinable.
  */
-export function getEffectiveSourceType(ext: InstalledExtension): "github" | "url" | "local" | "registry" | undefined {
+export function getEffectiveSourceType(ext: InstalledExtension): SourceType | undefined {
 	if (ext.manifest.sourceType) {
 		return ext.manifest.sourceType;
 	}
@@ -136,7 +137,7 @@ export function getEffectiveSourceType(ext: InstalledExtension): "github" | "url
 	if (base.startsWith("/") || base.startsWith("./") || base.startsWith("../") || /^[A-Za-z]:[/\\]/.test(base)) {
 		return "local";
 	}
-	if (/^[^/\s:]+\/[^/\s]+$/.test(base)) {
+	if (/^[^/\s:]+\/[^/\s]+$/.test(base) && !base.startsWith(".")) {
 		return "registry";
 	}
 	return undefined;

@@ -45,7 +45,7 @@ export interface ExtensionManifest {
 	/** Source URL or reference (added during installation). */
 	source?: string;
 	/** Source type indicating how the extension was installed. */
-	sourceType?: "github" | "url" | "local" | "registry";
+	sourceType?: SourceType;
 }
 
 /**
@@ -131,11 +131,14 @@ export function normaliseManifest(raw: RawManifest): ExtensionManifest {
 	};
 }
 
-const VALID_SOURCE_TYPES = new Set(["github", "url", "local", "registry"]);
+/** Valid source types for extension installation. */
+export type SourceType = "github" | "url" | "local" | "registry";
 
-function parseSourceType(value: string | undefined): "github" | "url" | "local" | "registry" | undefined {
+const VALID_SOURCE_TYPES: ReadonlySet<string> = new Set<SourceType>(["github", "url", "local", "registry"]);
+
+function parseSourceType(value: string | undefined): SourceType | undefined {
 	if (!value || !VALID_SOURCE_TYPES.has(value)) {
 		return undefined;
 	}
-	return value as "github" | "url" | "local" | "registry";
+	return value as SourceType;
 }
