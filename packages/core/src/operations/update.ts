@@ -19,6 +19,7 @@ import {
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 import { lookupRegistryEntry } from "../registry/search.js";
 import { install, parseInstallSource } from "./install.js";
+import { getErrorMessage } from "../errors.js";
 
 /**
  * Information about an available update.
@@ -217,7 +218,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 		} catch (error) {
 			result.failed.push({
 				extension: update.extension,
-				error: error instanceof Error ? error.message : String(error),
+				error: getErrorMessage(error),
 			});
 		}
 	}

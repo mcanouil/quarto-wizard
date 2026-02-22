@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { minimatch } from "minimatch";
 import { logMessage, showMessageWithLogs } from "../utils/log";
+import { getErrorMessage } from "@quarto-wizard/core";
 import type { FileSelectionResult } from "@quarto-wizard/core";
 
 /**
@@ -59,8 +60,7 @@ function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promi
 			}
 			return true;
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logMessage(`Error showing confirmation dialog: ${message}.`, "error");
+			logMessage(`Error showing confirmation dialog: ${getErrorMessage(error)}.`, "error");
 			return false;
 		}
 	};
@@ -425,15 +425,25 @@ export function createFileSelectionCallback(): (
 		// Track previous selection for directory toggle detection
 		let previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
 
+		// Guard against re-entrant onDidChangeSelection calls.
+		// Setting quickPick.items or quickPick.selectedItems synchronously fires
+		// onDidChangeSelection, which would corrupt selectedPaths if not blocked.
+		let isRebuilding = false;
+
 		/**
 		 * Rebuild and update the QuickPick items, preserving selection.
 		 */
 		function rebuildItems() {
-			items = buildVisibleItems();
-			quickPick.items = items;
-			// Restore selection from selectedPaths
-			quickPick.selectedItems = items.filter((item) => selectedPaths.has(item.path));
-			previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
+			isRebuilding = true;
+			try {
+				items = buildVisibleItems();
+				quickPick.items = items;
+				// Restore selection from selectedPaths
+				quickPick.selectedItems = items.filter((item) => selectedPaths.has(item.path));
+				previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
+			} finally {
+				isRebuilding = false;
+			}
 		}
 
 		return new Promise<FileSelectionResult | null>((resolve) => {
@@ -470,6 +480,8 @@ export function createFileSelectionCallback(): (
 			});
 
 			quickPick.onDidChangeSelection((selected) => {
+				if (isRebuilding) return;
+
 				const currentSelection = new Set(selected.map((item) => item.path));
 
 				// Update selectedPaths based on visible items
@@ -558,8 +570,7 @@ export function createFileSelectionCallback(): (
 
 					resolve({ selectedFiles, overwriteExisting });
 				} catch (error) {
-					const message = error instanceof Error ? error.message : String(error);
-					logMessage(`Error in file selection: ${message}.`, "error");
+					logMessage(`Error in file selection: ${getErrorMessage(error)}.`, "error");
 					resolve(null);
 				}
 			});

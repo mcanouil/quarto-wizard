@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
-import { discoverInstalledExtensions } from "@quarto-wizard/core";
+import { discoverInstalledExtensions, getErrorMessage } from "@quarto-wizard/core";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
@@ -119,7 +119,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 					return null;
 			}
 		} catch (error) {
-			logMessage(`Shortcode completion error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`Shortcode completion error: ${getErrorMessage(error)}.`, "warn");
 			return null;
 		}
 	}
@@ -445,10 +445,7 @@ export async function collectShortcodeSchemas(schemaCache: SchemaCache): Promise
 				}
 			}
 		} catch (error) {
-			logMessage(
-				`Failed to discover shortcode schemas in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
-				"warn",
-			);
+			logMessage(`Failed to discover shortcode schemas in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`, "warn");
 		}
 	}
 
@@ -528,7 +525,7 @@ export class ShortcodeHoverProvider implements vscode.HoverProvider {
 					return null;
 			}
 		} catch (error) {
-			logMessage(`Shortcode hover error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`Shortcode hover error: ${getErrorMessage(error)}.`, "warn");
 			return null;
 		}
 	}

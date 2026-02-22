@@ -169,6 +169,13 @@ export function isQuartoWizardError(error: unknown): error is QuartoWizardError 
 }
 
 /**
+ * Extract a human-readable message from an unknown error value.
+ */
+export function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Wrap an unknown error as a QuartoWizardError.
  */
 export function wrapError(error: unknown, context?: string): QuartoWizardError {
@@ -176,7 +183,7 @@ export function wrapError(error: unknown, context?: string): QuartoWizardError {
 		return error;
 	}
 
-	const message = error instanceof Error ? error.message : String(error);
+	const message = getErrorMessage(error);
 	const contextPrefix = context ? `${context}: ` : "";
 
 	return new QuartoWizardError(`${contextPrefix}${message}`, "UNKNOWN_ERROR", {

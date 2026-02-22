@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage } from "../utils/log";
 
 /**
@@ -74,8 +75,7 @@ export async function getQuartoVersionInfo(): Promise<QuartoVersionInfo> {
 			path,
 		};
 	} catch (error) {
-		const errorMsg = error instanceof Error ? error.message : String(error);
-		logMessage(`Failed to get Quarto version info: ${errorMsg}.`, "debug");
+		logMessage(`Failed to get Quarto version info: ${getErrorMessage(error)}.`, "debug");
 		return unavailable;
 	}
 }

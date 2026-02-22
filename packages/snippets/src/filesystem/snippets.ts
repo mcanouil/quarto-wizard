@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SnippetCollection, SnippetDefinition } from "../types.js";
 import { SnippetError } from "../errors.js";
+import { getErrorMessage } from "@quarto-wizard/core";
 
 /** The snippet filename convention. */
 export const SNIPPET_FILENAME = "_snippets.json";
@@ -80,7 +81,7 @@ export function parseSnippetContent(content: string, sourcePath?: string): Snipp
 	try {
 		raw = JSON.parse(content);
 	} catch (error) {
-		throw new SnippetError(`Failed to parse snippet JSON: ${error instanceof Error ? error.message : String(error)}`, {
+		throw new SnippetError(`Failed to parse snippet JSON: ${getErrorMessage(error)}`, {
 			snippetPath: sourcePath,
 			cause: error,
 		});
@@ -115,7 +116,7 @@ export function parseSnippetFile(snippetPath: string): SnippetCollection {
 		if (error instanceof SnippetError) {
 			throw error;
 		}
-		throw new SnippetError(`Failed to read snippet file: ${error instanceof Error ? error.message : String(error)}`, {
+		throw new SnippetError(`Failed to read snippet file: ${getErrorMessage(error)}`, {
 			snippetPath,
 			cause: error,
 		});

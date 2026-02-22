@@ -1,5 +1,11 @@
 import * as vscode from "vscode";
-import { createAuthConfig, AuthenticationError, NetworkError, type AuthConfig } from "@quarto-wizard/core";
+import {
+	createAuthConfig,
+	AuthenticationError,
+	NetworkError,
+	getErrorMessage,
+	type AuthConfig,
+} from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
@@ -98,7 +104,7 @@ export async function handleAuthError(prefix: string, error: unknown): Promise<b
 	//   to 5 chars to avoid "Failed to parse authentication..." false positives).
 	// - "401: Unauthorized", "403 - Forbidden" (status code + HTTP reason phrase).
 	// - Standalone "Unauthorized" / "Forbidden" (whole message or after colon).
-	const message = error instanceof Error ? error.message : String(error);
+	const message = getErrorMessage(error);
 	const isAuthMessage =
 		/\bstatus\b.{0,20}\b(401|403)\b/i.test(message) ||
 		/\bHTTP\s+(401|403)\b/i.test(message) ||

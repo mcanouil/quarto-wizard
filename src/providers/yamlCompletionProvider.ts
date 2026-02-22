@@ -1,15 +1,11 @@
 import * as vscode from "vscode";
 import { typeIncludes, formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
-import {
-	discoverInstalledExtensions,
-	formatExtensionId,
-	getExtensionTypes,
-	type InstalledExtension,
-} from "@quarto-wizard/core";
+import { formatExtensionId, getExtensionTypes, getErrorMessage, type InstalledExtension } from "@quarto-wizard/core";
 import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { hasCompletableValues } from "../utils/schemaDocumentation";
+import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { logMessage } from "../utils/log";
 
 /**
@@ -41,7 +37,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			}
 
 			const projectDir = workspaceFolder.uri.fsPath;
-			const extensions = await discoverInstalledExtensions(projectDir);
+			const extensions = await getInstalledExtensionsCached(projectDir);
 
 			// Build maps of extension name to schema and metadata for quick lookup.
 			const schemaMap = new Map<string, ExtensionSchema>();
@@ -95,7 +91,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 			return items;
 		} catch (error) {
-			logMessage(`YAML completion error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`YAML completion error: ${getErrorMessage(error)}.`, "warn");
 			return undefined;
 		}
 	}

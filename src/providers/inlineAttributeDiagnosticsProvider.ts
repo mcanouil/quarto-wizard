@@ -10,6 +10,7 @@ import {
 	resolveElementAttribute,
 } from "./elementAttributeCompletionProvider";
 import { collectShortcodeSchemas, resolveShortcodeAttribute } from "./shortcodeCompletionProvider";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
@@ -859,6 +860,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		// Clear diagnostics when a document is closed.
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
+				this.debouncedValidate.cancel();
 				this.diagnosticCollection.delete(document.uri);
 			}),
 		);
@@ -945,7 +947,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 		} catch (error) {
-			logMessage(`Inline schema validation error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`Inline schema validation error: ${getErrorMessage(error)}.`, "warn");
 		}
 
 		this.diagnosticCollection.set(document.uri, diagnostics);

@@ -12,7 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import type { AuthConfig } from "../types/auth.js";
-import { ExtensionError } from "../errors.js";
+import { ExtensionError, getErrorMessage } from "../errors.js";
 import { parseInstallSource, formatInstallSource, type InstallSource } from "./install.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import { extractArchive, cleanupExtraction } from "../archive/extract.js";
@@ -307,8 +307,7 @@ export function extractBrandFilePaths(brandYamlPath: string, onWarning?: (messag
 			return paths;
 		}
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		onWarning?.(`Failed to read brand file "${brandYamlPath}": ${message}`);
+		onWarning?.(`Failed to read brand file "${brandYamlPath}": ${getErrorMessage(error)}`);
 		return paths;
 	}
 

@@ -6,6 +6,7 @@ import {
 	formatExtensionId,
 	getExtensionTypes,
 	type InstalledExtension,
+	getErrorMessage,
 } from "@quarto-wizard/core";
 import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
@@ -88,7 +89,7 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 			const markdown = this.buildHoverContent(leafKey, descriptor, isOnValue);
 			return new vscode.Hover(markdown);
 		} catch (error) {
-			logMessage(`YAML hover error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`YAML hover error: ${getErrorMessage(error)}.`, "warn");
 			return null;
 		}
 	}

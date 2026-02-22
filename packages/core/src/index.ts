@@ -25,6 +25,7 @@ export {
 	CancellationError,
 	isQuartoWizardError,
 	isCancellationError,
+	getErrorMessage,
 	wrapError,
 } from "./errors.js";
 
