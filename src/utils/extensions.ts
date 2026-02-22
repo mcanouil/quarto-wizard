@@ -26,8 +26,6 @@ function isLocalSourcePath(source: string): boolean {
 	return (
 		source.startsWith("file://") ||
 		source.startsWith("/") ||
-		source.startsWith("./") ||
-		source.startsWith("../") ||
 		source.startsWith("~/") ||
 		source.startsWith("\\\\") ||
 		source.startsWith(".") ||
@@ -174,10 +172,7 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 	if (type === "github" || type === "registry") {
 		return `https://github.com/${base}`;
 	}
-	if (type === "url") {
-		return base;
-	}
-	if (type === "local") {
+	if (type === "url" || type === "local") {
 		return base;
 	}
 	return undefined;
