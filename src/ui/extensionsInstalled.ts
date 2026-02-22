@@ -159,6 +159,10 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.reinstall", async (item: ExtensionTreeItem) => {
 				const source = item.extension?.manifest.source;
 				if (!source) {
+					showMessageWithLogs(
+						`Failed to reinstall extension "${item.label}". Source not found in extension manifest.`,
+						"error",
+					);
 					return;
 				}
 				const auth = await getAuthConfig(context);

@@ -113,7 +113,7 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 	if (/^[^/\s:]+\/[^/\s]+$/.test(base) && !base.startsWith(".")) {
 		return `https://github.com/${base}`;
 	}
-	return base;
+	return undefined;
 }
 
 /**
