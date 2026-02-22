@@ -116,6 +116,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 	private diagnosticCollection: vscode.DiagnosticCollection;
 	private disposables: vscode.Disposable[] = [];
 	private debouncedValidate: ReturnType<typeof debounce>;
+	private validationVersion = 0;
 
 	constructor(private schemaCache: SchemaCache) {
 		this.diagnosticCollection = vscode.languages.createDiagnosticCollection("quarto-schema");
@@ -145,7 +146,6 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		// Clear diagnostics when a document is closed.
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
-				this.debouncedValidate.cancel();
 				this.diagnosticCollection.delete(document.uri);
 			}),
 		);
@@ -195,6 +195,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 	}
 
 	private async validateDocument(document: vscode.TextDocument): Promise<void> {
+		if (document.isClosed) {
+			return;
+		}
+
+		const version = ++this.validationVersion;
 		const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
 		if (!workspaceFolder) {
 			return;
@@ -208,7 +213,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		// Extract the YAML portion.
 		const yamlText = this.extractYamlText(lines, languageId);
 		if (!yamlText) {
-			this.diagnosticCollection.set(document.uri, []);
+			this.setDiagnostics(document, []);
 			return;
 		}
 
@@ -216,13 +221,13 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		try {
 			const result = yaml.load(yamlText);
 			if (!result || typeof result !== "object") {
-				this.diagnosticCollection.set(document.uri, []);
+				this.setDiagnostics(document, []);
 				return;
 			}
 			parsed = result as Record<string, unknown>;
 		} catch {
 			// YAML parse errors are handled by other extensions; skip.
-			this.diagnosticCollection.set(document.uri, []);
+			this.setDiagnostics(document, []);
 			return;
 		}
 
@@ -234,8 +239,13 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 
+		// A newer validation was started while we awaited; discard this result.
+		if (version !== this.validationVersion) {
+			return;
+		}
+
 		if (schemaMap.size === 0) {
-			this.diagnosticCollection.set(document.uri, []);
+			this.setDiagnostics(document, []);
 			return;
 		}
 
@@ -309,6 +319,14 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			}
 		}
 
+		this.setDiagnostics(document, diagnostics);
+	}
+
+	private setDiagnostics(document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+		if (document.isClosed) {
+			this.diagnosticCollection.delete(document.uri);
+			return;
+		}
 		this.diagnosticCollection.set(document.uri, diagnostics);
 	}
 

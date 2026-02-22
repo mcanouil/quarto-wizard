@@ -121,14 +121,7 @@ export async function handleUriInstall(uri: vscode.Uri, context: vscode.Extensio
 		confirmMessage: (repo) => `Do you confirm the installation of "${repo}" extension?`,
 		progressMessage: (repo) => `Installing Quarto extension from ${repo} ...`,
 		executor: (repo, workspaceFolder, auth, token) =>
-			installQuartoExtension(
-				repo,
-				workspaceFolder,
-				auth,
-				undefined, // sourceDisplay
-				undefined, // skipOverwritePrompt
-				token, // cancellationToken
-			),
+			installQuartoExtension(repo, workspaceFolder, { auth, cancellationToken: token }),
 	});
 }
 
@@ -150,15 +143,12 @@ export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionCon
 		executor: async (repo, workspaceFolder, auth, token) => {
 			const selectFiles = createFileSelectionCallback();
 			const selectTargetSubdir = createTargetSubdirCallback();
-			const result = await useQuartoExtension(
-				repo,
-				workspaceFolder,
+			const result = await useQuartoExtension(repo, workspaceFolder, {
 				selectFiles,
 				selectTargetSubdir,
 				auth,
-				undefined, // sourceDisplay
-				token, // cancellationToken
-			);
+				cancellationToken: token,
+			});
 			// useQuartoExtension returns UseResult | null
 			// null means either failure or cancellation
 			return result !== null ? true : null;

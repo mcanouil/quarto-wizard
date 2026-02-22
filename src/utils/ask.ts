@@ -532,12 +532,13 @@ export function createFileSelectionCallback(): (
 						// Replacing quickPick.items triggers stale async onDidChangeSelection
 						// events that corrupt selectedPaths, causing directories to deselect.
 						isRebuilding = true;
-						try {
-							quickPick.selectedItems = items.filter((i) => selectedPaths.has(i.path));
-							previousSelection = new Set(quickPick.selectedItems.map((i) => i.path));
-						} finally {
+						quickPick.selectedItems = items.filter((i) => selectedPaths.has(i.path));
+						previousSelection = new Set(quickPick.selectedItems.map((i) => i.path));
+						// Defer clearing the guard to also block any async onDidChangeSelection
+						// events that VS Code may fire after replacing selectedItems.
+						queueMicrotask(() => {
 							isRebuilding = false;
-						}
+						});
 						return;
 					}
 				}

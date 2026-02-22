@@ -32,6 +32,8 @@
 - fix: make retry backoff cancellable via AbortSignal so users can cancel during retry delays.
 - fix: detect cross-platform absolute paths (Windows drive letters, UNC paths) in source prompts.
 - fix: skip internet connectivity check for local extension installs.
+- fix: prevent closing a document tab from cancelling pending diagnostics for other open documents.
+- fix: prevent stale YAML diagnostics from overwriting fresh validation results during rapid edits.
 
 ### Refactoring
 

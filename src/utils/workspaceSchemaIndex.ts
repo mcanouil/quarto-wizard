@@ -1,20 +1,30 @@
 import type { SchemaCache, ExtensionSchema } from "@quarto-wizard/schema";
 import { formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "./installedExtensionsCache";
-
-interface WorkspaceSchemaIndexEntry {
-	expiresAt: number;
-	value: WorkspaceSchemaIndex;
-	inFlight?: Promise<WorkspaceSchemaIndex>;
-}
+import { AsyncKeyedCache } from "./asyncKeyedCache";
 
 export interface WorkspaceSchemaIndex {
 	schemaMap: Map<string, ExtensionSchema>;
 	extMap: Map<string, InstalledExtension>;
 }
 
-const cache = new Map<string, WorkspaceSchemaIndexEntry>();
-const DEFAULT_TTL_MS = 2000;
+function createEmptyIndex(): WorkspaceSchemaIndex {
+	return { schemaMap: new Map(), extMap: new Map() };
+}
+
+const caches = new Map<SchemaCache, AsyncKeyedCache<WorkspaceSchemaIndex>>();
+
+function ensureCache(schemaCache: SchemaCache): AsyncKeyedCache<WorkspaceSchemaIndex> {
+	let cache = caches.get(schemaCache);
+	if (!cache) {
+		cache = new AsyncKeyedCache(
+			(workspacePath: string) => buildWorkspaceSchemaIndex(workspacePath, schemaCache),
+			createEmptyIndex(),
+		);
+		caches.set(schemaCache, cache);
+	}
+	return cache;
+}
 
 async function buildWorkspaceSchemaIndex(
 	workspacePath: string,
@@ -51,50 +61,12 @@ async function buildWorkspaceSchemaIndex(
 export async function getWorkspaceSchemaIndex(
 	workspacePath: string,
 	schemaCache: SchemaCache,
-	ttlMs = DEFAULT_TTL_MS,
 ): Promise<WorkspaceSchemaIndex> {
-	const now = Date.now();
-	const entry = cache.get(workspacePath);
-
-	if (entry?.value && entry.expiresAt > now) {
-		return entry.value;
-	}
-	if (entry?.inFlight) {
-		return entry.inFlight;
-	}
-
-	const inFlight = buildWorkspaceSchemaIndex(workspacePath, schemaCache)
-		.then((value) => {
-			const currentEntry = cache.get(workspacePath);
-			if (currentEntry?.inFlight === inFlight) {
-				cache.set(workspacePath, {
-					value,
-					expiresAt: Date.now() + ttlMs,
-				});
-			}
-			return value;
-		})
-		.catch((error) => {
-			const currentEntry = cache.get(workspacePath);
-			if (currentEntry?.inFlight === inFlight) {
-				cache.delete(workspacePath);
-			}
-			throw error;
-		});
-
-	cache.set(workspacePath, {
-		value: entry?.value ?? { schemaMap: new Map(), extMap: new Map() },
-		expiresAt: entry?.expiresAt ?? 0,
-		inFlight,
-	});
-
-	return inFlight;
+	return ensureCache(schemaCache).get(workspacePath);
 }
 
 export function invalidateWorkspaceSchemaIndex(workspacePath?: string): void {
-	if (workspacePath) {
-		cache.delete(workspacePath);
-		return;
+	for (const cache of caches.values()) {
+		cache.invalidate(workspacePath);
 	}
-	cache.clear();
 }

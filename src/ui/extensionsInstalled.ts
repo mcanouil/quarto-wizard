@@ -44,6 +44,10 @@ export class ExtensionsInstalled {
 			invalidateWorkspaceSchemaIndex(workspacePath);
 		};
 
+		const resolveWorkspacePath = (uri: vscode.Uri): string | undefined => {
+			return vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
+		};
+
 		// Initial setup with update check and refresh
 		this.treeDataProvider.refreshAfterAction(context, view);
 
@@ -57,12 +61,7 @@ export class ExtensionsInstalled {
 		// Watch for changes to _extensions directories for real-time tree view updates
 		const extensionWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_extension.{yml,yaml}");
 		const invalidateAndRefreshExtensions = (uri: vscode.Uri) => {
-			const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-			if (workspaceFolder) {
-				invalidateProviderCaches(workspaceFolder.uri.fsPath);
-			} else {
-				invalidateProviderCaches();
-			}
+			invalidateProviderCaches(resolveWorkspacePath(uri));
 			this.treeDataProvider.refresh();
 		};
 		context.subscriptions.push(extensionWatcher.onDidCreate(invalidateAndRefreshExtensions));
@@ -73,12 +72,7 @@ export class ExtensionsInstalled {
 		// Watch for changes to schema files for real-time tree view updates
 		const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_schema.{yml,yaml,json}");
 		const invalidateSchemaAndRefresh = (uri: vscode.Uri) => {
-			const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-			if (workspaceFolder) {
-				invalidateWorkspaceSchemaIndex(workspaceFolder.uri.fsPath);
-			} else {
-				invalidateWorkspaceSchemaIndex();
-			}
+			invalidateWorkspaceSchemaIndex(resolveWorkspacePath(uri));
 			schemaCache.invalidate(path.dirname(uri.fsPath));
 			this.treeDataProvider.refresh();
 		};
@@ -185,15 +179,12 @@ export class ExtensionsInstalled {
 				const baseSource = getSourceBase(source, item.effectiveSourceType);
 				const auth = await getAuthConfig(context);
 				const result = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(
-						baseSource,
-						item.workspaceFolder,
+					return installQuartoExtension(baseSource, item.workspaceFolder, {
 						auth,
-						undefined,
-						true,
-						token,
-						item.effectiveSourceType,
-					);
+						skipOverwritePrompt: true,
+						cancellationToken: token,
+						sourceType: item.effectiveSourceType,
+					});
 				});
 				if (result === true) {
 					invalidateProviderCaches(item.workspaceFolder);
@@ -221,15 +212,12 @@ export class ExtensionsInstalled {
 				}
 				const auth = await getAuthConfig(context);
 				const result = await withProgressNotification(`Reinstalling "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(
-						source,
-						item.workspaceFolder,
+					return installQuartoExtension(source, item.workspaceFolder, {
 						auth,
-						undefined,
-						true,
-						token,
-						item.effectiveSourceType,
-					);
+						skipOverwritePrompt: true,
+						cancellationToken: token,
+						sourceType: item.effectiveSourceType,
+					});
 				});
 				if (result === true) {
 					invalidateProviderCaches(item.workspaceFolder);
@@ -351,15 +339,12 @@ export class ExtensionsInstalled {
 							break;
 						}
 						const source = ext.source ? getSourceBase(ext.source, ext.sourceType) : ext.extensionId;
-						const result = await installQuartoExtension(
-							source,
-							ext.workspaceFolder,
+						const result = await installQuartoExtension(source, ext.workspaceFolder, {
 							auth,
-							undefined,
-							true, // skipOverwritePrompt - updates are expected to overwrite
-							token,
-							ext.sourceType,
-						);
+							skipOverwritePrompt: true,
+							cancellationToken: token,
+							sourceType: ext.sourceType,
+						});
 						if (result === true) {
 							successCount++;
 						} else if (result === false) {

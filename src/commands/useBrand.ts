@@ -50,7 +50,11 @@ async function useBrandFromSource(
 				return;
 			}
 
-			const result = await useQuartoBrand(resolved, workspaceFolder, auth, display, token);
+			const result = await useQuartoBrand(resolved, workspaceFolder, {
+				auth,
+				sourceDisplay: display,
+				cancellationToken: token,
+			});
 
 			if (result) {
 				const totalFiles = result.created.length + result.overwritten.length;

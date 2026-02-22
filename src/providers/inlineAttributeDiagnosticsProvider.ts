@@ -869,7 +869,6 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		// Clear diagnostics when a document is closed.
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
-				this.debouncedValidate.cancel();
 				this.diagnosticCollection.delete(document.uri);
 			}),
 		);
@@ -895,6 +894,10 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 	}
 
 	private async validateDocument(document: vscode.TextDocument): Promise<void> {
+		if (document.isClosed) {
+			return;
+		}
+
 		const version = ++this.validationVersion;
 		const text = document.getText();
 		const codeBlockRanges = getCodeBlockRanges(text);
@@ -960,6 +963,14 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			logMessage(`Inline schema validation error: ${getErrorMessage(error)}.`, "warn");
 		}
 
+		this.setDiagnostics(document, diagnostics);
+	}
+
+	private setDiagnostics(document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+		if (document.isClosed) {
+			this.diagnosticCollection.delete(document.uri);
+			return;
+		}
 		this.diagnosticCollection.set(document.uri, diagnostics);
 	}
 

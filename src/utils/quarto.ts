@@ -33,6 +33,38 @@ import { showExtensionSelectionQuickPick } from "../ui/extensionSelectionQuickPi
 type ParsedInstallSource = ReturnType<typeof parseInstallSource>;
 
 /**
+ * Optional parameters for {@link installQuartoExtension}.
+ */
+export interface InstallOptions {
+	auth?: AuthConfig;
+	sourceDisplay?: string;
+	skipOverwritePrompt?: boolean;
+	cancellationToken?: vscode.CancellationToken;
+	sourceType?: SourceType;
+}
+
+/**
+ * Optional parameters for {@link useQuartoExtension}.
+ */
+export interface UseOptions {
+	selectFiles?: FileSelectionCallback;
+	selectTargetSubdir?: SelectTargetSubdirCallback;
+	auth?: AuthConfig;
+	sourceDisplay?: string;
+	cancellationToken?: vscode.CancellationToken;
+	sourceType?: SourceType;
+}
+
+/**
+ * Optional parameters for {@link useQuartoBrand}.
+ */
+export interface BrandOptions {
+	auth?: AuthConfig;
+	sourceDisplay?: string;
+	cancellationToken?: vscode.CancellationToken;
+}
+
+/**
  * Wraps an async callback with a cancellation check that runs before the callback is invoked.
  * Returns the original callback if no cancellation token is provided.
  */
@@ -97,14 +129,9 @@ async function retryWithFreshAuth<T>(
 	}
 }
 
-function ensureWorkspaceFolder(prefix: string, workspaceFolder: string): boolean {
-	if (!workspaceFolder) {
-		logMessage(`${prefix} No workspace folder specified.`, "error");
-		return false;
-	}
-	return true;
-}
-
+/**
+ * Parses source, runs the operation, and retries with fresh auth on failure.
+ */
 async function runWithParsedSourceAndAuthRetry<T>(
 	sourceInput: string,
 	initialAuth: AuthConfig | undefined,
@@ -200,26 +227,20 @@ function createValidateQuartoVersionCallback(
  *
  * @param extension - The name of the extension to install (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
- * @param auth - Optional authentication configuration for private repositories.
- * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
- * @param skipOverwritePrompt - If true, skip the overwrite confirmation prompt (used by update commands).
- * @param cancellationToken - Optional cancellation token to check before showing dialogs.
- * @param sourceType - Optional source type override (e.g., "registry" when installing from the registry).
+ * @param options - Optional installation parameters.
  * @returns A promise that resolves to true if successful, false if failed, or null if cancelled by user.
  */
 export async function installQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
-	auth?: AuthConfig,
-	sourceDisplay?: string,
-	skipOverwritePrompt?: boolean,
-	cancellationToken?: vscode.CancellationToken,
-	sourceType?: SourceType,
+	options: InstallOptions = {},
 ): Promise<boolean | null> {
+	const { auth, sourceDisplay, skipOverwritePrompt, cancellationToken, sourceType } = options;
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
-	if (!ensureWorkspaceFolder(prefix, workspaceFolder)) {
+	if (!workspaceFolder) {
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return false;
 	}
 
@@ -277,7 +298,8 @@ export async function removeQuartoExtension(extension: string, workspaceFolder: 
 	const prefix = `[${extension}]`;
 	logMessage(`${prefix} Removing ...`, "info");
 
-	if (!ensureWorkspaceFolder(prefix, workspaceFolder)) {
+	if (!workspaceFolder) {
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return false;
 	}
 
@@ -325,7 +347,8 @@ export async function removeQuartoExtensions(
 	const prefix = `[batch-remove]`;
 	logMessage(`${prefix} Removing ${extensions.length} extension(s): ${extensions.join(", ")}.`, "info");
 
-	if (!ensureWorkspaceFolder(prefix, workspaceFolder)) {
+	if (!workspaceFolder) {
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return { successCount: 0, failedExtensions: extensions };
 	}
 
@@ -403,28 +426,20 @@ async function showExtensionOverwriteConfirmation(
  *
  * @param extension - The name of the extension to use (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
- * @param selectFiles - Callback for interactive file selection.
- * @param selectTargetSubdir - Callback for interactive target subdirectory selection.
- * @param auth - Optional authentication configuration for private repositories.
- * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
- * @param cancellationToken - Optional cancellation token to check before showing dialogs.
- * @param sourceType - Optional source type override (e.g., "registry" when installing from the registry).
+ * @param options - Optional use parameters.
  * @returns A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
-	selectFiles?: FileSelectionCallback,
-	selectTargetSubdir?: SelectTargetSubdirCallback,
-	auth?: AuthConfig,
-	sourceDisplay?: string,
-	cancellationToken?: vscode.CancellationToken,
-	sourceType?: SourceType,
+	options: UseOptions = {},
 ): Promise<UseResult | null> {
+	const { selectFiles, selectTargetSubdir, auth, sourceDisplay, cancellationToken, sourceType } = options;
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Using template ...`, "info");
 
-	if (!ensureWorkspaceFolder(prefix, workspaceFolder)) {
+	if (!workspaceFolder) {
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return null;
 	}
 
@@ -488,22 +503,20 @@ export async function useQuartoExtension(
  *
  * @param source - Brand source (e.g., "owner/repo" or local path).
  * @param workspaceFolder - The workspace folder path.
- * @param auth - Optional authentication configuration.
- * @param sourceDisplay - Optional display source for logging.
- * @param cancellationToken - Optional cancellation token.
+ * @param options - Optional parameters.
  * @returns Brand result, or null on failure.
  */
 export async function useQuartoBrand(
 	source: string,
 	workspaceFolder: string,
-	auth?: AuthConfig,
-	sourceDisplay?: string,
-	cancellationToken?: vscode.CancellationToken,
+	options: BrandOptions = {},
 ): Promise<UseBrandResult | null> {
+	const { auth, sourceDisplay, cancellationToken } = options;
 	const prefix = `[${sourceDisplay ?? source}]`;
 	logMessage(`${prefix} Applying brand ...`, "info");
 
-	if (!ensureWorkspaceFolder(prefix, workspaceFolder)) {
+	if (!workspaceFolder) {
+		logMessage(`${prefix} No workspace folder specified.`, "error");
 		return null;
 	}
 

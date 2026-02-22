@@ -64,7 +64,7 @@ export function validateQuartoRequirement(
 			valid: true,
 			required: quartoRequired,
 			current: currentVersion,
-			message: `Invalid Quarto version format: "${currentVersion}". Skipping validation.`,
+			message: undefined,
 		};
 	}
 
@@ -75,7 +75,7 @@ export function validateQuartoRequirement(
 			valid: true,
 			required: quartoRequired,
 			current: currentVersion,
-			message: `Invalid version requirement format: "${quartoRequired}". Skipping validation.`,
+			message: undefined,
 		};
 	}
 

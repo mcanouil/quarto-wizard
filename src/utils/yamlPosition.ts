@@ -35,8 +35,7 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 	let offset = 0;
 	let inBlock = false;
 	let blockStart = 0;
-	let fenceChar = "";
-	let fenceLength = 0;
+	let closingFenceRe: RegExp | undefined;
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
@@ -48,8 +47,7 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 		if (inBlock) {
 			// Check for closing fence: same character, at least as many repetitions,
 			// optionally followed by whitespace, at the start of the line.
-			const closeMatch = new RegExp(`^${fenceChar}{${fenceLength},}\\s*$`).exec(line);
-			if (closeMatch) {
+			if (closingFenceRe?.test(line)) {
 				ranges.push({ start: blockStart, end: lineEnd });
 				inBlock = false;
 			}
@@ -67,8 +65,9 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			// Start the range after the opening fence line so that
 			// attributes in the header (e.g. {r}, {python}) stay outside.
 			blockStart = offset;
-			fenceChar = openMatch[1][0];
-			fenceLength = openMatch[1].length;
+			// Compile the closing fence regex once per block.
+			// fenceChar is always ` or ~, neither is a regex metacharacter.
+			closingFenceRe = new RegExp(`^${openMatch[1][0]}{${openMatch[1].length},}\\s*$`);
 		}
 	}
 

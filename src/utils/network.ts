@@ -18,6 +18,10 @@ export async function checkInternetConnection(
 	}, timeoutMs);
 
 	try {
+		// Uses raw fetch rather than proxyFetch because proxyFetch lives in
+		// @quarto-wizard/core and is not exported for extension-layer use.
+		// In corporate proxy environments this check may report "no internet"
+		// even when actual extension operations (which use proxyFetch) succeed.
 		const response: Response = await fetch(url, {
 			signal: controller.signal,
 		});
@@ -31,14 +35,17 @@ export async function checkInternetConnection(
 		showMessageWithLogs(message, "error");
 		return false;
 	} catch (error) {
-		let message = `No internet connection. Please check your network settings.`;
+		let userMessage: string;
 		if (error instanceof Error && error.name === "AbortError") {
-			message = `Network connection check timed out after ${timeoutMs}ms. Please check your network settings.`;
-		} else if (error instanceof Error) {
-			message = `No internet connection. Network check failed: ${error.message}. Please check your network settings.`;
+			userMessage = `Network connection check timed out after ${timeoutMs}ms. Please check your network settings.`;
+		} else {
+			userMessage = `No internet connection. Please check your network settings.`;
+			if (error instanceof Error) {
+				logMessage(`Network check failed: ${error.message}.`, "error");
+			}
 		}
-		logMessage(message, "error");
-		showMessageWithLogs(message, "error");
+		logMessage(userMessage, "error");
+		showMessageWithLogs(userMessage, "error");
 		return false;
 	} finally {
 		clearTimeout(timeoutId);

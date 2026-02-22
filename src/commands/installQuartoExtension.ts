@@ -133,7 +133,7 @@ async function installQuartoExtensions(
 		},
 		async (progress, token) => {
 			let completed = false;
-			token.onCancellationRequested(() => {
+			const cancelDisposable = token.onCancellationRequested(() => {
 				if (completed) {
 					return;
 				}
@@ -175,29 +175,22 @@ async function installQuartoExtensions(
 					// Use template: install extension and copy template files
 					const selectFiles = createFileSelectionCallback();
 					const selectTargetSubdir = createTargetSubdirCallback();
-					const useResult = await useQuartoExtension(
-						extensionSource,
-						workspaceFolder,
+					const useResult = await useQuartoExtension(extensionSource, workspaceFolder, {
 						selectFiles,
 						selectTargetSubdir,
 						auth,
-						undefined, // sourceDisplay
-						token, // cancellationToken
-						"registry", // sourceType
-					);
+						cancellationToken: token,
+						sourceType: "registry",
+					});
 					// useQuartoExtension returns UseResult | null
 					result = useResult !== null ? true : null;
 				} else {
 					// Regular install: just install the extension
-					result = await installQuartoExtension(
-						extensionSource,
-						workspaceFolder,
+					result = await installQuartoExtension(extensionSource, workspaceFolder, {
 						auth,
-						undefined, // sourceDisplay
-						undefined, // skipOverwritePrompt
-						token, // cancellationToken
-						"registry", // sourceType
-					);
+						cancellationToken: token,
+						sourceType: "registry",
+					});
 				}
 
 				// If user cancelled (e.g., extension selection dialog), stop processing
@@ -255,6 +248,7 @@ async function installQuartoExtensions(
 			}
 			// If installedCount === 0 and failedExtensions.length === 0, the operation was cancelled - no message needed
 			completed = true;
+			cancelDisposable.dispose();
 		},
 	);
 }
@@ -352,7 +346,7 @@ async function installFromSource(
 		},
 		async (_progress, token) => {
 			let completed = false;
-			token.onCancellationRequested(() => {
+			const cancelDisposable = token.onCancellationRequested(() => {
 				if (completed) {
 					return;
 				}
@@ -363,6 +357,7 @@ async function installFromSource(
 
 			// Check if already cancelled before starting
 			if (token.isCancellationRequested) {
+				cancelDisposable.dispose();
 				return;
 			}
 
@@ -371,27 +366,22 @@ async function installFromSource(
 			if (template) {
 				const selectFiles = createFileSelectionCallback();
 				const selectTargetSubdir = createTargetSubdirCallback();
-				const useResult = await useQuartoExtension(
-					resolved,
-					workspaceFolder,
+				const useResult = await useQuartoExtension(resolved, workspaceFolder, {
 					selectFiles,
 					selectTargetSubdir,
 					auth,
-					display,
-					token, // Pass cancellation token
-				);
+					sourceDisplay: display,
+					cancellationToken: token,
+				});
 				// useQuartoExtension returns UseResult | null
 				// null means either failure or cancellation, but we treat both as non-success
 				result = useResult !== null ? true : null;
 			} else {
-				result = await installQuartoExtension(
-					resolved,
-					workspaceFolder,
+				result = await installQuartoExtension(resolved, workspaceFolder, {
 					auth,
-					display,
-					undefined, // skipOverwritePrompt
-					token, // Pass cancellation token
-				);
+					sourceDisplay: display,
+					cancellationToken: token,
+				});
 			}
 
 			if (result === true) {
@@ -407,6 +397,7 @@ async function installFromSource(
 			}
 			// result === null means cancelled by user, no message needed
 			completed = true;
+			cancelDisposable.dispose();
 		},
 	);
 }

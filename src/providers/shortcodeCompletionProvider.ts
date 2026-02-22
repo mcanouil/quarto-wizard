@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
-import { discoverInstalledExtensions, getErrorMessage } from "@quarto-wizard/core";
+import { getErrorMessage } from "@quarto-wizard/core";
+import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
@@ -432,7 +433,7 @@ export async function collectShortcodeSchemas(schemaCache: SchemaCache): Promise
 
 	for (const folder of workspaceFolders) {
 		try {
-			const extensions = await discoverInstalledExtensions(folder.uri.fsPath);
+			const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
 
 			for (const ext of extensions) {
 				const schema = schemaCache.get(ext.directory);
