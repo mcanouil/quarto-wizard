@@ -2,44 +2,6 @@
 
 ## Unreleased
 
-### New Features
-
-- feat: add `classes` section to extension schemas for declaring CSS classes contributed by filters, with descriptions.
-- feat: add class name completion and hover support for CSS classes declared in extension schemas.
-- feat: add `Quarto Wizard: Use Brand` command to download and apply a Quarto brand to the project's `_brand/` directory, supporting GitHub, URL, and local sources.
-- feat: add extension schema support via `_schema.yml`, `_schema.yaml`, and `_schema.json` to drive completion, hover help, and diagnostics for YAML options, shortcodes, and element attributes.
-- feat: add schema authoring support with diagnostics and YAML completion for extension schema definition files when `_extension.yml` is present.
-- feat: add file-path completion for schema fields using `completion.type: file` (with optional extension filters).
-- feat: display schema contribution details in the installed extensions tree view.
-- feat: add extension-provided snippets from `_snippets.json`, surfaced in the tree view and IntelliSense with direct insertion from snippet nodes.
-- feat: display `quarto-required` version constraints in extension detail rows in the installed extensions tree view.
-- feat: add compatibility status in the installed extensions tree view to highlight version mismatches against `quarto-required` when Quarto is available.
-
-### Bug Fixes
-
-- fix: improve update detection and update UI for commit-based installs, unknown registry versions, badge clearing, and refresh timing.
-- fix: improve operation flow by supporting cancellation for update actions and removing unnecessary GitHub sign-in prompts for public registry usage.
-- fix: harden network and security handling for stream backpressure failures and path traversal checks.
-- fix: improve schema provider robustness with better cache sharing, merge consistency, type handling, and completion ranking.
-- fix: store file system watcher event disposables to prevent resource leaks.
-- fix: prevent directory deselection in the template file picker by updating selection state directly instead of rebuilding items.
-- fix: validate GitHub reference format in source prompt input to reject malformed values such as `///` or `a/b/c/d`.
-- fix: add concurrency guard to update check to prevent concurrent calls from corrupting version data.
-- fix: include error details in the "reveal in Explorer" log message for better diagnostics.
-- fix: prevent spurious cancellation message after a completed single-source install.
-- fix: use deferred error pattern in tar extraction to prevent unhandled rejections, and reject hard links alongside symbolic links.
-- fix: track additional extension install failures separately so partial installs report success for the primary extension.
-- fix: make retry backoff cancellable via AbortSignal so users can cancel during retry delays.
-- fix: detect cross-platform absolute paths (Windows drive letters, UNC paths) in source prompts.
-- fix: skip internet connectivity check for local extension installs.
-- fix: prevent closing a document tab from cancelling pending diagnostics for other open documents.
-- fix: prevent stale YAML diagnostics from overwriting fresh validation results during rapid edits.
-
-### Refactoring
-
-- refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
-- refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
-
 ## 2.1.3 (2026-02-05)
 
 - docs: update website theme and display proper license.
