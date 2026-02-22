@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-### Breaking Changes
-
-- breaking: rename `element-attributes` top-level schema key to `attributes` (and `elementAttributes` to `attributes` in JSON schemas).
-
 ### New Features
 
 - feat: add `classes` section to extension schemas for declaring CSS classes contributed by filters, with descriptions.
