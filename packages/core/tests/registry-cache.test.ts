@@ -100,6 +100,65 @@ describe("registry cache", () => {
 		});
 	});
 
+	describe("cache integrity validation", () => {
+		it("rejects cache with mismatched entry count", async () => {
+			await writeCachedRegistry(tempDir, testUrl, testRegistry);
+
+			const cacheFile = getCacheFilePath(tempDir);
+			const content = JSON.parse(await fs.promises.readFile(cacheFile, "utf-8"));
+			content.entryCount = 100;
+			await fs.promises.writeFile(cacheFile, JSON.stringify(content), "utf-8");
+
+			const result = await readCachedRegistry(tempDir, testUrl, 60000);
+			expect(result).toBeNull();
+		});
+
+		it("rejects cache with empty registry object", async () => {
+			const cacheFile = getCacheFilePath(tempDir);
+			await fs.promises.mkdir(path.dirname(cacheFile), { recursive: true });
+			const cached = {
+				timestamp: Date.now(),
+				url: testUrl,
+				registry: {},
+				entryCount: 0,
+			};
+			await fs.promises.writeFile(cacheFile, JSON.stringify(cached), "utf-8");
+
+			const result = await readCachedRegistry(tempDir, testUrl, 60000);
+			expect(result).toBeNull();
+		});
+
+		it("rejects cache with malformed entries", async () => {
+			const cacheFile = getCacheFilePath(tempDir);
+			await fs.promises.mkdir(path.dirname(cacheFile), { recursive: true });
+			const cached = {
+				timestamp: Date.now(),
+				url: testUrl,
+				registry: { "bad/entry": { id: "bad/entry" } },
+				entryCount: 1,
+			};
+			await fs.promises.writeFile(cacheFile, JSON.stringify(cached), "utf-8");
+
+			const result = await readCachedRegistry(tempDir, testUrl, 60000);
+			expect(result).toBeNull();
+		});
+
+		it("accepts valid cache without entryCount (backward compatibility)", async () => {
+			const cacheFile = getCacheFilePath(tempDir);
+			await fs.promises.mkdir(path.dirname(cacheFile), { recursive: true });
+			const cached = {
+				timestamp: Date.now(),
+				url: testUrl,
+				registry: testRegistry,
+			};
+			await fs.promises.writeFile(cacheFile, JSON.stringify(cached), "utf-8");
+
+			const result = await readCachedRegistry(tempDir, testUrl, 60000);
+			expect(result).not.toBeNull();
+			expect(result?.["test/ext"]?.name).toBe("Test Extension");
+		});
+	});
+
 	describe("clearRegistryCache", () => {
 		it("clears existing cache", async () => {
 			await writeCachedRegistry(tempDir, testUrl, testRegistry);
