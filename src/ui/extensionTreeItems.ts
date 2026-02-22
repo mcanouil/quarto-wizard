@@ -73,7 +73,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			contextValue = "quartoExtensionItemNoSource";
 		} else if (hasPinnedVersion) {
 			contextValue = "quartoExtensionItemPinned";
-		} else if (sourceType === "github" || needsUpdate) {
+		} else if (sourceType === "github" || sourceType === "registry" || needsUpdate) {
 			contextValue = "quartoExtensionItem";
 		} else {
 			contextValue = "quartoExtensionItemUpToDate";

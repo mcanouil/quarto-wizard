@@ -20,6 +20,73 @@ import { selectWorkspaceFolder } from "../utils/workspace";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
 import { promptForGitHubReference, promptForURL, promptForLocalPath, resolveSourcePath } from "../utils/sourcePrompts";
 
+const INTERNET_CHECK_URL = "https://github.com/";
+
+async function ensureInternetConnection(): Promise<boolean> {
+	return checkInternetConnection(INTERNET_CHECK_URL);
+}
+
+async function updateRecentSelections(
+	context: vscode.ExtensionContext,
+	recentKey: string,
+	recentExtensions: string[],
+	selectedItems: readonly ExtensionQuickPickItem[],
+): Promise<void> {
+	const selectedIDs = selectedItems.map((ext) => ext.id).filter(Boolean) as string[];
+	const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
+	await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+}
+
+async function runRegistryFlow(
+	context: vscode.ExtensionContext,
+	workspaceFolder: string,
+	template: boolean,
+	includeTypeFilter = true,
+): Promise<void> {
+	let extensionsList = await getExtensionsDetails(context);
+	if (template) {
+		extensionsList = extensionsList.filter((ext) => ext.template);
+	}
+
+	let typeFilter: string | null = null;
+	if (includeTypeFilter && !template) {
+		const filterResult = await showTypeFilterQuickPick(extensionsList);
+		if (filterResult.type === "cancelled") {
+			return;
+		}
+		typeFilter = filterResult.value;
+	}
+
+	const recentKey = template ? STORAGE_KEY_RECENTLY_USED : STORAGE_KEY_RECENTLY_INSTALLED;
+	const recentExtensions: string[] = context.globalState.get(recentKey, []);
+	const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
+
+	if (result.type === "cancelled" || result.items.length === 0) {
+		return;
+	}
+
+	await installQuartoExtensions(context, result.items, workspaceFolder, template);
+	await updateRecentSelections(context, recentKey, recentExtensions, result.items);
+}
+
+async function installFromPromptedRemoteSource(
+	context: vscode.ExtensionContext,
+	promptForSource: () => Promise<string | undefined>,
+): Promise<void> {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+	if (!(await ensureInternetConnection())) {
+		return;
+	}
+	const source = await promptForSource();
+	if (!source) {
+		return;
+	}
+	await installFromSource(context, source, workspaceFolder, false);
+}
+
 /**
  * Installs or uses the selected Quarto extensions.
  *
@@ -110,6 +177,7 @@ async function installQuartoExtensions(
 						auth,
 						undefined, // sourceDisplay
 						token, // cancellationToken
+						"registry", // sourceType
 					);
 					// useQuartoExtension returns UseResult | null
 					result = useResult !== null ? true : null;
@@ -122,6 +190,7 @@ async function installQuartoExtensions(
 						undefined, // sourceDisplay
 						undefined, // skipOverwritePrompt
 						token, // cancellationToken
+						"registry", // sourceType
 					);
 				}
 
@@ -197,8 +266,7 @@ export async function installQuartoExtensionFolderCommand(
 	workspaceFolder: string,
 	template = false,
 ) {
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
+	if (!(await ensureInternetConnection())) {
 		return;
 	}
 
@@ -211,39 +279,7 @@ export async function installQuartoExtensionFolderCommand(
 	// Step 2: Handle based on source type
 	switch (sourceResult.type) {
 		case "registry": {
-			// Registry flow
-			let extensionsList = await getExtensionsDetails(context);
-			if (template) {
-				extensionsList = extensionsList.filter((ext) => ext.template);
-			}
-
-			// Show type filter picker (skip for template mode as it's already filtered)
-			let typeFilter: string | null = null;
-			if (!template) {
-				const filterResult = await showTypeFilterQuickPick(extensionsList);
-				if (filterResult.type === "cancelled") {
-					return;
-				}
-				typeFilter = filterResult.value;
-			}
-
-			const recentKey = template ? STORAGE_KEY_RECENTLY_USED : STORAGE_KEY_RECENTLY_INSTALLED;
-			const recentExtensions: string[] = context.globalState.get(recentKey, []);
-			const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
-
-			if (result.type === "cancelled") {
-				return;
-			}
-
-			if (result.items.length > 0) {
-				await installQuartoExtensions(context, result.items, workspaceFolder, template);
-				const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-				const updatedRecentExtensions = [
-					...selectedIDs,
-					...recentExtensions.filter((ext) => !selectedIDs.includes(ext)),
-				];
-				await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
-			}
+			await runRegistryFlow(context, workspaceFolder, template, true);
 			break;
 		}
 
@@ -404,26 +440,11 @@ export async function installExtensionFromRegistryCommand(context: vscode.Extens
 		return;
 	}
 
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
+	if (!(await ensureInternetConnection())) {
 		return;
 	}
 
-	const extensionsList = await getExtensionsDetails(context);
-	const recentKey = STORAGE_KEY_RECENTLY_INSTALLED;
-	const recentExtensions: string[] = context.globalState.get(recentKey, []);
-	const result = await showExtensionQuickPick(extensionsList, recentExtensions, false, null);
-
-	if (result.type === "cancelled") {
-		return;
-	}
-
-	if (result.items.length > 0) {
-		await installQuartoExtensions(context, result.items, workspaceFolder, false);
-		const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-		const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
-		await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
-	}
+	await runRegistryFlow(context, workspaceFolder, false, false);
 }
 
 /**
@@ -433,22 +454,7 @@ export async function installExtensionFromRegistryCommand(context: vscode.Extens
  * @param context - The extension context.
  */
 export async function installExtensionFromURLCommand(context: vscode.ExtensionContext) {
-	const workspaceFolder = await selectWorkspaceFolder();
-	if (!workspaceFolder) {
-		return;
-	}
-
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
-		return;
-	}
-
-	const url = await promptForURL();
-	if (!url) {
-		return;
-	}
-
-	await installFromSource(context, url, workspaceFolder, false);
+	await installFromPromptedRemoteSource(context, promptForURL);
 }
 
 /**
@@ -458,22 +464,7 @@ export async function installExtensionFromURLCommand(context: vscode.ExtensionCo
  * @param context - The extension context.
  */
 export async function installExtensionFromGitHubCommand(context: vscode.ExtensionContext) {
-	const workspaceFolder = await selectWorkspaceFolder();
-	if (!workspaceFolder) {
-		return;
-	}
-
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
-		return;
-	}
-
-	const ref = await promptForGitHubReference();
-	if (!ref) {
-		return;
-	}
-
-	await installFromSource(context, ref, workspaceFolder, false);
+	await installFromPromptedRemoteSource(context, promptForGitHubReference);
 }
 
 /**

@@ -420,7 +420,7 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned)",
 					"group": "inline@3"
 				},
 				{
@@ -440,7 +440,7 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned)",
 					"group": "navigation@1"
 				},
 				{

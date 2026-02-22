@@ -2,12 +2,14 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import type { SchemaCache } from "@quarto-wizard/schema";
 import type { SnippetCache, SnippetDefinition } from "@quarto-wizard/snippets";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
 import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
+import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
@@ -49,9 +51,18 @@ export class ExtensionsInstalled {
 
 		// Watch for changes to _extensions directories for real-time tree view updates
 		const extensionWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_extension.{yml,yaml}");
-		context.subscriptions.push(extensionWatcher.onDidCreate(() => this.treeDataProvider.refresh()));
-		context.subscriptions.push(extensionWatcher.onDidDelete(() => this.treeDataProvider.refresh()));
-		context.subscriptions.push(extensionWatcher.onDidChange(() => this.treeDataProvider.refresh()));
+		const invalidateAndRefreshExtensions = (uri: vscode.Uri) => {
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+			if (workspaceFolder) {
+				invalidateInstalledExtensionsCache(workspaceFolder.uri.fsPath);
+			} else {
+				invalidateInstalledExtensionsCache();
+			}
+			this.treeDataProvider.refresh();
+		};
+		context.subscriptions.push(extensionWatcher.onDidCreate(invalidateAndRefreshExtensions));
+		context.subscriptions.push(extensionWatcher.onDidDelete(invalidateAndRefreshExtensions));
+		context.subscriptions.push(extensionWatcher.onDidChange(invalidateAndRefreshExtensions));
 		context.subscriptions.push(extensionWatcher);
 
 		// Watch for changes to schema files for real-time tree view updates
@@ -79,6 +90,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(view);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
+				invalidateInstalledExtensionsCache();
 				this.treeDataProvider.refreshAfterAction(context, view);
 			}),
 		);
@@ -118,8 +130,7 @@ export class ExtensionsInstalled {
 								showMessageWithLogs(`Failed to open source for "${item.label}".`, "error");
 							}
 						} catch (error) {
-							const message = error instanceof Error ? error.message : String(error);
-							logMessage(`Failed to parse source URL for "${item.label}": ${message}.`, "error");
+							logMessage(`Failed to parse source URL for "${item.label}": ${getErrorMessage(error)}.`, "error");
 							showMessageWithLogs(`Failed to open source for "${item.label}".`, "error");
 						}
 					}
@@ -130,6 +141,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
 				await installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
+				invalidateInstalledExtensionsCache(item.workspaceFolder);
 				this.treeDataProvider.refreshAfterAction(context, view);
 			}),
 		);
@@ -139,6 +151,7 @@ export class ExtensionsInstalled {
 				"quartoWizard.extensionsInstalled.useTemplate",
 				async (item: ExtensionTreeItem) => {
 					await installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
+					invalidateInstalledExtensionsCache(item.workspaceFolder);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				},
 			),
@@ -164,6 +177,7 @@ export class ExtensionsInstalled {
 					return installQuartoExtension(baseSource, item.workspaceFolder, auth, undefined, true, token);
 				});
 				if (result === true) {
+					invalidateInstalledExtensionsCache(item.workspaceFolder);
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else if (result === false) {
@@ -191,6 +205,7 @@ export class ExtensionsInstalled {
 					return installQuartoExtension(source, item.workspaceFolder, auth, undefined, true, token);
 				});
 				if (result === true) {
+					invalidateInstalledExtensionsCache(item.workspaceFolder);
 					vscode.window.showInformationMessage(`Extension "${item.label}" reinstalled successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else if (result === false) {
@@ -209,6 +224,7 @@ export class ExtensionsInstalled {
 					return removeQuartoExtension(item.label, item.workspaceFolder);
 				});
 				if (success) {
+					invalidateInstalledExtensionsCache(item.workspaceFolder);
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else {
@@ -266,8 +282,7 @@ export class ExtensionsInstalled {
 						await vscode.commands.executeCommand("revealInExplorer", targetUri);
 						logMessage(`Revealed "${item.label}" in Explorer.`, "info");
 					} catch (error) {
-						const errorMessage = error instanceof Error ? error.message : String(error);
-						logMessage(`Failed to reveal "${item.label}" in Explorer: ${errorMessage}`, "error");
+						logMessage(`Failed to reveal "${item.label}" in Explorer: ${getErrorMessage(error)}`, "error");
 						showMessageWithLogs(`Failed to reveal extension "${item.label}" in Explorer.`, "error");
 					}
 				},
@@ -327,6 +342,7 @@ export class ExtensionsInstalled {
 				});
 
 				if (successCount > 0) {
+					invalidateInstalledExtensionsCache();
 					vscode.window.showInformationMessage(
 						`Successfully updated ${successCount} extension(s)${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
 					);
@@ -411,6 +427,7 @@ export class ExtensionsInstalled {
 					);
 
 					if (result.successCount > 0) {
+						invalidateInstalledExtensionsCache(item.workspaceFolder);
 						vscode.window.showInformationMessage(
 							`Successfully removed ${result.successCount} extension(s)${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
 						);

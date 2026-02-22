@@ -13,7 +13,7 @@ import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest, SourceType } from "../types/manifest.js";
 import { parseExtensionRef } from "../types/extension.js";
-import { ExtensionError } from "../errors.js";
+import { ExtensionError, getErrorMessage } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
 import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
 import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
@@ -108,6 +108,12 @@ export interface InstallOptions extends RegistryOptions {
 	 * Return true to proceed, false to cancel.
 	 */
 	validateQuartoVersion?: ValidateQuartoVersionCallback;
+	/**
+	 * Override the source type written to the manifest.
+	 * By default, the source type is inferred from the install source (e.g., "github", "url", "local").
+	 * Use "registry" when installing via the extension registry.
+	 */
+	sourceType?: SourceType;
 }
 
 /**
@@ -325,7 +331,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 					latestCommit = entry.latestCommit ?? undefined;
 				}
 			} catch {
-				// Registry fetch failed, use defaults
+				onProgress?.({ phase: "resolving", message: "Registry unavailable, using defaults." });
 			}
 
 			const result = await downloadGitHubArchive(source.owner, source.repo, source.version, {
@@ -498,12 +504,13 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		}
 
 		onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
+		const effectiveSourceType = options.sourceType ?? source.type;
 		const filesCreated = await writeExtensionToDisk(
 			extensionRoot,
 			targetDir,
 			manifestResult.filename,
 			sourceString,
-			source.type,
+			effectiveSourceType,
 		);
 
 		const manifestPath = path.join(targetDir, manifestResult.filename);
@@ -522,12 +529,12 @@ export async function install(source: InstallSource, options: InstallOptions): P
 						force,
 						onProgress,
 						options.confirmOverwrite,
-						source.type,
+						effectiveSourceType,
 					);
 					additionalInstalls.push(additionalResult);
 				} catch (error) {
 					// Log error but continue with other extensions
-					const message = error instanceof Error ? error.message : String(error);
+					const message = getErrorMessage(error);
 					onProgress?.({ phase: "installing", message: `Failed to install additional extension: ${message}` });
 				}
 			}
@@ -543,7 +550,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			},
 			filesCreated,
 			source: sourceString,
-			sourceType: source.type,
+			sourceType: effectiveSourceType,
 			sourceRoot: keepSourceDir ? repoRoot : undefined,
 			additionalInstalls: additionalInstalls.length > 0 ? additionalInstalls : undefined,
 		};
