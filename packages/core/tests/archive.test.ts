@@ -186,6 +186,25 @@ describe("ZIP extraction", () => {
 
 		expect(progressFiles.length).toBeGreaterThan(0);
 	});
+
+	it("rejects hard links in tar archives", async () => {
+		const sourceWithHardLink = path.join(tempDir, "source-hardlink");
+		await fs.promises.mkdir(sourceWithHardLink);
+		const originalFile = path.join(sourceWithHardLink, "original.txt");
+		const hardLinkFile = path.join(sourceWithHardLink, "hardlink.txt");
+		await fs.promises.writeFile(originalFile, "hard-link-target");
+		try {
+			fs.linkSync(originalFile, hardLinkFile);
+		} catch {
+			// Some filesystems/environments may disallow hard links.
+			return;
+		}
+
+		const hardLinkTarPath = path.join(tempDir, "hardlink.tar.gz");
+		await createTarArchive(sourceWithHardLink, hardLinkTarPath);
+		const destDir = path.join(tempDir, "dest-hardlink");
+		await expect(extractTar(hardLinkTarPath, destDir)).rejects.toThrow(SecurityError);
+	});
 });
 
 describe("TAR extraction", () => {

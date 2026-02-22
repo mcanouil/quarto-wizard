@@ -46,52 +46,76 @@ export async function extractTar(
 	const extractedFiles: string[] = [];
 	let totalSize = 0;
 	let entryCount = 0;
+	let securityError: SecurityError | undefined;
 
 	await tar.extract({
 		file: archivePath,
 		cwd: destDir,
-		filter: (entryPath) => {
-			checkPathTraversal(entryPath);
+		filter: (entryPath, entry) => {
+			if (securityError) {
+				return false;
+			}
+			try {
+				checkPathTraversal(entryPath);
+			} catch (error) {
+				securityError = error instanceof SecurityError ? error : new SecurityError(String(error));
+				return false;
+			}
+			if ("type" in entry && (entry.type === "SymbolicLink" || entry.type === "Link")) {
+				const linkType = entry.type === "SymbolicLink" ? "symbolic link" : "hard link";
+				securityError = new SecurityError(`Archive contains a ${linkType} ("${entryPath}"), which is not permitted.`);
+				return false;
+			}
 			return true;
 		},
 		onReadEntry: (entry) => {
+			if (securityError) {
+				entry.resume();
+				return;
+			}
+
 			entryCount++;
 			if (entryCount > MAX_FILE_COUNT) {
-				throw new SecurityError(
+				securityError = new SecurityError(
 					`Archive contains too many entries: ${entryCount} > ${MAX_FILE_COUNT}. This may indicate a file bomb.`,
 				);
+				entry.resume();
+				return;
 			}
 
 			totalSize += entry.size ?? 0;
 
 			if (totalSize > maxSize) {
-				throw new SecurityError(`Archive exceeds maximum size: ${formatSize(totalSize)} > ${formatSize(maxSize)}`);
+				securityError = new SecurityError(
+					`Archive exceeds maximum size: ${formatSize(totalSize)} > ${formatSize(maxSize)}`,
+				);
+				entry.resume();
+				return;
 			}
 
 			// Check compression ratio incrementally to detect tar bombs early.
 			if (compressedSize > 0) {
 				const ratio = totalSize / compressedSize;
 				if (ratio > MAX_COMPRESSION_RATIO) {
-					throw new SecurityError(
+					securityError = new SecurityError(
 						`Suspicious compression ratio detected: ${ratio.toFixed(1)}:1. ` + "This may indicate a tar bomb.",
 					);
+					entry.resume();
+					return;
 				}
 			}
 
 			const entryPath = entry.path;
-
-			// Reject symlinks to match ZIP extraction policy and eliminate
-			// multi-hop chain and TOCTOU attack vectors.
-			if (entry.type === "SymbolicLink") {
-				throw new SecurityError(`Archive contains a symbolic link ("${entryPath}"), which is not permitted.`);
-			}
-
 			if (entry.type === "File" || entry.type === "ContiguousFile") {
 				extractedFiles.push(path.join(destDir, entryPath));
 				onProgress?.(entryPath);
 			}
 		},
 	});
+
+	if (securityError) {
+		throw securityError;
+	}
 
 	return extractedFiles;
 }
