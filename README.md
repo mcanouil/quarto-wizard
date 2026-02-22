@@ -13,12 +13,57 @@ This extension provides a user-friendly interface to browse, select, and install
 
 ## Key Features
 
-- Browse and install Quarto extensions from the registry, GitHub, URLs, or local paths.
-- Manage installed extensions with update detection.
-- Use Quarto templates to quick-start projects.
+- Browse and install Quarto extensions from Registry, GitHub, URL, or Local sources.
+- Use dedicated install commands for each source (including `owner/repo@version` on GitHub).
+- Manage installed extensions from the Explorer view (update, reinstall, remove, reveal, open source).
+- Inspect extension schema metadata and insert extension snippets from the Explorer view.
+- Batch-manage extensions with "Update All", "Remove Multiple", and cache refresh.
+- Use Quarto templates with target subdirectory support and file selection.
+- Use Quarto brands from GitHub, URL, or local sources.
 - Create reproducible documents for R, Python, or Julia.
-- Install extensions from local directories or archives.
 - Support for private GitHub repositories with authentication.
+
+## Install Quarto Extensions
+
+1. Open the Command Palette and run `Quarto Wizard: Install Extensions`.
+2. Choose a source: **Registry**, **GitHub**, **URL**, or **Local**.
+3. Select one or more extensions and confirm installation.
+
+You can also skip the source picker with:
+
+- `Quarto Wizard: Install Extension from Registry`
+- `Quarto Wizard: Install Extension from GitHub`
+- `Quarto Wizard: Install Extension from URL`
+- `Quarto Wizard: Install Extension from Local`
+
+For full install options (including local archives and version validation), see [Installing Extensions](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html).
+
+## Quarto Wizard Explorer View
+
+Use the **Extensions Installed** Explorer view to:
+
+- Check installed extension status and available updates.
+- Update one extension or all outdated extensions.
+- Remove one or multiple extensions.
+- Inspect schema contributions (options, shortcodes, formats, projects, and element attributes).
+- Insert extension snippets directly into the active editor.
+
+See [Explorer View](https://m.canouil.dev/quarto-wizard/getting-started/explorer-view.html) for details.
+For Quarto extension developers, the schema and snippet specs explain how to enable richer editor support (hover details, suggestions, and validation): [Extension Schema Specification](https://m.canouil.dev/quarto-wizard/reference/schema-specification.html) and [Extension Snippet Specification](https://m.canouil.dev/quarto-wizard/reference/snippet-specification.html).
+
+## Use Quarto Templates
+
+Run `Quarto Wizard: Use Template`, choose a source, then select template files to copy.
+You can optionally set a target subdirectory for copied files.
+
+See [Using Templates](https://m.canouil.dev/quarto-wizard/getting-started/using-templates.html).
+
+## Use Quarto Brand
+
+Run `Quarto Wizard: Use Brand`, choose a source (**GitHub**, **URL**, or **Local**), and apply brand assets to your project.
+Brand files are installed in `_brand/`.
+
+See [Using Brands](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html#using-brands).
 
 ## Installation
 
@@ -32,7 +77,9 @@ Full documentation is available at **[m.canouil.dev/quarto-wizard](https://m.can
 
 - [Getting Started](https://m.canouil.dev/quarto-wizard/getting-started/) - Installation, usage, and troubleshooting.
 - [Commands Reference](https://m.canouil.dev/quarto-wizard/reference/commands.html) - Commands.
-- [Configuration](https://m.canouil.dev/quarto-wizard/reference/configuration.html) - configuration options.
+- [Configuration](https://m.canouil.dev/quarto-wizard/reference/configuration.html) - Available settings, defaults, and workspace scope.
+- [Extension Schema Specification](https://m.canouil.dev/quarto-wizard/reference/schema-specification.html) - For extension developers: `_schema.yml` format for hover details, suggestions, and validation.
+- [Extension Snippet Specification](https://m.canouil.dev/quarto-wizard/reference/snippet-specification.html) - For extension developers: `_snippets.json` format for snippet suggestions and insertion.
 
 ## Getting Help
 
