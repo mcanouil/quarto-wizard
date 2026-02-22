@@ -23,6 +23,10 @@
 - fix: improve schema provider robustness with better cache sharing, merge consistency, type handling, and completion ranking.
 - fix: store file system watcher event disposables to prevent resource leaks.
 - fix: prevent directory deselection in the template file picker by updating selection state directly instead of rebuilding items.
+- fix: validate GitHub reference format in source prompt input to reject malformed values such as `///` or `a/b/c/d`.
+- fix: add concurrency guard to update check to prevent concurrent calls from corrupting version data.
+- fix: include error details in the "reveal in Explorer" log message for better diagnostics.
+- fix: prevent spurious cancellation message after a completed single-source install.
 
 ### Refactoring
 
