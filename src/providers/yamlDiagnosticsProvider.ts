@@ -2,10 +2,11 @@ import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import { formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
-import { discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
+import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
+import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 
 /**
  * Validate a single value against a field descriptor, returning error messages.
@@ -144,6 +145,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		// Clear diagnostics when a document is closed.
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
+				this.debouncedValidate.cancel();
 				this.diagnosticCollection.delete(document.uri);
 			}),
 		);
@@ -226,12 +228,9 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 		let extensions;
 		try {
-			extensions = await discoverInstalledExtensions(projectDir);
+			extensions = await getInstalledExtensionsCached(projectDir);
 		} catch (error) {
-			logMessage(
-				`Failed to discover extensions for diagnostics: ${error instanceof Error ? error.message : String(error)}.`,
-				"warn",
-			);
+			logMessage(`Failed to discover extensions for diagnostics: ${getErrorMessage(error)}.`, "warn");
 			return;
 		}
 
@@ -274,6 +273,18 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 						diagnostics,
 					);
 				}
+			}
+		} else if (Array.isArray(extensionsBlock)) {
+			const line = this.findKeyLine(["extensions"], lines, yamlStartLine);
+			if (line >= 0) {
+				const range = new vscode.Range(line, 0, line, lines[line].length);
+				diagnostics.push(
+					new vscode.Diagnostic(
+						range,
+						'The "extensions" block should be an object, not an array.',
+						vscode.DiagnosticSeverity.Warning,
+					),
+				);
 			}
 		}
 
