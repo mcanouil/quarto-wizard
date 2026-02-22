@@ -246,7 +246,15 @@ export async function installQuartoExtension(
 		}
 
 		if (result.success) {
-			logMessage(`${prefix} Successfully installed.`, "info");
+			if (result.additionalInstallFailures && result.additionalInstallFailures.length > 0) {
+				const failed = result.additionalInstallFailures.map((f) => formatExtensionId(f.extensionId)).join(", ");
+				logMessage(
+					`${prefix} Installed, but failed to install ${result.additionalInstallFailures.length} additional extension(s): ${failed}.`,
+					"warn",
+				);
+			} else {
+				logMessage(`${prefix} Successfully installed.`, "info");
+			}
 			void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
 		} else {

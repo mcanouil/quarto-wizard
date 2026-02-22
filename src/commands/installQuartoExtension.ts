@@ -18,7 +18,13 @@ import {
 } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
-import { promptForGitHubReference, promptForURL, promptForLocalPath, resolveSourcePath } from "../utils/sourcePrompts";
+import {
+	isAbsolutePathForAnyPlatform,
+	promptForGitHubReference,
+	promptForURL,
+	promptForLocalPath,
+	resolveSourcePath,
+} from "../utils/sourcePrompts";
 
 const INTERNET_CHECK_URL = "https://github.com/";
 
@@ -266,13 +272,14 @@ export async function installQuartoExtensionFolderCommand(
 	workspaceFolder: string,
 	template = false,
 ) {
-	if (!(await ensureInternetConnection())) {
-		return;
-	}
-
 	// Step 1: Show source picker
 	const sourceResult = await showSourcePicker();
 	if (sourceResult.type === "cancelled") {
+		return;
+	}
+
+	// Network sources require an internet connection; local installs do not.
+	if (sourceResult.type !== "local" && !(await ensureInternetConnection())) {
 		return;
 	}
 
@@ -512,7 +519,7 @@ export async function installExtensionFromLocalCommand(context: vscode.Extension
 	}
 
 	const workspaceFolderUri = vscode.Uri.file(workspaceFolder);
-	const absoluteUri = localPath.startsWith("/")
+	const absoluteUri = isAbsolutePathForAnyPlatform(localPath)
 		? vscode.Uri.file(localPath)
 		: vscode.Uri.joinPath(workspaceFolderUri, localPath);
 	const absolutePath = absoluteUri.fsPath;

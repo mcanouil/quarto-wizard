@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { isValidGitHubReference } from "../../utils/sourcePrompts";
+import { isAbsolutePathForAnyPlatform, isValidGitHubReference, resolveSourcePath } from "../../utils/sourcePrompts";
 
 suite("Source Prompts Test Suite", () => {
 	suite("isValidGitHubReference", () => {
@@ -37,5 +37,50 @@ suite("Source Prompts Test Suite", () => {
 				assert.strictEqual(isValidGitHubReference(value), false);
 			});
 		}
+	});
+
+	suite("isAbsolutePathForAnyPlatform", () => {
+		const absoluteCases = [
+			{ path: "/usr/local/ext", description: "Unix absolute" },
+			{ path: "C:\\Users\\ext", description: "Windows backslash" },
+			{ path: "C:/Users/ext", description: "Windows forward slash" },
+			{ path: "d:\\projects", description: "lowercase drive letter" },
+			{ path: "\\\\server\\share", description: "UNC path" },
+		];
+		for (const { path, description } of absoluteCases) {
+			test(`returns true for ${description}: "${path}"`, () => {
+				assert.strictEqual(isAbsolutePathForAnyPlatform(path), true);
+			});
+		}
+
+		const relativeCases = [
+			{ path: "relative/path", description: "relative path" },
+			{ path: "./local", description: "dot-relative" },
+			{ path: "C:", description: "bare drive letter without separator" },
+			{ path: "", description: "empty string" },
+		];
+		for (const { path, description } of relativeCases) {
+			test(`returns false for ${description}: "${path}"`, () => {
+				assert.strictEqual(isAbsolutePathForAnyPlatform(path), false);
+			});
+		}
+	});
+
+	suite("resolveSourcePath", () => {
+		const workspaceFolder = "/workspace/project";
+
+		test("does not rewrite Windows absolute drive path", () => {
+			const source = "C:\\Users\\name\\extension";
+			const result = resolveSourcePath(source, workspaceFolder);
+			assert.strictEqual(result.resolved, source);
+			assert.strictEqual(result.display, undefined);
+		});
+
+		test("does not rewrite UNC path", () => {
+			const source = "\\\\server\\share\\extension";
+			const result = resolveSourcePath(source, workspaceFolder);
+			assert.strictEqual(result.resolved, source);
+			assert.strictEqual(result.display, undefined);
+		});
 	});
 });

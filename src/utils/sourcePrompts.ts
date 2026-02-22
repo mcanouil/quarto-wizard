@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "node:path";
 import { parseInstallSource } from "@quarto-wizard/core";
 
 /**
@@ -18,6 +19,10 @@ const SOURCE_TYPE_NAMES: Record<string, string> = {
  */
 export function isValidGitHubReference(value: string): boolean {
 	return /^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(value);
+}
+
+export function isAbsolutePathForAnyPlatform(filePath: string): boolean {
+	return path.isAbsolute(filePath) || /^[A-Za-z]:[/\\]/.test(filePath) || filePath.startsWith("\\\\");
 }
 
 /**
@@ -125,7 +130,7 @@ export function resolveSourcePath(
 		const parsed = parseInstallSource(source);
 		const type = SOURCE_TYPE_NAMES[parsed.type] ?? "unknown";
 
-		if (parsed.type === "local" && !parsed.path.startsWith("/")) {
+		if (parsed.type === "local" && !isAbsolutePathForAnyPlatform(parsed.path)) {
 			const resolved = vscode.Uri.joinPath(vscode.Uri.file(workspaceFolder), parsed.path).fsPath;
 			return { resolved, display: source, type };
 		}
