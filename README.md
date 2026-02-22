@@ -32,7 +32,7 @@ Full documentation is available at **[m.canouil.dev/quarto-wizard](https://m.can
 
 - [Getting Started](https://m.canouil.dev/quarto-wizard/getting-started/) - Installation, usage, and troubleshooting.
 - [Commands Reference](https://m.canouil.dev/quarto-wizard/reference/commands.html) - Commands.
-- [Configuration](https://m.canouil.dev/quarto-wizard/reference/configuration.html) - configuration options.
+- [Configuration](https://m.canouil.dev/quarto-wizard/reference/configuration.html) - Available configuration options.
 
 ## Getting Help
 
