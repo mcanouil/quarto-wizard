@@ -24,3 +24,13 @@ export { getDefaultRegistryUrl } from "@quarto-wizard/core";
  * Key for caching the Quarto extensions JSON.
  */
 export const QW_EXTENSIONS_CACHE = "quarto_wizard_extensions";
+
+/**
+ * Timeout for registry fetch operations (ms).
+ */
+export const REGISTRY_FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * Timeout for network connectivity checks (ms).
+ */
+export const NETWORK_CHECK_TIMEOUT_MS = 5_000;

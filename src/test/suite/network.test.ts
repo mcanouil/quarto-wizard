@@ -87,8 +87,10 @@ suite("Network Utils Test Suite", () => {
 		assert.strictEqual(result, false);
 		assert.strictEqual(logMessages.length, 1);
 		assert.ok(logMessages[0].includes("No internet connection"));
+		assert.ok(logMessages[0].includes("HTTP 404"));
 		assert.strictEqual(errorMessages.length, 1);
 		assert.ok(errorMessages[0].includes("No internet connection"));
+		assert.ok(errorMessages[0].includes("HTTP 404"));
 	});
 
 	test("should return false when fetch throws an error", async () => {
@@ -101,9 +103,9 @@ suite("Network Utils Test Suite", () => {
 
 		assert.strictEqual(result, false);
 		assert.strictEqual(logMessages.length, 1);
-		assert.ok(logMessages[0].includes("No internet connection"));
+		assert.ok(logMessages[0].includes("Network check failed"));
 		assert.strictEqual(errorMessages.length, 1);
-		assert.ok(errorMessages[0].includes("No internet connection"));
+		assert.ok(errorMessages[0].includes("Network check failed"));
 	});
 
 	test("should use custom URL when provided", async () => {

@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import type { SchemaCache, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import type { SnippetCache } from "@quarto-wizard/snippets";
 import { snippetNamespace } from "@quarto-wizard/snippets";
-import { checkForUpdates, formatExtensionId, type SourceType } from "@quarto-wizard/core";
+import { checkForUpdates, formatExtensionId, getErrorMessage, type SourceType } from "@quarto-wizard/core";
+import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionContributes, getEffectiveSourceType } from "../utils/extensions";
@@ -200,6 +201,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
+			new ExtensionTreeItem(
+				`Source type: ${getEffectiveSourceType(ext) ?? "N/A"}`,
+				vscode.TreeItemCollapsibleState.None,
+				element.workspaceFolder,
+			),
 		];
 
 		const schema = this.schemaCache.get(ext.directory);
@@ -391,28 +397,19 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				try {
 					await this.checkUpdate(context, view);
 				} catch (error) {
-					logMessage(
-						`Failed to check for updates: ${error instanceof Error ? error.message : String(error)}.`,
-						"error",
-					);
+					logMessage(`Failed to check for updates: ${getErrorMessage(error)}.`, "error");
 				}
 				this._onDidChangeTreeData.fire();
 			})
 			.catch((error) => {
-				logMessage(
-					`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}.`,
-					"error",
-				);
+				logMessage(`Failed to refresh extensions data: ${getErrorMessage(error)}.`, "error");
 			});
 	}
 
 	private refreshAllExtensionsData(): void {
 		// Synchronous initialization - starts async refresh in background
 		this.refreshAllExtensionsDataAsync().catch((error) => {
-			logMessage(
-				`Failed to refresh extensions data: ${error instanceof Error ? error.message : String(error)}.`,
-				"error",
-			);
+			logMessage(`Failed to refresh extensions data: ${getErrorMessage(error)}.`, "error");
 		});
 	}
 
@@ -543,7 +540,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					registryUrl,
 					cacheTtl,
 					auth: auth ?? undefined,
-					timeout: 10000,
+					timeout: REGISTRY_FETCH_TIMEOUT_MS,
 				});
 
 				// Only reset after successful fetch to preserve previous state on error
@@ -559,10 +556,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					totalUpdates++;
 				}
 			} catch (error) {
-				logMessage(
-					`Failed to check updates for ${workspacePath}: ${error instanceof Error ? error.message : String(error)}.`,
-					"error",
-				);
+				logMessage(`Failed to check updates for ${workspacePath}: ${getErrorMessage(error)}.`, "error");
 			}
 		}
 

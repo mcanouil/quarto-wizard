@@ -1,4 +1,5 @@
 import * as semver from "semver";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
 /**
@@ -63,7 +64,7 @@ export function validateQuartoRequirement(
 			valid: true,
 			required: quartoRequired,
 			current: currentVersion,
-			message: undefined,
+			message: `Invalid Quarto version format: "${currentVersion}". Skipping validation.`,
 		};
 	}
 
@@ -74,7 +75,7 @@ export function validateQuartoRequirement(
 			valid: true,
 			required: quartoRequired,
 			current: currentVersion,
-			message: undefined,
+			message: `Invalid version requirement format: "${quartoRequired}". Skipping validation.`,
 		};
 	}
 
@@ -98,8 +99,7 @@ export function validateQuartoRequirement(
 			};
 		}
 	} catch (error) {
-		const errorMsg = error instanceof Error ? error.message : String(error);
-		logMessage(`Error validating version requirement: ${errorMsg}. Skipping validation.`, "warn");
+		logMessage(`Error validating version requirement: ${getErrorMessage(error)}. Skipping validation.`, "warn");
 		return {
 			valid: true,
 			required: quartoRequired,
