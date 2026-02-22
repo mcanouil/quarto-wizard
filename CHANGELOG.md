@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### New Features
+
+- feat: add schema-aware authoring support for extensions, including smarter completions and validation for YAML, shortcodes, and inline attributes.
+- feat: add extension-provided snippets with richer descriptions and previews.
+- feat: add compatibility details in the extensions tree, including required Quarto versions and compatibility status.
+- feat: improve extension source workflows and actions, including support for `quarto use brand`.
+
+### Fixes
+
+- fix: improve extension update reliability for commit-based sources and reduce refresh race conditions.
+- fix: resolve hangs during stream/drain operations to keep extension actions responsive.
+- fix: improve completion behaviour while typing, including better suggestion handling and fewer duplicate entries.
+- fix: harden security checks and provider robustness in extension workflows.
+
+### Documentation
+
+- docs: expand documentation for schema, snippets, and brand workflows.
+
 ## 2.1.3 (2026-02-05)
 
 - docs: update website theme and display proper license.
