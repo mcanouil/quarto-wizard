@@ -2,10 +2,10 @@ import * as vscode from "vscode";
 import type { SchemaCache, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import type { SnippetCache } from "@quarto-wizard/snippets";
 import { snippetNamespace } from "@quarto-wizard/snippets";
-import { checkForUpdates, formatExtensionId } from "@quarto-wizard/core";
+import { checkForUpdates, formatExtensionId, type SourceType } from "@quarto-wizard/core";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
-import { getInstalledExtensionsRecord, getExtensionContributes } from "../utils/extensions";
+import { getInstalledExtensionsRecord, getExtensionContributes, getEffectiveSourceType } from "../utils/extensions";
 import { getRegistryUrl, getCacheTTL } from "../utils/extensionDetails";
 import { getAuthConfig } from "../utils/auth";
 import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
@@ -468,12 +468,14 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		extensionId: string;
 		workspaceFolder: string;
 		source: string | undefined;
+		sourceType: SourceType | undefined;
 		latestVersion: string;
 	}[] {
 		const outdated: {
 			extensionId: string;
 			workspaceFolder: string;
 			source: string | undefined;
+			sourceType: SourceType | undefined;
 			latestVersion: string;
 		}[] = [];
 
@@ -490,6 +492,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 						extensionId: ext,
 						workspaceFolder: workspacePath,
 						source: extension?.manifest.source,
+						sourceType: extension ? getEffectiveSourceType(extension) : undefined,
 						latestVersion: version,
 					});
 				}

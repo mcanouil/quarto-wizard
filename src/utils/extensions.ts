@@ -1,3 +1,5 @@
+import * as os from "node:os";
+import * as path from "node:path";
 import {
 	discoverInstalledExtensions,
 	formatExtensionId,
@@ -6,6 +8,81 @@ import {
 	type SourceType,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
+
+const GITHUB_REPOSITORY_PATTERN = /^[^/\s:]+\/[^/\s:]+(?:\/[^/\s:]+)*(?:@[^/\s:]+)?$/;
+
+function splitSourceRef(source: string): { base: string; hasRef: boolean } {
+	const atIndex = source.lastIndexOf("@");
+	if (atIndex <= 0) {
+		return { base: source, hasRef: false };
+	}
+	return {
+		base: source.substring(0, atIndex),
+		hasRef: true,
+	};
+}
+
+function isLocalSourcePath(source: string): boolean {
+	return (
+		source.startsWith("file://") ||
+		source.startsWith("/") ||
+		source.startsWith("./") ||
+		source.startsWith("../") ||
+		source.startsWith("~/") ||
+		source.startsWith("\\\\") ||
+		source.startsWith(".") ||
+		/^[A-Za-z]:[/\\]/.test(source) ||
+		source.includes("\\")
+	);
+}
+
+function isLegacyGitHubSource(source: string): boolean {
+	return GITHUB_REPOSITORY_PATTERN.test(source) && !source.startsWith(".");
+}
+
+function inferLegacySourceType(source: string): SourceType | undefined {
+	if (/^https?:\/\//.test(source)) {
+		return "url";
+	}
+	if (isLocalSourcePath(source)) {
+		return "local";
+	}
+	if (isLegacyGitHubSource(splitSourceRef(source).base)) {
+		return "registry";
+	}
+	return undefined;
+}
+
+export function getSourceBase(source: string, sourceType?: SourceType): string {
+	if (sourceType === "github" || sourceType === "registry") {
+		return splitSourceRef(source).base;
+	}
+	return source;
+}
+
+export function hasPinnedSourceRef(ext: InstalledExtension): boolean {
+	if (!ext.manifest.source) {
+		return false;
+	}
+	const sourceType = getEffectiveSourceType(ext);
+	if (sourceType !== "github" && sourceType !== "registry") {
+		return false;
+	}
+	return splitSourceRef(ext.manifest.source).hasRef;
+}
+
+export function resolveLocalSourcePath(sourcePath: string, workspaceFolder: string): string {
+	let candidate = sourcePath;
+	if (candidate === "~") {
+		candidate = os.homedir();
+	} else if (candidate.startsWith("~/") || candidate.startsWith("~\\")) {
+		candidate = path.join(os.homedir(), candidate.slice(2));
+	}
+	if (path.isAbsolute(candidate) || /^[A-Za-z]:[/\\]/.test(candidate) || candidate.startsWith("\\\\")) {
+		return candidate;
+	}
+	return path.resolve(workspaceFolder, candidate);
+}
 
 /**
  * Finds Quarto extensions in a directory using the core library.
@@ -70,17 +147,13 @@ export async function getInstalledExtensionsRecord(
  * @returns The repository identifier (e.g., "owner/repo") or undefined if not available.
  */
 export function getExtensionRepository(ext: InstalledExtension): string | undefined {
-	if (!ext.manifest.source) {
+	const source = ext.manifest.source;
+	if (!source) {
 		return undefined;
 	}
-	const base = ext.manifest.source.replace(/@.*$/, "");
-	const type = ext.manifest.sourceType;
-	if (type) {
-		return type === "github" || type === "registry" ? base : undefined;
-	}
-	// Fallback for legacy manifests without sourceType
-	if (/^[^/\s:]+\/[^/\s]+$/.test(base) && !base.startsWith(".")) {
-		return base;
+	const type = getEffectiveSourceType(ext);
+	if (type === "github" || type === "registry") {
+		return getSourceBase(source, type);
 	}
 	return undefined;
 }
@@ -92,11 +165,12 @@ export function getExtensionRepository(ext: InstalledExtension): string | undefi
  * @returns The source URL/path or undefined if not available.
  */
 export function getExtensionSourceUrl(ext: InstalledExtension): string | undefined {
-	if (!ext.manifest.source) {
+	const source = ext.manifest.source;
+	if (!source) {
 		return undefined;
 	}
-	const base = ext.manifest.source.replace(/@.*$/, "");
-	const type = ext.manifest.sourceType;
+	const type = getEffectiveSourceType(ext);
+	const base = getSourceBase(source, type);
 	if (type === "github" || type === "registry") {
 		return `https://github.com/${base}`;
 	}
@@ -105,13 +179,6 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 	}
 	if (type === "local") {
 		return base;
-	}
-	// Fallback for legacy manifests without sourceType
-	if (/^https?:\/\//.test(base)) {
-		return base;
-	}
-	if (/^[^/\s:]+\/[^/\s]+$/.test(base) && !base.startsWith(".")) {
-		return `https://github.com/${base}`;
 	}
 	return undefined;
 }
@@ -127,20 +194,11 @@ export function getEffectiveSourceType(ext: InstalledExtension): SourceType | un
 	if (ext.manifest.sourceType) {
 		return ext.manifest.sourceType;
 	}
-	if (!ext.manifest.source) {
+	const source = ext.manifest.source;
+	if (!source) {
 		return undefined;
 	}
-	const base = ext.manifest.source.replace(/@.*$/, "");
-	if (/^https?:\/\//.test(base)) {
-		return "url";
-	}
-	if (base.startsWith("/") || base.startsWith("./") || base.startsWith("../") || /^[A-Za-z]:[/\\]/.test(base)) {
-		return "local";
-	}
-	if (/^[^/\s:]+\/[^/\s]+$/.test(base) && !base.startsWith(".")) {
-		return "registry";
-	}
-	return undefined;
+	return inferLegacySourceType(source);
 }
 
 /**

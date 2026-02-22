@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
+import type { SourceType } from "@quarto-wizard/core";
 import { formatType } from "@quarto-wizard/schema";
 import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@quarto-wizard/snippets";
 import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
@@ -7,6 +8,7 @@ import {
 	getExtensionRepository,
 	getExtensionSourceUrl,
 	getEffectiveSourceType,
+	hasPinnedSourceRef,
 	type InstalledExtension,
 } from "../utils/extensions";
 
@@ -44,7 +46,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 	public workspaceFolder: string;
 	public repository?: string;
 	public sourceUrl?: string;
-	public effectiveSourceType?: string;
+	public effectiveSourceType?: SourceType;
 
 	constructor(
 		public readonly label: string,
@@ -62,8 +64,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 
 		// Set context value based on source type for VS Code context menus
 		const sourceType = extension ? getEffectiveSourceType(extension) : undefined;
-		const source = extension?.manifest.source ?? "";
-		const hasPinnedVersion = source !== source.replace(/@.*$/, "");
+		const hasPinnedVersion = extension ? hasPinnedSourceRef(extension) : false;
 
 		let contextValue: string;
 		if (!extension) {
@@ -72,8 +73,10 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			contextValue = "quartoExtensionItemNoSource";
 		} else if (hasPinnedVersion) {
 			contextValue = "quartoExtensionItemPinned";
-		} else {
+		} else if (sourceType === "github" || needsUpdate) {
 			contextValue = "quartoExtensionItem";
+		} else {
+			contextValue = "quartoExtensionItemUpToDate";
 		}
 
 		// Build tooltip with warning if there are issues

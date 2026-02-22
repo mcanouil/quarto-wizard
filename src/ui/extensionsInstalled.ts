@@ -7,6 +7,7 @@ import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension }
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
+import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
@@ -91,7 +92,9 @@ export class ExtensionsInstalled {
 						return;
 					}
 					if (item.effectiveSourceType === "local") {
-						const uri = vscode.Uri.file(item.sourceUrl);
+						const uri = item.sourceUrl.startsWith("file://")
+							? vscode.Uri.parse(item.sourceUrl)
+							: vscode.Uri.file(resolveLocalSourcePath(item.sourceUrl, item.workspaceFolder));
 						const action = await vscode.window.showInformationMessage(
 							"Open extension source folder in a new window?",
 							"Open",
@@ -137,7 +140,7 @@ export class ExtensionsInstalled {
 					);
 					return;
 				}
-				const baseSource = source.replace(/@.*$/, "");
+				const baseSource = getSourceBase(source, item.effectiveSourceType);
 				const auth = await getAuthConfig(context);
 				const result = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
 					return installQuartoExtension(baseSource, item.workspaceFolder, auth, undefined, true, token);
@@ -284,7 +287,7 @@ export class ExtensionsInstalled {
 						if (token.isCancellationRequested) {
 							break;
 						}
-						const source = ext.source ? ext.source.replace(/@.*$/, "") : ext.extensionId;
+						const source = ext.source ? getSourceBase(ext.source, ext.sourceType) : ext.extensionId;
 						const result = await installQuartoExtension(
 							source,
 							ext.workspaceFolder,

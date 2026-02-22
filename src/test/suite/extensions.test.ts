@@ -10,6 +10,7 @@ import {
 	getExtensionSourceUrl,
 	getEffectiveSourceType,
 	getExtensionContributes,
+	resolveLocalSourcePath,
 	formatExtensionId,
 } from "../../utils/extensions";
 
@@ -269,6 +270,19 @@ contributes:\n`;
 			assert.strictEqual(url, "https://example.com/ext.zip");
 		});
 
+		test("Should preserve @ in URL source type", async () => {
+			createTestExtension("quarto-ext", "url-ext3", {
+				source: "https://user@example.com/ext.zip",
+				"source-type": "url",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "https://user@example.com/ext.zip");
+		});
+
 		test("Should return path for local source type", async () => {
 			createTestExtension("quarto-ext", "local-ext2", {
 				source: "./my-extension",
@@ -280,6 +294,19 @@ contributes:\n`;
 
 			const url = getExtensionSourceUrl(ext);
 			assert.strictEqual(url, "./my-extension");
+		});
+
+		test("Should preserve @ in local source type", async () => {
+			createTestExtension("quarto-ext", "local-ext3", {
+				source: "/opt/extensions/alice@work/ext",
+				"source-type": "local",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			const url = getExtensionSourceUrl(ext);
+			assert.strictEqual(url, "/opt/extensions/alice@work/ext");
 		});
 
 		test("Should return GitHub URL for registry source type", async () => {
@@ -383,6 +410,30 @@ contributes:\n`;
 			assert.strictEqual(getEffectiveSourceType(ext), "registry");
 		});
 
+		test("Should infer registry from owner/repo/subdir pattern without explicit sourceType", async () => {
+			createTestExtension("quarto-ext", "infer-gh-subdir", {
+				source: "quarto-ext/repo/dir/subdir@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+		});
+
+		test("Should infer registry from unrelated owner/repo pattern without explicit sourceType", async () => {
+			createTestExtension("quarto-ext", "infer-local-subdir", {
+				source: "subdir/infer-local-subdir@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+		});
+
 		test("Should return undefined for no source", async () => {
 			createTestExtension("quarto-ext", "no-src", {
 				source: undefined,
@@ -393,6 +444,24 @@ contributes:\n`;
 			const ext = extensions[0];
 
 			assert.strictEqual(getEffectiveSourceType(ext), undefined);
+		});
+	});
+
+	suite("resolveLocalSourcePath", () => {
+		test("Should expand tilde paths to home directory", () => {
+			const resolved = resolveLocalSourcePath("~/my-extension", "/workspace/project");
+			assert.strictEqual(resolved, path.join(os.homedir(), "my-extension"));
+		});
+
+		test("Should resolve relative paths from workspace folder", () => {
+			const resolved = resolveLocalSourcePath("./my-extension", "/workspace/project");
+			assert.strictEqual(resolved, path.resolve("/workspace/project", "./my-extension"));
+		});
+
+		test("Should keep absolute paths unchanged", () => {
+			const absolutePath = path.join(path.sep, "opt", "extensions", "my-extension");
+			const resolved = resolveLocalSourcePath(absolutePath, "/workspace/project");
+			assert.strictEqual(resolved, absolutePath);
 		});
 	});
 
