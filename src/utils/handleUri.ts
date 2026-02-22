@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { AuthConfig } from "@quarto-wizard/core";
 import { installQuartoExtension, useQuartoExtension } from "./quarto";
+import { isValidGitHubReference } from "./sourcePrompts";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
@@ -39,7 +40,7 @@ async function handleUriAction(
 	config: UriActionConfig,
 ): Promise<boolean | null | undefined> {
 	const repo = new URLSearchParams(uri.query).get("repo");
-	if (!repo || !/^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(repo)) {
+	if (!repo || !isValidGitHubReference(repo)) {
 		if (repo) {
 			logMessage(`Invalid repo format in URI: ${repo}.`, "warn");
 		}

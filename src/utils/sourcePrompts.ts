@@ -11,6 +11,16 @@ const SOURCE_TYPE_NAMES: Record<string, string> = {
 };
 
 /**
+ * Validates whether a string is a valid GitHub reference (owner/repo or owner/repo@version).
+ *
+ * @param value - The string to validate.
+ * @returns True if the string is a valid GitHub reference, false otherwise.
+ */
+export function isValidGitHubReference(value: string): boolean {
+	return /^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(value);
+}
+
+/**
  * Options for customising the source prompt labels.
  */
 interface SourcePromptOptions {
@@ -41,7 +51,7 @@ export async function promptForGitHubReference(options?: SourcePromptOptions): P
 			if (!value?.trim()) {
 				return "GitHub reference is required.";
 			}
-			if (!value.includes("/")) {
+			if (!isValidGitHubReference(value.trim())) {
 				return "Use format: owner/repo or owner/repo@version";
 			}
 			return null;
