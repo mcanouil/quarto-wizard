@@ -12,7 +12,7 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import type { ExtensionSchema, RawSchema } from "../types/schema.js";
 import { normaliseSchema, SUPPORTED_SCHEMA_VERSIONS } from "../types/schema.js";
-import { SchemaError } from "../errors.js";
+import { SchemaError, getErrorMessage } from "../errors.js";
 
 /** Supported schema file names, ordered by precedence (JSON first). */
 export const SCHEMA_FILENAMES = ["_schema.json", "_schema.yml", "_schema.yaml"] as const;
@@ -67,7 +67,7 @@ export function parseSchemaFile(schemaPath: string): ExtensionSchema {
 		if (error instanceof SchemaError) {
 			throw error;
 		}
-		throw new SchemaError(`Failed to read schema file: ${error instanceof Error ? error.message : String(error)}`, {
+		throw new SchemaError(`Failed to read schema file: ${getErrorMessage(error)}`, {
 			schemaPath,
 			cause: error,
 		});
@@ -111,7 +111,7 @@ export function parseSchemaContent(
 		if (error instanceof SchemaError) {
 			throw error;
 		}
-		throw new SchemaError(`Failed to parse schema: ${error instanceof Error ? error.message : String(error)}`, {
+		throw new SchemaError(`Failed to parse schema: ${getErrorMessage(error)}`, {
 			schemaPath: sourcePath,
 			cause: error,
 		});

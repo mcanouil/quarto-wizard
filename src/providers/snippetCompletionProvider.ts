@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 import type { SnippetCache, SnippetDefinition } from "@quarto-wizard/snippets";
 import { snippetNamespace, qualifySnippetPrefix } from "@quarto-wizard/snippets";
-import { discoverInstalledExtensions } from "@quarto-wizard/core";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage } from "../utils/log";
+import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 
 /**
  * Provides snippet completions from installed Quarto extensions.
@@ -36,7 +37,7 @@ class SnippetCompletionProvider implements vscode.CompletionItemProvider {
 			}
 			return items;
 		} catch (error) {
-			logMessage(`Snippet completion error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`Snippet completion error: ${getErrorMessage(error)}.`, "warn");
 			return null;
 		}
 	}
@@ -51,7 +52,7 @@ class SnippetCompletionProvider implements vscode.CompletionItemProvider {
 
 		for (const folder of workspaceFolders) {
 			try {
-				const extensions = await discoverInstalledExtensions(folder.uri.fsPath);
+				const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
 
 				for (const ext of extensions) {
 					const snippets = this.snippetCache.get(ext.directory);
@@ -72,10 +73,7 @@ class SnippetCompletionProvider implements vscode.CompletionItemProvider {
 					}
 				}
 			} catch (error) {
-				logMessage(
-					`Failed to discover snippets in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
-					"warn",
-				);
+				logMessage(`Failed to discover snippets in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`, "warn");
 			}
 		}
 

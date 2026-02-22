@@ -18,7 +18,80 @@ import {
 } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
-import { promptForGitHubReference, promptForURL, promptForLocalPath, resolveSourcePath } from "../utils/sourcePrompts";
+import {
+	isAbsolutePathForAnyPlatform,
+	promptForGitHubReference,
+	promptForURL,
+	promptForLocalPath,
+	resolveSourcePath,
+} from "../utils/sourcePrompts";
+
+const INTERNET_CHECK_URL = "https://github.com/";
+
+async function ensureInternetConnection(): Promise<boolean> {
+	return checkInternetConnection(INTERNET_CHECK_URL);
+}
+
+async function updateRecentSelections(
+	context: vscode.ExtensionContext,
+	recentKey: string,
+	recentExtensions: string[],
+	selectedItems: readonly ExtensionQuickPickItem[],
+): Promise<void> {
+	const selectedIDs = selectedItems.map((ext) => ext.id).filter(Boolean) as string[];
+	const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
+	await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
+}
+
+async function runRegistryFlow(
+	context: vscode.ExtensionContext,
+	workspaceFolder: string,
+	template: boolean,
+	includeTypeFilter = true,
+): Promise<void> {
+	let extensionsList = await getExtensionsDetails(context);
+	if (template) {
+		extensionsList = extensionsList.filter((ext) => ext.template);
+	}
+
+	let typeFilter: string | null = null;
+	if (includeTypeFilter && !template) {
+		const filterResult = await showTypeFilterQuickPick(extensionsList);
+		if (filterResult.type === "cancelled") {
+			return;
+		}
+		typeFilter = filterResult.value;
+	}
+
+	const recentKey = template ? STORAGE_KEY_RECENTLY_USED : STORAGE_KEY_RECENTLY_INSTALLED;
+	const recentExtensions: string[] = context.globalState.get(recentKey, []);
+	const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
+
+	if (result.type === "cancelled" || result.items.length === 0) {
+		return;
+	}
+
+	await installQuartoExtensions(context, result.items, workspaceFolder, template);
+	await updateRecentSelections(context, recentKey, recentExtensions, result.items);
+}
+
+async function installFromPromptedRemoteSource(
+	context: vscode.ExtensionContext,
+	promptForSource: () => Promise<string | undefined>,
+): Promise<void> {
+	const workspaceFolder = await selectWorkspaceFolder();
+	if (!workspaceFolder) {
+		return;
+	}
+	if (!(await ensureInternetConnection())) {
+		return;
+	}
+	const source = await promptForSource();
+	if (!source) {
+		return;
+	}
+	await installFromSource(context, source, workspaceFolder, false);
+}
 
 /**
  * Installs or uses the selected Quarto extensions.
@@ -60,7 +133,7 @@ async function installQuartoExtensions(
 		},
 		async (progress, token) => {
 			let completed = false;
-			token.onCancellationRequested(() => {
+			const cancelDisposable = token.onCancellationRequested(() => {
 				if (completed) {
 					return;
 				}
@@ -102,27 +175,22 @@ async function installQuartoExtensions(
 					// Use template: install extension and copy template files
 					const selectFiles = createFileSelectionCallback();
 					const selectTargetSubdir = createTargetSubdirCallback();
-					const useResult = await useQuartoExtension(
-						extensionSource,
-						workspaceFolder,
+					const useResult = await useQuartoExtension(extensionSource, workspaceFolder, {
 						selectFiles,
 						selectTargetSubdir,
 						auth,
-						undefined, // sourceDisplay
-						token, // cancellationToken
-					);
+						cancellationToken: token,
+						sourceType: "registry",
+					});
 					// useQuartoExtension returns UseResult | null
 					result = useResult !== null ? true : null;
 				} else {
 					// Regular install: just install the extension
-					result = await installQuartoExtension(
-						extensionSource,
-						workspaceFolder,
+					result = await installQuartoExtension(extensionSource, workspaceFolder, {
 						auth,
-						undefined, // sourceDisplay
-						undefined, // skipOverwritePrompt
-						token, // cancellationToken
-					);
+						cancellationToken: token,
+						sourceType: "registry",
+					});
 				}
 
 				// If user cancelled (e.g., extension selection dialog), stop processing
@@ -180,6 +248,7 @@ async function installQuartoExtensions(
 			}
 			// If installedCount === 0 and failedExtensions.length === 0, the operation was cancelled - no message needed
 			completed = true;
+			cancelDisposable.dispose();
 		},
 	);
 }
@@ -197,53 +266,21 @@ export async function installQuartoExtensionFolderCommand(
 	workspaceFolder: string,
 	template = false,
 ) {
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
-		return;
-	}
-
 	// Step 1: Show source picker
 	const sourceResult = await showSourcePicker();
 	if (sourceResult.type === "cancelled") {
 		return;
 	}
 
+	// Network sources require an internet connection; local installs do not.
+	if (sourceResult.type !== "local" && !(await ensureInternetConnection())) {
+		return;
+	}
+
 	// Step 2: Handle based on source type
 	switch (sourceResult.type) {
 		case "registry": {
-			// Registry flow
-			let extensionsList = await getExtensionsDetails(context);
-			if (template) {
-				extensionsList = extensionsList.filter((ext) => ext.template);
-			}
-
-			// Show type filter picker (skip for template mode as it's already filtered)
-			let typeFilter: string | null = null;
-			if (!template) {
-				const filterResult = await showTypeFilterQuickPick(extensionsList);
-				if (filterResult.type === "cancelled") {
-					return;
-				}
-				typeFilter = filterResult.value;
-			}
-
-			const recentKey = template ? STORAGE_KEY_RECENTLY_USED : STORAGE_KEY_RECENTLY_INSTALLED;
-			const recentExtensions: string[] = context.globalState.get(recentKey, []);
-			const result = await showExtensionQuickPick(extensionsList, recentExtensions, template, typeFilter);
-
-			if (result.type === "cancelled") {
-				return;
-			}
-
-			if (result.items.length > 0) {
-				await installQuartoExtensions(context, result.items, workspaceFolder, template);
-				const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-				const updatedRecentExtensions = [
-					...selectedIDs,
-					...recentExtensions.filter((ext) => !selectedIDs.includes(ext)),
-				];
-				await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
-			}
+			await runRegistryFlow(context, workspaceFolder, template, true);
 			break;
 		}
 
@@ -308,7 +345,11 @@ async function installFromSource(
 			cancellable: true,
 		},
 		async (_progress, token) => {
-			token.onCancellationRequested(() => {
+			let completed = false;
+			const cancelDisposable = token.onCancellationRequested(() => {
+				if (completed) {
+					return;
+				}
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
 				showMessageWithLogs(message, "info");
@@ -316,6 +357,7 @@ async function installFromSource(
 
 			// Check if already cancelled before starting
 			if (token.isCancellationRequested) {
+				cancelDisposable.dispose();
 				return;
 			}
 
@@ -324,27 +366,22 @@ async function installFromSource(
 			if (template) {
 				const selectFiles = createFileSelectionCallback();
 				const selectTargetSubdir = createTargetSubdirCallback();
-				const useResult = await useQuartoExtension(
-					resolved,
-					workspaceFolder,
+				const useResult = await useQuartoExtension(resolved, workspaceFolder, {
 					selectFiles,
 					selectTargetSubdir,
 					auth,
-					display,
-					token, // Pass cancellation token
-				);
+					sourceDisplay: display,
+					cancellationToken: token,
+				});
 				// useQuartoExtension returns UseResult | null
 				// null means either failure or cancellation, but we treat both as non-success
 				result = useResult !== null ? true : null;
 			} else {
-				result = await installQuartoExtension(
-					resolved,
-					workspaceFolder,
+				result = await installQuartoExtension(resolved, workspaceFolder, {
 					auth,
-					display,
-					undefined, // skipOverwritePrompt
-					token, // Pass cancellation token
-				);
+					sourceDisplay: display,
+					cancellationToken: token,
+				});
 			}
 
 			if (result === true) {
@@ -359,6 +396,8 @@ async function installFromSource(
 				showMessageWithLogs(message, "error");
 			}
 			// result === null means cancelled by user, no message needed
+			completed = true;
+			cancelDisposable.dispose();
 		},
 	);
 }
@@ -404,26 +443,11 @@ export async function installExtensionFromRegistryCommand(context: vscode.Extens
 		return;
 	}
 
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
+	if (!(await ensureInternetConnection())) {
 		return;
 	}
 
-	const extensionsList = await getExtensionsDetails(context);
-	const recentKey = STORAGE_KEY_RECENTLY_INSTALLED;
-	const recentExtensions: string[] = context.globalState.get(recentKey, []);
-	const result = await showExtensionQuickPick(extensionsList, recentExtensions, false, null);
-
-	if (result.type === "cancelled") {
-		return;
-	}
-
-	if (result.items.length > 0) {
-		await installQuartoExtensions(context, result.items, workspaceFolder, false);
-		const selectedIDs = result.items.map((ext) => ext.id).filter(Boolean) as string[];
-		const updatedRecentExtensions = [...selectedIDs, ...recentExtensions.filter((ext) => !selectedIDs.includes(ext))];
-		await context.globalState.update(recentKey, updatedRecentExtensions.slice(0, 5));
-	}
+	await runRegistryFlow(context, workspaceFolder, false, false);
 }
 
 /**
@@ -433,22 +457,7 @@ export async function installExtensionFromRegistryCommand(context: vscode.Extens
  * @param context - The extension context.
  */
 export async function installExtensionFromURLCommand(context: vscode.ExtensionContext) {
-	const workspaceFolder = await selectWorkspaceFolder();
-	if (!workspaceFolder) {
-		return;
-	}
-
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
-		return;
-	}
-
-	const url = await promptForURL();
-	if (!url) {
-		return;
-	}
-
-	await installFromSource(context, url, workspaceFolder, false);
+	await installFromPromptedRemoteSource(context, promptForURL);
 }
 
 /**
@@ -458,22 +467,7 @@ export async function installExtensionFromURLCommand(context: vscode.ExtensionCo
  * @param context - The extension context.
  */
 export async function installExtensionFromGitHubCommand(context: vscode.ExtensionContext) {
-	const workspaceFolder = await selectWorkspaceFolder();
-	if (!workspaceFolder) {
-		return;
-	}
-
-	const isConnected = await checkInternetConnection("https://github.com/");
-	if (!isConnected) {
-		return;
-	}
-
-	const ref = await promptForGitHubReference();
-	if (!ref) {
-		return;
-	}
-
-	await installFromSource(context, ref, workspaceFolder, false);
+	await installFromPromptedRemoteSource(context, promptForGitHubReference);
 }
 
 /**
@@ -516,7 +510,7 @@ export async function installExtensionFromLocalCommand(context: vscode.Extension
 	}
 
 	const workspaceFolderUri = vscode.Uri.file(workspaceFolder);
-	const absoluteUri = localPath.startsWith("/")
+	const absoluteUri = isAbsolutePathForAnyPlatform(localPath)
 		? vscode.Uri.file(localPath)
 		: vscode.Uri.joinPath(workspaceFolderUri, localPath);
 	const absolutePath = absoluteUri.fsPath;

@@ -204,7 +204,11 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
 export async function findAllExtensionRoots(extractDir: string): Promise<DiscoveredExtension[]> {
 	const results: DiscoveredExtension[] = [];
 
-	async function searchDirectory(dir: string): Promise<void> {
+	async function searchDirectory(dir: string, depth = 0): Promise<void> {
+		if (depth > MAX_FIND_DEPTH) {
+			return;
+		}
+
 		// Check for manifest in current directory
 		for (const name of MANIFEST_FILENAMES) {
 			const manifestPath = path.join(dir, name);
@@ -222,7 +226,7 @@ export async function findAllExtensionRoots(extractDir: string): Promise<Discove
 		const entries = await fs.promises.readdir(dir, { withFileTypes: true });
 		for (const entry of entries) {
 			if (entry.isDirectory()) {
-				await searchDirectory(path.join(dir, entry.name));
+				await searchDirectory(path.join(dir, entry.name), depth + 1);
 			}
 		}
 	}

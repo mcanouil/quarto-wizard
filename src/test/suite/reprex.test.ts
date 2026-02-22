@@ -2,6 +2,7 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { newQuartoReprex } from "../../utils/reprex";
 
 suite("Reprex Utils Test Suite", () => {
@@ -54,7 +55,7 @@ suite("Reprex Utils Test Suite", () => {
 			try {
 				assert.ok(fs.existsSync(expectedPath), `R template should exist at ${expectedPath}`);
 			} catch (error: unknown) {
-				assert.fail(`Template file should exist: ${error instanceof Error ? error.message : String(error)}`);
+				assert.fail(`Template file should exist: ${getErrorMessage(error)}`);
 			}
 		});
 
@@ -70,7 +71,7 @@ suite("Reprex Utils Test Suite", () => {
 			try {
 				assert.ok(fs.existsSync(expectedPath), `Python template should exist at ${expectedPath}`);
 			} catch (error: unknown) {
-				assert.fail(`Template file should exist: ${error instanceof Error ? error.message : String(error)}`);
+				assert.fail(`Template file should exist: ${getErrorMessage(error)}`);
 			}
 		});
 
@@ -86,7 +87,7 @@ suite("Reprex Utils Test Suite", () => {
 			try {
 				assert.ok(fs.existsSync(expectedPath), `Julia template should exist at ${expectedPath}`);
 			} catch (error: unknown) {
-				assert.fail(`Template file should exist: ${error instanceof Error ? error.message : String(error)}`);
+				assert.fail(`Template file should exist: ${getErrorMessage(error)}`);
 			}
 		});
 	});
@@ -109,11 +110,7 @@ suite("Reprex Utils Test Suite", () => {
 					// If we reach here, the function handled the unsupported language gracefully
 					assert.ok(true, `Function should handle unsupported language '${lang}' gracefully`);
 				} catch (error: unknown) {
-					assert.fail(
-						`Function should not throw for unsupported language '${lang}': ${
-							error instanceof Error ? error.message : String(error)
-						}`,
-					);
+					assert.fail(`Function should not throw for unsupported language '${lang}': ${getErrorMessage(error)}`);
 				}
 			}
 		});
@@ -131,11 +128,7 @@ suite("Reprex Utils Test Suite", () => {
 					await newQuartoReprex(lang, extensionContext);
 					assert.ok(true, `Function should handle invalid language '${lang}' gracefully`);
 				} catch (error: unknown) {
-					assert.fail(
-						`Function should not throw for invalid language '${lang}': ${
-							error instanceof Error ? error.message : String(error)
-						}`,
-					);
+					assert.fail(`Function should not throw for invalid language '${lang}': ${getErrorMessage(error)}`);
 				}
 			}
 		});
@@ -159,7 +152,7 @@ suite("Reprex Utils Test Suite", () => {
 					assert.ok(true, `Exact case '${lang}' should be processed without throwing`);
 				} catch (error: unknown) {
 					// Only fail if it's not a file system error (which is expected in tests)
-					const errorMessage = error instanceof Error ? error.message : String(error);
+					const errorMessage = getErrorMessage(error);
 					if (!errorMessage.includes("ENOENT") && !errorMessage.includes("Failed to read")) {
 						assert.fail(`Exact case '${lang}' should not throw non-file errors: ${errorMessage}`);
 					}
@@ -172,11 +165,7 @@ suite("Reprex Utils Test Suite", () => {
 					await newQuartoReprex(lang, extensionContext);
 					assert.ok(true, `Incorrect case '${lang}' should be handled gracefully`);
 				} catch (error: unknown) {
-					assert.fail(
-						`Function should not throw for incorrect case '${lang}': ${
-							error instanceof Error ? error.message : String(error)
-						}`,
-					);
+					assert.fail(`Function should not throw for incorrect case '${lang}': ${getErrorMessage(error)}`);
 				}
 			}
 		});

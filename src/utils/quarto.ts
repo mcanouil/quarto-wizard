@@ -16,10 +16,12 @@ import {
 	type FileSelectionCallback,
 	type SelectTargetSubdirCallback,
 	type AuthConfig,
+	type SourceType,
 	type DiscoveredExtension,
 	type ExtensionManifest,
 	type RemoveResult,
 	type ExtensionId,
+	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 import { handleAuthError } from "./auth";
@@ -27,6 +29,40 @@ import { formatExtensionId } from "./extensions";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
 import { showExtensionSelectionQuickPick } from "../ui/extensionSelectionQuickPick";
+
+type ParsedInstallSource = ReturnType<typeof parseInstallSource>;
+
+/**
+ * Optional parameters for {@link installQuartoExtension}.
+ */
+export interface InstallOptions {
+	auth?: AuthConfig;
+	sourceDisplay?: string;
+	skipOverwritePrompt?: boolean;
+	cancellationToken?: vscode.CancellationToken;
+	sourceType?: SourceType;
+}
+
+/**
+ * Optional parameters for {@link useQuartoExtension}.
+ */
+export interface UseOptions {
+	selectFiles?: FileSelectionCallback;
+	selectTargetSubdir?: SelectTargetSubdirCallback;
+	auth?: AuthConfig;
+	sourceDisplay?: string;
+	cancellationToken?: vscode.CancellationToken;
+	sourceType?: SourceType;
+}
+
+/**
+ * Optional parameters for {@link useQuartoBrand}.
+ */
+export interface BrandOptions {
+	auth?: AuthConfig;
+	sourceDisplay?: string;
+	cancellationToken?: vscode.CancellationToken;
+}
 
 /**
  * Wraps an async callback with a cancellation check that runs before the callback is invoked.
@@ -88,9 +124,37 @@ async function retryWithFreshAuth<T>(
 		const freshAuth = await getFreshAuth();
 		return await retryFn(freshAuth);
 	} catch (retryError) {
-		const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
-		logMessage(`${prefix} Retry failed: ${retryMessage}.`, "error");
+		logMessage(`${prefix} Retry failed: ${getErrorMessage(retryError)}.`, "error");
 		return fallbackValue;
+	}
+}
+
+/**
+ * Parses source, runs the operation, and retries with fresh auth on failure.
+ */
+async function runWithParsedSourceAndAuthRetry<T>(
+	sourceInput: string,
+	initialAuth: AuthConfig | undefined,
+	prefix: string,
+	cancellationToken: vscode.CancellationToken | undefined,
+	run: (source: ParsedInstallSource, authConfig?: AuthConfig) => Promise<T>,
+	fallbackValue: T,
+): Promise<T> {
+	try {
+		const source = parseInstallSource(sourceInput);
+		return await run(source, initialAuth);
+	} catch (error) {
+		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
+		return retryWithFreshAuth(
+			prefix,
+			error,
+			cancellationToken,
+			async (freshAuth) => {
+				const source = parseInstallSource(sourceInput);
+				return run(source, freshAuth);
+			},
+			fallbackValue,
+		);
 	}
 }
 
@@ -163,20 +227,15 @@ function createValidateQuartoVersionCallback(
  *
  * @param extension - The name of the extension to install (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
- * @param auth - Optional authentication configuration for private repositories.
- * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
- * @param skipOverwritePrompt - If true, skip the overwrite confirmation prompt (used by update commands).
- * @param cancellationToken - Optional cancellation token to check before showing dialogs.
+ * @param options - Optional installation parameters.
  * @returns A promise that resolves to true if successful, false if failed, or null if cancelled by user.
  */
 export async function installQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
-	auth?: AuthConfig,
-	sourceDisplay?: string,
-	skipOverwritePrompt?: boolean,
-	cancellationToken?: vscode.CancellationToken,
+	options: InstallOptions = {},
 ): Promise<boolean | null> {
+	const { auth, sourceDisplay, skipOverwritePrompt, cancellationToken, sourceType } = options;
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
@@ -187,15 +246,13 @@ export async function installQuartoExtension(
 
 	const selectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
 
-	const doInstall = async (
-		source: ReturnType<typeof parseInstallSource>,
-		authConfig?: AuthConfig,
-	): Promise<boolean | null> => {
+	const doInstall = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<boolean | null> => {
 		const result = await install(source, {
 			projectDir: workspaceFolder,
 			force: true,
 			auth: authConfig,
 			sourceDisplay,
+			sourceType,
 			selectExtension,
 			confirmOverwrite: createConfirmOverwriteCallback(prefix, skipOverwritePrompt ?? false),
 			validateQuartoVersion: createValidateQuartoVersionCallback(prefix),
@@ -210,7 +267,15 @@ export async function installQuartoExtension(
 		}
 
 		if (result.success) {
-			logMessage(`${prefix} Successfully installed.`, "info");
+			if (result.additionalInstallFailures && result.additionalInstallFailures.length > 0) {
+				const failed = result.additionalInstallFailures.map((f) => formatExtensionId(f.extensionId)).join(", ");
+				logMessage(
+					`${prefix} Installed, but failed to install ${result.additionalInstallFailures.length} additional extension(s): ${failed}.`,
+					"warn",
+				);
+			} else {
+				logMessage(`${prefix} Successfully installed.`, "info");
+			}
 			void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
 		} else {
@@ -219,23 +284,7 @@ export async function installQuartoExtension(
 		}
 	};
 
-	try {
-		const source = parseInstallSource(extension);
-		return await doInstall(source, auth);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}.`, "error");
-		return retryWithFreshAuth(
-			prefix,
-			error,
-			cancellationToken,
-			async (freshAuth) => {
-				const source = parseInstallSource(extension);
-				return doInstall(source, freshAuth);
-			},
-			false,
-		);
-	}
+	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false);
 }
 
 /**
@@ -271,8 +320,7 @@ export async function removeQuartoExtension(extension: string, workspaceFolder: 
 			return false;
 		}
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}.`, "error");
+		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
 		return false;
 	}
 }
@@ -330,8 +378,7 @@ export async function removeQuartoExtensions(
 
 		return { successCount, failedExtensions };
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}.`, "error");
+		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
 		return { successCount: 0, failedExtensions: extensions };
 	}
 }
@@ -379,22 +426,15 @@ async function showExtensionOverwriteConfirmation(
  *
  * @param extension - The name of the extension to use (e.g., "owner/repo" or "owner/repo@version").
  * @param workspaceFolder - The workspace folder path.
- * @param selectFiles - Callback for interactive file selection.
- * @param selectTargetSubdir - Callback for interactive target subdirectory selection.
- * @param auth - Optional authentication configuration for private repositories.
- * @param sourceDisplay - Optional display source to record in manifest (for relative paths that were resolved).
- * @param cancellationToken - Optional cancellation token to check before showing dialogs.
+ * @param options - Optional use parameters.
  * @returns A promise that resolves to the use result, or null on failure.
  */
 export async function useQuartoExtension(
 	extension: string,
 	workspaceFolder: string,
-	selectFiles?: FileSelectionCallback,
-	selectTargetSubdir?: SelectTargetSubdirCallback,
-	auth?: AuthConfig,
-	sourceDisplay?: string,
-	cancellationToken?: vscode.CancellationToken,
+	options: UseOptions = {},
 ): Promise<UseResult | null> {
+	const { selectFiles, selectTargetSubdir, auth, sourceDisplay, cancellationToken, sourceType } = options;
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Using template ...`, "info");
 
@@ -409,10 +449,7 @@ export async function useQuartoExtension(
 		: undefined;
 	const wrappedSelectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
 
-	const doUse = async (
-		source: ReturnType<typeof parseInstallSource>,
-		authConfig?: AuthConfig,
-	): Promise<UseResult | null> => {
+	const doUse = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<UseResult | null> => {
 		const result = await use(source, {
 			projectDir: workspaceFolder,
 			selectFiles: wrappedSelectFiles,
@@ -422,6 +459,7 @@ export async function useQuartoExtension(
 			confirmExtensionOverwrite: showExtensionOverwriteConfirmation,
 			auth: authConfig,
 			sourceDisplay,
+			sourceType,
 			onProgress: (progress) => {
 				if (progress.file) {
 					logMessage(`${prefix} [${progress.phase}] ${progress.message} (${progress.file})`, "debug");
@@ -457,23 +495,7 @@ export async function useQuartoExtension(
 		}
 	};
 
-	try {
-		const source = parseInstallSource(extension);
-		return await doUse(source, auth);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}.`, "error");
-		return retryWithFreshAuth(
-			prefix,
-			error,
-			cancellationToken,
-			async (freshAuth) => {
-				const source = parseInstallSource(extension);
-				return doUse(source, freshAuth);
-			},
-			null,
-		);
-	}
+	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doUse, null);
 }
 
 /**
@@ -481,18 +503,15 @@ export async function useQuartoExtension(
  *
  * @param source - Brand source (e.g., "owner/repo" or local path).
  * @param workspaceFolder - The workspace folder path.
- * @param auth - Optional authentication configuration.
- * @param sourceDisplay - Optional display source for logging.
- * @param cancellationToken - Optional cancellation token.
+ * @param options - Optional parameters.
  * @returns Brand result, or null on failure.
  */
 export async function useQuartoBrand(
 	source: string,
 	workspaceFolder: string,
-	auth?: AuthConfig,
-	sourceDisplay?: string,
-	cancellationToken?: vscode.CancellationToken,
+	options: BrandOptions = {},
 ): Promise<UseBrandResult | null> {
+	const { auth, sourceDisplay, cancellationToken } = options;
 	const prefix = `[${sourceDisplay ?? source}]`;
 	logMessage(`${prefix} Applying brand ...`, "info");
 
@@ -587,8 +606,7 @@ export async function useQuartoBrand(
 			logMessage(`${prefix} ${error.message}`, "info");
 			return null;
 		}
-		const message = error instanceof Error ? error.message : String(error);
-		logMessage(`${prefix} Error: ${message}.`, "error");
+		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
 		return retryWithFreshAuth(prefix, error, cancellationToken, (freshAuth) => doBrand(freshAuth), null);
 	}
 }

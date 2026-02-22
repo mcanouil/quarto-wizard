@@ -28,6 +28,8 @@ interface CachedRegistry {
 	registry: Registry;
 	/** URL the registry was fetched from. */
 	url: string;
+	/** Number of entries at time of write, used for integrity checking. */
+	entryCount?: number;
 }
 
 /**
@@ -94,6 +96,10 @@ export async function readCachedRegistry(
 			return null;
 		}
 
+		if (!isValidCachedRegistry(cached)) {
+			return null;
+		}
+
 		return cached.registry;
 	} catch {
 		// Cache read/parse failed (corrupted JSON, partial write, permission issue).
@@ -121,6 +127,7 @@ export async function writeCachedRegistry(cacheDir: string, url: string, registr
 			timestamp: Date.now(),
 			url,
 			registry,
+			entryCount: Object.keys(registry).length,
 		};
 
 		await fs.promises.writeFile(cacheFile, JSON.stringify(cached), "utf-8");
@@ -148,6 +155,41 @@ export async function clearRegistryCache(cacheDir?: string): Promise<void> {
 		// it doesn't affect functionality. The next cache write will overwrite it
 		// or the user can manually delete it if needed.
 	}
+}
+
+/**
+ * Validate cached registry data integrity.
+ *
+ * Checks that:
+ * - The registry is a non-empty object.
+ * - Entry count matches the stored count (when available).
+ * - At least one entry has expected fields.
+ *
+ * @param cached - Cached registry data
+ * @returns True if the cache appears valid
+ */
+function isValidCachedRegistry(cached: CachedRegistry): boolean {
+	const { registry, entryCount } = cached;
+
+	if (!registry || typeof registry !== "object" || Array.isArray(registry)) {
+		return false;
+	}
+
+	const keys = Object.keys(registry);
+	if (keys.length === 0) {
+		return false;
+	}
+
+	if (entryCount !== undefined && keys.length !== entryCount) {
+		return false;
+	}
+
+	const sample = registry[keys[0]];
+	if (!sample || typeof sample.fullName !== "string") {
+		return false;
+	}
+
+	return true;
 }
 
 /**

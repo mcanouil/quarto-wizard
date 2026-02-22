@@ -6,6 +6,99 @@
  */
 
 /**
+ * A half-open text range: [start, end).
+ */
+export interface TextRange {
+	/** Inclusive start offset. */
+	start: number;
+	/** Exclusive end offset. */
+	end: number;
+}
+
+/**
+ * Find all fenced code block body regions in the document text.
+ *
+ * Recognises both backtick (`` ``` ``) and tilde (`~~~`) fences, with
+ * any info string (including executable cells like `{r}`, `{python}`).
+ *
+ * Each range starts _after_ the opening fence line (so the fence header
+ * with its `{r}` or `{python}` attributes remains outside the range and
+ * is still eligible for attribute completion/hover) and extends through
+ * the end of the closing fence line (or end of text for unclosed blocks).
+ *
+ * @param text - The full document text.
+ * @returns An array of ranges sorted by start offset.
+ */
+export function getCodeBlockRanges(text: string): TextRange[] {
+	const ranges: TextRange[] = [];
+	const lines = text.split("\n");
+	let offset = 0;
+	let inBlock = false;
+	let blockStart = 0;
+	let closingFenceRe: RegExp | undefined;
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const lineStart = offset;
+		const lineEnd = lineStart + line.length;
+		// Advance offset past the newline for the next iteration.
+		offset = lineEnd + (i < lines.length - 1 ? 1 : 0);
+
+		if (inBlock) {
+			// Check for closing fence: same character, at least as many repetitions,
+			// optionally followed by whitespace, at the start of the line.
+			if (closingFenceRe?.test(line)) {
+				ranges.push({ start: blockStart, end: lineEnd });
+				inBlock = false;
+			}
+			continue;
+		}
+
+		// Check for opening fence at the start of the line.
+		const openMatch = /^(`{3,}|~{3,})(.*)$/.exec(line);
+		if (openMatch) {
+			// The info string must not contain backticks when using backtick fences.
+			if (openMatch[1][0] === "`" && openMatch[2].includes("`")) {
+				continue;
+			}
+			inBlock = true;
+			// Start the range after the opening fence line so that
+			// attributes in the header (e.g. {r}, {python}) stay outside.
+			blockStart = offset;
+			// Compile the closing fence regex once per block.
+			// fenceChar is always ` or ~, neither is a regex metacharacter.
+			closingFenceRe = new RegExp(`^${openMatch[1][0]}{${openMatch[1].length},}\\s*$`);
+		}
+	}
+
+	// Unclosed block extends to end of text.
+	if (inBlock) {
+		ranges.push({ start: blockStart, end: text.length });
+	}
+
+	return ranges;
+}
+
+/**
+ * Check whether an offset falls inside any of the given code block ranges.
+ *
+ * @param ranges - Sorted array of code block ranges.
+ * @param offset - The offset to test.
+ * @returns True if the offset is inside a code block.
+ */
+export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean {
+	for (const range of ranges) {
+		if (offset >= range.start && offset < range.end) {
+			return true;
+		}
+		if (range.start > offset) {
+			break;
+		}
+	}
+	return false;
+}
+
+/**
  * Compute the indentation level (number of leading spaces) of a line.
  *
  * @param line - The text of the line.

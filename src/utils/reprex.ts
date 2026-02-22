@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "./log";
 
 /**
@@ -35,7 +36,7 @@ export async function newQuartoReprex(language: string, context: vscode.Extensio
 		const document = await vscode.workspace.openTextDocument({ content: data, language: "quarto" });
 		await vscode.window.showTextDocument(document);
 	} catch (error) {
-		const message = `Failed to read the template file: ${error instanceof Error ? error.message : String(error)}.`;
+		const message = `Failed to read the template file: ${getErrorMessage(error)}.`;
 		logMessage(message, "error");
 		showMessageWithLogs(message, "error");
 	}

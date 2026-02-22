@@ -12,6 +12,7 @@ import * as path from "node:path";
 import { glob } from "glob";
 import { minimatch } from "minimatch";
 import type { AuthConfig } from "../types/auth.js";
+import type { SourceType } from "../types/manifest.js";
 import { ExtensionError } from "../errors.js";
 import { pathExists } from "../filesystem/walk.js";
 import {
@@ -232,6 +233,11 @@ export interface UseOptions {
 	 * Returns subdirectory path, or null/empty string for project root.
 	 */
 	selectTargetSubdir?: SelectTargetSubdirCallback;
+	/**
+	 * Override the source type written to the manifest.
+	 * Use "registry" when installing via the extension registry.
+	 */
+	sourceType?: SourceType;
 }
 
 /**
@@ -303,6 +309,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			keepSourceDir: true,
 			dryRun: true,
 			sourceDisplay: effectiveSourceDisplay,
+			sourceType: options.sourceType,
 			// Do NOT pass selectExtension here - we'll handle it after file selection
 			onProgress: (p) => {
 				onProgress?.({ phase: p.phase, message: p.message });
@@ -467,7 +474,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 					true, // force
 					(p) => onProgress?.({ phase: p.phase, message: p.message }),
 					undefined,
-					source.type,
+					options.sourceType ?? source.type,
 				);
 
 				if (!primaryInstallResult) {

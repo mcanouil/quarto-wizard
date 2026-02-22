@@ -1,5 +1,12 @@
 import * as assert from "assert";
-import { getYamlKeyPath, isInYamlRegion, getYamlIndentLevel, getExistingKeysAtPath } from "../../utils/yamlPosition";
+import {
+	getYamlKeyPath,
+	isInYamlRegion,
+	getYamlIndentLevel,
+	getExistingKeysAtPath,
+	getCodeBlockRanges,
+	isInCodeBlockRange,
+} from "../../utils/yamlPosition";
 
 suite("YAML Position Utils Test Suite", () => {
 	suite("getYamlIndentLevel", () => {
@@ -220,6 +227,207 @@ suite("YAML Position Utils Test Suite", () => {
 			const lines = ["extensions:", "  other:", "    x: 1", "  another:", "    y: 2", "  modal:", "    size: large"];
 			const result = getExistingKeysAtPath(lines, ["extensions", "modal"], "yaml");
 			assert.deepStrictEqual(result, new Set(["size"]));
+		});
+	});
+
+	suite("getCodeBlockRanges", () => {
+		test("should detect a backtick-fenced code block body", () => {
+			const text = "before\n```\ncode\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// Range excludes the opening fence line but includes body and closing fence.
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "code\n```");
+		});
+
+		test("should detect a tilde-fenced code block body", () => {
+			const text = "before\n~~~\ncode\n~~~\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "code\n~~~");
+		});
+
+		test("should exclude opening fence header with info strings", () => {
+			const text = "text\n```{r}\nx <- 1\n```\nmore";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// The {r} header is NOT inside the range.
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "x <- 1\n```");
+		});
+
+		test("should exclude python fence header", () => {
+			const text = "text\n```{python}\nimport os\n```\nmore";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "import os\n```");
+		});
+
+		test("should handle unclosed code blocks extending to end of text", () => {
+			const text = "before\n```\ncode without closing";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// Starts after the opening fence line.
+			assert.strictEqual(ranges[0].start, 11);
+			assert.strictEqual(ranges[0].end, text.length);
+		});
+
+		test("should handle multiple code blocks", () => {
+			const text = "a\n```\nb\n```\nc\n~~~\nd\n~~~\ne";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 2);
+		});
+
+		test("should return empty array for text without code blocks", () => {
+			const text = "no code blocks here\njust text";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 0);
+		});
+
+		test("should cover curly-brace content inside code block body", () => {
+			const text = "text\n```{r}\nfunction(x) {\n  x + 1\n}\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// The body (with curly braces) is inside the range.
+			const block = text.slice(ranges[0].start, ranges[0].end);
+			assert.ok(block.includes("function(x) {"));
+			assert.ok(block.includes("}"));
+			// But the opening fence header is NOT.
+			assert.ok(!block.includes("```{r}"));
+		});
+
+		test("should require closing fence to have at least the same length", () => {
+			const text = "````\ncode\n```\nstill in block\n````\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// ``` is not enough to close ````; only ```` closes it.
+			const block = text.slice(ranges[0].start, ranges[0].end);
+			assert.ok(block.includes("still in block"));
+		});
+
+		test("should handle code block with language info string", () => {
+			const text = "```javascript\nconsole.log('hi');\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// Opening fence header excluded from range.
+			const block = text.slice(ranges[0].start, ranges[0].end);
+			assert.ok(!block.includes("javascript"));
+			assert.ok(block.includes("console.log"));
+		});
+
+		test("should leave fence header outside range so {r} gets completions", () => {
+			const text = "```{r}\nx <- 1\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// Offset of '{' in ```{r} is 3; it should NOT be in any range.
+			assert.strictEqual(isInCodeBlockRange(ranges, 3), false);
+			// Offset of 'x' on the body line should be in the range.
+			assert.strictEqual(isInCodeBlockRange(ranges, text.indexOf("x <")), true);
+		});
+
+		test("should return empty array for empty string", () => {
+			assert.deepStrictEqual(getCodeBlockRanges(""), []);
+		});
+
+		test("should handle document that is entirely a code block", () => {
+			const text = "```\ncode\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "code\n```");
+		});
+
+		test("should handle consecutive code blocks with no gap", () => {
+			const text = "```\na\n```\n```\nb\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 2);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "a\n```");
+			assert.strictEqual(text.slice(ranges[1].start, ranges[1].end), "b\n```");
+		});
+
+		test("should handle tilde fence with info string", () => {
+			const text = "~~~python\nprint('hi')\n~~~";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "print('hi')\n~~~");
+		});
+
+		test("should handle empty code block (no body lines)", () => {
+			const text = "```\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "```");
+		});
+
+		test("should not treat backtick fence with backticks in info string as a fence", () => {
+			// Per CommonMark, backtick fences whose info string contains backticks
+			// are not valid opening fences. Here neither line is a valid opening fence.
+			const text = "```foo`bar\ncontent\n```baz`qux";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 0);
+		});
+	});
+
+	suite("isInCodeBlockRange", () => {
+		test("should return true for offset inside the code block body", () => {
+			const text = "before\n```\ncode\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			// "code" starts at offset 11.
+			assert.strictEqual(isInCodeBlockRange(ranges, 11), true);
+		});
+
+		test("should return false for offset on the opening fence line", () => {
+			const text = "before\n```\ncode\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			// Offset 7 is the first backtick of the opening fence.
+			assert.strictEqual(isInCodeBlockRange(ranges, 7), false);
+		});
+
+		test("should return true for offset on the closing fence line", () => {
+			const text = "before\n```\ncode\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			// Offset 16 is the first backtick of the closing fence.
+			assert.strictEqual(isInCodeBlockRange(ranges, 16), true);
+		});
+
+		test("should return false for offset at code block end (exclusive)", () => {
+			const text = "before\n```\ncode\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			// The block end is exclusive.
+			assert.strictEqual(isInCodeBlockRange(ranges, ranges[0].end), false);
+		});
+
+		test("should return false for offset before code block", () => {
+			const text = "before\n```\ncode\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(isInCodeBlockRange(ranges, 0), false);
+		});
+
+		test("should return false for offset after code block", () => {
+			const text = "before\n```\ncode\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(isInCodeBlockRange(ranges, text.length - 1), false);
+		});
+
+		test("should return false with empty ranges", () => {
+			assert.strictEqual(isInCodeBlockRange([], 5), false);
+		});
+
+		test("should return false for offset between two code block ranges", () => {
+			const text = "```\na\n```\nbetween\n```\nb\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 2);
+			// "between" is at offset 10.
+			assert.strictEqual(isInCodeBlockRange(ranges, 10), false);
+		});
+
+		test("should return true at exact range start", () => {
+			const text = "```\ncode\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(isInCodeBlockRange(ranges, ranges[0].start), true);
+		});
+
+		test("should return true at range end minus one", () => {
+			const text = "```\ncode\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(isInCodeBlockRange(ranges, ranges[0].end - 1), true);
 		});
 	});
 });

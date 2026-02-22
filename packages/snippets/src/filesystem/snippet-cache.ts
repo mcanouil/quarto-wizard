@@ -10,6 +10,7 @@
 
 import type { SnippetCollection } from "../types.js";
 import { readSnippets } from "./snippets.js";
+import { getErrorMessage } from "../errors.js";
 
 /**
  * Cache for parsed extension snippets.
@@ -50,7 +51,7 @@ export class SnippetCache {
 			return result.snippets;
 		} catch (error) {
 			this.missing.delete(extensionDir);
-			this.errors.set(extensionDir, error instanceof Error ? error.message : String(error));
+			this.errors.set(extensionDir, getErrorMessage(error));
 			return null;
 		}
 	}

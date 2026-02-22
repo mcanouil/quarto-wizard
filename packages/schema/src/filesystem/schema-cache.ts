@@ -10,6 +10,7 @@
 
 import type { ExtensionSchema } from "../types/schema.js";
 import { readSchema } from "./schema.js";
+import { getErrorMessage } from "../errors.js";
 
 /**
  * Cache for parsed extension schemas.
@@ -42,7 +43,7 @@ export class SchemaCache {
 			this.cache.set(extensionDir, result.schema);
 			return result.schema;
 		} catch (error) {
-			this.errors.set(extensionDir, error instanceof Error ? error.message : String(error));
+			this.errors.set(extensionDir, getErrorMessage(error));
 			return null;
 		}
 	}

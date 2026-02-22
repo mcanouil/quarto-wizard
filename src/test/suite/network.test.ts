@@ -87,8 +87,10 @@ suite("Network Utils Test Suite", () => {
 		assert.strictEqual(result, false);
 		assert.strictEqual(logMessages.length, 1);
 		assert.ok(logMessages[0].includes("No internet connection"));
+		assert.ok(logMessages[0].includes("HTTP 404"));
 		assert.strictEqual(errorMessages.length, 1);
 		assert.ok(errorMessages[0].includes("No internet connection"));
+		assert.ok(errorMessages[0].includes("HTTP 404"));
 	});
 
 	test("should return false when fetch throws an error", async () => {
@@ -100,8 +102,10 @@ suite("Network Utils Test Suite", () => {
 		const result = await checkInternetConnection();
 
 		assert.strictEqual(result, false);
-		assert.strictEqual(logMessages.length, 1);
-		assert.ok(logMessages[0].includes("No internet connection"));
+		// Detail logged separately from user-facing message
+		assert.strictEqual(logMessages.length, 2);
+		assert.ok(logMessages[0].includes("Network check failed"));
+		assert.ok(logMessages[1].includes("No internet connection"));
 		assert.strictEqual(errorMessages.length, 1);
 		assert.ok(errorMessages[0].includes("No internet connection"));
 	});
@@ -144,7 +148,7 @@ suite("Network Utils Test Suite", () => {
 	});
 
 	test("should handle timeout errors gracefully", async () => {
-		// Mock fetch that simulates timeout
+		// Mock fetch that simulates timeout (non-AbortError)
 		globalThis.fetch = async (): Promise<Response> => {
 			throw new Error("Request timeout");
 		};
@@ -152,8 +156,10 @@ suite("Network Utils Test Suite", () => {
 		const result = await checkInternetConnection();
 
 		assert.strictEqual(result, false);
-		assert.strictEqual(logMessages.length, 1);
-		assert.ok(logMessages[0].includes("No internet connection"));
+		// Detail logged separately from user-facing message
+		assert.strictEqual(logMessages.length, 2);
+		assert.ok(logMessages[0].includes("Network check failed"));
+		assert.ok(logMessages[1].includes("No internet connection"));
 		assert.strictEqual(errorMessages.length, 1);
 	});
 
@@ -179,7 +185,8 @@ suite("Network Utils Test Suite", () => {
 		const result = await checkInternetConnection();
 
 		assert.strictEqual(result, false);
-		assert.strictEqual(logMessages.length, 1);
+		// Detail logged separately from user-facing message
+		assert.strictEqual(logMessages.length, 2);
 	});
 
 	test("should handle different HTTP status codes", async () => {

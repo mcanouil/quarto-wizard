@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionId } from "../types/extension.js";
 import { formatExtensionId } from "../types/extension.js";
-import { ExtensionError } from "../errors.js";
+import { ExtensionError, getErrorMessage } from "../errors.js";
 import { findInstalledExtension, getExtensionsDir, type InstalledExtension } from "../filesystem/discovery.js";
 import { collectFiles } from "../filesystem/walk.js";
 
@@ -107,7 +107,7 @@ export async function removeMultiple(
 		} catch (error) {
 			results.push({
 				extensionId: id,
-				error: error instanceof Error ? error.message : String(error),
+				error: getErrorMessage(error),
 			});
 		}
 	}

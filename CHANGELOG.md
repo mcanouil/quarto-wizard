@@ -22,11 +22,21 @@
 - fix: harden network and security handling for stream backpressure failures and path traversal checks.
 - fix: improve schema provider robustness with better cache sharing, merge consistency, type handling, and completion ranking.
 - fix: store file system watcher event disposables to prevent resource leaks.
+- fix: prevent directory deselection in the template file picker by updating selection state directly instead of rebuilding items.
+- fix: validate GitHub reference format in source prompt input to reject malformed values such as `///` or `a/b/c/d`.
+- fix: add concurrency guard to update check to prevent concurrent calls from corrupting version data.
+- fix: include error details in the "reveal in Explorer" log message for better diagnostics.
+- fix: prevent spurious cancellation message after a completed single-source install.
+- fix: use deferred error pattern in tar extraction to prevent unhandled rejections, and reject hard links alongside symbolic links.
+- fix: track additional extension install failures separately so partial installs report success for the primary extension.
+- fix: make retry backoff cancellable via AbortSignal so users can cancel during retry delays.
+- fix: detect cross-platform absolute paths (Windows drive letters, UNC paths) in source prompts.
+- fix: skip internet connectivity check for local extension installs.
+- fix: prevent closing a document tab from cancelling pending diagnostics for other open documents.
+- fix: prevent stale YAML diagnostics from overwriting fresh validation results during rapid edits.
 
 ### Refactoring
 
-- refactor: simplify tree view context values from 8 to 4 and replace regex `when` clauses with exact matches.
-- refactor: consolidate four per-source-type "Open Source" commands into a single command that branches on source type.
 - refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
 - refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
 

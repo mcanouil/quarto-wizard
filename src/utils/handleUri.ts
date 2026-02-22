@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { AuthConfig } from "@quarto-wizard/core";
 import { installQuartoExtension, useQuartoExtension } from "./quarto";
+import { isValidGitHubReference } from "./sourcePrompts";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
@@ -39,7 +40,7 @@ async function handleUriAction(
 	config: UriActionConfig,
 ): Promise<boolean | null | undefined> {
 	const repo = new URLSearchParams(uri.query).get("repo");
-	if (!repo || !/^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(repo)) {
+	if (!repo || !isValidGitHubReference(repo)) {
 		if (repo) {
 			logMessage(`Invalid repo format in URI: ${repo}.`, "warn");
 		}
@@ -120,14 +121,7 @@ export async function handleUriInstall(uri: vscode.Uri, context: vscode.Extensio
 		confirmMessage: (repo) => `Do you confirm the installation of "${repo}" extension?`,
 		progressMessage: (repo) => `Installing Quarto extension from ${repo} ...`,
 		executor: (repo, workspaceFolder, auth, token) =>
-			installQuartoExtension(
-				repo,
-				workspaceFolder,
-				auth,
-				undefined, // sourceDisplay
-				undefined, // skipOverwritePrompt
-				token, // cancellationToken
-			),
+			installQuartoExtension(repo, workspaceFolder, { auth, cancellationToken: token }),
 	});
 }
 
@@ -149,15 +143,12 @@ export async function handleUriUse(uri: vscode.Uri, context: vscode.ExtensionCon
 		executor: async (repo, workspaceFolder, auth, token) => {
 			const selectFiles = createFileSelectionCallback();
 			const selectTargetSubdir = createTargetSubdirCallback();
-			const result = await useQuartoExtension(
-				repo,
-				workspaceFolder,
+			const result = await useQuartoExtension(repo, workspaceFolder, {
 				selectFiles,
 				selectTargetSubdir,
 				auth,
-				undefined, // sourceDisplay
-				token, // cancellationToken
-			);
+				cancellationToken: token,
+			});
 			// useQuartoExtension returns UseResult | null
 			// null means either failure or cancellation
 			return result !== null ? true : null;

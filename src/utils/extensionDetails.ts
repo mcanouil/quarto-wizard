@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
-import { fetchRegistry, type RegistryEntry } from "@quarto-wizard/core";
+import { fetchRegistry, getErrorMessage, type RegistryEntry } from "@quarto-wizard/core";
 import {
 	getDefaultRegistryUrl,
 	QW_EXTENSIONS_CACHE,
+	REGISTRY_FETCH_TIMEOUT_MS,
 	STORAGE_KEY_RECENTLY_INSTALLED,
 	STORAGE_KEY_RECENTLY_USED,
 } from "../constants";
@@ -77,7 +78,10 @@ function convertRegistryEntry(entry: RegistryEntry): ExtensionDetails {
  * @param {number} timeoutMs - Timeout in milliseconds (default: 10000ms).
  * @returns {Promise<ExtensionDetails[]>} - A promise that resolves to an array of extension details or empty array on error.
  */
-async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 10000): Promise<ExtensionDetails[]> {
+async function fetchExtensions(
+	context: vscode.ExtensionContext,
+	timeoutMs = REGISTRY_FETCH_TIMEOUT_MS,
+): Promise<ExtensionDetails[]> {
 	const url = getRegistryUrl();
 	const cacheKey = `${QW_EXTENSIONS_CACHE}_${generateHashKey(url)}`;
 	const cachedData = context.globalState.get<{ data: ExtensionDetails[]; timestamp: number }>(cacheKey);
@@ -107,9 +111,9 @@ async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 100
 
 		return extensionDetailsList;
 	} catch (error) {
-		const errorMsg = error instanceof Error ? error.message : String(error);
 		const message = `Error fetching list of extensions from ${url}.`;
-		logMessage(`${message} ${errorMsg}.`, "error");
+		logMessage(`${message} ${getErrorMessage(error)}.`, "error");
+		showMessageWithLogs(message, "error");
 		return [];
 	}
 }
@@ -122,7 +126,7 @@ async function fetchExtensions(context: vscode.ExtensionContext, timeoutMs = 100
  */
 export async function getExtensionsDetails(
 	context: vscode.ExtensionContext,
-	timeoutMs = 10000,
+	timeoutMs = REGISTRY_FETCH_TIMEOUT_MS,
 ): Promise<ExtensionDetails[]> {
 	return fetchExtensions(context, timeoutMs);
 }

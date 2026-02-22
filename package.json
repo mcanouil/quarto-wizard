@@ -420,17 +420,17 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemUpToDate",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource)",
 					"group": "inline@4"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate)",
 					"group": "inline@5"
 				},
 				{
@@ -440,22 +440,22 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemPinned",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate)",
 					"group": "navigation@1"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@2"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate)",
 					"group": "navigation@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemPinned || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource)",
 					"group": "navigation@4"
 				},
 				{

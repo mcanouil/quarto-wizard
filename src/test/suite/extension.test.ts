@@ -1,4 +1,6 @@
 import * as assert from "assert";
+import * as path from "path";
+import * as fs from "fs";
 import * as vscode from "vscode";
 
 suite("Extension Test Suite", () => {
@@ -17,18 +19,20 @@ suite("Extension Test Suite", () => {
 		}
 	});
 
-	test("Should register all commands", () => {
-		const registeredCommands = vscode.commands.getCommands(true);
-		return registeredCommands.then((commands) => {
-			const expectedCommands = [
-				"quartoWizard.installExtension",
-				"quartoWizard.extensionsInstalled.install",
-				"quartoWizard.newQuartoReprex",
-			];
+	test("Should register all commands declared in package.json", async () => {
+		const pkgPath = path.resolve(__dirname, "../../../package.json");
+		const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+		const declaredCommands: string[] = pkg.contributes.commands.map((cmd: { command: string }) => cmd.command);
 
-			expectedCommands.forEach((command) => {
-				assert.ok(commands.includes(command), `Command ${command} should be registered`);
-			});
-		});
+		assert.ok(declaredCommands.length > 0, "package.json should declare at least one command");
+
+		const registeredCommands = await vscode.commands.getCommands(true);
+
+		for (const command of declaredCommands) {
+			assert.ok(
+				registeredCommands.includes(command),
+				`Command "${command}" is declared in package.json but not registered`,
+			);
+		}
 	});
 });

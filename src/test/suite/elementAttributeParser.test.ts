@@ -322,4 +322,60 @@ suite("Element Attribute Parser", () => {
 			assert.deepStrictEqual(result.classes, ["panel"]);
 		});
 	});
+
+	suite("code block exclusion", () => {
+		test("should still detect {r} in a code fence header", () => {
+			const text = "```{r}\nx <- 1\n```";
+			// Cursor inside {r}: offset 4 is the 'r'. The fence header is
+			// outside the code block body range, so {r} is still a valid Code attribute.
+			const bounds = getAttributeBounds(text, 4);
+			assert.ok(bounds);
+			assert.strictEqual(bounds.elementType, "Code");
+		});
+
+		test("should still detect {python} in a code fence header", () => {
+			const text = "```{python}\nimport os\n```";
+			const bounds = getAttributeBounds(text, 5);
+			assert.ok(bounds);
+			assert.strictEqual(bounds.elementType, "Code");
+		});
+
+		test("should return null for curly braces inside code block body", () => {
+			const text = "text\n```{r}\nfunction(x) {\n  x + 1\n}\n```\nafter";
+			// Cursor inside the { on the function line.
+			const braceOffset = text.indexOf("function(x) {") + 13;
+			const bounds = getAttributeBounds(text, braceOffset + 1);
+			assert.strictEqual(bounds, null);
+		});
+
+		test("should still detect attributes outside code blocks", () => {
+			const text = "```{r}\nx <- 1\n```\n\n[text]{.class}";
+			const attrOffset = text.indexOf("{.class}") + 2;
+			const bounds = getAttributeBounds(text, attrOffset);
+			assert.ok(bounds);
+			assert.strictEqual(bounds.elementType, "Span");
+		});
+
+		test("parseAttributeAtPosition should work on fence headers", () => {
+			const text = "```{r}\nx <- 1\n```";
+			const result = parseAttributeAtPosition(text, 5);
+			assert.ok(result);
+			assert.strictEqual(result.elementType, "Code");
+		});
+
+		test("parseAttributeAtPosition should return null inside code block body", () => {
+			const text = "text\n```{r}\nfunction(x) {\n  x + 1\n}\n```\nafter";
+			const braceOffset = text.indexOf("function(x) {") + 13;
+			const result = parseAttributeAtPosition(text, braceOffset + 1);
+			assert.strictEqual(result, null);
+		});
+
+		test("should detect attributes on the line immediately after closing fence", () => {
+			const text = "```\ncode\n```\n[text]{.class}";
+			const attrOffset = text.indexOf("{.class}") + 2;
+			const bounds = getAttributeBounds(text, attrOffset);
+			assert.ok(bounds);
+			assert.strictEqual(bounds.elementType, "Span");
+		});
+	});
 });

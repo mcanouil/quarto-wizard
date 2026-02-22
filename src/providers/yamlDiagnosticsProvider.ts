@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import { formatType } from "@quarto-wizard/schema";
-import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
-import { discoverInstalledExtensions, formatExtensionId } from "@quarto-wizard/core";
+import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
+import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 
 /**
  * Validate a single value against a field descriptor, returning error messages.
@@ -115,6 +116,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 	private diagnosticCollection: vscode.DiagnosticCollection;
 	private disposables: vscode.Disposable[] = [];
 	private debouncedValidate: ReturnType<typeof debounce>;
+	private validationVersion = 0;
 
 	constructor(private schemaCache: SchemaCache) {
 		this.diagnosticCollection = vscode.languages.createDiagnosticCollection("quarto-schema");
@@ -193,6 +195,11 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 	}
 
 	private async validateDocument(document: vscode.TextDocument): Promise<void> {
+		if (document.isClosed) {
+			return;
+		}
+
+		const version = ++this.validationVersion;
 		const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
 		if (!workspaceFolder) {
 			return;
@@ -206,7 +213,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		// Extract the YAML portion.
 		const yamlText = this.extractYamlText(lines, languageId);
 		if (!yamlText) {
-			this.diagnosticCollection.set(document.uri, []);
+			this.setDiagnostics(document, []);
 			return;
 		}
 
@@ -214,41 +221,31 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		try {
 			const result = yaml.load(yamlText);
 			if (!result || typeof result !== "object") {
-				this.diagnosticCollection.set(document.uri, []);
+				this.setDiagnostics(document, []);
 				return;
 			}
 			parsed = result as Record<string, unknown>;
 		} catch {
 			// YAML parse errors are handled by other extensions; skip.
-			this.diagnosticCollection.set(document.uri, []);
+			this.setDiagnostics(document, []);
 			return;
 		}
 
-		let extensions;
+		let schemaMap;
 		try {
-			extensions = await discoverInstalledExtensions(projectDir);
+			({ schemaMap } = await getWorkspaceSchemaIndex(projectDir, this.schemaCache));
 		} catch (error) {
-			logMessage(
-				`Failed to discover extensions for diagnostics: ${error instanceof Error ? error.message : String(error)}.`,
-				"warn",
-			);
+			logMessage(`Failed to discover extensions for diagnostics: ${getErrorMessage(error)}.`, "warn");
 			return;
 		}
 
-		// Build schema map.
-		const schemaMap = new Map<string, ExtensionSchema>();
-		for (const ext of extensions) {
-			const schema = this.schemaCache.get(ext.directory);
-			if (schema) {
-				schemaMap.set(formatExtensionId(ext.id), schema);
-				if (!schemaMap.has(ext.id.name)) {
-					schemaMap.set(ext.id.name, schema);
-				}
-			}
+		// A newer validation was started while we awaited; discard this result.
+		if (version !== this.validationVersion) {
+			return;
 		}
 
 		if (schemaMap.size === 0) {
-			this.diagnosticCollection.set(document.uri, []);
+			this.setDiagnostics(document, []);
 			return;
 		}
 
@@ -274,6 +271,18 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 						diagnostics,
 					);
 				}
+			}
+		} else if (Array.isArray(extensionsBlock)) {
+			const line = this.findKeyLine(["extensions"], lines, yamlStartLine);
+			if (line >= 0) {
+				const range = new vscode.Range(line, 0, line, lines[line].length);
+				diagnostics.push(
+					new vscode.Diagnostic(
+						range,
+						'The "extensions" block should be an object, not an array.',
+						vscode.DiagnosticSeverity.Warning,
+					),
+				);
 			}
 		}
 
@@ -310,6 +319,14 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			}
 		}
 
+		this.setDiagnostics(document, diagnostics);
+	}
+
+	private setDiagnostics(document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+		if (document.isClosed) {
+			this.diagnosticCollection.delete(document.uri);
+			return;
+		}
 		this.diagnosticCollection.set(document.uri, diagnostics);
 	}
 

@@ -466,4 +466,42 @@ describe("install with multiple extensions", () => {
 		expect(result.additionalInstalls).toBeDefined();
 		expect(result.additionalInstalls![0].cancelled).toBe(true);
 	});
+
+	it("should report partial failure when an additional extension install throws", async () => {
+		const { install, parseInstallSource } = await import("../../src/operations/install.js");
+
+		const preInstallExt1 = path.join(projectDir, "_extensions", "testowner", "ext1");
+		const preInstallExt2 = path.join(projectDir, "_extensions", "testowner", "ext2");
+
+		fs.mkdirSync(preInstallExt1, { recursive: true });
+		fs.mkdirSync(preInstallExt2, { recursive: true });
+
+		fs.writeFileSync(path.join(preInstallExt1, "_extension.yml"), "title: Old Extension 1\nversion: 0.1.0\n");
+		fs.writeFileSync(path.join(preInstallExt2, "_extension.yml"), "title: Old Extension 2\nversion: 0.1.0\n");
+
+		let callCount = 0;
+		const confirmOverwrite = vi.fn(async () => {
+			callCount++;
+			if (callCount === 1) {
+				return true;
+			}
+			throw new Error("intentional additional install failure");
+		});
+
+		const selectExtension = vi.fn(async (extensions) => extensions);
+
+		const source = parseInstallSource(sourceDir);
+		const result = await install(source, {
+			projectDir,
+			force: true,
+			confirmOverwrite,
+			selectExtension,
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.additionalInstallFailures).toBeDefined();
+		expect(result.additionalInstallFailures).toHaveLength(1);
+		expect(result.additionalInstallFailures![0].extensionId).toEqual({ owner: "testowner", name: "ext2" });
+		expect(result.additionalInstallFailures![0].error).toContain("intentional additional install failure");
+	});
 });

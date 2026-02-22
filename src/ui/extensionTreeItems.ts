@@ -8,7 +8,6 @@ import {
 	getExtensionRepository,
 	getExtensionSourceUrl,
 	getEffectiveSourceType,
-	hasPinnedSourceRef,
 	type InstalledExtension,
 } from "../utils/extensions";
 
@@ -64,16 +63,13 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 
 		// Set context value based on source type for VS Code context menus
 		const sourceType = extension ? getEffectiveSourceType(extension) : undefined;
-		const hasPinnedVersion = extension ? hasPinnedSourceRef(extension) : false;
 
 		let contextValue: string;
 		if (!extension) {
 			contextValue = "quartoExtensionItemDetails";
 		} else if (!sourceType) {
 			contextValue = "quartoExtensionItemNoSource";
-		} else if (hasPinnedVersion) {
-			contextValue = "quartoExtensionItemPinned";
-		} else if (sourceType === "github" || needsUpdate) {
+		} else if (sourceType === "github" || sourceType === "registry" || needsUpdate) {
 			contextValue = "quartoExtensionItem";
 		} else {
 			contextValue = "quartoExtensionItemUpToDate";

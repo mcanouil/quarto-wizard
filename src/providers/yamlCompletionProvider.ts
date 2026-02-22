@@ -1,15 +1,11 @@
 import * as vscode from "vscode";
 import { typeIncludes, formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
-import {
-	discoverInstalledExtensions,
-	formatExtensionId,
-	getExtensionTypes,
-	type InstalledExtension,
-} from "@quarto-wizard/core";
+import { getExtensionTypes, getErrorMessage, type InstalledExtension } from "@quarto-wizard/core";
 import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { hasCompletableValues } from "../utils/schemaDocumentation";
+import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { logMessage } from "../utils/log";
 
 /**
@@ -41,28 +37,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			}
 
 			const projectDir = workspaceFolder.uri.fsPath;
-			const extensions = await discoverInstalledExtensions(projectDir);
-
-			// Build maps of extension name to schema and metadata for quick lookup.
-			const schemaMap = new Map<string, ExtensionSchema>();
-			const extMap = new Map<string, InstalledExtension>();
-			for (const ext of extensions) {
-				const schema = this.schemaCache.get(ext.directory);
-				if (schema) {
-					const id = formatExtensionId(ext.id);
-					const shortName = ext.id.name;
-					schemaMap.set(id, schema);
-					if (!schemaMap.has(shortName)) {
-						schemaMap.set(shortName, schema);
-					}
-					if (!extMap.has(id)) {
-						extMap.set(id, ext);
-					}
-					if (!extMap.has(shortName)) {
-						extMap.set(shortName, ext);
-					}
-				}
-			}
+			const { schemaMap, extMap } = await getWorkspaceSchemaIndex(projectDir, this.schemaCache);
 
 			if (schemaMap.size === 0) {
 				return undefined;
@@ -95,7 +70,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 
 			return items;
 		} catch (error) {
-			logMessage(`YAML completion error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`YAML completion error: ${getErrorMessage(error)}.`, "warn");
 			return undefined;
 		}
 	}

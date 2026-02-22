@@ -11,6 +11,7 @@ import {
 	shortcodeEntryMetadata,
 	rootKeyMetadata,
 } from "@quarto-wizard/schema";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { getYamlKeyPath, getExistingKeysAtPath } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
@@ -231,10 +232,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 
 			return items;
 		} catch (error) {
-			logMessage(
-				`Schema definition completion error: ${error instanceof Error ? error.message : String(error)}.`,
-				"warn",
-			);
+			logMessage(`Schema definition completion error: ${getErrorMessage(error)}.`, "warn");
 			return undefined;
 		}
 	}

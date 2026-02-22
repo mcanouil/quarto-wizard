@@ -12,7 +12,7 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import type { ExtensionManifest, RawManifest, SourceType } from "../types/manifest.js";
 import { normaliseManifest } from "../types/manifest.js";
-import { ManifestError } from "../errors.js";
+import { ManifestError, getErrorMessage } from "../errors.js";
 
 /** Supported manifest file names. */
 export const MANIFEST_FILENAMES = ["_extension.yml", "_extension.yaml"] as const;
@@ -60,7 +60,7 @@ export function parseManifestFile(manifestPath: string): ExtensionManifest {
 		if (error instanceof ManifestError) {
 			throw error;
 		}
-		throw new ManifestError(`Failed to read manifest file: ${error instanceof Error ? error.message : String(error)}`, {
+		throw new ManifestError(`Failed to read manifest file: ${getErrorMessage(error)}`, {
 			manifestPath,
 			cause: error,
 		});
@@ -88,7 +88,7 @@ export function parseManifestContent(content: string, sourcePath?: string): Exte
 		if (error instanceof ManifestError) {
 			throw error;
 		}
-		throw new ManifestError(`Failed to parse manifest: ${error instanceof Error ? error.message : String(error)}`, {
+		throw new ManifestError(`Failed to parse manifest: ${getErrorMessage(error)}`, {
 			manifestPath: sourcePath,
 			cause: error,
 		});

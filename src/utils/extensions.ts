@@ -6,6 +6,7 @@ import {
 	getExtensionTypes,
 	type InstalledExtension,
 	type SourceType,
+	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
@@ -57,17 +58,6 @@ export function getSourceBase(source: string, sourceType?: SourceType): string {
 	return source;
 }
 
-export function hasPinnedSourceRef(ext: InstalledExtension): boolean {
-	if (!ext.manifest.source) {
-		return false;
-	}
-	const sourceType = getEffectiveSourceType(ext);
-	if (sourceType !== "github" && sourceType !== "registry") {
-		return false;
-	}
-	return splitSourceRef(ext.manifest.source).hasRef;
-}
-
 export function resolveLocalSourcePath(sourcePath: string, workspaceFolder: string): string {
 	let candidate = sourcePath;
 	if (candidate === "~") {
@@ -92,10 +82,7 @@ export async function findQuartoExtensions(directory: string): Promise<string[]>
 		const extensions = await discoverInstalledExtensions(directory);
 		return extensions.map((ext) => formatExtensionId(ext.id));
 	} catch (error) {
-		logMessage(
-			`Failed to discover extensions in ${directory}: ${error instanceof Error ? error.message : String(error)}.`,
-			"warn",
-		);
+		logMessage(`Failed to discover extensions in ${directory}: ${getErrorMessage(error)}.`, "warn");
 		return [];
 	}
 }
@@ -110,10 +97,7 @@ export async function getInstalledExtensions(workspaceFolder: string): Promise<I
 	try {
 		return await discoverInstalledExtensions(workspaceFolder);
 	} catch (error) {
-		logMessage(
-			`Failed to get installed extensions in ${workspaceFolder}: ${error instanceof Error ? error.message : String(error)}.`,
-			"warn",
-		);
+		logMessage(`Failed to get installed extensions in ${workspaceFolder}: ${getErrorMessage(error)}.`, "warn");
 		return [];
 	}
 }

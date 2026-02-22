@@ -10,6 +10,8 @@ import {
 	resolveElementAttribute,
 } from "./elementAttributeCompletionProvider";
 import { collectShortcodeSchemas, resolveShortcodeAttribute } from "./shortcodeCompletionProvider";
+import { getErrorMessage } from "@quarto-wizard/core";
+import { getCodeBlockRanges, isInCodeBlockRange, type TextRange } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
@@ -247,13 +249,18 @@ interface BlockMatch {
 }
 
 /**
- * Extract all attribute blocks and shortcode blocks from document text.
+ * Extract all attribute blocks and shortcode blocks from document text,
+ * excluding matches that fall inside fenced code blocks.
  */
-function extractBlocks(text: string): BlockMatch[] {
+function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[] {
+	const ranges = codeBlockRanges ?? getCodeBlockRanges(text);
 	const blocks: BlockMatch[] = [];
 
 	for (const match of text.matchAll(ELEMENT_ATTRIBUTE_RE)) {
 		if (match.index === undefined) {
+			continue;
+		}
+		if (isInCodeBlockRange(ranges, match.index)) {
 			continue;
 		}
 		// Content is everything between { and }.
@@ -264,6 +271,9 @@ function extractBlocks(text: string): BlockMatch[] {
 
 	for (const match of text.matchAll(SHORTCODE_RE)) {
 		if (match.index === undefined) {
+			continue;
+		}
+		if (isInCodeBlockRange(ranges, match.index)) {
 			continue;
 		}
 		// Content is everything between {{< and >}}.
@@ -884,9 +894,14 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 	}
 
 	private async validateDocument(document: vscode.TextDocument): Promise<void> {
+		if (document.isClosed) {
+			return;
+		}
+
 		const version = ++this.validationVersion;
 		const text = document.getText();
-		const blocks = extractBlocks(text);
+		const codeBlockRanges = getCodeBlockRanges(text);
+		const blocks = extractBlocks(text, codeBlockRanges);
 		const diagnostics: vscode.Diagnostic[] = [];
 
 		// Phase 1: syntax-level diagnostics (synchronous, always runs).
@@ -938,16 +953,24 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			if (hasElementSchemas || hasShortcodeSchemas) {
 				for (const block of blocks) {
 					if (block.type === "element" && hasElementSchemas) {
-						this.validateElementBlock(block, text, elementSchemas, document, diagnostics);
+						this.validateElementBlock(block, text, elementSchemas, document, diagnostics, codeBlockRanges);
 					} else if (block.type === "shortcode" && hasShortcodeSchemas) {
-						this.validateShortcodeBlock(block, text, shortcodeSchemas, document, diagnostics);
+						this.validateShortcodeBlock(block, text, shortcodeSchemas, document, diagnostics, codeBlockRanges);
 					}
 				}
 			}
 		} catch (error) {
-			logMessage(`Inline schema validation error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`Inline schema validation error: ${getErrorMessage(error)}.`, "warn");
 		}
 
+		this.setDiagnostics(document, diagnostics);
+	}
+
+	private setDiagnostics(document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+		if (document.isClosed) {
+			this.diagnosticCollection.delete(document.uri);
+			return;
+		}
 		this.diagnosticCollection.set(document.uri, diagnostics);
 	}
 
@@ -957,10 +980,11 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		schemas: ElementAttributeSchemas,
 		document: vscode.TextDocument,
 		diagnostics: vscode.Diagnostic[],
+		codeBlockRanges: TextRange[],
 	): void {
 		// Use the parser as a context filter: the offset just inside the closing `}`.
 		const blockEndOffset = block.contentOffset + block.content.length;
-		const parsed = parseAttributeAtPosition(text, blockEndOffset);
+		const parsed = parseAttributeAtPosition(text, blockEndOffset, codeBlockRanges);
 		if (!parsed) {
 			return;
 		}
@@ -1053,10 +1077,11 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		schemas: Map<string, ShortcodeSchema>,
 		document: vscode.TextDocument,
 		diagnostics: vscode.Diagnostic[],
+		codeBlockRanges: TextRange[],
 	): void {
 		// Use the parser as a context filter.
 		const blockEndOffset = block.contentOffset + block.content.length;
-		const parsed = parseShortcodeAtPosition(text, blockEndOffset);
+		const parsed = parseShortcodeAtPosition(text, blockEndOffset, codeBlockRanges);
 		if (!parsed || !parsed.name) {
 			return;
 		}

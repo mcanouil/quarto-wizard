@@ -1,14 +1,10 @@
 import * as vscode from "vscode";
 import { formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/schema";
-import {
-	discoverInstalledExtensions,
-	formatExtensionId,
-	getExtensionTypes,
-	type InstalledExtension,
-} from "@quarto-wizard/core";
+import { formatExtensionId, getExtensionTypes, type InstalledExtension, getErrorMessage } from "@quarto-wizard/core";
 import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
+import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 
 /**
  * Provides hover information for Quarto extension options
@@ -48,7 +44,8 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 			}
 
 			const projectDir = workspaceFolder.uri.fsPath;
-			const installedExtensions = await discoverInstalledExtensions(projectDir);
+			const { schemaMap, extMap } = await getWorkspaceSchemaIndex(projectDir, this.schemaCache);
+			const installedExtensions = Array.from(new Set(extMap.values()));
 
 			// Hover on an extension name under "extensions:".
 			if (keyPath.length === 2 && keyPath[0] === "extensions" && !this.isCursorOnValue(line, position.character)) {
@@ -56,20 +53,6 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 				const ext = this.findExtension(installedExtensions, extName);
 				if (ext) {
 					return new vscode.Hover(this.buildExtensionHover(ext));
-				}
-			}
-
-			// Build a map of extension name to schema for quick lookup.
-			const schemaMap = new Map<string, ExtensionSchema>();
-			for (const ext of installedExtensions) {
-				const schema = this.schemaCache.get(ext.directory);
-				if (schema) {
-					const id = formatExtensionId(ext.id);
-					const shortName = ext.id.name;
-					schemaMap.set(id, schema);
-					if (!schemaMap.has(shortName)) {
-						schemaMap.set(shortName, schema);
-					}
 				}
 			}
 
@@ -88,7 +71,7 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 			const markdown = this.buildHoverContent(leafKey, descriptor, isOnValue);
 			return new vscode.Hover(markdown);
 		} catch (error) {
-			logMessage(`YAML hover error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`YAML hover error: ${getErrorMessage(error)}.`, "warn");
 			return null;
 		}
 	}

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { minimatch } from "minimatch";
 import { logMessage, showMessageWithLogs } from "../utils/log";
+import { getErrorMessage } from "@quarto-wizard/core";
 import type { FileSelectionResult } from "@quarto-wizard/core";
 
 /**
@@ -59,8 +60,7 @@ function createConfirmationDialog(config: ConfirmationDialogConfig): () => Promi
 			}
 			return true;
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logMessage(`Error showing confirmation dialog: ${message}.`, "error");
+			logMessage(`Error showing confirmation dialog: ${getErrorMessage(error)}.`, "error");
 			return false;
 		}
 	};
@@ -425,15 +425,26 @@ export function createFileSelectionCallback(): (
 		// Track previous selection for directory toggle detection
 		let previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
 
+		// Guard against re-entrant onDidChangeSelection calls.
+		// Setting quickPick.items or quickPick.selectedItems synchronously fires
+		// onDidChangeSelection, which would corrupt selectedPaths if not blocked.
+		let isRebuilding = false;
+
 		/**
 		 * Rebuild and update the QuickPick items, preserving selection.
 		 */
 		function rebuildItems() {
+			isRebuilding = true;
 			items = buildVisibleItems();
 			quickPick.items = items;
 			// Restore selection from selectedPaths
 			quickPick.selectedItems = items.filter((item) => selectedPaths.has(item.path));
 			previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
+			// Defer clearing the guard to also block any async onDidChangeSelection
+			// events that VS Code may fire after replacing items/selectedItems.
+			queueMicrotask(() => {
+				isRebuilding = false;
+			});
 		}
 
 		return new Promise<FileSelectionResult | null>((resolve) => {
@@ -470,6 +481,8 @@ export function createFileSelectionCallback(): (
 			});
 
 			quickPick.onDidChangeSelection((selected) => {
+				if (isRebuilding) return;
+
 				const currentSelection = new Set(selected.map((item) => item.path));
 
 				// Update selectedPaths based on visible items
@@ -504,8 +517,28 @@ export function createFileSelectionCallback(): (
 							}
 						}
 
-						// Rebuild to update visible items
-						rebuildItems();
+						// Also sync visible child directories with parent state
+						for (const visibleItem of quickPick.items) {
+							if (visibleItem.isDirectory && visibleItem.path.startsWith(item.path + "/")) {
+								if (isSelected) {
+									selectedPaths.add(visibleItem.path);
+								} else {
+									selectedPaths.delete(visibleItem.path);
+								}
+							}
+						}
+
+						// Update selection directly without rebuilding items.
+						// Replacing quickPick.items triggers stale async onDidChangeSelection
+						// events that corrupt selectedPaths, causing directories to deselect.
+						isRebuilding = true;
+						quickPick.selectedItems = items.filter((i) => selectedPaths.has(i.path));
+						previousSelection = new Set(quickPick.selectedItems.map((i) => i.path));
+						// Defer clearing the guard to also block any async onDidChangeSelection
+						// events that VS Code may fire after replacing selectedItems.
+						queueMicrotask(() => {
+							isRebuilding = false;
+						});
 						return;
 					}
 				}
@@ -558,8 +591,7 @@ export function createFileSelectionCallback(): (
 
 					resolve({ selectedFiles, overwriteExisting });
 				} catch (error) {
-					const message = error instanceof Error ? error.message : String(error);
-					logMessage(`Error in file selection: ${message}.`, "error");
+					logMessage(`Error in file selection: ${getErrorMessage(error)}.`, "error");
 					resolve(null);
 				}
 			});

@@ -1,10 +1,12 @@
 import * as vscode from "vscode";
 import type { FieldDescriptor, SchemaCache, ExtensionSchema } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
-import { discoverInstalledExtensions } from "@quarto-wizard/core";
+import { getErrorMessage } from "@quarto-wizard/core";
+import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
+import { getCodeBlockRanges } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
 /**
@@ -62,7 +64,7 @@ export async function collectElementAttributeSchemas(schemaCache: SchemaCache): 
 
 	for (const folder of workspaceFolders) {
 		try {
-			const extensions = await discoverInstalledExtensions(folder.uri.fsPath);
+			const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
 
 			for (const ext of extensions) {
 				const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
@@ -85,7 +87,7 @@ export async function collectElementAttributeSchemas(schemaCache: SchemaCache): 
 			}
 		} catch (error) {
 			logMessage(
-				`Failed to discover element attribute schemas in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
+				`Failed to discover element attribute schemas in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`,
 				"warn",
 			);
 		}
@@ -111,7 +113,7 @@ export async function collectClassDefinitions(schemaCache: SchemaCache): Promise
 
 	for (const folder of workspaceFolders) {
 		try {
-			const extensions = await discoverInstalledExtensions(folder.uri.fsPath);
+			const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
 
 			for (const ext of extensions) {
 				const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
@@ -147,10 +149,7 @@ export async function collectClassDefinitions(schemaCache: SchemaCache): Promise
 				}
 			}
 		} catch (error) {
-			logMessage(
-				`Failed to discover class definitions in ${folder.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}.`,
-				"warn",
-			);
+			logMessage(`Failed to discover class definitions in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`, "warn");
 		}
 	}
 
@@ -299,7 +298,8 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				return null;
 			}
 
-			const parsed = parseAttributeAtPosition(text, offset);
+			const codeBlockRanges = getCodeBlockRanges(text);
+			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
 			}
@@ -331,10 +331,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 					return null;
 			}
 		} catch (error) {
-			logMessage(
-				`Element attribute completion error: ${error instanceof Error ? error.message : String(error)}.`,
-				"warn",
-			);
+			logMessage(`Element attribute completion error: ${getErrorMessage(error)}.`, "warn");
 			return null;
 		}
 	}
@@ -533,7 +530,8 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
-			const parsed = parseAttributeAtPosition(text, offset);
+			const codeBlockRanges = getCodeBlockRanges(text);
+			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
 			}
@@ -625,7 +623,7 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 					return null;
 			}
 		} catch (error) {
-			logMessage(`Element attribute hover error: ${error instanceof Error ? error.message : String(error)}.`, "warn");
+			logMessage(`Element attribute hover error: ${getErrorMessage(error)}.`, "warn");
 			return null;
 		}
 	}

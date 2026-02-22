@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "node:path";
 import { parseInstallSource } from "@quarto-wizard/core";
 
 /**
@@ -9,6 +10,20 @@ const SOURCE_TYPE_NAMES: Record<string, string> = {
 	local: "local path",
 	github: "GitHub",
 };
+
+/**
+ * Validates whether a string is a valid GitHub reference (owner/repo or owner/repo@version).
+ *
+ * @param value - The string to validate.
+ * @returns True if the string is a valid GitHub reference, false otherwise.
+ */
+export function isValidGitHubReference(value: string): boolean {
+	return /^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(value);
+}
+
+export function isAbsolutePathForAnyPlatform(filePath: string): boolean {
+	return path.isAbsolute(filePath) || /^[A-Za-z]:[/\\]/.test(filePath) || filePath.startsWith("\\\\");
+}
 
 /**
  * Options for customising the source prompt labels.
@@ -41,7 +56,7 @@ export async function promptForGitHubReference(options?: SourcePromptOptions): P
 			if (!value?.trim()) {
 				return "GitHub reference is required.";
 			}
-			if (!value.includes("/")) {
+			if (!isValidGitHubReference(value.trim())) {
 				return "Use format: owner/repo or owner/repo@version";
 			}
 			return null;
@@ -115,7 +130,7 @@ export function resolveSourcePath(
 		const parsed = parseInstallSource(source);
 		const type = SOURCE_TYPE_NAMES[parsed.type] ?? "unknown";
 
-		if (parsed.type === "local" && !parsed.path.startsWith("/")) {
+		if (parsed.type === "local" && !isAbsolutePathForAnyPlatform(parsed.path)) {
 			const resolved = vscode.Uri.joinPath(vscode.Uri.file(workspaceFolder), parsed.path).fsPath;
 			return { resolved, display: source, type };
 		}
