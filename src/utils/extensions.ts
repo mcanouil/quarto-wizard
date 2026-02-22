@@ -9,7 +9,7 @@ import {
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
-const GITHUB_REPOSITORY_PATTERN = /^[^/\s:]+\/[^/\s:]+(?:\/[^/\s:]+)*(?:@[^/\s:]+)?$/;
+const GITHUB_REPOSITORY_PATTERN = /^[^/\s:\\]+\/[^/\s:\\]+(?:\/[^/\s:\\]+)*(?:@[^/\s:\\]+)?$/;
 
 function splitSourceRef(source: string): { base: string; hasRef: boolean } {
 	const atIndex = source.lastIndexOf("@");
