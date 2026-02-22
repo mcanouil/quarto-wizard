@@ -10,8 +10,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SnippetCollection, SnippetDefinition } from "../types.js";
-import { SnippetError } from "../errors.js";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { SnippetError, getErrorMessage } from "../errors.js";
 
 /** The snippet filename convention. */
 export const SNIPPET_FILENAME = "_snippets.json";

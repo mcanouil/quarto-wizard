@@ -10,7 +10,7 @@
 
 import type { SnippetCollection } from "../types.js";
 import { readSnippets } from "./snippets.js";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { getErrorMessage } from "../errors.js";
 
 /**
  * Cache for parsed extension snippets.

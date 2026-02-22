@@ -10,7 +10,7 @@
 
 import type { ExtensionSchema } from "../types/schema.js";
 import { readSchema } from "./schema.js";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { getErrorMessage } from "../errors.js";
 
 /**
  * Cache for parsed extension schemas.
