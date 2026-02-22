@@ -371,7 +371,7 @@ contributes:\n`;
 			assert.strictEqual(getEffectiveSourceType(ext), "local");
 		});
 
-		test("Should infer github from owner/repo pattern", async () => {
+		test("Should infer registry from owner/repo pattern without explicit sourceType", async () => {
 			createTestExtension("quarto-ext", "infer-gh", {
 				source: "quarto-ext/infer-gh@v1.0.0",
 				"source-type": undefined,
@@ -380,7 +380,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "github");
+			assert.strictEqual(getEffectiveSourceType(ext), "registry");
 		});
 
 		test("Should return undefined for no source", async () => {

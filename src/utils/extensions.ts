@@ -137,7 +137,7 @@ export function getEffectiveSourceType(ext: InstalledExtension): "github" | "url
 		return "local";
 	}
 	if (/^[^/\s:]+\/[^/\s]+$/.test(base)) {
-		return "github";
+		return "registry";
 	}
 	return undefined;
 }
