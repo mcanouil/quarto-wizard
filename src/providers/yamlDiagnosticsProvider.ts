@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import { formatType } from "@quarto-wizard/schema";
-import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
-import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
+import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
-import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
+import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 
 /**
  * Validate a single value against a field descriptor, returning error messages.
@@ -226,24 +226,12 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 
-		let extensions;
+		let schemaMap;
 		try {
-			extensions = await getInstalledExtensionsCached(projectDir);
+			({ schemaMap } = await getWorkspaceSchemaIndex(projectDir, this.schemaCache));
 		} catch (error) {
 			logMessage(`Failed to discover extensions for diagnostics: ${getErrorMessage(error)}.`, "warn");
 			return;
-		}
-
-		// Build schema map.
-		const schemaMap = new Map<string, ExtensionSchema>();
-		for (const ext of extensions) {
-			const schema = this.schemaCache.get(ext.directory);
-			if (schema) {
-				schemaMap.set(formatExtensionId(ext.id), schema);
-				if (!schemaMap.has(ext.id.name)) {
-					schemaMap.set(ext.id.name, schema);
-				}
-			}
 		}
 
 		if (schemaMap.size === 0) {

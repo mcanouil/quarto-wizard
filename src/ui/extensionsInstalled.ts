@@ -10,6 +10,7 @@ import { installQuartoExtensionFolderCommand } from "../commands/installQuartoEx
 import { getAuthConfig } from "../utils/auth";
 import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
+import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
@@ -38,6 +39,10 @@ export class ExtensionsInstalled {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,
 		});
+		const invalidateProviderCaches = (workspacePath?: string) => {
+			invalidateInstalledExtensionsCache(workspacePath);
+			invalidateWorkspaceSchemaIndex(workspacePath);
+		};
 
 		// Initial setup with update check and refresh
 		this.treeDataProvider.refreshAfterAction(context, view);
@@ -54,9 +59,9 @@ export class ExtensionsInstalled {
 		const invalidateAndRefreshExtensions = (uri: vscode.Uri) => {
 			const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
 			if (workspaceFolder) {
-				invalidateInstalledExtensionsCache(workspaceFolder.uri.fsPath);
+				invalidateProviderCaches(workspaceFolder.uri.fsPath);
 			} else {
-				invalidateInstalledExtensionsCache();
+				invalidateProviderCaches();
 			}
 			this.treeDataProvider.refresh();
 		};
@@ -68,6 +73,12 @@ export class ExtensionsInstalled {
 		// Watch for changes to schema files for real-time tree view updates
 		const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_schema.{yml,yaml,json}");
 		const invalidateSchemaAndRefresh = (uri: vscode.Uri) => {
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+			if (workspaceFolder) {
+				invalidateWorkspaceSchemaIndex(workspaceFolder.uri.fsPath);
+			} else {
+				invalidateWorkspaceSchemaIndex();
+			}
 			schemaCache.invalidate(path.dirname(uri.fsPath));
 			this.treeDataProvider.refresh();
 		};
@@ -90,7 +101,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(view);
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
-				invalidateInstalledExtensionsCache();
+				invalidateProviderCaches();
 				this.treeDataProvider.refreshAfterAction(context, view);
 			}),
 		);
@@ -141,7 +152,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
 				await installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
-				invalidateInstalledExtensionsCache(item.workspaceFolder);
+				invalidateProviderCaches(item.workspaceFolder);
 				this.treeDataProvider.refreshAfterAction(context, view);
 			}),
 		);
@@ -151,7 +162,7 @@ export class ExtensionsInstalled {
 				"quartoWizard.extensionsInstalled.useTemplate",
 				async (item: ExtensionTreeItem) => {
 					await installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
-					invalidateInstalledExtensionsCache(item.workspaceFolder);
+					invalidateProviderCaches(item.workspaceFolder);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				},
 			),
@@ -185,7 +196,7 @@ export class ExtensionsInstalled {
 					);
 				});
 				if (result === true) {
-					invalidateInstalledExtensionsCache(item.workspaceFolder);
+					invalidateProviderCaches(item.workspaceFolder);
 					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else if (result === false) {
@@ -221,7 +232,7 @@ export class ExtensionsInstalled {
 					);
 				});
 				if (result === true) {
-					invalidateInstalledExtensionsCache(item.workspaceFolder);
+					invalidateProviderCaches(item.workspaceFolder);
 					vscode.window.showInformationMessage(`Extension "${item.label}" reinstalled successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else if (result === false) {
@@ -240,7 +251,7 @@ export class ExtensionsInstalled {
 					return removeQuartoExtension(item.label, item.workspaceFolder);
 				});
 				if (success) {
-					invalidateInstalledExtensionsCache(item.workspaceFolder);
+					invalidateProviderCaches(item.workspaceFolder);
 					vscode.window.showInformationMessage(`Extension "${item.label}" removed successfully.`);
 					this.treeDataProvider.refreshAfterAction(context, view);
 				} else {
@@ -362,7 +373,7 @@ export class ExtensionsInstalled {
 				});
 
 				if (successCount > 0) {
-					invalidateInstalledExtensionsCache();
+					invalidateProviderCaches();
 					vscode.window.showInformationMessage(
 						`Successfully updated ${successCount} extension(s)${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
 					);
@@ -447,7 +458,7 @@ export class ExtensionsInstalled {
 					);
 
 					if (result.successCount > 0) {
-						invalidateInstalledExtensionsCache(item.workspaceFolder);
+						invalidateProviderCaches(item.workspaceFolder);
 						vscode.window.showInformationMessage(
 							`Successfully removed ${result.successCount} extension(s)${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
 						);
