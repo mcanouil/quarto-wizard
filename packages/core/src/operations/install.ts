@@ -140,6 +140,8 @@ export interface InstallResult {
 	alreadyExists?: boolean;
 	/** Additional extensions installed when multiple were selected (only set when using selectExtension callback). */
 	additionalInstalls?: InstallResult[];
+	/** Additional extensions that failed to install when multiple were selected. */
+	additionalInstallFailures?: { extensionId: ExtensionId; error: string }[];
 	/** Whether the installation was cancelled by user (via callbacks). */
 	cancelled?: boolean;
 }
@@ -518,9 +520,13 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		// Install additional extensions if multiple were selected
 		const additionalInstalls: InstallResult[] = [];
+		const additionalInstallFailures: { extensionId: ExtensionId; error: string }[] = [];
 		if (selectedExtensions.length > 1) {
 			for (let i = 1; i < selectedExtensions.length; i++) {
 				const additionalExt = selectedExtensions[i];
+				const extIdString = additionalExt.id.owner
+					? `${additionalExt.id.owner}/${additionalExt.id.name}`
+					: additionalExt.id.name;
 				try {
 					const additionalResult = await installSingleExtension(
 						additionalExt,
@@ -533,9 +539,12 @@ export async function install(source: InstallSource, options: InstallOptions): P
 					);
 					additionalInstalls.push(additionalResult);
 				} catch (error) {
-					// Log error but continue with other extensions
 					const message = getErrorMessage(error);
-					onProgress?.({ phase: "installing", message: `Failed to install additional extension: ${message}` });
+					additionalInstallFailures.push({ extensionId: additionalExt.id, error: message });
+					onProgress?.({
+						phase: "installing",
+						message: `Failed to install additional extension ${extIdString}: ${message}`,
+					});
 				}
 			}
 		}
@@ -553,6 +562,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			sourceType: effectiveSourceType,
 			sourceRoot: keepSourceDir ? repoRoot : undefined,
 			additionalInstalls: additionalInstalls.length > 0 ? additionalInstalls : undefined,
+			additionalInstallFailures: additionalInstallFailures.length > 0 ? additionalInstallFailures : undefined,
 		};
 	} finally {
 		if (archivePath && source.type !== "local" && fs.existsSync(archivePath)) {
