@@ -344,7 +344,11 @@ async function installFromSource(
 			cancellable: true,
 		},
 		async (_progress, token) => {
+			let completed = false;
 			token.onCancellationRequested(() => {
+				if (completed) {
+					return;
+				}
 				const message = "Operation cancelled by the user.";
 				logMessage(message, "info");
 				showMessageWithLogs(message, "info");
@@ -395,6 +399,7 @@ async function installFromSource(
 				showMessageWithLogs(message, "error");
 			}
 			// result === null means cancelled by user, no message needed
+			completed = true;
 		},
 	);
 }
