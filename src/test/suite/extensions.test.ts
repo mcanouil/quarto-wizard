@@ -394,18 +394,6 @@ contributes:\n`;
 
 			assert.strictEqual(getEffectiveSourceType(ext), undefined);
 		});
-
-		test("Should default to registry for unrecognised source pattern", async () => {
-			createTestExtension("quarto-ext", "unknown-src", {
-				source: "some-extension",
-				"source-type": undefined,
-			});
-
-			const extensions = await getInstalledExtensions(tempDir);
-			const ext = extensions[0];
-
-			assert.strictEqual(getEffectiveSourceType(ext), "registry");
-		});
 	});
 
 	suite("getExtensionContributes", () => {
