@@ -435,15 +435,16 @@ export function createFileSelectionCallback(): (
 		 */
 		function rebuildItems() {
 			isRebuilding = true;
-			try {
-				items = buildVisibleItems();
-				quickPick.items = items;
-				// Restore selection from selectedPaths
-				quickPick.selectedItems = items.filter((item) => selectedPaths.has(item.path));
-				previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
-			} finally {
+			items = buildVisibleItems();
+			quickPick.items = items;
+			// Restore selection from selectedPaths
+			quickPick.selectedItems = items.filter((item) => selectedPaths.has(item.path));
+			previousSelection = new Set(quickPick.selectedItems.map((item) => item.path));
+			// Defer clearing the guard to also block any async onDidChangeSelection
+			// events that VS Code may fire after replacing items/selectedItems.
+			queueMicrotask(() => {
 				isRebuilding = false;
-			}
+			});
 		}
 
 		return new Promise<FileSelectionResult | null>((resolve) => {
@@ -516,8 +517,27 @@ export function createFileSelectionCallback(): (
 							}
 						}
 
-						// Rebuild to update visible items
-						rebuildItems();
+						// Also sync visible child directories with parent state
+						for (const visibleItem of quickPick.items) {
+							if (visibleItem.isDirectory && visibleItem.path.startsWith(item.path + "/")) {
+								if (isSelected) {
+									selectedPaths.add(visibleItem.path);
+								} else {
+									selectedPaths.delete(visibleItem.path);
+								}
+							}
+						}
+
+						// Update selection directly without rebuilding items.
+						// Replacing quickPick.items triggers stale async onDidChangeSelection
+						// events that corrupt selectedPaths, causing directories to deselect.
+						isRebuilding = true;
+						try {
+							quickPick.selectedItems = items.filter((i) => selectedPaths.has(i.path));
+							previousSelection = new Set(quickPick.selectedItems.map((i) => i.path));
+						} finally {
+							isRebuilding = false;
+						}
 						return;
 					}
 				}
