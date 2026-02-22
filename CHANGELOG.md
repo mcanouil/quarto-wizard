@@ -32,13 +32,11 @@
 - fix: make retry backoff cancellable via AbortSignal so users can cancel during retry delays.
 - fix: detect cross-platform absolute paths (Windows drive letters, UNC paths) in source prompts.
 - fix: skip internet connectivity check for local extension installs.
-- fix: exclude fenced code block bodies from attribute and shortcode detection to prevent false diagnostics and completions inside code cells.
 
 ### Refactoring
 
 - refactor: extract schema types, parsing, validation, and caching into a dedicated `@quarto-wizard/schema` package for better separation of concerns.
 - refactor: consolidate shared utilities, deduplicate error handling, and harden internal validation across extension and core packages.
-- refactor: centralise workspace schema index with TTL caching and in-flight request deduplication.
 
 ## 2.1.3 (2026-02-05)
 
