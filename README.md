@@ -49,7 +49,6 @@ Use the **Extensions Installed** Explorer view to:
 - Insert extension snippets directly into the active editor.
 
 See [Explorer View](https://m.canouil.dev/quarto-wizard/getting-started/explorer-view.html) for details.
-For Quarto extension developers, the schema and snippet specs explain how to enable richer editor support (hover details, suggestions, and validation): [Extension Schema Specification](https://m.canouil.dev/quarto-wizard/reference/schema-specification.html) and [Extension Snippet Specification](https://m.canouil.dev/quarto-wizard/reference/snippet-specification.html).
 
 ## Use Quarto Templates
 
