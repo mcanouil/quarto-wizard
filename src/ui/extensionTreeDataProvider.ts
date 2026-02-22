@@ -44,6 +44,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	// Guard against concurrent refresh operations
 	private pendingRefresh: Promise<void> | null = null;
 
+	// Guard against concurrent update-check operations
+	private pendingCheck: Promise<number> | null = null;
+
 	constructor(
 		private workspaceFolders: readonly vscode.WorkspaceFolder[],
 		private schemaCache: SchemaCache,
@@ -523,58 +526,71 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		view?: vscode.TreeView<TreeItemType>,
 		silent = true,
 	): Promise<number> {
-		const auth = await getAuthConfig(context);
-		const registryUrl = getRegistryUrl();
-		const cacheTtl = getCacheTTL();
-		const updatesAvailable: string[] = [];
-		let totalUpdates = 0;
+		// If a check is already in progress, wait for it instead of starting another
+		if (this.pendingCheck) {
+			return this.pendingCheck;
+		}
 
-		for (const folder of this.workspaceFolders) {
-			const workspacePath = folder.uri.fsPath;
-			const folderCache = this.cache[workspacePath];
-			if (!folderCache) continue;
+		const doCheck = async (): Promise<number> => {
+			const auth = await getAuthConfig(context);
+			const registryUrl = getRegistryUrl();
+			const cacheTtl = getCacheTTL();
+			const updatesAvailable: string[] = [];
+			let totalUpdates = 0;
 
-			try {
-				const updates = await checkForUpdates({
-					projectDir: workspacePath,
-					registryUrl,
-					cacheTtl,
-					auth: auth ?? undefined,
-					timeout: REGISTRY_FETCH_TIMEOUT_MS,
-				});
+			for (const folder of this.workspaceFolders) {
+				const workspacePath = folder.uri.fsPath;
+				const folderCache = this.cache[workspacePath];
+				if (!folderCache) continue;
 
-				// Only reset after successful fetch to preserve previous state on error
-				folderCache.latestVersions = {};
+				try {
+					const updates = await checkForUpdates({
+						projectDir: workspacePath,
+						registryUrl,
+						cacheTtl,
+						auth: auth ?? undefined,
+						timeout: REGISTRY_FETCH_TIMEOUT_MS,
+					});
 
-				for (const update of updates) {
-					const extId = formatExtensionId(update.extension.id);
-					const atIndex = update.source.lastIndexOf("@");
-					const versionRef = atIndex > 0 ? update.source.substring(atIndex + 1) : update.latestVersion;
+					// Only reset after successful fetch to preserve previous state on error
+					folderCache.latestVersions = {};
 
-					folderCache.latestVersions[extId] = versionRef;
-					updatesAvailable.push(`${folder.name}/${extId}`);
-					totalUpdates++;
+					for (const update of updates) {
+						const extId = formatExtensionId(update.extension.id);
+						const atIndex = update.source.lastIndexOf("@");
+						const versionRef = atIndex > 0 ? update.source.substring(atIndex + 1) : update.latestVersion;
+
+						folderCache.latestVersions[extId] = versionRef;
+						updatesAvailable.push(`${folder.name}/${extId}`);
+						totalUpdates++;
+					}
+				} catch (error) {
+					logMessage(`Failed to check updates for ${workspacePath}: ${getErrorMessage(error)}.`, "error");
 				}
-			} catch (error) {
-				logMessage(`Failed to check updates for ${workspacePath}: ${getErrorMessage(error)}.`, "error");
 			}
-		}
 
-		if (updatesAvailable.length > 0 && !silent) {
-			const message = `Updates available for the following extensions: ${updatesAvailable.join(", ")}.`;
-			logMessage(message, "info");
-		}
+			if (updatesAvailable.length > 0 && !silent) {
+				const message = `Updates available for the following extensions: ${updatesAvailable.join(", ")}.`;
+				logMessage(message, "info");
+			}
 
-		if (view) {
-			view.badge =
-				totalUpdates > 0
-					? {
-							value: totalUpdates,
-							tooltip: `${totalUpdates} update${totalUpdates === 1 ? "" : "s"} available`,
-						}
-					: undefined;
-		}
+			if (view) {
+				view.badge =
+					totalUpdates > 0
+						? {
+								value: totalUpdates,
+								tooltip: `${totalUpdates} update${totalUpdates === 1 ? "" : "s"} available`,
+							}
+						: undefined;
+			}
 
-		return totalUpdates;
+			return totalUpdates;
+		};
+
+		this.pendingCheck = doCheck().finally(() => {
+			this.pendingCheck = null;
+		});
+
+		return this.pendingCheck;
 	}
 }
