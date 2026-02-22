@@ -434,6 +434,18 @@ contributes:\n`;
 			assert.strictEqual(getEffectiveSourceType(ext), "registry");
 		});
 
+		test("Should not infer local from backslash in non-path source", async () => {
+			createTestExtension("quarto-ext", "infer-backslash", {
+				source: "owner/repo\\\\dir@v1.0.0",
+				"source-type": undefined,
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+			const ext = extensions[0];
+
+			assert.strictEqual(getEffectiveSourceType(ext), undefined);
+		});
+
 		test("Should return undefined for no source", async () => {
 			createTestExtension("quarto-ext", "no-src", {
 				source: undefined,

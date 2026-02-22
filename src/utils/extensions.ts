@@ -29,8 +29,7 @@ function isLocalSourcePath(source: string): boolean {
 		source.startsWith("~/") ||
 		source.startsWith("\\\\") ||
 		source.startsWith(".") ||
-		/^[A-Za-z]:[/\\]/.test(source) ||
-		source.includes("\\")
+		/^[A-Za-z]:[/\\]/.test(source)
 	);
 }
 

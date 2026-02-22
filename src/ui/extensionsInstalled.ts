@@ -103,7 +103,25 @@ export class ExtensionsInstalled {
 							await vscode.commands.executeCommand("vscode.openFolder", uri, { forceNewWindow: true });
 						}
 					} else {
-						void vscode.env.openExternal(vscode.Uri.parse(item.sourceUrl));
+						try {
+							const uri = vscode.Uri.parse(item.sourceUrl);
+							const scheme = uri.scheme.toLowerCase();
+							if (scheme !== "http" && scheme !== "https") {
+								showMessageWithLogs(
+									`Failed to open source for "${item.label}". Only HTTP(S) URLs are supported.`,
+									"warning",
+								);
+								return;
+							}
+							const opened = await vscode.env.openExternal(uri);
+							if (!opened) {
+								showMessageWithLogs(`Failed to open source for "${item.label}".`, "error");
+							}
+						} catch (error) {
+							const message = error instanceof Error ? error.message : String(error);
+							logMessage(`Failed to parse source URL for "${item.label}": ${message}.`, "error");
+							showMessageWithLogs(`Failed to open source for "${item.label}".`, "error");
+						}
 					}
 				},
 			),
