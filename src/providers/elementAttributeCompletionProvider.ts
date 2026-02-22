@@ -5,6 +5,7 @@ import { discoverInstalledExtensions, getErrorMessage } from "@quarto-wizard/cor
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
+import { getCodeBlockRanges } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 
 /**
@@ -296,7 +297,8 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				return null;
 			}
 
-			const parsed = parseAttributeAtPosition(text, offset);
+			const codeBlockRanges = getCodeBlockRanges(text);
+			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
 			}
@@ -527,7 +529,8 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
-			const parsed = parseAttributeAtPosition(text, offset);
+			const codeBlockRanges = getCodeBlockRanges(text);
+			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
 			}

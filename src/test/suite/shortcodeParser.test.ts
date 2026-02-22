@@ -251,4 +251,32 @@ suite("Shortcode Parser", () => {
 			assert.deepStrictEqual(result.arguments, []);
 		});
 	});
+
+	suite("code block exclusion", () => {
+		test("should return null for shortcode inside a code block", () => {
+			const text = '```\n{{< mysc key="value" >}}\n```';
+			const bounds = getShortcodeBounds(text, 10);
+			assert.strictEqual(bounds, null);
+		});
+
+		test("should return null for shortcode inside an executable code cell", () => {
+			const text = "```{r}\n{{< mysc >}}\n```";
+			const bounds = getShortcodeBounds(text, 10);
+			assert.strictEqual(bounds, null);
+		});
+
+		test("should still detect shortcodes outside code blocks", () => {
+			const text = "```{r}\nx <- 1\n```\n\n{{< mysc >}}";
+			const scStart = text.indexOf("{{< mysc >}}");
+			const bounds = getShortcodeBounds(text, scStart + 5);
+			assert.ok(bounds);
+			assert.strictEqual(bounds.start, scStart);
+		});
+
+		test("parseShortcodeAtPosition should return null inside code blocks", () => {
+			const text = '```\n{{< mysc key="value" >}}\n```';
+			const result = parseShortcodeAtPosition(text, 10);
+			assert.strictEqual(result, null);
+		});
+	});
 });

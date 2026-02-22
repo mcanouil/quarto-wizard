@@ -9,6 +9,8 @@
  * Determines cursor context within an attribute block to drive completions and hovers.
  */
 
+import { getCodeBlockRanges, isInCodeBlockRange, type TextRange } from "./yamlPosition";
+
 /**
  * The Pandoc element type surrounding an attribute block.
  */
@@ -63,9 +65,15 @@ export interface AttributeBounds {
  *
  * @param text - The full document text.
  * @param offset - The cursor offset within the text.
+ * @param codeBlockRanges - Pre-computed code block ranges. When omitted,
+ *   ranges are computed from the text automatically.
  * @returns The start and end offsets, or null if the cursor is not inside an attribute block.
  */
-export function getAttributeBounds(text: string, offset: number): AttributeBounds | null {
+export function getAttributeBounds(
+	text: string,
+	offset: number,
+	codeBlockRanges?: TextRange[],
+): AttributeBounds | null {
 	// Search backwards for `{` that is not inside a string
 	let openBrace = -1;
 	let depth = 0;
@@ -90,6 +98,12 @@ export function getAttributeBounds(text: string, offset: number): AttributeBound
 	}
 
 	if (openBrace === -1) {
+		return null;
+	}
+
+	// Reject if the opening brace falls inside a fenced code block.
+	const ranges = codeBlockRanges ?? getCodeBlockRanges(text);
+	if (isInCodeBlockRange(ranges, openBrace)) {
 		return null;
 	}
 
@@ -233,10 +247,16 @@ function findClosingBrace(text: string, openBrace: number): number {
  *
  * @param text - The full document text.
  * @param offset - The cursor offset within the text.
+ * @param codeBlockRanges - Pre-computed code block ranges. When omitted,
+ *   ranges are computed from the text automatically.
  * @returns The parse result, or null if the cursor is not inside an attribute block.
  */
-export function parseAttributeAtPosition(text: string, offset: number): ElementAttributeParseResult | null {
-	const bounds = getAttributeBounds(text, offset);
+export function parseAttributeAtPosition(
+	text: string,
+	offset: number,
+	codeBlockRanges?: TextRange[],
+): ElementAttributeParseResult | null {
+	const bounds = getAttributeBounds(text, offset, codeBlockRanges);
 	if (!bounds) {
 		return null;
 	}

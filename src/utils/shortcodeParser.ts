@@ -4,6 +4,8 @@
  * Determines cursor context within a shortcode to drive completions.
  */
 
+import { getCodeBlockRanges, isInCodeBlockRange, type TextRange } from "./yamlPosition";
+
 /**
  * Cursor context within a shortcode.
  * - "name": cursor is where the shortcode name should be (right after {{<).
@@ -44,9 +46,15 @@ export interface ShortcodeBounds {
  *
  * @param text - The full document text.
  * @param offset - The cursor offset within the text.
+ * @param codeBlockRanges - Pre-computed code block ranges. When omitted,
+ *   ranges are computed from the text automatically.
  * @returns The start and end offsets, or null if the cursor is not inside a shortcode.
  */
-export function getShortcodeBounds(text: string, offset: number): ShortcodeBounds | null {
+export function getShortcodeBounds(
+	text: string,
+	offset: number,
+	codeBlockRanges?: TextRange[],
+): ShortcodeBounds | null {
 	// Search backwards for {{< from the cursor position.
 	// We need to find the nearest {{< that is not already closed before the offset.
 	let start = -1;
@@ -67,6 +75,12 @@ export function getShortcodeBounds(text: string, offset: number): ShortcodeBound
 	}
 
 	if (start === -1) {
+		return null;
+	}
+
+	// Reject if the opening delimiter falls inside a fenced code block.
+	const ranges = codeBlockRanges ?? getCodeBlockRanges(text);
+	if (isInCodeBlockRange(ranges, start)) {
 		return null;
 	}
 
@@ -131,10 +145,16 @@ export function isInsideShortcode(text: string, offset: number): boolean {
  *
  * @param text - The full document text.
  * @param offset - The cursor offset within the text.
+ * @param codeBlockRanges - Pre-computed code block ranges. When omitted,
+ *   ranges are computed from the text automatically.
  * @returns The parse result, or null if the cursor is not inside a shortcode.
  */
-export function parseShortcodeAtPosition(text: string, offset: number): ShortcodeParseResult | null {
-	const bounds = getShortcodeBounds(text, offset);
+export function parseShortcodeAtPosition(
+	text: string,
+	offset: number,
+	codeBlockRanges?: TextRange[],
+): ShortcodeParseResult | null {
+	const bounds = getShortcodeBounds(text, offset, codeBlockRanges);
 	if (!bounds) {
 		return null;
 	}
