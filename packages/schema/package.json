@@ -1,7 +1,7 @@
 {
 	"name": "@quarto-wizard/schema",
 	"displayName": "Quarto Wizard Schema",
-	"version": "2.1.3",
+	"version": "2.2.0",
 	"description": "Schema types, parsing, validation, and caching for Quarto extension schemas",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",

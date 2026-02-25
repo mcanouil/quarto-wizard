@@ -36,7 +36,7 @@ Provides functions to find, parse, and read Quarto extension schemas.
 
 ## SchemaCache {#symbol-class-schemacache}
 
-Defined in: [packages/schema/src/filesystem/schema-cache.ts:19](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema-cache.ts#L19)
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:19](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema-cache.ts#L19)
 
 Cache for parsed extension schemas.
 Schemas are loaded lazily on first access.
@@ -61,7 +61,7 @@ new SchemaCache(): SchemaCache;
 get(extensionDir): ExtensionSchema | null;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema-cache.ts:30](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema-cache.ts#L30)
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:30](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema-cache.ts#L30)
 
 Get the schema for an extension directory.
 Loads and caches the schema on first access.
@@ -84,7 +84,7 @@ Parsed schema or null if no schema file exists
 getError(extensionDir): string | null;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema-cache.ts:57](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema-cache.ts#L57)
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:57](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema-cache.ts#L57)
 
 Get the parse error for a schema in the given directory, if any.
 
@@ -106,7 +106,7 @@ Error message or null if no error occurred
 has(extensionDir): boolean;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema-cache.ts:67](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema-cache.ts#L67)
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:67](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema-cache.ts#L67)
 
 Check whether a schema is cached for the given directory.
 
@@ -128,7 +128,7 @@ True if a schema is cached
 invalidate(extensionDir): void;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema-cache.ts:76](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema-cache.ts#L76)
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:76](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema-cache.ts#L76)
 
 Invalidate the cached schema for a specific extension directory.
 
@@ -148,7 +148,7 @@ Invalidate the cached schema for a specific extension directory.
 invalidateAll(): void;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema-cache.ts:84](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema-cache.ts#L84)
+Defined in: [packages/schema/src/filesystem/schema-cache.ts:84](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema-cache.ts#L84)
 
 Invalidate all cached schemas.
 
@@ -162,7 +162,7 @@ Invalidate all cached schemas.
 function findSchemaFile(directory): string | null;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema.ts:38](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L38)
+Defined in: [packages/schema/src/filesystem/schema.ts:38](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L38)
 
 Find the schema file in a directory.
 
@@ -187,7 +187,7 @@ function parseSchemaContent(
    format?): ExtensionSchema;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema.ts:86](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L86)
+Defined in: [packages/schema/src/filesystem/schema.ts:86](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L86)
 
 Parse schema content from a YAML or JSON string.
 
@@ -215,7 +215,7 @@ SchemaError if parsing fails
 function parseSchemaFile(schemaPath): ExtensionSchema;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema.ts:62](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L62)
+Defined in: [packages/schema/src/filesystem/schema.ts:62](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L62)
 
 Parse a schema file from a path.
 
@@ -241,7 +241,7 @@ SchemaError if parsing fails
 function readSchema(directory): SchemaReadResult | null;
 ```
 
-Defined in: [packages/schema/src/filesystem/schema.ts:127](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L127)
+Defined in: [packages/schema/src/filesystem/schema.ts:127](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L127)
 
 Read a schema from a directory.
 
@@ -259,7 +259,7 @@ SchemaReadResult or null if no schema found
 
 ## SchemaReadResult {#symbol-interface-schemareadresult}
 
-Defined in: [packages/schema/src/filesystem/schema.ts:23](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L23)
+Defined in: [packages/schema/src/filesystem/schema.ts:23](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L23)
 
 Result of reading a schema file.
 
@@ -267,9 +267,9 @@ Result of reading a schema file.
 
 | Property                                      | Type                                                            | Description                                              | Defined in                                                                                                                                                                          |
 | --------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-filename"></a> `filename`     | `string`                                                        | Filename used (e.g., "\_schema.yml" or "\_schema.json"). | [packages/schema/src/filesystem/schema.ts:29](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L29) |
-| <a id="property-schema"></a> `schema`         | [`ExtensionSchema`](types.qmd#symbol-interface-extensionschema) | Parsed schema data.                                      | [packages/schema/src/filesystem/schema.ts:25](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L25) |
-| <a id="property-schemapath"></a> `schemaPath` | `string`                                                        | Full path to the schema file.                            | [packages/schema/src/filesystem/schema.ts:27](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L27) |
+| <a id="property-filename"></a> `filename`     | `string`                                                        | Filename used (e.g., "\_schema.yml" or "\_schema.json"). | [packages/schema/src/filesystem/schema.ts:29](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L29) |
+| <a id="property-schema"></a> `schema`         | [`ExtensionSchema`](types.qmd#symbol-interface-extensionschema) | Parsed schema data.                                      | [packages/schema/src/filesystem/schema.ts:25](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L25) |
+| <a id="property-schemapath"></a> `schemaPath` | `string`                                                        | Full path to the schema file.                            | [packages/schema/src/filesystem/schema.ts:27](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L27) |
 
 ## SCHEMA_FILENAMES {#symbol-variable-schema-filenames}
 
@@ -277,6 +277,6 @@ Result of reading a schema file.
 const SCHEMA_FILENAMES: readonly ["_schema.json", "_schema.yml", "_schema.yaml"];
 ```
 
-Defined in: [packages/schema/src/filesystem/schema.ts:18](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/schema/src/filesystem/schema.ts#L18)
+Defined in: [packages/schema/src/filesystem/schema.ts:18](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/schema/src/filesystem/schema.ts#L18)
 
 Supported schema file names, ordered by precedence (JSON first).
