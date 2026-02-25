@@ -104,7 +104,7 @@ Automatically routes requests through configured proxy servers.
 function clearProxyAgentCache(): void;
 ```
 
-Defined in: [packages/core/src/proxy/fetch.ts:158](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/fetch.ts#L158)
+Defined in: [packages/core/src/proxy/fetch.ts:158](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/fetch.ts#L158)
 
 Clear the proxy agent cache.
 Useful for testing or when proxy configuration changes.
@@ -119,7 +119,7 @@ Useful for testing or when proxy configuration changes.
 function getProxyConfig(): ProxyConfig;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:88](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/config.ts#L88)
+Defined in: [packages/core/src/proxy/config.ts:88](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/config.ts#L88)
 
 Read proxy configuration from environment variables.
 
@@ -135,7 +135,7 @@ Proxy configuration
 function getProxyForUrl(url, config?): string | undefined;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:146](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/config.ts#L146)
+Defined in: [packages/core/src/proxy/config.ts:146](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/config.ts#L146)
 
 Get the appropriate proxy URL for a given request URL.
 
@@ -158,7 +158,7 @@ Proxy URL or undefined if no proxy should be used
 function proxyFetch(url, options?): Promise<Response>;
 ```
 
-Defined in: [packages/core/src/proxy/fetch.ts:130](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/fetch.ts#L130)
+Defined in: [packages/core/src/proxy/fetch.ts:130](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/fetch.ts#L130)
 
 Proxy-aware fetch function.
 
@@ -184,7 +184,7 @@ Response
 function shouldBypassProxy(hostname, noProxy): boolean;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:109](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/config.ts#L109)
+Defined in: [packages/core/src/proxy/config.ts:109](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/config.ts#L109)
 
 Check if a hostname should bypass the proxy.
 
@@ -210,7 +210,7 @@ True if the host should bypass the proxy
 
 ## ProxyConfig {#symbol-interface-proxyconfig}
 
-Defined in: [packages/core/src/proxy/config.ts:46](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/config.ts#L46)
+Defined in: [packages/core/src/proxy/config.ts:46](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/config.ts#L46)
 
 Proxy configuration.
 
@@ -218,13 +218,13 @@ Proxy configuration.
 
 | Property                                       | Type       | Description                                 | Defined in                                                                                                                                                            |
 | ---------------------------------------------- | ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-httpproxy"></a> `httpProxy?`   | `string`   | Proxy URL for HTTP requests.                | [packages/core/src/proxy/config.ts:48](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/config.ts#L48) |
-| <a id="property-httpsproxy"></a> `httpsProxy?` | `string`   | Proxy URL for HTTPS requests.               | [packages/core/src/proxy/config.ts:50](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/config.ts#L50) |
-| <a id="property-noproxy"></a> `noProxy`        | `string[]` | List of hosts/patterns to bypass the proxy. | [packages/core/src/proxy/config.ts:52](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/config.ts#L52) |
+| <a id="property-httpproxy"></a> `httpProxy?`   | `string`   | Proxy URL for HTTP requests.                | [packages/core/src/proxy/config.ts:48](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/config.ts#L48) |
+| <a id="property-httpsproxy"></a> `httpsProxy?` | `string`   | Proxy URL for HTTPS requests.               | [packages/core/src/proxy/config.ts:50](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/config.ts#L50) |
+| <a id="property-noproxy"></a> `noProxy`        | `string[]` | List of hosts/patterns to bypass the proxy. | [packages/core/src/proxy/config.ts:52](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/config.ts#L52) |
 
 ## ProxyFetchOptions {#symbol-interface-proxyfetchoptions}
 
-Defined in: [packages/core/src/proxy/fetch.ts:93](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/fetch.ts#L93)
+Defined in: [packages/core/src/proxy/fetch.ts:93](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/fetch.ts#L93)
 
 Options for proxy-aware fetch.
 
@@ -246,7 +246,7 @@ Options for proxy-aware fetch.
 | <a id="property-keepalive"></a> `keepalive?`           | `boolean`                                               | -                                                             | `RequestInit.keepalive`      | node_modules/undici-types/fetch.d.ts:130                                                                                                                            |
 | <a id="property-method"></a> `method?`                 | `string`                                                | -                                                             | `RequestInit.method`         | node_modules/undici-types/fetch.d.ts:131                                                                                                                            |
 | <a id="property-mode"></a> `mode?`                     | `RequestMode`                                           | -                                                             | `RequestInit.mode`           | node_modules/undici-types/fetch.d.ts:132                                                                                                                            |
-| <a id="property-proxyconfig"></a> `proxyConfig?`       | [`ProxyConfig`](proxy.qmd#symbol-interface-proxyconfig) | Proxy configuration. If not provided, reads from environment. | -                            | [packages/core/src/proxy/fetch.ts:95](https://github.com/mcanouil/quarto-wizard/blob/b137ce01c347ae00b9119bd3b64f63ca147770fe/packages/core/src/proxy/fetch.ts#L95) |
+| <a id="property-proxyconfig"></a> `proxyConfig?`       | [`ProxyConfig`](proxy.qmd#symbol-interface-proxyconfig) | Proxy configuration. If not provided, reads from environment. | -                            | [packages/core/src/proxy/fetch.ts:95](https://github.com/mcanouil/quarto-wizard/blob/dc3fe65d072077e2a6ee11958d4c7c0853bffc4f/packages/core/src/proxy/fetch.ts#L95) |
 | <a id="property-redirect"></a> `redirect?`             | `RequestRedirect`                                       | -                                                             | `RequestInit.redirect`       | node_modules/undici-types/fetch.d.ts:133                                                                                                                            |
 | <a id="property-referrer"></a> `referrer?`             | `string`                                                | -                                                             | `RequestInit.referrer`       | node_modules/undici-types/fetch.d.ts:134                                                                                                                            |
 | <a id="property-referrerpolicy"></a> `referrerPolicy?` | `ReferrerPolicy`                                        | -                                                             | `RequestInit.referrerPolicy` | node_modules/undici-types/fetch.d.ts:135                                                                                                                            |
