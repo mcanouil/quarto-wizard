@@ -579,12 +579,19 @@ Then read every Lua source file to discover:
    the attribute applies regardless of class).
 5. **Classes** contributed by the extension's filters. List each CSS
    class name the extension handles, with a short description.
+   Look for patterns such as `el.classes:includes("name")`,
+   `el.classes:find("name")`, or class-based conditionals.
+6. **Project types** declared or contributed by the extension. If the
+   extension provides a project type, list it under the `projects`
+   top-level key.
 
 For every field use the following properties where applicable:
 
 - `type`: `string`, `number`, `integer`, `boolean`, `array`, `object`,
   or `content` (for shortcode arguments that receive Pandoc content).
   Use `integer` when only whole numbers are valid.
+  When a field accepts multiple types, use an array
+  (e.g., `type: [string, number]`).
 - `required`: set to `true` only when the code raises an error or
   returns early for missing values.
 - `default`: the fallback value used in the code.
@@ -606,10 +613,17 @@ For every field use the following properties where applicable:
 - `deprecated`: `true`, a message string, or an object with `since`,
   `message`, and `replace-with` keys.
 - `description`: one sentence in British English explaining the option.
-- `completion`: add `type: color` for CSS colour values, `type: file`
-  with `extensions` for file paths, or omit to let the IDE infer
-  from `enum` and `type`.
-- `items` and `properties` for `array` and `object` types.
+- `completion`: controls IDE autocompletion behaviour. Sub-properties:
+  `type` (`color` for CSS colour values, `file` for file paths,
+  `freeform` for text input, `none` to disable), `extensions`
+  (file extensions to filter when `type: file`), `placeholder`
+  (hint text for `freeform`), `values` (static suggestion list),
+  `dynamic` and `source` (for runtime-resolved values).
+  Omit `completion` to let the IDE infer from `enum` and `type`.
+- `items`: schema for elements of an `array` type. Use `items` to
+  describe what each array element looks like (its type, enum, etc.).
+- `properties`: schema for keys of an `object` type. Use `properties`
+  to describe each expected key and its constraints.
 
 Output only the YAML content of `_schema.yml`, nothing else.
 Use kebab-case for multi-word property names (`enum-case-insensitive`,
