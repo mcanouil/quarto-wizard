@@ -2,6 +2,11 @@ name: Deploy Documentation
 
 on:
   workflow_dispatch:
+    inputs:
+      use-main-as-release:
+        description: "Render release site from main instead of latest tag"
+        type: boolean
+        default: false
   release:
     types:
       - published
@@ -39,6 +44,7 @@ jobs:
           version: pre-release
 
       - name: Get latest tag
+        if: inputs.use-main-as-release != true
         id: latest-tag
         shell: bash
         run: |
@@ -51,6 +57,7 @@ jobs:
           echo "Latest tag: ${LATEST_TAG}"
 
       - name: Checkout latest tag
+        if: inputs.use-main-as-release != true
         shell: bash
         env:
           LATEST_TAG: ${{ steps.latest-tag.outputs.tag }}
