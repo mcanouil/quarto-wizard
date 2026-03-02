@@ -32,7 +32,7 @@
 		"directory": "packages/core"
 	},
 	"dependencies": {
-		"glob": "^13.0.0",
+		"glob": "^13.0.6",
 		"js-yaml": "^4.1.0",
 		"minimatch": "^10.2.3",
 		"semver": "^7.7.3",
