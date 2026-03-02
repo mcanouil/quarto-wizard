@@ -104,7 +104,7 @@
 		"@vscode/vsce": "^3.7.1",
 		"eslint": "^9.39.2",
 		"eslint-formatter-unix": "^9.0.1",
-		"eslint-plugin-tsdoc": "^0.5.0",
+		"eslint-plugin-tsdoc": "^0.5.2",
 		"glob": "^13.0.6",
 		"lru-cache": "^11.2.4",
 		"mocha": "^11.3.0",
