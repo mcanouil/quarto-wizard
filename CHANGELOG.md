@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- fix: guard against false linting diagnostics inside code blocks with CRLF line endings (#301).
+
 ## 2.2.0 (2026-02-25)
 
 ### New Features
