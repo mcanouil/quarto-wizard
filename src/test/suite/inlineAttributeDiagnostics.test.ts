@@ -5,6 +5,7 @@ import {
 	findKeyValueOffset,
 	findArgumentOffset,
 	extractBareWords,
+	extractBlocks,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
 import type { FieldDescriptor } from "@quarto-wizard/schema";
@@ -544,6 +545,61 @@ suite("Inline Attribute Diagnostics", () => {
 		test("should not flag = not preceded by an identifier", () => {
 			const results = findEmptyValueAssignments("=");
 			assert.strictEqual(results.length, 0);
+		});
+	});
+
+	suite("extractBlocks (CRLF)", () => {
+		test("should not return blocks from inside a code block with CRLF", () => {
+			const text = "---\r\ntitle: Test\r\n---\r\n\r\n```{r}\r\nfunction(x) {\r\n  x + 1\r\n}\r\n```\r\n";
+			const blocks = extractBlocks(text);
+			// Only the {r} on the fence header should be returned, not the
+			// curly braces inside the code body.
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, "r");
+		});
+
+		test("should return {r} from fence header with CRLF", () => {
+			const text = "text\r\n```{r}\r\ncode\r\n```\r\nmore";
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, "r");
+			assert.strictEqual(blocks[0].type, "element");
+		});
+
+		test("should not produce spaces-around-equals findings inside code blocks with CRLF", () => {
+			const text = ["---", "title: Test", "---", "", "```{r}", "x = 1", "y = 2", "```", ""].join("\r\n");
+			const blocks = extractBlocks(text);
+			// Only {r} from the fence header.
+			const codeBlocks = blocks.filter((b) => b.content !== "r");
+			for (const block of codeBlocks) {
+				const findings = findSpacesAroundEquals(block.content);
+				assert.strictEqual(findings.length, 0, `Unexpected finding in block content: "${block.content}"`);
+			}
+		});
+
+		test("should not return blocks from R code with key = value patterns and CRLF", () => {
+			const text = [
+				"---",
+				"title: Example document",
+				"---",
+				"",
+				"```{r}",
+				"#| label: example-code",
+				"",
+				"theme_simulation <- function() {",
+				"  theme_minimal() +",
+				"    theme(",
+				'      axis.text.y = element_text(face = "bold"),',
+				"      axis.text.x = element_text(angle = 45, hjust = 1),",
+				'      strip.background = element_rect(fill = "#F0F0F0", colour = NA),',
+				"    )",
+				"}",
+				"```",
+			].join("\r\n");
+			const blocks = extractBlocks(text);
+			// Only {r} from the fence header should be extracted.
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, "r");
 		});
 	});
 

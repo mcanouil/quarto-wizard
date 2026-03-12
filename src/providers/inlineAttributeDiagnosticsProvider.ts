@@ -249,10 +249,22 @@ interface BlockMatch {
 }
 
 /**
+ * Check whether a match range overlaps any code block range.
+ * Tests both endpoints and spanning (match starts before and ends inside a block).
+ */
+function overlapsCodeBlock(ranges: TextRange[], matchStart: number, matchEnd: number): boolean {
+	return (
+		isInCodeBlockRange(ranges, matchStart) ||
+		isInCodeBlockRange(ranges, matchEnd) ||
+		ranges.some((r) => matchStart < r.start && matchEnd >= r.start)
+	);
+}
+
+/**
  * Extract all attribute blocks and shortcode blocks from document text,
  * excluding matches that fall inside fenced code blocks.
  */
-function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[] {
+export function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[] {
 	const ranges = codeBlockRanges ?? getCodeBlockRanges(text);
 	const blocks: BlockMatch[] = [];
 
@@ -260,7 +272,7 @@ function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[
 		if (match.index === undefined) {
 			continue;
 		}
-		if (isInCodeBlockRange(ranges, match.index)) {
+		if (overlapsCodeBlock(ranges, match.index, match.index + match[0].length - 1)) {
 			continue;
 		}
 		// Content is everything between { and }.
@@ -273,7 +285,7 @@ function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[
 		if (match.index === undefined) {
 			continue;
 		}
-		if (isInCodeBlockRange(ranges, match.index)) {
+		if (overlapsCodeBlock(ranges, match.index, match.index + match[0].length - 1)) {
 			continue;
 		}
 		// Content is everything between {{< and >}}.

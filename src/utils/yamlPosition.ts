@@ -38,9 +38,10 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 	let closingFenceRe: RegExp | undefined;
 
 	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
+		const rawLine = lines[i];
+		const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
 		const lineStart = offset;
-		const lineEnd = lineStart + line.length;
+		const lineEnd = lineStart + rawLine.length;
 		// Advance offset past the newline for the next iteration.
 		offset = lineEnd + (i < lines.length - 1 ? 1 : 0);
 
