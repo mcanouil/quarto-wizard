@@ -363,6 +363,38 @@ suite("YAML Position Utils Test Suite", () => {
 			const ranges = getCodeBlockRanges(text);
 			assert.strictEqual(ranges.length, 0);
 		});
+
+		test("should detect a backtick-fenced code block with CRLF line endings", () => {
+			const text = "before\r\n```\r\ncode\r\n```\r\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// Range includes trailing \r on the closing fence line.
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "code\r\n```\r");
+		});
+
+		test("should exclude opening fence header with info string and CRLF", () => {
+			const text = "text\r\n```{r}\r\nx <- 1\r\n```\r\nmore";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			// The {r} header is NOT inside the range.
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "x <- 1\r\n```\r");
+		});
+
+		test("should cover curly-brace content inside code block body with CRLF", () => {
+			const text = "text\r\n```{r}\r\nfunction(x) {\r\n  x + 1\r\n}\r\n```\r\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			const block = text.slice(ranges[0].start, ranges[0].end);
+			assert.ok(block.includes("function(x) {"));
+			assert.ok(block.includes("}"));
+			assert.ok(!block.includes("```{r}"));
+		});
+
+		test("should handle multiple code blocks with CRLF", () => {
+			const text = "a\r\n```\r\nb\r\n```\r\nc\r\n~~~\r\nd\r\n~~~\r\ne";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 2);
+		});
 	});
 
 	suite("isInCodeBlockRange", () => {
@@ -428,6 +460,28 @@ suite("YAML Position Utils Test Suite", () => {
 			const text = "```\ncode\n```";
 			const ranges = getCodeBlockRanges(text);
 			assert.strictEqual(isInCodeBlockRange(ranges, ranges[0].end - 1), true);
+		});
+
+		test("should return true for offset inside code block body with CRLF", () => {
+			const text = "before\r\n```\r\ncode\r\n```\r\nafter";
+			const ranges = getCodeBlockRanges(text);
+			// "code" starts after "before\r\n```\r\n" = 13 chars.
+			const codeOffset = text.indexOf("code");
+			assert.strictEqual(isInCodeBlockRange(ranges, codeOffset), true);
+		});
+
+		test("should return false for {r} on fence header with CRLF", () => {
+			const text = "text\r\n```{r}\r\nx <- 1\r\n```\r\nmore";
+			const ranges = getCodeBlockRanges(text);
+			const braceOffset = text.indexOf("{r}");
+			assert.strictEqual(isInCodeBlockRange(ranges, braceOffset), false);
+		});
+
+		test("should return true for curly braces inside code body with CRLF", () => {
+			const text = "text\r\n```{r}\r\nfunction(x) {\r\n  x + 1\r\n}\r\n```\r\nafter";
+			const ranges = getCodeBlockRanges(text);
+			const innerBrace = text.indexOf("function(x) {") + "function(x) ".length;
+			assert.strictEqual(isInCodeBlockRange(ranges, innerBrace), true);
 		});
 	});
 });
