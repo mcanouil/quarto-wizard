@@ -550,6 +550,8 @@ Example instances showing every supported property are also available:
 - [`extension-schema-example.yml`](/assets/schema/v1/extension-schema-example.yml) (YAML example, kebab-case keys).
 - [`extension-schema-example.json`](/assets/schema/v1/extension-schema-example.json) (JSON example, camelCase keys).
 
+::: {.content-hidden when-format="llms-txt"}
+
 ## Generating a Schema with AI
 
 The prompt below can be used with an AI assistant to generate a `_schema.yml` for an existing extension.
@@ -633,5 +635,7 @@ Optionally include `$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v
 at the top level.
 Reference: https://m.canouil.dev/quarto-wizard/reference/schema-specification.llms.md
 ```
+
+:::
 
 :::
