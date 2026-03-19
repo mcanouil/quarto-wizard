@@ -631,6 +631,7 @@ not `enumCaseInsensitive`).
 Add a one-line comment header: `# Schema for the <name> extension`.
 Optionally include `$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json`
 at the top level.
+Reference: https://m.canouil.dev/quarto-wizard/reference/schema-specification.llms.md
 ```
 
 :::
