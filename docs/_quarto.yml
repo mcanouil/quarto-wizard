@@ -22,6 +22,7 @@ website:
   repo-url: https://github.com/mcanouil/quarto-wizard
   repo-actions: []
   repo-link-target: _blank
+  llms-txt: true
 
   page-footer:
     border: true
