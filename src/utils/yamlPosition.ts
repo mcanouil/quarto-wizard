@@ -55,11 +55,11 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			continue;
 		}
 
-		// Check for opening fence at the start of the line.
-		const openMatch = /^(`{3,}|~{3,})(.*)$/.exec(line);
+		// Check for opening fence, optionally indented.
+		const openMatch = /^(\s*)(`{3,}|~{3,})(.*)$/.exec(line);
 		if (openMatch) {
 			// The info string must not contain backticks when using backtick fences.
-			if (openMatch[1][0] === "`" && openMatch[2].includes("`")) {
+			if (openMatch[2][0] === "`" && openMatch[3].includes("`")) {
 				continue;
 			}
 			inBlock = true;
@@ -68,7 +68,7 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			blockStart = offset;
 			// Compile the closing fence regex once per block.
 			// fenceChar is always ` or ~, neither is a regex metacharacter.
-			closingFenceRe = new RegExp(`^${openMatch[1][0]}{${openMatch[1].length},}\\s*$`);
+			closingFenceRe = new RegExp(`^\\s*${openMatch[2][0]}{${openMatch[2].length},}\\s*$`);
 		}
 	}
 

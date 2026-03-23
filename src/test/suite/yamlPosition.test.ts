@@ -395,6 +395,30 @@ suite("YAML Position Utils Test Suite", () => {
 			const ranges = getCodeBlockRanges(text);
 			assert.strictEqual(ranges.length, 2);
 		});
+
+		test("should detect indented fenced code block (2-space indent)", () => {
+			const text = "- item\n\n  ```{r}\n  x = 1\n  ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			const body = text.substring(ranges[0].start, ranges[0].end);
+			assert.ok(body.includes("x = 1"));
+		});
+
+		test("should detect indented fenced code block (4-space indent)", () => {
+			const text = "- item\n\n    ```{r}\n    x = 1\n    ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			const body = text.substring(ranges[0].start, ranges[0].end);
+			assert.ok(body.includes("x = 1"));
+		});
+
+		test("should detect indented tilde-fenced code block", () => {
+			const text = "- item\n\n  ~~~python\n  x = 1\n  ~~~\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			const body = text.substring(ranges[0].start, ranges[0].end);
+			assert.ok(body.includes("x = 1"));
+		});
 	});
 
 	suite("isInCodeBlockRange", () => {
