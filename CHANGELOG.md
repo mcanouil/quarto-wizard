@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- fix: guard against false linting diagnostics with indented fenced code blocks.
+
 ## 2.2.1 (2026-03-12)
 
 ### Fixes
