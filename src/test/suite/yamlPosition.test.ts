@@ -419,6 +419,14 @@ suite("YAML Position Utils Test Suite", () => {
 			const body = text.substring(ranges[0].start, ranges[0].end);
 			assert.ok(body.includes("x = 1"));
 		});
+
+		test("should detect indented fenced code block with CRLF", () => {
+			const text = "- item\r\n\r\n  ```{r}\r\n  x = 1\r\n  ```\r\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			const body = text.substring(ranges[0].start, ranges[0].end);
+			assert.ok(body.includes("x = 1"));
+		});
 	});
 
 	suite("isInCodeBlockRange", () => {
