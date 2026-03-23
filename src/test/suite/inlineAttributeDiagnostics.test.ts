@@ -601,6 +601,33 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.strictEqual(blocks.length, 1);
 			assert.strictEqual(blocks[0].content, "r");
 		});
+		test("should not return blocks from inside an indented code block", () => {
+			const text = [
+				"- demo",
+				"",
+				'  ```{.r filename="demo.qmd"}',
+				"  function(x = 1) {",
+				"    x = 1",
+				"  }",
+				"  ```",
+				"",
+				"- test",
+			].join("\n");
+			const blocks = extractBlocks(text);
+			// Only {.r filename="demo.qmd"} from the fence header.
+			assert.strictEqual(blocks.length, 1);
+			assert.ok(blocks[0].content.startsWith(".r"));
+		});
+
+		test("should not produce spaces-around-equals findings inside indented code blocks", () => {
+			const text = ["- demo", "", "  ```{r}", "  x = 1", "  y = 2", "  ```"].join("\n");
+			const blocks = extractBlocks(text);
+			const codeBlocks = blocks.filter((b) => b.content !== "r");
+			for (const block of codeBlocks) {
+				const findings = findSpacesAroundEquals(block.content);
+				assert.strictEqual(findings.length, 0, `Unexpected finding in block content: "${block.content}"`);
+			}
+		});
 	});
 
 	suite("extractBareWords", () => {
