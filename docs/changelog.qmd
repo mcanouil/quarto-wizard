@@ -6,6 +6,12 @@ title: "Changelog"
 
 ### 2.2 {#version-2-2}
 
+#### 2.2.2 (2026-03-23) {#version-2-2-2}
+
+##### Fixes
+
+- fix: guard against false linting diagnostics with indented fenced code blocks.
+
 #### 2.2.1 (2026-03-12) {#version-2-2-1}
 
 ##### Fixes
