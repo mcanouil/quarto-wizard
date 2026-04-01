@@ -13,18 +13,21 @@
 local html_utils = require(
   quarto.utils.resolve_path('../_modules/html-utils.lua'):gsub('%.lua$', '')
 )
-local utils = require(
-  quarto.utils.resolve_path('../_modules/utils.lua'):gsub('%.lua$', '')
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', '')
+)
+local colour = require(
+  quarto.utils.resolve_path('../_modules/colour.lua'):gsub('%.lua$', '')
 )
 
 local M = {}
 
 -- ============================================================================
--- HELPER FUNCTIONS (aliases to utils module)
+-- HELPER FUNCTIONS (aliases to focused modules)
 -- ============================================================================
 
-local to_string = utils.to_string
-local is_custom_colour = utils.is_custom_colour
+local to_string = str.to_string
+local is_custom_colour = colour.is_custom_colour
 
 -- ============================================================================
 -- CONFIGURATION
@@ -66,14 +69,14 @@ M.render_value_box = function(kwargs, config)
   local unit = to_string(kwargs.unit)
   local label = to_string(kwargs.label) or ''
   local icon = to_string(kwargs.icon)
-  local colour = utils.get_colour(kwargs, 'info')
+  local colour = colour.get_colour(kwargs, 'info')
 
   -- Handle custom colours (hex, rgb, hsl)
   local modifier = html_utils.get_colour_modifier(colour)
   local style_attr = ''
   if is_custom_colour(colour) then
     modifier = 'custom'
-    style_attr = string.format(' style="--custom-colour: %s;"', utils.escape_attribute(colour))
+    style_attr = string.format(' style="--custom-colour: %s;"', str.escape_attribute(colour))
   elseif not modifier then
     modifier = colour
   end
@@ -83,11 +86,11 @@ M.render_value_box = function(kwargs, config)
   local classes = base_class .. ' ' .. mod_class
 
   -- Build value display
-  local value_html = html_utils.bem_span('value-box', 'number', nil, nil, utils.escape_html(value))
+  local value_html = html_utils.bem_span('value-box', 'number', nil, nil, str.escape_html(value))
 
   -- Add unit if provided
   if unit then
-    value_html = value_html .. html_utils.bem_span('value-box', 'unit', nil, nil, utils.escape_html(unit))
+    value_html = value_html .. html_utils.bem_span('value-box', 'unit', nil, nil, str.escape_html(unit))
   end
 
   -- Add icon if provided
@@ -95,14 +98,14 @@ M.render_value_box = function(kwargs, config)
   if icon then
     local icon_char = html_utils.get_icon(icon)
     icon_html = html_utils.bem_span('value-box', 'icon', nil, { ['aria-hidden'] = 'true' },
-      utils.escape_html(icon_char))
+      str.escape_html(icon_char))
   end
 
   -- Build value row
   local value_row_html = html_utils.bem_div('value-box', 'value', nil, nil, value_html .. icon_html)
 
   -- Build label
-  local label_html = html_utils.bem_div('value-box', 'label', nil, nil, utils.escape_html(label))
+  local label_html = html_utils.bem_div('value-box', 'label', nil, nil, str.escape_html(label))
 
   -- Build wrapper
   local aria_label = label .. ': ' .. value
@@ -113,7 +116,7 @@ M.render_value_box = function(kwargs, config)
   return string.format('<div class="%s"%s role="figure" aria-label="%s">%s%s</div>',
     classes,
     style_attr,
-    utils.escape_attribute(aria_label),
+    str.escape_attribute(aria_label),
     value_row_html,
     label_html)
 end
@@ -126,7 +129,7 @@ M.render_badge = function(kwargs, config)
   config = config or M.HTML_CONFIG
 
   local text = to_string(kwargs.text) or to_string(kwargs[1]) or ''
-  local colour = utils.get_colour(kwargs, 'neutral')
+  local colour = colour.get_colour(kwargs, 'neutral')
   local icon = to_string(kwargs.icon)
 
   local modifier = html_utils.get_colour_modifier(colour) or colour
@@ -137,11 +140,11 @@ M.render_badge = function(kwargs, config)
   local icon_html = ''
   if icon then
     local icon_char = html_utils.get_icon(icon)
-    icon_html = html_utils.bem_span('badge', 'icon', nil, { ['aria-hidden'] = 'true' }, utils.escape_html(icon_char)) ..
+    icon_html = html_utils.bem_span('badge', 'icon', nil, { ['aria-hidden'] = 'true' }, str.escape_html(icon_char)) ..
         ' '
   end
 
-  local text_html = html_utils.bem_span('badge', 'text', nil, nil, utils.escape_html(text))
+  local text_html = html_utils.bem_span('badge', 'text', nil, nil, str.escape_html(text))
 
   return string.format('<span class="%s">%s%s</span>', classes, icon_html, text_html)
 end

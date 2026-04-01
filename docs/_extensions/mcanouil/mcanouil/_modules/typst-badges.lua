@@ -13,8 +13,8 @@
 local wrapper = require(
   quarto.utils.resolve_path('../_modules/typst-wrapper.lua'):gsub('%.lua$', '')
 )
-local utils = require(
-  quarto.utils.resolve_path('../_modules/utils.lua'):gsub('%.lua$', '')
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', '')
 )
 
 -- ============================================================================
@@ -28,7 +28,7 @@ local utils = require(
 --- @return pandoc.RawInline Typst code inline
 local function process_badge(span, config)
   -- Convert content to plain text
-  local content = utils.stringify(span.content)
+  local content = str.stringify(span.content)
 
   -- Convert attributes to table
   local attrs = wrapper.attributes_to_table(span)

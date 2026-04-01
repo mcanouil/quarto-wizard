@@ -7,8 +7,18 @@
 
 local M = {}
 
--- Load utils module for raw_header function
-local utils = require(quarto.utils.resolve_path("../_modules/utils.lua"):gsub("%.lua$", ""))
+--- Load a sibling module from the same directory as this file.
+--- @param filename string The sibling module filename (e.g., 'string.lua')
+--- @return table The loaded module
+local function load_sibling(filename)
+  local source = debug.getinfo(1, 'S').source:sub(2)
+  local dir = source:match('(.*[/\\])') or ''
+  return require((dir .. filename):gsub('%.lua$', ''))
+end
+
+--- Load required modules
+local str = load_sibling('string.lua')
+local html = load_sibling('html.lua')
 
 -- ============================================================================
 -- SECTION EXTRACTION
@@ -161,13 +171,13 @@ function M.protect_headers(blocks, id_prefix, format)
       local attributes = block.attributes or {}
 
       --- @type string Header content as string
-      local header_text = utils.stringify(block.content)
+      local header_text = str.stringify(block.content)
 
       -- Convert to raw HTML block
       table.insert(protected,
         pandoc.RawBlock(
           output_format,
-          utils.raw_header(block.level, header_text, id, classes, attributes)
+          html.raw_header(block.level, header_text, id, classes, attributes)
         )
       )
     else
@@ -219,7 +229,7 @@ function M.parse_sections(blocks)
   for _, block in ipairs(blocks) do
     if not found_header and block.t == 'Header' then
       -- First header becomes the title
-      header_text = utils.stringify(block.content)
+      header_text = str.stringify(block.content)
       header_level = block.level
       found_header = true
     elseif block.t == 'HorizontalRule' then
@@ -256,14 +266,14 @@ function M.extract_code_metadata(code_text, pattern)
   end
 
   --- @type string Pattern for matching metadata
-  local match_pattern = pattern or "^%s*.-|%s*filename:%s*([%w%._%-]+)"
+  local match_pattern = pattern or '^%s*.-|%s*filename:%s*([%w%._%-]+)'
 
   --- @type string|nil Extracted filename
   local filename = string.match(code_text, match_pattern)
 
   if filename then
     --- @type string Code text with metadata line removed
-    local cleaned_text = string.gsub(code_text, match_pattern, "")
+    local cleaned_text = string.gsub(code_text, match_pattern, '')
     return filename, cleaned_text
   end
 

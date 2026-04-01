@@ -13,16 +13,19 @@
 local html_utils = require(
   quarto.utils.resolve_path('../_modules/html-utils.lua'):gsub('%.lua$', '')
 )
-local utils = require(
-  quarto.utils.resolve_path('../_modules/utils.lua'):gsub('%.lua$', '')
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', '')
+)
+local pdoc = require(
+  quarto.utils.resolve_path('../_modules/pandoc-helpers.lua'):gsub('%.lua$', '')
 )
 
 -- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
 
--- Use shared attributes_to_table from utils module
-local attributes_to_table = utils.attributes_to_table
+-- Use shared attributes_to_table from pandoc-helpers module
+local attributes_to_table = pdoc.attributes_to_table
 
 --- Extract first heading from element content and set as title attribute.
 --- If the first element is a Header, extracts its text as title and removes it from content.
@@ -106,10 +109,10 @@ local function render_header(block, attrs)
   local icon_html = ''
   if attrs.icon then
     local icon_char = html_utils.get_icon(attrs.icon)
-    icon_html = html_utils.bem_span(block, 'icon', nil, { ['aria-hidden'] = 'true' }, utils.escape_html(icon_char))
+    icon_html = html_utils.bem_span(block, 'icon', nil, { ['aria-hidden'] = 'true' }, str.escape_html(icon_char))
   end
 
-  local title_html = html_utils.bem_span(block, 'title', nil, nil, utils.escape_html(attrs.title))
+  local title_html = html_utils.bem_span(block, 'title', nil, nil, str.escape_html(attrs.title))
 
   return html_utils.bem_div(block, 'header', nil, nil, icon_html .. title_html)
 end

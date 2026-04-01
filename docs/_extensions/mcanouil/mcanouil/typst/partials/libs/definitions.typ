@@ -34,7 +34,98 @@
 //   width: 100%,
 //   inset: 8pt,
 //   radius: 2pt,
+//   stroke: 0.5pt + luma(200),
 // )
+
+// ============================================================================
+// Upstream Quarto code annotation and filename functions
+// These match the signatures from quarto-dev/quarto-cli PR #14170 so that
+// the extension does not break when upstream starts emitting calls to them.
+// ============================================================================
+
+/// Render a circled annotation number (upstream-compatible signature).
+#let quarto-circled-number(n, color: none) = context {
+  let c = if color != none { color } else { text.fill }
+  box(baseline: 15%, circle(
+    radius: 0.55em,
+    stroke: 0.5pt + c,
+  )[#set text(size: 0.7em, fill: c); #align(center + horizon, str(n))])
+}
+
+/// Derive a contrasting annotation colour from a background fill.
+/// Light backgrounds get dark circles; dark backgrounds get light circles.
+#let quarto-annote-color(bg) = {
+  if type(bg) == color {
+    let comps = bg.components(alpha: false)
+    let lum = if comps.len() == 1 {
+      comps.at(0) / 100%
+    } else {
+      0.2126 * comps.at(0) / 100% + 0.7152 * comps.at(1) / 100% + 0.0722 * comps.at(2) / 100%
+    }
+    if lum < 0.5 { luma(200) } else { luma(60) }
+  } else {
+    luma(60)
+  }
+}
+
+/// Wrap a code block with a filename header tab.
+#let quarto-code-filename(filename, body) = {
+  show raw.where(block: true): it => it
+  block(width: 100%, radius: 2pt, clip: true, stroke: 0.5pt + luma(200))[
+    #set block(spacing: 0pt)
+    #block(fill: luma(220), width: 100%, inset: (x: 8pt, y: 4pt))[
+      #text(size: 0.85em, weight: "bold")[#filename]]
+    #body
+  ]
+}
+
+/// Wrap a code block with annotation markers and bidirectional linking.
+#let quarto-code-annotation(annotations, cell-id: "", color: luma(60), body) = {
+  let first-lines = (:)
+  for (line, num) in annotations {
+    let key = str(num)
+    if key not in first-lines or int(line) < int(first-lines.at(key)) {
+      first-lines.insert(key, str(line))
+    }
+  }
+  show raw.where(block: true): it => it
+  show raw.line: it => {
+    let annote-num = annotations.at(str(it.number), default: none)
+    if annote-num != none {
+      if cell-id != "" {
+        let lbl = cell-id + "-annote-" + str(annote-num)
+        let is-first = first-lines.at(str(annote-num), default: none) == str(it.number)
+        if is-first {
+          box(width: 100%)[#it #h(1fr) #link(label(lbl))[#quarto-circled-number(annote-num, color: color)] #label(lbl + "-back")]
+        } else {
+          box(width: 100%)[#it #h(1fr) #link(label(lbl))[#quarto-circled-number(annote-num, color: color)]]
+        }
+      } else {
+        box(width: 100%)[#it #h(1fr) #quarto-circled-number(annote-num, color: color)]
+      }
+    } else {
+      it
+    }
+  }
+  body
+}
+
+/// Render a single annotation list item with optional bidirectional linking.
+#let quarto-annotation-item(cell-id, n, content) = {
+  if cell-id != "" {
+    [#block(above: 0.4em, below: 0.4em)[
+      #link(label(cell-id + "-annote-" + str(n) + "-back"))[#quarto-circled-number(n)]
+      #h(0.4em)
+      #content
+    ] #label(cell-id + "-annote-" + str(n))]
+  } else {
+    block(above: 0.4em, below: 0.4em)[
+      #quarto-circled-number(n)
+      #h(0.4em)
+      #content
+    ]
+  }
+}
 
 // ============================================================================
 // Quarto helper functions

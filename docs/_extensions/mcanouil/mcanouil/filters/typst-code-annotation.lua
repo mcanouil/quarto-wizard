@@ -21,8 +21,8 @@ end
 -- MODULE IMPORTS
 -- ============================================================================
 
-local utils = require(
-  quarto.utils.resolve_path('../_modules/utils.lua'):gsub('%.lua$', '')
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', '')
 )
 
 -- ============================================================================
@@ -97,6 +97,16 @@ local LANG_COMMENT_CHARS = {
 
 local DEFAULT_COMMENT = { "#" }
 
+--- Counter for generating unique cell IDs across the document.
+local cell_id_counter = 0
+
+--- Generate a unique cell ID for annotation linking.
+--- @return string Unique cell identifier, e.g. "cell-annote-1"
+local function next_cell_id()
+  cell_id_counter = cell_id_counter + 1
+  return 'cell-annote-' .. tostring(cell_id_counter)
+end
+
 -- ============================================================================
 -- ANNOTATION DETECTION
 -- ============================================================================
@@ -110,13 +120,13 @@ local function annotation_provider(lang)
     return nil
   end
 
-  local start_comment = utils.escape_pattern(comment_chars[1])
+  local start_comment = str.escape_pattern(comment_chars[1])
   local match_expr = '.*' .. start_comment .. '%s*<([0-9]+)>%s*'
   local strip_prefix = '%s*' .. start_comment .. '%s*<'
   local strip_suffix = '>%s*'
 
   if #comment_chars == 2 then
-    local end_comment = utils.escape_pattern(comment_chars[2])
+    local end_comment = str.escape_pattern(comment_chars[2])
     match_expr = match_expr .. end_comment .. '%s*'
     strip_suffix = strip_suffix .. end_comment .. '%s*'
   end
@@ -219,14 +229,16 @@ local function annotations_to_typst_dict(annotations)
   return '(' .. table.concat(parts, ', ') .. ')'
 end
 
---- Store annotation data on a CodeBlock as a custom attribute.
---- The code-window module reads this attribute to wrap the code with
+--- Store annotation data and cell ID on a CodeBlock as custom attributes.
+--- The code-window module reads these attributes to wrap the code with
 --- annotated-code().
 --- @param code_block pandoc.CodeBlock
 --- @param annotations table
+--- @param cell_id string Unique cell identifier for bidirectional linking
 --- @return pandoc.CodeBlock
-local function tag_code_block(code_block, annotations)
+local function tag_code_block(code_block, annotations, cell_id)
   code_block.attributes['data-code-annotations'] = annotations_to_typst_dict(annotations)
+  code_block.attributes['data-cell-id'] = cell_id
   return code_block
 end
 
@@ -234,22 +246,27 @@ end
 --- Each item renders the circled number inline with the description text.
 --- @param ol pandoc.OrderedList
 --- @param annotations table
+--- @param cell_id string Unique cell identifier for bidirectional linking
 --- @return pandoc.Blocks
-local function build_annotation_list(ol, annotations)
+local function build_annotation_list(ol, annotations, cell_id)
   local items = pandoc.Blocks({})
 
   for i, item in ipairs(ol.content) do
     local annotation_number = ol.start + i - 1
     if annotations[annotation_number] then
       local content_inlines = item[1].content or pandoc.Inlines(item[1])
-      -- Wrap content in Typst content brackets: #annotation-item(N, [content], colours)
+      -- Wrap content in Typst content brackets:
+      -- #annotation-item(N, [content], colours, cell-id: "cell-annote-N")
       local block_content = pandoc.Inlines({})
       block_content:insert(pandoc.RawInline(
         'typst',
         '#annotation-item(' .. tostring(annotation_number) .. ', ['
       ))
       block_content:extend(content_inlines)
-      block_content:insert(pandoc.RawInline('typst', '], ' .. COLOURS_EXPR .. ')'))
+      block_content:insert(pandoc.RawInline(
+        'typst',
+        '], ' .. COLOURS_EXPR .. ', cell-id: "' .. cell_id .. '")'
+      ))
       items:insert(pandoc.Plain(block_content))
     end
   end
@@ -265,34 +282,40 @@ end
 --- @param block pandoc.CodeBlock
 --- @return pandoc.CodeBlock|nil Cleaned code block, or nil if no annotations
 --- @return table|nil Annotations table
+--- @return string|nil Cell ID for bidirectional linking
 local function process_code_block(block)
   if block.attr.classes:includes('cell-code') then
-    return nil, nil
+    return nil, nil, nil
   end
   local resolved, annotations = resolve_annotations(block)
   if annotations then
-    resolved = tag_code_block(resolved, annotations)
+    local cell_id = next_cell_id()
+    resolved = tag_code_block(resolved, annotations, cell_id)
+    return resolved, annotations, cell_id
   end
-  return resolved, annotations
+  return resolved, annotations, nil
 end
 
 --- Process a cell Div, looking for .cell-code CodeBlocks inside.
 --- @param div pandoc.Div
 --- @return pandoc.Div|nil Modified div, or nil if no annotations
 --- @return table|nil Annotations table
+--- @return string|nil Cell ID for bidirectional linking
 local function process_cell_div(div)
   if not div.attr.classes:includes('cell') then
-    return nil, nil
+    return nil, nil, nil
   end
 
   local found_annotations = nil
+  local found_cell_id = nil
   local resolved_div = pandoc.walk_block(div, {
     CodeBlock = function(el)
       if el.attr.classes:includes('cell-code') then
         local resolved, annotations = resolve_annotations(el)
         if annotations and next(annotations) ~= nil then
           found_annotations = annotations
-          resolved = tag_code_block(resolved, annotations)
+          found_cell_id = next_cell_id()
+          resolved = tag_code_block(resolved, annotations, found_cell_id)
           return resolved
         end
       end
@@ -301,9 +324,9 @@ local function process_cell_div(div)
   })
 
   if found_annotations then
-    return resolved_div, found_annotations
+    return resolved_div, found_annotations, found_cell_id
   end
-  return nil, nil
+  return nil, nil, nil
 end
 
 -- ============================================================================
@@ -343,6 +366,7 @@ return {
       local outputs = pandoc.Blocks({})
       local pending_code = nil
       local pending_annotations = nil
+      local pending_cell_id = nil
 
       local function flush_pending()
         if pending_code then
@@ -350,33 +374,39 @@ return {
         end
         pending_code = nil
         pending_annotations = nil
+        pending_cell_id = nil
       end
 
       for _, block in ipairs(blocks) do
         if block.t == 'CodeBlock' then
           flush_pending()
-          local resolved, annotations = process_code_block(block)
+          local resolved, annotations, cell_id = process_code_block(block)
           if annotations then
             pending_code = resolved
             pending_annotations = annotations
+            pending_cell_id = cell_id
           else
             outputs:insert(block)
           end
         elseif block.t == 'Div' and block.attr.classes:includes('cell') then
           flush_pending()
-          local resolved, annotations = process_cell_div(block)
+          local resolved, annotations, cell_id = process_cell_div(block)
           if annotations then
             pending_code = resolved
             pending_annotations = annotations
+            pending_cell_id = cell_id
           else
             outputs:insert(block)
           end
         elseif block.t == 'OrderedList' and pending_annotations then
-          local annotation_blocks = build_annotation_list(block, pending_annotations)
+          local annotation_blocks = build_annotation_list(
+            block, pending_annotations, pending_cell_id or ''
+          )
           outputs:insert(pending_code)
           outputs:extend(annotation_blocks)
           pending_code = nil
           pending_annotations = nil
+          pending_cell_id = nil
         else
           flush_pending()
           outputs:insert(block)
