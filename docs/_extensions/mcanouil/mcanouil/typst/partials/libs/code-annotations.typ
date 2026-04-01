@@ -11,21 +11,35 @@
 /// Render a circled annotation number using brand colours.
 /// @param n Annotation number to display
 /// @param colours Colour dictionary (must contain foreground key)
+/// @param cell-id Optional cell identifier for bidirectional linking (default: "")
 /// @return Inline box with circled number
-#let circled-number(n, colours) = {
-  box(baseline: 15%, circle(
+#let circled-number(n, colours, cell-id: "") = {
+  let marker = box(baseline: 15%, circle(
     radius: 0.55em,
     stroke: 0.5pt + colours.foreground,
   )[#set text(size: 0.7em); #align(center + horizon, str(n))])
+  marker
 }
 
 /// Wrap a raw code block with annotation markers overlaid at the right edge
-/// of specified lines.
-/// @param code Raw code block content
+/// of specified lines. Supports bidirectional linking when cell-id is provided.
 /// @param annotations Dictionary mapping annotation numbers to line numbers
 /// @param colours Colour dictionary
+/// @param cell-id Optional cell identifier for bidirectional linking (default: "")
+/// @param code Raw code block content
 /// @return Block with code and overlaid annotation markers
-#let annotated-code(annotations, colours, code) = {
+#let annotated-code(annotations, colours, cell-id: "", code) = {
+  // Build a set of first-line positions per annotation number so that
+  // back-labels are only emitted once (avoiding duplicate labels when
+  // one annotation spans multiple lines).
+  let first-lines = (:)
+  for (num-str, line-num) in annotations {
+    let key = str(num-str)
+    if key not in first-lines or line-num < int(first-lines.at(key)) {
+      first-lines.insert(key, str(line-num))
+    }
+  }
+
   show raw.line: it => {
     // Check whether this line has an annotation
     // Keys are strings ("1", "2", ...), values are line numbers (int)
@@ -36,12 +50,22 @@
       }
     }
     if annote-num != none {
-      // Line with annotation marker right-aligned, preserving natural line spacing
-      box(width: 100%)[
-        #it
-        #h(1fr)
-        #circled-number(annote-num, colours)
-      ]
+      if cell-id != "" {
+        let lbl = cell-id + "-annote-" + str(annote-num)
+        let is-first = first-lines.at(str(annote-num), default: none) == str(it.number)
+        if is-first {
+          box(width: 100%)[#it #h(1fr) #link(label(lbl))[#circled-number(annote-num, colours)] #label(lbl + "-back")]
+        } else {
+          box(width: 100%)[#it #h(1fr) #link(label(lbl))[#circled-number(annote-num, colours)]]
+        }
+      } else {
+        // No cell-id: simple marker without linking
+        box(width: 100%)[
+          #it
+          #h(1fr)
+          #circled-number(annote-num, colours)
+        ]
+      }
     } else {
       it
     }
@@ -50,14 +74,24 @@
 }
 
 /// Render a single annotation list item with circled number inline.
+/// Supports bidirectional linking when cell-id is provided.
 /// @param n Annotation number
 /// @param content Description content
 /// @param colours Colour dictionary
+/// @param cell-id Optional cell identifier for bidirectional linking (default: "")
 /// @return Block with circled number and description on the same line
-#let annotation-item(n, content, colours) = {
-  block(above: 0.4em, below: 0.4em)[
-    #circled-number(n, colours)
-    #h(0.4em)
-    #content
-  ]
+#let annotation-item(n, content, colours, cell-id: "") = {
+  if cell-id != "" {
+    [#block(above: 0.4em, below: 0.4em)[
+      #link(label(cell-id + "-annote-" + str(n) + "-back"))[#circled-number(n, colours)]
+      #h(0.4em)
+      #content
+    ] #label(cell-id + "-annote-" + str(n))]
+  } else {
+    block(above: 0.4em, below: 0.4em)[
+      #circled-number(n, colours)
+      #h(0.4em)
+      #content
+    ]
+  }
 }

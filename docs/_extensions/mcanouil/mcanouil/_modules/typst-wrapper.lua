@@ -13,16 +13,19 @@
 local typst_utils = require(
   quarto.utils.resolve_path('../_modules/typst-utils.lua'):gsub('%.lua$', '')
 )
-local utils = require(
-  quarto.utils.resolve_path('../_modules/utils.lua'):gsub('%.lua$', '')
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', '')
+)
+local pdoc = require(
+  quarto.utils.resolve_path('../_modules/pandoc-helpers.lua'):gsub('%.lua$', '')
 )
 
 -- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
 
--- Use shared attributes_to_table from utils module
-local attributes_to_table = utils.attributes_to_table
+-- Use shared attributes_to_table from pandoc-helpers module
+local attributes_to_table = pdoc.attributes_to_table
 
 --- Build Typst attribute string from a table of key-value pairs
 --- @param attrs table Attribute key-value pairs
@@ -46,7 +49,7 @@ local function extract_first_heading_as_title(el, attrs)
     -- Check if first element is a header
     if first_elem.t == 'Header' then
       -- Extract header text as title
-      attrs['title'] = utils.stringify(first_elem.content)
+      attrs['title'] = str.stringify(first_elem.content)
       -- Remove header from content
       local new_content = {}
       for i = 2, #el.content do

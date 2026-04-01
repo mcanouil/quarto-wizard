@@ -146,6 +146,7 @@ function M.process_typst(block, config)
     -- Even without a code-window, wrap with annotated-code() if annotations exist
     local annot_dict = block.attributes['data-code-annotations']
     if annot_dict then
+      local cell_id = block.attributes['data-cell-id'] or ''
       local lang = ''
       if block.classes and #block.classes > 0 then
         lang = block.classes[1]
@@ -154,8 +155,8 @@ function M.process_typst(block, config)
       local fence_len = math.max(3, max_consecutive_backticks(code_content) + 1)
       local fence = string.rep('`', fence_len)
       local typst_code = string.format(
-        '#annotated-code(%s, mcanouil-colours(mode: effective-brand-mode))[%s%s\n%s\n%s]',
-        annot_dict, fence, lang, code_content, fence
+        '#annotated-code(%s, mcanouil-colours(mode: effective-brand-mode), cell-id: "%s")[%s%s\n%s\n%s]',
+        annot_dict, cell_id, fence, lang, code_content, fence
       )
       return pandoc.RawBlock('typst', typst_code)
     end
@@ -176,14 +177,15 @@ function M.process_typst(block, config)
 
   -- Check for code annotations set by typst-code-annotation filter
   local annot_dict = block.attributes['data-code-annotations']
+  local cell_id = block.attributes['data-cell-id'] or ''
 
   local raw_code = string.format('%s%s\n%s\n%s', fence, lang, code_content, fence)
 
   -- Wrap with annotated-code() if annotations are present
   if annot_dict then
     raw_code = string.format(
-      '#annotated-code(%s, mcanouil-colours(mode: effective-brand-mode))[%s]',
-      annot_dict, raw_code
+      '#annotated-code(%s, mcanouil-colours(mode: effective-brand-mode), cell-id: "%s")[%s]',
+      annot_dict, cell_id, raw_code
     )
   end
 

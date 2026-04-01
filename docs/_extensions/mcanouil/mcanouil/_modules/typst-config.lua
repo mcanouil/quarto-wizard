@@ -10,8 +10,14 @@
 -- MODULE IMPORTS
 -- ============================================================================
 
-local utils = require(
-  quarto.utils.resolve_path('../_modules/utils.lua'):gsub('%.lua$', '')
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', '')
+)
+local log = require(
+  quarto.utils.resolve_path('../_modules/logging.lua'):gsub('%.lua$', '')
+)
+local meta_mod = require(
+  quarto.utils.resolve_path('../_modules/metadata.lua'):gsub('%.lua$', '')
 )
 
 -- ============================================================================
@@ -90,12 +96,12 @@ end
 --- @return table|nil Parsed configuration table with wrapper and arguments fields, or nil if invalid
 local function parse_and_validate_config(config, class)
   -- Try to convert Pandoc objects to strings first
-  local config_str = utils.stringify(config)
+  local config_str = str.stringify(config)
 
   -- Check if it's a simple string value (e.g., 'highlight: mcanouil-highlight')
   if type(config) == 'string' or (config_str and not string.find(config_str, '[%{%[]')) then
-    if utils.is_empty(config_str) then
-      utils.log_warning(
+    if str.is_empty(config_str) then
+      log.log_warning(
         EXTENSION_NAME,
         'Empty function name for class "' .. class .. '"'
       )
@@ -110,21 +116,21 @@ local function parse_and_validate_config(config, class)
     -- Table configuration (e.g., 'highlight: {function: my-func, arguments: true}')
     local func_name = config['function']
     if not func_name then
-      utils.log_warning(
+      log.log_warning(
         EXTENSION_NAME,
         'Missing "function" key for class "' .. class .. '". ' ..
         'Use: ' .. class .. ': function-name or ' .. class .. ': {function: function-name}'
       )
       return nil
     end
-    local func_name_str = utils.stringify(func_name)
+    local func_name_str = str.stringify(func_name)
     -- Use the configured function name directly as the wrapper
     return {
       wrapper = func_name_str,
       arguments = config['arguments'] == true
     }
   else
-    utils.log_warning(
+    log.log_warning(
       EXTENSION_NAME,
       'Invalid configuration for class "' .. class .. '". ' ..
       'Expected string or table, got ' .. type(config)
@@ -146,8 +152,8 @@ local function load_element_mappings(meta)
   }
 
   -- Read configuration from extensions.mcanouil.typst-markdown
-  local extension_config = meta.extensions and meta.extensions.mcanouil
-      and meta.extensions.mcanouil[SECTION_NAME]
+  local mcanouil_config = meta_mod.get_extension_config(meta, 'mcanouil')
+  local extension_config = mcanouil_config and mcanouil_config[SECTION_NAME]
   if not extension_config then
     return user_mappings
   end

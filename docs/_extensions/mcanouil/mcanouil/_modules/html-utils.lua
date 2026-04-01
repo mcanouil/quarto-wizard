@@ -10,8 +10,11 @@
 -- MODULE IMPORTS
 -- ============================================================================
 
-local utils = require(
-  quarto.utils.resolve_path('../_modules/utils.lua'):gsub('%.lua$', '')
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', '')
+)
+local colour_mod = require(
+  quarto.utils.resolve_path('../_modules/colour.lua'):gsub('%.lua$', '')
 )
 
 local M = {}
@@ -66,7 +69,7 @@ M.build_attributes = function(attrs)
       table.insert(attr_items, key)
     elseif value and value ~= false then
       -- Standard attribute
-      table.insert(attr_items, string.format('%s="%s"', key, utils.escape_attribute(tostring(value))))
+      table.insert(attr_items, string.format('%s="%s"', key, str.escape_attribute(tostring(value))))
     end
   end
 
@@ -122,7 +125,7 @@ end
 --- @return string|nil The CSS class modifier or nil if not found
 --- @usage local mod = M.get_colour_modifier('success') -- returns 'success'
 M.get_colour_modifier = function(colour)
-  local str = utils.to_string(colour)
+  local str = str.to_string(colour)
   if not str or str == '' then return nil end
   return M.COLOUR_CLASSES[str:lower()]
 end
@@ -135,7 +138,7 @@ end
 --- @usage local char = M.get_icon('up') -- returns '↑'
 --- @usage local char = M.get_icon('✓') -- returns '✓'
 M.get_icon = function(icon)
-  local str = utils.to_string(icon)
+  local str = str.to_string(icon)
   if not str or str == '' then return nil end
   return M.ICON_SHORTCUTS[str:lower()] or str
 end
@@ -259,10 +262,10 @@ M.render_divider = function(kwargs, config)
   config = config or {}
   local class_prefix = config.class_prefix or ''
 
-  local style = utils.to_string(kwargs.style) or 'solid'
-  local label = utils.to_string(kwargs.label)
-  local thickness = utils.to_string(kwargs.thickness) or '1pt'
-  local width = utils.to_string(kwargs.width) or '50%'
+  local style = str.to_string(kwargs.style) or 'solid'
+  local label = str.to_string(kwargs.label)
+  local thickness = str.to_string(kwargs.thickness) or '1pt'
+  local width = str.to_string(kwargs.width) or '50%'
 
   local base_class = class_prefix .. M.bem_class('divider')
   local mod_class = M.bem_class('divider', nil, style)
@@ -272,9 +275,9 @@ M.render_divider = function(kwargs, config)
 
   if label then
     -- Divider with label
-    local label_html = M.bem_span('divider', 'label', nil, nil, utils.escape_html(label))
+    local label_html = M.bem_span('divider', 'label', nil, nil, str.escape_html(label))
     return string.format('<div class="%s" style="%s" role="separator" aria-label="%s">%s</div>',
-      classes, style_attr, utils.escape_attribute(label), label_html)
+      classes, style_attr, str.escape_attribute(label), label_html)
   else
     -- Simple divider
     return string.format('<hr class="%s" style="%s" />',
@@ -294,18 +297,18 @@ M.render_progress = function(kwargs, config)
   local class_prefix = config.class_prefix or ''
   local default_height = (config.defaults and config.defaults.progress_height) or '1.5em'
 
-  local value = tonumber(utils.to_string(kwargs.value)) or 0
-  local label = utils.to_string(kwargs.label)
-  local colour = utils.get_colour(kwargs, 'info')
-  local show_value = utils.to_string(kwargs['show-value']) ~= 'false'
-  local height = utils.to_string(kwargs.height) or default_height
+  local value = tonumber(str.to_string(kwargs.value)) or 0
+  local label = str.to_string(kwargs.label)
+  local colour = colour_mod.get_colour(kwargs, 'info')
+  local show_value = str.to_string(kwargs['show-value']) ~= 'false'
+  local height = str.to_string(kwargs.height) or default_height
 
   -- Handle custom colours (hex, rgb, hsl)
   local modifier = M.get_colour_modifier(colour)
   local custom_colour_style = ''
-  if utils.is_custom_colour(colour) then
+  if colour_mod.is_custom_colour(colour) then
     modifier = 'custom'
-    custom_colour_style = string.format(' --custom-colour: %s;', utils.escape_attribute(colour))
+    custom_colour_style = string.format(' --custom-colour: %s;', str.escape_attribute(colour))
   elseif not modifier then
     modifier = colour
   end
@@ -339,7 +342,7 @@ M.render_progress = function(kwargs, config)
   if label then
     local label_html = string.format('<div class="%s">%s</div>',
       M.bem_class('progress', 'label'),
-      utils.escape_html(label))
+      str.escape_html(label))
     return string.format('<div class="%s">%s%s</div>',
       M.bem_class('progress', 'container'),
       label_html,
