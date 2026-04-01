@@ -99,7 +99,7 @@ jobs:
         run: touch docs/_site/.nojekyll
 
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v4
