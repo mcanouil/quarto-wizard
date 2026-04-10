@@ -11,9 +11,17 @@ updates:
       interval: "monthly"
     labels:
       - "Type: Dependencies :arrow_up:"
+    groups:
+      npm:
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
     labels:
       - "Type: Dependencies :arrow_up:"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

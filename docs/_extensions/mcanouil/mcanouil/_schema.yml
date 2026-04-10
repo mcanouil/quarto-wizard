@@ -39,7 +39,7 @@ options:
     description: "Hide the navbar brand and title (HTML)."
   code-window:
     type: object
-    description: "Configuration for macOS-style code block window decorations."
+    description: "Configuration for code block window decorations."
     properties:
       enabled:
         type: boolean
@@ -49,10 +49,31 @@ options:
         type: boolean
         default: true
         description: "Automatically generate filename labels from the code block language."
+      style:
+        type: string
+        default: "macos"
+        enum: [default, macos, windows]
+        description: "Window decoration style."
       wrapper:
         type: string
         default: "mcanouil-code-window"
         description: "Typst wrapper function name for code-window rendering."
+      hotfix:
+        type: object
+        description: "Hot-fix toggles for Typst output workarounds."
+        properties:
+          code-annotations:
+            type: [boolean, object]
+            default: true
+            description: "Enable code annotation processing for Typst."
+          skylighting:
+            type: [boolean, object]
+            default: true
+            description: "Fix Typst Skylighting block styling."
+          typst-title:
+            type: [boolean, object]
+            default: true
+            description: "Evaluate theorem title strings as Typst markup."
 
 shortcodes:
   divider:
@@ -157,6 +178,18 @@ formats:
       enum: [professional, academic]
       enum-case-insensitive: true
       description: "Template style variant for the HTML format."
+    title-block-authors:
+      type: boolean
+      default: true
+      description: "Show authors, affiliations, and corresponding author in the title block."
+    title-block-abstract:
+      type: boolean
+      default: true
+      description: "Show abstract and keywords in the title block."
+    title-block-meta:
+      type: boolean
+      default: true
+      description: "Show dates, DOI, and categories in the title block."
 
   mcanouil-typst:
     document-type:
@@ -228,7 +261,19 @@ attributes:
       type: string
       default: "subtle"
       description: "Colour theme for the panel border."
-      enum: [info, success, warning, danger, caution, neutral, subtle, emphasis, accent, outline]
+      enum:
+        [
+          info,
+          success,
+          warning,
+          danger,
+          caution,
+          neutral,
+          subtle,
+          emphasis,
+          accent,
+          outline,
+        ]
 
   executive-summary:
     title:
@@ -267,6 +312,20 @@ attributes:
 
   # Highlight block for emphasising content (no user-facing attributes).
   highlight: {}
+
+  CodeBlock:
+    code-window-enabled:
+      type: boolean
+      default: true
+      description: "Whether to apply window chrome to this specific code block."
+    code-window-no-auto-filename:
+      type: boolean
+      default: false
+      description: "Suppress the auto-generated filename for this specific code block."
+    code-window-style:
+      type: string
+      enum: [default, macos, windows]
+      description: "Override the global window decoration style for this specific code block."
 
   badge:
     colour:

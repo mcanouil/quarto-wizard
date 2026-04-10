@@ -275,12 +275,20 @@
 				"description": "Manually set a GitHub personal access token for authentication."
 			},
 			{
-				"command": "quartoWizard.clearGitHubToken",
-				"title": "Clear GitHub Token (Manual)",
-				"shortTitle": "Clear Token",
+				"command": "quartoWizard.signInWithGitHubSession",
+				"title": "Sign In with GitHub Session",
+				"shortTitle": "Sign In",
+				"icon": "$(sign-in)",
+				"category": "Quarto Wizard",
+				"description": "Authorise Quarto Wizard to use your VSCode GitHub session for private repositories."
+			},
+			{
+				"command": "quartoWizard.clearGitHubAuth",
+				"title": "Clear GitHub Authentication",
+				"shortTitle": "Clear Auth",
 				"icon": "$(key)",
 				"category": "Quarto Wizard",
-				"description": "Remove the manually set GitHub token."
+				"description": "Remove the manually set GitHub token and revoke Quarto Wizard's use of the VSCode GitHub session."
 			},
 			{
 				"command": "quartoWizard.installExtensionFromRegistry",

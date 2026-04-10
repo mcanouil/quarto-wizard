@@ -16,6 +16,13 @@ export const STORAGE_KEY_RECENTLY_INSTALLED = "recentlyInstalledExtensions";
 export const STORAGE_KEY_RECENTLY_USED = "recentlyUsedTemplates";
 
 /**
+ * Key for storing the opt-in flag that allows Quarto Wizard to use the
+ * VSCode GitHub session for authentication. Lives in globalState because
+ * it is a preference, not a secret (VSCode owns the session itself).
+ */
+export const STORAGE_KEY_USE_VSCODE_GITHUB_SESSION = "quartoWizard.useVSCodeGitHubSession";
+
+/**
  * Default registry URL (sourced from core library).
  */
 export { getDefaultRegistryUrl } from "@quarto-wizard/core";

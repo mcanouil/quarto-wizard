@@ -112,9 +112,6 @@ $_shadow-lg: 0 8px 24px rgba($body-color, 0.15);
 // SPECIAL COLOURS
 // ===========================
 $_color-sponsor: rgb(255, 105, 180);
-$_color-macos-close: #ff5f56;
-$_color-macos-minimize: #ffbd2e;
-$_color-macos-maximize: #27c93f;
 
 // ===========================
 // UTILITY FUNCTIONS
@@ -1896,7 +1893,7 @@ div.sourceCode {
   border-radius: $_radius-md;
 }
 
-// Code with filename wrapper (macOS-style code window)
+// Code with filename wrapper (multi-style code window)
 .code-with-filename {
   margin: 1em 0;
   border: 1px solid rgba($body-color, 0.5);
@@ -1905,32 +1902,14 @@ div.sourceCode {
 
   // Filename header (title bar)
   .code-with-filename-file {
-    background-color: rgba($body-color, 0.08);
+    background-color: body-mix(92%);
     border-bottom: 1px solid rgba($body-color, 0.5);
-    padding: 0.6em 1em;
+    padding: 0.2em 1em;
+    line-height: 1.2;
     margin: 0;
     display: flex;
     align-items: center;
     transition: $_link-transition;
-
-    // Traffic light buttons (macOS style)
-    &::before {
-      content: "";
-      display: inline-flex;
-      flex-shrink: 0;
-      width: 52px;
-      height: 12px;
-      margin-right: 8px;
-      background-image: radial-gradient(circle at 6px 6px, $_color-macos-close 5px, transparent 5px),
-        radial-gradient(circle at 21px 6px, $_color-macos-minimize 5px, transparent 5px),
-        radial-gradient(circle at 36px 6px, $_color-macos-maximize 5px, transparent 5px);
-    }
-
-    // Remove Quarto's default ::after pseudo-element
-    &::after {
-      content: none !important;
-      display: none !important;
-    }
 
     pre {
       margin: 0;
@@ -1942,7 +1921,6 @@ div.sourceCode {
       color: rgba($body-color, 0.6);
       font-family: "Fira Code", "Menlo", "Monaco", "Consolas", monospace;
       flex-grow: 1;
-      text-align: right;
 
       strong {
         font-weight: 500;
@@ -1972,11 +1950,46 @@ div.sourceCode {
   }
 }
 
-// Dark mode override for code filename header (Quarto base uses #555)
-[data-bs-theme="dark"],
-.quarto-dark {
-  .code-with-filename .code-with-filename-file {
-    background-color: rgba($body-color, 0.08);
+// Style: default (plain filename, no decorations)
+.code-with-filename.code-window-default .code-with-filename-file pre {
+  text-align: left;
+}
+
+// Style: macOS (traffic lights left, filename right)
+.code-with-filename.code-window-macos .code-with-filename-file {
+  &::before {
+    content: "";
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 52px;
+    height: 12px;
+    margin-right: 8px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='12'%3E%3Ccircle cx='6' cy='6' r='5' fill='%23ff5f56'/%3E%3Ccircle cx='24' cy='6' r='5' fill='%23ffbd2e'/%3E%3Ccircle cx='42' cy='6' r='5' fill='%2327c93f'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+  }
+
+  pre {
+    text-align: right;
+  }
+}
+
+// Style: Windows (filename left, window buttons right)
+.code-with-filename.code-window-windows .code-with-filename-file {
+  pre {
+    text-align: left;
+  }
+
+  &::after {
+    content: '';
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 3.6em;
+    height: 0.85em;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='10' fill='none'%3E%3Cline x1='3' y1='5' x2='11' y2='5' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Crect x='17' y='1' width='8' height='8' rx='1' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3Cline x1='31' y1='1' x2='39' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='39' y1='1' x2='31' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-position: right;
+    background-size: contain;
+    background-repeat: no-repeat;
   }
 }
 

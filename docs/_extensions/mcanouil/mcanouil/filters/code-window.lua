@@ -1,66 +1,98 @@
---- @module code-window-filter
+--- @module code-window-main
 --- @license MIT
 --- @copyright 2026 Mickaël Canouil
 --- @author Mickaël Canouil
---- @version 1.0.0
---- @brief Post-quarto filter for code-window styling in HTML/Reveal.js
---- @description Runs AFTER Quarto processes annotations to avoid interference.
+--- @brief Entry point for the code-window extension.
+--- Loads all submodules, wires dependencies, and assembles the filter list.
+
+local EXTENSION_NAME = 'mcanouil'
+local log = require(quarto.utils.resolve_path('../_modules/logging.lua'):gsub('%.lua$', ''))
 
 -- ============================================================================
--- MODULE IMPORTS
+-- LOAD SUBMODULES
 -- ============================================================================
 
-local format_utils = require(
-  quarto.utils.resolve_path('../_modules/format-utils.lua'):gsub('%.lua$', '')
-)
+local str = require(
+  quarto.utils.resolve_path('../_modules/string.lua'):gsub('%.lua$', ''))
+
+local meta_mod = require(
+  quarto.utils.resolve_path('../_modules/metadata.lua'):gsub('%.lua$', ''))
+
+local pdoc = require(
+  quarto.utils.resolve_path('../_modules/pandoc-helpers.lua'):gsub('%.lua$', ''))
+
+local html_mod = require(
+  quarto.utils.resolve_path('../_modules/html.lua'):gsub('%.lua$', ''))
+
+local language = require(
+  quarto.utils.resolve_path('../_modules/language.lua'):gsub('%.lua$', ''))
+
+local code_annotations = require(
+  quarto.utils.resolve_path('../_modules/hotfix/code-annotations.lua'):gsub('%.lua$', ''))
 
 local code_window = require(
-  quarto.utils.resolve_path('../_modules/code-window.lua'):gsub('%.lua$', '')
-)
+  quarto.utils.resolve_path('../_modules/code-window.lua'):gsub('%.lua$', ''))
+
+-- Inject all dependencies into the code-window module
+code_window.set_dependencies({
+  str = str,
+  log = log,
+  meta_mod = meta_mod,
+  pdoc = pdoc,
+  html_mod = html_mod,
+  code_annotations = code_annotations,
+})
 
 -- ============================================================================
--- GLOBAL STATE
+-- SKYLIGHTING HOT-FIX
 -- ============================================================================
 
-local CURRENT_FORMAT = nil
-local CODE_WINDOW_CONFIG = nil
-
--- ============================================================================
--- FILTER FUNCTIONS
--- ============================================================================
-
---- Load configuration from document metadata.
-function Meta(meta)
-  CURRENT_FORMAT = format_utils.get_format()
-  CODE_WINDOW_CONFIG = code_window.get_config(meta)
-  return meta
-end
-
---- Process CodeBlock elements with code-window styling.
---- Runs after Quarto has processed code annotations.
-function CodeBlock(block)
-  if not CURRENT_FORMAT then
-    return block
+--- Load optional skylighting hot-fix module from sibling file.
+--- @return table Module table with .filters and .set_wrapper, or empty table
+local function load_skylighting_hotfix_module()
+  local ok, result = pcall(require,
+    quarto.utils.resolve_path('../_modules/hotfix/skylighting-typst-fix.lua'):gsub('%.lua$', ''))
+  if not ok then
+    log.log_warning(EXTENSION_NAME,
+      'Failed to load optional skylighting hot-fix: ' .. tostring(result))
+    return {}
   end
-
-  -- Only process for HTML/Reveal.js formats
-  -- Typst is handled at pre-quarto in components.lua
-  if CURRENT_FORMAT ~= 'html' and CURRENT_FORMAT ~= 'revealjs' then
-    return block
+  if type(result) ~= 'table' then
+    log.log_warning(EXTENSION_NAME,
+      'Skylighting hot-fix did not return a module table.')
+    return {}
   end
-
-  if not CODE_WINDOW_CONFIG or not CODE_WINDOW_CONFIG.enabled then
-    return block
-  end
-
-  return code_window.process_html(block, CODE_WINDOW_CONFIG)
+  return result
 end
 
 -- ============================================================================
--- FILTER EXPORTS
+-- FILTER ASSEMBLY
 -- ============================================================================
 
-return {
-  { Meta = Meta },
-  { CodeBlock = CodeBlock }
+local filters = {
+  { CodeBlock = language.CodeBlock },
+  { Meta = code_window.Meta },
+  { Pandoc = code_window.Pandoc },
+  { CodeBlock = code_window.CodeBlock },
 }
+
+local skylighting_mod = load_skylighting_hotfix_module()
+
+for _, subfilter in ipairs(skylighting_mod.filters or {}) do
+  local wrapped = {}
+  for element_type, handler in pairs(subfilter) do
+    wrapped[element_type] = function(...)
+      local cfg = code_window.CONFIG()
+      if not cfg or not cfg.hotfix_skylighting then
+        return nil
+      end
+      if skylighting_mod.set_wrapper then
+        skylighting_mod.set_wrapper(cfg.typst_wrapper)
+      end
+      return handler(...)
+    end
+  end
+  table.insert(filters, wrapped)
+end
+
+return filters

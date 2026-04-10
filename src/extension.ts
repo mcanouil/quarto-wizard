@@ -14,7 +14,7 @@ import { useBrandCommand } from "./commands/useBrand";
 import { ExtensionsInstalled } from "./ui/extensionsInstalled";
 import { getExtensionsDetails, clearExtensionsCache } from "./utils/extensionDetails";
 import { handleUri } from "./utils/handleUri";
-import { setManualToken, clearManualToken } from "./utils/auth";
+import { setManualToken, clearManualToken, enableVSCodeSessionAuth, disableVSCodeSessionAuth } from "./utils/auth";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
@@ -94,11 +94,27 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 	);
 
-	// Register command to clear the manual GitHub token
+	// Register command to sign in with the VSCode GitHub session
 	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.clearGitHubToken", async () => {
+		vscode.commands.registerCommand("quartoWizard.signInWithGitHubSession", async () => {
+			const ok = await enableVSCodeSessionAuth(context);
+			if (ok) {
+				showMessageWithLogs(
+					"Signed in to GitHub. Quarto Wizard will use your VSCode session for authentication.",
+					"info",
+				);
+			} else {
+				showMessageWithLogs("GitHub sign-in was not completed. Session opt-in not enabled.", "warning");
+			}
+		}),
+	);
+
+	// Register command to clear all GitHub authentication state
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.clearGitHubAuth", async () => {
 			await clearManualToken(context);
-			showMessageWithLogs("Manual token cleared. Will use VSCode GitHub session or environment variables.", "info");
+			await disableVSCodeSessionAuth(context);
+			showMessageWithLogs("GitHub authentication cleared (manual token and VSCode session opt-in).", "info");
 		}),
 	);
 

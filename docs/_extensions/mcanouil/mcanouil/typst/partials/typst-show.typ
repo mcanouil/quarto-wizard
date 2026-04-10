@@ -438,9 +438,25 @@ $endif$
 // Wrapper for code windows with filename
 // Sets state for apply-code-block-style to render as code window
 // is-auto: true when filename is auto-generated from language (applies smallcaps)
-#let mcanouil-code-window(content, filename: none, is-auto: false) = {
-  code-window-filename.update((filename: filename, is-auto: is-auto))
-  content
+// style: window decoration style ("macos", "windows", "default")
+// annotations, bg-colour, block-id: handled by the injected code-window function
+#let mcanouil-code-window(
+  content,
+  filename: none,
+  is-auto: false,
+  style: "macos",
+  annotations: (:),
+  bg-colour: none,
+  block-id: 0,
+) = {
+  code-window-filename.update((filename: filename, is-auto: is-auto, style: style))
+  if annotations.len() > 0 {
+    _cw-annotations.update((annotations: annotations, bg-colour: bg-colour, block-id: block-id))
+    content
+    _cw-annotations.update(none)
+  } else {
+    content
+  }
 }
 
 // Outlines section (TOC, List of X) on own page(s) when any are enabled

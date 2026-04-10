@@ -24,7 +24,7 @@ import {
 	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
-import { handleAuthError } from "./auth";
+import { handleAuthError, GITHUB_SCOPES, type HandleAuthErrorOptions } from "./auth";
 import { formatExtensionId } from "./extensions";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
@@ -41,6 +41,17 @@ export interface InstallOptions {
 	skipOverwritePrompt?: boolean;
 	cancellationToken?: vscode.CancellationToken;
 	sourceType?: SourceType;
+	/**
+	 * Extension context used by the reactive private-repo 404 dialog to persist
+	 * the session opt-in flag. Required when `offerSessionOnNotFound` is true.
+	 */
+	context?: vscode.ExtensionContext;
+	/**
+	 * When true, a 404/"not found" on an attempt that used no auth triggers a
+	 * "may be private, sign in?" dialog. Only the explicit GitHub install
+	 * entry points should set this.
+	 */
+	offerSessionOnNotFound?: boolean;
 }
 
 /**
@@ -53,6 +64,17 @@ export interface UseOptions {
 	sourceDisplay?: string;
 	cancellationToken?: vscode.CancellationToken;
 	sourceType?: SourceType;
+	/**
+	 * Extension context used by the reactive private-repo 404 dialog to persist
+	 * the session opt-in flag. Required when `offerSessionOnNotFound` is true.
+	 */
+	context?: vscode.ExtensionContext;
+	/**
+	 * When true, a 404/"not found" on an attempt that used no auth triggers a
+	 * "may be private, sign in?" dialog. Only the explicit GitHub use-template
+	 * entry points should set this.
+	 */
+	offerSessionOnNotFound?: boolean;
 }
 
 /**
@@ -89,7 +111,7 @@ function wrapWithCancellation<TArgs extends unknown[], TResult>(
  * Obtains a fresh GitHub auth config from the current session.
  */
 async function getFreshAuth(): Promise<AuthConfig> {
-	const session = await vscode.authentication.getSession("github", ["repo"], { silent: true });
+	const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, { silent: true });
 	return session ? createAuthConfig({ githubToken: session.accessToken }) : createAuthConfig();
 }
 
@@ -99,6 +121,7 @@ async function getFreshAuth(): Promise<AuthConfig> {
  *
  * @param prefix - Log prefix for messages.
  * @param error - The caught error.
+ * @param flags - Forwarded to {@link handleAuthError}.
  * @param cancellationToken - Optional cancellation token.
  * @param retryFn - The operation to retry, receiving fresh auth.
  * @param fallbackValue - Value to return when retry is not attempted or fails.
@@ -107,11 +130,12 @@ async function getFreshAuth(): Promise<AuthConfig> {
 async function retryWithFreshAuth<T>(
 	prefix: string,
 	error: unknown,
+	flags: HandleAuthErrorOptions,
 	cancellationToken: vscode.CancellationToken | undefined,
 	retryFn: (freshAuth: AuthConfig) => Promise<T>,
 	fallbackValue: T,
 ): Promise<T> {
-	const signedIn = await handleAuthError(prefix, error);
+	const signedIn = await handleAuthError(prefix, error, flags);
 	if (!signedIn) {
 		return fallbackValue;
 	}
@@ -139,15 +163,21 @@ async function runWithParsedSourceAndAuthRetry<T>(
 	cancellationToken: vscode.CancellationToken | undefined,
 	run: (source: ParsedInstallSource, authConfig?: AuthConfig) => Promise<T>,
 	fallbackValue: T,
+	retryFlags: Omit<HandleAuthErrorOptions, "hadAuth"> = {},
 ): Promise<T> {
 	try {
 		const source = parseInstallSource(sourceInput);
 		return await run(source, initialAuth);
 	} catch (error) {
 		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
+		const flags: HandleAuthErrorOptions = {
+			...retryFlags,
+			hadAuth: Boolean(initialAuth?.githubToken),
+		};
 		return retryWithFreshAuth(
 			prefix,
 			error,
+			flags,
 			cancellationToken,
 			async (freshAuth) => {
 				const source = parseInstallSource(sourceInput);
@@ -235,7 +265,8 @@ export async function installQuartoExtension(
 	workspaceFolder: string,
 	options: InstallOptions = {},
 ): Promise<boolean | null> {
-	const { auth, sourceDisplay, skipOverwritePrompt, cancellationToken, sourceType } = options;
+	const { auth, sourceDisplay, skipOverwritePrompt, cancellationToken, sourceType, context, offerSessionOnNotFound } =
+		options;
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
@@ -284,7 +315,10 @@ export async function installQuartoExtension(
 		}
 	};
 
-	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false);
+	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false, {
+		context,
+		offerSessionOnNotFound,
+	});
 }
 
 /**
@@ -434,7 +468,16 @@ export async function useQuartoExtension(
 	workspaceFolder: string,
 	options: UseOptions = {},
 ): Promise<UseResult | null> {
-	const { selectFiles, selectTargetSubdir, auth, sourceDisplay, cancellationToken, sourceType } = options;
+	const {
+		selectFiles,
+		selectTargetSubdir,
+		auth,
+		sourceDisplay,
+		cancellationToken,
+		sourceType,
+		context,
+		offerSessionOnNotFound,
+	} = options;
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Using template ...`, "info");
 
@@ -495,7 +538,10 @@ export async function useQuartoExtension(
 		}
 	};
 
-	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doUse, null);
+	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doUse, null, {
+		context,
+		offerSessionOnNotFound,
+	});
 }
 
 /**
@@ -607,6 +653,13 @@ export async function useQuartoBrand(
 			return null;
 		}
 		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
-		return retryWithFreshAuth(prefix, error, cancellationToken, (freshAuth) => doBrand(freshAuth), null);
+		return retryWithFreshAuth(
+			prefix,
+			error,
+			{ hadAuth: Boolean(auth?.githubToken) },
+			cancellationToken,
+			(freshAuth) => doBrand(freshAuth),
+			null,
+		);
 	}
 }

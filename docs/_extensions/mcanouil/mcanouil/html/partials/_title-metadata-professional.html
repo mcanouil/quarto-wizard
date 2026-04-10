@@ -1,6 +1,7 @@
 $-- PROFESSIONAL / EDITORIAL STYLE --$
 <div class="mc-title-metadata mc-style-professional">
 
+$if(title-block-meta)$
   $-- Top meta: categories and date --$
   <div class="mc-professional-meta-top">
     $if(categories)$
@@ -10,7 +11,9 @@ $-- PROFESSIONAL / EDITORIAL STYLE --$
     <span class="mc-professional-date">$date$</span>
     $endif$
   </div>
+$endif$
 
+$if(title-block-authors)$
   $-- Byline: authors with avatars --$
   $if(by-author)$
   <div class="mc-professional-byline">
@@ -31,7 +34,9 @@ $-- PROFESSIONAL / EDITORIAL STYLE --$
     $endfor$
   </div>
   $endif$
+$endif$
 
+$if(title-block-abstract)$
   $-- Abstract --$
   $if(abstract)$
   <div class="mc-professional-abstract">
@@ -45,7 +50,9 @@ $-- PROFESSIONAL / EDITORIAL STYLE --$
     $for(keywords)$<span class="mc-professional-keyword">$it$</span>$sep$ $endfor$
   </div>
   $endif$
+$endif$
 
+$if(title-block-meta)$
   $-- Meta footer: modified date and DOI --$
   $if(date-modified)$
   <div class="mc-professional-meta-footer">
@@ -57,5 +64,6 @@ $-- PROFESSIONAL / EDITORIAL STYLE --$
     $endif$
   </div>
   $endif$
+$endif$
 
 </div>

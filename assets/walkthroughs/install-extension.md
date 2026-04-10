@@ -21,9 +21,13 @@ Extensions are installed from GitHub releases/tags for stability and reproducibi
 Quarto Wizard supports installing extensions from private GitHub repositories.
 Configure authentication using one of:
 
-- Manual token setup via **"Quarto Wizard: Set GitHub Token (Manual)"**.
+- **"Quarto Wizard: Sign In with GitHub Session"** to use your VSCode GitHub account.
+- **"Quarto Wizard: Set GitHub Token (Manual)"** to provide a personal access token.
 - Environment variables (`GITHUB_TOKEN` or `QUARTO_WIZARD_TOKEN`).
-- VS Code's built-in GitHub authentication (offered automatically on authentication errors).
+
+If you attempt to install from a private GitHub repository without authentication, Quarto Wizard will offer to sign you in on the spot.
+
+[Sign In with GitHub Session](command:quartoWizard.signInWithGitHubSession)
 
 [Set GitHub Token (Manual)](command:quartoWizard.setGitHubToken)
 

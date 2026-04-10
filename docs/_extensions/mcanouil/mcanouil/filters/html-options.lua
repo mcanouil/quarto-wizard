@@ -7,6 +7,9 @@
 --- @description Processes YAML options for HTML format styling.
 --- Supports:
 ---   - style: 'professional' or 'academic' (converts to style.professional/style.academic booleans)
+---   - title-block-authors: show/hide authors section (default: true)
+---   - title-block-abstract: show/hide abstract and keywords (default: true)
+---   - title-block-meta: show/hide dates, DOI, and categories (default: true)
 ---   - extensions.mcanouil.hide-navbar-title: hides navbar brand/title
 
 -- ============================================================================
@@ -59,6 +62,13 @@ local function Meta(meta)
     professional = style_value == 'professional',
     academic = style_value == 'academic'
   })
+
+  -- Title block group toggles (default: true)
+  for _, key in ipairs({'title-block-authors', 'title-block-abstract', 'title-block-meta'}) do
+    if meta[key] == nil then
+      meta[key] = true
+    end
+  end
 
   -- Check extensions.mcanouil.hide-navbar-title option
   local mcanouil_config = meta_mod.get_extension_config(meta, 'mcanouil')
