@@ -6,6 +6,7 @@
 
 - feat: add `Quarto Wizard: Sign In with GitHub Session` command to authorise Quarto Wizard to use your VSCode GitHub session for installing from private repositories.
 - feat: installing an extension or template from GitHub that returns a "not found" error now offers a sign-in prompt, covering private repositories that GitHub reports as 404 to unauthenticated requests.
+- feat: detect GitHub SAML SSO enforcement on 403 responses and offer an "Authorise" action that opens the organisation's authorisation URL so the token can be granted SSO access.
 
 ### Fixes
 
