@@ -6,6 +6,7 @@
 		"moduleResolution": "NodeNext",
 		"target": "ES2024",
 		"lib": ["ES2024"],
+		"types": ["node"],
 		"declaration": true,
 		"declarationMap": true,
 		"sourceMap": true,
