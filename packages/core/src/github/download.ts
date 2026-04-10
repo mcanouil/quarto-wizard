@@ -141,7 +141,7 @@ export async function downloadArchive(
 
 	validateUrlProtocol(url);
 
-	let githubLikeHost = false;
+	let githubLikeHost: boolean;
 	try {
 		const parsedUrl = new URL(url);
 		const hostname = parsedUrl.hostname.toLowerCase();
