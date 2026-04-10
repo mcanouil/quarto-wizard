@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { NetworkError, RepositoryNotFoundError } from "@quarto-wizard/core";
+import { AuthenticationError, NetworkError, RepositoryNotFoundError, SamlSsoError } from "@quarto-wizard/core";
 import { disableVSCodeSessionAuth, enableVSCodeSessionAuth, getAuthConfig, handleAuthError } from "../../utils/auth";
 import * as constants from "../../constants";
 import { STORAGE_KEY_USE_VSCODE_GITHUB_SESSION } from "../../constants";
@@ -16,6 +16,7 @@ suite("Auth Utils Test Suite", () => {
 	let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
 	let originalGetSession: typeof vscode.authentication.getSession;
 	let originalExecuteCommand: typeof vscode.commands.executeCommand;
+	let originalOpenExternal: typeof vscode.env.openExternal;
 	let originalQwLog: MockLogOutputChannel;
 
 	let errorMessages: string[];
@@ -25,6 +26,7 @@ suite("Auth Utils Test Suite", () => {
 	let getSessionOptions: Record<string, unknown> | undefined;
 	let executedCommands: string[];
 	let loggedMessages: string[];
+	let openedUris: string[];
 
 	function installMocks(): void {
 		errorMessages = [];
@@ -34,6 +36,7 @@ suite("Auth Utils Test Suite", () => {
 		getSessionOptions = undefined;
 		executedCommands = [];
 		loggedMessages = [];
+		openedUris = [];
 
 		// Mock showErrorMessage to capture calls and return undefined (no action taken).
 		(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async (
@@ -60,6 +63,12 @@ suite("Auth Utils Test Suite", () => {
 		// Mock commands.executeCommand
 		(vscode.commands as { executeCommand: unknown }).executeCommand = async (command: string): Promise<void> => {
 			executedCommands.push(command);
+		};
+
+		// Mock env.openExternal
+		(vscode.env as { openExternal: unknown }).openExternal = async (uri: vscode.Uri): Promise<boolean> => {
+			openedUris.push(uri.toString());
+			return true;
 		};
 
 		// Mock QW_LOG to capture logged messages using LogOutputChannel methods
@@ -95,6 +104,7 @@ suite("Auth Utils Test Suite", () => {
 		vscode.window.showErrorMessage = originalShowErrorMessage;
 		vscode.authentication.getSession = originalGetSession;
 		vscode.commands.executeCommand = originalExecuteCommand;
+		vscode.env.openExternal = originalOpenExternal;
 		(constants as { QW_LOG: MockLogOutputChannel }).QW_LOG = originalQwLog;
 	}
 
@@ -102,6 +112,7 @@ suite("Auth Utils Test Suite", () => {
 		originalShowErrorMessage = vscode.window.showErrorMessage;
 		originalGetSession = vscode.authentication.getSession;
 		originalExecuteCommand = vscode.commands.executeCommand;
+		originalOpenExternal = vscode.env.openExternal;
 		originalQwLog = (constants as { QW_LOG: MockLogOutputChannel }).QW_LOG;
 
 		installMocks();
@@ -428,6 +439,128 @@ suite("Auth Utils Test Suite", () => {
 				true,
 				"Expected the session opt-in flag to be persisted when context is provided",
 			);
+		});
+
+		// SAML SSO branch: SamlSsoError must be handled before the generic 401/403
+		// path because SamlSsoError extends NetworkError with statusCode 403.
+		const SAML_MESSAGE = "Access blocked by SAML SSO. Authorise your token for this organisation to continue.";
+		const SAML_URL = "https://github.com/orgs/myorg/sso?authorization_request=abc";
+
+		test("should show SAML dialog for SamlSsoError (not the generic auth dialog)", async () => {
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: SAML_URL });
+			await handleAuthError("test", error);
+
+			assert.strictEqual(errorMessages.length, 1);
+			assert.strictEqual(errorMessages[0], SAML_MESSAGE);
+			assert.deepStrictEqual(actionItems[0], ["Authorise", "Set Token"]);
+		});
+
+		function mockAuthoriseAction(): void {
+			(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async (
+				message: string,
+				...items: string[]
+			): Promise<string | undefined> => {
+				errorMessages.push(message);
+				actionItems.push(items);
+				return "Authorise";
+			};
+		}
+
+		test("Authorise action opens the authorizationUrl in an external browser", async () => {
+			mockAuthoriseAction();
+
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: SAML_URL });
+			const result = await handleAuthError("test", error);
+
+			assert.strictEqual(result, false);
+			assert.strictEqual(openedUris.length, 1, "Expected openExternal to be called once");
+			// vscode.Uri.parse preserves scheme and authority but may re-encode
+			// the query; assert on the parsed components so the comparison is
+			// both strict (future javascript: or host change would fail) and
+			// robust to query-string percent-encoding.
+			const opened = vscode.Uri.parse(openedUris[0]!, true);
+			assert.strictEqual(opened.scheme, "https");
+			assert.strictEqual(opened.authority, "github.com");
+			assert.strictEqual(decodeURIComponent(openedUris[0]!), SAML_URL);
+			assert.strictEqual(getSessionCalled, false);
+		});
+
+		// Defence-in-depth: even if a bug in the core lets a bad URL reach the
+		// extension, handleAuthError must refuse to open anything that is not
+		// https://github.com/...
+		test("Authorise refuses non-github.com hosts even if a SamlSsoError carries one", async () => {
+			mockAuthoriseAction();
+
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", {
+				authorizationUrl: "https://evil.example/orgs/myorg/sso",
+			});
+			const result = await handleAuthError("test", error);
+
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(openedUris, []);
+			assert.ok(
+				loggedMessages.some((m) => m.includes("Refusing to open unexpected SAML authorisation URL")),
+				"Expected refusal to be logged",
+			);
+		});
+
+		test("Authorise refuses non-https schemes even if a SamlSsoError carries one", async () => {
+			mockAuthoriseAction();
+
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", {
+				authorizationUrl: "http://github.com/orgs/myorg/sso",
+			});
+			const result = await handleAuthError("test", error);
+
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(openedUris, []);
+			assert.ok(
+				loggedMessages.some((m) => m.includes("Refusing to open unexpected SAML authorisation URL")),
+				"Expected refusal to be logged",
+			);
+		});
+
+		test("Set Token in the SAML dialog dispatches quartoWizard.setGitHubToken", async () => {
+			(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async (
+				message: string,
+				...items: string[]
+			): Promise<string | undefined> => {
+				errorMessages.push(message);
+				actionItems.push(items);
+				return "Set Token";
+			};
+
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: SAML_URL });
+			const result = await handleAuthError("test", error);
+
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(executedCommands, ["quartoWizard.setGitHubToken"]);
+			assert.deepStrictEqual(openedUris, []);
+		});
+
+		test("SAML dialog returns false (no auto-retry)", async () => {
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: SAML_URL });
+			const result = await handleAuthError("test", error);
+
+			assert.strictEqual(result, false);
+		});
+
+		test("plain AuthenticationError still triggers the generic dialog (regression guard)", async () => {
+			const error = new AuthenticationError("Authentication required for owner/repo. Status: 403.");
+			await handleAuthError("test", error);
+
+			assert.strictEqual(errorMessages.length, 1);
+			assert.notStrictEqual(errorMessages[0], SAML_MESSAGE);
+			assert.deepStrictEqual(actionItems[0], ["Sign In", "Set Token"]);
+		});
+
+		test("NetworkError with statusCode 403 (no SAML header) triggers the generic dialog", async () => {
+			const error = new NetworkError("HTTP 403: Forbidden", { statusCode: 403 });
+			await handleAuthError("test", error);
+
+			assert.strictEqual(errorMessages.length, 1);
+			assert.notStrictEqual(errorMessages[0], SAML_MESSAGE);
+			assert.deepStrictEqual(actionItems[0], ["Sign In", "Set Token"]);
 		});
 
 		// Private-repo 404 branch: offered only for explicit GitHub install/use entry points

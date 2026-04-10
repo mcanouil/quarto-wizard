@@ -10,6 +10,7 @@
 import { CancellationError, NetworkError } from "../errors.js";
 import { proxyFetch } from "../proxy/index.js";
 import { USER_AGENT } from "../constants.js";
+import { detectSamlSsoError } from "../samlSso.js";
 
 /**
  * Options for HTTP requests.
@@ -155,6 +156,10 @@ async function fetchWithRetry<T>(
 			);
 
 			if (!response.ok) {
+				const samlError = detectSamlSsoError(response, `HTTP ${response.status}`);
+				if (samlError) {
+					throw samlError;
+				}
 				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}
 

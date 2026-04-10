@@ -104,6 +104,31 @@ export class NetworkError extends QuartoWizardError {
 }
 
 /**
+ * Error thrown when a GitHub organisation enforces SAML SSO and the token has
+ * not been authorised for that organisation.
+ *
+ * GitHub signals this with HTTP 403 and an `X-GitHub-SSO` response header
+ * containing the URL the user must visit to authorise their token.
+ */
+export class SamlSsoError extends NetworkError {
+	/** URL provided by GitHub to authorise the token for SAML SSO. */
+	readonly authorizationUrl: string;
+
+	constructor(message: string, options: { authorizationUrl: string; cause?: unknown }) {
+		super(message, { statusCode: 403, cause: options.cause });
+		this.name = "SamlSsoError";
+		this.authorizationUrl = options.authorizationUrl;
+	}
+}
+
+/**
+ * Check if an error is a SamlSsoError.
+ */
+export function isSamlSsoError(error: unknown): error is SamlSsoError {
+	return error instanceof SamlSsoError;
+}
+
+/**
  * Error related to security issues (path traversal, zip bombs, etc.).
  */
 export class SecurityError extends QuartoWizardError {

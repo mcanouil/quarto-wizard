@@ -4,6 +4,7 @@ import {
 	AuthenticationError,
 	NetworkError,
 	RepositoryNotFoundError,
+	SamlSsoError,
 	getErrorMessage,
 	type AuthConfig,
 } from "@quarto-wizard/core";
@@ -174,7 +175,46 @@ export async function handleAuthError(
 ): Promise<boolean> {
 	const { context, offerSessionOnNotFound = false, hadAuth = false } = options;
 
-	// 0. Private-repo 404 branch for explicit GitHub install/use entry points.
+	// 0a. SAML SSO branch — must come before the generic 401/403 check because
+	//     SamlSsoError extends NetworkError with statusCode 403 and would
+	//     otherwise be caught as a generic auth failure.
+	//     The user must visit the GitHub authorisation URL to unblock the token;
+	//     neither signing in again nor setting a different token will help.
+	//
+	//     The core library already validates the URL before constructing
+	//     SamlSsoError, but as defence-in-depth we re-validate the scheme and
+	//     host here so a bug in the core cannot lead the extension to open an
+	//     attacker-controlled URI in the user's browser.
+	if (error instanceof SamlSsoError) {
+		logMessage(`${prefix} SAML SSO enforcement detected. Offering authorisation URL.`, "info");
+		const action = await vscode.window.showErrorMessage(
+			"Access blocked by SAML SSO. Authorise your token for this organisation to continue.",
+			"Authorise",
+			"Set Token",
+		);
+		if (action === "Authorise") {
+			let uri: vscode.Uri;
+			try {
+				uri = vscode.Uri.parse(error.authorizationUrl, true);
+			} catch {
+				logMessage(
+					`${prefix} Refusing to open unparseable SAML authorisation URL: ${error.authorizationUrl}.`,
+					"error",
+				);
+				return false;
+			}
+			if (uri.scheme !== "https" || uri.authority !== "github.com") {
+				logMessage(`${prefix} Refusing to open unexpected SAML authorisation URL: ${error.authorizationUrl}.`, "error");
+				return false;
+			}
+			await vscode.env.openExternal(uri);
+		} else if (action === "Set Token") {
+			await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+		}
+		return false;
+	}
+
+	// 0b. Private-repo 404 branch for explicit GitHub install/use entry points.
 	//    GitHub returns 404 for private repositories accessed without credentials
 	//    (to avoid leaking their existence), so a "not found" on an unauthenticated
 	//    attempt is ambiguous. Offer the user a chance to sign in.

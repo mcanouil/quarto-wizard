@@ -5,10 +5,12 @@ import {
 	AuthenticationError,
 	RepositoryNotFoundError,
 	NetworkError,
+	SamlSsoError,
 	SecurityError,
 	ManifestError,
 	VersionError,
 	isQuartoWizardError,
+	isSamlSsoError,
 	wrapError,
 } from "../src/errors.js";
 
@@ -96,6 +98,54 @@ describe("NetworkError", () => {
 		const error = new NetworkError("Request failed");
 
 		expect(error.statusCode).toBeUndefined();
+	});
+});
+
+describe("SamlSsoError", () => {
+	it("creates error with correct name, code, statusCode, and authorizationUrl", () => {
+		const url = "https://github.com/orgs/myorg/sso?authorization_request=abc";
+		const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: url });
+
+		expect(error.name).toBe("SamlSsoError");
+		expect(error.code).toBe("NETWORK_ERROR");
+		expect(error.statusCode).toBe(403);
+		expect(error.authorizationUrl).toBe(url);
+		expect(error instanceof NetworkError).toBe(true);
+		expect(error instanceof QuartoWizardError).toBe(true);
+	});
+
+	it("propagates cause", () => {
+		const cause = new Error("original");
+		const error = new SamlSsoError("SAML block", {
+			authorizationUrl: "https://github.com/orgs/myorg/sso",
+			cause,
+		});
+
+		expect(error.cause).toBe(cause);
+	});
+});
+
+describe("isSamlSsoError", () => {
+	it("returns true for SamlSsoError", () => {
+		const error = new SamlSsoError("SAML block", {
+			authorizationUrl: "https://github.com/orgs/myorg/sso",
+		});
+
+		expect(isSamlSsoError(error)).toBe(true);
+	});
+
+	it("returns false for plain NetworkError", () => {
+		expect(isSamlSsoError(new NetworkError("network failure", { statusCode: 403 }))).toBe(false);
+	});
+
+	it("returns false for AuthenticationError", () => {
+		expect(isSamlSsoError(new AuthenticationError("auth failed"))).toBe(false);
+	});
+
+	it("returns false for non-errors", () => {
+		expect(isSamlSsoError(null)).toBe(false);
+		expect(isSamlSsoError("string")).toBe(false);
+		expect(isSamlSsoError(undefined)).toBe(false);
 	});
 });
 

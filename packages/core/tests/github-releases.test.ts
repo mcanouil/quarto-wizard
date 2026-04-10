@@ -65,6 +65,24 @@ import {
 	resolveVersion,
 	constructArchiveUrl,
 } from "../src/github/releases.js";
+import { AuthenticationError, SamlSsoError } from "../src/errors.js";
+
+describe("handleGitHubError SAML pass-through", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("re-throws SamlSsoError unchanged (does not convert to AuthenticationError)", async () => {
+		const samlUrl = "https://github.com/orgs/myorg/sso?authorization_request=abc";
+		const samlError = new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl });
+		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockRejectedValueOnce(samlError);
+
+		const error = await fetchReleases("owner", "repo").catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(SamlSsoError);
+		expect(error).not.toBeInstanceOf(AuthenticationError);
+		expect((error as SamlSsoError).authorizationUrl).toBe(samlUrl);
+	});
+});
 
 describe("fetchReleases", () => {
 	beforeEach(() => {
