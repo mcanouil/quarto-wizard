@@ -245,6 +245,13 @@ export async function handleAuthError(
 		);
 		if (action === "Sign In") {
 			logMessage(`${prefix} User requested GitHub sign-in.`, "info");
+			// When context is available, route through enableVSCodeSessionAuth so
+			// the session opt-in flag is persisted and future calls will silently
+			// reuse the session via getAuthConfig. Without a context, fall back to
+			// a bare getSession call that still allows this single retry to succeed.
+			if (context) {
+				return enableVSCodeSessionAuth(context);
+			}
 			try {
 				const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
 					createIfNone: true,

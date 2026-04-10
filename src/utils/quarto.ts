@@ -24,7 +24,7 @@ import {
 	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
-import { handleAuthError } from "./auth";
+import { handleAuthError, type HandleAuthErrorOptions } from "./auth";
 import { formatExtensionId } from "./extensions";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
@@ -116,15 +116,6 @@ async function getFreshAuth(): Promise<AuthConfig> {
 }
 
 /**
- * Flags forwarded from install/use options to {@link handleAuthError}.
- */
-interface AuthRetryFlags {
-	context?: vscode.ExtensionContext;
-	offerSessionOnNotFound?: boolean;
-	hadAuth?: boolean;
-}
-
-/**
  * Handles the retry-after-authentication pattern.
  * If the error triggers a successful auth flow, retries the operation with fresh credentials.
  *
@@ -139,7 +130,7 @@ interface AuthRetryFlags {
 async function retryWithFreshAuth<T>(
 	prefix: string,
 	error: unknown,
-	flags: AuthRetryFlags,
+	flags: HandleAuthErrorOptions,
 	cancellationToken: vscode.CancellationToken | undefined,
 	retryFn: (freshAuth: AuthConfig) => Promise<T>,
 	fallbackValue: T,
@@ -172,14 +163,14 @@ async function runWithParsedSourceAndAuthRetry<T>(
 	cancellationToken: vscode.CancellationToken | undefined,
 	run: (source: ParsedInstallSource, authConfig?: AuthConfig) => Promise<T>,
 	fallbackValue: T,
-	retryFlags: Omit<AuthRetryFlags, "hadAuth"> = {},
+	retryFlags: Omit<HandleAuthErrorOptions, "hadAuth"> = {},
 ): Promise<T> {
 	try {
 		const source = parseInstallSource(sourceInput);
 		return await run(source, initialAuth);
 	} catch (error) {
 		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
-		const flags: AuthRetryFlags = {
+		const flags: HandleAuthErrorOptions = {
 			...retryFlags,
 			hadAuth: Boolean(initialAuth?.githubToken),
 		};

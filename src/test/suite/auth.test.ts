@@ -399,6 +399,37 @@ suite("Auth Utils Test Suite", () => {
 			assert.strictEqual(getSessionCalled, false);
 		});
 
+		test("Sign In in the 401/403 dialog sets the session opt-in flag when context is provided", async () => {
+			mockSignInAction();
+			const fakeSession: vscode.AuthenticationSession = {
+				id: "test-session",
+				accessToken: "fake-token",
+				account: { id: "user-1", label: "testuser" },
+				scopes: ["repo"],
+			};
+			(vscode.authentication as { getSession: unknown }).getSession = async (
+				_providerId: string,
+				scopes: readonly string[],
+				options?: Record<string, unknown>,
+			) => {
+				getSessionCalled = true;
+				getSessionScopes = [...scopes];
+				getSessionOptions = options;
+				return fakeSession;
+			};
+
+			const context = makeMockContext();
+			const result = await handleAuthError("test", new Error("401: Unauthorized"), { context });
+			assert.strictEqual(result, true, "Expected handleAuthError to report successful sign-in");
+			assert.strictEqual(getSessionCalled, true);
+			assert.strictEqual(getSessionOptions?.createIfNone, true);
+			assert.strictEqual(
+				context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION),
+				true,
+				"Expected the session opt-in flag to be persisted when context is provided",
+			);
+		});
+
 		// Private-repo 404 branch: offered only for explicit GitHub install/use entry points
 		// (offerSessionOnNotFound: true) when the failing attempt used no auth.
 		const PRIVATE_REPO_MESSAGE = "Repository not found. If it is private, sign in to GitHub to access it.";
