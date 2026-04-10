@@ -59,5 +59,6 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           pr-labels: "Type: Dependencies :arrow_up:"
+          group-updates: true
           scan-directories: |
             docs
