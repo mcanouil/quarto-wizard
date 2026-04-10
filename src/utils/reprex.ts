@@ -9,24 +9,19 @@ import { logMessage, showMessageWithLogs } from "./log";
  * @param {vscode.ExtensionContext} context - The extension context.
  */
 export async function newQuartoReprex(language: string, context: vscode.ExtensionContext) {
-	let templateFile = "";
+	const templateFiles: Record<string, string> = {
+		R: "r.qmd",
+		Julia: "julia.qmd",
+		Python: "python.qmd",
+	};
 
-	switch (language) {
-		case "R":
-			templateFile = "r.qmd";
-			break;
-		case "Julia":
-			templateFile = "julia.qmd";
-			break;
-		case "Python":
-			templateFile = "python.qmd";
-			break;
-		default: {
-			const message = `Unsupported language: ${language}.`;
-			logMessage(message, "error");
-			showMessageWithLogs(message, "error");
-			return;
-		}
+	const templateFile = templateFiles[language];
+
+	if (!templateFile) {
+		const message = `Unsupported language: ${language}.`;
+		logMessage(message, "error");
+		showMessageWithLogs(message, "error");
+		return;
 	}
 
 	const fileUri = vscode.Uri.joinPath(context.extensionUri, "assets", "templates", templateFile);

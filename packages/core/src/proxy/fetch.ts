@@ -7,7 +7,7 @@
  * @module proxy
  */
 
-import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from "undici";
+import { fetch as undiciFetch, ProxyAgent } from "undici";
 import { getProxyForUrl, type ProxyConfig } from "./config.js";
 
 /**
@@ -140,11 +140,14 @@ export async function proxyFetch(url: string | URL, options: ProxyFetchOptions =
 		// 2. undici's Response is a separate implementation of the Fetch API Response
 		//    interface. While compatible at runtime, TypeScript treats them as different
 		//    types. Using the global Response type provides better API compatibility.
+		// 3. TypeScript 6.0 tightened SpecIterableIterator — FormData.keys() from
+		//    undici-types (@types/node) is now structurally incompatible with undici's
+		//    own FormData type. Casting to unknown bridges the gap safely.
 		// These assertions are safe because undici implements the Fetch API spec.
 		return undiciFetch(url, {
 			...fetchOptions,
-			dispatcher: dispatcher as unknown as Dispatcher,
-		}) as unknown as Response;
+			dispatcher,
+		} as unknown as Parameters<typeof undiciFetch>[1]) as unknown as Response;
 	}
 
 	// No proxy needed, use regular fetch

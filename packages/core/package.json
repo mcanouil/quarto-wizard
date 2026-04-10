@@ -48,7 +48,7 @@
 		"@types/unzipper": "^0.10.10",
 		"@vitest/coverage-v8": "^4.0.16",
 		"archiver": "^7.0.1",
-		"typescript": "^5.9.3",
+		"typescript": "^6.0.2",
 		"vitest": "^4.0.16"
 	},
 	"engines": {
