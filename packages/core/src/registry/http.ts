@@ -7,7 +7,7 @@
  * @module registry
  */
 
-import { CancellationError, NetworkError } from "../errors.js";
+import { CancellationError, NetworkError, SamlSsoError } from "../errors.js";
 import { proxyFetch } from "../proxy/index.js";
 import { USER_AGENT } from "../constants.js";
 
@@ -155,6 +155,15 @@ async function fetchWithRetry<T>(
 			);
 
 			if (!response.ok) {
+				const samlHeader = response.headers.get("x-github-sso");
+				if (samlHeader) {
+					const match = /url=(\S+)/.exec(samlHeader);
+					if (match?.[1]) {
+						throw new SamlSsoError(`HTTP ${response.status}: SAML SSO enforcement`, {
+							authorizationUrl: match[1],
+						});
+					}
+				}
 				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}
 

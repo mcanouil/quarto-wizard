@@ -11,7 +11,7 @@ import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { USER_AGENT } from "../constants.js";
-import { AuthenticationError, NetworkError, RepositoryNotFoundError, VersionError } from "../errors.js";
+import { AuthenticationError, NetworkError, RepositoryNotFoundError, SamlSsoError, VersionError } from "../errors.js";
 import { fetchJson } from "../registry/http.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -170,6 +170,9 @@ export function constructArchiveUrl(
  * Handle GitHub API errors.
  */
 function handleGitHubError(error: unknown, owner: string, repo: string): never {
+	if (error instanceof SamlSsoError) {
+		throw error;
+	}
 	if (error instanceof NetworkError) {
 		const status = error.statusCode;
 
