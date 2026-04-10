@@ -180,6 +180,11 @@ export async function handleAuthError(
 	//     otherwise be caught as a generic auth failure.
 	//     The user must visit the GitHub authorisation URL to unblock the token;
 	//     neither signing in again nor setting a different token will help.
+	//
+	//     The core library already validates the URL before constructing
+	//     SamlSsoError, but as defence-in-depth we re-validate the scheme and
+	//     host here so a bug in the core cannot lead the extension to open an
+	//     attacker-controlled URI in the user's browser.
 	if (error instanceof SamlSsoError) {
 		logMessage(`${prefix} SAML SSO enforcement detected. Offering authorisation URL.`, "info");
 		const action = await vscode.window.showErrorMessage(
@@ -188,7 +193,21 @@ export async function handleAuthError(
 			"Set Token",
 		);
 		if (action === "Authorise") {
-			await vscode.env.openExternal(vscode.Uri.parse(error.authorizationUrl));
+			let uri: vscode.Uri;
+			try {
+				uri = vscode.Uri.parse(error.authorizationUrl, true);
+			} catch {
+				logMessage(
+					`${prefix} Refusing to open unparseable SAML authorisation URL: ${error.authorizationUrl}.`,
+					"error",
+				);
+				return false;
+			}
+			if (uri.scheme !== "https" || uri.authority !== "github.com") {
+				logMessage(`${prefix} Refusing to open unexpected SAML authorisation URL: ${error.authorizationUrl}.`, "error");
+				return false;
+			}
+			await vscode.env.openExternal(uri);
 		} else if (action === "Set Token") {
 			await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
 		}

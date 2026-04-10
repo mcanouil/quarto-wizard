@@ -455,7 +455,7 @@ suite("Auth Utils Test Suite", () => {
 			assert.deepStrictEqual(actionItems[0], ["Authorise", "Set Token"]);
 		});
 
-		test("Authorise action opens the authorizationUrl in an external browser", async () => {
+		function mockAuthoriseAction(): void {
 			(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async (
 				message: string,
 				...items: string[]
@@ -464,16 +464,60 @@ suite("Auth Utils Test Suite", () => {
 				actionItems.push(items);
 				return "Authorise";
 			};
+		}
+
+		test("Authorise action opens the authorizationUrl in an external browser", async () => {
+			mockAuthoriseAction();
 
 			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: SAML_URL });
 			const result = await handleAuthError("test", error);
 
 			assert.strictEqual(result, false);
 			assert.strictEqual(openedUris.length, 1, "Expected openExternal to be called once");
-			// decodeURIComponent normalises percent-encoding introduced by vscode.Uri.parse
-			// so the comparison is robust to URI serialisation differences.
+			// vscode.Uri.parse preserves scheme and authority but may re-encode
+			// the query; assert on the parsed components so the comparison is
+			// both strict (future javascript: or host change would fail) and
+			// robust to query-string percent-encoding.
+			const opened = vscode.Uri.parse(openedUris[0]!, true);
+			assert.strictEqual(opened.scheme, "https");
+			assert.strictEqual(opened.authority, "github.com");
 			assert.strictEqual(decodeURIComponent(openedUris[0]!), SAML_URL);
 			assert.strictEqual(getSessionCalled, false);
+		});
+
+		// Defence-in-depth: even if a bug in the core lets a bad URL reach the
+		// extension, handleAuthError must refuse to open anything that is not
+		// https://github.com/...
+		test("Authorise refuses non-github.com hosts even if a SamlSsoError carries one", async () => {
+			mockAuthoriseAction();
+
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", {
+				authorizationUrl: "https://evil.example/orgs/myorg/sso",
+			});
+			const result = await handleAuthError("test", error);
+
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(openedUris, []);
+			assert.ok(
+				loggedMessages.some((m) => m.includes("Refusing to open unexpected SAML authorisation URL")),
+				"Expected refusal to be logged",
+			);
+		});
+
+		test("Authorise refuses non-https schemes even if a SamlSsoError carries one", async () => {
+			mockAuthoriseAction();
+
+			const error = new SamlSsoError("HTTP 403: SAML SSO enforcement", {
+				authorizationUrl: "http://github.com/orgs/myorg/sso",
+			});
+			const result = await handleAuthError("test", error);
+
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(openedUris, []);
+			assert.ok(
+				loggedMessages.some((m) => m.includes("Refusing to open unexpected SAML authorisation URL")),
+				"Expected refusal to be logged",
+			);
 		});
 
 		test("Set Token in the SAML dialog dispatches quartoWizard.setGitHubToken", async () => {

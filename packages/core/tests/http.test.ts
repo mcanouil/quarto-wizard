@@ -82,6 +82,72 @@ describe("registry http retry behavior", () => {
 		expect(error).not.toBeInstanceOf(SamlSsoError);
 	});
 
+	// Forged SAML header on a 500 must not downgrade the response to
+	// non-retryable. SamlSsoError hardcodes statusCode=403, so the SAML check
+	// must be scoped to 403 responses only; otherwise a 5xx could be turned
+	// into a permanent failure.
+	it("does not treat 500 with X-GitHub-SSO header as SAML", async () => {
+		const samlUrl = "https://github.com/orgs/myorg/sso?authorization_request=abc";
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Server Error", {
+				status: 500,
+				headers: { "x-github-sso": `required; url=${samlUrl}` },
+			}),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(NetworkError);
+		expect(error).not.toBeInstanceOf(SamlSsoError);
+		expect((error as NetworkError).statusCode).toBe(500);
+	});
+
+	// Defence-in-depth: an attacker-controlled response must not be able to
+	// point the extension at javascript:, file:, or non-github.com URLs.
+	it("throws plain NetworkError when SAML header url= is a javascript: URL", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Forbidden", {
+				status: 403,
+				headers: { "x-github-sso": "required; url=javascript:alert(1)" },
+			}),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(NetworkError);
+		expect(error).not.toBeInstanceOf(SamlSsoError);
+	});
+
+	it("throws plain NetworkError when SAML header url= points at a non-github.com host", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Forbidden", {
+				status: 403,
+				headers: { "x-github-sso": "required; url=https://evil.example/sso" },
+			}),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(NetworkError);
+		expect(error).not.toBeInstanceOf(SamlSsoError);
+	});
+
+	// SamlSsoError is a 403 and 403 is not retryable, so a single request is
+	// made even when retries > 0. This locks in the behaviour so a future
+	// change to isRetryableError cannot silently start amplifying SAML 403s.
+	it("does not retry SamlSsoError responses", async () => {
+		const samlUrl = "https://github.com/orgs/myorg/sso?authorization_request=abc";
+		const mockedProxyFetch = vi.mocked(proxyFetch);
+		mockedProxyFetch.mockResolvedValue(
+			new Response("Forbidden", {
+				status: 403,
+				headers: { "x-github-sso": `required; url=${samlUrl}` },
+			}),
+		);
+
+		await expect(
+			fetchJson("https://example.com/api", { retries: 3, retryDelay: 1 }),
+		).rejects.toBeInstanceOf(SamlSsoError);
+		expect(mockedProxyFetch).toHaveBeenCalledTimes(1);
+	});
+
 	it("cancels while waiting for retry backoff", async () => {
 		const mockedProxyFetch = vi.mocked(proxyFetch);
 		mockedProxyFetch.mockRejectedValue(new NetworkError("transient error"));

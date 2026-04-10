@@ -15,7 +15,8 @@ import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { USER_AGENT } from "../constants.js";
 import { getAuthHeaders } from "../types/auth.js";
-import { CancellationError, NetworkError, SamlSsoError } from "../errors.js";
+import { CancellationError, NetworkError } from "../errors.js";
+import { detectSamlSsoError } from "../samlSso.js";
 import { formatSize, validateUrlProtocol } from "../archive/security.js";
 import { proxyFetch } from "../proxy/index.js";
 import { resolveVersion, type ResolveVersionOptions } from "./releases.js";
@@ -173,14 +174,9 @@ export async function downloadArchive(
 		});
 
 		if (!response.ok) {
-			const samlHeader = response.headers.get("x-github-sso");
-			if (samlHeader) {
-				const match = /url=(\S+)/.exec(samlHeader);
-				if (match?.[1]) {
-					throw new SamlSsoError(`Failed to download: HTTP ${response.status}: SAML SSO enforcement`, {
-						authorizationUrl: match[1],
-					});
-				}
+			const samlError = detectSamlSsoError(response, `Failed to download: HTTP ${response.status}`);
+			if (samlError) {
+				throw samlError;
 			}
 			throw new NetworkError(`Failed to download: HTTP ${response.status}`, { statusCode: response.status });
 		}
