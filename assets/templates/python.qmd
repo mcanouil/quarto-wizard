@@ -37,7 +37,11 @@ plt.plot(x, y)
 plt.show()
 ```
 
-![An image]({{< placeholder 600 400 >}}){#fig-placeholder}
+::: {#fig-placeholder}
+{{< placeholder 600 400 >}}
+
+An image placeholder.
+:::
 
 {{< lipsum 1 >}}
 
