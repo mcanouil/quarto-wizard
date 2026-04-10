@@ -1,6 +1,7 @@
 $-- ACADEMIC / JOURNAL STYLE --$
 <div class="mc-title-metadata mc-style-academic">
 
+$if(title-block-authors)$
   $-- Authors inline with superscript affiliation numbers (linked) --$
   $if(by-author)$
   <div class="mc-academic-authors">
@@ -25,14 +26,18 @@ $-- ACADEMIC / JOURNAL STYLE --$
   </div>
   $endif$
   $endfor$
+$endif$
 
+$if(title-block-meta)$
   $-- Meta line: dates and DOI --$
   <div class="mc-academic-meta-line">
     $if(date)$<span class="mc-academic-date">Published: $date$</span>$endif$
     $if(date-modified)$<span class="mc-academic-modified">Modified: $date-modified$</span>$endif$
     $if(doi)$<span class="mc-academic-doi">DOI: <a href="https://doi.org/$doi$">$doi$</a></span>$endif$
   </div>
+$endif$
 
+$if(title-block-abstract)$
   $-- Abstract --$
   $if(abstract)$
   <div class="mc-academic-abstract">
@@ -50,5 +55,6 @@ $-- ACADEMIC / JOURNAL STYLE --$
     <span class="mc-academic-keywords-list">$for(keywords)$$it$$sep$, $endfor$</span>
   </div>
   $endif$
+$endif$
 
 </div>

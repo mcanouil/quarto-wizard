@@ -142,6 +142,80 @@
 // Set by mcanouil-code-window wrapper, read by apply-code-block-style
 #let code-window-filename = state("code-window-filename", none)
 
+// Annotation state passed to Skylighting via Typst state
+// Set by mcanouil-code-window wrapper when annotations are present
+#let _cw-annotations = state("cw-annotations", none)
+
+// Adaptive colour helpers (derive UI tones from page background)
+// Used by Skylighting hotfix and annotation rendering
+#let _cw-page-bg() = {
+  let f = page.fill
+  if type(f) == color { f } else { luma(255) }
+}
+
+#let _cw-fg(bg) = {
+  let comps = bg.components(alpha: false)
+  let lum = if comps.len() == 1 {
+    comps.at(0) / 100%
+  } else {
+    0.2126 * comps.at(0) / 100% + 0.7152 * comps.at(1) / 100% + 0.0722 * comps.at(2) / 100%
+  }
+  if lum < 0.5 { luma(255) } else { luma(0) }
+}
+
+// Annotation colour helper: derive contrasting colour from background
+#let mcanouil-code-window-annote-colour(bg) = {
+  if type(bg) == color {
+    let comps = bg.components(alpha: false)
+    let lum = if comps.len() == 1 {
+      comps.at(0) / 100%
+    } else {
+      0.2126 * comps.at(0) / 100% + 0.7152 * comps.at(1) / 100% + 0.0722 * comps.at(2) / 100%
+    }
+    if lum < 0.5 { luma(200) } else { luma(60) }
+  } else {
+    luma(60)
+  }
+}
+
+// Circled annotation number for code blocks
+#let mcanouil-code-window-circled-number(n, bg-colour: none) = {
+  let c = if bg-colour != none { mcanouil-code-window-annote-colour(bg-colour) } else { luma(120) }
+  box(baseline: 20%, circle(
+    radius: 4.5pt,
+    stroke: 0.5pt + c,
+  )[#set text(size: 5.5pt, fill: c); #align(center + horizon, str(n))])
+}
+
+// Annotation list item with bidirectional linking
+#let mcanouil-code-window-annotation-item(block-id, n, content) = {
+  let lbl-prefix = "cw-" + str(block-id) + "-"
+  context {
+    let target = label(lbl-prefix + "line-" + str(n))
+    let has-target = query(target).len() > 0
+    [#block(above: 0.4em, below: 0.4em)[
+      #if has-target {
+        link(target)[#mcanouil-code-window-circled-number(n)]
+      } else {
+        mcanouil-code-window-circled-number(n)
+      }
+      #h(0.4em)
+      #content
+    ] #label(lbl-prefix + "item-" + str(n))]
+  }
+}
+
+// Annotation content wrapper: sets state for Skylighting override
+#let mcanouil-code-window-annotated-content(content, annotations: (:), bg-colour: none, block-id: 0) = {
+  if annotations.len() > 0 {
+    _cw-annotations.update((annotations: annotations, bg-colour: bg-colour, block-id: block-id))
+    content
+    _cw-annotations.update(none)
+  } else {
+    content
+  }
+}
+
 // Traffic light button constants (macOS standard)
 #let TRAFFIC-LIGHT-SIZE = 10pt
 #let TRAFFIC-LIGHT-GAP = 5pt
@@ -169,10 +243,36 @@
   )
 }
 
-/// Render code block as macOS-style window with traffic lights
+/// Render Windows-style window buttons (minimise, maximise, close)
+/// @param muted-colour Colour for the button strokes
+/// @return Content Three window buttons in a horizontal row
+#let render-window-buttons(muted-colour) = {
+  box(
+    inset: (left: 8pt),
+    {
+      set line(stroke: 1pt + muted-colour)
+      stack(
+        dir: ltr,
+        spacing: 0.8em,
+        // Minimise (horizontal line)
+        box(width: 0.6em, height: 0.6em, align(horizon, line(length: 100%))),
+        // Maximise (square)
+        box(width: 0.6em, height: 0.6em, stroke: 1pt + muted-colour),
+        // Close (x)
+        box(width: 0.6em, height: 0.6em, {
+          place(line(start: (0%, 0%), end: (100%, 100%)))
+          place(line(start: (100%, 0%), end: (0%, 100%)))
+        }),
+      )
+    },
+  )
+}
+
+/// Render code block as a styled window with traffic lights, window buttons, or plain
 /// @param it Code block element
 /// @param filename Filename to display in title bar
 /// @param is-auto Whether filename is auto-generated (applies smallcaps styling)
+/// @param style Window decoration style ("macos", "windows", "default")
 /// @param colours Colour dictionary
 /// @param content-fill Background fill for content area
 /// @param content-inset Content padding
@@ -183,6 +283,7 @@
   it,
   filename,
   is-auto,
+  style,
   colours,
   content-fill,
   content-inset,
@@ -193,6 +294,39 @@
   // This ensures consistent relative contrast in both light and dark modes
   let titlebar-bg = content-fill.darken(5%)
   let filename-colour = colours.muted
+
+  let filename-label = if filename != none {
+    text(
+      size: if is-auto { 0.7em } else { 0.85em },
+      weight: 500,
+      fill: filename-colour,
+      font: ("Fira Code", "Menlo", "Monaco", "Courier New"),
+      if is-auto { upper(filename) } else { filename },
+    )
+  }
+
+  let title-bar = if style == "macos" {
+    grid(
+      columns: (auto, 1fr),
+      align: (left + horizon, right + horizon),
+      gutter: 0.5em,
+      stroke: 0pt,
+      render-traffic-lights(),
+      filename-label,
+    )
+  } else if style == "windows" {
+    grid(
+      columns: (1fr, auto),
+      align: (left + horizon, right + horizon),
+      gutter: 0.5em,
+      stroke: 0pt,
+      filename-label,
+      render-window-buttons(filename-colour),
+    )
+  } else {
+    // default: plain filename, left-aligned
+    filename-label
+  }
 
   let code-window = block(
     width: 100%,
@@ -210,26 +344,7 @@
         radius: 0pt,
         stroke: (bottom: CODE-WINDOW-BORDER-WIDTH + border-colour),
         sticky: true,
-        {
-          grid(
-            columns: (auto, 1fr),
-            align: (left + horizon, right + horizon),
-            gutter: 0.5em,
-            stroke: 0pt,
-            render-traffic-lights(),
-            if filename != none {
-              text(
-                // Smaller size for auto-generated filenames (simulated small caps)
-                size: if is-auto { 0.7em } else { 0.85em },
-                weight: 500,
-                fill: filename-colour,
-                font: ("Fira Code", "Menlo", "Monaco", "Courier New"),
-                // Apply uppercase for auto-generated filenames (simulated small caps)
-                if is-auto { upper(filename) } else { filename },
-              )
-            },
-          )
-        },
+        title-bar,
       )
       // Content area with same background as standard code blocks
       block(
@@ -265,20 +380,22 @@
   let border-colour = colour-mix(colours, 50%)
 
   // Check if this is a code window (filename state set by wrapper)
-  // State is now a dictionary with 'filename' and 'is-auto' keys
+  // State is now a dictionary with 'filename', 'is-auto', and 'style' keys
   let window-state = code-window-filename.get()
 
   if window-state != none {
     // Reset state immediately to avoid affecting subsequent blocks
     code-window-filename.update(none)
-    // Extract filename and is-auto flag from state
+    // Extract filename, is-auto flag, and style from state
     let filename = window-state.filename
     let is-auto = window-state.at("is-auto", default: false)
-    // Render macOS-style window
+    let style = window-state.at("style", default: "macos")
+    // Render styled window
     render-code-window-block(
       it,
       filename,
       is-auto,
+      style,
       colours,
       content-fill,
       content-inset,

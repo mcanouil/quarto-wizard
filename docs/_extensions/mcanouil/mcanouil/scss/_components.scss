@@ -674,8 +674,9 @@ $mc-breakpoint-sm: 576px !default;
   }
 }
 
-/// Code window component mixin (macOS-style)
-/// Styles code blocks with filename attribute as macOS terminal windows
+/// Code window component mixin (multi-style)
+/// Styles code blocks with filename attribute as terminal windows
+/// Supports macOS, Windows, and default (plain) styles
 @mixin code-window {
   // macOS traffic light button colours (consistent across light/dark modes)
   $traffic-light-close: #ff5f56;
@@ -691,11 +692,10 @@ $mc-breakpoint-sm: 576px !default;
     overflow: hidden;
 
     // Pagination control for print/PDF output
-    // Prevents page breaks inside the code window where possible
     page-break-inside: avoid;
     break-inside: avoid;
 
-    // Title bar with traffic lights and filename
+    // Title bar (shared across all styles)
     .code-with-filename-file {
       display: flex;
       align-items: center;
@@ -704,47 +704,37 @@ $mc-breakpoint-sm: 576px !default;
       border: none;
       border-bottom: 1px solid var(--mc-border);
       border-radius: 0;
-      padding: 0.6em 1em;
+      padding: 0.2em 1em;
+      line-height: 1.2;
       margin: 0;
 
       // Prevent title bar from being orphaned at page bottom
-      // Ensures title stays with following code content
       page-break-after: avoid;
       break-after: avoid;
 
-      // Traffic light buttons via pseudo-element
-      &::before {
-        content: '';
-        display: inline-flex;
-        flex-shrink: 0;
-        width: calc(#{$traffic-light-size} * 3 + #{$traffic-light-gap} * 2);
-        height: $traffic-light-size;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='12'%3E%3Ccircle cx='6' cy='6' r='5' fill='%23ff5f56'/%3E%3Ccircle cx='24' cy='6' r='5' fill='%23ffbd2e'/%3E%3Ccircle cx='42' cy='6' r='5' fill='%2327c93f'/%3E%3C/svg%3E");
-        background-size: contain;
-        background-repeat: no-repeat;
-      }
-
-      // Filename styling
+      // Filename styling (base)
       pre {
         flex: 1;
         margin: 0;
         padding: 0;
         background-color: transparent;
         border: none;
-        text-align: center;
         font-size: 0.85em;
         font-weight: 500;
         color: var(--mc-muted);
       }
+    }
 
-      // Spacer for visual balance (matches traffic light width)
-      &::after {
-        content: '';
-        display: inline-flex;
-        flex-shrink: 0;
-        width: calc(#{$traffic-light-size} * 3 + #{$traffic-light-gap} * 2);
-        height: $traffic-light-size;
-      }
+    // Auto-generated filenames display in simulated small caps
+    &.code-window-auto .code-with-filename-file pre strong {
+      text-transform: uppercase;
+      font-size: 0.8em;
+    }
+
+    // Code block bottom border-radius
+    .code-copy-outer-scaffold {
+      border-radius: 0 0 $mc-radius $mc-radius;
+      overflow: hidden;
     }
 
     // Code block content area
@@ -767,6 +757,48 @@ $mc-breakpoint-sm: 576px !default;
       margin: 0;
       border: none;
       border-radius: 0;
+    }
+  }
+
+  // Style: default (plain filename, no decorations)
+  .code-with-filename.code-window-default .code-with-filename-file pre {
+    text-align: left;
+  }
+
+  // Style: macOS (traffic lights left, filename right)
+  .code-with-filename.code-window-macos .code-with-filename-file {
+    &::before {
+      content: '';
+      display: inline-flex;
+      flex-shrink: 0;
+      width: calc(#{$traffic-light-size} * 3 + #{$traffic-light-gap} * 2);
+      height: $traffic-light-size;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='12'%3E%3Ccircle cx='6' cy='6' r='5' fill='%23ff5f56'/%3E%3Ccircle cx='24' cy='6' r='5' fill='%23ffbd2e'/%3E%3Ccircle cx='42' cy='6' r='5' fill='%2327c93f'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+    }
+
+    pre {
+      text-align: right;
+    }
+  }
+
+  // Style: Windows (filename left, window buttons right)
+  .code-with-filename.code-window-windows .code-with-filename-file {
+    pre {
+      text-align: left;
+    }
+
+    &::after {
+      content: '';
+      display: inline-flex;
+      flex-shrink: 0;
+      width: 3.6em;
+      height: 0.85em;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='10' fill='none'%3E%3Cline x1='3' y1='5' x2='11' y2='5' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Crect x='17' y='1' width='8' height='8' rx='1' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3Cline x1='31' y1='1' x2='39' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='39' y1='1' x2='31' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-position: right;
+      background-size: contain;
+      background-repeat: no-repeat;
     }
   }
 }
