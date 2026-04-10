@@ -24,7 +24,7 @@ import {
 	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
-import { handleAuthError, type HandleAuthErrorOptions } from "./auth";
+import { handleAuthError, GITHUB_SCOPES, type HandleAuthErrorOptions } from "./auth";
 import { formatExtensionId } from "./extensions";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
@@ -111,7 +111,7 @@ function wrapWithCancellation<TArgs extends unknown[], TResult>(
  * Obtains a fresh GitHub auth config from the current session.
  */
 async function getFreshAuth(): Promise<AuthConfig> {
-	const session = await vscode.authentication.getSession("github", ["repo"], { silent: true });
+	const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, { silent: true });
 	return session ? createAuthConfig({ githubToken: session.accessToken }) : createAuthConfig();
 }
 

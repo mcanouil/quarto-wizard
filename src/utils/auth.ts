@@ -13,7 +13,7 @@ import { STORAGE_KEY_USE_VSCODE_GITHUB_SESSION } from "../constants";
 /**
  * Scopes required for accessing private GitHub repositories.
  */
-const GITHUB_SCOPES = ["repo"];
+export const GITHUB_SCOPES = ["repo"];
 
 /**
  * Key for storing manual GitHub token in SecretStorage.
