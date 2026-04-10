@@ -1,7 +1,9 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { handleAuthError } from "../../utils/auth";
+import { NetworkError, RepositoryNotFoundError } from "@quarto-wizard/core";
+import { disableVSCodeSessionAuth, enableVSCodeSessionAuth, getAuthConfig, handleAuthError } from "../../utils/auth";
 import * as constants from "../../constants";
+import { STORAGE_KEY_USE_VSCODE_GITHUB_SESSION } from "../../constants";
 
 interface MockLogOutputChannel {
 	info: (message: string) => void;
@@ -396,5 +398,364 @@ suite("Auth Utils Test Suite", () => {
 			assert.deepStrictEqual(executedCommands, ["quartoWizard.setGitHubToken"]);
 			assert.strictEqual(getSessionCalled, false);
 		});
+
+		// Private-repo 404 branch: offered only for explicit GitHub install/use entry points
+		// (offerSessionOnNotFound: true) when the failing attempt used no auth.
+		const PRIVATE_REPO_MESSAGE = "Repository not found. If it is private, sign in to GitHub to access it.";
+
+		test("should show private-repo dialog for RepositoryNotFoundError when offerSessionOnNotFound and !hadAuth", async () => {
+			const context = makeMockContext();
+			await handleAuthError("test", new RepositoryNotFoundError("Repository not found: owner/repo"), {
+				context,
+				offerSessionOnNotFound: true,
+				hadAuth: false,
+			});
+			assert.strictEqual(errorMessages.length, 1);
+			assert.strictEqual(errorMessages[0], PRIVATE_REPO_MESSAGE);
+			assert.deepStrictEqual(actionItems[0], ["Sign In", "Set Token"]);
+		});
+
+		test("should show private-repo dialog for NetworkError statusCode 404 when offerSessionOnNotFound and !hadAuth", async () => {
+			const context = makeMockContext();
+			await handleAuthError("test", new NetworkError("Failed to download: HTTP 404", { statusCode: 404 }), {
+				context,
+				offerSessionOnNotFound: true,
+				hadAuth: false,
+			});
+			assert.strictEqual(errorMessages.length, 1);
+			assert.strictEqual(errorMessages[0], PRIVATE_REPO_MESSAGE);
+		});
+
+		test("should NOT show private-repo dialog when hadAuth is true", async () => {
+			const context = makeMockContext();
+			await handleAuthError("test", new RepositoryNotFoundError("Repository not found: owner/repo"), {
+				context,
+				offerSessionOnNotFound: true,
+				hadAuth: true,
+			});
+			assert.strictEqual(errorMessages.length, 0);
+		});
+
+		test("should NOT show private-repo dialog when offerSessionOnNotFound is omitted", async () => {
+			await handleAuthError("test", new RepositoryNotFoundError("Repository not found: owner/repo"));
+			assert.strictEqual(errorMessages.length, 0);
+		});
+
+		test("should NOT show private-repo dialog for non-404 errors even when flag is set", async () => {
+			const context = makeMockContext();
+			await handleAuthError("test", new NetworkError("Server error: HTTP 500", { statusCode: 500 }), {
+				context,
+				offerSessionOnNotFound: true,
+				hadAuth: false,
+			});
+			assert.strictEqual(errorMessages.length, 0);
+		});
+
+		test("should still fire existing 401/403 dialog alongside offerSessionOnNotFound flag", async () => {
+			const context = makeMockContext();
+			await handleAuthError("test", new Error("401: Unauthorized"), {
+				context,
+				offerSessionOnNotFound: true,
+				hadAuth: false,
+			});
+			assert.strictEqual(errorMessages.length, 1);
+			// The existing reactive dialog text, not the private-repo one.
+			assert.notStrictEqual(errorMessages[0], PRIVATE_REPO_MESSAGE);
+			assert.deepStrictEqual(actionItems[0], ["Sign In", "Set Token"]);
+		});
+
+		test("Sign In in the 404 dialog sets the session opt-in flag", async () => {
+			mockSignInAction();
+			const fakeSession: vscode.AuthenticationSession = {
+				id: "test-session",
+				accessToken: "fake-token",
+				account: { id: "user-1", label: "testuser" },
+				scopes: ["repo"],
+			};
+			(vscode.authentication as { getSession: unknown }).getSession = async (
+				_providerId: string,
+				scopes: readonly string[],
+				options?: Record<string, unknown>,
+			) => {
+				getSessionCalled = true;
+				getSessionScopes = [...scopes];
+				getSessionOptions = options;
+				return fakeSession;
+			};
+
+			const context = makeMockContext();
+			const result = await handleAuthError("test", new RepositoryNotFoundError("Repository not found: owner/repo"), {
+				context,
+				offerSessionOnNotFound: true,
+				hadAuth: false,
+			});
+			assert.strictEqual(result, true, "Expected handleAuthError to report successful sign-in");
+			assert.strictEqual(getSessionCalled, true);
+			assert.deepStrictEqual(getSessionScopes, ["repo"]);
+			assert.strictEqual(getSessionOptions?.createIfNone, true);
+			assert.strictEqual(
+				context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION),
+				true,
+				"Expected the session opt-in flag to be persisted",
+			);
+		});
+
+		test("Set Token in the 404 dialog dispatches quartoWizard.setGitHubToken", async () => {
+			(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async (
+				message: string,
+				...items: string[]
+			): Promise<string | undefined> => {
+				errorMessages.push(message);
+				actionItems.push(items);
+				return "Set Token";
+			};
+
+			const context = makeMockContext();
+			await handleAuthError("test", new RepositoryNotFoundError("Repository not found: owner/repo"), {
+				context,
+				offerSessionOnNotFound: true,
+				hadAuth: false,
+			});
+			assert.deepStrictEqual(executedCommands, ["quartoWizard.setGitHubToken"]);
+			assert.strictEqual(getSessionCalled, false);
+			assert.strictEqual(
+				context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION),
+				undefined,
+				"Expected the opt-in flag not to be set when user chose Set Token",
+			);
+		});
 	});
+
+	suite("getAuthConfig", () => {
+		const ORIGINAL_GITHUB_TOKEN = process.env["GITHUB_TOKEN"];
+		const ORIGINAL_QUARTO_WIZARD_TOKEN = process.env["QUARTO_WIZARD_TOKEN"];
+
+		setup(() => {
+			delete process.env["GITHUB_TOKEN"];
+			delete process.env["QUARTO_WIZARD_TOKEN"];
+		});
+
+		teardown(() => {
+			if (ORIGINAL_GITHUB_TOKEN === undefined) {
+				delete process.env["GITHUB_TOKEN"];
+			} else {
+				process.env["GITHUB_TOKEN"] = ORIGINAL_GITHUB_TOKEN;
+			}
+			if (ORIGINAL_QUARTO_WIZARD_TOKEN === undefined) {
+				delete process.env["QUARTO_WIZARD_TOKEN"];
+			} else {
+				process.env["QUARTO_WIZARD_TOKEN"] = ORIGINAL_QUARTO_WIZARD_TOKEN;
+			}
+		});
+
+		test("manual token takes priority over env var and session opt-in", async () => {
+			const context = makeMockContext({ manualToken: "manual", optedIn: true });
+			process.env["GITHUB_TOKEN"] = "env";
+			(vscode.authentication as { getSession: unknown }).getSession = async () => {
+				getSessionCalled = true;
+				return {
+					id: "x",
+					accessToken: "vscode",
+					account: { id: "u", label: "u" },
+					scopes: ["repo"],
+				} as vscode.AuthenticationSession;
+			};
+
+			const auth = await getAuthConfig(context);
+			assert.strictEqual(auth.githubToken, "manual");
+			assert.strictEqual(getSessionCalled, false, "Expected getSession not to be called when manual token is set");
+		});
+
+		test("env var takes priority over session opt-in", async () => {
+			const context = makeMockContext({ optedIn: true });
+			process.env["GITHUB_TOKEN"] = "env";
+			(vscode.authentication as { getSession: unknown }).getSession = async () => {
+				getSessionCalled = true;
+				return {
+					id: "x",
+					accessToken: "vscode",
+					account: { id: "u", label: "u" },
+					scopes: ["repo"],
+				} as vscode.AuthenticationSession;
+			};
+
+			const auth = await getAuthConfig(context);
+			assert.strictEqual(auth.githubToken, "env");
+			assert.strictEqual(getSessionCalled, false, "Expected getSession not to be called when env var is set");
+		});
+
+		test("session used when opt-in flag is true and no manual/env token", async () => {
+			const context = makeMockContext({ optedIn: true });
+			(vscode.authentication as { getSession: unknown }).getSession = async (
+				_providerId: string,
+				scopes: readonly string[],
+				options?: Record<string, unknown>,
+			) => {
+				getSessionCalled = true;
+				getSessionScopes = [...scopes];
+				getSessionOptions = options;
+				return {
+					id: "x",
+					accessToken: "vscode-token",
+					account: { id: "u", label: "u" },
+					scopes: ["repo"],
+				} as vscode.AuthenticationSession;
+			};
+
+			const auth = await getAuthConfig(context);
+			assert.strictEqual(auth.githubToken, "vscode-token");
+			assert.strictEqual(getSessionCalled, true);
+			assert.deepStrictEqual(getSessionScopes, ["repo"]);
+			assert.strictEqual(getSessionOptions?.silent, true);
+			assert.notStrictEqual(getSessionOptions?.createIfNone, true);
+		});
+
+		test("session NOT used when opt-in flag is false", async () => {
+			const context = makeMockContext({ optedIn: false });
+			(vscode.authentication as { getSession: unknown }).getSession = async () => {
+				getSessionCalled = true;
+				return {
+					id: "x",
+					accessToken: "vscode",
+					account: { id: "u", label: "u" },
+					scopes: ["repo"],
+				} as vscode.AuthenticationSession;
+			};
+
+			const auth = await getAuthConfig(context);
+			assert.strictEqual(auth.githubToken, undefined);
+			assert.strictEqual(getSessionCalled, false, "Expected getSession not to be called without opt-in");
+		});
+
+		test("falls back to empty config when opt-in flag is true but session missing", async () => {
+			const context = makeMockContext({ optedIn: true });
+			(vscode.authentication as { getSession: unknown }).getSession = async () => {
+				getSessionCalled = true;
+				return undefined as unknown as vscode.AuthenticationSession;
+			};
+
+			const auth = await getAuthConfig(context);
+			assert.strictEqual(auth.githubToken, undefined);
+			assert.strictEqual(getSessionCalled, true);
+		});
+
+		test("degrades gracefully when silent session check throws", async () => {
+			const context = makeMockContext({ optedIn: true });
+			(vscode.authentication as { getSession: unknown }).getSession = async () => {
+				getSessionCalled = true;
+				throw new Error("session provider unavailable");
+			};
+
+			const auth = await getAuthConfig(context);
+			assert.strictEqual(auth.githubToken, undefined);
+			assert.strictEqual(getSessionCalled, true);
+		});
+	});
+
+	suite("enableVSCodeSessionAuth / disableVSCodeSessionAuth", () => {
+		test("enable: sets opt-in flag to true on successful session", async () => {
+			const context = makeMockContext();
+			(vscode.authentication as { getSession: unknown }).getSession = async () =>
+				({
+					id: "x",
+					accessToken: "t",
+					account: { id: "u", label: "u" },
+					scopes: ["repo"],
+				}) as vscode.AuthenticationSession;
+
+			const ok = await enableVSCodeSessionAuth(context);
+			assert.strictEqual(ok, true);
+			assert.strictEqual(context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION), true);
+		});
+
+		test("enable: does not set opt-in flag when sign-in is cancelled", async () => {
+			const context = makeMockContext();
+			(vscode.authentication as { getSession: unknown }).getSession = async () => {
+				throw new Error("User did not consent to login.");
+			};
+
+			const ok = await enableVSCodeSessionAuth(context);
+			assert.strictEqual(ok, false);
+			assert.strictEqual(context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION), undefined);
+		});
+
+		test("enable: does not set opt-in flag when session is undefined", async () => {
+			const context = makeMockContext();
+			(vscode.authentication as { getSession: unknown }).getSession = async () =>
+				undefined as unknown as vscode.AuthenticationSession;
+
+			const ok = await enableVSCodeSessionAuth(context);
+			assert.strictEqual(ok, false);
+			assert.strictEqual(context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION), undefined);
+		});
+
+		test("disable: sets opt-in flag to false", async () => {
+			const context = makeMockContext({ optedIn: true });
+			let authCalled = false;
+			(vscode.authentication as { getSession: unknown }).getSession = async () => {
+				authCalled = true;
+				return undefined as unknown as vscode.AuthenticationSession;
+			};
+
+			await disableVSCodeSessionAuth(context);
+			assert.strictEqual(context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION), false);
+			assert.strictEqual(authCalled, false, "disable must not touch vscode.authentication");
+		});
+	});
+
+	/**
+	 * Minimal ExtensionContext mock for auth tests.
+	 * Supports secrets.get/store/delete and globalState.get/update.
+	 */
+	function makeMockContext(initial: { manualToken?: string; optedIn?: boolean } = {}): vscode.ExtensionContext {
+		const secretStore = new Map<string, string>();
+		if (initial.manualToken !== undefined) {
+			secretStore.set("quartoWizard.githubToken", initial.manualToken);
+		}
+		const globalStateStore = new Map<string, unknown>();
+		if (initial.optedIn !== undefined) {
+			globalStateStore.set(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION, initial.optedIn);
+		}
+
+		const secrets = {
+			get: async (key: string) => secretStore.get(key),
+			store: async (key: string, value: string) => {
+				secretStore.set(key, value);
+			},
+			delete: async (key: string) => {
+				secretStore.delete(key);
+			},
+			keys: async () => Array.from(secretStore.keys()),
+			onDidChange: (() => ({
+				dispose: () => {
+					/* noop */
+				},
+			})) as unknown as vscode.Event<vscode.SecretStorageChangeEvent>,
+		} as unknown as vscode.SecretStorage;
+
+		const globalState = {
+			keys: () => Array.from(globalStateStore.keys()),
+			get: <T>(key: string, defaultValue?: T): T | undefined => {
+				if (globalStateStore.has(key)) {
+					return globalStateStore.get(key) as T;
+				}
+				return defaultValue;
+			},
+			update: async (key: string, value: unknown) => {
+				if (value === undefined) {
+					globalStateStore.delete(key);
+				} else {
+					globalStateStore.set(key, value);
+				}
+			},
+			setKeysForSync: () => {
+				/* noop */
+			},
+		} as unknown as vscode.Memento & { setKeysForSync(keys: readonly string[]): void };
+
+		return {
+			secrets,
+			globalState,
+		} as unknown as vscode.ExtensionContext;
+	}
 });

@@ -3,10 +3,12 @@ import {
 	createAuthConfig,
 	AuthenticationError,
 	NetworkError,
+	RepositoryNotFoundError,
 	getErrorMessage,
 	type AuthConfig,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
+import { STORAGE_KEY_USE_VSCODE_GITHUB_SESSION } from "../constants";
 
 /**
  * Scopes required for accessing private GitHub repositories.
@@ -22,11 +24,13 @@ const MANUAL_TOKEN_KEY = "quartoWizard.githubToken";
  * Get GitHub authentication configuration using the following priority:
  * 1. Manual token (SecretStorage) - if user explicitly set one.
  * 2. Environment variables (GITHUB_TOKEN, QUARTO_WIZARD_TOKEN).
+ * 3. VSCode GitHub session - only if the user has opted in via
+ *    {@link enableVSCodeSessionAuth} (command
+ *    `quartoWizard.signInWithGitHubSession` or the "Sign In" action in the
+ *    reactive private-repo dialog). The session is fetched silently, so no UI
+ *    is ever shown from this call site.
  *
- * VSCode GitHub session acquisition is handled reactively by
- * {@link handleAuthError} when authentication errors occur.
- *
- * @param context - The extension context for accessing secrets.
+ * @param context - The extension context for accessing secrets and state.
  * @returns AuthConfig with GitHub token if available.
  */
 export async function getAuthConfig(context: vscode.ExtensionContext): Promise<AuthConfig> {
@@ -38,12 +42,67 @@ export async function getAuthConfig(context: vscode.ExtensionContext): Promise<A
 	}
 
 	// 2. Fall back to environment variables (handled by createAuthConfig)
-	const authConfig = createAuthConfig();
-	if (authConfig.githubToken) {
+	const envAuthConfig = createAuthConfig();
+	if (envAuthConfig.githubToken) {
 		logMessage("Using GitHub token from environment variable (GITHUB_TOKEN or QUARTO_WIZARD_TOKEN).", "info");
+		return envAuthConfig;
 	}
 
-	return authConfig;
+	// 3. Silently reuse the VSCode GitHub session, but only if the user has
+	//    explicitly opted in. The silent: true flag guarantees no UI is shown
+	//    here, so this cannot re-introduce the issue PR #252 fixed.
+	const optedIn = context.globalState.get<boolean>(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION) === true;
+	if (optedIn) {
+		try {
+			const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, { silent: true });
+			if (session) {
+				logMessage("Using GitHub token from VSCode session (opted-in).", "info");
+				return createAuthConfig({ githubToken: session.accessToken });
+			}
+			logMessage("Session opt-in is enabled but no VSCode GitHub session is available.", "debug");
+		} catch (error) {
+			logMessage(`Silent VSCode GitHub session check failed: ${getErrorMessage(error)}.`, "debug");
+		}
+	}
+
+	return envAuthConfig;
+}
+
+/**
+ * Trigger an explicit VSCode GitHub sign-in and record the session opt-in
+ * flag so that subsequent {@link getAuthConfig} calls will silently reuse the
+ * session. Used by the `quartoWizard.signInWithGitHubSession` command and by
+ * the `Sign In` action of the reactive private-repo dialog.
+ *
+ * @param context - The extension context for persisting the opt-in flag.
+ * @returns True if a session was obtained and the flag was set, false otherwise.
+ */
+export async function enableVSCodeSessionAuth(context: vscode.ExtensionContext): Promise<boolean> {
+	try {
+		const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, { createIfNone: true });
+		if (!session) {
+			logMessage("GitHub sign-in did not return a session.", "warn");
+			return false;
+		}
+		await context.globalState.update(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION, true);
+		logMessage("GitHub session opt-in enabled. Quarto Wizard will use the VSCode GitHub session.", "info");
+		return true;
+	} catch (error) {
+		logMessage(`GitHub sign-in was cancelled or failed: ${getErrorMessage(error)}.`, "warn");
+		return false;
+	}
+}
+
+/**
+ * Clear the session opt-in flag so that {@link getAuthConfig} no longer
+ * consults the VSCode GitHub session. Does not sign the user out of VSCode
+ * itself — that is VSCode's responsibility and must be user-initiated.
+ *
+ * @param context - The extension context for persisting the opt-in flag.
+ */
+export async function disableVSCodeSessionAuth(context: vscode.ExtensionContext): Promise<void> {
+	await context.globalState.update(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION, false);
+	logMessage("GitHub session opt-in cleared.", "info");
 }
 
 /**
@@ -70,15 +129,79 @@ export async function clearManualToken(context: vscode.ExtensionContext): Promis
 }
 
 /**
- * Checks whether an error message indicates an authentication failure and,
- * if so, shows a dialog offering to sign in or set a token.
+ * Options for {@link handleAuthError}.
+ */
+export interface HandleAuthErrorOptions {
+	/**
+	 * Extension context used to persist the session opt-in flag when the user
+	 * clicks "Sign In" in the private-repo dialog. Required for that flow.
+	 */
+	context?: vscode.ExtensionContext;
+	/**
+	 * When true, a 404/"not found" error on an attempt that used no auth
+	 * triggers a "may be private, sign in?" dialog. Should only be set by
+	 * explicit GitHub install/use entry points so that registry, URL, local,
+	 * brand, tree refresh and `handleUri` callers keep their current behaviour.
+	 */
+	offerSessionOnNotFound?: boolean;
+	/**
+	 * Whether the failing attempt was authenticated. Used to suppress the
+	 * private-repo sign-in dialog when the user was already signed in and hit a
+	 * genuine 404.
+	 */
+	hadAuth?: boolean;
+}
+
+/**
+ * Checks whether an error indicates an authentication failure and, if so,
+ * shows a dialog offering to sign in or set a token.
+ *
+ * When `offerSessionOnNotFound` is set and `hadAuth` is false, a 404 /
+ * {@link RepositoryNotFoundError} additionally triggers a "may be private"
+ * sign-in dialog. Clicking `Sign In` there also sets the session opt-in flag
+ * via {@link enableVSCodeSessionAuth}, so future installs do not re-prompt.
  *
  * @param prefix - Log prefix for messages.
  * @param error - The error to inspect.
+ * @param options - Optional flags controlling extra branches.
  * @returns True if authentication was obtained (user signed in successfully),
- *   false otherwise.  Callers can use this to optionally retry the operation.
+ *   false otherwise. Callers can use this to optionally retry the operation.
  */
-export async function handleAuthError(prefix: string, error: unknown): Promise<boolean> {
+export async function handleAuthError(
+	prefix: string,
+	error: unknown,
+	options: HandleAuthErrorOptions = {},
+): Promise<boolean> {
+	const { context, offerSessionOnNotFound = false, hadAuth = false } = options;
+
+	// 0. Private-repo 404 branch for explicit GitHub install/use entry points.
+	//    GitHub returns 404 for private repositories accessed without credentials
+	//    (to avoid leaking their existence), so a "not found" on an unauthenticated
+	//    attempt is ambiguous. Offer the user a chance to sign in.
+	if (offerSessionOnNotFound && !hadAuth) {
+		const isNotFoundError =
+			error instanceof RepositoryNotFoundError || (error instanceof NetworkError && error.statusCode === 404);
+		if (isNotFoundError) {
+			const action = await vscode.window.showErrorMessage(
+				"Repository not found. If it is private, sign in to GitHub to access it.",
+				"Sign In",
+				"Set Token",
+			);
+			if (action === "Sign In") {
+				if (!context) {
+					logMessage(`${prefix} Cannot sign in: no extension context supplied to handleAuthError.`, "warn");
+					return false;
+				}
+				logMessage(`${prefix} User requested GitHub sign-in for possible private repository.`, "info");
+				return enableVSCodeSessionAuth(context);
+			}
+			if (action === "Set Token") {
+				await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+			}
+			return false;
+		}
+	}
+
 	// 1. Check for typed core errors (most reliable, avoids string matching).
 	const isTypedAuthError =
 		error instanceof AuthenticationError ||

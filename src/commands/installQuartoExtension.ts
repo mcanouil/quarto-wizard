@@ -78,6 +78,7 @@ async function runRegistryFlow(
 async function installFromPromptedRemoteSource(
 	context: vscode.ExtensionContext,
 	promptForSource: () => Promise<string | undefined>,
+	offerSessionOnNotFound = false,
 ): Promise<void> {
 	const workspaceFolder = await selectWorkspaceFolder();
 	if (!workspaceFolder) {
@@ -90,7 +91,7 @@ async function installFromPromptedRemoteSource(
 	if (!source) {
 		return;
 	}
-	await installFromSource(context, source, workspaceFolder, false);
+	await installFromSource(context, source, workspaceFolder, false, offerSessionOnNotFound);
 }
 
 /**
@@ -287,7 +288,7 @@ export async function installQuartoExtensionFolderCommand(
 		case "github": {
 			const ref = await promptForGitHubReference();
 			if (ref) {
-				await installFromSource(context, ref, workspaceFolder, template);
+				await installFromSource(context, ref, workspaceFolder, template, true);
 			}
 			break;
 		}
@@ -323,6 +324,7 @@ async function installFromSource(
 	source: string,
 	workspaceFolder: string,
 	template: boolean,
+	offerSessionOnNotFound = false,
 ) {
 	if (!(await confirmTrustAuthors())) return;
 	if (!(await confirmInstall())) return;
@@ -372,6 +374,8 @@ async function installFromSource(
 					auth,
 					sourceDisplay: display,
 					cancellationToken: token,
+					context,
+					offerSessionOnNotFound,
 				});
 				// useQuartoExtension returns UseResult | null
 				// null means either failure or cancellation, but we treat both as non-success
@@ -381,6 +385,8 @@ async function installFromSource(
 					auth,
 					sourceDisplay: display,
 					cancellationToken: token,
+					context,
+					offerSessionOnNotFound,
 				});
 			}
 
@@ -467,7 +473,7 @@ export async function installExtensionFromURLCommand(context: vscode.ExtensionCo
  * @param context - The extension context.
  */
 export async function installExtensionFromGitHubCommand(context: vscode.ExtensionContext) {
-	await installFromPromptedRemoteSource(context, promptForGitHubReference);
+	await installFromPromptedRemoteSource(context, promptForGitHubReference, true);
 }
 
 /**

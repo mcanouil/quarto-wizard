@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- feat: add `Quarto Wizard: Sign In with GitHub Session` command to authorise Quarto Wizard to use your VSCode GitHub session for installing from private repositories.
+- feat: installing an extension or template from GitHub that returns a "not found" error now offers a sign-in prompt, covering private repositories that GitHub reports as 404 to unauthenticated requests.
+
+### Breaking Changes
+
+- breaking: rename `Quarto Wizard: Clear GitHub Token (Manual)` → `Quarto Wizard: Clear GitHub Authentication`. The new command clears both the manually set token and the VSCode session opt-in. Command id changes from `quartoWizard.clearGitHubToken` to `quartoWizard.clearGitHubAuth`, so any keybindings bound to the old id must be updated.
+
 ## 2.2.2 (2026-03-23)
 
 ### Fixes
