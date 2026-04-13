@@ -16,7 +16,7 @@ Error types for @quarto-wizard/schema.
 
 ## SchemaError {#symbol-class-schemaerror}
 
-Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/a571372ff3c88c8e51acdb6bfad10e6cbe51b59d/packages/schema/src/errors.ts#L11)
+Defined in: [packages/schema/src/errors.ts:11](https://github.com/mcanouil/quarto-wizard/blob/86536df2d2dae617e76d97c142d38fb62978a996/packages/schema/src/errors.ts#L11)
 
 Error when parsing a schema file fails.
 
@@ -32,7 +32,7 @@ Error when parsing a schema file fails.
 new SchemaError(message, options?): SchemaError;
 ```
 
-Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/a571372ff3c88c8e51acdb6bfad10e6cbe51b59d/packages/schema/src/errors.ts#L19)
+Defined in: [packages/schema/src/errors.ts:19](https://github.com/mcanouil/quarto-wizard/blob/86536df2d2dae617e76d97c142d38fb62978a996/packages/schema/src/errors.ts#L19)
 
 ##### Parameters
 
@@ -58,10 +58,10 @@ Error.constructor
 #### cause? {#symbol-class-schemaerror-cause}
 
 ```{.ts filename="TypeScript"}
-optional cause: unknown;
+optional cause?: unknown;
 ```
 
-Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:26
+Defined in: node_modules/typescript/lib/lib.es2022.error.d.ts:24
 
 ##### Inherited from
 
@@ -75,7 +75,7 @@ Error.cause
 readonly code: "SCHEMA_ERROR" = "SCHEMA_ERROR";
 ```
 
-Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/a571372ff3c88c8e51acdb6bfad10e6cbe51b59d/packages/schema/src/errors.ts#L13)
+Defined in: [packages/schema/src/errors.ts:13](https://github.com/mcanouil/quarto-wizard/blob/86536df2d2dae617e76d97c142d38fb62978a996/packages/schema/src/errors.ts#L13)
 
 Error code for programmatic handling.
 
@@ -85,7 +85,7 @@ Error code for programmatic handling.
 message: string;
 ```
 
-Defined in: node_modules/typescript/lib/lib.es5.d.ts:1077
+Defined in: node_modules/typescript/lib/lib.es5.d.ts:1075
 
 ##### Inherited from
 
@@ -99,7 +99,7 @@ Error.message
 name: string;
 ```
 
-Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
+Defined in: node_modules/typescript/lib/lib.es5.d.ts:1074
 
 ##### Inherited from
 
@@ -110,20 +110,20 @@ Error.name
 #### schemaPath? {#symbol-class-schemaerror-schemapath}
 
 ```{.ts filename="TypeScript"}
-readonly optional schemaPath: string;
+readonly optional schemaPath?: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/a571372ff3c88c8e51acdb6bfad10e6cbe51b59d/packages/schema/src/errors.ts#L15)
+Defined in: [packages/schema/src/errors.ts:15](https://github.com/mcanouil/quarto-wizard/blob/86536df2d2dae617e76d97c142d38fb62978a996/packages/schema/src/errors.ts#L15)
 
 Path to the schema file.
 
 #### stack? {#symbol-class-schemaerror-stack}
 
 ```{.ts filename="TypeScript"}
-optional stack: string;
+optional stack?: string;
 ```
 
-Defined in: node_modules/typescript/lib/lib.es5.d.ts:1078
+Defined in: node_modules/typescript/lib/lib.es5.d.ts:1076
 
 ##### Inherited from
 
@@ -134,10 +134,10 @@ Error.stack
 #### suggestion? {#symbol-class-schemaerror-suggestion}
 
 ```{.ts filename="TypeScript"}
-readonly optional suggestion: string;
+readonly optional suggestion?: string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/a571372ff3c88c8e51acdb6bfad10e6cbe51b59d/packages/schema/src/errors.ts#L17)
+Defined in: [packages/schema/src/errors.ts:17](https://github.com/mcanouil/quarto-wizard/blob/86536df2d2dae617e76d97c142d38fb62978a996/packages/schema/src/errors.ts#L17)
 
 Suggestion for how to resolve the error.
 
@@ -173,7 +173,7 @@ Error.stackTraceLimit
 format(): string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/a571372ff3c88c8e51acdb6bfad10e6cbe51b59d/packages/schema/src/errors.ts#L33)
+Defined in: [packages/schema/src/errors.ts:33](https://github.com/mcanouil/quarto-wizard/blob/86536df2d2dae617e76d97c142d38fb62978a996/packages/schema/src/errors.ts#L33)
 
 Format the error for display.
 
@@ -285,7 +285,7 @@ Error.prepareStackTrace
 function getErrorMessage(error): string;
 ```
 
-Defined in: [packages/schema/src/errors.ts:45](https://github.com/mcanouil/quarto-wizard/blob/a571372ff3c88c8e51acdb6bfad10e6cbe51b59d/packages/schema/src/errors.ts#L45)
+Defined in: [packages/schema/src/errors.ts:45](https://github.com/mcanouil/quarto-wizard/blob/86536df2d2dae617e76d97c142d38fb62978a996/packages/schema/src/errors.ts#L45)
 
 Extract a human-readable message from an unknown error value.
 

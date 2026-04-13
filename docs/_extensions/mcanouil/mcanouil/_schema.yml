@@ -261,19 +261,7 @@ attributes:
       type: string
       default: "subtle"
       description: "Colour theme for the panel border."
-      enum:
-        [
-          info,
-          success,
-          warning,
-          danger,
-          caution,
-          neutral,
-          subtle,
-          emphasis,
-          accent,
-          outline,
-        ]
+      enum: [info, success, warning, danger, caution, neutral, subtle, emphasis, accent, outline]
 
   executive-summary:
     title:
