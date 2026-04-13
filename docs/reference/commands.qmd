@@ -99,14 +99,12 @@ Manually set a GitHub personal access token for authentication.
 **Command**: `Quarto Wizard: Sign In with GitHub Session`
 
 Authorise Quarto Wizard to use your VSCode GitHub session for private repositories.
-Once signed in, Quarto Wizard silently reuses the session for subsequent operations.
 
 ### Clear GitHub Authentication
 
 **Command**: `Quarto Wizard: Clear GitHub Authentication`
 
 Remove the manually set GitHub token and revoke Quarto Wizard's use of the VSCode GitHub session.
-This does not sign you out of GitHub in VSCode.
 
 ## Explorer View Commands
 
@@ -196,11 +194,11 @@ For scripting or keybinding purposes, here are the internal command identifiers:
 
 ### Authentication Commands
 
-| Display Name                 | Command ID                              |
-| ---------------------------- | --------------------------------------- |
-| Set GitHub Token (Manual)    | `quartoWizard.setGitHubToken`           |
-| Sign In with GitHub Session  | `quartoWizard.signInWithGitHubSession`  |
-| Clear GitHub Authentication  | `quartoWizard.clearGitHubAuth`          |
+| Display Name                | Command ID                             |
+| --------------------------- | -------------------------------------- |
+| Set GitHub Token (Manual)   | `quartoWizard.setGitHubToken`          |
+| Sign In with GitHub Session | `quartoWizard.signInWithGitHubSession` |
+| Clear GitHub Authentication | `quartoWizard.clearGitHubAuth`         |
 
 ### Explorer View Commands
 
