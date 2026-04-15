@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- fix: allow backticks inside quoted values in fence info strings, preventing false "Remove spaces around =" diagnostics.
+
 ## 2.3.0 (2026-04-13)
 
 ### New Features
