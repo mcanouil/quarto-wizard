@@ -6,6 +6,7 @@ import {
 	getExistingKeysAtPath,
 	getCodeBlockRanges,
 	isInCodeBlockRange,
+	hasUnquotedBacktick,
 } from "../../utils/yamlPosition";
 
 suite("YAML Position Utils Test Suite", () => {
@@ -364,6 +365,27 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(ranges.length, 0);
 		});
 
+		test("should recognise backtick fence when backticks are inside double-quoted info string", () => {
+			const text = '```{.r code-summary="Show `theme_brand()` implementation"}\namount = 0.25\n```';
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.slice(ranges[0].start, ranges[0].end).includes("amount = 0.25"));
+		});
+
+		test("should recognise backtick fence when backticks are inside single-quoted info string", () => {
+			const text = "```{.r code-summary='Show `x` usage'}\ncode here\n```";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.slice(ranges[0].start, ranges[0].end).includes("code here"));
+		});
+
+		test("should reject backtick fence with backticks both inside and outside quotes", () => {
+			// The first line has a bare backtick outside quotes so it is not a valid fence.
+			const text = '```{.r code-summary="Show `x`"} `bare\ncontent';
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 0);
+		});
+
 		test("should detect a backtick-fenced code block with CRLF line endings", () => {
 			const text = "before\r\n```\r\ncode\r\n```\r\nafter";
 			const ranges = getCodeBlockRanges(text);
@@ -514,6 +536,40 @@ suite("YAML Position Utils Test Suite", () => {
 			const ranges = getCodeBlockRanges(text);
 			const innerBrace = text.indexOf("function(x) {") + "function(x) ".length;
 			assert.strictEqual(isInCodeBlockRange(ranges, innerBrace), true);
+		});
+	});
+
+	suite("hasUnquotedBacktick", () => {
+		test("should return false for empty string", () => {
+			assert.strictEqual(hasUnquotedBacktick(""), false);
+		});
+
+		test("should return true for bare backtick", () => {
+			assert.strictEqual(hasUnquotedBacktick("foo`bar"), true);
+		});
+
+		test("should return false when backtick is inside double quotes", () => {
+			assert.strictEqual(hasUnquotedBacktick('{.r code-summary="Show `theme_brand()` implementation"}'), false);
+		});
+
+		test("should return false when backtick is inside single quotes", () => {
+			assert.strictEqual(hasUnquotedBacktick("{.r code-summary='Show `theme_brand()` implementation'}"), false);
+		});
+
+		test("should return true when backtick is outside quotes even if some are inside", () => {
+			assert.strictEqual(hasUnquotedBacktick('{.r code-summary="Show `x`"} `bare'), true);
+		});
+
+		test("should return false when no backticks are present", () => {
+			assert.strictEqual(hasUnquotedBacktick('{.r code-summary="no ticks"}'), false);
+		});
+
+		test("should return false for backtick inside double quotes only", () => {
+			assert.strictEqual(hasUnquotedBacktick('"`"'), false);
+		});
+
+		test("should return false for backtick inside single quotes only", () => {
+			assert.strictEqual(hasUnquotedBacktick("'`'"), false);
 		});
 	});
 });
