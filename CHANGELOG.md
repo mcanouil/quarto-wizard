@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Refactoring
+
+- chore(deps): upgrade npm dependencies to latest, including undici 7.x to 8.x.
+
 ### Fixes
 
 - fix: allow backticks inside quoted values in fence info strings, preventing false "Remove spaces around =" diagnostics.
