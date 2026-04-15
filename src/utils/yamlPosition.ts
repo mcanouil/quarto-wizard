@@ -16,6 +16,32 @@ export interface TextRange {
 }
 
 /**
+ * Check whether a fence info string contains a backtick outside of any
+ * quoted context.  Pandoc attribute syntax allows backticks inside
+ * single- or double-quoted values (e.g.
+ * `code-summary="Show \`fn()\` usage"`), so a naive `includes` check
+ * would incorrectly reject valid Quarto fence headers.
+ *
+ * @param infoString - The portion of the fence line after the opening
+ *   backticks/tildes (i.e. the info string).
+ * @returns `true` if any backtick appears outside single or double quotes.
+ */
+export function hasUnquotedBacktick(infoString: string): boolean {
+	let inDouble = false;
+	let inSingle = false;
+	for (const ch of infoString) {
+		if (ch === '"' && !inSingle) {
+			inDouble = !inDouble;
+		} else if (ch === "'" && !inDouble) {
+			inSingle = !inSingle;
+		} else if (ch === "`" && !inDouble && !inSingle) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Find all fenced code block body regions in the document text.
  *
  * Recognises both backtick (`` ``` ``) and tilde (`~~~`) fences, with
@@ -58,8 +84,10 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 		// Check for opening fence, optionally indented.
 		const openMatch = /^(\s*)(`{3,}|~{3,})(.*)$/.exec(line);
 		if (openMatch) {
-			// The info string must not contain backticks when using backtick fences.
-			if (openMatch[2][0] === "`" && openMatch[3].includes("`")) {
+			// The info string must not contain bare backticks when using backtick
+			// fences (CommonMark spec).  Backticks inside quoted attribute values
+			// are allowed (Pandoc/Quarto extension).
+			if (openMatch[2][0] === "`" && hasUnquotedBacktick(openMatch[3])) {
 				continue;
 			}
 			inBlock = true;

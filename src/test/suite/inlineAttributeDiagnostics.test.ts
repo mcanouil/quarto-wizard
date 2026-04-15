@@ -628,6 +628,29 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.strictEqual(findings.length, 0, `Unexpected finding in block content: "${block.content}"`);
 			}
 		});
+
+		test("should not extract blocks from code body when fence info has quoted backticks", () => {
+			const text = [
+				'```{.r code-summary="Show `theme_brand()` implementation"}',
+				"theme_brand <- function() {",
+				"  amount = 0.25",
+				"}",
+				"```",
+			].join("\n");
+			const blocks = extractBlocks(text);
+			// Only the fence header block should be extracted.
+			assert.strictEqual(blocks.length, 1);
+			assert.ok(blocks[0].content.startsWith(".r"));
+		});
+
+		test("should not produce spaces-around-equals findings when fence info has quoted backticks", () => {
+			const text = ['```{.r code-summary="Show `theme_brand()` implementation"}', "amount = 0.25", "```"].join("\n");
+			const blocks = extractBlocks(text);
+			for (const block of blocks) {
+				const findings = findSpacesAroundEquals(block.content);
+				assert.strictEqual(findings.length, 0, `Unexpected finding in block content: "${block.content}"`);
+			}
+		});
 	});
 
 	suite("extractBareWords", () => {
