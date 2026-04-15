@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Refactoring
+### Dependency Updates
 
 - chore(deps): upgrade npm dependencies to latest, including undici 7.x to 8.x.
 
