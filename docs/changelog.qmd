@@ -6,6 +6,16 @@ title: "Changelog"
 
 ### 2.3 {#version-2-3}
 
+#### 2.3.1 (2026-04-15) {#version-2-3-1}
+
+##### Dependency Updates
+
+- chore(deps): upgrade npm dependencies to latest, including undici 7.x to 8.x.
+
+##### Fixes
+
+- fix: allow backticks inside quoted values in fence info strings, preventing false "Remove spaces around =" diagnostics.
+
 #### 2.3.0 (2026-04-13) {#version-2-3-0}
 
 ##### New Features
