@@ -6,6 +6,10 @@ title: "Changelog"
 
 ### 2.4 {#version-2-4}
 
+#### 2.4.1 (2026-04-19) {#version-2-4-1}
+
+- chore: no user-facing changes.
+
 #### 2.4.0 (2026-04-19) {#version-2-4-0}
 
 ##### Fixes
