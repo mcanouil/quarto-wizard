@@ -62,7 +62,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		const noSource = extension && !extension.manifest.source;
 
 		// Set context value based on source type for VS Code context menus
-		const sourceType = extension ? getEffectiveSourceType(extension) : undefined;
+		const sourceType = extension ? getEffectiveSourceType(extension.manifest) : undefined;
 
 		let contextValue: string;
 		if (!extension) {

@@ -142,3 +142,75 @@ function parseSourceType(value: string | undefined): SourceType | undefined {
 	}
 	return value as SourceType;
 }
+
+const GITHUB_REPOSITORY_PATTERN = /^[^/\s:\\]+\/[^/\s:\\]+(?:\/[^/\s:\\]+)*(?:@[^/\s:\\]+)?$/;
+
+/**
+ * Split a source string of the form `base@ref` into its base and an indicator
+ * of whether an explicit ref was present.
+ *
+ * @param source - Raw source string (e.g. `owner/repo@v1.2.3`)
+ * @returns Tuple of base and whether a ref was present
+ */
+export function splitSourceRef(source: string): { base: string; hasRef: boolean } {
+	const atIndex = source.lastIndexOf("@");
+	if (atIndex <= 0) {
+		return { base: source, hasRef: false };
+	}
+	return {
+		base: source.substring(0, atIndex),
+		hasRef: true,
+	};
+}
+
+function isLocalSourcePath(source: string): boolean {
+	return (
+		source.startsWith("file://") ||
+		source.startsWith("/") ||
+		source.startsWith("~/") ||
+		source.startsWith("\\\\") ||
+		source.startsWith(".") ||
+		/^[A-Za-z]:[/\\]/.test(source)
+	);
+}
+
+function isLegacyGitHubSource(source: string): boolean {
+	return GITHUB_REPOSITORY_PATTERN.test(source) && !source.startsWith(".");
+}
+
+/**
+ * Infer the source type from a raw source string when no explicit `source-type`
+ * was recorded in the manifest (legacy installations).
+ *
+ * @param source - Raw source string from the manifest
+ * @returns Inferred source type, or undefined if the string is unrecognised
+ */
+export function inferSourceType(source: string | undefined): SourceType | undefined {
+	if (!source) {
+		return undefined;
+	}
+	if (/^https?:\/\//.test(source)) {
+		return "url";
+	}
+	if (isLocalSourcePath(source)) {
+		return "local";
+	}
+	if (isLegacyGitHubSource(splitSourceRef(source).base)) {
+		return "registry";
+	}
+	return undefined;
+}
+
+/**
+ * Resolve the effective source type for a manifest, preferring the explicit
+ * `sourceType` field and falling back to inference from the source string.
+ *
+ * @param manifest - Parsed extension manifest
+ * @returns The resolved source type, or undefined if it cannot be determined
+ */
+export function getEffectiveSourceType(manifest: ExtensionManifest): SourceType | undefined {
+	if (manifest.sourceType) {
+		return manifest.sourceType;
+	}
+	return inferSourceType(manifest.source);
+}

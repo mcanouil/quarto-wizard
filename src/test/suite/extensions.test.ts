@@ -359,7 +359,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "github");
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), "github");
 		});
 
 		test("Should infer url from https source", async () => {
@@ -371,7 +371,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "url");
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), "url");
 		});
 
 		test("Should infer local from relative path", async () => {
@@ -383,7 +383,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "local");
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), "local");
 		});
 
 		test("Should infer local from absolute path", async () => {
@@ -395,7 +395,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "local");
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), "local");
 		});
 
 		test("Should infer registry from owner/repo pattern without explicit sourceType", async () => {
@@ -407,7 +407,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), "registry");
 		});
 
 		test("Should infer registry from owner/repo/subdir pattern without explicit sourceType", async () => {
@@ -419,7 +419,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), "registry");
 		});
 
 		test("Should infer registry from unrelated owner/repo pattern without explicit sourceType", async () => {
@@ -431,7 +431,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), "registry");
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), "registry");
 		});
 
 		test("Should not infer local from backslash in non-path source", async () => {
@@ -443,7 +443,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), undefined);
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), undefined);
 		});
 
 		test("Should return undefined for no source", async () => {
@@ -455,7 +455,7 @@ contributes:\n`;
 			const extensions = await getInstalledExtensions(tempDir);
 			const ext = extensions[0];
 
-			assert.strictEqual(getEffectiveSourceType(ext), undefined);
+			assert.strictEqual(getEffectiveSourceType(ext.manifest), undefined);
 		});
 	});
 

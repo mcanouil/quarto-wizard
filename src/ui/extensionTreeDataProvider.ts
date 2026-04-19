@@ -7,7 +7,7 @@ import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionContributes, getEffectiveSourceType } from "../utils/extensions";
-import { getRegistryUrl, getCacheTTL } from "../utils/extensionDetails";
+import { getCacheTTL, getCrossSourceUpdateEnabled, getRegistryUrl } from "../utils/extensionDetails";
 import { getAuthConfig } from "../utils/auth";
 import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "../utils/versionValidation";
@@ -205,7 +205,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
-				`Source type: ${getEffectiveSourceType(ext) ?? "N/A"}`,
+				`Source type: ${getEffectiveSourceType(ext.manifest) ?? "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
@@ -492,7 +492,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 						extensionId: ext,
 						workspaceFolder: workspacePath,
 						source: extension?.manifest.source,
-						sourceType: extension ? getEffectiveSourceType(extension) : undefined,
+						sourceType: extension ? getEffectiveSourceType(extension.manifest) : undefined,
 						latestVersion: version,
 					});
 				}
@@ -550,6 +550,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 						cacheTtl,
 						auth: auth ?? undefined,
 						timeout: REGISTRY_FETCH_TIMEOUT_MS,
+						crossSource: getCrossSourceUpdateEnabled(),
 					});
 
 					// Only reset after successful fetch to preserve previous state on error
