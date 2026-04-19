@@ -448,5 +448,21 @@ describe("checkForUpdates", () => {
 			expect(fetchReleases).not.toHaveBeenCalled();
 			expect(fetchTags).not.toHaveBeenCalled();
 		});
+
+		it("skips GitHub network calls for commit-pinned github-sourced extensions", async () => {
+			setupExtensionWithType(
+				"quarto-ext",
+				"fontawesome",
+				"abc1234",
+				"quarto-ext/fontawesome@abc1234",
+				"github",
+			);
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(fetchTags).not.toHaveBeenCalled();
+			expect(updates).toHaveLength(0);
+		});
 	});
 });
