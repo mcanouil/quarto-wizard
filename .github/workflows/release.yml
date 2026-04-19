@@ -22,6 +22,10 @@
 
 name: Release and Publish VS Code Extension
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 on:
   workflow_dispatch:
     inputs:
@@ -332,12 +336,13 @@ jobs:
           )
 
           if gh release view "${VERSION}" >/dev/null 2>&1; then
-            echo "::notice::Release ${VERSION} already exists; refreshing assets."
+            echo "::notice::Release ${VERSION} already exists; refreshing assets and notes."
             FILES=()
             for asset in "${ASSETS[@]}"; do
               FILES+=("${asset%%#*}")
             done
             gh release upload "${VERSION}" "${FILES[@]}" --clobber
+            gh release edit "${VERSION}" --notes-file "${CHANGELOG}"
             exit 0
           fi
 
@@ -356,6 +361,8 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: [package, release-github]
+
+    permissions: {}
 
     env:
       VERSION: ${{ needs.package.outputs.version }}
@@ -379,9 +386,9 @@ jobs:
           TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          PUBLISHED=$(vsce show mcanouil.quarto-wizard --json \
-            | jq -r --arg v "${VERSION}" '.versions[] | select(.version == $v) | .version' \
-            | head -n 1)
+          PUBLISHED=$(vsce show mcanouil.quarto-wizard --json 2>/dev/null \
+            | jq -r --arg v "${VERSION}" '.versions[]? | select(.version == $v) | .version' \
+            | head -n 1) || PUBLISHED=""
           if [ -n "${PUBLISHED}" ]; then
             echo "::notice::mcanouil.quarto-wizard@${VERSION} already on Marketplace, skipping."
             exit 0
@@ -399,6 +406,8 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: [package, release-github]
+
+    permissions: {}
 
     env:
       VERSION: ${{ needs.package.outputs.version }}
