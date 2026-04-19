@@ -143,7 +143,11 @@ function parseSourceType(value: string | undefined): SourceType | undefined {
 	return value as SourceType;
 }
 
-const GITHUB_REPOSITORY_PATTERN = /^[^/\s:\\]+\/[^/\s:\\]+(?:\/[^/\s:\\]+)*(?:@[^/\s:\\]+)?$/;
+// Restrict to the characters GitHub permits in owner and repo names so that
+// inputs like `!/!@!@...` don't get misclassified and the pattern isn't
+// susceptible to polynomial backtracking (CodeQL `js/polynomial-redos`).
+// Callers must strip any `@ref` suffix first (see `splitSourceRef`).
+const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+$/;
 
 /**
  * Split a source string of the form `base@ref` into its base and an indicator
