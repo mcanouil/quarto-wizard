@@ -2,12 +2,14 @@ project:
   output-dir: _site/dev
   resources:
     - quarto-wizard-dev.vsix
+  pre-render: scripts/dev-copy-assets.sh
+  post-render: scripts/dev-clean-assets.sh
 
-image: "../assets/social/social-card.png"
+image: "assets/social/social-card.png"
 
 website:
   site-url: "https://m.canouil.dev/quarto-wizard/dev"
-  image: "../assets/social/social-card.png"
+  image: "assets/social/social-card.png"
   announcement:
     icon: exclamation-circle
     dismissable: false
