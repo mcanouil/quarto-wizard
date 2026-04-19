@@ -35,6 +35,15 @@ export function getRegistryUrl(): string {
 }
 
 /**
+ * Whether GitHub-sourced extensions should also be resolved against the registry.
+ * @returns True when the user has opted into cross-source update discovery.
+ */
+export function getCrossSourceUpdateEnabled(): boolean {
+	const config = vscode.workspace.getConfiguration("quartoWizard");
+	return config.get<boolean>("update.crossSource", false);
+}
+
+/**
  * Interface representing the details of a Quarto extension.
  */
 export interface ExtensionDetails {

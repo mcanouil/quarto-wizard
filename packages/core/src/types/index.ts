@@ -19,8 +19,11 @@ export {
 	type ExtensionManifest,
 	type RawManifest,
 	type SourceType,
+	getEffectiveSourceType,
 	getExtensionTypes,
+	inferSourceType,
 	normaliseManifest,
+	splitSourceRef,
 } from "./manifest.js";
 
 export {

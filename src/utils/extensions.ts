@@ -3,53 +3,14 @@ import * as path from "node:path";
 import {
 	discoverInstalledExtensions,
 	formatExtensionId,
+	getEffectiveSourceType,
 	getExtensionTypes,
 	type InstalledExtension,
 	type SourceType,
 	getErrorMessage,
+	splitSourceRef,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
-
-const GITHUB_REPOSITORY_PATTERN = /^[^/\s:\\]+\/[^/\s:\\]+(?:\/[^/\s:\\]+)*(?:@[^/\s:\\]+)?$/;
-
-function splitSourceRef(source: string): { base: string; hasRef: boolean } {
-	const atIndex = source.lastIndexOf("@");
-	if (atIndex <= 0) {
-		return { base: source, hasRef: false };
-	}
-	return {
-		base: source.substring(0, atIndex),
-		hasRef: true,
-	};
-}
-
-function isLocalSourcePath(source: string): boolean {
-	return (
-		source.startsWith("file://") ||
-		source.startsWith("/") ||
-		source.startsWith("~/") ||
-		source.startsWith("\\\\") ||
-		source.startsWith(".") ||
-		/^[A-Za-z]:[/\\]/.test(source)
-	);
-}
-
-function isLegacyGitHubSource(source: string): boolean {
-	return GITHUB_REPOSITORY_PATTERN.test(source) && !source.startsWith(".");
-}
-
-function inferLegacySourceType(source: string): SourceType | undefined {
-	if (/^https?:\/\//.test(source)) {
-		return "url";
-	}
-	if (isLocalSourcePath(source)) {
-		return "local";
-	}
-	if (isLegacyGitHubSource(splitSourceRef(source).base)) {
-		return "registry";
-	}
-	return undefined;
-}
 
 export function getSourceBase(source: string, sourceType?: SourceType): string {
 	if (sourceType === "github" || sourceType === "registry") {
@@ -132,7 +93,7 @@ export function getExtensionRepository(ext: InstalledExtension): string | undefi
 	if (!source) {
 		return undefined;
 	}
-	const type = getEffectiveSourceType(ext);
+	const type = getEffectiveSourceType(ext.manifest);
 	if (type === "github" || type === "registry") {
 		return getSourceBase(source, type);
 	}
@@ -150,7 +111,7 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 	if (!source) {
 		return undefined;
 	}
-	const type = getEffectiveSourceType(ext);
+	const type = getEffectiveSourceType(ext.manifest);
 	const base = getSourceBase(source, type);
 	if (type === "github" || type === "registry") {
 		return `https://github.com/${base}`;
@@ -159,24 +120,6 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 		return base;
 	}
 	return undefined;
-}
-
-/**
- * Determines the effective source type from an installed extension.
- * Uses the explicit sourceType field if available, otherwise infers from the source string.
- *
- * @param ext - The installed extension.
- * @returns The source type or undefined if not determinable.
- */
-export function getEffectiveSourceType(ext: InstalledExtension): SourceType | undefined {
-	if (ext.manifest.sourceType) {
-		return ext.manifest.sourceType;
-	}
-	const source = ext.manifest.source;
-	if (!source) {
-		return undefined;
-	}
-	return inferLegacySourceType(source);
 }
 
 /**
@@ -190,4 +133,4 @@ export function getExtensionContributes(ext: InstalledExtension): string | undef
 	return types.length > 0 ? types.join(", ") : undefined;
 }
 
-export { formatExtensionId, type InstalledExtension } from "@quarto-wizard/core";
+export { formatExtensionId, getEffectiveSourceType, type InstalledExtension } from "@quarto-wizard/core";

@@ -660,6 +660,15 @@
 					"title": "Confirm Installation",
 					"description": "Prompt before installing."
 				},
+				"quartoWizard.update.crossSource": {
+					"order": 3,
+					"scope": "resource",
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Allow cross-source update discovery. When disabled (default), update checks respect the recorded `source-type`: extensions installed via the registry are resolved against the registry, and extensions installed with `quarto add owner/repo` are resolved against GitHub releases directly. When enabled, GitHub-sourced extensions also fall back to the registry when GitHub has no releases or tags.",
+					"title": "Cross-source Updates",
+					"description": "Allow registry lookup for GitHub-sourced extensions."
+				},
 				"quartoWizard.cache.ttlMinutes": {
 					"order": 10,
 					"scope": "resource",

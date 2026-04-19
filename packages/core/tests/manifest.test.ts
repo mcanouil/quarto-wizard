@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { normaliseManifest, getExtensionTypes } from "../src/types/manifest.js";
+import { normaliseManifest, getExtensionTypes, inferSourceType } from "../src/types/manifest.js";
 import {
 	parseManifestContent,
 	parseManifestFile,
@@ -650,5 +650,46 @@ describe("filesystem manifest functions", () => {
 			expect(content).toContain("source: owner/repo");
 			expect(content).not.toContain("source-type");
 		});
+	});
+});
+
+describe("inferSourceType", () => {
+	it("recognises owner/repo as a registry source", () => {
+		expect(inferSourceType("owner/repo")).toBe("registry");
+	});
+
+	it("recognises owner/repo/subdir as a registry source", () => {
+		expect(inferSourceType("owner/repo/subdir")).toBe("registry");
+	});
+
+	it("recognises a pinned registry source and ignores the ref", () => {
+		expect(inferSourceType("owner/repo@v1.2.3")).toBe("registry");
+	});
+
+	it("recognises https URLs as url sources", () => {
+		expect(inferSourceType("https://example.com/ext.zip")).toBe("url");
+	});
+
+	it("recognises absolute and relative paths as local sources", () => {
+		expect(inferSourceType("/tmp/my-ext")).toBe("local");
+		expect(inferSourceType("./vendor/local-ext")).toBe("local");
+	});
+
+	it("returns undefined for an empty or unrecognised source", () => {
+		expect(inferSourceType(undefined)).toBeUndefined();
+		expect(inferSourceType("")).toBeUndefined();
+		expect(inferSourceType("single-segment")).toBeUndefined();
+	});
+
+	it("completes quickly on inputs crafted to trigger polynomial backtracking", () => {
+		// Guards against a previous ReDoS shape in the GitHub repository pattern
+		// (see CodeQL rule js/polynomial-redos). Confirm that pathological-looking
+		// input with many `@` characters is rejected in well under a second.
+		const pathological = "!/!" + "@!".repeat(10_000) + "#";
+		const start = Date.now();
+		const result = inferSourceType(pathological);
+		const elapsed = Date.now() - start;
+		expect(result).toBeUndefined();
+		expect(elapsed).toBeLessThan(500);
 	});
 });

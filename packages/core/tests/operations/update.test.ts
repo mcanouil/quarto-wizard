@@ -12,7 +12,17 @@ vi.mock("../../src/registry/fetcher.js", () => ({
 	fetchRegistry: vi.fn(),
 }));
 
+vi.mock("../../src/github/releases.js", async () => {
+	const actual = await vi.importActual<typeof import("../../src/github/releases.js")>("../../src/github/releases.js");
+	return {
+		...actual,
+		fetchReleases: vi.fn().mockResolvedValue([]),
+		fetchTags: vi.fn().mockResolvedValue([]),
+	};
+});
+
 import { fetchRegistry } from "../../src/registry/fetcher.js";
+import { fetchReleases, fetchTags } from "../../src/github/releases.js";
 
 describe("checkForUpdates", () => {
 	let tempDir: string;
@@ -308,5 +318,210 @@ describe("checkForUpdates", () => {
 		const updates = await checkForUpdates({ projectDir: tempDir });
 
 		expect(updates).toHaveLength(0);
+	});
+
+	describe("source-type awareness", () => {
+		function setupExtensionWithType(
+			owner: string,
+			name: string,
+			version: string,
+			source: string,
+			sourceType: string,
+		): void {
+			const extDir = path.join(tempDir, "_extensions", owner, name);
+			fs.mkdirSync(extDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extDir, "_extension.yml"),
+				`title: ${name}\nversion: ${version}\nsource: ${source}\nsource-type: ${sourceType}\n`,
+			);
+		}
+
+		it("resolves github-sourced extensions against GitHub releases, not the registry", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockResolvedValue([
+				{
+					tagName: "v2.5.0",
+					name: "v2.5.0",
+					zipballUrl: "",
+					tarballUrl: "",
+					htmlUrl: "https://github.com/quarto-ext/fontawesome/releases/tag/v2.5.0",
+					publishedAt: "",
+					prerelease: false,
+					draft: false,
+				},
+			]);
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": {
+					fullName: "quarto-ext/fontawesome",
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+					latestReleaseUrl: null,
+				},
+			});
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(fetchRegistry).not.toHaveBeenCalled();
+			expect(updates).toHaveLength(1);
+			expect(updates[0].latestVersion).toBe("2.5.0");
+			expect(updates[0].source).toBe("quarto-ext/fontawesome@v2.5.0");
+			expect(updates[0].releaseUrl).toBe("https://github.com/quarto-ext/fontawesome/releases/tag/v2.5.0");
+		});
+
+		it("falls back to tags when a github-sourced repo has no releases", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockResolvedValue([]);
+			vi.mocked(fetchTags).mockResolvedValue([
+				{ name: "v3.0.0", sha: "abc", zipballUrl: "", tarballUrl: "" },
+			]);
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(updates).toHaveLength(1);
+			expect(updates[0].latestVersion).toBe("3.0.0");
+			expect(updates[0].source).toBe("quarto-ext/fontawesome@v3.0.0");
+		});
+
+		it("does not emit an update for github sources with no releases or tags by default", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockResolvedValue([]);
+			vi.mocked(fetchTags).mockResolvedValue([]);
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": {
+					fullName: "quarto-ext/fontawesome",
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+					latestReleaseUrl: null,
+				},
+			});
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(fetchRegistry).not.toHaveBeenCalled();
+			expect(updates).toHaveLength(0);
+		});
+
+		it("falls back to the registry for github sources when crossSource is enabled", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockResolvedValue([]);
+			vi.mocked(fetchTags).mockResolvedValue([]);
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": {
+					fullName: "quarto-ext/fontawesome",
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+					latestReleaseUrl: "https://github.com/quarto-ext/fontawesome/releases/tag/v2.0.0",
+				},
+			});
+
+			const updates = await checkForUpdates({ projectDir: tempDir, crossSource: true });
+
+			expect(fetchRegistry).toHaveBeenCalledTimes(1);
+			expect(updates).toHaveLength(1);
+			expect(updates[0].latestVersion).toBe("2.0.0");
+		});
+
+		it("never checks updates for url-sourced extensions", async () => {
+			setupExtensionWithType("vendor", "zipped", "1.0.0", "https://example.com/ext.zip", "url");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({});
+
+			const updates = await checkForUpdates({ projectDir: tempDir, crossSource: true });
+
+			expect(updates).toHaveLength(0);
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(fetchTags).not.toHaveBeenCalled();
+		});
+
+		it("never checks updates for local-sourced extensions", async () => {
+			setupExtensionWithType("vendor", "local", "1.0.0", "/tmp/my-ext", "local");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({});
+
+			const updates = await checkForUpdates({ projectDir: tempDir, crossSource: true });
+
+			expect(updates).toHaveLength(0);
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(fetchTags).not.toHaveBeenCalled();
+		});
+
+		it("skips prerelease tags when falling back to tags for a github-sourced repo", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockResolvedValue([]);
+			vi.mocked(fetchTags).mockResolvedValue([
+				{ name: "v3.0.0-beta.1", sha: "abc", zipballUrl: "", tarballUrl: "" },
+				{ name: "v2.1.0", sha: "def", zipballUrl: "", tarballUrl: "" },
+			]);
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(updates).toHaveLength(1);
+			expect(updates[0].latestVersion).toBe("2.1.0");
+			expect(updates[0].source).toBe("quarto-ext/fontawesome@v2.1.0");
+		});
+
+		it("continues with tags when fetching releases throws", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockRejectedValue(new Error("boom"));
+			vi.mocked(fetchTags).mockResolvedValue([{ name: "v2.0.0", sha: "abc", zipballUrl: "", tarballUrl: "" }]);
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(updates).toHaveLength(1);
+			expect(updates[0].latestVersion).toBe("2.0.0");
+		});
+
+		it("emits no update when both releases and tags throw", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockRejectedValue(new Error("releases boom"));
+			vi.mocked(fetchTags).mockRejectedValue(new Error("tags boom"));
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(updates).toHaveLength(0);
+		});
+
+		it("falls back to the registry with crossSource when both GitHub calls throw", async () => {
+			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchReleases).mockRejectedValue(new Error("releases boom"));
+			vi.mocked(fetchTags).mockRejectedValue(new Error("tags boom"));
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": {
+					fullName: "quarto-ext/fontawesome",
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+					latestReleaseUrl: null,
+				},
+			});
+
+			const updates = await checkForUpdates({ projectDir: tempDir, crossSource: true });
+
+			expect(updates).toHaveLength(1);
+			expect(updates[0].latestVersion).toBe("2.0.0");
+		});
+
+		it("skips GitHub network calls for commit-pinned github-sourced extensions", async () => {
+			setupExtensionWithType(
+				"quarto-ext",
+				"fontawesome",
+				"abc1234",
+				"quarto-ext/fontawesome@abc1234",
+				"github",
+			);
+
+			const updates = await checkForUpdates({ projectDir: tempDir });
+
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(fetchTags).not.toHaveBeenCalled();
+			expect(updates).toHaveLength(0);
+		});
 	});
 });
