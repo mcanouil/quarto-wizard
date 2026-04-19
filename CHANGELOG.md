@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- chore: no user-facing changes.
+
 ## 2.4.0 (2026-04-19)
 
 ### Fixes
