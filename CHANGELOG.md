@@ -2,13 +2,11 @@
 
 ## Unreleased
 
-### New Features
-
-- feat: update checks now follow the recorded `source-type`. Extensions installed via the registry resolve against the Quarto registry, while extensions installed with `quarto add owner/repo` resolve against GitHub releases and tags directly. A new `quartoWizard.update.crossSource` setting (disabled by default) restores the previous behaviour of falling back to the registry for GitHub-sourced extensions.
-
 ### Fixes
 
-- fix: skip prerelease tags (e.g. `v2.0.0-beta.1`) when falling back to GitHub tags for update discovery, matching the prerelease filtering already applied to GitHub releases.
+- fix: update checks now respect each extension's recorded `source-type` instead of always querying the Quarto registry.
+  Registry-sourced extensions resolve against the registry; GitHub-sourced extensions resolve against GitHub releases and tags directly, with prerelease tags (e.g. `v2.0.0-beta.1`) skipped.
+  By default there is no fallback between sources; set `quartoWizard.update.crossSource` to `true` to let GitHub-sourced extensions fall back to the registry when GitHub returns no release or tag.
 
 ## 2.3.1 (2026-04-15)
 
