@@ -281,7 +281,10 @@ async function buildGitHubUpdate(
 	if (!latestTag) {
 		try {
 			const tags = await fetchTags(owner, repo, githubOptions);
-			const tag = tags[0];
+			// Match `fetchReleases`'s default filtering: skip prerelease-style tags
+			// so a repo that only ships v2.0.0-beta.1 via tags doesn't get flagged
+			// as an update.
+			const tag = tags.find((t) => !isPrereleaseTag(t.name));
 			if (tag) {
 				latestTag = tag.name;
 			}
@@ -406,6 +409,20 @@ function extractCommitFromSource(source: string): string | null {
 		return ref.toLowerCase();
 	}
 	return null;
+}
+
+/**
+ * Determine whether a tag name encodes a prerelease (e.g. `v2.0.0-beta.1`).
+ * `normaliseVersion` runs through `semver.coerce`, which strips prerelease
+ * identifiers, so this check operates on the raw tag.
+ */
+function isPrereleaseTag(tag: string): boolean {
+	const cleaned = tag.replace(/^v/, "").trim();
+	const parsed = semver.parse(cleaned, { loose: true });
+	if (parsed) {
+		return parsed.prerelease.length > 0;
+	}
+	return semver.prerelease(cleaned, { loose: true }) !== null;
 }
 
 /**
