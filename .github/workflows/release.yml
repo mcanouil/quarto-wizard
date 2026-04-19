@@ -171,49 +171,22 @@ jobs:
           gh pr merge --auto --squash --delete-branch
           sleep 5
 
-  release-publish:
+  package:
     runs-on: ubuntu-latest
 
     needs: bump-version
 
     permissions:
-      contents: write
+      contents: read
       id-token: write
       attestations: write
+
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Create GitHub App token
-        uses: actions/create-github-app-token@v3
-        id: app-token
-        with:
-          client-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_KEY }}
-
-      - name: Get GitHub App User ID
-        id: get-user-id
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-        run: |
-          echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "${GITHUB_OUTPUT}"
-
-      - name: Configure Environment for Git User
-        env:
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          USER_ID: ${{ steps.get-user-id.outputs.user-id }}
-        run: |
-          if [ -z "${APP_SLUG}" ]; then
-            USER_NAME="github-actions[bot]"
-            USER_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
-          else
-            USER_NAME="${APP_SLUG}[bot]"
-            USER_EMAIL="${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
-          fi
-          git config --global user.name "${USER_NAME}"
-          git config --global user.email "${USER_EMAIL}"
 
       - name: Update branch
         run: |
@@ -233,11 +206,13 @@ jobs:
         run: npm install -g @vscode/vsce
 
       - name: Set version
+        id: set-version
         shell: bash
         run: |
           current_version=$(jq -r .version package.json)
           version_line=$(grep -n '"version"' package.json | cut -d: -f1)
           echo "VERSION=${current_version}" >> ${GITHUB_ENV}
+          echo "version=${current_version}" >> ${GITHUB_OUTPUT}
           echo "::notice file=package.json,line=${version_line}::${current_version}"
 
       - name: Set changelog
@@ -305,56 +280,155 @@ jobs:
             ${{ github.workspace }}/quarto-wizard-schema-${{ env.VERSION }}.tgz
             ${{ github.workspace }}/quarto-wizard-snippets-${{ env.VERSION }}.tgz
 
-      - name: Release extension on GitHub
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-bundle
+          path: |
+            quarto-wizard-${{ env.VERSION }}.vsix
+            quarto-wizard-core-${{ env.VERSION }}.tgz
+            quarto-wizard-schema-${{ env.VERSION }}.tgz
+            quarto-wizard-snippets-${{ env.VERSION }}.tgz
+            CHANGELOG-${{ env.VERSION }}.md
+          if-no-files-found: error
+          retention-days: 30
+
+  release-github:
+    runs-on: ubuntu-latest
+
+    needs: package
+
+    permissions:
+      contents: write
+
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+
+    steps:
+      - name: Create GitHub App token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - name: Download release bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: release-bundle
+
+      - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          VERSION: ${{ env.VERSION }}
-          CHANGELOG: ${{ env.CHANGELOG }}
           TYPE: ${{ github.event.inputs.type }}
+          CHANGELOG: CHANGELOG-${{ env.VERSION }}.md
         shell: bash
         run: |
-          if [ "${TYPE}" = "pre-release" ]; then
-            gh release create ${VERSION} \
-              "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
-              "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)" \
-              "./quarto-wizard-schema-${VERSION}.tgz#Quarto Wizard Schema (tgz)" \
-              "./quarto-wizard-snippets-${VERSION}.tgz#Quarto Wizard Snippets (tgz)" \
-              --prerelease \
-              --title ${VERSION} \
-              --notes-file ${CHANGELOG} \
-              --generate-notes
-          else
-            gh release create ${VERSION} \
-              "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)" \
-              "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)" \
-              "./quarto-wizard-schema-${VERSION}.tgz#Quarto Wizard Schema (tgz)" \
-              "./quarto-wizard-snippets-${VERSION}.tgz#Quarto Wizard Snippets (tgz)" \
-              --title ${VERSION} \
-              --notes-file ${CHANGELOG} \
-              --generate-notes
+          ASSETS=(
+            "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)"
+            "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)"
+            "./quarto-wizard-schema-${VERSION}.tgz#Quarto Wizard Schema (tgz)"
+            "./quarto-wizard-snippets-${VERSION}.tgz#Quarto Wizard Snippets (tgz)"
+          )
+
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            echo "::notice::Release ${VERSION} already exists; refreshing assets."
+            FILES=()
+            for asset in "${ASSETS[@]}"; do
+              FILES+=("${asset%%#*}")
+            done
+            gh release upload "${VERSION}" "${FILES[@]}" --clobber
+            exit 0
           fi
 
-      - name: Publish extension to Visual Studio Marketplace
+          PRERELEASE_FLAG=""
+          if [ "${TYPE}" = "pre-release" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          gh release create "${VERSION}" \
+            "${ASSETS[@]}" \
+            ${PRERELEASE_FLAG} \
+            --title "${VERSION}" \
+            --notes-file "${CHANGELOG}" \
+            --generate-notes
+
+  publish-marketplace:
+    runs-on: ubuntu-latest
+
+    needs: [package, release-github]
+
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+
+      - name: Install Visual Studio Code Extension Manager
+        shell: bash
+        run: npm install -g @vscode/vsce
+
+      - name: Download release bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: release-bundle
+
+      - name: Publish to Visual Studio Marketplace
         env:
           VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          if [ "${TYPE}" = "pre-release" ]; then
-            vsce publish --pre-release --pat ${VS_MARKETPLACE_TOKEN}
-          else
-            vsce publish --pat ${VS_MARKETPLACE_TOKEN}
+          PUBLISHED=$(vsce show mcanouil.quarto-wizard --json \
+            | jq -r --arg v "${VERSION}" '.versions[] | select(.version == $v) | .version' \
+            | head -n 1)
+          if [ -n "${PUBLISHED}" ]; then
+            echo "::notice::mcanouil.quarto-wizard@${VERSION} already on Marketplace, skipping."
+            exit 0
           fi
 
-      - name: Publish extension to Open VSX Registry
+          PRERELEASE_FLAG=""
+          if [ "${TYPE}" = "pre-release" ]; then
+            PRERELEASE_FLAG="--pre-release"
+          fi
+          vsce publish ${PRERELEASE_FLAG} \
+            --packagePath "quarto-wizard-${VERSION}.vsix" \
+            --pat "${VS_MARKETPLACE_TOKEN}"
+
+  publish-openvsx:
+    runs-on: ubuntu-latest
+
+    needs: [package, release-github]
+
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+
+      - name: Download release bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: release-bundle
+
+      - name: Publish to Open VSX Registry
         env:
           OPEN_VSX_REGISTRY_TOKEN: ${{ secrets.OPEN_VSX_REGISTRY_TOKEN }}
           TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          npm install --global ovsx
-          if [ "${TYPE}" = "pre-release" ]; then
-            npx ovsx publish --pre-release --pat ${OPEN_VSX_REGISTRY_TOKEN}
-          else
-            npx ovsx publish --pat ${OPEN_VSX_REGISTRY_TOKEN}
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+            "https://open-vsx.org/api/mcanouil/quarto-wizard/${VERSION}")
+          if [ "${STATUS}" = "200" ]; then
+            echo "::notice::mcanouil/quarto-wizard@${VERSION} already on Open VSX, skipping."
+            exit 0
           fi
+
+          PRERELEASE_FLAG=""
+          if [ "${TYPE}" = "pre-release" ]; then
+            PRERELEASE_FLAG="--pre-release"
+          fi
+          npx --yes ovsx publish ${PRERELEASE_FLAG} \
+            "quarto-wizard-${VERSION}.vsix" \
+            --pat "${OPEN_VSX_REGISTRY_TOKEN}"
