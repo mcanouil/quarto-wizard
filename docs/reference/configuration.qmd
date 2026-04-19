@@ -99,6 +99,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
 {
   "quartoWizard.ask.trustAuthors": "ask",
   "quartoWizard.ask.confirmInstall": "ask",
+  "quartoWizard.update.crossSource": false,
   "quartoWizard.cache.ttlMinutes": 30,
   "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
 }
