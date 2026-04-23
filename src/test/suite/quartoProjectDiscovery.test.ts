@@ -32,7 +32,9 @@ suite("Quarto Project Discovery Test Suite", () => {
 	let mockedConfig: MockedConfig;
 
 	setup(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "quarto-wizard-discovery-"));
+		// Normalise via Uri.file so Windows drive-letter casing matches what `findFiles`
+		// and other VSCode APIs return for paths in this directory.
+		tempDir = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "quarto-wizard-discovery-"))).fsPath;
 
 		mockedTextDocuments = [];
 		mockedConfig = { autoProjectDetection: true };
