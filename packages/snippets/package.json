@@ -1,7 +1,7 @@
 {
 	"name": "@quarto-wizard/snippets",
 	"displayName": "Quarto Wizard Snippets",
-	"version": "2.4.1",
+	"version": "2.5.0",
 	"description": "Snippet types, parsing, and caching for Quarto extension snippets",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
