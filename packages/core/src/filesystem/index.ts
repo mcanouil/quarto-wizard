@@ -17,6 +17,7 @@ export {
 export {
 	type InstalledExtension,
 	type DiscoveryOptions,
+	EXTENSIONS_DIR,
 	getExtensionsDir,
 	hasExtensionsDir,
 	discoverInstalledExtensions,

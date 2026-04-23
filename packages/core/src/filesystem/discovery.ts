@@ -15,7 +15,7 @@ import { readManifest } from "./manifest.js";
 import { pathExists } from "./walk.js";
 
 /** Name of the extensions directory. */
-const EXTENSIONS_DIR = "_extensions";
+export const EXTENSIONS_DIR = "_extensions";
 
 /**
  * An installed extension discovered on the filesystem.

@@ -11,8 +11,16 @@ import { getAuthConfig } from "../utils/auth";
 import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import {
+	discoverQuartoProjectRoots,
+	QUARTO_PROJECT_GLOB,
+	EXTENSION_MANIFEST_GLOB,
+} from "../utils/quartoProjectDiscovery";
+import { debounce } from "../utils/debounce";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
+
+const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
 
 /**
  * Manages the installed Quarto extensions.
@@ -33,7 +41,9 @@ export class ExtensionsInstalled {
 			return;
 		}
 
-		this.treeDataProvider = new QuartoExtensionTreeDataProvider(workspaceFolders, schemaCache, snippetCache);
+		// Project roots are discovered asynchronously; start with an empty set so the view can
+		// render immediately, then update once discovery completes.
+		this.treeDataProvider = new QuartoExtensionTreeDataProvider([], schemaCache, snippetCache);
 		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
@@ -48,8 +58,37 @@ export class ExtensionsInstalled {
 			return vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
 		};
 
-		// Initial setup with update check and refresh
-		this.treeDataProvider.refreshAfterAction(context, view);
+		const updateProjectRoots = async (): Promise<boolean> => {
+			const folders = vscode.workspace.workspaceFolders ?? [];
+			try {
+				const roots = await discoverQuartoProjectRoots(folders);
+				return this.treeDataProvider.setProjectRoots(roots);
+			} catch (error) {
+				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
+				return false;
+			}
+		};
+
+		// Background trigger: run discovery; only re-fetch extensions/updates if roots changed.
+		const refreshProjectRoots = debounce(() => {
+			void (async () => {
+				if (await updateProjectRoots()) {
+					this.treeDataProvider.refreshAfterAction(context, view);
+				}
+			})();
+		}, PROJECT_ROOTS_REFRESH_DEBOUNCE_MS);
+		context.subscriptions.push({ dispose: () => refreshProjectRoots.cancel() });
+
+		// Explicit trigger (activation, manual refresh): always re-fetch downstream data.
+		const refreshAll = () => {
+			refreshProjectRoots.cancel();
+			void (async () => {
+				await updateProjectRoots();
+				this.treeDataProvider.refreshAfterAction(context, view);
+			})();
+		};
+
+		refreshAll();
 
 		const visibilityDisposable = view.onDidChangeVisibility((e) => {
 			if (e.visible) {
@@ -58,15 +97,53 @@ export class ExtensionsInstalled {
 		});
 		context.subscriptions.push(visibilityDisposable);
 
-		// Watch for changes to _extensions directories for real-time tree view updates
-		const extensionWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_extension.{yml,yaml}");
-		const invalidateAndRefreshExtensions = (uri: vscode.Uri) => {
+		context.subscriptions.push(
+			vscode.workspace.onDidChangeConfiguration((event) => {
+				if (event.affectsConfiguration("quartoWizard.autoProjectDetection")) {
+					refreshProjectRoots();
+				}
+			}),
+		);
+
+		context.subscriptions.push(
+			vscode.workspace.onDidChangeWorkspaceFolders(() => {
+				refreshProjectRoots();
+			}),
+		);
+
+		const projectFileWatcher = vscode.workspace.createFileSystemWatcher(QUARTO_PROJECT_GLOB);
+		const onProjectFileChanged = (uri: vscode.Uri) => {
 			invalidateProviderCaches(resolveWorkspacePath(uri));
-			this.treeDataProvider.refresh();
+			refreshProjectRoots();
 		};
-		context.subscriptions.push(extensionWatcher.onDidCreate(invalidateAndRefreshExtensions));
-		context.subscriptions.push(extensionWatcher.onDidDelete(invalidateAndRefreshExtensions));
-		context.subscriptions.push(extensionWatcher.onDidChange(invalidateAndRefreshExtensions));
+		context.subscriptions.push(projectFileWatcher.onDidCreate(onProjectFileChanged));
+		context.subscriptions.push(projectFileWatcher.onDidDelete(onProjectFileChanged));
+		context.subscriptions.push(projectFileWatcher);
+
+		// `openEditors` mode walks parents of open documents; refresh when the doc set changes.
+		// Filter to real files so output channels and untitled buffers don't queue work.
+		const onEditorChanged = (document: vscode.TextDocument) => {
+			if (document.uri.scheme === "file" && !document.isUntitled) {
+				refreshProjectRoots();
+			}
+		};
+		context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(onEditorChanged));
+		context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(onEditorChanged));
+
+		// Create/delete also re-runs discovery so installing the first extension in a folder
+		// promotes it into the detected roots without a manual refresh.
+		const extensionWatcher = vscode.workspace.createFileSystemWatcher(EXTENSION_MANIFEST_GLOB);
+		const onExtensionManifestEvent = (rediscover: boolean) => (uri: vscode.Uri) => {
+			invalidateProviderCaches(resolveWorkspacePath(uri));
+			if (rediscover) {
+				refreshProjectRoots();
+			} else {
+				this.treeDataProvider.refresh();
+			}
+		};
+		context.subscriptions.push(extensionWatcher.onDidCreate(onExtensionManifestEvent(true)));
+		context.subscriptions.push(extensionWatcher.onDidDelete(onExtensionManifestEvent(true)));
+		context.subscriptions.push(extensionWatcher.onDidChange(onExtensionManifestEvent(false)));
 		context.subscriptions.push(extensionWatcher);
 
 		// Watch for changes to schema files for real-time tree view updates
@@ -96,7 +173,7 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.refresh", () => {
 				invalidateProviderCaches();
-				this.treeDataProvider.refreshAfterAction(context, view);
+				refreshAll();
 			}),
 		);
 

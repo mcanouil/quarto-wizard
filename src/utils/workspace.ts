@@ -1,9 +1,22 @@
 import * as vscode from "vscode";
+import { discoverQuartoProjectRoots, type QuartoProjectRoot } from "./quartoProjectDiscovery";
 
 /**
- * Prompts the user to select a workspace folder if multiple workspace folders are detected.
+ * Quick pick item used when prompting the user to choose between detected Quarto project roots.
+ */
+interface ProjectRootQuickPickItem extends vscode.QuickPickItem {
+	root: QuartoProjectRoot;
+}
+
+/**
+ * Resolves the Quarto project root the user wants to act on.
  *
- * @returns {Promise<string | undefined>} - The selected workspace folder path or undefined if no selection is made.
+ * The candidate list comes from {@link discoverQuartoProjectRoots}, so the returned path is
+ * either a workspace folder root or a detected sub-folder containing `_quarto.{yml,yaml}`,
+ * depending on the `quartoWizard.autoProjectDetection` setting.
+ *
+ * @returns The selected project root path, or `undefined` if no workspace folder is open or the
+ *          user dismissed the picker.
  */
 export async function selectWorkspaceFolder(): Promise<string | undefined> {
 	const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -11,16 +24,26 @@ export async function selectWorkspaceFolder(): Promise<string | undefined> {
 		return undefined;
 	}
 
-	if (workspaceFolders.length === 1) {
-		return workspaceFolders[0].uri.fsPath;
+	const roots = await discoverQuartoProjectRoots(workspaceFolders);
+	if (roots.length === 0) {
+		return undefined;
 	}
 
-	const options: vscode.WorkspaceFolderPickOptions = {
-		placeHolder: "Select a workspace folder",
+	if (roots.length === 1) {
+		return roots[0].fsPath;
+	}
+
+	const items: ProjectRootQuickPickItem[] = roots.map((root) => ({
+		label: root.label,
+		description: root.fsPath,
+		root,
+	}));
+
+	const picked = await vscode.window.showQuickPick(items, {
+		placeHolder: "Select a Quarto project folder",
 		ignoreFocusOut: true,
-	};
+		matchOnDescription: true,
+	});
 
-	const selectedFolder = await vscode.window.showWorkspaceFolderPick(options);
-
-	return selectedFolder?.uri.fsPath;
+	return picked?.root.fsPath;
 }

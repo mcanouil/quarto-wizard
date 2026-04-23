@@ -8,6 +8,7 @@ import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionContributes, getEffectiveSourceType } from "../utils/extensions";
 import { getCacheTTL, getCrossSourceUpdateEnabled, getRegistryUrl } from "../utils/extensionDetails";
+import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
 import { getAuthConfig } from "../utils/auth";
 import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "../utils/versionValidation";
@@ -48,11 +49,24 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	private pendingCheck: Promise<number> | null = null;
 
 	constructor(
-		private workspaceFolders: readonly vscode.WorkspaceFolder[],
+		private projectRoots: readonly QuartoProjectRoot[],
 		private schemaCache: SchemaCache,
 		private snippetCache: SnippetCache,
 	) {
 		this.refreshAllExtensionsData();
+	}
+
+	/**
+	 * Replaces the set of Quarto project roots. Returns `true` when the new set differs from
+	 * the previous one. The caller decides whether to trigger a refresh, so this method does
+	 * not fire the change event itself: a typical follow-up is `refreshAfterAction(...)`.
+	 */
+	setProjectRoots(projectRoots: readonly QuartoProjectRoot[]): boolean {
+		if (sameProjectRoots(this.projectRoots, projectRoots)) {
+			return false;
+		}
+		this.projectRoots = projectRoots;
+		return true;
 	}
 
 	dispose(): void {
@@ -66,7 +80,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	getChildren(element?: TreeItemType): Thenable<TreeItemType[]> {
 		if (!element) {
-			if (this.workspaceFolders.length === 0) {
+			if (this.projectRoots.length === 0) {
 				return Promise.resolve([
 					new ExtensionTreeItem(
 						"No workspace folders open.",
@@ -112,17 +126,15 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	private getWorkspaceFolderItems(): WorkspaceFolderTreeItem[] {
-		if (this.workspaceFolders.length > 1) {
-			return this.workspaceFolders.map((folder) => {
-				return new WorkspaceFolderTreeItem(folder.name, folder.uri.fsPath);
-			});
+		if (this.projectRoots.length > 1) {
+			return this.projectRoots.map((root) => new WorkspaceFolderTreeItem(root.label, root.fsPath));
 		}
-		return this.workspaceFolders
-			.filter((folder) => {
-				const folderCache = this.cache[folder.uri.fsPath];
+		return this.projectRoots
+			.filter((root) => {
+				const folderCache = this.cache[root.fsPath];
 				return folderCache && Object.keys(folderCache.extensions).length > 0;
 			})
-			.map((folder) => new WorkspaceFolderTreeItem(folder.name, folder.uri.fsPath));
+			.map((root) => new WorkspaceFolderTreeItem(root.label, root.fsPath));
 	}
 
 	private getExtensionItems(workspacePath: string): ExtensionTreeItem[] {
@@ -426,9 +438,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			const newCache: Record<string, FolderCache> = {};
 			const quartoInfo = await getQuartoVersionInfo();
 
-			for (const folder of this.workspaceFolders) {
-				const workspaceFolder = folder.uri.fsPath;
-				const extensions = await getInstalledExtensionsRecord(workspaceFolder);
+			for (const root of this.projectRoots) {
+				const projectPath = root.fsPath;
+				const extensions = await getInstalledExtensionsRecord(projectPath);
 
 				const parseErrors = new Set<string>();
 				const compatibility: Record<string, ExtensionCompatibility> = {};
@@ -441,9 +453,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					}
 				}
 
-				newCache[workspaceFolder] = {
+				newCache[projectPath] = {
 					extensions,
-					latestVersions: this.cache[workspaceFolder]?.latestVersions || {},
+					latestVersions: this.cache[projectPath]?.latestVersions || {},
 					parseErrors,
 					compatibility,
 				};
@@ -479,9 +491,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			latestVersion: string;
 		}[] = [];
 
-		for (const folder of this.workspaceFolders) {
-			const workspacePath = folder.uri.fsPath;
-			const folderCache = this.cache[workspacePath];
+		for (const root of this.projectRoots) {
+			const projectPath = root.fsPath;
+			const folderCache = this.cache[projectPath];
 			if (!folderCache) continue;
 
 			for (const ext of Object.keys(folderCache.latestVersions)) {
@@ -490,7 +502,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 					const extension = folderCache.extensions[ext];
 					outdated.push({
 						extensionId: ext,
-						workspaceFolder: workspacePath,
+						workspaceFolder: projectPath,
 						source: extension?.manifest.source,
 						sourceType: extension ? getEffectiveSourceType(extension.manifest) : undefined,
 						latestVersion: version,
@@ -538,14 +550,14 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			const updatesAvailable: string[] = [];
 			let totalUpdates = 0;
 
-			for (const folder of this.workspaceFolders) {
-				const workspacePath = folder.uri.fsPath;
-				const folderCache = this.cache[workspacePath];
+			for (const root of this.projectRoots) {
+				const projectPath = root.fsPath;
+				const folderCache = this.cache[projectPath];
 				if (!folderCache) continue;
 
 				try {
 					const updates = await checkForUpdates({
-						projectDir: workspacePath,
+						projectDir: projectPath,
 						registryUrl,
 						cacheTtl,
 						auth: auth ?? undefined,
@@ -562,11 +574,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 						const versionRef = atIndex > 0 ? update.source.substring(atIndex + 1) : update.latestVersion;
 
 						folderCache.latestVersions[extId] = versionRef;
-						updatesAvailable.push(`${folder.name}/${extId}`);
+						updatesAvailable.push(`${root.label}/${extId}`);
 						totalUpdates++;
 					}
 				} catch (error) {
-					logMessage(`Failed to check updates for ${workspacePath}: ${getErrorMessage(error)}.`, "error");
+					logMessage(`Failed to check updates for ${projectPath}: ${getErrorMessage(error)}.`, "error");
 				}
 			}
 
@@ -594,4 +606,16 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 		return this.pendingCheck;
 	}
+}
+
+function sameProjectRoots(a: readonly QuartoProjectRoot[], b: readonly QuartoProjectRoot[]): boolean {
+	if (a.length !== b.length) {
+		return false;
+	}
+	for (let i = 0; i < a.length; i++) {
+		if (a[i].fsPath !== b[i].fsPath) {
+			return false;
+		}
+	}
+	return true;
 }

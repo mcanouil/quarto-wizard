@@ -669,6 +669,30 @@
 					"title": "Cross-source Updates",
 					"description": "Allow registry lookup for GitHub-sourced extensions."
 				},
+				"quartoWizard.autoProjectDetection": {
+					"order": 4,
+					"scope": "resource",
+					"type": [
+						"boolean",
+						"string"
+					],
+					"enum": [
+						true,
+						false,
+						"subFolders",
+						"openEditors"
+					],
+					"enumDescriptions": [
+						"Scan for both subfolders of the current opened folder and parent folders of open files.",
+						"Disable automatic Quarto project scanning.",
+						"Scan for subfolders of the currently opened folder.",
+						"Scan for parent folders of open files."
+					],
+					"default": true,
+					"markdownDescription": "Configures when Quarto project roots should be automatically detected. A folder qualifies when it contains `_quarto.yml`/`_quarto.yaml`, **or** an `_extensions/` directory with at least one installed extension. Detected roots are used by the Extensions Installed view and by every command that needs a target folder (Install, Use Template, Use Brand, ...).",
+					"title": "Auto Project Detection",
+					"description": "When to auto-detect Quarto projects."
+				},
 				"quartoWizard.cache.ttlMinutes": {
 					"order": 10,
 					"scope": "resource",
