@@ -33,7 +33,7 @@ input. This module:
 function detectSamlSsoError(response, messagePrefix): SamlSsoError | undefined;
 ```
 
-Defined in: [packages/core/src/samlSso.ts:68](https://github.com/mcanouil/quarto-wizard/blob/50466a0cf026231a2a678c47eeca6383e31bc965/packages/core/src/samlSso.ts#L68)
+Defined in: [packages/core/src/samlSso.ts:68](https://github.com/mcanouil/quarto-wizard/blob/45baa1b5575ac40dcdee0fc6662874454ddc2f5f/packages/core/src/samlSso.ts#L68)
 
 Detect a SAML SSO enforcement error from a non-ok HTTP response.
 
