@@ -529,6 +529,7 @@ pre.code-annotation-code {
 // Tab content borders (Quarto/Bootstrap default is #dee2e6)
 .tab-content {
   border-color: rgba($body-color, 0.15);
+  background-color: $body-bg;
 }
 
 // Tooltips
@@ -1903,6 +1904,11 @@ div.sourceCode {
   // Filename header (title bar)
   .code-with-filename-file {
     background-color: body-mix(92%);
+
+    .quarto-dark & {
+      background-color: body-mix(92%);
+    }
+
     border-bottom: 1px solid rgba($body-color, 0.5);
     padding: 0.2em 1em;
     line-height: 1.2;
@@ -2773,7 +2779,7 @@ figure {
 // ===========================
 
 // TOC link border-left: override Quarto's #e9ecef with brand colour
-.sidebar nav[role="doc-toc"] > ul a {
+.sidebar nav[role="doc-toc"]>ul a {
   border-left-color: rgba($body-color, 0.1);
 }
 
