@@ -307,6 +307,7 @@ jobs:
 
     env:
       VERSION: ${{ needs.package.outputs.version }}
+      GH_REPO: ${{ github.repository }}
 
     steps:
       - name: Create GitHub App token
