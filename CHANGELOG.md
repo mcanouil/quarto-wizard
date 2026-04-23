@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- feat: auto-detect Quarto project roots in workspace subfolders via the new `quartoWizard.autoProjectDetection` setting, modelled on VSCode's `git.autoRepositoryDetection`.
+  A folder qualifies when it contains `_quarto.yml`/`_quarto.yaml` or an `_extensions/` directory with at least one installed extension.
+  Detected roots populate the Extensions Installed view and every folder-targeted command (Install, Use Template, Use Brand, ...).
+  The setting accepts `true` (default), `false`, `"subFolders"`, and `"openEditors"` with the same semantics as the Git extension.
+
 ## 2.4.1 (2026-04-19)
 
 - chore: no user-facing changes.
