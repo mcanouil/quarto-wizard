@@ -90,7 +90,7 @@ export async function discoverQuartoProjectRoots(
 		}
 
 		const sorted = [...candidates].sort((a, b) =>
-			path.posix.relative(folderPath, a).localeCompare(path.posix.relative(folderPath, b)),
+			path.relative(folderPath, a).localeCompare(path.relative(folderPath, b)),
 		);
 		for (const dir of sorted) {
 			results.push(buildRoot(folder, dir));
