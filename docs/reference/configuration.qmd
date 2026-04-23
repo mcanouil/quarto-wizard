@@ -41,6 +41,37 @@ Ask for confirmation before installing an extension. `ask` to ask for confirmati
 }
 ```
 
+## Project Discovery
+
+### Auto Project Detection
+
+**Setting**: `quartoWizard.autoProjectDetection`
+
+Configures when Quarto project roots should be automatically detected.
+A folder qualifies when it contains `_quarto.yml`/`_quarto.yaml`, or an `_extensions/` directory with at least one installed extension.
+The second marker makes single-document workspaces work: a folder with just `mydoc.qmd` and `_extensions/quarto-ext/typst-function/_extension.yml` is recognised even without `_quarto.yml`.
+
+Detected project roots populate the Extensions Installed view and are offered by every command that targets a folder, such as Install Extension, Use Template, and Use Brand.
+
+When the workspace folder itself qualifies, only that folder is used as the project root.
+Otherwise, every detected sub-folder is shown.
+If nothing is detected, the workspace folder is used as a fallback.
+
+| Value           | Description                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| `true`          | Scan both subfolders of the current opened folder and parent folders of open files (default). |
+| `"subFolders"`  | Scan only subfolders of the currently opened folder.                                          |
+| `"openEditors"` | Scan only parent folders of open files.                                                       |
+| `false`         | Disable automatic Quarto project scanning; treat each workspace folder as the project root.   |
+
+```json
+{
+  "quartoWizard.autoProjectDetection": true
+}
+```
+
+The scan honours your `files.exclude` and `search.exclude` settings, matching the behaviour of VSCode's built-in Git auto-detection.
+
 ## Cache Settings
 
 ### Cache Duration
@@ -100,6 +131,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.ask.trustAuthors": "ask",
   "quartoWizard.ask.confirmInstall": "ask",
   "quartoWizard.update.crossSource": false,
+  "quartoWizard.autoProjectDetection": true,
   "quartoWizard.cache.ttlMinutes": 30,
   "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
 }

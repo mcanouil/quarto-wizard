@@ -44,6 +44,21 @@ export function getCrossSourceUpdateEnabled(): boolean {
 }
 
 /**
+ * Possible values for `quartoWizard.autoProjectDetection`.
+ * Mirrors VSCode's `git.autoRepositoryDetection` shape.
+ */
+export type AutoProjectDetection = boolean | "subFolders" | "openEditors";
+
+/**
+ * Reads the `quartoWizard.autoProjectDetection` setting.
+ * Defaults to `true` when unset, matching the default of VSCode's `git.autoRepositoryDetection`.
+ */
+export function getAutoProjectDetection(): AutoProjectDetection {
+	const config = vscode.workspace.getConfiguration("quartoWizard");
+	return config.get<AutoProjectDetection>("autoProjectDetection", true);
+}
+
+/**
  * Interface representing the details of a Quarto extension.
  */
 export interface ExtensionDetails {
