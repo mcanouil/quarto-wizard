@@ -220,6 +220,8 @@ async function isFile(uri: vscode.Uri): Promise<boolean> {
 /**
  * Lazily walks `extensionsDir` and returns true on the first `_extension.{yml,yaml}` found.
  * Empty `_extensions/` directories return false so they don't promote a folder to a root.
+ * Symlinks are skipped so a loop (e.g. `_extensions/loop -> _extensions`) cannot drive the
+ * walk into an unbounded ancestor chain.
  */
 async function directoryHasInstalledExtension(extensionsDir: vscode.Uri): Promise<boolean> {
 	let entries: [string, vscode.FileType][];
@@ -229,15 +231,20 @@ async function directoryHasInstalledExtension(extensionsDir: vscode.Uri): Promis
 		return false;
 	}
 	for (const [name, type] of entries) {
-		const child = vscode.Uri.joinPath(extensionsDir, name);
+		if ((type & vscode.FileType.SymbolicLink) !== 0) {
+			continue;
+		}
 		if ((type & vscode.FileType.File) !== 0) {
 			if (MANIFEST_FILENAMES.some((filename) => filename === name)) {
 				return true;
 			}
 			continue;
 		}
-		if ((type & vscode.FileType.Directory) !== 0 && (await directoryHasInstalledExtension(child))) {
-			return true;
+		if ((type & vscode.FileType.Directory) !== 0) {
+			const child = vscode.Uri.joinPath(extensionsDir, name);
+			if (await directoryHasInstalledExtension(child)) {
+				return true;
+			}
 		}
 	}
 	return false;

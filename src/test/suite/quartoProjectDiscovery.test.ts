@@ -153,6 +153,18 @@ suite("Quarto Project Discovery Test Suite", () => {
 		assert.strictEqual(roots[0].label, "workspace");
 	});
 
+	test("smart-merges: workspace root _quarto.yml subsumes sibling _extensions/-only sub-roots", async () => {
+		// Workspace IS a Quarto project; a sibling using `_extensions/` is part of that
+		// project and must not appear as its own root.
+		writeQuartoYml(tempDir);
+		writeExtensionManifest(path.join(tempDir, "scratch"), "quarto-ext", "fontawesome");
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, tempDir);
+	});
+
 	test("returns all detected sub-roots when workspace root has no _quarto.yml", async () => {
 		writeQuartoYml(path.join(tempDir, "site-a"));
 		writeQuartoYml(path.join(tempDir, "site-b"));
@@ -284,5 +296,30 @@ suite("Quarto Project Discovery Test Suite", () => {
 		assert.strictEqual(roots.length, 1);
 		assert.strictEqual(roots[0].fsPath, projectDir);
 		assert.strictEqual(roots[0].label, "workspace/nested/ext-only");
+	});
+
+	test("setting=openEditors: symlink loops in _extensions/ do not cause infinite recursion", async function () {
+		// Skip on Windows; symlinks need elevated privileges there.
+		if (process.platform === "win32") {
+			this.skip();
+			return;
+		}
+		const projectDir = path.join(tempDir, "with-loop");
+		const extensionsDir = path.join(projectDir, "_extensions");
+		fs.mkdirSync(extensionsDir, { recursive: true });
+		// Self-referential symlink: `_extensions/loop -> _extensions`.
+		fs.symlinkSync(extensionsDir, path.join(extensionsDir, "loop"), "dir");
+		const docPath = path.join(projectDir, "doc.qmd");
+		fs.writeFileSync(docPath, "", "utf8");
+
+		mockedConfig.autoProjectDetection = "openEditors";
+		mockedTextDocuments = [makeDocument(docPath)];
+
+		// No assertion on the precise result; the test passes if discovery returns at all.
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		// Empty `_extensions/` (only a symlink loop, no manifests) must not promote the folder.
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, tempDir);
 	});
 });

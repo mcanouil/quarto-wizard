@@ -77,6 +77,7 @@ export class ExtensionsInstalled {
 				}
 			})();
 		}, PROJECT_ROOTS_REFRESH_DEBOUNCE_MS);
+		context.subscriptions.push({ dispose: () => refreshProjectRoots.cancel() });
 
 		// Explicit trigger (activation, manual refresh): always re-fetch downstream data.
 		const refreshAll = () => {
