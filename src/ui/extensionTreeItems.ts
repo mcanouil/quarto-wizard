@@ -38,6 +38,28 @@ export class WorkspaceFolderTreeItem extends vscode.TreeItem {
 }
 
 /**
+ * Intermediate folder node grouping sibling Quarto project roots that share a parent path.
+ * Carries no extensions itself: its children are other groups or `WorkspaceFolderTreeItem`s.
+ */
+export class ProjectGroupTreeItem extends vscode.TreeItem {
+	constructor(
+		public readonly label: string,
+		public readonly fsPath: string,
+		public readonly children: ProjectFolderItem[] = [],
+	) {
+		super(label, vscode.TreeItemCollapsibleState.Expanded);
+		this.contextValue = "quartoProjectGroup";
+		this.iconPath = new vscode.ThemeIcon("folder");
+		this.tooltip = fsPath;
+	}
+}
+
+/**
+ * Top-level item in the extensions tree: either a project root or a folder grouping projects.
+ */
+export type ProjectFolderItem = WorkspaceFolderTreeItem | ProjectGroupTreeItem;
+
+/**
  * Represents a tree item for a Quarto extension.
  */
 export class ExtensionTreeItem extends vscode.TreeItem {
@@ -383,6 +405,7 @@ function pluralLabel(kind: SchemaSectionKind): string {
  */
 export type TreeItemType =
 	| WorkspaceFolderTreeItem
+	| ProjectGroupTreeItem
 	| ExtensionTreeItem
 	| SchemaTreeItem
 	| SchemaErrorTreeItem

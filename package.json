@@ -683,13 +683,13 @@
 						"openEditors"
 					],
 					"enumDescriptions": [
-						"Scan for both subfolders of the current opened folder and parent folders of open files.",
+						"Scan recursively through all nested subfolders of the workspace folder.",
 						"Disable automatic Quarto project scanning.",
-						"Scan for subfolders of the currently opened folder.",
-						"Scan for parent folders of open files."
+						"Scan direct subfolders of the workspace folder only.",
+						"Scan parent folders of open files."
 					],
-					"default": true,
-					"markdownDescription": "Configures when Quarto project roots should be automatically detected. A folder qualifies when it contains `_quarto.yml`/`_quarto.yaml`, **or** an `_extensions/` directory with at least one installed extension. Detected roots are used by the Extensions Installed view and by every command that needs a target folder (Install, Use Template, Use Brand, ...).",
+					"default": "subFolders",
+					"markdownDescription": "Configures when Quarto project roots should be automatically detected. A folder qualifies when it contains `_quarto.yml`/`_quarto.yaml`, **or** an `_extensions/` directory with at least one installed extension. Detected roots are used by the Extensions Installed view and by every command that needs a target folder (Install, Use Template, Use Brand, ...). The default `subFolders` only inspects direct children of the workspace folder; set the value to `true` for a recursive scan, or `openEditors` to walk up from the parent folders of open files.",
 					"title": "Auto Project Detection",
 					"description": "When to auto-detect Quarto projects."
 				},

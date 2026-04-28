@@ -12,8 +12,11 @@ import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
 import { getAuthConfig } from "../utils/auth";
 import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "../utils/versionValidation";
+import { buildProjectTree, type ProjectTreeNode } from "./projectTreeBuilder";
 import {
 	WorkspaceFolderTreeItem,
+	ProjectGroupTreeItem,
+	type ProjectFolderItem,
 	ExtensionTreeItem,
 	SchemaTreeItem,
 	SchemaErrorTreeItem,
@@ -42,6 +45,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	// Consolidated cache for extension data per workspace folder
 	private cache: Record<string, FolderCache> = {};
 
+	// Memoised hierarchical project tree, invalidated when projectRoots changes
+	private projectTreeCache: ProjectTreeNode[] | null = null;
+
 	// Guard against concurrent refresh operations
 	private pendingRefresh: Promise<void> | null = null;
 
@@ -66,7 +72,15 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			return false;
 		}
 		this.projectRoots = projectRoots;
+		this.projectTreeCache = null;
 		return true;
+	}
+
+	private getProjectTree(): ProjectTreeNode[] {
+		if (!this.projectTreeCache) {
+			this.projectTreeCache = buildProjectTree(this.projectRoots);
+		}
+		return this.projectTreeCache;
 	}
 
 	dispose(): void {
@@ -92,6 +106,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				]);
 			}
 			return Promise.resolve(this.getWorkspaceFolderItems());
+		}
+
+		if (element instanceof ProjectGroupTreeItem) {
+			return Promise.resolve(element.children);
 		}
 
 		if (element instanceof WorkspaceFolderTreeItem) {
@@ -125,16 +143,23 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		return Promise.resolve([]);
 	}
 
-	private getWorkspaceFolderItems(): WorkspaceFolderTreeItem[] {
-		if (this.projectRoots.length > 1) {
-			return this.projectRoots.map((root) => new WorkspaceFolderTreeItem(root.label, root.fsPath));
+	private getWorkspaceFolderItems(): ProjectFolderItem[] {
+		if (this.projectRoots.length === 1) {
+			const only = this.projectRoots[0];
+			const folderCache = this.cache[only.fsPath];
+			if (!folderCache || Object.keys(folderCache.extensions).length === 0) {
+				return [];
+			}
 		}
-		return this.projectRoots
-			.filter((root) => {
-				const folderCache = this.cache[root.fsPath];
-				return folderCache && Object.keys(folderCache.extensions).length > 0;
-			})
-			.map((root) => new WorkspaceFolderTreeItem(root.label, root.fsPath));
+		return this.getProjectTree().map((node) => this.toTreeItem(node));
+	}
+
+	private toTreeItem(node: ProjectTreeNode): ProjectFolderItem {
+		if (node.kind === "project") {
+			return new WorkspaceFolderTreeItem(node.label, node.root.fsPath);
+		}
+		const children = node.children.map((child) => this.toTreeItem(child));
+		return new ProjectGroupTreeItem(node.label, node.fsPath, children);
 	}
 
 	private getExtensionItems(workspacePath: string): ExtensionTreeItem[] {

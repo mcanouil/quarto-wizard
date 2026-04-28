@@ -51,11 +51,11 @@ export type AutoProjectDetection = boolean | "subFolders" | "openEditors";
 
 /**
  * Reads the `quartoWizard.autoProjectDetection` setting.
- * Defaults to `true` when unset, matching the default of VSCode's `git.autoRepositoryDetection`.
+ * Defaults to `"subFolders"` (direct children only) when unset.
  */
 export function getAutoProjectDetection(): AutoProjectDetection {
 	const config = vscode.workspace.getConfiguration("quartoWizard");
-	return config.get<AutoProjectDetection>("autoProjectDetection", true);
+	return config.get<AutoProjectDetection>("autoProjectDetection", "subFolders");
 }
 
 /**

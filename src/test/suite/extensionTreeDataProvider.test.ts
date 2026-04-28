@@ -1,10 +1,12 @@
 import * as assert from "assert";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
-import { ExtensionTreeItem, WorkspaceFolderTreeItem } from "../../ui/extensionTreeItems";
+import { ExtensionTreeItem, ProjectGroupTreeItem, WorkspaceFolderTreeItem } from "../../ui/extensionTreeItems";
 import type { InstalledExtension } from "../../utils/extensions";
+import { makeFolder, makeRoot } from "./projectFixtures";
 
 suite("Extension Tree Data Provider Test Suite", () => {
 	function createProvider(): QuartoExtensionTreeDataProvider {
@@ -153,5 +155,80 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		const extensionItem = roots[0] as ExtensionTreeItem;
 		const icon = extensionItem.iconPath as vscode.ThemeIcon;
 		assert.strictEqual(icon.id, "package");
+	});
+
+	test("Sibling sub-projects render under a ProjectGroupTreeItem", async () => {
+		const folder = makeFolder("repo", path.resolve(path.sep, "tmp", "repo"));
+		const a = makeRoot(folder, "docs", "A");
+		const b = makeRoot(folder, "docs", "B");
+		const provider = new QuartoExtensionTreeDataProvider([a, b], new SchemaCache(), new SnippetCache());
+		await waitForInitialRefresh(provider);
+
+		const top = await provider.getChildren();
+		assert.strictEqual(top.length, 1);
+		assert.ok(top[0] instanceof ProjectGroupTreeItem);
+		const group = top[0] as ProjectGroupTreeItem;
+		assert.strictEqual(group.label, "repo/docs");
+		assert.strictEqual(group.children.length, 2);
+		assert.ok(group.children[0] instanceof WorkspaceFolderTreeItem);
+		assert.ok(group.children[1] instanceof WorkspaceFolderTreeItem);
+		assert.strictEqual(group.children[0].label, "A");
+		assert.strictEqual(group.children[1].label, "B");
+		assert.strictEqual(group.children[0].folderPath, a.fsPath);
+		assert.strictEqual(group.children[1].folderPath, b.fsPath);
+
+		const expanded = await provider.getChildren(group);
+		assert.deepStrictEqual(expanded, group.children);
+	});
+
+	test("Single sub-project stays flat as a WorkspaceFolderTreeItem", async () => {
+		const folder = makeFolder("repo", path.resolve(path.sep, "tmp", "repo"));
+		const sub = makeRoot(folder, "docs", "only");
+		const provider = new QuartoExtensionTreeDataProvider([sub], new SchemaCache(), new SnippetCache());
+		await waitForInitialRefresh(provider);
+
+		(
+			provider as unknown as {
+				cache: Record<
+					string,
+					{
+						extensions: Record<string, InstalledExtension>;
+						latestVersions: Record<string, string>;
+						parseErrors: Set<string>;
+						compatibility: Record<string, { status: string; detail: string; warningMessage?: string }>;
+					}
+				>;
+			}
+		).cache = {
+			[sub.fsPath]: {
+				extensions: { "quarto-ext/demo": createExtension() },
+				latestVersions: {},
+				parseErrors: new Set<string>(),
+				compatibility: {},
+			},
+		};
+
+		const top = await provider.getChildren();
+		assert.strictEqual(top.length, 1);
+		assert.ok(top[0] instanceof WorkspaceFolderTreeItem);
+		assert.strictEqual(top[0].label, "repo/docs/only");
+	});
+
+	test("Independent workspace folders stay flat", async () => {
+		const repoA = makeFolder("repoA", path.resolve(path.sep, "tmp", "repoA"));
+		const repoB = makeFolder("repoB", path.resolve(path.sep, "tmp", "repoB"));
+		const provider = new QuartoExtensionTreeDataProvider(
+			[makeRoot(repoA), makeRoot(repoB)],
+			new SchemaCache(),
+			new SnippetCache(),
+		);
+		await waitForInitialRefresh(provider);
+
+		const top = await provider.getChildren();
+		assert.strictEqual(top.length, 2);
+		assert.ok(top[0] instanceof WorkspaceFolderTreeItem);
+		assert.ok(top[1] instanceof WorkspaceFolderTreeItem);
+		assert.strictEqual(top[0].label, "repoA");
+		assert.strictEqual(top[1].label, "repoB");
 	});
 });

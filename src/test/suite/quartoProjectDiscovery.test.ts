@@ -3,21 +3,25 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
-import { MANIFEST_FILENAMES } from "@quarto-wizard/core";
+import { EXTENSIONS_DIR, MANIFEST_FILENAMES } from "@quarto-wizard/core";
 import {
 	discoverQuartoProjectRoots,
+	EXTENSION_MANIFEST_DIRECT_GLOB,
 	EXTENSION_MANIFEST_GLOB,
+	QUARTO_PROJECT_DIRECT_GLOB,
 	QUARTO_PROJECT_FILENAMES,
 	QUARTO_PROJECT_GLOB,
 } from "../../utils/quartoProjectDiscovery";
-
-type AutoProjectDetection = boolean | "subFolders" | "openEditors";
+import type { AutoProjectDetection } from "../../utils/extensionDetails";
+import { makeFolder } from "./projectFixtures";
 
 interface MockedConfig {
 	autoProjectDetection?: AutoProjectDetection;
 }
 
-const GLOB_MATCHERS: Record<string, ReadonlySet<string>> = {
+const MANIFEST_FILENAME_SET = new Set<string>(MANIFEST_FILENAMES);
+
+const RECURSIVE_GLOB_MATCHERS: Record<string, ReadonlySet<string>> = {
 	[QUARTO_PROJECT_GLOB]: new Set<string>(QUARTO_PROJECT_FILENAMES),
 	[EXTENSION_MANIFEST_GLOB]: new Set<string>(MANIFEST_FILENAMES),
 };
@@ -37,16 +41,22 @@ suite("Quarto Project Discovery Test Suite", () => {
 		tempDir = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "quarto-wizard-discovery-"))).fsPath;
 
 		mockedTextDocuments = [];
-		mockedConfig = { autoProjectDetection: true };
+		mockedConfig = { autoProjectDetection: "subFolders" };
 
 		originalFindFiles = vscode.workspace.findFiles;
 		// Default: scan the temp tree on disk and dispatch by glob to mirror the real findFiles.
 		vscode.workspace.findFiles = ((include: vscode.GlobPattern) => {
 			if (typeof include === "object" && "baseUri" in include) {
 				const rel = include as vscode.RelativePattern;
-				const matcher = GLOB_MATCHERS[rel.pattern];
-				if (matcher) {
-					return Promise.resolve(scanForFiles(rel.baseUri.fsPath, matcher));
+				const recursive = RECURSIVE_GLOB_MATCHERS[rel.pattern];
+				if (recursive) {
+					return Promise.resolve(scanForFiles(rel.baseUri.fsPath, recursive));
+				}
+				if (rel.pattern === QUARTO_PROJECT_DIRECT_GLOB) {
+					return Promise.resolve(scanDirectChildren(rel.baseUri.fsPath, QUARTO_PROJECT_FILENAMES));
+				}
+				if (rel.pattern === EXTENSION_MANIFEST_DIRECT_GLOB) {
+					return Promise.resolve(scanDirectExtensions(rel.baseUri.fsPath));
 				}
 			}
 			return Promise.resolve([]);
@@ -91,10 +101,6 @@ suite("Quarto Project Discovery Test Suite", () => {
 		}
 	});
 
-	function makeFolder(name: string, fsPath: string, index = 0): vscode.WorkspaceFolder {
-		return { uri: vscode.Uri.file(fsPath), name, index };
-	}
-
 	function writeQuartoYml(dir: string): string {
 		fs.mkdirSync(dir, { recursive: true });
 		const file = path.join(dir, "_quarto.yml");
@@ -129,6 +135,49 @@ suite("Quarto Project Discovery Test Suite", () => {
 			}
 		};
 		walk(base);
+		return matches;
+	}
+
+	function forEachDirectChildDir(base: string, visit: (subdir: string) => void): void {
+		let entries: fs.Dirent[];
+		try {
+			entries = fs.readdirSync(base, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		for (const entry of entries) {
+			if (entry.isDirectory()) visit(path.join(base, entry.name));
+		}
+	}
+
+	function scanDirectChildren(base: string, filenames: readonly string[]): vscode.Uri[] {
+		const matches: vscode.Uri[] = [];
+		forEachDirectChildDir(base, (subdir) => {
+			for (const filename of filenames) {
+				const candidate = path.join(subdir, filename);
+				try {
+					if (fs.statSync(candidate).isFile()) {
+						matches.push(vscode.Uri.file(candidate));
+					}
+				} catch {
+					// candidate file doesn't exist; skip
+				}
+			}
+		});
+		return matches;
+	}
+
+	function scanDirectExtensions(base: string): vscode.Uri[] {
+		const matches: vscode.Uri[] = [];
+		forEachDirectChildDir(base, (subdir) => {
+			const extDir = path.join(subdir, EXTENSIONS_DIR);
+			try {
+				if (!fs.statSync(extDir).isDirectory()) return;
+			} catch {
+				return;
+			}
+			matches.push(...scanForFiles(extDir, MANIFEST_FILENAME_SET));
+		});
 		return matches;
 	}
 
@@ -222,7 +271,7 @@ suite("Quarto Project Discovery Test Suite", () => {
 		assert.strictEqual(roots[0].label, "workspace/nested/site");
 	});
 
-	test("setting=subFolders: ignores open editors and only scans subfolders", async () => {
+	test("setting=subFolders: ignores open editors and only scans direct subfolders", async () => {
 		const editorOnlyProject = path.join(tempDir, "editor-only");
 		writeQuartoYml(editorOnlyProject);
 		const docPath = path.join(editorOnlyProject, "doc.qmd");
@@ -233,9 +282,81 @@ suite("Quarto Project Discovery Test Suite", () => {
 
 		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
 
-		// editor-only is still found because subFolders scans the on-disk tree.
+		// editor-only is found because it is a direct subfolder; the open editor is ignored.
 		assert.strictEqual(roots.length, 1);
 		assert.strictEqual(roots[0].fsPath, editorOnlyProject);
+	});
+
+	test("setting=subFolders: skips deeply-nested projects (direct children only)", async () => {
+		const direct = path.join(tempDir, "site-a");
+		const deep = path.join(tempDir, "deep", "nested");
+		writeQuartoYml(direct);
+		writeQuartoYml(deep);
+
+		mockedConfig.autoProjectDetection = "subFolders";
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, direct);
+	});
+
+	test("setting=subFolders: detects workspace root marker via the explicit root check", async () => {
+		writeQuartoYml(tempDir);
+
+		mockedConfig.autoProjectDetection = "subFolders";
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, tempDir);
+		assert.strictEqual(roots[0].label, "workspace");
+	});
+
+	test("setting=subFolders: discovers depth-1 _extensions/-only projects", async () => {
+		const extProject = path.join(tempDir, "ext-only");
+		writeExtensionManifest(extProject, "quarto-ext", "fontawesome");
+
+		mockedConfig.autoProjectDetection = "subFolders";
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, extProject);
+	});
+
+	test("setting=true: recursive scan finds deeply-nested projects", async () => {
+		const direct = path.join(tempDir, "site-a");
+		const deep = path.join(tempDir, "deep", "nested");
+		writeQuartoYml(direct);
+		writeQuartoYml(deep);
+
+		mockedConfig.autoProjectDetection = true;
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		const paths = roots.map((r) => r.fsPath).sort();
+		assert.deepStrictEqual(paths, [deep, direct].sort());
+	});
+
+	test("setting=true: does not auto-detect via open editors", async () => {
+		const projectDir = path.join(tempDir, "site");
+		writeQuartoYml(projectDir);
+		const docPath = path.join(projectDir, "doc.qmd");
+		fs.writeFileSync(docPath, "", "utf8");
+
+		// Force findFiles to return no subfolder matches so any detection must come from
+		// the open-editor walk-up. With the narrowed `true` semantics, that path is gated
+		// off and the discovery should fall back to the workspace folder.
+		vscode.workspace.findFiles = (() => Promise.resolve([])) as typeof vscode.workspace.findFiles;
+
+		mockedConfig.autoProjectDetection = true;
+		mockedTextDocuments = [makeDocument(docPath)];
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, tempDir);
 	});
 
 	test("detects workspace root via _extensions/ when _quarto.yml is absent", async () => {
