@@ -339,6 +339,17 @@ suite("Quarto Project Discovery Test Suite", () => {
 		assert.deepStrictEqual(paths, [deep, direct].sort());
 	});
 
+	test("setting=<invalid>: falls back to direct subfolder scan", async () => {
+		writeQuartoYml(path.join(tempDir, "site-a"));
+
+		mockedConfig.autoProjectDetection = "recursive" as unknown as AutoProjectDetection;
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, path.join(tempDir, "site-a"));
+	});
+
 	test("setting=true: does not auto-detect via open editors", async () => {
 		const projectDir = path.join(tempDir, "site");
 		writeQuartoYml(projectDir);
