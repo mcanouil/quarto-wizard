@@ -41,31 +41,6 @@ Ask for confirmation before installing an extension. `ask` to ask for confirmati
 }
 ```
 
-## Project Detection
-
-### Auto Project Detection
-
-**Setting**: `quartoWizard.autoProjectDetection`
-
-Controls how Quarto Wizard discovers project roots.
-A folder qualifies when it contains `_quarto.yml`/`_quarto.yaml`, or an `_extensions/` directory with at least one installed extension.
-
-| Value          | Description                                                                  |
-| -------------- | ---------------------------------------------------------------------------- |
-| `false`        | Disable scanning. Only the workspace folder itself is treated as a root.     |
-| `"subFolders"` | Scan direct subfolders of the workspace folder only (default).               |
-| `true`         | Scan recursively through all nested subfolders of the workspace folder.      |
-| `"openEditors"`| Walk up from the parent folders of open files until a marker is found.       |
-
-Setting `true` enables a recursive scan only.
-It no longer walks up from open editors; combine with `"openEditors"` only by switching values explicitly.
-
-```json
-{
-  "quartoWizard.autoProjectDetection": "subFolders"
-}
-```
-
 ## Cache Settings
 
 ### Cache Duration
@@ -125,7 +100,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.ask.trustAuthors": "ask",
   "quartoWizard.ask.confirmInstall": "ask",
   "quartoWizard.update.crossSource": false,
-  "quartoWizard.autoProjectDetection": "subFolders",
+  "quartoWizard.autoProjectDetection": subFolders,
   "quartoWizard.cache.ttlMinutes": 30,
   "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
 }
