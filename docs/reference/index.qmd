@@ -38,7 +38,7 @@ See [Configuration Reference](configuration.qmd) for all available options.
 | `quartoWizard.ask.trustAuthors`     | `ask`                                      | Prompt before trusting authors.                      |
 | `quartoWizard.ask.confirmInstall`   | `ask`                                      | Prompt before installing.                            |
 | `quartoWizard.update.crossSource`   | `false`                                    | Allow registry lookup for GitHub-sourced extensions. |
-| `quartoWizard.autoProjectDetection` | `true`                                     | When to auto-detect Quarto projects.                 |
+| `quartoWizard.autoProjectDetection` | `subFolders`                               | When to auto-detect Quarto projects.                 |
 | `quartoWizard.cache.ttlMinutes`     | `30`                                       | Cache duration in minutes.                           |
 | `quartoWizard.registry.url`         | [see docs](configuration.qmd#registry-url) | Custom registry URL.                                 |
 
