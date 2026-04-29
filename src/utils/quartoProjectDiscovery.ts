@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { EXTENSIONS_DIR, MANIFEST_FILENAMES, getErrorMessage } from "@quarto-wizard/core";
-import { getAutoProjectDetection, type AutoProjectDetection } from "./extensionDetails";
+import { getAutoProjectDetection } from "./extensionDetails";
 import { logMessage } from "./log";
 
 /**
@@ -15,6 +15,18 @@ export const QUARTO_PROJECT_GLOB = "**/_quarto.{yml,yaml}";
  * outermost `_extensions/` ancestor) to a Quarto root.
  */
 export const EXTENSION_MANIFEST_GLOB = `**/${EXTENSIONS_DIR}/**/_extension.{yml,yaml}`;
+
+/**
+ * Glob pattern matching Quarto project marker files in a direct subfolder (one level deep).
+ * The workspace folder root itself must be checked separately.
+ */
+export const QUARTO_PROJECT_DIRECT_GLOB = "*/_quarto.{yml,yaml}";
+
+/**
+ * Glob pattern matching installed extension manifests for projects that live as direct
+ * subfolders of the workspace folder.
+ */
+export const EXTENSION_MANIFEST_DIRECT_GLOB = `*/${EXTENSIONS_DIR}/**/_extension.{yml,yaml}`;
 
 /**
  * Filenames that mark a directory as a Quarto project root via `_quarto.{yml,yaml}`.
@@ -72,13 +84,11 @@ export async function discoverQuartoProjectRoots(
 
 		const candidates = new Set<string>();
 
-		if (shouldScanSubFolders(setting)) {
-			for (const dir of await findSubFolderProjectDirs(folder)) {
+		if (setting === true || setting === "subFolders") {
+			for (const dir of await findSubFolderProjectDirs(folder, setting === true)) {
 				candidates.add(dir);
 			}
-		}
-
-		if (shouldScanOpenEditors(setting)) {
+		} else if (setting === "openEditors") {
 			for (const dir of await findOpenEditorProjectDirs(folder)) {
 				candidates.add(dir);
 			}
@@ -100,14 +110,6 @@ export async function discoverQuartoProjectRoots(
 	return results;
 }
 
-function shouldScanSubFolders(setting: AutoProjectDetection): boolean {
-	return setting === true || setting === "subFolders";
-}
-
-function shouldScanOpenEditors(setting: AutoProjectDetection): boolean {
-	return setting === true || setting === "openEditors";
-}
-
 function buildRoot(folder: vscode.WorkspaceFolder, fsPath: string): QuartoProjectRoot {
 	if (fsPath === folder.uri.fsPath) {
 		return { fsPath, workspaceFolder: folder, label: folder.name };
@@ -116,16 +118,23 @@ function buildRoot(folder: vscode.WorkspaceFolder, fsPath: string): QuartoProjec
 	return { fsPath, workspaceFolder: folder, label: `${folder.name}/${relative}` };
 }
 
-async function findSubFolderProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+async function findSubFolderProjectDirs(folder: vscode.WorkspaceFolder, recursive: boolean): Promise<string[]> {
+	const folderPath = folder.uri.fsPath;
+	const quartoGlob = recursive ? QUARTO_PROJECT_GLOB : QUARTO_PROJECT_DIRECT_GLOB;
+	const manifestGlob = recursive ? EXTENSION_MANIFEST_GLOB : EXTENSION_MANIFEST_DIRECT_GLOB;
 	try {
+		// In direct-only mode the workspace root cannot be matched by the depth-1 glob,
+		// so probe it explicitly: the smart-merge in `discoverQuartoProjectRoots` collapses
+		// to the workspace folder when it is among the candidates.
 		// `null` exclude lets VSCode honour the user's `files.exclude` and `search.exclude`,
 		// matching how the Git extension scopes its repository scans.
-		const [quartoUris, manifestUris] = await Promise.all([
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, QUARTO_PROJECT_GLOB), null),
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, EXTENSION_MANIFEST_GLOB), null),
+		const [hasRootMarker, quartoUris, manifestUris] = await Promise.all([
+			recursive ? Promise.resolve(false) : directoryHasProjectMarker(folderPath),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, quartoGlob), null),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, manifestGlob), null),
 		]);
-		const folderPath = folder.uri.fsPath;
 		const dirs: string[] = [];
+		if (hasRootMarker) dirs.push(folderPath);
 		for (const uri of quartoUris) {
 			if (uri.scheme !== "file") continue;
 			const dir = path.dirname(uri.fsPath);

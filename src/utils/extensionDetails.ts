@@ -49,13 +49,29 @@ export function getCrossSourceUpdateEnabled(): boolean {
  */
 export type AutoProjectDetection = boolean | "subFolders" | "openEditors";
 
+const AUTO_PROJECT_DETECTION_DEFAULT: AutoProjectDetection = "subFolders";
+
+function isAutoProjectDetection(value: unknown): value is AutoProjectDetection {
+	return value === true || value === false || value === "subFolders" || value === "openEditors";
+}
+
 /**
  * Reads the `quartoWizard.autoProjectDetection` setting.
- * Defaults to `true` when unset, matching the default of VSCode's `git.autoRepositoryDetection`.
+ * Defaults to `"subFolders"` (direct children only) when unset, and falls back to
+ * the same default with a warning when the user-supplied value is not one of the
+ * documented options.
  */
 export function getAutoProjectDetection(): AutoProjectDetection {
 	const config = vscode.workspace.getConfiguration("quartoWizard");
-	return config.get<AutoProjectDetection>("autoProjectDetection", true);
+	const raw: unknown = config.get("autoProjectDetection", AUTO_PROJECT_DETECTION_DEFAULT);
+	if (isAutoProjectDetection(raw)) {
+		return raw;
+	}
+	logMessage(
+		`Unknown quartoWizard.autoProjectDetection value: ${JSON.stringify(raw)}. Falling back to "${AUTO_PROJECT_DETECTION_DEFAULT}".`,
+		"warn",
+	);
+	return AUTO_PROJECT_DETECTION_DEFAULT;
 }
 
 /**

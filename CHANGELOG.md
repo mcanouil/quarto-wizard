@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- feat!: narrow the default scope of `quartoWizard.autoProjectDetection`. The default is now `"subFolders"`, which scans only direct children of the workspace folder. Set the value to `true` for the previous recursive behaviour.
+- feat!: `quartoWizard.autoProjectDetection: true` now means "recursive subfolder scan only". It no longer also walks up from open files; set the value to `"openEditors"` for that behaviour.
+- feat: render auto-detected project roots hierarchically in the Extensions Installed view. Sibling sub-projects under a shared parent (for example `docs/A` and `docs/B`) are grouped under that parent; projects without shared parents stay flat.
+
+### Bug Fixes
+
+- fix: log a warning and fall back to `"subFolders"` when `quartoWizard.autoProjectDetection` is set to an unknown value, instead of silently using the workspace-folder fallback.
+
 ## 2.5.0 (2026-04-23)
 
 ### New Features
