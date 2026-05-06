@@ -211,34 +211,37 @@ export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean
  *
  * The front matter must open with `---` on line 0 and close with another
  * `---` on a subsequent line (mirroring `isInYamlRegion`).  The returned
- * range covers the opening delimiter line through the end of the closing
- * delimiter line so that any `{...}` content within is fully enclosed.
+ * range starts at offset 0 and ends at the last character of the closing
+ * delimiter line (the trailing newline is excluded), so that any `{...}`
+ * content within is fully enclosed.
  *
  * @param text - The full document text.
  * @returns The front-matter range, or `undefined` when no closed front
  *   matter is present.
  */
 export function getYamlFrontMatterRange(text: string): TextRange | undefined {
-	if (text.length === 0) {
+	const firstNewline = text.indexOf("\n");
+	if (firstNewline === -1) {
 		return undefined;
 	}
 
-	const lines = text.split("\n");
-	const firstLine = lines[0].endsWith("\r") ? lines[0].slice(0, -1) : lines[0];
-	if (firstLine.trim() !== "---") {
+	const firstLineEnd = firstNewline > 0 && text[firstNewline - 1] === "\r" ? firstNewline - 1 : firstNewline;
+	if (text.slice(0, firstLineEnd).trim() !== "---") {
 		return undefined;
 	}
 
-	let offset = lines[0].length + 1;
-	for (let i = 1; i < lines.length; i++) {
-		const rawLine = lines[i];
-		const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
-		const lineStart = offset;
-		const lineEnd = lineStart + rawLine.length;
-		if (line.trim() === "---") {
+	let lineStart = firstNewline + 1;
+	while (lineStart <= text.length) {
+		const nextNewline = text.indexOf("\n", lineStart);
+		const lineEnd = nextNewline === -1 ? text.length : nextNewline;
+		const trimmedEnd = lineEnd > lineStart && text[lineEnd - 1] === "\r" ? lineEnd - 1 : lineEnd;
+		if (text.slice(lineStart, trimmedEnd).trim() === "---") {
 			return { start: 0, end: lineEnd };
 		}
-		offset = lineEnd + (i < lines.length - 1 ? 1 : 0);
+		if (nextNewline === -1) {
+			break;
+		}
+		lineStart = nextNewline + 1;
 	}
 
 	return undefined;
