@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - fix: do not flag `{key="value"}` inside inline code spans as needing whitespace removal. Backtick-wrapped attribute syntax in prose (for example, when documenting Pandoc attribute rules) is now correctly recognised as code and skipped by the inline attribute diagnostics.
+- fix: do not extract `{...}` patterns from YAML front matter as Pandoc attribute blocks. Curly braces inside literal block scalars (for example, Typst code under `include-before-body`) no longer trigger false-positive inline attribute diagnostics.
 
 ## 3.0.0 (2026-04-29)
 

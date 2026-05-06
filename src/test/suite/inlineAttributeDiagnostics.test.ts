@@ -697,6 +697,71 @@ suite("Inline Attribute Diagnostics", () => {
 		});
 	});
 
+	suite("extractBlocks (YAML front matter)", () => {
+		test("should not extract a {...} block from a YAML literal block scalar", () => {
+			const text = [
+				"---",
+				"format: typst",
+				"include-before-body:",
+				"  - text: |",
+				"      #show raw.where(block: false): it => {",
+				"        let text = it.text();",
+				"        it",
+				"      }",
+				"---",
+				"",
+				"body",
+			].join("\n");
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+
+		test("should not produce spaces-around-equals findings inside YAML front matter", () => {
+			const text = [
+				"---",
+				"format: typst",
+				"include-before-body:",
+				"  - text: |",
+				"      it => {",
+				"        let text = it.text();",
+				"      }",
+				"---",
+			].join("\n");
+			const blocks = extractBlocks(text);
+			for (const block of blocks) {
+				assert.strictEqual(findSpacesAroundEquals(block.content).length, 0);
+			}
+		});
+
+		test("should not extract {a=b} inside a quoted YAML scalar value", () => {
+			const text = ["---", 'title: "literal {a = b} text"', "---", ""].join("\n");
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+
+		test("should still extract attribute blocks after the closing front matter", () => {
+			const text = ["---", "title: Test", "---", "", '[span]{.cls key="value"}'].join("\n");
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, '.cls key="value"');
+		});
+
+		test("should be unaffected when the document has no front matter", () => {
+			const text = '[span]{.cls key="value"}';
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, '.cls key="value"');
+		});
+
+		test("should handle CRLF front matter correctly", () => {
+			const text = ["---", "format: typst", "include-before-body:", "  - text: |", "      it => { x }", "---", ""].join(
+				"\r\n",
+			);
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+	});
+
 	suite("extractBareWords", () => {
 		test("should extract bare word from element content", () => {
 			const results = extractBareWords(".class myword");

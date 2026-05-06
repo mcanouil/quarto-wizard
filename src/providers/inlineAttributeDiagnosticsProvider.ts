@@ -11,7 +11,13 @@ import {
 } from "./elementAttributeCompletionProvider";
 import { collectShortcodeSchemas, resolveShortcodeAttribute } from "./shortcodeCompletionProvider";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { getCodeBlockRanges, getInlineCodeSpanRanges, isInCodeBlockRange, type TextRange } from "../utils/yamlPosition";
+import {
+	getCodeBlockRanges,
+	getInlineCodeSpanRanges,
+	getYamlFrontMatterRange,
+	isInCodeBlockRange,
+	type TextRange,
+} from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
@@ -278,10 +284,13 @@ function overlapsExclusionRanges(
 
 /**
  * Extract all attribute blocks and shortcode blocks from document text,
- * excluding matches that fall inside fenced code blocks or inline code spans.
+ * excluding matches that fall inside fenced code blocks, the YAML front
+ * matter, or inline code spans.
  */
 export function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[] {
-	const fencedRanges = codeBlockRanges ?? getCodeBlockRanges(text);
+	const codeRanges = codeBlockRanges ?? getCodeBlockRanges(text);
+	const yamlRange = getYamlFrontMatterRange(text);
+	const fencedRanges = yamlRange ? [yamlRange, ...codeRanges] : codeRanges;
 	const inlineRanges = getInlineCodeSpanRanges(text, fencedRanges);
 	const blocks: BlockMatch[] = [];
 

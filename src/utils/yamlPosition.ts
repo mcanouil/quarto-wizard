@@ -207,6 +207,44 @@ export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean
 }
 
 /**
+ * Find the YAML front-matter range in a Quarto document.
+ *
+ * The front matter must open with `---` on line 0 and close with another
+ * `---` on a subsequent line (mirroring `isInYamlRegion`).  The returned
+ * range covers the opening delimiter line through the end of the closing
+ * delimiter line so that any `{...}` content within is fully enclosed.
+ *
+ * @param text - The full document text.
+ * @returns The front-matter range, or `undefined` when no closed front
+ *   matter is present.
+ */
+export function getYamlFrontMatterRange(text: string): TextRange | undefined {
+	if (text.length === 0) {
+		return undefined;
+	}
+
+	const lines = text.split("\n");
+	const firstLine = lines[0].endsWith("\r") ? lines[0].slice(0, -1) : lines[0];
+	if (firstLine.trim() !== "---") {
+		return undefined;
+	}
+
+	let offset = lines[0].length + 1;
+	for (let i = 1; i < lines.length; i++) {
+		const rawLine = lines[i];
+		const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+		const lineStart = offset;
+		const lineEnd = lineStart + rawLine.length;
+		if (line.trim() === "---") {
+			return { start: 0, end: lineEnd };
+		}
+		offset = lineEnd + (i < lines.length - 1 ? 1 : 0);
+	}
+
+	return undefined;
+}
+
+/**
  * Compute the indentation level (number of leading spaces) of a line.
  *
  * @param line - The text of the line.

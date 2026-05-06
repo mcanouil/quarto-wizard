@@ -6,6 +6,7 @@ import {
 	getExistingKeysAtPath,
 	getCodeBlockRanges,
 	getInlineCodeSpanRanges,
+	getYamlFrontMatterRange,
 	isInCodeBlockRange,
 	hasUnquotedBacktick,
 } from "../../utils/yamlPosition";
@@ -601,6 +602,64 @@ suite("YAML Position Utils Test Suite", () => {
 			const text = "`a` and `b` and `c`";
 			const ranges = getInlineCodeSpanRanges(text, []);
 			assert.strictEqual(ranges.length, 3);
+		});
+	});
+
+	suite("getYamlFrontMatterRange", () => {
+		test("should cover the opening, body, and closing delimiter lines", () => {
+			const text = "---\ntitle: Test\n---\nbody\n";
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			assert.strictEqual(range!.start, 0);
+			assert.strictEqual(text.slice(range!.start, range!.end), "---\ntitle: Test\n---");
+		});
+
+		test("should return undefined when line 0 is not a fence", () => {
+			const text = "no front matter here\n---\nfoo\n---\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined when there is no closing fence", () => {
+			const text = "---\ntitle: Test\nbody\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should handle empty front matter", () => {
+			const text = "---\n---\nbody\n";
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			assert.strictEqual(text.slice(range!.start, range!.end), "---\n---");
+		});
+
+		test("should return undefined for empty text", () => {
+			assert.strictEqual(getYamlFrontMatterRange(""), undefined);
+		});
+
+		test("should handle CRLF line endings", () => {
+			const text = "---\r\ntitle: Test\r\n---\r\nbody\r\n";
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			assert.strictEqual(range!.start, 0);
+			assert.strictEqual(text.slice(range!.start, range!.end), "---\r\ntitle: Test\r\n---\r");
+		});
+
+		test("should cover multi-line block scalars within the front matter", () => {
+			const text = [
+				"---",
+				"format: typst",
+				"include-before-body:",
+				"  - text: |",
+				"      #show raw.where(block: false): it => {",
+				"        let text = it.text();",
+				"        it",
+				"      }",
+				"---",
+				"body",
+			].join("\n");
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			const closingFenceOffset = text.lastIndexOf("---");
+			assert.ok(closingFenceOffset >= range!.start && closingFenceOffset < range!.end);
 		});
 	});
 
