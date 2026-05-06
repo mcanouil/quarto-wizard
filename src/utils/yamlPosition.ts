@@ -109,6 +109,93 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 }
 
 /**
+ * Find all inline code span regions in the document text.
+ *
+ * Inline code spans are delimited by matching backtick runs of equal length
+ * (CommonMark §6.1).  A backtick run is a maximal sequence of backtick
+ * characters; the opening run defines the closing run length.  Backslashes
+ * do not escape backticks for code-span purposes.
+ *
+ * The returned ranges include the opening and closing backtick runs so a
+ * `{...}` attribute that immediately follows the closing backticks (e.g.
+ * `` `code`{=html} ``) remains outside the range and is still extracted as
+ * a real attribute.
+ *
+ * Positions inside fenced code blocks are skipped because backticks there
+ * have no inline-span semantics.
+ *
+ * @param text - The full document text.
+ * @param fencedRanges - Pre-computed fenced code block ranges to skip.
+ * @returns An array of ranges sorted by start offset.
+ */
+export function getInlineCodeSpanRanges(text: string, fencedRanges: TextRange[]): TextRange[] {
+	const ranges: TextRange[] = [];
+	const len = text.length;
+	let i = 0;
+
+	while (i < len) {
+		const fenced = findContainingRange(fencedRanges, i);
+		if (fenced) {
+			i = fenced.end;
+			continue;
+		}
+
+		if (text[i] !== "`") {
+			i++;
+			continue;
+		}
+
+		const openStart = i;
+		while (i < len && text[i] === "`") {
+			i++;
+		}
+		const runLen = i - openStart;
+
+		// Search forward for a closing run of the same length.  When no
+		// matching run is found, `i` already points past the opening run
+		// and the outer loop resumes scanning from there.
+		let j = i;
+		while (j < len) {
+			const innerFenced = findContainingRange(fencedRanges, j);
+			if (innerFenced) {
+				j = innerFenced.end;
+				continue;
+			}
+			if (text[j] !== "`") {
+				j++;
+				continue;
+			}
+			const closeStart = j;
+			while (j < len && text[j] === "`") {
+				j++;
+			}
+			if (j - closeStart === runLen) {
+				ranges.push({ start: openStart, end: j });
+				i = j;
+				break;
+			}
+		}
+	}
+
+	return ranges;
+}
+
+/**
+ * Find the first range that contains the given offset, or undefined.
+ */
+function findContainingRange(ranges: TextRange[], offset: number): TextRange | undefined {
+	for (const range of ranges) {
+		if (offset >= range.start && offset < range.end) {
+			return range;
+		}
+		if (range.start > offset) {
+			return undefined;
+		}
+	}
+	return undefined;
+}
+
+/**
  * Check whether an offset falls inside any of the given code block ranges.
  *
  * @param ranges - Sorted array of code block ranges.
@@ -116,15 +203,7 @@ export function getCodeBlockRanges(text: string): TextRange[] {
  * @returns True if the offset is inside a code block.
  */
 export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean {
-	for (const range of ranges) {
-		if (offset >= range.start && offset < range.end) {
-			return true;
-		}
-		if (range.start > offset) {
-			break;
-		}
-	}
-	return false;
+	return findContainingRange(ranges, offset) !== undefined;
 }
 
 /**

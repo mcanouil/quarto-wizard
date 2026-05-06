@@ -653,6 +653,50 @@ suite("Inline Attribute Diagnostics", () => {
 		});
 	});
 
+	suite("extractBlocks (inline code spans)", () => {
+		test("should not extract attribute block from inside a single-backtick span", () => {
+			const text = 'Pandoc syntax: `{key="value"}` produces an attribute.';
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+
+		test("should not extract attribute block with spaces around = inside backticks", () => {
+			const text = 'But `{key = "value"}` does not.';
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+
+		test("should not produce spaces-around-equals diagnostic for backtick-wrapped {key = value}", () => {
+			const text = 'see `{key = "value"}` here';
+			const blocks = extractBlocks(text);
+			for (const block of blocks) {
+				assert.strictEqual(findSpacesAroundEquals(block.content).length, 0);
+			}
+		});
+
+		test("should still extract a real {=html} attribute on inline code", () => {
+			// Pandoc raw inline: `code`{=html} — the {=html} attribute is OUTSIDE
+			// the inline code span and is a legitimate attribute block.
+			const text = "x `code`{=html} y";
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, "=html");
+		});
+
+		test("should still extract a normal attribute outside any backticks", () => {
+			const text = '[span]{.cls key="value"} and `inline {a=b}`';
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, '.cls key="value"');
+		});
+
+		test("should not extract attribute from inside a double-backtick span", () => {
+			const text = "before ``contains {key = val} here`` after";
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+	});
+
 	suite("extractBareWords", () => {
 		test("should extract bare word from element content", () => {
 			const results = extractBareWords(".class myword");

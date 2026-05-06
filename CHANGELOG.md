@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- fix: do not flag `{key="value"}` inside inline code spans as needing whitespace removal. Backtick-wrapped attribute syntax in prose (for example, when documenting Pandoc attribute rules) is now correctly recognised as code and skipped by the inline attribute diagnostics.
+
 ## 3.0.0 (2026-04-29)
 
 ### New Features

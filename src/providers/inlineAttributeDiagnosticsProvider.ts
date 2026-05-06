@@ -11,7 +11,7 @@ import {
 } from "./elementAttributeCompletionProvider";
 import { collectShortcodeSchemas, resolveShortcodeAttribute } from "./shortcodeCompletionProvider";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { getCodeBlockRanges, isInCodeBlockRange, type TextRange } from "../utils/yamlPosition";
+import { getCodeBlockRanges, getInlineCodeSpanRanges, isInCodeBlockRange, type TextRange } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
@@ -249,30 +249,47 @@ interface BlockMatch {
 }
 
 /**
- * Check whether a match range overlaps any code block range.
- * Tests both endpoints and spanning (match starts before and ends inside a block).
+ * Check whether a match range overlaps any exclusion range.
+ *
+ * Fenced code blocks use full overlap (start, end, or spanning) because an
+ * attribute block can legitimately straddle a fence boundary only when it is
+ * not really an attribute.
+ *
+ * Inline code spans use a stricter rule: only exclude when the match start
+ * lies inside an inline span.  This avoids false exclusion of fence-header
+ * attribute blocks like `` ```{.r code-summary="see `fn()`"} `` whose body
+ * contains quoted backticks that look like an inline code span.
  */
-function overlapsCodeBlock(ranges: TextRange[], matchStart: number, matchEnd: number): boolean {
-	return (
-		isInCodeBlockRange(ranges, matchStart) ||
-		isInCodeBlockRange(ranges, matchEnd) ||
-		ranges.some((r) => matchStart < r.start && matchEnd >= r.start)
-	);
+function overlapsExclusionRanges(
+	fencedRanges: TextRange[],
+	inlineRanges: TextRange[],
+	matchStart: number,
+	matchEnd: number,
+): boolean {
+	if (
+		isInCodeBlockRange(fencedRanges, matchStart) ||
+		isInCodeBlockRange(fencedRanges, matchEnd) ||
+		fencedRanges.some((r) => matchStart < r.start && matchEnd >= r.start)
+	) {
+		return true;
+	}
+	return isInCodeBlockRange(inlineRanges, matchStart);
 }
 
 /**
  * Extract all attribute blocks and shortcode blocks from document text,
- * excluding matches that fall inside fenced code blocks.
+ * excluding matches that fall inside fenced code blocks or inline code spans.
  */
 export function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[] {
-	const ranges = codeBlockRanges ?? getCodeBlockRanges(text);
+	const fencedRanges = codeBlockRanges ?? getCodeBlockRanges(text);
+	const inlineRanges = getInlineCodeSpanRanges(text, fencedRanges);
 	const blocks: BlockMatch[] = [];
 
 	for (const match of text.matchAll(ELEMENT_ATTRIBUTE_RE)) {
 		if (match.index === undefined) {
 			continue;
 		}
-		if (overlapsCodeBlock(ranges, match.index, match.index + match[0].length - 1)) {
+		if (overlapsExclusionRanges(fencedRanges, inlineRanges, match.index, match.index + match[0].length - 1)) {
 			continue;
 		}
 		// Content is everything between { and }.
@@ -285,7 +302,7 @@ export function extractBlocks(text: string, codeBlockRanges?: TextRange[]): Bloc
 		if (match.index === undefined) {
 			continue;
 		}
-		if (overlapsCodeBlock(ranges, match.index, match.index + match[0].length - 1)) {
+		if (overlapsExclusionRanges(fencedRanges, inlineRanges, match.index, match.index + match[0].length - 1)) {
 			continue;
 		}
 		// Content is everything between {{< and >}}.
