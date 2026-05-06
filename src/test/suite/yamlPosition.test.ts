@@ -5,6 +5,8 @@ import {
 	getYamlIndentLevel,
 	getExistingKeysAtPath,
 	getCodeBlockRanges,
+	getInlineCodeSpanRanges,
+	getYamlFrontMatterRange,
 	isInCodeBlockRange,
 	hasUnquotedBacktick,
 } from "../../utils/yamlPosition";
@@ -536,6 +538,128 @@ suite("YAML Position Utils Test Suite", () => {
 			const ranges = getCodeBlockRanges(text);
 			const innerBrace = text.indexOf("function(x) {") + "function(x) ".length;
 			assert.strictEqual(isInCodeBlockRange(ranges, innerBrace), true);
+		});
+	});
+
+	suite("getInlineCodeSpanRanges", () => {
+		test("should detect a single-backtick inline code span", () => {
+			const text = "before `code` after";
+			const ranges = getInlineCodeSpanRanges(text, []);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "`code`");
+		});
+
+		test("should cover a curly-brace attribute block inside backticks", () => {
+			const text = 'see `{key = "value"}` here';
+			const ranges = getInlineCodeSpanRanges(text, []);
+			assert.strictEqual(ranges.length, 1);
+			const braceStart = text.indexOf("{");
+			assert.ok(braceStart >= ranges[0].start && braceStart < ranges[0].end);
+		});
+
+		test("should require matching backtick run length", () => {
+			// Single backtick start cannot close on a double-backtick run.
+			const text = "a `one`` not closed";
+			const ranges = getInlineCodeSpanRanges(text, []);
+			assert.strictEqual(ranges.length, 0);
+		});
+
+		test("should allow single backticks inside a double-backtick span", () => {
+			const text = "a ``has ` inside`` end";
+			const ranges = getInlineCodeSpanRanges(text, []);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "``has ` inside``");
+		});
+
+		test("should leave a {...} after the closing backticks outside the range", () => {
+			// Pandoc inline code with attribute: `code`{=html}
+			const text = "x `code`{=html} y";
+			const ranges = getInlineCodeSpanRanges(text, []);
+			assert.strictEqual(ranges.length, 1);
+			const attrStart = text.indexOf("{=html}");
+			assert.ok(attrStart >= ranges[0].end);
+		});
+
+		test("should return empty array for unclosed backtick run", () => {
+			const text = "no closer `here";
+			const ranges = getInlineCodeSpanRanges(text, []);
+			assert.strictEqual(ranges.length, 0);
+		});
+
+		test("should skip backticks inside fenced code block ranges", () => {
+			const text = "```\n`x`\n```\n`y`";
+			const fenced = getCodeBlockRanges(text);
+			const ranges = getInlineCodeSpanRanges(text, fenced);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "`y`");
+		});
+
+		test("should return empty array for text with no backticks", () => {
+			assert.deepStrictEqual(getInlineCodeSpanRanges("plain text", []), []);
+		});
+
+		test("should detect multiple inline code spans", () => {
+			const text = "`a` and `b` and `c`";
+			const ranges = getInlineCodeSpanRanges(text, []);
+			assert.strictEqual(ranges.length, 3);
+		});
+	});
+
+	suite("getYamlFrontMatterRange", () => {
+		test("should cover the opening, body, and closing delimiter lines", () => {
+			const text = "---\ntitle: Test\n---\nbody\n";
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			assert.strictEqual(range!.start, 0);
+			assert.strictEqual(text.slice(range!.start, range!.end), "---\ntitle: Test\n---");
+		});
+
+		test("should return undefined when line 0 is not a fence", () => {
+			const text = "no front matter here\n---\nfoo\n---\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined when there is no closing fence", () => {
+			const text = "---\ntitle: Test\nbody\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should handle empty front matter", () => {
+			const text = "---\n---\nbody\n";
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			assert.strictEqual(text.slice(range!.start, range!.end), "---\n---");
+		});
+
+		test("should return undefined for empty text", () => {
+			assert.strictEqual(getYamlFrontMatterRange(""), undefined);
+		});
+
+		test("should handle CRLF line endings", () => {
+			const text = "---\r\ntitle: Test\r\n---\r\nbody\r\n";
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			assert.strictEqual(range!.start, 0);
+			assert.strictEqual(text.slice(range!.start, range!.end), "---\r\ntitle: Test\r\n---\r");
+		});
+
+		test("should cover multi-line block scalars within the front matter", () => {
+			const text = [
+				"---",
+				"format: typst",
+				"include-before-body:",
+				"  - text: |",
+				"      #show raw.where(block: false): it => {",
+				"        let text = it.text();",
+				"        it",
+				"      }",
+				"---",
+				"body",
+			].join("\n");
+			const range = getYamlFrontMatterRange(text);
+			assert.ok(range);
+			const closingFenceOffset = text.lastIndexOf("---");
+			assert.ok(closingFenceOffset >= range!.start && closingFenceOffset < range!.end);
 		});
 	});
 

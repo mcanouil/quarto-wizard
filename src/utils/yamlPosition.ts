@@ -109,6 +109,93 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 }
 
 /**
+ * Find all inline code span regions in the document text.
+ *
+ * Inline code spans are delimited by matching backtick runs of equal length
+ * (CommonMark §6.1).  A backtick run is a maximal sequence of backtick
+ * characters; the opening run defines the closing run length.  Backslashes
+ * do not escape backticks for code-span purposes.
+ *
+ * The returned ranges include the opening and closing backtick runs so a
+ * `{...}` attribute that immediately follows the closing backticks (e.g.
+ * `` `code`{=html} ``) remains outside the range and is still extracted as
+ * a real attribute.
+ *
+ * Positions inside fenced code blocks are skipped because backticks there
+ * have no inline-span semantics.
+ *
+ * @param text - The full document text.
+ * @param fencedRanges - Pre-computed fenced code block ranges to skip.
+ * @returns An array of ranges sorted by start offset.
+ */
+export function getInlineCodeSpanRanges(text: string, fencedRanges: TextRange[]): TextRange[] {
+	const ranges: TextRange[] = [];
+	const len = text.length;
+	let i = 0;
+
+	while (i < len) {
+		const fenced = findContainingRange(fencedRanges, i);
+		if (fenced) {
+			i = fenced.end;
+			continue;
+		}
+
+		if (text[i] !== "`") {
+			i++;
+			continue;
+		}
+
+		const openStart = i;
+		while (i < len && text[i] === "`") {
+			i++;
+		}
+		const runLen = i - openStart;
+
+		// Search forward for a closing run of the same length.  When no
+		// matching run is found, `i` already points past the opening run
+		// and the outer loop resumes scanning from there.
+		let j = i;
+		while (j < len) {
+			const innerFenced = findContainingRange(fencedRanges, j);
+			if (innerFenced) {
+				j = innerFenced.end;
+				continue;
+			}
+			if (text[j] !== "`") {
+				j++;
+				continue;
+			}
+			const closeStart = j;
+			while (j < len && text[j] === "`") {
+				j++;
+			}
+			if (j - closeStart === runLen) {
+				ranges.push({ start: openStart, end: j });
+				i = j;
+				break;
+			}
+		}
+	}
+
+	return ranges;
+}
+
+/**
+ * Find the first range that contains the given offset, or undefined.
+ */
+function findContainingRange(ranges: TextRange[], offset: number): TextRange | undefined {
+	for (const range of ranges) {
+		if (offset >= range.start && offset < range.end) {
+			return range;
+		}
+		if (range.start > offset) {
+			return undefined;
+		}
+	}
+	return undefined;
+}
+
+/**
  * Check whether an offset falls inside any of the given code block ranges.
  *
  * @param ranges - Sorted array of code block ranges.
@@ -116,15 +203,48 @@ export function getCodeBlockRanges(text: string): TextRange[] {
  * @returns True if the offset is inside a code block.
  */
 export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean {
-	for (const range of ranges) {
-		if (offset >= range.start && offset < range.end) {
-			return true;
+	return findContainingRange(ranges, offset) !== undefined;
+}
+
+/**
+ * Find the YAML front-matter range in a Quarto document.
+ *
+ * The front matter must open with `---` on line 0 and close with another
+ * `---` on a subsequent line (mirroring `isInYamlRegion`).  The returned
+ * range starts at offset 0 and ends at the last character of the closing
+ * delimiter line (the trailing newline is excluded), so that any `{...}`
+ * content within is fully enclosed.
+ *
+ * @param text - The full document text.
+ * @returns The front-matter range, or `undefined` when no closed front
+ *   matter is present.
+ */
+export function getYamlFrontMatterRange(text: string): TextRange | undefined {
+	const firstNewline = text.indexOf("\n");
+	if (firstNewline === -1) {
+		return undefined;
+	}
+
+	const firstLineEnd = firstNewline > 0 && text[firstNewline - 1] === "\r" ? firstNewline - 1 : firstNewline;
+	if (text.slice(0, firstLineEnd).trim() !== "---") {
+		return undefined;
+	}
+
+	let lineStart = firstNewline + 1;
+	while (lineStart <= text.length) {
+		const nextNewline = text.indexOf("\n", lineStart);
+		const lineEnd = nextNewline === -1 ? text.length : nextNewline;
+		const trimmedEnd = lineEnd > lineStart && text[lineEnd - 1] === "\r" ? lineEnd - 1 : lineEnd;
+		if (text.slice(lineStart, trimmedEnd).trim() === "---") {
+			return { start: 0, end: lineEnd };
 		}
-		if (range.start > offset) {
+		if (nextNewline === -1) {
 			break;
 		}
+		lineStart = nextNewline + 1;
 	}
-	return false;
+
+	return undefined;
 }
 
 /**
