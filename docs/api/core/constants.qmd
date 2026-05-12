@@ -14,6 +14,6 @@ title: "Constants"
 const USER_AGENT: "quarto-wizard" = "quarto-wizard";
 ```
 
-Defined in: [packages/core/src/constants.ts:2](https://github.com/mcanouil/quarto-wizard/blob/a6d7c968c60487fa46e0956f16500e1a6ef49c98/packages/core/src/constants.ts#L2)
+Defined in: [packages/core/src/constants.ts:2](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/core/src/constants.ts#L2)
 
 User-Agent header value for all outgoing HTTP requests.
