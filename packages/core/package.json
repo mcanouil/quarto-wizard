@@ -35,20 +35,20 @@
 		"glob": "^13.0.6",
 		"js-yaml": "^4.1.1",
 		"minimatch": "^10.2.5",
-		"semver": "^7.7.4",
-		"tar": "^7.5.13",
-		"undici": "^8.1.0",
+		"semver": "^7.8.0",
+		"tar": "^7.5.15",
+		"undici": "^8.2.0",
 		"unzipper": "^0.12.3"
 	},
 	"devDependencies": {
 		"@types/archiver": "^7.0.0",
 		"@types/js-yaml": "^4.0.9",
-		"@types/node": "^25.6.0",
+		"@types/node": "^25.7.0",
 		"@types/semver": "^7.7.1",
 		"@types/unzipper": "^0.10.11",
-		"@vitest/coverage-v8": "^4.1.4",
-		"archiver": "^7.0.1",
-		"typescript": "^6.0.2",
+		"@vitest/coverage-v8": "^4.1.6",
+		"archiver": "^8.0.0",
+		"typescript": "^6.0.3",
 		"vitest": "^4.1.4"
 	},
 	"engines": {
