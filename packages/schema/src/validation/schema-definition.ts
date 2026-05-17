@@ -132,8 +132,16 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 	const findings: SchemaDefinitionFinding[] = [];
 	const root = parsed as Record<string, unknown>;
 
-	const rawSchemaUri = typeof root["$schema"] === "string" ? (root["$schema"] as string) : undefined;
-	if (rawSchemaUri && !isSupportedSchemaUri(rawSchemaUri)) {
+	const schemaUriValue = root["$schema"];
+	const rawSchemaUri = typeof schemaUriValue === "string" ? schemaUriValue : undefined;
+	if (schemaUriValue !== undefined && typeof schemaUriValue !== "string") {
+		findings.push({
+			message: '"$schema" must be a string URI.',
+			severity: "error",
+			code: "invalid-schema-uri-type",
+			keyPath: "$schema",
+		});
+	} else if (rawSchemaUri && !isSupportedSchemaUri(rawSchemaUri)) {
 		findings.push({
 			message: `Unrecognised $schema URI "${rawSchemaUri}"; validating as v1.`,
 			severity: "warning",

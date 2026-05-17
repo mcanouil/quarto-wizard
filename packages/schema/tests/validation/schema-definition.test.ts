@@ -640,6 +640,11 @@ describe("validateSchemaDefinition integration", () => {
 		expect(findings.some((f) => f.code === "unknown-schema-version")).toBe(true);
 	});
 
+	it("warns when $schema is set but not a string", () => {
+		const findings = validateSchemaDefinition(JSON.stringify({ $schema: 42, options: {} }), "json");
+		expect(findings.some((f) => f.code === "invalid-schema-uri-type")).toBe(true);
+	});
+
 	it("does not warn when $schema is absent", () => {
 		const findings = validateSchemaDefinition(JSON.stringify({ options: {} }), "json");
 		expect(findings.filter((f) => f.code === "unknown-schema-version")).toHaveLength(0);

@@ -181,7 +181,11 @@ export const SCHEMA_VERSION_URI = SCHEMA_V1_VERSION_URI;
  */
 export const SUPPORTED_SCHEMA_VERSIONS = new Set([SCHEMA_V1_VERSION_URI, SCHEMA_V2_VERSION_URI]);
 
-/** Identifier for which schema version an instance file declares. */
+/**
+ * Identifier for which schema version an instance file declares.
+ * `"v1"` corresponds to {@link SCHEMA_V1_VERSION_URI},
+ * `"v2"` to {@link SCHEMA_V2_VERSION_URI}.
+ */
 export type SchemaVersion = "v1" | "v2";
 
 /**
