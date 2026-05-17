@@ -636,8 +636,12 @@ For every field use the following properties where applicable:
   `null`, or `content` (the last only for shortcode arguments that
   receive Pandoc content).
   Use `integer` when only whole numbers are valid.
-  When a field accepts multiple types, use an array
-  (e.g., `type: [string, number]` or `type: [string, "null"]`).
+  When a field accepts multiple types, express the union with an
+  array on `type`: e.g. `type: [string, number]` or
+  `type: [string, "null"]`.
+  Do NOT use JSON Schema combinators such as `oneOf`, `anyOf`,
+  `allOf`, or `not` for type unions; they are not part of this
+  vocabulary and will be flagged as unknown properties.
 - `required`: set to `true` only when the code raises an error or
   returns early for missing values.
 - `default`: the fallback value used in the code.
