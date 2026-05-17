@@ -2,9 +2,17 @@
 
 ## Unreleased
 
+### New Features
+
+- feat: support a v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json`. v2 uses JSON Schema canonical names exclusively (`minimum`, `maximum`, `multipleOf`, `additionalProperties`, `propertyNames`, `dependentRequired`, `contentEncoding`, `contentMediaType`, `replaceWith`, ...), drops `pattern-exact` in favour of `^...$` anchors in the pattern itself, and lets shortcode entries declare a parent-level `required: [name1, ...]` array. v1 schemas keep working under the v1 URI; the runtime dispatches on the instance `$schema` URI.
+- feat: extend the v1 schema vocabulary with new optional field properties: `title`, `examples`, `format`, `null` type, `multiple-of`, `additional-properties`, `property-names`, `dependent-required`, `content-encoding`, `content-media-type`. `completion.type: directory` is now recognised alongside `file` / `color` / ... .
+- feat: `$schema:` completion in `_schema.yml` offers both the v1 and v2 URIs (v2 preferred).
+
 ### Bug Fixes
 
 - fix: discover extension schemas across nested Quarto projects. YAML completion, hover, diagnostics, shortcode completion, element attribute completion, and snippet completion now resolve schemas through each document's nearest enclosing project root instead of only the workspace folder, so extensions installed in sub-projects (for example `repo/subProj/_extensions/...`) populate IntelliSense for documents inside that sub-project.
+- fix: report an `unknown-schema-version` warning when a `_schema.yml` declares a `$schema` URI that is not one of the supported versions, and an `invalid-schema-uri-type` error when `$schema` is set to a non-string value, instead of silently validating against v1.
+- fix: flag stray `name:` on a field descriptor outside a shortcode argument (previously silently accepted); flag unknown keys on `classes.*` entries; report the camelCase keyPath in `invalid-property-names` when the author used `propertyNames` rather than `property-names`; warn when a single descriptor sets both the camelCase and kebab-case form of the same keyword (v1 only); reject `type: content` outside shortcode arguments; require shortcode positional arguments to declare a `name`.
 
 ## 3.0.1 (2026-05-12)
 

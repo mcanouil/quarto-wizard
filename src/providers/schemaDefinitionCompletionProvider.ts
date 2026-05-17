@@ -6,7 +6,8 @@ import {
 	ALLOWED_FIELD_PROPERTIES,
 	ALLOWED_TYPES,
 	ALLOWED_SHORTCODE_KEYS,
-	SCHEMA_VERSION_URI,
+	SCHEMA_V1_VERSION_URI,
+	SCHEMA_V2_VERSION_URI,
 	fieldDescriptorMetadata,
 	shortcodeEntryMetadata,
 	rootKeyMetadata,
@@ -402,10 +403,17 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				});
 			}
 			case "schema-uri": {
-				const item = new vscode.CompletionItem(SCHEMA_VERSION_URI, vscode.CompletionItemKind.Constant);
-				item.insertText = ` ${SCHEMA_VERSION_URI}`;
-				item.filterText = SCHEMA_VERSION_URI;
-				return [item];
+				const uris: { uri: string; sortText: string }[] = [
+					{ uri: SCHEMA_V2_VERSION_URI, sortText: "0" },
+					{ uri: SCHEMA_V1_VERSION_URI, sortText: "1" },
+				];
+				return uris.map(({ uri, sortText }) => {
+					const item = new vscode.CompletionItem(uri, vscode.CompletionItemKind.Constant);
+					item.insertText = ` ${uri}`;
+					item.filterText = uri;
+					item.sortText = sortText;
+					return item;
+				});
 			}
 		}
 	}
