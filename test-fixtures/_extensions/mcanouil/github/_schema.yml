@@ -1,0 +1,32 @@
+# _schema.yml for "github" filter extension
+# Describes options for IDE tooling and runtime validation.
+#
+# Note: This extension has been superseded by the "gitlink" extension.
+
+# Extension-level metadata options.
+# Configured in _quarto.yml, _metadata.yml, or document front matter:
+#   extensions:
+#     github:
+#       repository-name: "owner/repo"
+#       base-url: "https://github.com"
+
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json
+
+options:
+  repository-name:
+    type: string
+    description: "GitHub repository in 'owner/repo' format. Auto-detected from git remote if not set."
+  base-url:
+    type: string
+    default: "https://github.com"
+    description: "Base URL for the GitHub instance."
+  github-repository-name:
+    type: string
+    description: "Deprecated. Use 'repository-name' instead."
+    deprecated:
+      replace-with: repository-name
+  github-base-url:
+    type: string
+    description: "Deprecated. Use 'base-url' instead."
+    deprecated:
+      replace-with: base-url
