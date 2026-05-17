@@ -126,7 +126,7 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 
 	// Prime the registry from already-open .qmd documents in one batched pass:
 	// invalidate each affected root once instead of N times.
-	void (async () => {
+	const primeOpenQmdDocuments = async () => {
 		const results = await Promise.all(vscode.workspace.textDocuments.map(refreshQmdSource));
 		const changedRoots = new Set<string>();
 		for (const root of results) {
@@ -140,7 +140,10 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 		if (changedRoots.size > 0) {
 			diagnosticsProvider.revalidateAll();
 		}
-	})();
+	};
+	primeOpenQmdDocuments().catch((error) =>
+		logMessage(`Failed to prime metadata-files registry: ${String(error)}.`, "warn"),
+	);
 
 	// Workspace folder changes can invalidate project-root identity; rebuild lazily.
 	context.subscriptions.push(

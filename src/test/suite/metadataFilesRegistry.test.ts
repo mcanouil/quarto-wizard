@@ -183,6 +183,37 @@ suite("Metadata Files Registry Test Suite", () => {
 		assert.strictEqual(files.size, 0);
 	});
 
+	test("refreshSource awaits in-flight build before mutating", async () => {
+		const sourcePath = path.join(tempDir, "_quarto.yml");
+		writeFile(sourcePath, "metadata-files:\n  - _a.yml\n  - _b.yml\n");
+
+		// Hold findFiles open until both calls have begun, so the lazy build is
+		// guaranteed to overlap the targeted refresh.  Without the in-flight
+		// await in refreshSource, the two mutations interleave on
+		// state.contributions for the same source.
+		let releaseFindFiles!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			releaseFindFiles = resolve;
+		});
+		const baseline = vscode.workspace.findFiles;
+		vscode.workspace.findFiles = (async (...args: Parameters<typeof vscode.workspace.findFiles>) => {
+			await gate;
+			return baseline(...args);
+		}) as typeof vscode.workspace.findFiles;
+
+		const lazyBuild = getMetadataFiles(tempDir);
+		// Kick the targeted refresh while the build is still pending.
+		const refresh = refreshSource(tempDir, sourcePath);
+		releaseFindFiles();
+
+		await Promise.all([lazyBuild, refresh]);
+
+		const finalFiles = await getMetadataFiles(tempDir);
+		assert.strictEqual(finalFiles.size, 2);
+		assert.ok(finalFiles.has(path.normalize(path.join(tempDir, "_a.yml"))));
+		assert.ok(finalFiles.has(path.normalize(path.join(tempDir, "_b.yml"))));
+	});
+
 	test("isRelevantYaml accepts canonical files and registered metadata files", async () => {
 		writeFile(path.join(tempDir, "_quarto.yml"), "metadata-files:\n  - _sidebar.yml\n");
 		await getMetadataFiles(tempDir);

@@ -277,6 +277,12 @@ function collectIncluded(state: RootState): Set<string> {
 export async function refreshSource(projectRoot: string, sourceFsPath: string): Promise<boolean> {
 	const normalisedRoot = normalisePath(projectRoot);
 	const state = getOrCreateState(normalisedRoot);
+	// Wait for any in-flight lazy build so its parsed contributions land first;
+	// otherwise this targeted refresh and the build can interleave mutations on
+	// `state.contributions` for the same source.
+	if (state.inFlight) {
+		await state.inFlight;
+	}
 	// Mark as initialised: subsequent getMetadataFiles must not trigger a full rebuild
 	// that would race against this targeted refresh.
 	state.initialised = true;
