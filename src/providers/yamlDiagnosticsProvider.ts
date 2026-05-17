@@ -8,6 +8,7 @@ import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
+import { isRelevantYaml } from "../utils/metadataFilesRegistry";
 
 /**
  * Validate a single value against a field descriptor, returning error messages.
@@ -180,19 +181,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 	}
 
 	private isRelevantDocument(document: vscode.TextDocument): boolean {
-		const fileName = document.fileName;
-		if (document.languageId === "quarto" || fileName.endsWith(".qmd")) {
-			return true;
-		}
-		if (document.languageId === "yaml") {
-			return (
-				fileName.endsWith("_quarto.yml") ||
-				fileName.endsWith("_quarto.yaml") ||
-				fileName.endsWith("_metadata.yml") ||
-				fileName.endsWith("_metadata.yaml")
-			);
-		}
-		return false;
+		return isRelevantYaml(document);
 	}
 
 	private async validateDocument(document: vscode.TextDocument): Promise<void> {

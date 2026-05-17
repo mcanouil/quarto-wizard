@@ -8,7 +8,8 @@ import { SchemaDiagnosticsProvider } from "./schemaDiagnosticsProvider";
 import { SchemaDefinitionCompletionProvider, SCHEMA_DEFINITION_SELECTOR } from "./schemaDefinitionCompletionProvider";
 import { logMessage } from "../utils/log";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
-import { findOwningProjectRootSync } from "../utils/projectRootsRegistry";
+import { findOwningProjectRoot, findOwningProjectRootSync } from "../utils/projectRootsRegistry";
+import { invalidateMetadataFiles, isQmdFile, refreshSource } from "../utils/metadataFilesRegistry";
 
 /**
  * Register YAML completion and diagnostics providers for Quarto
@@ -69,6 +70,84 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	context.subscriptions.push(schemaWatcher.onDidCreate(invalidateAndRevalidate));
 	context.subscriptions.push(schemaWatcher.onDidDelete(invalidateAndRevalidate));
 	context.subscriptions.push(schemaWatcher);
+
+	const applyMetadataChange = (owningRoot: string) => {
+		invalidateWorkspaceSchemaIndex(owningRoot);
+		diagnosticsProvider.revalidateAll();
+	};
+
+	// Watch Quarto config sources for changes in `metadata-files:` entries.
+	const metadataSourceWatcher = vscode.workspace.createFileSystemWatcher("**/_{quarto,metadata}.{yml,yaml}");
+	const refreshMetadataSource = async (uri: vscode.Uri) => {
+		if (uri.scheme !== "file") {
+			return;
+		}
+		const owningRoot = findOwningProjectRootSync(uri.fsPath);
+		if (!owningRoot) {
+			return;
+		}
+		const changed = await refreshSource(owningRoot, uri.fsPath);
+		if (!changed) {
+			return;
+		}
+		applyMetadataChange(owningRoot);
+		logMessage(`Metadata-files registry refreshed for ${uri.fsPath}.`, "debug");
+	};
+	context.subscriptions.push(metadataSourceWatcher.onDidChange(refreshMetadataSource));
+	context.subscriptions.push(metadataSourceWatcher.onDidCreate(refreshMetadataSource));
+	context.subscriptions.push(metadataSourceWatcher.onDidDelete(refreshMetadataSource));
+	context.subscriptions.push(metadataSourceWatcher);
+
+	// `.qmd` front-matter can also list metadata-files; refresh on save/open.
+	// Uses the async project-root lookup so first-open during activation succeeds
+	// before tree-view discovery has populated the sync snapshot.
+	const refreshQmdSource = async (document: vscode.TextDocument): Promise<string | undefined> => {
+		if (document.uri.scheme !== "file") {
+			return undefined;
+		}
+		if (document.languageId !== "quarto" && !isQmdFile(document.fileName)) {
+			return undefined;
+		}
+		const owningRoot = await findOwningProjectRoot(document.uri);
+		if (!owningRoot) {
+			return undefined;
+		}
+		const changed = await refreshSource(owningRoot, document.uri.fsPath);
+		return changed ? owningRoot : undefined;
+	};
+	const refreshQmdAndInvalidate = async (document: vscode.TextDocument) => {
+		const changedRoot = await refreshQmdSource(document);
+		if (changedRoot) {
+			applyMetadataChange(changedRoot);
+		}
+	};
+	context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(refreshQmdAndInvalidate));
+	context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(refreshQmdAndInvalidate));
+
+	// Prime the registry from already-open .qmd documents in one batched pass:
+	// invalidate each affected root once instead of N times.
+	void (async () => {
+		const results = await Promise.all(vscode.workspace.textDocuments.map(refreshQmdSource));
+		const changedRoots = new Set<string>();
+		for (const root of results) {
+			if (root) {
+				changedRoots.add(root);
+			}
+		}
+		for (const root of changedRoots) {
+			invalidateWorkspaceSchemaIndex(root);
+		}
+		if (changedRoots.size > 0) {
+			diagnosticsProvider.revalidateAll();
+		}
+	})();
+
+	// Workspace folder changes can invalidate project-root identity; rebuild lazily.
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeWorkspaceFolders(() => {
+			invalidateMetadataFiles();
+		}),
+	);
 
 	logMessage("YAML completion, hover, and diagnostics providers registered.", "debug");
 }
