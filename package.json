@@ -83,7 +83,7 @@
 		"docs:preview": "npm run docs:api && cd docs && quarto preview",
 		"docs:clean": "rm -rf docs/api docs/_site",
 		"docs:format": "prettier --write \"docs/**/*.{qmd,yml}\"",
-		"update:deps": "npx npm-check-updates -u --reject @types/vscode && npm install"
+		"update:deps": "npx npm-check-updates -u --reject @types/vscode,archiver --workspaces --root && npm install"
 	},
 	"dependencies": {
 		"@quarto-wizard/core": "*",
