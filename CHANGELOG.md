@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- fix: discover extension schemas across nested Quarto projects. YAML completion, hover, diagnostics, shortcode completion, element attribute completion, and snippet completion now resolve schemas through each document's nearest enclosing project root instead of only the workspace folder, so extensions installed in sub-projects (for example `repo/subProj/_extensions/...`) populate IntelliSense for documents inside that sub-project.
+
 ## 3.0.1 (2026-05-12)
 
 ### Bug Fixes
