@@ -11,6 +11,10 @@ import { discoverQuartoProjectRoots, isInside, type QuartoProjectRoot } from "./
 let currentRoots: readonly QuartoProjectRoot[] = [];
 let initialised = false;
 let inFlight: Promise<readonly QuartoProjectRoot[]> | undefined;
+// Bumped by `setProjectRoots` and `invalidateProjectRoots` so a queued
+// `ensureProjectRoots` continuation from an earlier generation cannot
+// overwrite state written after it started.
+let generation = 0;
 
 /**
  * Returns the cached snapshot, running discovery once if needed.
@@ -24,10 +28,13 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
 		return inFlight;
 	}
 	const folders = vscode.workspace.workspaceFolders ?? [];
+	const startedAt = generation;
 	inFlight = discoverQuartoProjectRoots(folders)
 		.then((roots) => {
-			currentRoots = roots;
-			initialised = true;
+			if (generation === startedAt) {
+				currentRoots = roots;
+				initialised = true;
+			}
 			return currentRoots;
 		})
 		.finally(() => {
@@ -44,6 +51,7 @@ export function setProjectRoots(roots: readonly QuartoProjectRoot[]): void {
 	currentRoots = roots;
 	initialised = true;
 	inFlight = undefined;
+	generation += 1;
 }
 
 /**
@@ -54,6 +62,7 @@ export function invalidateProjectRoots(): void {
 	currentRoots = [];
 	initialised = false;
 	inFlight = undefined;
+	generation += 1;
 }
 
 /**

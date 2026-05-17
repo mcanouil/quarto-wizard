@@ -19,8 +19,20 @@ suite("Project Roots Registry Test Suite", () => {
 	const nestedADeep = makeRoot(workspace, "subA", "deeper");
 	const nestedB = makeRoot(workspace, "subB");
 
+	let originalFindFiles: typeof vscode.workspace.findFiles;
+	let originalWorkspaceFoldersDescriptor: PropertyDescriptor | undefined;
+
+	setup(() => {
+		originalFindFiles = vscode.workspace.findFiles;
+		originalWorkspaceFoldersDescriptor = Object.getOwnPropertyDescriptor(vscode.workspace, "workspaceFolders");
+	});
+
 	teardown(() => {
 		invalidateProjectRoots();
+		vscode.workspace.findFiles = originalFindFiles;
+		if (originalWorkspaceFoldersDescriptor) {
+			Object.defineProperty(vscode.workspace, "workspaceFolders", originalWorkspaceFoldersDescriptor);
+		}
 	});
 
 	test("findOwningProjectRoot returns the deepest matching root", async () => {
@@ -83,5 +95,35 @@ suite("Project Roots Registry Test Suite", () => {
 		invalidateProjectRoots();
 
 		assert.strictEqual(findOwningProjectRootSync(path.join(nestedA.fsPath, "doc.qmd")), undefined);
+	});
+
+	test("setProjectRoots wins over an older in-flight ensureProjectRoots discovery", async () => {
+		// Force `ensureProjectRoots` down the discovery branch by leaving state uninitialised.
+		invalidateProjectRoots();
+
+		Object.defineProperty(vscode.workspace, "workspaceFolders", {
+			get: () => [workspace],
+			configurable: true,
+		});
+
+		// Hold discovery open: returning no files means the workspace folder root falls back
+		// to itself, so without the race fix the `.then` would set `currentRoots` to a
+		// fallback `[workspaceRoot]` snapshot — clobbering whatever `setProjectRoots` wrote.
+		let releaseFindFiles: () => void = () => undefined;
+		const blockUntil = new Promise<void>((resolve) => {
+			releaseFindFiles = resolve;
+		});
+		vscode.workspace.findFiles = (() => blockUntil.then(() => [] as vscode.Uri[])) as typeof vscode.workspace.findFiles;
+
+		const pending = ensureProjectRoots();
+		setProjectRoots([nestedADeep]);
+		releaseFindFiles();
+		const resolved = await pending;
+
+		assert.deepStrictEqual(
+			resolved.map((root) => root.fsPath),
+			[nestedADeep.fsPath],
+		);
+		assert.strictEqual(findOwningProjectRootSync(path.join(nestedADeep.fsPath, "doc.qmd")), nestedADeep.fsPath);
 	});
 });
