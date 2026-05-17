@@ -7,6 +7,7 @@ import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePat
 import { hasCompletableValues } from "../utils/schemaDocumentation";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
+import { isRelevantYaml } from "../utils/metadataFilesRegistry";
 import { logMessage } from "../utils/log";
 
 /**
@@ -21,6 +22,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 		position: vscode.Position,
 	): Promise<vscode.CompletionItem[] | undefined> {
 		try {
+			if (!isRelevantYaml(document)) {
+				return undefined;
+			}
+
 			const lines = document.getText().split("\n");
 			const languageId = document.languageId;
 
@@ -409,10 +414,12 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 }
 
 /**
- * File patterns for YAML documents that may contain Quarto configuration.
+ * Document selector for schema-driven YAML providers.  Targets `.qmd` files
+ * and any YAML file; per-document relevance (canonical `_quarto.*`/
+ * `_metadata.*` filenames or `metadata-files:` registered paths) is enforced
+ * inside each provider via {@link isRelevantYaml}.
  */
 export const YAML_DOCUMENT_SELECTOR: vscode.DocumentSelector = [
-	{ language: "yaml", pattern: "**/_quarto.{yml,yaml}" },
-	{ language: "yaml", pattern: "**/_metadata.{yml,yaml}" },
+	{ language: "yaml", scheme: "file" },
 	{ language: "quarto", pattern: "**/*.qmd" },
 ];

@@ -6,6 +6,7 @@ import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
+import { isRelevantYaml } from "../utils/metadataFilesRegistry";
 
 /**
  * Provides hover information for Quarto extension options
@@ -16,6 +17,10 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 
 	async provideHover(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Hover | null> {
 		try {
+			if (!isRelevantYaml(document)) {
+				return null;
+			}
+
 			const lines = document.getText().split("\n");
 			const languageId = document.languageId;
 
