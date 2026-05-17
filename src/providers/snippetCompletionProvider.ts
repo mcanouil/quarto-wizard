@@ -4,6 +4,7 @@ import { snippetNamespace, qualifySnippetPrefix } from "@quarto-wizard/snippets"
 import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
+import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 
 /**
  * Provides snippet completions from installed Quarto extensions.
@@ -44,36 +45,36 @@ class SnippetCompletionProvider implements vscode.CompletionItemProvider {
 
 	private async collectAllSnippets(): Promise<vscode.CompletionItem[]> {
 		const items: vscode.CompletionItem[] = [];
-		const workspaceFolders = vscode.workspace.workspaceFolders;
+		const roots = await ensureProjectRoots();
+		const perRoot = await Promise.all(
+			roots.map(async (root) => {
+				try {
+					return await getInstalledExtensionsCached(root.fsPath);
+				} catch (error) {
+					logMessage(`Failed to discover snippets in ${root.fsPath}: ${getErrorMessage(error)}.`, "warn");
+					return [];
+				}
+			}),
+		);
 
-		if (!workspaceFolders) {
-			return items;
-		}
+		for (const extensions of perRoot) {
+			for (const ext of extensions) {
+				const snippets = this.snippetCache.get(ext.directory);
+				if (!snippets) {
+					continue;
+				}
 
-		for (const folder of workspaceFolders) {
-			try {
-				const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
+				const namespace = snippetNamespace(ext.id);
 
-				for (const ext of extensions) {
-					const snippets = this.snippetCache.get(ext.directory);
-					if (!snippets) {
-						continue;
-					}
+				for (const [name, snippet] of Object.entries(snippets)) {
+					const prefixes = Array.isArray(snippet.prefix) ? snippet.prefix : [snippet.prefix];
 
-					const namespace = snippetNamespace(ext.id);
-
-					for (const [name, snippet] of Object.entries(snippets)) {
-						const prefixes = Array.isArray(snippet.prefix) ? snippet.prefix : [snippet.prefix];
-
-						for (const rawPrefix of prefixes) {
-							const qualifiedPrefix = qualifySnippetPrefix(namespace, rawPrefix);
-							const item = this.buildCompletionItem(name, snippet, qualifiedPrefix, ext.id.name);
-							items.push(item);
-						}
+					for (const rawPrefix of prefixes) {
+						const qualifiedPrefix = qualifySnippetPrefix(namespace, rawPrefix);
+						const item = this.buildCompletionItem(name, snippet, qualifiedPrefix, ext.id.name);
+						items.push(item);
 					}
 				}
-			} catch (error) {
-				logMessage(`Failed to discover snippets in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`, "warn");
 			}
 		}
 

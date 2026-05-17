@@ -5,6 +5,7 @@ import { formatExtensionId, getExtensionTypes, type InstalledExtension, getError
 import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
 
 /**
  * Provides hover information for Quarto extension options
@@ -38,12 +39,11 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 				}
 			}
 
-			const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-			if (!workspaceFolder) {
+			const projectDir = await findOwningProjectRoot(document.uri);
+			if (!projectDir) {
 				return null;
 			}
 
-			const projectDir = workspaceFolder.uri.fsPath;
 			const { schemaMap, extMap } = await getWorkspaceSchemaIndex(projectDir, this.schemaCache);
 			const installedExtensions = Array.from(new Set(extMap.values()));
 

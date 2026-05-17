@@ -6,6 +6,7 @@ import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPa
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { hasCompletableValues } from "../utils/schemaDocumentation";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
 import { logMessage } from "../utils/log";
 
 /**
@@ -31,12 +32,11 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			const isBlankLine = currentLineText.trim() === "";
 			const keyPath = getYamlKeyPath(lines, position.line, languageId, isBlankLine ? position.character : undefined);
 
-			const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-			if (!workspaceFolder) {
+			const projectDir = await findOwningProjectRoot(document.uri);
+			if (!projectDir) {
 				return undefined;
 			}
 
-			const projectDir = workspaceFolder.uri.fsPath;
 			const { schemaMap, extMap } = await getWorkspaceSchemaIndex(projectDir, this.schemaCache);
 
 			if (schemaMap.size === 0) {

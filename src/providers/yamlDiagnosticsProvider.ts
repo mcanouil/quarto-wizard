@@ -7,6 +7,7 @@ import { getYamlIndentLevel } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
 
 /**
  * Validate a single value against a field descriptor, returning error messages.
@@ -200,12 +201,12 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		const version = ++this.validationVersion;
-		const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
-		if (!workspaceFolder) {
+		const projectDir = await findOwningProjectRoot(document.uri);
+		if (!projectDir) {
+			this.setDiagnostics(document, []);
 			return;
 		}
 
-		const projectDir = workspaceFolder.uri.fsPath;
 		const text = document.getText();
 		const lines = text.split("\n");
 		const languageId = document.languageId;

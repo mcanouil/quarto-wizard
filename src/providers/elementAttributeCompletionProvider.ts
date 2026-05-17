@@ -3,6 +3,7 @@ import type { FieldDescriptor, SchemaCache, ExtensionSchema } from "@quarto-wiza
 import { typeIncludes } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
+import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
@@ -56,40 +57,40 @@ export type ClassDefinitions = Record<string, ClassWithSource>;
  */
 export async function collectElementAttributeSchemas(schemaCache: SchemaCache): Promise<ElementAttributeSchemas> {
 	const result: ElementAttributeSchemas = {};
-	const workspaceFolders = vscode.workspace.workspaceFolders;
+	const roots = await ensureProjectRoots();
+	const perRoot = await Promise.all(
+		roots.map(async (root) => {
+			try {
+				return await getInstalledExtensionsCached(root.fsPath);
+			} catch (error) {
+				logMessage(
+					`Failed to discover element attribute schemas in ${root.fsPath}: ${getErrorMessage(error)}.`,
+					"warn",
+				);
+				return [];
+			}
+		}),
+	);
 
-	if (!workspaceFolders) {
-		return result;
-	}
+	for (const extensions of perRoot) {
+		for (const ext of extensions) {
+			const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
+			if (!schema?.attributes) {
+				continue;
+			}
 
-	for (const folder of workspaceFolders) {
-		try {
-			const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
+			const source = ext.manifest.title || ext.id.name;
 
-			for (const ext of extensions) {
-				const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
-				if (!schema?.attributes) {
-					continue;
+			for (const [groupName, groupAttrs] of Object.entries(schema.attributes)) {
+				if (!result[groupName]) {
+					result[groupName] = {};
 				}
-
-				const source = ext.manifest.title || ext.id.name;
-
-				for (const [groupName, groupAttrs] of Object.entries(schema.attributes)) {
-					if (!result[groupName]) {
-						result[groupName] = {};
-					}
-					for (const [attrName, descriptor] of Object.entries(groupAttrs)) {
-						if (!(attrName in result[groupName])) {
-							result[groupName][attrName] = { descriptor, source };
-						}
+				for (const [attrName, descriptor] of Object.entries(groupAttrs)) {
+					if (!(attrName in result[groupName])) {
+						result[groupName][attrName] = { descriptor, source };
 					}
 				}
 			}
-		} catch (error) {
-			logMessage(
-				`Failed to discover element attribute schemas in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`,
-				"warn",
-			);
 		}
 	}
 
@@ -105,51 +106,48 @@ export async function collectElementAttributeSchemas(schemaCache: SchemaCache): 
  */
 export async function collectClassDefinitions(schemaCache: SchemaCache): Promise<ClassDefinitions> {
 	const result: ClassDefinitions = {};
-	const workspaceFolders = vscode.workspace.workspaceFolders;
+	const roots = await ensureProjectRoots();
+	const perRoot = await Promise.all(
+		roots.map(async (root) => {
+			try {
+				return await getInstalledExtensionsCached(root.fsPath);
+			} catch (error) {
+				logMessage(`Failed to discover class definitions in ${root.fsPath}: ${getErrorMessage(error)}.`, "warn");
+				return [];
+			}
+		}),
+	);
 
-	if (!workspaceFolders) {
-		return result;
-	}
+	for (const extensions of perRoot) {
+		for (const ext of extensions) {
+			const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
+			if (!schema) {
+				continue;
+			}
 
-	for (const folder of workspaceFolders) {
-		try {
-			const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
+			const source = ext.manifest.title || ext.id.name;
 
-			for (const ext of extensions) {
-				const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
-				if (!schema) {
-					continue;
-				}
-
-				const source = ext.manifest.title || ext.id.name;
-
-				// Collect explicit class definitions from schema.classes.
-				if (schema.classes) {
-					for (const [className, classDef] of Object.entries(schema.classes)) {
-						if (!(className in result)) {
-							result[className] = {
-								description: classDef.description,
-								source,
-							};
-						}
-					}
-				}
-
-				// Collect implicit class names from schema.attributes group keys,
-				// excluding reserved element-type and catch-all groups.
-				if (schema.attributes) {
-					for (const groupKey of Object.keys(schema.attributes)) {
-						if (RESERVED_GROUP_NAMES.has(groupKey)) {
-							continue;
-						}
-						if (!(groupKey in result)) {
-							result[groupKey] = { source };
-						}
+			if (schema.classes) {
+				for (const [className, classDef] of Object.entries(schema.classes)) {
+					if (!(className in result)) {
+						result[className] = {
+							description: classDef.description,
+							source,
+						};
 					}
 				}
 			}
-		} catch (error) {
-			logMessage(`Failed to discover class definitions in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`, "warn");
+
+			if (schema.attributes) {
+				for (const groupKey of Object.keys(schema.attributes)) {
+					if (RESERVED_GROUP_NAMES.has(groupKey)) {
+						continue;
+					}
+					if (!(groupKey in result)) {
+						result[groupKey] = { source };
+					}
+				}
+			}
 		}
 	}
 

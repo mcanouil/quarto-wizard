@@ -8,6 +8,7 @@ import { SchemaDiagnosticsProvider } from "./schemaDiagnosticsProvider";
 import { SchemaDefinitionCompletionProvider, SCHEMA_DEFINITION_SELECTOR } from "./schemaDefinitionCompletionProvider";
 import { logMessage } from "../utils/log";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import { findOwningProjectRootSync } from "../utils/projectRootsRegistry";
 
 /**
  * Register YAML completion and diagnostics providers for Quarto
@@ -53,9 +54,9 @@ export function registerYamlProviders(context: vscode.ExtensionContext, schemaCa
 	const invalidateAndRevalidate = (uri: vscode.Uri) => {
 		const dir = path.normalize(vscode.Uri.joinPath(uri, "..").fsPath);
 		schemaCache.invalidate(dir);
-		const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-		if (workspaceFolder) {
-			invalidateWorkspaceSchemaIndex(workspaceFolder.uri.fsPath);
+		const owningRoot = uri.scheme === "file" ? findOwningProjectRootSync(uri.fsPath) : undefined;
+		if (owningRoot) {
+			invalidateWorkspaceSchemaIndex(owningRoot);
 		} else {
 			invalidateWorkspaceSchemaIndex();
 		}
