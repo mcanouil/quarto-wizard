@@ -34,13 +34,59 @@ All derivation runs once at module load time.
 ### Variables
 
 - [ALLOWED_FIELD_PROPERTIES](validation.qmd#symbol-variable-allowed-field-properties)
+- [ALLOWED_FIELD_PROPERTIES_V2](validation.qmd#symbol-variable-allowed-field-properties-v2)
 - [ALLOWED_SHORTCODE_KEYS](validation.qmd#symbol-variable-allowed-shortcode-keys)
+- [ALLOWED_SHORTCODE_KEYS_V2](validation.qmd#symbol-variable-allowed-shortcode-keys-v2)
 - [ALLOWED_TOP_LEVEL_KEYS](validation.qmd#symbol-variable-allowed-top-level-keys)
+- [ALLOWED_TOP_LEVEL_KEYS_V2](validation.qmd#symbol-variable-allowed-top-level-keys-v2)
 - [ALLOWED_TYPES](validation.qmd#symbol-variable-allowed-types)
 - [fieldDescriptorMetadata](validation.qmd#symbol-variable-fielddescriptormetadata)
 - [rootKeyMetadata](validation.qmd#symbol-variable-rootkeymetadata)
 - [SCHEMA_META_SCHEMA](validation.qmd#symbol-variable-schema-meta-schema)
+- [SCHEMA_META_SCHEMA_V2](validation.qmd#symbol-variable-schema-meta-schema-v2)
 - [shortcodeEntryMetadata](validation.qmd#symbol-variable-shortcodeentrymetadata)
+
+### Functions
+
+- [allowedSetsFor](validation.qmd#symbol-function-allowedsetsfor)
+
+## allowedSetsFor {#symbol-function-allowedsetsfor}
+
+```{.ts filename="TypeScript"}
+function allowedSetsFor(version): object;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:74](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L74)
+
+Look up the allowed-property sets for a given schema version.
+
+### Parameters
+
+| Parameter | Type             |
+| --------- | ---------------- |
+| `version` | `"v1"` \| `"v2"` |
+
+### Returns
+
+`object`
+
+#### fieldDescriptor {#symbol-function-allowedsetsfor-fielddescriptor}
+
+```{.ts filename="TypeScript"}
+fieldDescriptor: ReadonlySet<string>;
+```
+
+#### shortcodeEntry {#symbol-function-allowedsetsfor-shortcodeentry}
+
+```{.ts filename="TypeScript"}
+shortcodeEntry: ReadonlySet<string>;
+```
+
+#### topLevel {#symbol-function-allowedsetsfor-toplevel}
+
+```{.ts filename="TypeScript"}
+topLevel: ReadonlySet<string>;
+```
 
 ## validateSchemaDefinition {#symbol-function-validateschemadefinition}
 
@@ -48,7 +94,7 @@ All derivation runs once at module load time.
 function validateSchemaDefinition(content, format): SchemaDefinitionFinding[];
 ```
 
-Defined in: [packages/schema/src/validation/schema-definition.ts:57](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L57)
+Defined in: [packages/schema/src/validation/schema-definition.ts:61](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L61)
 
 Validate a schema definition file and return all findings.
 
@@ -71,7 +117,7 @@ Array of validation findings.
 function validateSchemaDefinitionStructure(parsed): SchemaDefinitionFinding[];
 ```
 
-Defined in: [packages/schema/src/validation/schema-definition.ts:113](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L113)
+Defined in: [packages/schema/src/validation/schema-definition.ts:117](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L117)
 
 Validate the structure and semantics of a parsed schema definition.
 
@@ -100,7 +146,7 @@ function validateSchemaDefinitionSyntax(content, format):
 };
 ```
 
-Defined in: [packages/schema/src/validation/schema-definition.ts:72](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L72)
+Defined in: [packages/schema/src/validation/schema-definition.ts:76](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L76)
 
 Validate syntax of a schema definition file.
 
@@ -125,7 +171,7 @@ Either an error array or the parsed object.
 
 ## SchemaDefinitionFinding {#symbol-interface-schemadefinitionfinding}
 
-Defined in: [packages/schema/src/validation/schema-definition.ts:27](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L27)
+Defined in: [packages/schema/src/validation/schema-definition.ts:31](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L31)
 
 A single validation finding from schema definition analysis.
 
@@ -133,12 +179,12 @@ A single validation finding from schema definition analysis.
 
 | Property                                  | Type                                                                                   | Description                                                   | Defined in                                                                                                                                                                                                |
 | ----------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-code"></a> `code`         | `string`                                                                               | Machine-readable code identifying the check.                  | [packages/schema/src/validation/schema-definition.ts:33](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L33) |
-| <a id="property-column"></a> `column?`    | `number`                                                                               | Zero-based column number (when available from syntax errors). | [packages/schema/src/validation/schema-definition.ts:37](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L37) |
-| <a id="property-keypath"></a> `keyPath?`  | `string`                                                                               | Dot-separated key path to the problematic location.           | [packages/schema/src/validation/schema-definition.ts:39](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L39) |
-| <a id="property-line"></a> `line?`        | `number`                                                                               | Zero-based line number (when available from syntax errors).   | [packages/schema/src/validation/schema-definition.ts:35](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L35) |
-| <a id="property-message"></a> `message`   | `string`                                                                               | Human-readable description of the issue.                      | [packages/schema/src/validation/schema-definition.ts:29](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L29) |
-| <a id="property-severity"></a> `severity` | [`SchemaDefinitionSeverity`](validation.qmd#symbol-typealias-schemadefinitionseverity) | Severity level.                                               | [packages/schema/src/validation/schema-definition.ts:31](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L31) |
+| <a id="property-code"></a> `code`         | `string`                                                                               | Machine-readable code identifying the check.                  | [packages/schema/src/validation/schema-definition.ts:37](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L37) |
+| <a id="property-column"></a> `column?`    | `number`                                                                               | Zero-based column number (when available from syntax errors). | [packages/schema/src/validation/schema-definition.ts:41](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L41) |
+| <a id="property-keypath"></a> `keyPath?`  | `string`                                                                               | Dot-separated key path to the problematic location.           | [packages/schema/src/validation/schema-definition.ts:43](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L43) |
+| <a id="property-line"></a> `line?`        | `number`                                                                               | Zero-based line number (when available from syntax errors).   | [packages/schema/src/validation/schema-definition.ts:39](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L39) |
+| <a id="property-message"></a> `message`   | `string`                                                                               | Human-readable description of the issue.                      | [packages/schema/src/validation/schema-definition.ts:33](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L33) |
+| <a id="property-severity"></a> `severity` | [`SchemaDefinitionSeverity`](validation.qmd#symbol-typealias-schemadefinitionseverity) | Severity level.                                               | [packages/schema/src/validation/schema-definition.ts:35](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L35) |
 
 ## SchemaDefinitionSeverity {#symbol-typealias-schemadefinitionseverity}
 
@@ -146,7 +192,7 @@ A single validation finding from schema definition analysis.
 type SchemaDefinitionSeverity = "error" | "warning" | "information";
 ```
 
-Defined in: [packages/schema/src/validation/schema-definition.ts:22](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-definition.ts#L22)
+Defined in: [packages/schema/src/validation/schema-definition.ts:26](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-definition.ts#L26)
 
 Severity level for a schema definition finding.
 
@@ -156,9 +202,19 @@ Severity level for a schema definition finding.
 const ALLOWED_FIELD_PROPERTIES: Set<string>;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:50](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L50)
+Defined in: [packages/schema/src/validation/schema-derived.ts:52](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L52)
 
-Allowed properties on a field descriptor (both camelCase and kebab-case).
+Allowed properties on a v1 field descriptor (both camelCase and kebab-case).
+
+## ALLOWED_FIELD_PROPERTIES_V2 {#symbol-variable-allowed-field-properties-v2}
+
+```{.ts filename="TypeScript"}
+const ALLOWED_FIELD_PROPERTIES_V2: Set<string>;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:68](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L68)
+
+Allowed properties on a v2 field descriptor (camelCase only).
 
 ## ALLOWED_SHORTCODE_KEYS {#symbol-variable-allowed-shortcode-keys}
 
@@ -166,9 +222,19 @@ Allowed properties on a field descriptor (both camelCase and kebab-case).
 const ALLOWED_SHORTCODE_KEYS: Set<string>;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:56](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L56)
+Defined in: [packages/schema/src/validation/schema-derived.ts:58](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L58)
 
-Allowed top-level keys inside a shortcode entry.
+Allowed top-level keys inside a v1 shortcode entry.
+
+## ALLOWED_SHORTCODE_KEYS_V2 {#symbol-variable-allowed-shortcode-keys-v2}
+
+```{.ts filename="TypeScript"}
+const ALLOWED_SHORTCODE_KEYS_V2: Set<string>;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:71](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L71)
+
+Allowed top-level keys inside a v2 shortcode entry.
 
 ## ALLOWED_TOP_LEVEL_KEYS {#symbol-variable-allowed-top-level-keys}
 
@@ -176,9 +242,19 @@ Allowed top-level keys inside a shortcode entry.
 const ALLOWED_TOP_LEVEL_KEYS: Set<string>;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:47](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L47)
+Defined in: [packages/schema/src/validation/schema-derived.ts:49](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L49)
 
-Allowed top-level keys in a schema definition file.
+Allowed top-level keys in a v1 schema definition file.
+
+## ALLOWED_TOP_LEVEL_KEYS_V2 {#symbol-variable-allowed-top-level-keys-v2}
+
+```{.ts filename="TypeScript"}
+const ALLOWED_TOP_LEVEL_KEYS_V2: Set<string>;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:65](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L65)
+
+Allowed top-level keys in a v2 schema definition file.
 
 ## ALLOWED_TYPES {#symbol-variable-allowed-types}
 
@@ -186,9 +262,9 @@ Allowed top-level keys in a schema definition file.
 const ALLOWED_TYPES: Set<string>;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:53](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L53)
+Defined in: [packages/schema/src/validation/schema-derived.ts:55](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L55)
 
-Allowed type values for a field descriptor.
+Allowed type values for a field descriptor (same in v1 and v2).
 
 ## fieldDescriptorMetadata {#symbol-variable-fielddescriptormetadata}
 
@@ -196,7 +272,7 @@ Allowed type values for a field descriptor.
 const fieldDescriptorMetadata: object;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:121](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L121)
+Defined in: [packages/schema/src/validation/schema-derived.ts:156](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L156)
 
 ### Type Declaration
 
@@ -248,7 +324,7 @@ yamlHidden: Set<string>;
 const rootKeyMetadata: object;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:173](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L173)
+Defined in: [packages/schema/src/validation/schema-derived.ts:208](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L208)
 
 ### Type Declaration
 
@@ -270,7 +346,15 @@ yamlHidden: Set<string>;
 const SCHEMA_META_SCHEMA: Record<string, unknown> = metaSchema;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:40](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L40)
+Defined in: [packages/schema/src/validation/schema-derived.ts:41](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L41)
+
+## SCHEMA_META_SCHEMA_V2 {#symbol-variable-schema-meta-schema-v2}
+
+```{.ts filename="TypeScript"}
+const SCHEMA_META_SCHEMA_V2: Record<string, unknown> = metaSchemaV2;
+```
+
+Defined in: [packages/schema/src/validation/schema-derived.ts:42](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L42)
 
 ## shortcodeEntryMetadata {#symbol-variable-shortcodeentrymetadata}
 
@@ -278,7 +362,7 @@ Defined in: [packages/schema/src/validation/schema-derived.ts:40](https://github
 const shortcodeEntryMetadata: object;
 ```
 
-Defined in: [packages/schema/src/validation/schema-derived.ts:149](https://github.com/mcanouil/quarto-wizard/blob/adbbb034e9e58e856b2078f3b8c2ba6b29ee7325/packages/schema/src/validation/schema-derived.ts#L149)
+Defined in: [packages/schema/src/validation/schema-derived.ts:184](https://github.com/mcanouil/quarto-wizard/blob/1fa78d62fe1f323bf3cae19d2b69c4be84966eeb/packages/schema/src/validation/schema-derived.ts#L184)
 
 ### Type Declaration
 
