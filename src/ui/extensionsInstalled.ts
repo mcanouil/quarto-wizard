@@ -16,6 +16,7 @@ import {
 	QUARTO_PROJECT_GLOB,
 	EXTENSION_MANIFEST_GLOB,
 } from "../utils/quartoProjectDiscovery";
+import { findOwningProjectRootSync, invalidateProjectRoots, setProjectRoots } from "../utils/projectRootsRegistry";
 import { debounce } from "../utils/debounce";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
@@ -49,12 +50,18 @@ export class ExtensionsInstalled {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,
 		});
-		const invalidateProviderCaches = (workspacePath?: string) => {
-			invalidateInstalledExtensionsCache(workspacePath);
-			invalidateWorkspaceSchemaIndex(workspacePath);
+		const invalidateProviderCaches = (cacheKey?: string) => {
+			invalidateInstalledExtensionsCache(cacheKey);
+			invalidateWorkspaceSchemaIndex(cacheKey);
 		};
 
-		const resolveWorkspacePath = (uri: vscode.Uri): string | undefined => {
+		const resolveCacheKeyForUri = (uri: vscode.Uri): string | undefined => {
+			if (uri.scheme === "file") {
+				const owningRoot = findOwningProjectRootSync(uri.fsPath);
+				if (owningRoot) {
+					return owningRoot;
+				}
+			}
 			return vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
 		};
 
@@ -62,6 +69,7 @@ export class ExtensionsInstalled {
 			const folders = vscode.workspace.workspaceFolders ?? [];
 			try {
 				const roots = await discoverQuartoProjectRoots(folders);
+				setProjectRoots(roots);
 				return this.treeDataProvider.setProjectRoots(roots);
 			} catch (error) {
 				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
@@ -113,7 +121,8 @@ export class ExtensionsInstalled {
 
 		const projectFileWatcher = vscode.workspace.createFileSystemWatcher(QUARTO_PROJECT_GLOB);
 		const onProjectFileChanged = (uri: vscode.Uri) => {
-			invalidateProviderCaches(resolveWorkspacePath(uri));
+			invalidateProviderCaches(resolveCacheKeyForUri(uri));
+			invalidateProjectRoots();
 			refreshProjectRoots();
 		};
 		context.subscriptions.push(projectFileWatcher.onDidCreate(onProjectFileChanged));
@@ -134,8 +143,9 @@ export class ExtensionsInstalled {
 		// promotes it into the detected roots without a manual refresh.
 		const extensionWatcher = vscode.workspace.createFileSystemWatcher(EXTENSION_MANIFEST_GLOB);
 		const onExtensionManifestEvent = (rediscover: boolean) => (uri: vscode.Uri) => {
-			invalidateProviderCaches(resolveWorkspacePath(uri));
+			invalidateProviderCaches(resolveCacheKeyForUri(uri));
 			if (rediscover) {
+				invalidateProjectRoots();
 				refreshProjectRoots();
 			} else {
 				this.treeDataProvider.refresh();
@@ -149,7 +159,7 @@ export class ExtensionsInstalled {
 		// Watch for changes to schema files for real-time tree view updates
 		const schemaWatcher = vscode.workspace.createFileSystemWatcher("**/_extensions/**/_schema.{yml,yaml,json}");
 		const invalidateSchemaAndRefresh = (uri: vscode.Uri) => {
-			invalidateWorkspaceSchemaIndex(resolveWorkspacePath(uri));
+			invalidateWorkspaceSchemaIndex(resolveCacheKeyForUri(uri));
 			schemaCache.invalidate(path.dirname(uri.fsPath));
 			this.treeDataProvider.refresh();
 		};

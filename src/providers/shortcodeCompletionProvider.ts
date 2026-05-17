@@ -1,8 +1,9 @@
-import * as vscode from "vscode";
 import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
+import * as vscode from "vscode";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
+import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
@@ -425,30 +426,30 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
  */
 export async function collectShortcodeSchemas(schemaCache: SchemaCache): Promise<Map<string, ShortcodeSchema>> {
 	const result = new Map<string, ShortcodeSchema>();
-	const workspaceFolders = vscode.workspace.workspaceFolders;
+	const roots = await ensureProjectRoots();
+	const perRoot = await Promise.all(
+		roots.map(async (root) => {
+			try {
+				return await getInstalledExtensionsCached(root.fsPath);
+			} catch (error) {
+				logMessage(`Failed to discover shortcode schemas in ${root.fsPath}: ${getErrorMessage(error)}.`, "warn");
+				return [];
+			}
+		}),
+	);
 
-	if (!workspaceFolders) {
-		return result;
-	}
+	for (const extensions of perRoot) {
+		for (const ext of extensions) {
+			const schema = schemaCache.get(ext.directory);
+			if (!schema?.shortcodes) {
+				continue;
+			}
 
-	for (const folder of workspaceFolders) {
-		try {
-			const extensions = await getInstalledExtensionsCached(folder.uri.fsPath);
-
-			for (const ext of extensions) {
-				const schema = schemaCache.get(ext.directory);
-				if (!schema?.shortcodes) {
-					continue;
-				}
-
-				for (const [name, shortcodeSchema] of Object.entries(schema.shortcodes)) {
-					if (!result.has(name)) {
-						result.set(name, shortcodeSchema);
-					}
+			for (const [name, shortcodeSchema] of Object.entries(schema.shortcodes)) {
+				if (!result.has(name)) {
+					result.set(name, shortcodeSchema);
 				}
 			}
-		} catch (error) {
-			logMessage(`Failed to discover shortcode schemas in ${folder.uri.fsPath}: ${getErrorMessage(error)}.`, "warn");
 		}
 	}
 

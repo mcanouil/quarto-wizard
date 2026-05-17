@@ -262,7 +262,7 @@ async function directoryHasInstalledExtension(extensionsDir: vscode.Uri): Promis
 /**
  * True when `child` is `parent` or lives below it (resolved, normalised path comparison).
  */
-function isInside(parent: string, child: string): boolean {
+export function isInside(parent: string, child: string): boolean {
 	const relative = path.relative(parent, child);
 	if (relative === "") {
 		return true;
