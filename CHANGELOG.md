@@ -7,6 +7,7 @@
 - feat: support a v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json`. v2 uses JSON Schema canonical names exclusively (`minimum`, `maximum`, `multipleOf`, `additionalProperties`, `propertyNames`, `dependentRequired`, `contentEncoding`, `contentMediaType`, `replaceWith`, ...), drops `pattern-exact` in favour of `^...$` anchors in the pattern itself, and lets shortcode entries declare a parent-level `required: [name1, ...]` array. v1 schemas keep working under the v1 URI; the runtime dispatches on the instance `$schema` URI.
 - feat: extend the v1 schema vocabulary with new optional field properties: `title`, `examples`, `format`, `null` type, `multiple-of`, `additional-properties`, `property-names`, `dependent-required`, `content-encoding`, `content-media-type`. `completion.type: directory` is now recognised alongside `file` / `color` / ... .
 - feat: `$schema:` completion in `_schema.yml` offers both the v1 and v2 URIs (v2 preferred).
+- feat: extend schema completion, diagnostics, and hover to YAML files included via `metadata-files:`. Secondary configuration files declared in `_quarto.yml`, `_metadata.yml`, or `.qmd` front-matter now receive the same IntelliSense as canonical Quarto config files.
 
 ### Bug Fixes
 
