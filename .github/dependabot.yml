@@ -5,16 +5,16 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/" # Location of package manifests
-    schedule:
-      interval: "monthly"
-    labels:
-      - "Type: Dependencies :arrow_up:"
-    groups:
-      npm:
-        patterns:
-          - "*"
+  # - package-ecosystem: "npm" # See documentation for possible values
+  #   directory: "/" # Location of package manifests
+  #   schedule:
+  #     interval: "monthly"
+  #   labels:
+  #     - "Type: Dependencies :arrow_up:"
+  #   groups:
+  #     npm:
+  #       patterns:
+  #         - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
