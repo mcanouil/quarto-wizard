@@ -207,14 +207,33 @@ describe("field descriptor validation", () => {
 		expect(findings.some((f) => f.code === "invalid-type")).toBe(true);
 	});
 
-	it("accepts all valid type values", () => {
-		const validTypes = ["string", "number", "integer", "boolean", "array", "object", "content"];
+	it("accepts all valid type values (except content outside shortcode args)", () => {
+		const validTypes = ["string", "number", "integer", "boolean", "array", "object", "null"];
 		for (const t of validTypes) {
 			const findings = validateSchemaDefinitionStructure({
 				options: { f: { type: t } },
 			});
 			expect(findings.filter((f) => f.code === "invalid-type")).toHaveLength(0);
+			expect(findings.filter((f) => f.code === "content-type-outside-shortcode-argument")).toHaveLength(0);
 		}
+	});
+
+	it("rejects content type outside shortcode arguments", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { f: { type: "content" } },
+		});
+		expect(findings.some((f) => f.code === "content-type-outside-shortcode-argument")).toBe(true);
+	});
+
+	it("accepts content type inside shortcode arguments", () => {
+		const findings = validateSchemaDefinitionStructure({
+			shortcodes: {
+				mysc: {
+					arguments: [{ name: "body", type: "content" }],
+				},
+			},
+		});
+		expect(findings.filter((f) => f.code === "content-type-outside-shortcode-argument")).toHaveLength(0);
 	});
 
 	it("accepts array type values", () => {
@@ -482,6 +501,58 @@ describe("semantic checks", () => {
 		});
 		expect(findings.filter((f) => f.code === "invalid-pattern")).toHaveLength(0);
 	});
+
+	it("warns when both camelCase and kebab-case forms of a keyword are present", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { f: { type: "string", minLength: 1, "min-length": 2 } },
+		});
+		expect(findings.some((f) => f.code === "duplicate-alias-keys")).toBe(true);
+	});
+
+	it("reports invalid multiple-of value (not positive)", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { f: { type: "number", "multiple-of": 0 } },
+		});
+		expect(findings.some((f) => f.code === "invalid-multiple-of")).toBe(true);
+	});
+
+	it("accepts positive multiple-of", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { f: { type: "number", "multiple-of": 0.5 } },
+		});
+		expect(findings.filter((f) => f.code === "invalid-multiple-of")).toHaveLength(0);
+	});
+
+	it("reports invalid property-names regex", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: { f: { type: "object", "property-names": "[invalid" } },
+		});
+		expect(findings.some((f) => f.code === "invalid-property-names")).toBe(true);
+	});
+
+	it("recurses into additional-properties when given as a descriptor", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: {
+				f: {
+					type: "object",
+					"additional-properties": { type: "badtype" },
+				},
+			},
+		});
+		expect(findings.some((f) => f.code === "invalid-type")).toBe(true);
+	});
+
+	it("accepts boolean additional-properties", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: {
+				f: {
+					type: "object",
+					"additional-properties": false,
+				},
+			},
+		});
+		expect(findings.filter((f) => f.severity === "error")).toHaveLength(0);
+	});
 });
 
 describe("validateSchemaDefinition integration", () => {
@@ -558,6 +629,69 @@ describe("validateSchemaDefinition integration", () => {
 	it("returns no findings for empty content", () => {
 		const findings = validateSchemaDefinition("", "yaml");
 		expect(findings).toHaveLength(0);
+	});
+
+	it("validates a v2 schema with camelCase canonical names", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+			options: {
+				count: { type: "integer", minimum: 1, maximum: 10, multipleOf: 1 },
+				name: { type: "string", minLength: 1 },
+			},
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		expect(findings).toHaveLength(0);
+	});
+
+	it("flags kebab-case keys when validating against v2", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+			options: {
+				count: { type: "integer", min: 1, max: 10 },
+			},
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		expect(findings.some((f) => f.code === "unknown-field-property" && f.keyPath === "options.count.min")).toBe(true);
+		expect(findings.some((f) => f.code === "unknown-field-property" && f.keyPath === "options.count.max")).toBe(true);
+	});
+
+	it("does not warn on duplicate-alias-keys in v2 (kebab forms are unknown there)", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+			options: {
+				name: { type: "string", minLength: 1, "min-length": 2 },
+			},
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		expect(findings.filter((f) => f.code === "duplicate-alias-keys")).toHaveLength(0);
+	});
+
+	it("accepts v2 parent-level required array on a shortcode entry", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+			shortcodes: {
+				mysc: {
+					attributes: { format: { type: "string" } },
+					required: ["format"],
+				},
+			},
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		expect(findings.filter((f) => f.severity === "error")).toHaveLength(0);
+	});
+
+	it("warns when v2 required[] references an undeclared attribute", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+			shortcodes: {
+				mysc: {
+					attributes: { format: { type: "string" } },
+					required: ["missing"],
+				},
+			},
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		expect(findings.some((f) => f.code === "required-references-missing-attribute")).toBe(true);
 	});
 
 	it("catches multiple structural issues at once", () => {

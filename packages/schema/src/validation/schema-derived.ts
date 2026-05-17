@@ -10,6 +10,7 @@
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const metaSchema = require("./extension-schema.json") as MetaSchemaShape;
+const metaSchemaV2 = require("./extension-schema-v2.json") as MetaSchemaShape;
 
 interface MetaSchemaShape {
 	$schema: string;
@@ -36,24 +37,58 @@ interface MetaSchemaShape {
 	[key: string]: unknown;
 }
 
-// Re-export the raw meta-schema for consumers that need the full object.
+// Re-export the raw meta-schemas for consumers that need the full object.
 export const SCHEMA_META_SCHEMA: Record<string, unknown> = metaSchema;
+export const SCHEMA_META_SCHEMA_V2: Record<string, unknown> = metaSchemaV2;
 
 // ---------------------------------------------------------------------------
-// Core validation constants (replace the former hardcoded Sets).
+// Core validation constants — v1 (default).
 // ---------------------------------------------------------------------------
 
-/** Allowed top-level keys in a schema definition file. */
+/** Allowed top-level keys in a v1 schema definition file. */
 export const ALLOWED_TOP_LEVEL_KEYS = new Set<string>(Object.keys(metaSchema.properties));
 
-/** Allowed properties on a field descriptor (both camelCase and kebab-case). */
+/** Allowed properties on a v1 field descriptor (both camelCase and kebab-case). */
 export const ALLOWED_FIELD_PROPERTIES = new Set<string>(Object.keys(metaSchema.$defs.fieldDescriptor.properties));
 
-/** Allowed type values for a field descriptor. */
+/** Allowed type values for a field descriptor (same in v1 and v2). */
 export const ALLOWED_TYPES = new Set<string>(metaSchema.$defs.typeEnum.enum);
 
-/** Allowed top-level keys inside a shortcode entry. */
+/** Allowed top-level keys inside a v1 shortcode entry. */
 export const ALLOWED_SHORTCODE_KEYS = new Set<string>(Object.keys(metaSchema.$defs.shortcodeEntry.properties));
+
+// ---------------------------------------------------------------------------
+// Core validation constants — v2.
+// ---------------------------------------------------------------------------
+
+/** Allowed top-level keys in a v2 schema definition file. */
+export const ALLOWED_TOP_LEVEL_KEYS_V2 = new Set<string>(Object.keys(metaSchemaV2.properties));
+
+/** Allowed properties on a v2 field descriptor (camelCase only). */
+export const ALLOWED_FIELD_PROPERTIES_V2 = new Set<string>(Object.keys(metaSchemaV2.$defs.fieldDescriptor.properties));
+
+/** Allowed top-level keys inside a v2 shortcode entry. */
+export const ALLOWED_SHORTCODE_KEYS_V2 = new Set<string>(Object.keys(metaSchemaV2.$defs.shortcodeEntry.properties));
+
+/** Look up the allowed-property sets for a given schema version. */
+export function allowedSetsFor(version: "v1" | "v2"): {
+	topLevel: ReadonlySet<string>;
+	fieldDescriptor: ReadonlySet<string>;
+	shortcodeEntry: ReadonlySet<string>;
+} {
+	if (version === "v2") {
+		return {
+			topLevel: ALLOWED_TOP_LEVEL_KEYS_V2,
+			fieldDescriptor: ALLOWED_FIELD_PROPERTIES_V2,
+			shortcodeEntry: ALLOWED_SHORTCODE_KEYS_V2,
+		};
+	}
+	return {
+		topLevel: ALLOWED_TOP_LEVEL_KEYS,
+		fieldDescriptor: ALLOWED_FIELD_PROPERTIES,
+		shortcodeEntry: ALLOWED_SHORTCODE_KEYS,
+	};
+}
 
 // ---------------------------------------------------------------------------
 // Metadata for the completion provider (field descriptors).

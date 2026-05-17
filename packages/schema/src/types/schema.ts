@@ -53,6 +53,14 @@ export interface FieldDescriptor {
 	default?: unknown;
 	/** Human-readable description of the field. */
 	description?: string;
+	/** Short human-readable label. */
+	title?: string;
+	/** Example values for documentation and tooling. */
+	examples?: unknown[];
+	/** JSON Schema format hint (e.g., uri, email, date-time). Annotation only. */
+	format?: string;
+	/** Value must be a multiple of this number. */
+	multipleOf?: number;
 	/** Allowed values for the field. */
 	enum?: unknown[];
 	/** Whether enum matching is case-insensitive. */
@@ -89,6 +97,16 @@ export interface FieldDescriptor {
 	items?: FieldDescriptor;
 	/** Schema for object properties when type is "object". */
 	properties?: Record<string, FieldDescriptor>;
+	/** Whether/how additional object keys are allowed (for type: object). */
+	additionalProperties?: boolean | FieldDescriptor;
+	/** Regular expression that all object keys must match (for type: object). */
+	propertyNames?: string;
+	/** Map of key -> required-when-present keys (for type: object). */
+	dependentRequired?: Record<string, string[]>;
+	/** Content encoding for the string value (e.g., base64). */
+	contentEncoding?: string;
+	/** Media type of the string content (e.g., application/json). */
+	contentMediaType?: string;
 }
 
 /**
@@ -146,22 +164,42 @@ export interface RawSchema {
 }
 
 /**
- * Canonical schema version URI for the current format.
+ * Canonical schema version URIs.
+ *
+ * v1: original format, kebab-case canonical, dual-keyed.
+ * v2: JSON Schema canonical names (camelCase, minimum/maximum, ...).
  */
-export const SCHEMA_VERSION_URI = "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json";
+export const SCHEMA_V1_VERSION_URI = "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json";
+export const SCHEMA_V2_VERSION_URI = "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json";
+
+/** Backwards-compatible alias of {@link SCHEMA_V1_VERSION_URI}. */
+export const SCHEMA_VERSION_URI = SCHEMA_V1_VERSION_URI;
 
 /**
  * Set of recognised schema version URIs.
  * Unknown versions produce a warning but are not rejected (forward-compatible).
  */
-export const SUPPORTED_SCHEMA_VERSIONS = new Set([SCHEMA_VERSION_URI]);
+export const SUPPORTED_SCHEMA_VERSIONS = new Set([SCHEMA_V1_VERSION_URI, SCHEMA_V2_VERSION_URI]);
+
+/** Identifier for which schema version an instance file declares. */
+export type SchemaVersion = "v1" | "v2";
+
+/**
+ * Resolve a schema version from an instance file's `$schema` URI.
+ * Returns `"v1"` when no URI is present (legacy default).
+ */
+export function resolveSchemaVersion(schemaUri: string | undefined): SchemaVersion {
+	if (schemaUri === SCHEMA_V2_VERSION_URI) {
+		return "v2";
+	}
+	return "v1";
+}
 
 /**
  * Mapping of alternate key names to canonical TypeScript property names.
  * Handles kebab-case YAML keys and JSON Schema-style aliases.
  */
 const KEY_ALIASES: Record<string, string> = {
-	// Kebab-case to camelCase conversions.
 	"enum-case-insensitive": "enumCaseInsensitive",
 	"pattern-exact": "patternExact",
 	"min-length": "minLength",
@@ -171,10 +209,24 @@ const KEY_ALIASES: Record<string, string> = {
 	"exclusive-minimum": "exclusiveMinimum",
 	"exclusive-maximum": "exclusiveMaximum",
 	"replace-with": "replaceWith",
-	// JSON Schema-style aliases (single-word).
+	"multiple-of": "multipleOf",
+	"additional-properties": "additionalProperties",
+	"property-names": "propertyNames",
+	"dependent-required": "dependentRequired",
+	"content-encoding": "contentEncoding",
+	"content-media-type": "contentMediaType",
 	minimum: "min",
 	maximum: "max",
 };
+
+/**
+ * Pairs of canonical / alias keys for field descriptors. Derived once from
+ * {@link KEY_ALIASES}, minus `replace-with` (deprecation-spec scope only).
+ * Iterated when checking for camelCase/kebab-case collisions on one descriptor.
+ */
+export const FIELD_ALIAS_PAIRS: ReadonlyArray<readonly [string, string]> = Object.entries(KEY_ALIASES)
+	.filter(([from]) => from !== "replace-with")
+	.map(([from, to]) => [to, from] as const);
 
 /**
  * Normalise a raw deprecated spec object from YAML, converting kebab-case keys to camelCase.
@@ -209,6 +261,8 @@ export function normaliseFieldDescriptor(raw: Record<string, unknown>): FieldDes
 			result[camelKey] = normaliseFieldDescriptorMap(value as Record<string, unknown>);
 		} else if (camelKey === "deprecated" && value && typeof value === "object" && !Array.isArray(value)) {
 			result[camelKey] = normaliseDeprecatedSpec(value as Record<string, unknown>);
+		} else if (camelKey === "additionalProperties" && value && typeof value === "object" && !Array.isArray(value)) {
+			result[camelKey] = normaliseFieldDescriptor(value as Record<string, unknown>);
 		} else {
 			result[camelKey] = value;
 		}

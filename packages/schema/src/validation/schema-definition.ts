@@ -9,12 +9,16 @@
  */
 
 import * as yaml from "js-yaml";
-import {
-	ALLOWED_TOP_LEVEL_KEYS,
-	ALLOWED_FIELD_PROPERTIES,
-	ALLOWED_TYPES,
-	ALLOWED_SHORTCODE_KEYS,
-} from "./schema-derived.js";
+import { allowedSetsFor, ALLOWED_TYPES } from "./schema-derived.js";
+import { FIELD_ALIAS_PAIRS, resolveSchemaVersion, type SchemaVersion } from "../types/schema.js";
+
+const ALLOWED_TYPES_LIST = [...ALLOWED_TYPES].join(", ");
+
+interface ValidationContext {
+	readonly version: SchemaVersion;
+	readonly allowed: ReturnType<typeof allowedSetsFor>;
+	readonly findings: SchemaDefinitionFinding[];
+}
 
 /**
  * Severity level for a schema definition finding.
@@ -128,9 +132,13 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 	const findings: SchemaDefinitionFinding[] = [];
 	const root = parsed as Record<string, unknown>;
 
-	// Check for unknown top-level keys.
+	const version: SchemaVersion = resolveSchemaVersion(
+		typeof root["$schema"] === "string" ? (root["$schema"] as string) : undefined,
+	);
+	const ctx: ValidationContext = { version, allowed: allowedSetsFor(version), findings };
+
 	for (const key of Object.keys(root)) {
-		if (!ALLOWED_TOP_LEVEL_KEYS.has(key)) {
+		if (!ctx.allowed.topLevel.has(key)) {
 			findings.push({
 				message: `Unknown top-level key "${key}".`,
 				severity: "warning",
@@ -140,47 +148,29 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 		}
 	}
 
-	// Validate "options" section.
 	if (root["options"] !== undefined) {
-		if (root["options"] && typeof root["options"] === "object" && !Array.isArray(root["options"])) {
-			validateFieldDescriptorMap(root["options"] as Record<string, unknown>, "options", findings);
+		if (isPlainObject(root["options"])) {
+			validateFieldDescriptorMap(root["options"] as Record<string, unknown>, "options", ctx);
 		} else {
-			findings.push({
-				message: '"options" must be an object.',
-				severity: "error",
-				code: "invalid-section-type",
-				keyPath: "options",
-			});
+			findings.push(sectionTypeError("options", '"options" must be an object.'));
 		}
 	}
 
-	// Validate "formats" section.
 	if (root["formats"] !== undefined) {
-		if (root["formats"] && typeof root["formats"] === "object" && !Array.isArray(root["formats"])) {
+		if (isPlainObject(root["formats"])) {
 			for (const [formatName, formatValue] of Object.entries(root["formats"] as Record<string, unknown>)) {
 				const formatPath = `formats.${formatName}`;
-				if (formatValue && typeof formatValue === "object" && !Array.isArray(formatValue)) {
-					validateFieldDescriptorMap(formatValue as Record<string, unknown>, formatPath, findings);
+				if (isPlainObject(formatValue)) {
+					validateFieldDescriptorMap(formatValue as Record<string, unknown>, formatPath, ctx);
 				} else {
-					findings.push({
-						message: `Format "${formatName}" must be an object.`,
-						severity: "error",
-						code: "invalid-section-type",
-						keyPath: formatPath,
-					});
+					findings.push(sectionTypeError(formatPath, `Format "${formatName}" must be an object.`));
 				}
 			}
 		} else {
-			findings.push({
-				message: '"formats" must be an object.',
-				severity: "error",
-				code: "invalid-section-type",
-				keyPath: "formats",
-			});
+			findings.push(sectionTypeError("formats", '"formats" must be an object.'));
 		}
 	}
 
-	// Validate "projects" section (array of project type strings).
 	if (root["projects"] !== undefined) {
 		if (Array.isArray(root["projects"])) {
 			for (let i = 0; i < root["projects"].length; i++) {
@@ -194,108 +184,85 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 				}
 			}
 		} else {
-			findings.push({
-				message: '"projects" must be an array of project type strings.',
-				severity: "error",
-				code: "invalid-section-type",
-				keyPath: "projects",
-			});
+			findings.push(sectionTypeError("projects", '"projects" must be an array of project type strings.'));
 		}
 	}
 
-	// Validate "attributes" section.
 	const attributes = root["attributes"];
 	if (attributes !== undefined) {
-		if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+		if (isPlainObject(attributes)) {
 			for (const [groupKey, groupValue] of Object.entries(attributes as Record<string, unknown>)) {
 				const groupPath = `attributes.${groupKey}`;
-				if (groupValue && typeof groupValue === "object" && !Array.isArray(groupValue)) {
-					validateFieldDescriptorMap(groupValue as Record<string, unknown>, groupPath, findings);
+				if (isPlainObject(groupValue)) {
+					validateFieldDescriptorMap(groupValue as Record<string, unknown>, groupPath, ctx);
 				} else {
-					findings.push({
-						message: `Attribute group "${groupKey}" must be an object.`,
-						severity: "error",
-						code: "invalid-section-type",
-						keyPath: groupPath,
-					});
+					findings.push(sectionTypeError(groupPath, `Attribute group "${groupKey}" must be an object.`));
 				}
 			}
 		} else {
-			findings.push({
-				message: '"attributes" must be an object.',
-				severity: "error",
-				code: "invalid-section-type",
-				keyPath: "attributes",
-			});
+			findings.push(sectionTypeError("attributes", '"attributes" must be an object.'));
 		}
 	}
 
-	// Validate "classes" section.
 	const classes = root["classes"];
 	if (classes !== undefined) {
-		if (classes && typeof classes === "object" && !Array.isArray(classes)) {
-			for (const [classKey, classValue] of Object.entries(classes as Record<string, unknown>)) {
-				const classPath = `classes.${classKey}`;
-				if (!classValue || typeof classValue !== "object" || Array.isArray(classValue)) {
-					findings.push({
-						message: `Class entry "${classKey}" must be an object.`,
-						severity: "error",
-						code: "invalid-class-entry",
-						keyPath: classPath,
-					});
-					continue;
-				}
-				const classObj = classValue as Record<string, unknown>;
-				if (classObj["description"] !== undefined && typeof classObj["description"] !== "string") {
-					findings.push({
-						message: `Class "${classKey}" description must be a string.`,
-						severity: "error",
-						code: "invalid-class-description",
-						keyPath: `${classPath}.description`,
-					});
-				}
-			}
+		if (isPlainObject(classes)) {
+			validateClassesMap(classes as Record<string, unknown>, ctx);
 		} else {
-			findings.push({
-				message: '"classes" must be an object.',
-				severity: "error",
-				code: "invalid-section-type",
-				keyPath: "classes",
-			});
+			findings.push(sectionTypeError("classes", '"classes" must be an object.'));
 		}
 	}
 
-	// Validate "shortcodes" section.
 	if (root["shortcodes"] !== undefined) {
-		if (root["shortcodes"] && typeof root["shortcodes"] === "object" && !Array.isArray(root["shortcodes"])) {
-			validateShortcodeSchemaMap(root["shortcodes"] as Record<string, unknown>, "shortcodes", findings);
+		if (isPlainObject(root["shortcodes"])) {
+			validateShortcodeSchemaMap(root["shortcodes"] as Record<string, unknown>, "shortcodes", ctx);
 		} else {
-			findings.push({
-				message: '"shortcodes" must be an object.',
-				severity: "error",
-				code: "invalid-section-type",
-				keyPath: "shortcodes",
-			});
+			findings.push(sectionTypeError("shortcodes", '"shortcodes" must be an object.'));
 		}
 	}
 
 	return findings;
 }
 
-/**
- * Validate a map of field descriptors (e.g., the "options" section).
- */
-function validateFieldDescriptorMap(
-	fields: Record<string, unknown>,
-	parentPath: string,
-	findings: SchemaDefinitionFinding[],
-): void {
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+	return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+function sectionTypeError(keyPath: string, message: string): SchemaDefinitionFinding {
+	return { message, severity: "error", code: "invalid-section-type", keyPath };
+}
+
+function validateClassesMap(classes: Record<string, unknown>, ctx: ValidationContext): void {
+	for (const [classKey, classValue] of Object.entries(classes)) {
+		const classPath = `classes.${classKey}`;
+		if (!isPlainObject(classValue)) {
+			ctx.findings.push({
+				message: `Class entry "${classKey}" must be an object.`,
+				severity: "error",
+				code: "invalid-class-entry",
+				keyPath: classPath,
+			});
+			continue;
+		}
+		const desc = (classValue as Record<string, unknown>)["description"];
+		if (desc !== undefined && typeof desc !== "string") {
+			ctx.findings.push({
+				message: `Class "${classKey}" description must be a string.`,
+				severity: "error",
+				code: "invalid-class-description",
+				keyPath: `${classPath}.description`,
+			});
+		}
+	}
+}
+
+function validateFieldDescriptorMap(fields: Record<string, unknown>, parentPath: string, ctx: ValidationContext): void {
 	for (const [key, value] of Object.entries(fields)) {
 		const keyPath = `${parentPath}.${key}`;
-		if (value && typeof value === "object" && !Array.isArray(value)) {
-			validateFieldDescriptor(value as Record<string, unknown>, keyPath, findings);
+		if (isPlainObject(value)) {
+			validateFieldDescriptor(value as Record<string, unknown>, keyPath, ctx, false);
 		} else {
-			findings.push({
+			ctx.findings.push({
 				message: `Field descriptor "${key}" must be an object.`,
 				severity: "error",
 				code: "invalid-field-descriptor",
@@ -306,17 +273,19 @@ function validateFieldDescriptorMap(
 }
 
 /**
- * Validate a single field descriptor for allowed properties, valid types,
- * and semantic consistency.
+ * @param isShortcodeArgument - True when the descriptor is a positional argument
+ *   of a shortcode. The `content` type is only valid in that context.
  */
 function validateFieldDescriptor(
 	raw: Record<string, unknown>,
 	keyPath: string,
-	findings: SchemaDefinitionFinding[],
+	ctx: ValidationContext,
+	isShortcodeArgument: boolean,
 ): void {
-	// Check for unknown properties.
+	const { findings, allowed, version } = ctx;
+
 	for (const prop of Object.keys(raw)) {
-		if (!ALLOWED_FIELD_PROPERTIES.has(prop)) {
+		if (!allowed.fieldDescriptor.has(prop)) {
 			findings.push({
 				message: `Unknown field property "${prop}".`,
 				severity: "warning",
@@ -326,55 +295,69 @@ function validateFieldDescriptor(
 		}
 	}
 
-	// Validate "type" values.
+	// v2 lists only canonical keys, so kebab variants surface as "unknown property" already.
+	if (version === "v1") {
+		for (const [camel, kebab] of FIELD_ALIAS_PAIRS) {
+			if (raw[camel] !== undefined && raw[kebab] !== undefined) {
+				findings.push({
+					message: `Both "${camel}" and "${kebab}" are defined; use only one form.`,
+					severity: "warning",
+					code: "duplicate-alias-keys",
+					keyPath,
+				});
+			}
+		}
+	}
+
 	const typeValue = raw["type"];
 	if (typeValue !== undefined) {
 		const types = Array.isArray(typeValue) ? typeValue : [typeValue];
 		for (const t of types) {
 			if (typeof t === "string" && !ALLOWED_TYPES.has(t)) {
 				findings.push({
-					message: `Invalid type "${t}". Allowed types: ${[...ALLOWED_TYPES].join(", ")}.`,
+					message: `Invalid type "${t}". Allowed types: ${ALLOWED_TYPES_LIST}.`,
 					severity: "error",
 					code: "invalid-type",
+					keyPath: `${keyPath}.type`,
+				});
+			} else if (t === "content" && !isShortcodeArgument) {
+				findings.push({
+					message: 'Type "content" is only valid for shortcode arguments.',
+					severity: "error",
+					code: "content-type-outside-shortcode-argument",
 					keyPath: `${keyPath}.type`,
 				});
 			}
 		}
 	}
 
-	// Semantic checks.
 	validateFieldSemantics(raw, keyPath, findings);
 
-	// Recurse into "items".
-	if (raw["items"] !== undefined) {
-		if (raw["items"] && typeof raw["items"] === "object" && !Array.isArray(raw["items"])) {
-			validateFieldDescriptor(raw["items"] as Record<string, unknown>, `${keyPath}.items`, findings);
-		}
+	if (isPlainObject(raw["items"])) {
+		validateFieldDescriptor(raw["items"] as Record<string, unknown>, `${keyPath}.items`, ctx, false);
 	}
 
-	// Recurse into "properties".
-	if (raw["properties"] !== undefined) {
-		if (raw["properties"] && typeof raw["properties"] === "object" && !Array.isArray(raw["properties"])) {
-			validateFieldDescriptorMap(raw["properties"] as Record<string, unknown>, `${keyPath}.properties`, findings);
-		}
+	if (isPlainObject(raw["properties"])) {
+		validateFieldDescriptorMap(raw["properties"] as Record<string, unknown>, `${keyPath}.properties`, ctx);
+	}
+
+	const apKey = raw["additionalProperties"] !== undefined ? "additionalProperties" : "additional-properties";
+	const ap = raw[apKey];
+	if (isPlainObject(ap)) {
+		validateFieldDescriptor(ap as Record<string, unknown>, `${keyPath}.${apKey}`, ctx, false);
 	}
 }
 
-/**
- * Run semantic consistency checks on a field descriptor.
- */
 function validateFieldSemantics(
 	raw: Record<string, unknown>,
 	keyPath: string,
 	findings: SchemaDefinitionFinding[],
 ): void {
-	// Resolve type information, handling both single values and arrays.
 	const typeValue = raw["type"];
 	const typeSet = new Set(
 		Array.isArray(typeValue) ? typeValue.map(String) : typeValue !== undefined ? [String(typeValue)] : [],
 	);
 
-	// min > max.
 	const min = resolveNumber(raw, "min", "minimum");
 	const max = resolveNumber(raw, "max", "maximum");
 	if (min !== undefined && max !== undefined && min > max) {
@@ -386,7 +369,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// exclusiveMinimum > exclusiveMaximum.
 	const exclusiveMin = resolveNumber(raw, "exclusiveMinimum", "exclusive-minimum");
 	const exclusiveMax = resolveNumber(raw, "exclusiveMaximum", "exclusive-maximum");
 	if (exclusiveMin !== undefined && exclusiveMax !== undefined && exclusiveMin > exclusiveMax) {
@@ -398,7 +380,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// minLength > maxLength.
 	const minLength = resolveNumber(raw, "minLength", "min-length");
 	const maxLength = resolveNumber(raw, "maxLength", "max-length");
 	if (minLength !== undefined && maxLength !== undefined && minLength > maxLength) {
@@ -410,7 +391,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// minItems > maxItems.
 	const minItems = resolveNumber(raw, "minItems", "min-items");
 	const maxItems = resolveNumber(raw, "maxItems", "max-items");
 	if (minItems !== undefined && maxItems !== undefined && minItems > maxItems) {
@@ -422,7 +402,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// "items" without type: array.
 	if (raw["items"] !== undefined && !typeSet.has("array")) {
 		findings.push({
 			message: '"items" is defined but "type" does not include "array".',
@@ -432,7 +411,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// "properties" without type: object.
 	if (raw["properties"] !== undefined && !typeSet.has("object")) {
 		findings.push({
 			message: '"properties" is defined but "type" does not include "object".',
@@ -442,7 +420,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// "enum" + "const" together.
 	if (raw["enum"] !== undefined && raw["const"] !== undefined) {
 		findings.push({
 			message: 'Both "enum" and "const" are defined; only one should be used.',
@@ -452,7 +429,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// Empty "enum".
 	if (Array.isArray(raw["enum"]) && raw["enum"].length === 0) {
 		findings.push({
 			message: '"enum" is empty; no value would be valid.',
@@ -462,7 +438,6 @@ function validateFieldSemantics(
 		});
 	}
 
-	// Invalid regex in "pattern".
 	if (typeof raw["pattern"] === "string") {
 		try {
 			new RegExp(raw["pattern"]);
@@ -475,20 +450,43 @@ function validateFieldSemantics(
 			});
 		}
 	}
+
+	const propertyNamesValue = raw["propertyNames"] ?? raw["property-names"];
+	if (typeof propertyNamesValue === "string") {
+		try {
+			new RegExp(propertyNamesValue);
+		} catch {
+			findings.push({
+				message: `Invalid regular expression in "property-names": "${propertyNamesValue}".`,
+				severity: "error",
+				code: "invalid-property-names",
+				keyPath: `${keyPath}.property-names`,
+			});
+		}
+	}
+
+	const multipleOf = resolveNumber(raw, "multipleOf", "multiple-of");
+	if (multipleOf !== undefined && multipleOf <= 0) {
+		findings.push({
+			message: `"multiple-of" must be greater than 0 (got ${multipleOf}).`,
+			severity: "error",
+			code: "invalid-multiple-of",
+			keyPath,
+		});
+	}
 }
 
-/**
- * Validate the "shortcodes" section of a schema definition.
- */
 function validateShortcodeSchemaMap(
 	shortcodes: Record<string, unknown>,
 	parentPath: string,
-	findings: SchemaDefinitionFinding[],
+	ctx: ValidationContext,
 ): void {
+	const { findings, allowed, version } = ctx;
+
 	for (const [name, value] of Object.entries(shortcodes)) {
 		const scPath = `${parentPath}.${name}`;
 
-		if (!value || typeof value !== "object" || Array.isArray(value)) {
+		if (!isPlainObject(value)) {
 			findings.push({
 				message: `Shortcode "${name}" must be an object.`,
 				severity: "error",
@@ -500,9 +498,8 @@ function validateShortcodeSchemaMap(
 
 		const sc = value as Record<string, unknown>;
 
-		// Check for unknown keys.
 		for (const key of Object.keys(sc)) {
-			if (!ALLOWED_SHORTCODE_KEYS.has(key)) {
+			if (!allowed.shortcodeEntry.has(key)) {
 				findings.push({
 					message: `Unknown shortcode property "${key}".`,
 					severity: "warning",
@@ -512,7 +509,6 @@ function validateShortcodeSchemaMap(
 			}
 		}
 
-		// Validate "arguments".
 		if (sc["arguments"] !== undefined) {
 			if (!Array.isArray(sc["arguments"])) {
 				findings.push({
@@ -534,16 +530,15 @@ function validateShortcodeSchemaMap(
 								keyPath: argPath,
 							});
 						}
-						validateFieldDescriptor(arg, argPath, findings);
+						validateFieldDescriptor(arg, argPath, ctx, true);
 					}
 				}
 			}
 		}
 
-		// Validate "attributes".
 		if (sc["attributes"] !== undefined) {
-			if (sc["attributes"] && typeof sc["attributes"] === "object" && !Array.isArray(sc["attributes"])) {
-				validateFieldDescriptorMap(sc["attributes"] as Record<string, unknown>, `${scPath}.attributes`, findings);
+			if (isPlainObject(sc["attributes"])) {
+				validateFieldDescriptorMap(sc["attributes"] as Record<string, unknown>, `${scPath}.attributes`, ctx);
 			} else {
 				findings.push({
 					message: `Shortcode "${name}" "attributes" must be an object.`,
@@ -552,6 +547,49 @@ function validateShortcodeSchemaMap(
 					keyPath: `${scPath}.attributes`,
 				});
 			}
+		}
+
+		if (version === "v2" && sc["required"] !== undefined) {
+			validateShortcodeRequired(name, sc, scPath, ctx);
+		}
+	}
+}
+
+function validateShortcodeRequired(
+	name: string,
+	sc: Record<string, unknown>,
+	scPath: string,
+	ctx: ValidationContext,
+): void {
+	const required = sc["required"];
+	if (!Array.isArray(required)) {
+		ctx.findings.push({
+			message: `Shortcode "${name}" "required" must be an array of attribute names.`,
+			severity: "error",
+			code: "invalid-shortcode-required",
+			keyPath: `${scPath}.required`,
+		});
+		return;
+	}
+	const declared = isPlainObject(sc["attributes"])
+		? new Set(Object.keys(sc["attributes"] as Record<string, unknown>))
+		: new Set<string>();
+	for (let i = 0; i < required.length; i++) {
+		const ref = required[i];
+		if (typeof ref !== "string") {
+			ctx.findings.push({
+				message: `Shortcode "${name}" required[${i}] must be a string.`,
+				severity: "error",
+				code: "invalid-required-entry",
+				keyPath: `${scPath}.required[${i}]`,
+			});
+		} else if (!declared.has(ref)) {
+			ctx.findings.push({
+				message: `Shortcode "${name}" required[${i}] "${ref}" is not declared in attributes.`,
+				severity: "warning",
+				code: "required-references-missing-attribute",
+				keyPath: `${scPath}.required[${i}]`,
+			});
 		}
 	}
 }

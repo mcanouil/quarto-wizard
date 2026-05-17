@@ -9,8 +9,8 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsc && cp src/validation/extension-schema.json dist/validation/ && cp src/validation/extension-schema.json ../../docs/assets/schema/v1/extension-schema.json",
-		"watch": "mkdir -p dist/validation && cp src/validation/extension-schema.json dist/validation/ && tsc --watch",
+		"build": "tsc && cp src/validation/extension-schema.json dist/validation/ && cp src/validation/extension-schema-v2.json dist/validation/ && cp src/validation/extension-schema.json ../../docs/assets/schema/v1/extension-schema.json && mkdir -p ../../docs/assets/schema/v2 && cp src/validation/extension-schema-v2.json ../../docs/assets/schema/v2/extension-schema.json",
+		"watch": "mkdir -p dist/validation && cp src/validation/extension-schema.json dist/validation/ && cp src/validation/extension-schema-v2.json dist/validation/ && tsc --watch",
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest",

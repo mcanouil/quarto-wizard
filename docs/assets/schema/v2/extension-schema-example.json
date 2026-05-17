@@ -1,14 +1,16 @@
 {
-	"$schema": "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json",
+	"$schema": "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
 	"options": {
 		"theme": {
 			"type": "string",
+			"title": "Colour theme",
 			"description": "Colour theme for the extension output.",
 			"required": false,
 			"default": "light",
 			"enum": ["light", "dark", "auto"],
 			"enumCaseInsensitive": true,
-			"aliases": ["colour-scheme"]
+			"aliases": ["colour-scheme"],
+			"examples": ["light", "dark"]
 		},
 		"opacity": {
 			"type": "number",
@@ -18,17 +20,22 @@
 			"exclusiveMaximum": 1
 		},
 		"count": {
-			"type": "number",
+			"type": "integer",
 			"description": "Number of items to display.",
 			"default": 3,
-			"min": 1,
-			"max": 100
+			"minimum": 1,
+			"maximum": 100
+		},
+		"step": {
+			"type": "integer",
+			"description": "Increment between successive items. Must be a positive multiple of 5.",
+			"multipleOf": 5,
+			"minimum": 5
 		},
 		"slug": {
 			"type": "string",
-			"description": "URL-safe identifier for the output.",
+			"description": "URL-safe identifier for the output (anchored pattern).",
 			"pattern": "^[a-z0-9-]+$",
-			"patternExact": true,
 			"minLength": 1,
 			"maxLength": 64
 		},
@@ -36,6 +43,11 @@
 			"type": "boolean",
 			"description": "Enable or disable the extension.",
 			"default": true
+		},
+		"homepage": {
+			"type": "string",
+			"format": "uri",
+			"description": "Homepage URL."
 		},
 		"version": {
 			"type": "string",
@@ -56,80 +68,6 @@
 				"type": "string",
 				"minLength": 1
 			}
-		},
-		"badge": {
-			"type": "object",
-			"description": "Badge configuration.",
-			"properties": {
-				"key": {
-					"type": "string",
-					"required": true,
-					"description": "Unique identifier for the badge."
-				},
-				"colour": {
-					"type": "string",
-					"aliases": ["color"],
-					"description": "Background colour.",
-					"completion": {
-						"type": "color"
-					}
-				}
-			}
-		},
-		"oldFlag": {
-			"type": "boolean",
-			"deprecated": true
-		},
-		"legacyMode": {
-			"type": "string",
-			"deprecated": "Use 'theme' instead."
-		},
-		"oldColour": {
-			"type": "string",
-			"deprecated": {
-				"since": "1.2",
-				"message": "Use 'theme' instead.",
-				"replaceWith": "theme"
-			}
-		},
-		"logo": {
-			"type": "string",
-			"description": "Path to a logo image file.",
-			"completion": {
-				"type": "file",
-				"extensions": [".png", ".svg", ".jpg"]
-			}
-		},
-		"customCss": {
-			"type": "string",
-			"description": "Custom CSS class name.",
-			"completion": {
-				"type": "freeform",
-				"placeholder": "e.g. my-custom-class"
-			}
-		},
-		"brandColour": {
-			"type": "string",
-			"description": "Colour from the project brand palette.",
-			"completion": {
-				"type": "enum",
-				"dynamic": true,
-				"source": "brand-colors"
-			}
-		},
-		"step": {
-			"type": "integer",
-			"title": "Step size",
-			"description": "Increment between successive items. Must be a positive multiple of 5.",
-			"multipleOf": 5,
-			"min": 5,
-			"examples": [5, 10, 25]
-		},
-		"homepage": {
-			"type": "string",
-			"format": "uri",
-			"description": "Homepage URL.",
-			"examples": ["https://example.org"]
 		},
 		"strictConfig": {
 			"type": "object",
@@ -159,30 +97,39 @@
 		"nullable": {
 			"type": ["string", "null"],
 			"description": "Either a string or explicit null."
+		},
+		"oldFlag": {
+			"type": "boolean",
+			"deprecated": true
+		},
+		"legacyMode": {
+			"type": "string",
+			"deprecated": "Use 'theme' instead."
+		},
+		"oldColour": {
+			"type": "string",
+			"deprecated": {
+				"since": "1.2",
+				"message": "Use 'theme' instead.",
+				"replaceWith": "theme"
+			}
+		},
+		"logo": {
+			"type": "string",
+			"description": "Path to a logo image file.",
+			"completion": {
+				"type": "file",
+				"extensions": [".png", ".svg", ".jpg"]
+			}
 		}
 	},
 	"shortcodes": {
 		"placeholder": {
 			"description": "Generate a placeholder image with specified dimensions.",
 			"arguments": [
-				{
-					"name": "width",
-					"type": "number",
-					"required": true,
-					"description": "Image width in pixels.",
-					"min": 1
-				},
-				{
-					"name": "height",
-					"type": "number",
-					"description": "Image height in pixels.",
-					"default": 150
-				},
-				{
-					"name": "caption",
-					"type": "content",
-					"description": "Caption text or Pandoc content for the image."
-				}
+				{ "name": "width", "type": "number", "required": true, "description": "Image width in pixels.", "minimum": 1 },
+				{ "name": "height", "type": "number", "description": "Image height in pixels.", "default": 150 },
+				{ "name": "caption", "type": "content", "description": "Caption text or Pandoc content for the image." }
 			],
 			"attributes": {
 				"format": {
@@ -196,7 +143,8 @@
 					"description": "Alternative text for accessibility.",
 					"maxLength": 200
 				}
-			}
+			},
+			"required": ["format"]
 		}
 	},
 	"formats": {
@@ -205,9 +153,7 @@
 				"type": "array",
 				"required": true,
 				"description": "Recipient address lines.",
-				"items": {
-					"type": "string"
-				}
+				"items": { "type": "string" }
 			},
 			"opening": {
 				"type": "string",
@@ -222,9 +168,7 @@
 				"type": "string",
 				"aliases": ["color", "ink", "fg"],
 				"description": "Text (foreground) colour.",
-				"completion": {
-					"type": "color"
-				}
+				"completion": { "type": "color" }
 			}
 		},
 		"panel": {
@@ -242,12 +186,8 @@
 		}
 	},
 	"classes": {
-		"panel": {
-			"description": "A styled panel container."
-		},
-		"hidden": {
-			"description": "Hides the element from output."
-		}
+		"panel": { "description": "A styled panel container." },
+		"hidden": { "description": "Hides the element from output." }
 	},
 	"projects": ["my-website"]
 }

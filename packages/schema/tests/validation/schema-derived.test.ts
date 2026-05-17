@@ -4,10 +4,15 @@ import {
 	ALLOWED_FIELD_PROPERTIES,
 	ALLOWED_TYPES,
 	ALLOWED_SHORTCODE_KEYS,
+	ALLOWED_TOP_LEVEL_KEYS_V2,
+	ALLOWED_FIELD_PROPERTIES_V2,
+	ALLOWED_SHORTCODE_KEYS_V2,
+	allowedSetsFor,
 	fieldDescriptorMetadata,
 	shortcodeEntryMetadata,
 	rootKeyMetadata,
 	SCHEMA_META_SCHEMA,
+	SCHEMA_META_SCHEMA_V2,
 } from "../../src/validation/schema-derived.js";
 
 describe("SCHEMA_META_SCHEMA structure", () => {
@@ -42,6 +47,21 @@ describe("ALLOWED_FIELD_PROPERTIES", () => {
 			"required",
 			"default",
 			"description",
+			"title",
+			"examples",
+			"format",
+			"multipleOf",
+			"multiple-of",
+			"additionalProperties",
+			"additional-properties",
+			"propertyNames",
+			"property-names",
+			"dependentRequired",
+			"dependent-required",
+			"contentEncoding",
+			"content-encoding",
+			"contentMediaType",
+			"content-media-type",
 			"enum",
 			"enumCaseInsensitive",
 			"enum-case-insensitive",
@@ -81,7 +101,7 @@ describe("ALLOWED_FIELD_PROPERTIES", () => {
 
 describe("ALLOWED_TYPES", () => {
 	it("contains exactly the expected types", () => {
-		const expected = new Set(["string", "number", "integer", "boolean", "array", "object", "content"]);
+		const expected = new Set(["string", "number", "integer", "boolean", "array", "object", "null", "content"]);
 		expect(ALLOWED_TYPES).toEqual(expected);
 	});
 });
@@ -106,7 +126,7 @@ describe("fieldDescriptorMetadata", () => {
 		}
 	});
 
-	it("yamlHidden contains the eight camelCase variants plus minimum and maximum", () => {
+	it("yamlHidden contains every camelCase variant whose canonical form is kebab-case in YAML", () => {
 		const expectedHidden = [
 			"enumCaseInsensitive",
 			"patternExact",
@@ -118,6 +138,12 @@ describe("fieldDescriptorMetadata", () => {
 			"exclusiveMaximum",
 			"minimum",
 			"maximum",
+			"multipleOf",
+			"additionalProperties",
+			"propertyNames",
+			"dependentRequired",
+			"contentEncoding",
+			"contentMediaType",
 		];
 		for (const prop of expectedHidden) {
 			expect(fieldDescriptorMetadata.yamlHidden.has(prop), `missing hidden: ${prop}`).toBe(true);
@@ -172,6 +198,41 @@ describe("shortcodeEntryMetadata", () => {
 	it("snippetOverrides has entries for arguments and attributes", () => {
 		expect(shortcodeEntryMetadata.snippetOverrides["arguments"]).toBeDefined();
 		expect(shortcodeEntryMetadata.snippetOverrides["attributes"]).toBeDefined();
+	});
+});
+
+describe("v2 derived constants", () => {
+	it("v2 meta-schema is loaded", () => {
+		expect(SCHEMA_META_SCHEMA_V2.$id).toBe(
+			"https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+		);
+	});
+
+	it("v2 top-level keys match v1 (same sections, version differs in $defs)", () => {
+		expect(ALLOWED_TOP_LEVEL_KEYS_V2).toEqual(ALLOWED_TOP_LEVEL_KEYS);
+	});
+
+	it("v2 field properties drop kebab-case forms", () => {
+		for (const kebab of ["min-length", "max-length", "min-items", "max-items", "exclusive-minimum", "pattern-exact"]) {
+			expect(ALLOWED_FIELD_PROPERTIES_V2.has(kebab), `v2 should not list ${kebab}`).toBe(false);
+		}
+		for (const camel of ["minLength", "maxLength", "minItems", "maxItems", "exclusiveMinimum", "minimum", "maximum"]) {
+			expect(ALLOWED_FIELD_PROPERTIES_V2.has(camel), `v2 should list ${camel}`).toBe(true);
+		}
+	});
+
+	it("v2 field properties drop pattern-exact entirely", () => {
+		expect(ALLOWED_FIELD_PROPERTIES_V2.has("pattern-exact")).toBe(false);
+		expect(ALLOWED_FIELD_PROPERTIES_V2.has("patternExact")).toBe(false);
+	});
+
+	it("v2 shortcode entry adds the parent-level required keyword", () => {
+		expect(ALLOWED_SHORTCODE_KEYS_V2.has("required")).toBe(true);
+	});
+
+	it("allowedSetsFor returns the correct set per version", () => {
+		expect(allowedSetsFor("v1").fieldDescriptor).toBe(ALLOWED_FIELD_PROPERTIES);
+		expect(allowedSetsFor("v2").fieldDescriptor).toBe(ALLOWED_FIELD_PROPERTIES_V2);
 	});
 });
 

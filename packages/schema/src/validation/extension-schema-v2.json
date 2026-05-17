@@ -1,9 +1,9 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json",
-	"title": "Quarto Extension Schema Definition",
-	"description": "Describes the structure of _schema.yml / _schema.json files used by Quarto extensions.",
-	"$comment": "Custom annotations used inside property descriptors: x-yaml-hidden (do not surface this property in YAML completion menus); x-boolean-property (treat as boolean for snippet purposes even if accepts other types); x-nested-property (this property holds a nested schema or schemas); x-snippet (override the YAML completion snippet); x-shortcode-argument-only (property only valid inside shortcode argument descriptors). These annotations are no-ops for generic JSON Schema 2020-12 validators.",
+	"$id": "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+	"title": "Quarto Extension Schema Definition (v2)",
+	"description": "Describes the structure of _schema.yml / _schema.json files used by Quarto extensions. v2 uses JSON Schema canonical names (camelCase, minimum/maximum/multipleOf/...) exclusively and drops the dual-key vocabulary of v1.",
+	"$comment": "Custom annotations used inside property descriptors: x-yaml-hidden (property is not surfaced in YAML completion menus); x-boolean-property (treat as boolean for snippet purposes even if it accepts other types); x-nested-property (property holds a nested schema or schemas); x-snippet (override the YAML completion snippet); x-shortcode-argument-only (property only valid inside shortcode argument descriptors). These annotations are no-ops for generic JSON Schema 2020-12 validators.",
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
@@ -92,13 +92,9 @@
 					"type": "string",
 					"description": "Deprecation message."
 				},
-				"replace-with": {
-					"type": "string",
-					"description": "Replacement field name (kebab-case)."
-				},
 				"replaceWith": {
 					"type": "string",
-					"description": "Replacement field name (camelCase)."
+					"description": "Replacement field name."
 				}
 			}
 		},
@@ -107,7 +103,7 @@
 			"additionalProperties": false,
 			"properties": {
 				"type": {
-					"description": "Data type (string, number, integer, boolean, array, object, content).",
+					"description": "Data type (string, number, integer, boolean, array, object, null, content).",
 					"oneOf": [
 						{ "$ref": "#/$defs/typeEnum" },
 						{
@@ -120,7 +116,7 @@
 				},
 				"required": {
 					"type": "boolean",
-					"description": "Whether this field is required."
+					"description": "Whether this field is required (field-local boolean form, Quarto Wizard extension)."
 				},
 				"default": {
 					"description": "Default value when not specified."
@@ -139,40 +135,67 @@
 				},
 				"format": {
 					"type": "string",
-					"description": "JSON Schema format hint (e.g., uri, email, date-time). Annotation-only by default."
+					"description": "JSON Schema format hint (e.g., uri, email, date-time). Annotation only."
 				},
 				"multipleOf": {
 					"type": "number",
 					"exclusiveMinimum": 0,
-					"description": "Value must be a multiple of this number (camelCase variant).",
-					"x-yaml-hidden": true
+					"description": "Value must be a positive multiple of this number."
 				},
-				"multiple-of": {
+				"enum": {
+					"type": "array",
+					"uniqueItems": true,
+					"description": "List of allowed values.",
+					"x-snippet": ":\n  - $0"
+				},
+				"enumCaseInsensitive": {
+					"type": "boolean",
+					"description": "Whether enum matching ignores case."
+				},
+				"pattern": {
+					"type": "string",
+					"description": "Regular expression the value must match. Use `^...$` to anchor."
+				},
+				"minimum": {
 					"type": "number",
-					"exclusiveMinimum": 0,
-					"description": "Value must be a multiple of this number."
+					"description": "Minimum numeric value (inclusive)."
+				},
+				"maximum": {
+					"type": "number",
+					"description": "Maximum numeric value (inclusive)."
+				},
+				"exclusiveMinimum": {
+					"type": "number",
+					"description": "Exclusive minimum (value must be strictly greater)."
+				},
+				"exclusiveMaximum": {
+					"type": "number",
+					"description": "Exclusive maximum (value must be strictly less)."
+				},
+				"minLength": {
+					"type": "integer",
+					"description": "Minimum string length."
+				},
+				"maxLength": {
+					"type": "integer",
+					"description": "Maximum string length."
+				},
+				"minItems": {
+					"type": "integer",
+					"description": "Minimum number of items (for arrays)."
+				},
+				"maxItems": {
+					"type": "integer",
+					"description": "Maximum number of items (for arrays)."
 				},
 				"additionalProperties": {
-					"description": "Whether object values may contain keys beyond those in `properties` (camelCase variant).",
-					"oneOf": [
-						{ "type": "boolean" },
-						{ "$ref": "#/$defs/fieldDescriptor" }
-					],
-					"x-yaml-hidden": true
-				},
-				"additional-properties": {
-					"description": "Whether object values may contain keys beyond those in `properties`. Boolean or a nested field descriptor that each extra value must match.",
+					"description": "Whether object values may contain keys beyond those in `properties`. Boolean or a nested field descriptor.",
 					"oneOf": [
 						{ "type": "boolean" },
 						{ "$ref": "#/$defs/fieldDescriptor" }
 					]
 				},
 				"propertyNames": {
-					"type": "string",
-					"description": "Regular expression all object keys must match (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"property-names": {
 					"type": "string",
 					"description": "Regular expression all object keys must match."
 				},
@@ -183,137 +206,15 @@
 						"items": { "type": "string" },
 						"uniqueItems": true
 					},
-					"description": "When a key is present, also require the listed keys (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"dependent-required": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "array",
-						"items": { "type": "string" },
-						"uniqueItems": true
-					},
 					"description": "When a key is present, also require the listed keys."
 				},
 				"contentEncoding": {
-					"type": "string",
-					"description": "Content encoding for the string value (e.g., base64) (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"content-encoding": {
 					"type": "string",
 					"description": "Content encoding for the string value (e.g., base64)."
 				},
 				"contentMediaType": {
 					"type": "string",
-					"description": "Media type of the string content (e.g., application/json) (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"content-media-type": {
-					"type": "string",
 					"description": "Media type of the string content (e.g., application/json)."
-				},
-				"enum": {
-					"type": "array",
-					"uniqueItems": true,
-					"description": "List of allowed values.",
-					"x-snippet": ":\n  - $0"
-				},
-				"enumCaseInsensitive": {
-					"type": "boolean",
-					"description": "Whether enum matching ignores case (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"enum-case-insensitive": {
-					"type": "boolean",
-					"description": "Whether enum matching ignores case.",
-					"x-boolean-property": true
-				},
-				"pattern": {
-					"type": "string",
-					"description": "Regular expression the value must match."
-				},
-				"patternExact": {
-					"type": "boolean",
-					"description": "Whether the pattern must match the entire value (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"pattern-exact": {
-					"type": "boolean",
-					"description": "Whether the pattern must match the entire value.",
-					"x-boolean-property": true
-				},
-				"min": {
-					"type": "number",
-					"description": "Minimum numeric value."
-				},
-				"max": {
-					"type": "number",
-					"description": "Maximum numeric value."
-				},
-				"minimum": {
-					"type": "number",
-					"description": "Minimum numeric value (JSON Schema alias).",
-					"x-yaml-hidden": true
-				},
-				"maximum": {
-					"type": "number",
-					"description": "Maximum numeric value (JSON Schema alias).",
-					"x-yaml-hidden": true
-				},
-				"exclusiveMinimum": {
-					"type": "number",
-					"description": "Exclusive minimum (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"exclusive-minimum": {
-					"type": "number",
-					"description": "Exclusive minimum (value must be strictly greater)."
-				},
-				"exclusiveMaximum": {
-					"type": "number",
-					"description": "Exclusive maximum (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"exclusive-maximum": {
-					"type": "number",
-					"description": "Exclusive maximum (value must be strictly less)."
-				},
-				"minLength": {
-					"type": "integer",
-					"description": "Minimum string length (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"min-length": {
-					"type": "integer",
-					"description": "Minimum string length."
-				},
-				"maxLength": {
-					"type": "integer",
-					"description": "Maximum string length (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"max-length": {
-					"type": "integer",
-					"description": "Maximum string length."
-				},
-				"minItems": {
-					"type": "integer",
-					"description": "Minimum number of items (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"min-items": {
-					"type": "integer",
-					"description": "Minimum number of items (for arrays)."
-				},
-				"maxItems": {
-					"type": "integer",
-					"description": "Maximum number of items (camelCase variant).",
-					"x-yaml-hidden": true
-				},
-				"max-items": {
-					"type": "integer",
-					"description": "Maximum number of items (for arrays)."
 				},
 				"const": {
 					"description": "Fixed value the field must equal."
@@ -394,6 +295,12 @@
 					"description": "Named attributes accepted by the shortcode.",
 					"x-nested-property": true,
 					"x-snippet": ":\n  $0"
+				},
+				"required": {
+					"type": "array",
+					"items": { "type": "string" },
+					"uniqueItems": true,
+					"description": "Parent-level required list (JSON Schema canonical form, names of required attributes)."
 				}
 			}
 		},

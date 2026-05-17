@@ -1,0 +1,239 @@
+# Extension Schema Reference v2 (Example Instance)
+# =================================================
+# This file is an EXAMPLE instance of _schema.yml using the v2 vocabulary.
+# v2 uses JSON Schema canonical names exclusively (camelCase, minimum/
+# maximum/multipleOf/...). v1 schemas keep working under the v1 URI.
+
+# Schema version URI. Required to opt this file into v2 validation.
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json
+
+# ---------------------------------------------------------------------------
+# options
+# ---------------------------------------------------------------------------
+options:
+  theme:
+    type: string
+    title: "Colour theme"
+    description: "Colour theme for the extension output."
+    required: false
+    default: light
+    enum:
+      - light
+      - dark
+      - auto
+    enumCaseInsensitive: true
+    aliases:
+      - colour-scheme
+    examples:
+      - light
+      - dark
+
+  opacity:
+    type: number
+    description: "Opacity level between 0 and 1 (exclusive of both endpoints)."
+    default: 0.5
+    exclusiveMinimum: 0
+    exclusiveMaximum: 1
+
+  count:
+    type: integer
+    description: "Number of items to display."
+    default: 3
+    minimum: 1
+    maximum: 100
+
+  step:
+    type: integer
+    description: "Increment between successive items. Must be a positive multiple of 5."
+    multipleOf: 5
+    minimum: 5
+
+  slug:
+    type: string
+    description: "URL-safe identifier for the output (anchored pattern)."
+    pattern: "^[a-z0-9-]+$"
+    minLength: 1
+    maxLength: 64
+
+  enabled:
+    type: boolean
+    description: "Enable or disable the extension."
+    default: true
+
+  homepage:
+    type: string
+    format: uri
+    description: "Homepage URL."
+
+  version:
+    type: string
+    const: "1.0"
+    description: "Schema version marker (must be exactly '1.0')."
+
+  fadeDuration:
+    type:
+      - number
+      - boolean
+    default: 100
+    description: "Fade duration in milliseconds. Set to false to disable."
+
+  tags:
+    type: array
+    description: "List of classification tags."
+    minItems: 1
+    maxItems: 10
+    items:
+      type: string
+      minLength: 1
+
+  strictConfig:
+    type: object
+    description: "Object with locked-down keys and key-name constraint."
+    properties:
+      name:
+        type: string
+        required: true
+    additionalProperties: false
+    propertyNames: "^[a-z][a-zA-Z0-9]*$"
+
+  extensibleConfig:
+    type: object
+    description: "Object where unknown keys must each be strings."
+    additionalProperties:
+      type: string
+
+  conditional:
+    type: object
+    description: "When 'mode' is set, 'target' is also required."
+    properties:
+      mode:
+        type: string
+      target:
+        type: string
+    dependentRequired:
+      mode:
+        - target
+
+  nullable:
+    type:
+      - string
+      - "null"
+    description: "Either a string or explicit null."
+
+  oldFlag:
+    type: boolean
+    deprecated: true
+
+  legacyMode:
+    type: string
+    deprecated: "Use 'theme' instead."
+
+  oldColour:
+    type: string
+    deprecated:
+      since: "1.2"
+      message: "Use 'theme' instead."
+      replaceWith: theme
+
+  logo:
+    type: string
+    description: "Path to a logo image file."
+    completion:
+      type: file
+      extensions:
+        - .png
+        - .svg
+        - .jpg
+
+# ---------------------------------------------------------------------------
+# shortcodes
+# ---------------------------------------------------------------------------
+shortcodes:
+  placeholder:
+    description: "Generate a placeholder image with specified dimensions."
+    arguments:
+      - name: width
+        type: number
+        required: true
+        description: "Image width in pixels."
+        minimum: 1
+      - name: height
+        type: number
+        description: "Image height in pixels."
+        default: 150
+      - name: caption
+        type: content
+        description: "Caption text or Pandoc content for the image."
+    attributes:
+      format:
+        type: string
+        enum:
+          - png
+          - jpg
+          - svg
+        default: png
+        description: "Output image format."
+      alt:
+        type: string
+        description: "Alternative text for accessibility."
+        maxLength: 200
+    # v2: parent-level required array (JSON Schema canonical form) names
+    # the attributes that must be present. Field-local `required: true`
+    # remains supported.
+    required:
+      - format
+
+# ---------------------------------------------------------------------------
+# formats
+# ---------------------------------------------------------------------------
+formats:
+  letter-pdf:
+    address:
+      type: array
+      required: true
+      description: "Recipient address lines."
+      items:
+        type: string
+    opening:
+      type: string
+      default: "Dear Sir or Madam,"
+      description: "Opening salutation."
+
+# ---------------------------------------------------------------------------
+# attributes
+# ---------------------------------------------------------------------------
+attributes:
+  _any:
+    colour:
+      type: string
+      aliases:
+        - color
+        - ink
+        - fg
+      description: "Text (foreground) colour."
+      completion:
+        type: color
+  panel:
+    title:
+      type: string
+      description: "Panel heading text."
+      required: true
+  CodeBlock:
+    filename:
+      type: string
+      description: "Display filename label for the code block."
+
+# ---------------------------------------------------------------------------
+# classes
+# ---------------------------------------------------------------------------
+classes:
+  panel:
+    description: "A styled panel container."
+  hidden:
+    description: "Hides the element from output."
+
+# ---------------------------------------------------------------------------
+# projects
+# ---------------------------------------------------------------------------
+projects:
+  - my-website

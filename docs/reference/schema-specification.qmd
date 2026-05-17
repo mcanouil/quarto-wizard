@@ -46,12 +46,40 @@ options:
     type: number
 ```
 
-The currently supported URI is:
+Two versions are currently supported in parallel:
 
-- `https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json`
+- `https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json` (v1, default; kebab-case canonical with camelCase aliases).
+- `https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json` (v2; JSON Schema canonical names exclusively).
 
+When the `$schema` key is omitted, the file is validated against v1.
 When an unrecognised version URI is encountered, Quarto Wizard emits a warning but does not reject the schema.
 This allows older tooling to gracefully handle schemas written for newer versions.
+
+### v1 vs v2 vocabulary
+
+v2 drops dual-keying so every keyword has exactly one canonical name, matching JSON Schema 2020-12 conventions wherever a JSON Schema equivalent exists.
+
+| Concept                  | v1 canonical (YAML)                       | v2 canonical                                                            |
+| ------------------------ | ----------------------------------------- | ----------------------------------------------------------------------- |
+| Minimum / maximum        | `min` / `max`                             | `minimum` / `maximum`                                                   |
+| Exclusive bounds         | `exclusive-minimum` / `exclusive-maximum` | `exclusiveMinimum` / `exclusiveMaximum`                                 |
+| String length            | `min-length` / `max-length`               | `minLength` / `maxLength`                                               |
+| Array length             | `min-items` / `max-items`                 | `minItems` / `maxItems`                                                 |
+| Numeric step             | `multiple-of`                             | `multipleOf`                                                            |
+| Case-insensitive enum    | `enum-case-insensitive`                   | `enumCaseInsensitive`                                                   |
+| Object extra keys        | `additional-properties`                   | `additionalProperties`                                                  |
+| Object key regex         | `property-names`                          | `propertyNames`                                                         |
+| Conditional requirement  | `dependent-required`                      | `dependentRequired`                                                     |
+| Content metadata         | `content-encoding` / `content-media-type` | `contentEncoding` / `contentMediaType`                                  |
+| Deprecation replacement  | `replace-with`                            | `replaceWith`                                                           |
+| Anchored pattern         | `pattern-exact: true`                     | Removed — write `^...$` in `pattern` directly                           |
+| Shortcode required attrs | Per-attribute `required: true` only       | Per-attribute `required: true` OR parent-level `required: [name1, ...]` |
+
+v2 also drops `pattern-exact` entirely.
+Authors should write `^...$` anchors into the `pattern` value itself.
+
+Migration is mostly mechanical:
+rewrite kebab-case keyword names to their camelCase equivalents and replace `min` / `max` with `minimum` / `maximum`.
 
 ## Top-level Structure
 
@@ -256,40 +284,54 @@ All properties are optional.
 
 ### Type and Value Constraints
 
-| Property                | Type      | Description                                                                                     |
-| ----------------------- | --------- | ----------------------------------------------------------------------------------------------- |
-| `type`                  | `string`  | Expected value type: `string`, `number`, `integer`, `boolean`, `array`, `object`, or `content`. |
-| `required`              | `boolean` | Whether the field must be present. Default: `false`.                                            |
-| `default`               | any       | Default value applied when not provided.                                                        |
-| `const`                 | any       | Fixed value the field must equal.                                                               |
-| `enum`                  | array     | List of allowed values.                                                                         |
-| `enum-case-insensitive` | `boolean` | Case-insensitive enum matching. Default: `false`.                                               |
-| `pattern`               | `string`  | Regular expression the value must match (JS regex syntax).                                      |
-| `pattern-exact`         | `boolean` | Anchor the pattern to match the entire value (wraps in `^...$`). Default: `false`.              |
-| `min`                   | `number`  | Minimum value (inclusive, for `type: number` or `type: integer`).                               |
-| `max`                   | `number`  | Maximum value (inclusive, for `type: number` or `type: integer`).                               |
-| `minimum`               | `number`  | Alias for `min`.                                                                                |
-| `maximum`               | `number`  | Alias for `max`.                                                                                |
-| `exclusive-minimum`     | `number`  | Exclusive minimum (value must be strictly greater).                                             |
-| `exclusive-maximum`     | `number`  | Exclusive maximum (value must be strictly less).                                                |
-| `min-length`            | `integer` | Minimum string length (for `type: string`).                                                     |
-| `max-length`            | `integer` | Maximum string length (for `type: string`).                                                     |
-| `min-items`             | `integer` | Minimum number of items (for `type: array`).                                                    |
-| `max-items`             | `integer` | Maximum number of items (for `type: array`).                                                    |
+| Property                | Type                          | Description                                                                                                   |
+| ----------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `type`                  | `string`                      | Expected value type: `string`, `number`, `integer`, `boolean`, `array`, `object`, `null`, or `content`.       |
+| `required`              | `boolean`                     | Whether the field must be present. Default: `false`.                                                          |
+| `default`               | any                           | Default value applied when not provided.                                                                      |
+| `const`                 | any                           | Fixed value the field must equal.                                                                             |
+| `enum`                  | array                         | List of allowed values.                                                                                       |
+| `enum-case-insensitive` | `boolean`                     | Case-insensitive enum matching. Default: `false`.                                                             |
+| `pattern`               | `string`                      | Regular expression the value must match (JS regex syntax).                                                    |
+| `pattern-exact`         | `boolean`                     | Deprecated. Anchor the pattern to match the entire value (wraps in `^...$`). Prefer writing `^...$` directly. |
+| `min`                   | `number`                      | Minimum value (inclusive, for `type: number` or `type: integer`).                                             |
+| `max`                   | `number`                      | Maximum value (inclusive, for `type: number` or `type: integer`).                                             |
+| `minimum`               | `number`                      | Alias for `min`.                                                                                              |
+| `maximum`               | `number`                      | Alias for `max`.                                                                                              |
+| `exclusive-minimum`     | `number`                      | Exclusive minimum (value must be strictly greater).                                                           |
+| `exclusive-maximum`     | `number`                      | Exclusive maximum (value must be strictly less).                                                              |
+| `multiple-of`           | `number`                      | Value must be a positive multiple of this number (for `type: number` or `type: integer`).                     |
+| `min-length`            | `integer`                     | Minimum string length (for `type: string`).                                                                   |
+| `max-length`            | `integer`                     | Maximum string length (for `type: string`).                                                                   |
+| `min-items`             | `integer`                     | Minimum number of items (for `type: array`).                                                                  |
+| `max-items`             | `integer`                     | Maximum number of items (for `type: array`).                                                                  |
+| `additional-properties` | `boolean` or field descriptor | Whether object values may carry keys beyond those in `properties`. Default: `true`.                           |
+| `property-names`        | `string`                      | Regular expression all object keys must match (for `type: object`).                                           |
+| `dependent-required`    | `object`                      | Map of key → list of keys that become required when that key is present (for `type: object`).                 |
+| `format`                | `string`                      | JSON Schema format hint (e.g. `uri`, `email`, `date-time`). Annotation only.                                  |
+| `content-encoding`      | `string`                      | Content encoding for a string value (e.g. `base64`). Annotation only.                                         |
+| `content-media-type`    | `string`                      | Media type of a string value (e.g. `application/json`). Annotation only.                                      |
 
 The `integer` type validates that the value is a whole number.
-It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`).
+It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of`).
 
 The `content` type is specific to shortcode arguments and accepts any Pandoc Inlines, Blocks, or string value.
+Quarto Wizard rejects `type: content` outside shortcode arguments.
 Validation only checks presence (for `required`); no further type or pattern checking applies.
 
-In JSON schema files, the properties above use camelCase equivalents: `enumCaseInsensitive`, `patternExact`, `minLength`, `maxLength`, `minItems`, `maxItems`, `exclusiveMinimum`, and `exclusiveMaximum`.
+The `null` type matches the explicit YAML value `null` (or `~`).
+Combine it with another type for nullable fields, e.g. `type: [string, "null"]`.
+
+In JSON schema files, multi-word property names use camelCase equivalents: `enumCaseInsensitive`, `patternExact`, `minLength`, `maxLength`, `minItems`, `maxItems`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `additionalProperties`, `propertyNames`, `dependentRequired`, `contentEncoding`, and `contentMediaType`.
+Mixing camelCase and kebab-case forms of the same keyword on one descriptor produces a warning.
 
 ### Metadata Properties
 
 | Property      | Type                             | Description                                                               |
 | ------------- | -------------------------------- | ------------------------------------------------------------------------- |
 | `description` | `string`                         | Human-readable description shown in hover tooltips and completion detail. |
+| `title`       | `string`                         | Short human-readable label.                                               |
+| `examples`    | `array`                          | Example values for documentation and tooling.                             |
 | `aliases`     | `array<string>`                  | Alternative accepted names (e.g., `[color]` alongside `colour`).          |
 | `deprecated`  | `boolean`, `string`, or `object` | Mark the field as deprecated (see [Deprecation](#deprecation)).           |
 
@@ -316,15 +358,16 @@ When omitted, Quarto Wizard infers completion from other properties (e.g., `enum
 
 #### Completion Types {#completion-types}
 
-| Type       | IDE Behaviour                                         |
-| ---------- | ----------------------------------------------------- |
-| `enum`     | Suggests values from the `enum` or `values` property. |
-| `file`     | Opens a file picker filtered by `extensions`.         |
-| `color`    | Shows a colour picker.                                |
-| `boolean`  | Suggests `true` and `false`.                          |
-| `freeform` | Shows a text input with `placeholder` as hint.        |
-| `size`     | Suggests common CSS size values.                      |
-| `none`     | Disables autocompletion for this field.               |
+| Type        | IDE Behaviour                                         |
+| ----------- | ----------------------------------------------------- |
+| `enum`      | Suggests values from the `enum` or `values` property. |
+| `file`      | Opens a file picker filtered by `extensions`.         |
+| `directory` | Opens a directory picker.                             |
+| `color`     | Shows a colour picker.                                |
+| `boolean`   | Suggests `true` and `false`.                          |
+| `freeform`  | Shows a text input with `placeholder` as hint.        |
+| `size`      | Suggests common CSS size values.                      |
+| `none`      | Disables autocompletion for this field.               |
 
 ## Features
 
@@ -538,17 +581,20 @@ attributes:
 
 ## Reference Schema Files
 
-The JSON Schema meta-schema that formally describes the structure of `_schema.yml` and `_schema.json` files is published at:
+The JSON Schema meta-schemas that formally describe the structure of `_schema.yml` and `_schema.json` files are published at:
 
-- [`extension-schema.json`](/assets/schema/v1/extension-schema.json) (JSON Schema draft 2020-12).
+- [`v1/extension-schema.json`](/assets/schema/v1/extension-schema.json) (JSON Schema draft 2020-12; dual-keyed vocabulary).
+- [`v2/extension-schema.json`](/assets/schema/v2/extension-schema.json) (JSON Schema draft 2020-12; canonical camelCase vocabulary).
 
-This is the same schema referenced by the `$schema` key at the top of schema definition files.
-It can be used by any JSON Schema-aware tool for validation and autocompletion.
+These are the same schemas referenced by the `$schema` key at the top of schema definition files.
+They can be used by any JSON Schema-aware tool for validation and autocompletion.
 
 Example instances showing every supported property are also available:
 
-- [`extension-schema-example.yml`](/assets/schema/v1/extension-schema-example.yml) (YAML example, kebab-case keys).
-- [`extension-schema-example.json`](/assets/schema/v1/extension-schema-example.json) (JSON example, camelCase keys).
+- [`v1/extension-schema-example.yml`](/assets/schema/v1/extension-schema-example.yml) (v1 YAML, kebab-case keys).
+- [`v1/extension-schema-example.json`](/assets/schema/v1/extension-schema-example.json) (v1 JSON, camelCase keys).
+- [`v2/extension-schema-example.yml`](/assets/schema/v2/extension-schema-example.yml) (v2 YAML, canonical names).
+- [`v2/extension-schema-example.json`](/assets/schema/v2/extension-schema-example.json) (v2 JSON, canonical names).
 
 ::: {.content-hidden when-format="llms-txt"}
 
@@ -590,10 +636,11 @@ Then read every Lua source file to discover:
 For every field use the following properties where applicable:
 
 - `type`: `string`, `number`, `integer`, `boolean`, `array`, `object`,
-  or `content` (for shortcode arguments that receive Pandoc content).
+  `null`, or `content` (the last only for shortcode arguments that
+  receive Pandoc content).
   Use `integer` when only whole numbers are valid.
   When a field accepts multiple types, use an array
-  (e.g., `type: [string, number]`).
+  (e.g., `type: [string, number]` or `type: [string, "null"]`).
 - `required`: set to `true` only when the code raises an error or
   returns early for missing values.
 - `default`: the fallback value used in the code.
@@ -609,8 +656,19 @@ For every field use the following properties where applicable:
   (`minimum` and `maximum` are accepted as aliases).
 - `exclusive-minimum` / `exclusive-maximum`: exclusive numeric bounds
   (value must be strictly greater / strictly less).
+- `multiple-of`: value must be a positive multiple of this number.
 - `min-length` / `max-length`: string length constraints.
 - `min-items` / `max-items`: array item count constraints.
+- `additional-properties`: `false` to forbid extra keys on a
+  `type: object`, or a nested field descriptor that every extra value
+  must match.
+- `property-names`: regular expression every object key must match.
+- `dependent-required`: map of key → list of keys that become required
+  whenever that key is present.
+- `format`: JSON Schema format hint (`uri`, `email`, `date-time`, etc.).
+  Annotation only.
+- `title`: short human-readable label.
+- `examples`: list of example values for documentation and tooling.
 - `aliases`: alternative key names accepted by the code.
 - `deprecated`: `true`, a message string, or an object with `since`,
   `message`, and `replace-with` keys.

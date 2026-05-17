@@ -160,6 +160,64 @@ options:
       dynamic: true
       source: brand-colors
 
+  # An integer option with multiple-of, title, and examples.
+  step:
+    type: integer
+    title: "Step size"
+    description: "Increment between successive items. Must be a positive multiple of 5."
+    multiple-of: 5
+    min: 5
+    examples:
+      - 5
+      - 10
+      - 25
+
+  # A string option using JSON Schema "format" hint and examples.
+  homepage:
+    type: string
+    format: uri
+    description: "Homepage URL."
+    examples:
+      - "https://example.org"
+
+  # An object option with locked-down keys and a key-name constraint.
+  strict-config:
+    type: object
+    description: "Object with locked-down keys and key-name constraint."
+    properties:
+      name:
+        type: string
+        required: true
+    additional-properties: false
+    property-names: "^[a-z][a-zA-Z0-9]*$"
+
+  # An object option where any additional keys must each be strings.
+  extensible-config:
+    type: object
+    description: "Object where unknown keys must each be strings."
+    additional-properties:
+      type: string
+
+  # An object option that ties keys together: if "mode" is set, "target" is required too.
+  conditional:
+    type: object
+    description: "When 'mode' is set, 'target' is also required."
+    properties:
+      mode:
+        type: string
+      target:
+        type: string
+    dependent-required:
+      mode:
+        - target
+
+  # A nullable option (union of string and explicit null).
+  nullable:
+    type:
+      - string
+      - "null"
+    description: "Either a string or explicit null."
+
 # ---------------------------------------------------------------------------
 # shortcodes
 # ---------------------------------------------------------------------------
