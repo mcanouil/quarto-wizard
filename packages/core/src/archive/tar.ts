@@ -48,70 +48,82 @@ export async function extractTar(
 	let entryCount = 0;
 	let securityError: SecurityError | undefined;
 
-	await tar.extract({
-		file: archivePath,
-		cwd: destDir,
-		filter: (entryPath, entry) => {
-			if (securityError) {
-				return false;
-			}
-			try {
-				checkPathTraversal(entryPath);
-			} catch (error) {
-				securityError = error instanceof SecurityError ? error : new SecurityError(String(error));
-				return false;
-			}
-			if ("type" in entry && (entry.type === "SymbolicLink" || entry.type === "Link")) {
-				const linkType = entry.type === "SymbolicLink" ? "symbolic link" : "hard link";
-				securityError = new SecurityError(`Archive contains a ${linkType} ("${entryPath}"), which is not permitted.`);
-				return false;
-			}
-			return true;
-		},
-		onReadEntry: (entry) => {
-			if (securityError) {
-				entry.resume();
-				return;
-			}
+	try {
+		await tar.extract({
+			file: archivePath,
+			cwd: destDir,
+			filter: (entryPath, entry) => {
+				if (securityError) {
+					return false;
+				}
+				try {
+					checkPathTraversal(entryPath);
+				} catch (error) {
+					securityError = error instanceof SecurityError ? error : new SecurityError(String(error));
+					return false;
+				}
+				if ("type" in entry && (entry.type === "SymbolicLink" || entry.type === "Link")) {
+					const linkType = entry.type === "SymbolicLink" ? "symbolic link" : "hard link";
+					securityError = new SecurityError(`Archive contains a ${linkType} ("${entryPath}"), which is not permitted.`);
+					return false;
+				}
+				return true;
+			},
+			onReadEntry: (entry) => {
+				if (securityError) {
+					entry.resume();
+					return;
+				}
 
-			entryCount++;
-			if (entryCount > MAX_FILE_COUNT) {
-				securityError = new SecurityError(
-					`Archive contains too many entries: ${entryCount} > ${MAX_FILE_COUNT}. This may indicate a file bomb.`,
-				);
-				entry.resume();
-				return;
-			}
-
-			totalSize += entry.size ?? 0;
-
-			if (totalSize > maxSize) {
-				securityError = new SecurityError(
-					`Archive exceeds maximum size: ${formatSize(totalSize)} > ${formatSize(maxSize)}`,
-				);
-				entry.resume();
-				return;
-			}
-
-			// Check compression ratio incrementally to detect tar bombs early.
-			if (compressedSize > 0) {
-				const ratio = totalSize / compressedSize;
-				if (ratio > MAX_COMPRESSION_RATIO) {
+				entryCount++;
+				if (entryCount > MAX_FILE_COUNT) {
 					securityError = new SecurityError(
-						`Suspicious compression ratio detected: ${ratio.toFixed(1)}:1. ` + "This may indicate a tar bomb.",
+						`Archive contains too many entries: ${entryCount} > ${MAX_FILE_COUNT}. This may indicate a file bomb.`,
 					);
 					entry.resume();
 					return;
 				}
-			}
 
-			const entryPath = entry.path;
-			if (entry.type === "File" || entry.type === "ContiguousFile") {
-				extractedFiles.push(path.join(destDir, entryPath));
-				onProgress?.(entryPath);
-			}
-		},
-	});
+				totalSize += entry.size ?? 0;
+
+				if (totalSize > maxSize) {
+					securityError = new SecurityError(
+						`Archive exceeds maximum size: ${formatSize(totalSize)} > ${formatSize(maxSize)}`,
+					);
+					entry.resume();
+					return;
+				}
+
+				// Check compression ratio incrementally to detect tar bombs early.
+				if (compressedSize > 0) {
+					const ratio = totalSize / compressedSize;
+					if (ratio > MAX_COMPRESSION_RATIO) {
+						securityError = new SecurityError(
+							`Suspicious compression ratio detected: ${ratio.toFixed(1)}:1. ` + "This may indicate a tar bomb.",
+						);
+						entry.resume();
+						return;
+					}
+				}
+
+				const entryPath = entry.path;
+				if (entry.type === "File" || entry.type === "ContiguousFile") {
+					extractedFiles.push(path.join(destDir, entryPath));
+					onProgress?.(entryPath);
+				}
+			},
+			onwarn: () => {
+				// Swallow non-fatal node-tar warnings; SecurityError is the source of truth.
+			},
+		});
+	} catch (error) {
+		// A security violation aborts the extraction by returning false from `filter`,
+		// which can leave the gzip stream partially consumed. node-tar then surfaces a
+		// late Z_STREAM_ERROR from minizlib. Prefer the original security failure.
+		if (!securityError) {
+			throw error;
+		}
+	}
 
 	if (securityError) {
 		throw securityError;
