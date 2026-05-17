@@ -172,7 +172,7 @@ export interface RawSchema {
 export const SCHEMA_V1_VERSION_URI = "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json";
 export const SCHEMA_V2_VERSION_URI = "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json";
 
-/** Backwards-compatible alias of {@link SCHEMA_V1_VERSION_URI}. */
+/** Convenience alias for the default schema version URI ({@link SCHEMA_V1_VERSION_URI}). */
 export const SCHEMA_VERSION_URI = SCHEMA_V1_VERSION_URI;
 
 /**
@@ -185,14 +185,30 @@ export const SUPPORTED_SCHEMA_VERSIONS = new Set([SCHEMA_V1_VERSION_URI, SCHEMA_
 export type SchemaVersion = "v1" | "v2";
 
 /**
+ * Normalise a `$schema` URI for comparison: strip a single trailing slash.
+ */
+export function normaliseSchemaUri(uri: string): string {
+	return uri.endsWith("/") ? uri.slice(0, -1) : uri;
+}
+
+/**
  * Resolve a schema version from an instance file's `$schema` URI.
- * Returns `"v1"` when no URI is present (legacy default).
+ * Returns `"v1"` when no URI is present or the URI is unrecognised.
  */
 export function resolveSchemaVersion(schemaUri: string | undefined): SchemaVersion {
-	if (schemaUri === SCHEMA_V2_VERSION_URI) {
+	if (schemaUri && normaliseSchemaUri(schemaUri) === SCHEMA_V2_VERSION_URI) {
 		return "v2";
 	}
 	return "v1";
+}
+
+/**
+ * Whether a `$schema` URI matches one of the supported schema versions (after
+ * trailing-slash normalisation).
+ */
+export function isSupportedSchemaUri(schemaUri: string): boolean {
+	const normalised = normaliseSchemaUri(schemaUri);
+	return normalised === SCHEMA_V1_VERSION_URI || normalised === SCHEMA_V2_VERSION_URI;
 }
 
 /**

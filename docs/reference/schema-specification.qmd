@@ -75,9 +75,6 @@ v2 drops dual-keying so every keyword has exactly one canonical name, matching J
 | Anchored pattern         | `pattern-exact: true`                     | Removed — write `^...$` in `pattern` directly                           |
 | Shortcode required attrs | Per-attribute `required: true` only       | Per-attribute `required: true` OR parent-level `required: [name1, ...]` |
 
-v2 also drops `pattern-exact` entirely.
-Authors should write `^...$` anchors into the `pattern` value itself.
-
 Migration is mostly mechanical:
 rewrite kebab-case keyword names to their camelCase equivalents and replace `min` / `max` with `minimum` / `maximum`.
 

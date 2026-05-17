@@ -558,7 +558,7 @@ describe("semantic checks", () => {
 describe("validateSchemaDefinition integration", () => {
 	it("returns no findings for a valid YAML schema", () => {
 		const yamlContent = [
-			"$schema: https://example.com/schema.json",
+			"$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json",
 			"options:",
 			"  title:",
 			"    type: string",
@@ -595,7 +595,7 @@ describe("validateSchemaDefinition integration", () => {
 
 	it("returns no findings for a valid JSON schema", () => {
 		const jsonContent = JSON.stringify({
-			$schema: "https://example.com/schema.json",
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json",
 			options: {
 				title: {
 					type: "string",
@@ -629,6 +629,83 @@ describe("validateSchemaDefinition integration", () => {
 	it("returns no findings for empty content", () => {
 		const findings = validateSchemaDefinition("", "yaml");
 		expect(findings).toHaveLength(0);
+	});
+
+	it("warns when $schema URI is unrecognised (falls back to v1)", () => {
+		const content = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v3/extension-schema.json",
+			options: { f: { type: "string" } },
+		});
+		const findings = validateSchemaDefinition(content, "json");
+		expect(findings.some((f) => f.code === "unknown-schema-version")).toBe(true);
+	});
+
+	it("does not warn when $schema is absent", () => {
+		const findings = validateSchemaDefinition(JSON.stringify({ options: {} }), "json");
+		expect(findings.filter((f) => f.code === "unknown-schema-version")).toHaveLength(0);
+	});
+
+	it("recognises v2 URI with a trailing slash", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json/",
+			options: { count: { type: "integer", minimum: 1 } },
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		expect(findings.filter((f) => f.code === "unknown-schema-version")).toHaveLength(0);
+		expect(findings.filter((f) => f.code === "unknown-field-property")).toHaveLength(0);
+	});
+
+	it("flags name on a non-shortcode-argument descriptor", () => {
+		const findings = validateSchemaDefinition(
+			JSON.stringify({ options: { f: { type: "string", name: "stray" } } }),
+			"json",
+		);
+		expect(findings.some((f) => f.code === "shortcode-argument-only-property" && f.keyPath === "options.f.name")).toBe(
+			true,
+		);
+	});
+
+	it("does not flag name on a shortcode argument", () => {
+		const findings = validateSchemaDefinition(
+			JSON.stringify({ shortcodes: { sc: { arguments: [{ name: "arg1", type: "string" }] } } }),
+			"json",
+		);
+		expect(findings.filter((f) => f.code === "shortcode-argument-only-property")).toHaveLength(0);
+	});
+
+	it("in v2, additional-properties kebab key is flagged unknown without recursing", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+			options: {
+				f: {
+					type: "object",
+					"additional-properties": { type: "badtype" },
+				},
+			},
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		expect(findings.some((f) => f.code === "unknown-field-property")).toBe(true);
+		expect(findings.filter((f) => f.code === "invalid-type")).toHaveLength(0);
+	});
+
+	it("invalid propertyNames regex reports camelCase keyPath when camelCase form was used", () => {
+		const v2 = JSON.stringify({
+			$schema: "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json",
+			options: { f: { type: "object", propertyNames: "[invalid" } },
+		});
+		const findings = validateSchemaDefinition(v2, "json");
+		const finding = findings.find((x) => x.code === "invalid-property-names");
+		expect(finding?.keyPath).toBe("options.f.propertyNames");
+	});
+
+	it("flags unknown keys on class entries", () => {
+		const findings = validateSchemaDefinition(
+			JSON.stringify({ classes: { panel: { description: "A panel.", colour: "red" } } }),
+			"json",
+		);
+		expect(findings.some((f) => f.code === "unknown-class-property" && f.keyPath === "classes.panel.colour")).toBe(
+			true,
+		);
 	});
 
 	it("validates a v2 schema with camelCase canonical names", () => {

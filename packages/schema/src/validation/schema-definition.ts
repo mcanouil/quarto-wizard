@@ -10,7 +10,7 @@
 
 import * as yaml from "js-yaml";
 import { allowedSetsFor, ALLOWED_TYPES } from "./schema-derived.js";
-import { FIELD_ALIAS_PAIRS, resolveSchemaVersion, type SchemaVersion } from "../types/schema.js";
+import { FIELD_ALIAS_PAIRS, isSupportedSchemaUri, resolveSchemaVersion, type SchemaVersion } from "../types/schema.js";
 
 const ALLOWED_TYPES_LIST = [...ALLOWED_TYPES].join(", ");
 
@@ -132,9 +132,16 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 	const findings: SchemaDefinitionFinding[] = [];
 	const root = parsed as Record<string, unknown>;
 
-	const version: SchemaVersion = resolveSchemaVersion(
-		typeof root["$schema"] === "string" ? (root["$schema"] as string) : undefined,
-	);
+	const rawSchemaUri = typeof root["$schema"] === "string" ? (root["$schema"] as string) : undefined;
+	if (rawSchemaUri && !isSupportedSchemaUri(rawSchemaUri)) {
+		findings.push({
+			message: `Unrecognised $schema URI "${rawSchemaUri}"; validating as v1.`,
+			severity: "warning",
+			code: "unknown-schema-version",
+			keyPath: "$schema",
+		});
+	}
+	const version: SchemaVersion = resolveSchemaVersion(rawSchemaUri);
 	const ctx: ValidationContext = { version, allowed: allowedSetsFor(version), findings };
 
 	for (const key of Object.keys(root)) {
@@ -232,6 +239,8 @@ function sectionTypeError(keyPath: string, message: string): SchemaDefinitionFin
 	return { message, severity: "error", code: "invalid-section-type", keyPath };
 }
 
+const ALLOWED_CLASS_ENTRY_KEYS = new Set(["description"]);
+
 function validateClassesMap(classes: Record<string, unknown>, ctx: ValidationContext): void {
 	for (const [classKey, classValue] of Object.entries(classes)) {
 		const classPath = `classes.${classKey}`;
@@ -244,7 +253,18 @@ function validateClassesMap(classes: Record<string, unknown>, ctx: ValidationCon
 			});
 			continue;
 		}
-		const desc = (classValue as Record<string, unknown>)["description"];
+		const classObj = classValue as Record<string, unknown>;
+		for (const key of Object.keys(classObj)) {
+			if (!ALLOWED_CLASS_ENTRY_KEYS.has(key)) {
+				ctx.findings.push({
+					message: `Unknown class property "${key}".`,
+					severity: "warning",
+					code: "unknown-class-property",
+					keyPath: `${classPath}.${key}`,
+				});
+			}
+		}
+		const desc = classObj["description"];
 		if (desc !== undefined && typeof desc !== "string") {
 			ctx.findings.push({
 				message: `Class "${classKey}" description must be a string.`,
@@ -331,6 +351,15 @@ function validateFieldDescriptor(
 		}
 	}
 
+	if (!isShortcodeArgument && raw["name"] !== undefined) {
+		findings.push({
+			message: '"name" is only valid on shortcode argument descriptors.',
+			severity: "warning",
+			code: "shortcode-argument-only-property",
+			keyPath: `${keyPath}.name`,
+		});
+	}
+
 	validateFieldSemantics(raw, keyPath, findings);
 
 	if (isPlainObject(raw["items"])) {
@@ -341,10 +370,17 @@ function validateFieldDescriptor(
 		validateFieldDescriptorMap(raw["properties"] as Record<string, unknown>, `${keyPath}.properties`, ctx);
 	}
 
-	const apKey = raw["additionalProperties"] !== undefined ? "additionalProperties" : "additional-properties";
-	const ap = raw[apKey];
-	if (isPlainObject(ap)) {
-		validateFieldDescriptor(ap as Record<string, unknown>, `${keyPath}.${apKey}`, ctx, false);
+	const apKey =
+		raw["additionalProperties"] !== undefined
+			? "additionalProperties"
+			: version === "v1"
+				? "additional-properties"
+				: undefined;
+	if (apKey !== undefined) {
+		const ap = raw[apKey];
+		if (isPlainObject(ap)) {
+			validateFieldDescriptor(ap as Record<string, unknown>, `${keyPath}.${apKey}`, ctx, false);
+		}
 	}
 }
 
@@ -451,16 +487,17 @@ function validateFieldSemantics(
 		}
 	}
 
-	const propertyNamesValue = raw["propertyNames"] ?? raw["property-names"];
+	const propertyNamesKey = raw["propertyNames"] !== undefined ? "propertyNames" : "property-names";
+	const propertyNamesValue = raw[propertyNamesKey];
 	if (typeof propertyNamesValue === "string") {
 		try {
 			new RegExp(propertyNamesValue);
 		} catch {
 			findings.push({
-				message: `Invalid regular expression in "property-names": "${propertyNamesValue}".`,
+				message: `Invalid regular expression in "${propertyNamesKey}": "${propertyNamesValue}".`,
 				severity: "error",
 				code: "invalid-property-names",
-				keyPath: `${keyPath}.property-names`,
+				keyPath: `${keyPath}.${propertyNamesKey}`,
 			});
 		}
 	}
