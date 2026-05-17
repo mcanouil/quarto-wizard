@@ -112,7 +112,9 @@ export async function extractTar(
 					onProgress?.(entryPath);
 				}
 			},
-			onwarn: () => {},
+			onwarn: () => {
+				// Swallow non-fatal node-tar warnings; SecurityError is the source of truth.
+			},
 		});
 	} catch (error) {
 		// A security violation aborts the extraction by returning false from `filter`,
