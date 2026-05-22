@@ -1,0 +1,62 @@
+<script id="navbar-tooltips" type="text/javascript">
+	document.addEventListener("DOMContentLoaded", function () {
+		var hasTippy = typeof window.tippy === "function";
+		var config = {
+			theme: "mc",
+			placement: "bottom",
+			arrow: false,
+			delay: [100, 0],
+			offset: [0, 6],
+			allowHTML: false,
+			appendTo: function () {
+				return document.body;
+			},
+		};
+
+		function bind(el, content, extra) {
+			if (!el || !content || el.dataset.tippyBound === "1") return;
+			el.removeAttribute("title");
+			if (hasTippy) {
+				window.tippy(el, Object.assign({ content: content }, config, extra || {}));
+				el.dataset.tippyBound = "1";
+			}
+		}
+
+		document.querySelectorAll("#quarto-header .navbar a.nav-link").forEach(function (link) {
+			var icon = link.querySelector("iconify-icon");
+			var visibleText = link.textContent.replace(/\s+/g, " ").trim();
+			var label = (icon && (icon.getAttribute("aria-label") || icon.getAttribute("title"))) || visibleText;
+			// The icon is decorative once the link is named; hiding it avoids a
+			// doubled screen-reader announcement (e.g. "Credits Credits").
+			if (icon) {
+				icon.removeAttribute("title");
+				icon.setAttribute("aria-hidden", "true");
+				icon.setAttribute("role", "presentation");
+				icon.removeAttribute("aria-label");
+			}
+			if (!visibleText && label) {
+				// Icon-only control: give the link a name and a styled tooltip.
+				var ariaLabel = label;
+				if (link.target === "_blank" && !/new tab/i.test(ariaLabel)) {
+					ariaLabel += " (opens in a new tab)";
+				}
+				if (!link.getAttribute("aria-label")) link.setAttribute("aria-label", ariaLabel);
+				bind(link, label);
+			} else if (visibleText && !link.getAttribute("aria-label")) {
+				link.setAttribute("aria-label", visibleText);
+			}
+		});
+
+		document.querySelectorAll("a.quarto-color-scheme-toggle").forEach(function (toggle) {
+			// Hover-only and hide on click, so the tooltip does not linger after toggling.
+			bind(toggle, toggle.getAttribute("aria-label") || toggle.getAttribute("title") || "Toggle dark mode", {
+				trigger: "mouseenter",
+				hideOnClick: true,
+			});
+		});
+
+		document.querySelectorAll("a.navbar-brand, a.navbar-brand-logo").forEach(function (logo) {
+			bind(logo, "Home");
+		});
+	});
+</script>

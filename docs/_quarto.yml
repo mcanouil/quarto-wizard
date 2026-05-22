@@ -1,5 +1,5 @@
 project:
-  type: mcanouil
+  type: website
   output-dir: _site
   resources:
     - assets/schema
@@ -9,7 +9,6 @@ lang: en
 # date-modified: today
 date-format: "dddd[, the] Do [of] MMMM, YYYY"
 highlight-style: github
-license: MIT
 image: "assets/social/social-card.png"
 
 website:
@@ -65,13 +64,37 @@ metadata-files:
 
 brand: _brand.yml
 format:
-  mcanouil-html:
+  html:
+    theme:
+      light: &theme
+        - brand
+        - assets/stylesheets/theme.scss
+      dark: *theme
+    respect-user-color-scheme: true
+    grid:
+      sidebar-width: 300px
+      body-width: 900px
+      margin-width: 300px
+    toc: true
+    toc-depth: 4
+    anchor-sections: true
+    fig-align: center
+    link-external-newwindow: true
+    email-obfuscate: javascript
     code-link: false
+    code-copy: true
+    code-overflow: scroll
+    include-before-body:
+      - assets/include/skip-link.html
+    include-after-body:
+      - assets/include/current-year.html
+      - assets/include/ordinal-dates.html
+      - assets/include/a11y-fixes.html
+      - assets/include/navbar-tooltips.html
 
 execute:
   freeze: auto
   echo: false
 
-extensions:
-  mcanouil:
-    hide-navbar-title: false
+filters:
+  - code-window
