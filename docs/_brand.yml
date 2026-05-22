@@ -7,37 +7,51 @@ meta:
     bluesky: https://bsky.app/profile/mickael.canouil.fr
     linkedin: https://www.linkedin.com/in/MickaelCanouil
 color:
+  palette:
+    star: "#ffd47a"
+    starlight: "#ece6d6"
+    midnight: "#0a0f1f"
+    midnight-2: "#111a33"
+    parchment: "#faf3ed"
+    ink: "#2a1410"
+    ember: "#e2854e"
+    ember-deep: "#b5531f"
   background:
-    dark: "#1e0808"
-    light: "#faf3ed"
+    dark: midnight
+    light: parchment
   foreground:
-    dark: "#e2854e"
-    light: "#451212"
+    dark: starlight
+    light: ink
+  primary:
+    dark: ember
+    light: ember-deep
   dark:
-    dark: "#1e0808"
-    light: "#451212"
+    dark: midnight
+    light: midnight
   light:
-    dark: "#e2854e"
-    light: "#faf3ed"
+    dark: starlight
+    light: starlight
 typography:
   fonts:
-    - family: Alegreya Sans
-      # source: bunny
+    - family: Cinzel
       source: google
-    - family: Fira Code
-      # source: bunny
+      weight: [400, 600, 700, 900]
+    - family: Inter
       source: google
-  base: Alegreya Sans
-  headings: Alegreya Sans
-  monospace: Fira Code
+      weight: [300, 400, 500, 600, 700]
+    - family: JetBrains Mono
+      source: google
+      weight: [400, 500, 700]
+  base: Inter
+  headings:
+    family: Cinzel
+    weight: 700
+  monospace: JetBrains Mono
   link:
-    color: foreground
+    color: primary
 defaults:
   bootstrap:
     defaults:
-      theme: mcanouil
       tooltip-color: $background
       tooltip-bg: $foreground
       btn-close-color: $foreground
-    rules: |
-      // CSS Rules
