@@ -294,6 +294,25 @@ header#title-block-header h1.title {
   border-top: 1px solid var(--mc-border);
 }
 
+// Collapsed (mobile) hamburger menu: lay both link groups out as a compact,
+// left-aligned wrapping row instead of a full-width vertical stack, so each link
+// hugs its content and the underline/tooltip anchor to the link, not the whole bar.
+// Scoped to the navbar-expand-lg collapse breakpoint so the desktop navbar is untouched.
+@media (max-width: 991.98px) {
+  .navbar .navbar-collapse .navbar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    width: auto;
+
+    .nav-link {
+      width: auto;
+      padding-inline: 0.6rem;
+    }
+  }
+}
+
 // ===========================================================================
 // TOOLTIPS (navbar controls — dark surface in both schemes to match the navbar)
 // ===========================================================================
