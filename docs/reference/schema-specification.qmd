@@ -40,7 +40,7 @@ Schema files may include a `$schema` key at the top level to declare the schema 
 This is optional but recommended for forward-compatibility.
 
 ```yaml
-$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json
 options:
   threshold:
     type: number
@@ -48,7 +48,7 @@ options:
 
 Two versions are currently supported in parallel:
 
-- `https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json` (v1, default; kebab-case canonical with camelCase aliases).
+- `https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json` (v1, default; kebab-case canonical with camelCase aliases).
 - `https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json` (v2; JSON Schema canonical names exclusively).
 
 When the `$schema` key is omitted, the file is validated against v1.
@@ -600,11 +600,7 @@ Example instances showing every supported property are also available:
 The prompt below can be used with an AI assistant to generate a `_schema.yml` for an existing extension.
 Copy the prompt, attach your extension's `_extension.yml` and Lua source files, and the assistant will produce a schema that matches your extension's actual behaviour.
 
-::: {.callout-tip}
-
-## Prompt for generating `_schema.yml`
-
-```markdown
+```{.markdown filename="Prompt for generating `_schema.yml`"}
 Generate a `_schema.yml` file for the attached Quarto extension.
 
 Read the attached `_extension.yml` to identify the extension name and
@@ -690,11 +686,9 @@ Output only the YAML content of `_schema.yml`, nothing else.
 Use kebab-case for multi-word property names (`enum-case-insensitive`,
 not `enumCaseInsensitive`).
 Add a one-line comment header: `# Schema for the <name> extension`.
-Optionally include `$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json`
+Optionally include `$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json`
 at the top level.
 Reference: https://m.canouil.dev/quarto-wizard/reference/schema-specification.llms.md
 ```
-
-:::
 
 :::
