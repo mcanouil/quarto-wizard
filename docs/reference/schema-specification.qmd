@@ -593,9 +593,9 @@ Example instances showing every supported property are also available:
 - [`v2/extension-schema-example.yml`](/assets/schema/v2/extension-schema-example.yml) (v2 YAML, canonical names).
 - [`v2/extension-schema-example.json`](/assets/schema/v2/extension-schema-example.json) (v2 JSON, canonical names).
 
-::: {.content-hidden when-format="llms-txt"}
-
 ## Generating a Schema with AI
+
+::: {.content-hidden when-format="llms-txt"}
 
 The prompt below can be used with an AI assistant to generate a `_schema.yml` for an existing extension.
 Copy the prompt, attach your extension's `_extension.yml` and Lua source files, and the assistant will produce a schema that matches your extension's actual behaviour.
