@@ -38,6 +38,15 @@ local DEFAULTS = {
   ['auto-filename'] = 'true',
   ['style'] = 'macos',
   ['wrapper'] = 'code-window',
+  ['collapse'] = 'false',
+  ['lines-label'] = 'true',
+}
+
+local VALID_COLLAPSE = {
+  ['false'] = false,
+  ['true'] = 'closed',
+  ['closed'] = 'closed',
+  ['open'] = 'open',
 }
 
 local HOTFIX_DEFAULTS = {
@@ -72,6 +81,63 @@ local function read_block_style(block)
   log.log_warning(EXTENSION_NAME,
     string.format('Unknown block style "%s", using configured default.', block_style))
   return nil
+end
+
+--- Resolve a collapse value coming from extension options or a code-block
+--- attribute. Returns "open"/"closed" when the window should be collapsible,
+--- nil when collapsing is off or the value is unrecognised.
+--- Emits a warning when the input is set but not understood.
+--- @param raw string|nil Raw collapse value
+--- @return string|nil Resolved collapse mode ("open"/"closed") or nil
+local function resolve_collapse(raw)
+  if raw == nil or raw == '' then
+    return nil
+  end
+  local resolved = VALID_COLLAPSE[raw]
+  if resolved == nil then
+    log.log_warning(EXTENSION_NAME,
+      string.format('Unknown collapse value "%s", expected one of true/false/open/closed.', raw))
+    return nil
+  end
+  if resolved == false then
+    return nil
+  end
+  return resolved
+end
+
+--- Read the per-block collapse override from code-window-collapse attribute.
+--- Always strips the attribute from the block before resolving.
+--- @param block pandoc.CodeBlock Code block element
+--- @return string|nil Resolved collapse mode ("open"/"closed") or nil when off
+local function read_block_collapse(block)
+  local raw = block.attributes['code-window-collapse']
+  if raw == nil then
+    return nil
+  end
+  block.attributes['code-window-collapse'] = nil
+  return resolve_collapse(raw)
+end
+
+--- Read a highlight-lines spec from the block, looking at the
+--- code-window-lines attribute first and falling back to Quarto's
+--- code-line-numbers attribute when it carries a non-boolean spec.
+--- Returns the cleaned spec string or nil.
+--- @param block pandoc.CodeBlock Code block element
+--- @return string|nil Line spec to display in the title bar
+local function read_block_lines_label(block)
+  local raw = block.attributes['code-window-lines']
+  if raw ~= nil then
+    block.attributes['code-window-lines'] = nil
+    if raw ~= '' then
+      return raw
+    end
+  end
+
+  local cln = block.attributes['code-line-numbers']
+  if not cln or cln == '' or cln == 'true' or cln == 'false' then
+    return nil
+  end
+  return cln
 end
 
 -- ============================================================================
@@ -190,6 +256,7 @@ local function build_typst_function_def(has_hotfixes)
   annotations: (:),
   bg-colour: none,
   block-id: 0,
+  lines-label: none,
 ) = {
   context {
   let page-bg = _cw-page-bg()
@@ -204,6 +271,17 @@ local function build_typst_function_def(has_hotfixes)
       weight: 500,
       fill: muted-colour,
       if is-auto { upper(filename) } else { filename },
+    )
+  }
+
+  let lines-chip = if lines-label != none {
+    box(
+      inset: (x: 0.4em, y: 0.05em),
+      outset: (y: 0.15em),
+      radius: 3pt,
+      fill: color.mix((fg, 10%%), (page-bg, 90%%)),
+      stroke: 0.5pt + border-colour,
+      text(size: 0.7em, weight: 500, fill: muted-colour, lines-label),
     )
   }
 
@@ -238,6 +316,12 @@ local function build_typst_function_def(has_hotfixes)
     },
   )
 
+  let _label-with-chip = if lines-chip != none {
+    stack(dir: ltr, spacing: 0.5em, filename-label, lines-chip)
+  } else {
+    filename-label
+  }
+
   let title-bar = if style == "macos" {
     grid(
       columns: (auto, 1fr),
@@ -245,7 +329,7 @@ local function build_typst_function_def(has_hotfixes)
       gutter: 0.5em,
       stroke: 0pt,
       traffic-lights,
-      filename-label,
+      _label-with-chip,
     )
   } else if style == "windows" {
     grid(
@@ -253,12 +337,12 @@ local function build_typst_function_def(has_hotfixes)
       align: (left + horizon, right + horizon),
       gutter: 0.5em,
       stroke: 0pt,
-      filename-label,
+      _label-with-chip,
       window-buttons,
     )
   } else {
     // default: plain filename, left-aligned
-    filename-label
+    _label-with-chip
   }
 
   block(
@@ -331,28 +415,42 @@ local function typst_bg_colour_param()
   return string.format(', bg-colour: rgb("%s")', TYPST_BG_COLOUR)
 end
 
+--- Escape a string for embedding in a Typst double-quoted string literal.
+--- @param s string
+--- @return string
+local function typst_escape_string(s)
+  return (s:gsub('\\', '\\\\'):gsub('"', '\\"'))
+end
+
 --- Build a code-window opening RawBlock for Typst.
 --- @param filename string
 --- @param is_auto boolean
 --- @param style string
 --- @param annotations table|nil
 --- @param block_id integer
+--- @param lines_label string|nil Highlighted-lines spec to display in the title bar
 --- @return pandoc.RawBlock
-local function typst_code_window_open(filename, is_auto, style, annotations, block_id)
+local function typst_code_window_open(filename, is_auto, style, annotations, block_id, lines_label)
   local annot_param = ''
   if annotations and next(annotations) then
     annot_param = string.format(', annotations: %s, block-id: %d',
       code_annotations.annotations_to_typst_dict(annotations), block_id)
   end
 
+  local lines_param = ''
+  if lines_label and lines_label ~= '' then
+    lines_param = string.format(', lines-label: "%s"', typst_escape_string(lines_label))
+  end
+
   return pandoc.RawBlock('typst', string.format(
-    '#%s(filename: "%s", is-auto: %s, style: "%s"%s%s)[',
+    '#%s(filename: "%s", is-auto: %s, style: "%s"%s%s%s)[',
     CONFIG.typst_wrapper,
-    filename:gsub('"', '\\"'),
+    typst_escape_string(filename),
     is_auto and 'true' or 'false',
     style,
     annot_param,
-    typst_bg_colour_param()
+    typst_bg_colour_param(),
+    lines_param
   ))
 end
 
@@ -393,11 +491,15 @@ local function process_html(block)
   end
 
   local block_style = read_block_style(block)
+  local block_collapse = read_block_collapse(block)
+  local effective_collapse = block_collapse or CONFIG.collapse
   local explicit_filename = block.attributes['filename']
   local no_auto = block.attributes['code-window-no-auto-filename']
   if no_auto then
     block.attributes['code-window-no-auto-filename'] = nil
   end
+
+  local lines_label = CONFIG.lines_label and read_block_lines_label(block) or nil
 
   if explicit_filename and explicit_filename ~= '' then
     -- Let Quarto create the .code-with-filename wrapper.
@@ -405,6 +507,12 @@ local function process_html(block)
     -- reads it and promotes it to the wrapper div.
     if block_style then
       table.insert(block.classes, 'cw-style-' .. block_style)
+    end
+    if effective_collapse then
+      table.insert(block.classes, 'cw-collapse-' .. effective_collapse)
+    end
+    if lines_label then
+      block.attributes['code-window-lines-label'] = lines_label
     end
     return block
   end
@@ -423,6 +531,12 @@ local function process_html(block)
   if block_style then
     table.insert(block.classes, 'cw-style-' .. block_style)
   end
+  if effective_collapse then
+    table.insert(block.classes, 'cw-collapse-' .. effective_collapse)
+  end
+  if lines_label then
+    block.attributes['code-window-lines-label'] = lines_label
+  end
 
   return block
 end
@@ -434,12 +548,18 @@ end
 --- Generate a JS snippet that builds .code-with-filename wrappers for
 --- auto-filename blocks (marked with cw-auto at pre-quarto), applies the
 --- configured default style class to all .code-with-filename wrappers,
---- and promotes block-level cw-style-* marker classes.
+--- promotes block-level cw-style-* / cw-collapse-* marker classes, inserts
+--- a highlighted-lines chip when data-code-window-lines-label is set on the inner
+--- pre, and wraps collapsible windows in a <details> element where the
+--- title bar acts as the <summary>.
 --- @param default_style string The configured default style
+--- @param default_collapse string|nil Default collapse mode ("open"/"closed"/nil)
 --- @return string JavaScript code
-local function make_style_js(default_style)
+local function make_style_js(default_style, default_collapse)
+  local default_collapse_js = default_collapse and ('"' .. default_collapse .. '"') or 'null'
   return string.format([=[
 document.addEventListener("DOMContentLoaded",function(){
+  var DEFAULT_COLLAPSE=%s;
   document.querySelectorAll("pre.cw-auto").forEach(function(pre){
     var fn=pre.closest("[data-filename]");
     if(!fn)return;
@@ -459,13 +579,52 @@ document.addEventListener("DOMContentLoaded",function(){
     w.appendChild(tb);w.appendChild(scaffold);
     pre.classList.remove("cw-auto");
   });
+  function findMarkerSource(el){
+    return el.querySelector('pre[class*="cw-style-"],pre[class*="cw-collapse-"],pre[data-code-window-lines-label]')
+      ||el.querySelector('[class*="cw-style-"],[class*="cw-collapse-"],[data-code-window-lines-label]');
+  }
   document.querySelectorAll(".code-with-filename").forEach(function(el){
-    if(/\bcode-window-(macos|windows|default)\b/.test(el.className))return;
-    var c=el.querySelector('[class*="cw-style-"]');
-    if(c){var m=c.className.match(/cw-style-(\w+)/);if(m){el.classList.add("code-window-"+m[1]);c.classList.remove(m[0]);return;}}
-    el.classList.add("code-window-%s");
+    var marker=findMarkerSource(el);
+    var styleApplied=/\bcode-window-(macos|windows|default)\b/.test(el.className);
+    if(!styleApplied){
+      var sm=marker&&marker.className.match(/cw-style-(\w+)/);
+      if(sm){el.classList.add("code-window-"+sm[1]);marker.classList.remove(sm[0]);}
+      else{el.classList.add("code-window-%s");}
+    }
+    var collapse=null;
+    if(marker){
+      var cm=marker.className.match(/cw-collapse-(open|closed)/);
+      if(cm){collapse=cm[1];marker.classList.remove(cm[0]);}
+    }
+    if(collapse===null&&DEFAULT_COLLAPSE){collapse=DEFAULT_COLLAPSE;}
+    if(marker&&marker.hasAttribute("data-code-window-lines-label")){
+      var spec=marker.getAttribute("data-code-window-lines-label");
+      marker.removeAttribute("data-code-window-lines-label");
+      var titleBar=el.querySelector(".code-with-filename-file");
+      if(titleBar&&!titleBar.querySelector(".code-with-filename-lines")){
+        var chip=document.createElement("span");
+        chip.className="code-with-filename-lines";
+        chip.textContent="L"+spec;
+        titleBar.appendChild(chip);
+      }
+    }
+    if(collapse&&!el.classList.contains("code-window-collapsible")){
+      var titleBar=el.querySelector(".code-with-filename-file");
+      if(titleBar){
+        var details=document.createElement("details");
+        details.className=el.className+" code-window-collapsible";
+        if(collapse==="open"){details.open=true;}
+        var summaryEl=document.createElement("summary");
+        summaryEl.className="code-with-filename-file";
+        while(titleBar.firstChild){summaryEl.appendChild(titleBar.firstChild);}
+        titleBar.parentNode.removeChild(titleBar);
+        details.appendChild(summaryEl);
+        while(el.firstChild){details.appendChild(el.firstChild);}
+        el.parentNode.replaceChild(details,el);
+      }
+    }
   });
-});]=], default_style)
+});]=], default_collapse_js, default_style)
 end
 
 --- Load configuration and inject CSS/JS dependencies.
@@ -473,7 +632,7 @@ function Meta(meta)
   CURRENT_FORMAT = pdoc.get_quarto_format()
   local opts = meta_mod.get_options({
     extension = EXTENSION_NAME,
-    keys = { 'enabled', 'auto-filename', 'style', 'wrapper' },
+    keys = { 'enabled', 'auto-filename', 'style', 'wrapper', 'collapse', 'lines-label' },
     meta = meta,
     defaults = DEFAULTS,
   })
@@ -482,6 +641,8 @@ function Meta(meta)
     log.log_warning(EXTENSION_NAME,
       string.format('Unknown style "%s", falling back to "macos".', opts['style']))
   end
+
+  local global_collapse = resolve_collapse(opts['collapse'])
 
   -- Read code-annotations metadata (Quarto standard option).
   local annot_meta = meta['code-annotations']
@@ -535,6 +696,8 @@ function Meta(meta)
     auto_filename = opts['auto-filename'] == 'true',
     style = VALID_STYLES[opts['style']] and opts['style'] or 'macos',
     typst_wrapper = opts['wrapper'],
+    collapse = global_collapse,
+    lines_label = opts['lines-label'] == 'true',
     hotfix_code_annotations = hotfix['code-annotations'],
     hotfix_skylighting = hotfix['skylighting'],
     hotfix_typst_title = hotfix['typst-title'],
@@ -570,7 +733,7 @@ function Meta(meta)
     html_mod.ensure_html_dependency({
       name = EXTENSION_NAME .. '-style-init',
       version = '0.1.0',
-      head = '<script>' .. make_style_js(CONFIG.style) .. '</script>',
+      head = '<script>' .. make_style_js(CONFIG.style, CONFIG.collapse) .. '</script>',
     })
   end
 
@@ -602,6 +765,7 @@ end
 --- @return boolean is_auto
 --- @return string|nil block_style
 --- @return boolean window_opted_out True when code-window-enabled="false" was set
+--- @return string|nil lines_label Highlighted-lines spec for the title bar
 local function resolve_window_params(block)
   -- Per-block opt-out: code-window-enabled="false" skips window chrome.
   local block_enabled = block.attributes['code-window-enabled']
@@ -609,7 +773,7 @@ local function resolve_window_params(block)
     block.attributes['code-window-enabled'] = nil
   end
   if block_enabled == 'false' then
-    return nil, false, nil, true
+    return nil, false, nil, true, nil
   end
 
   local block_style = read_block_style(block)
@@ -628,7 +792,12 @@ local function resolve_window_params(block)
     end
   end
 
-  return filename, is_auto, block_style, false
+  local lines_label = nil
+  if CONFIG.lines_label then
+    lines_label = read_block_lines_label(block)
+  end
+
+  return filename, is_auto, block_style, false, lines_label
 end
 
 --- Process a single CodeBlock for Typst, returning replacement blocks.
@@ -639,7 +808,7 @@ end
 --- @return boolean consumed_next Whether the next block was consumed
 --- @return integer|nil annotation_block_id Block ID if annotations were found (for parent propagation)
 local function process_typst_block(block, next_block)
-  local filename, is_auto, block_style, window_opted_out = resolve_window_params(block)
+  local filename, is_auto, block_style, window_opted_out, lines_label = resolve_window_params(block)
   local has_window = filename and filename ~= ''
   local effective_style = block_style or CONFIG.style
 
@@ -668,12 +837,12 @@ local function process_typst_block(block, next_block)
 
   if has_window and has_annotations then
     table.insert(result, typst_code_window_open(
-      filename, is_auto, effective_style, annotations, block_id))
+      filename, is_auto, effective_style, annotations, block_id, lines_label))
     table.insert(result, block)
     table.insert(result, pandoc.RawBlock('typst', ']'))
   elseif has_window then
     table.insert(result, typst_code_window_open(
-      filename, is_auto, effective_style, nil, 0))
+      filename, is_auto, effective_style, nil, 0, lines_label))
     table.insert(result, block)
     table.insert(result, pandoc.RawBlock('typst', ']'))
   elseif has_annotations then
