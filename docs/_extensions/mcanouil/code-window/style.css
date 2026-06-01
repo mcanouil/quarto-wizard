@@ -4,6 +4,18 @@
  */
 
 /* ============================================================================
+ * Theming variables (override to customise window-button icons and chip)
+ * ========================================================================= */
+
+:root {
+  --code-window-macos-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='10'%3E%3Ccircle cx='5' cy='5' r='5' fill='%23ff5f56'/%3E%3Ccircle cx='20' cy='5' r='5' fill='%23ffbd2e'/%3E%3Ccircle cx='35' cy='5' r='5' fill='%2327c93f'/%3E%3C/svg%3E");
+  --code-window-windows-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='10' fill='none'%3E%3Cline x1='3' y1='5' x2='11' y2='5' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Crect x='17' y='1' width='8' height='8' rx='1' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3Cline x1='31' y1='1' x2='39' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='39' y1='1' x2='31' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --code-window-macos-icon-width: 3.4em;
+  --code-window-windows-icon-width: 3.6em;
+  --code-window-icon-height: 0.85em;
+}
+
+/* ============================================================================
  * Base container
  * ========================================================================= */
 
@@ -49,6 +61,21 @@
   font-size: 0.85em;
   font-weight: 500;
   color: color-mix(in srgb, currentColor 50%, Canvas);
+}
+
+/* Highlighted-lines chip rendered next to the filename in the title bar */
+.code-with-filename .code-with-filename-file .code-with-filename-lines {
+  flex: 0 0 auto;
+  font-size: 0.7em;
+  font-weight: 500;
+  font-family: var(--bs-font-monospace, monospace);
+  color: color-mix(in srgb, currentColor 60%, Canvas);
+  background-color: color-mix(in srgb, currentColor 10%, Canvas);
+  border: 1px solid color-mix(in srgb, currentColor 15%, Canvas);
+  border-radius: 3px;
+  padding: 0.05em 0.4em;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 /* Code block content area */
@@ -103,9 +130,9 @@
   content: '';
   display: inline-flex;
   flex-shrink: 0;
-  width: 3.4em;
-  height: 0.85em;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='10'%3E%3Ccircle cx='5' cy='5' r='5' fill='%23ff5f56'/%3E%3Ccircle cx='20' cy='5' r='5' fill='%23ffbd2e'/%3E%3Ccircle cx='35' cy='5' r='5' fill='%2327c93f'/%3E%3C/svg%3E");
+  width: var(--code-window-macos-icon-width);
+  height: var(--code-window-icon-height);
+  background-image: var(--code-window-macos-icon);
   background-size: contain;
   background-repeat: no-repeat;
 }
@@ -126,10 +153,43 @@
   content: '';
   display: inline-flex;
   flex-shrink: 0;
-  width: 3.6em;
-  height: 0.85em;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='10' fill='none'%3E%3Cline x1='3' y1='5' x2='11' y2='5' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Crect x='17' y='1' width='8' height='8' rx='1' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3Cline x1='31' y1='1' x2='39' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3Cline x1='39' y1='1' x2='31' y2='9' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  width: var(--code-window-windows-icon-width);
+  height: var(--code-window-icon-height);
+  background-image: var(--code-window-windows-icon);
   background-position: right;
   background-size: contain;
   background-repeat: no-repeat;
+}
+
+/* ============================================================================
+ * Collapsible code window (<details>)
+ * ========================================================================= */
+
+.code-with-filename.code-window-collapsible {
+  padding: 0;
+}
+
+.code-with-filename.code-window-collapsible > summary.code-with-filename-file {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.code-with-filename.code-window-collapsible > summary.code-with-filename-file::-webkit-details-marker {
+  display: none;
+}
+
+/* Bottom-border on summary only when expanded so the closed state has no
+ * separator line beneath an already-rounded container. */
+.code-with-filename.code-window-collapsible:not([open]) > summary.code-with-filename-file {
+  border-bottom: none;
+}
+
+/* Round the title bar corners when the window is closed. */
+.code-with-filename.code-window-collapsible:not([open]) {
+  border-radius: 8px;
+}
+
+.code-with-filename.code-window-collapsible:not([open]) > summary.code-with-filename-file {
+  border-radius: 8px;
 }
