@@ -1,4 +1,7 @@
 /*-- scss:defaults --*/
+// @license MIT
+// @copyright 2026 Mickaël Canouil
+// @author Mickaël Canouil
 
 // Magical theme defaults. Colours are driven at runtime by CSS custom
 // properties (see the rules layer) so the single stylesheet behaves correctly
@@ -17,22 +20,29 @@ $enable-smooth-scroll: true;
 // global random() function (and the division operator).
 @function star-shadows($count, $seed) {
   $shadows: null;
+
   @for $i from 1 through $count {
-    $x: (($i * 1103515245 + $seed) % 1920);
-    $y: ((($i + 31) * 12345 + $seed) % 1920);
-    // Each star is emitted twice, 1920px apart, so a -1920px drift loops seamlessly.
-    $shadow:
-      #{$x}px #{$y}px var(--mc-star),
-      #{$x}px #{$y + 1920}px var(--mc-star);
-    @if $shadows == null {
-      $shadows: $shadow;
-    } @else {
-      $shadows:
-        #{$shadows},
-        #{$shadow};
-    }
-  }
-  @return $shadows;
+    $x: (
+      ($i * 1103515245 + $seed) % 1920
+    );
+  $y: (
+    (($i + 31) * 12345 + $seed) % 1920
+  );
+// Each star is emitted twice, 1920px apart, so a -1920px drift loops seamlessly.
+$shadow: #{$x}px #{$y}px var(--mc-star),
+  #{$x}px #{$y + 1920}px var(--mc-star);
+
+@if $shadows ==null {
+  $shadows: $shadow;
+}
+
+@else {
+  $shadows: #{$shadows},
+    #{$shadow};
+}
+}
+
+@return $shadows;
 }
 
 $mc-stars-1: star-shadows(140, 1009);
@@ -158,6 +168,7 @@ html::after {
 }
 
 @keyframes mc-twinkle {
+
   0%,
   100% {
     opacity: calc(var(--mc-star-opacity) * 0.4);
@@ -409,7 +420,7 @@ $mc-icon-moon: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" w
   overflow: hidden;
 }
 
-.callout.callout-style-default > .callout-header {
+.callout.callout-style-default>.callout-header {
   backdrop-filter: blur(2px);
 }
 
@@ -607,6 +618,7 @@ div.code-with-filename pre.sourceCode {
 }
 
 @media print {
+
   html::before,
   html::after,
   body::before,

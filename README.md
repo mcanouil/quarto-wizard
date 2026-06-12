@@ -140,6 +140,8 @@ Quarto Wizard is developed by [Mickaël CANOUIL](https://github.com/mcanouil) ([
 This project is licensed under the MIT License.
 See the [LICENSE](LICENSE) file for details.
 
+Images used in this project are licensed under [CC-BY-NC-SA-4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
 ## Disclaimer
 
 This extension is not affiliated with or endorsed by [Quarto](https://quarto.org) or its maintainers.
