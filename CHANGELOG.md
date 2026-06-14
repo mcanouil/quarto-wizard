@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- fix: do not flag spaces around `=` inside math such as `\text{X = Y}` as needing whitespace removal. Braces in LaTeX math are no longer treated as Pandoc attribute blocks, so inline attribute diagnostics only run in genuine attribute contexts (spans, links/images, code, divs, headers).
+
 ## 3.1.0 (2026-05-17)
 
 ### New Features
