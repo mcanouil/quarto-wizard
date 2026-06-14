@@ -762,6 +762,54 @@ suite("Inline Attribute Diagnostics", () => {
 		});
 	});
 
+	suite("extractBlocks (math)", () => {
+		test("should not extract a block from \\text{} in display math", () => {
+			const text = ["$$", "\\text{X = Y}", "$$"].join("\n");
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+
+		test("should not produce spaces-around-equals findings inside display math", () => {
+			const text = ["$$", "\\text{X = Y}", "$$"].join("\n");
+			const blocks = extractBlocks(text);
+			for (const block of blocks) {
+				assert.strictEqual(findSpacesAroundEquals(block.content).length, 0);
+			}
+		});
+
+		test("should not extract a block from \\frac{a = b}{c} in inline math", () => {
+			const text = "value $\\frac{a = b}{c}$ here";
+			const blocks = extractBlocks(text);
+			assert.strictEqual(blocks.length, 0);
+		});
+	});
+
+	suite("extractBlocks (attribute contexts)", () => {
+		test("should extract a span attribute block", () => {
+			const blocks = extractBlocks('[text]{.cls key = "v"}');
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, '.cls key = "v"');
+		});
+
+		test("should extract a div attribute block and flag spaces around =", () => {
+			const blocks = extractBlocks('::: {.panel key = "v"}\n\ncontent\n\n:::');
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(findSpacesAroundEquals(blocks[0].content).length, 1);
+		});
+
+		test("should extract a header attribute block", () => {
+			const blocks = extractBlocks('# Title {#id key = "v"}');
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(findSpacesAroundEquals(blocks[0].content).length, 1);
+		});
+
+		test("should extract a link attribute block", () => {
+			const blocks = extractBlocks("[text](url){.cls}");
+			assert.strictEqual(blocks.length, 1);
+			assert.strictEqual(blocks[0].content, ".cls");
+		});
+	});
+
 	suite("extractBareWords", () => {
 		test("should extract bare word from element content", () => {
 			const results = extractBareWords(".class myword");

@@ -148,7 +148,7 @@ export function getAttributeBounds(
  *
  * @returns The element type, or null if the brace is not in a Pandoc attribute context.
  */
-function isPandocAttributeContext(text: string, bracePos: number): PandocElementType | null {
+export function isPandocAttributeContext(text: string, bracePos: number): PandocElementType | null {
 	if (bracePos === 0) {
 		return null;
 	}

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { SchemaCache, FieldDescriptor, DeprecatedSpec, ShortcodeSchema } from "@quarto-wizard/schema";
 import { typeIncludes, formatType } from "@quarto-wizard/schema";
-import { parseAttributeAtPosition } from "../utils/elementAttributeParser";
+import { parseAttributeAtPosition, isPandocAttributeContext } from "../utils/elementAttributeParser";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import {
 	type ElementAttributeSchemas,
@@ -296,6 +296,13 @@ export function extractBlocks(text: string, codeBlockRanges?: TextRange[]): Bloc
 
 	for (const match of text.matchAll(ELEMENT_ATTRIBUTE_RE)) {
 		if (match.index === undefined) {
+			continue;
+		}
+		// Only treat the brace as an attribute block when it opens a genuine
+		// Pandoc attribute context (span, link/image, code, div, header).
+		// This excludes braces in math such as `\text{X = Y}` and discards
+		// most non-attribute braces before the costlier range overlap check.
+		if (isPandocAttributeContext(text, match.index) === null) {
 			continue;
 		}
 		if (overlapsExclusionRanges(fencedRanges, inlineRanges, match.index, match.index + match[0].length - 1)) {
