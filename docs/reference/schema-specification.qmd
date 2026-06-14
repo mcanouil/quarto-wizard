@@ -600,8 +600,8 @@ Example instances showing every supported property are also available:
 The prompt below can be used with an AI assistant to generate a `_schema.yml` for an existing extension.
 Copy the prompt, attach your extension's `_extension.yml` and Lua source files, and the assistant will produce a schema that matches your extension's actual behaviour.
 
-```{.markdown filename="Prompt for generating `_schema.yml`"}
-Generate a `_schema.yml` file for the attached Quarto extension.
+```{.markdown filename="Prompt for generating `\_schema.yml`"}
+Generate a `\_schema.yml` file for the attached Quarto extension.
 
 Read the attached `_extension.yml` to identify the extension name and
 contribution types (filters, shortcodes, formats, projects).
@@ -689,6 +689,8 @@ Add a one-line comment header: `# Schema for the <name> extension`.
 Optionally include `$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json`
 at the top level.
 Reference: https://m.canouil.dev/quarto-wizard/reference/schema-specification.llms.md
+
 ```
 
 :::
+```
