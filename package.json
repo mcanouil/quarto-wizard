@@ -713,6 +713,15 @@
 					"markdownDescription": "URL to the Quarto extensions registry JSON file. Change this to use a custom registry. See [`RawRegistryEntry`](https://m.canouil.dev/quarto-wizard/api/core/types.html#rawregistryentry) in the API reference for the expected JSON schema.",
 					"title": "Registry URL",
 					"description": "Custom registry URL."
+				},
+				"quartoWizard.lint.unknownAttributes": {
+					"order": 12,
+					"scope": "resource",
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Report inline attributes not declared by any installed extension schema as `Unknown attribute`. Disabled by default: Quarto Wizard has no built-in schema for Quarto/Pandoc/revealjs internals (for example `width` on `.column`), so this would flag many valid attributes. Enable only when authoring against extensions whose `_schema.yml` declares a complete attribute set.",
+					"title": "Report Unknown Attributes",
+					"description": "Flag inline attributes absent from extension schemas."
 				}
 			}
 		}

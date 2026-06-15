@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- fix: stop reporting valid attributes such as `width` on `.column` as `Unknown attribute` by default. The `schema-unknown-attribute` diagnostic is now opt-in via the new `quartoWizard.lint.unknownAttributes` setting (default `false`), since Quarto Wizard has no built-in schema for Quarto/Pandoc internals ([#356](https://github.com/mcanouil/quarto-wizard/issues/356)).
+
 ## 3.1.1 (2026-06-14)
 
 ### Bug Fixes
