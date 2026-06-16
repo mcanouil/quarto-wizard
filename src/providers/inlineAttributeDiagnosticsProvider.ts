@@ -918,7 +918,20 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			}),
 		);
 
+		// Re-validate open documents when a lint setting is toggled.
+		this.disposables.push(
+			vscode.workspace.onDidChangeConfiguration((event) => {
+				if (event.affectsConfiguration("quartoWizard.lint")) {
+					this.revalidateOpenDocuments();
+				}
+			}),
+		);
+
 		// Validate all open relevant documents on activation.
+		this.revalidateOpenDocuments();
+	}
+
+	private revalidateOpenDocuments(): void {
 		for (const document of vscode.workspace.textDocuments) {
 			if (this.isRelevantDocument(document)) {
 				this.validateDocument(document);
@@ -996,9 +1009,20 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			const hasShortcodeSchemas = shortcodeSchemas.size > 0;
 
 			if (hasElementSchemas || hasShortcodeSchemas) {
+				const reportUnknown = vscode.workspace
+					.getConfiguration("quartoWizard.lint", document.uri)
+					.get<boolean>("unknownAttributes", false);
 				for (const block of blocks) {
 					if (block.type === "element" && hasElementSchemas) {
-						this.validateElementBlock(block, text, elementSchemas, document, diagnostics, codeBlockRanges);
+						this.validateElementBlock(
+							block,
+							text,
+							elementSchemas,
+							document,
+							diagnostics,
+							codeBlockRanges,
+							reportUnknown,
+						);
 					} else if (block.type === "shortcode" && hasShortcodeSchemas) {
 						this.validateShortcodeBlock(block, text, shortcodeSchemas, document, diagnostics, codeBlockRanges);
 					}
@@ -1026,6 +1050,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		document: vscode.TextDocument,
 		diagnostics: vscode.Diagnostic[],
 		codeBlockRanges: TextRange[],
+		reportUnknown: boolean,
 	): void {
 		// Use the parser as a context filter: the offset just inside the closing `}`.
 		const blockEndOffset = block.contentOffset + block.content.length;
@@ -1064,7 +1089,10 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		for (const [key, value] of Object.entries(parsed.attributes)) {
 			const entry = resolveElementAttribute(applicable, key);
 			if (!entry) {
-				// Unknown attribute.
+				if (!reportUnknown) {
+					continue;
+				}
+				// Unknown attribute (opt-in via quartoWizard.lint.unknownAttributes).
 				const kv = findKeyValueOffset(block.content, key);
 				if (kv) {
 					const absStart = block.contentOffset + kv.keyStart;

@@ -81,6 +81,27 @@ URL to the Quarto extensions registry JSON file. Change this to use a custom reg
 }
 ```
 
+## Linting
+
+### Report Unknown Attributes
+
+**Setting**: `quartoWizard.lint.unknownAttributes`
+
+Report inline attributes not declared by any installed extension schema as `Unknown attribute`.
+Disabled by default: Quarto Wizard has no built-in schema for Quarto/Pandoc/revealjs internals (for example `width` on `.column`), so this would flag many valid attributes.
+Enable only when authoring against extensions whose `_schema.yml` declares a complete attribute set.
+
+| Property | Value   |
+| -------- | ------- |
+| Type     | Boolean |
+| Default  | `false` |
+
+```json
+{
+  "quartoWizard.lint.unknownAttributes": false
+}
+```
+
 ## Workspace vs User Settings
 
 All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
@@ -102,6 +123,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.update.crossSource": false,
   "quartoWizard.autoProjectDetection": subFolders,
   "quartoWizard.cache.ttlMinutes": 30,
-  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json"
+  "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json",
+  "quartoWizard.lint.unknownAttributes": false
 }
 ```
