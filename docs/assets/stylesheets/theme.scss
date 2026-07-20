@@ -64,9 +64,9 @@ $mc-stars-3: star-shadows(45, 911111);
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid var(--mc-border);
+  border: 1px solid var(--mc-navbar-border);
   border-radius: $border-radius-sm;
-  color: inherit !important;
+  color: var(--mc-navbar-fg) !important;
   cursor: pointer;
   transition:
     background 150ms ease,
@@ -75,9 +75,9 @@ $mc-stars-3: star-shadows(45, 911111);
 }
 
 @mixin navbar-tool-pill-active {
-  background: var(--mc-ember-soft);
-  border-color: var(--mc-ember);
-  color: var(--mc-ember) !important;
+  background: var(--mc-navbar-accent-soft);
+  border-color: var(--mc-navbar-accent);
+  color: var(--mc-navbar-accent) !important;
 }
 
 /*-- scss:rules --*/
@@ -100,6 +100,17 @@ $mc-stars-3: star-shadows(45, 911111);
   --mc-sky-glow:
     radial-gradient(55vw 55vw at 82% -8%, rgba(226, 133, 78, 0.1), transparent 62%),
     radial-gradient(48vw 48vw at 8% 108%, rgba(226, 133, 78, 0.07), transparent 60%);
+
+  // The navbar and footer are pinned to the night palette in both schemes
+  // (`background: dark` in _quarto.yml), so anything anchored to them — the
+  // tool pills, the GitHub menu, the navbar tooltips — must keep the dark
+  // surface too. These are deliberately not overridden under
+  // [data-bs-theme="dark"]: they do not follow the page scheme.
+  --mc-navbar-bg: #111a33;
+  --mc-navbar-fg: #ece6d6;
+  --mc-navbar-accent: #e2854e;
+  --mc-navbar-accent-soft: rgba(226, 133, 78, 0.16);
+  --mc-navbar-border: rgba(236, 230, 214, 0.12);
 }
 
 [data-bs-theme="dark"] {
@@ -453,13 +464,17 @@ header#title-block-header h1.title {
   transform: rotate(180deg);
 }
 
-.gh-dropdown {
+// The menu hangs off the navbar, which stays on the night palette in both
+// schemes, so it is painted from the --mc-navbar-* tokens rather than the page
+// surface. Scoping to .navbar also outranks Quarto's `.navbar a` colour, which
+// would otherwise force the light navbar foreground onto the menu items.
+.navbar .gh-dropdown {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
   min-width: 14rem;
-  background: body-mix(96%);
-  border: 1px solid var(--mc-border);
+  background: var(--mc-navbar-bg);
+  border: 1px solid var(--mc-navbar-border);
   border-radius: $border-radius;
   box-shadow: 0 12px 30px -16px var(--mc-glow-strong);
   padding: 0.35rem;
@@ -473,18 +488,18 @@ header#title-block-header h1.title {
   z-index: 1000;
 }
 
-.gh-widget-open .gh-dropdown {
+.navbar .gh-widget-open .gh-dropdown {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
 }
 
-.gh-dropdown-item {
+.navbar .gh-dropdown-item {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0.4rem 0.7rem;
-  color: var(--bs-body-color);
+  color: var(--mc-navbar-fg);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
@@ -495,8 +510,8 @@ header#title-block-header h1.title {
 
   &:hover,
   &:focus-visible {
-    background: var(--mc-ember-soft);
-    color: var(--mc-ember);
+    background: var(--mc-navbar-accent-soft);
+    color: var(--mc-navbar-accent);
     text-decoration: none;
   }
 
@@ -505,10 +520,10 @@ header#title-block-header h1.title {
   }
 }
 
-.gh-dropdown-divider {
+.navbar .gh-dropdown-divider {
   height: 1px;
   margin: 0.35rem 0;
-  background: var(--mc-border);
+  background: var(--mc-navbar-border);
 }
 
 // Collapsed (mobile) hamburger menu: lay both link groups out as a compact,
@@ -535,15 +550,15 @@ header#title-block-header h1.title {
 // ===========================================================================
 
 .tooltip {
-  --bs-tooltip-bg: #111a33;
-  --bs-tooltip-color: #ece6d6;
+  --bs-tooltip-bg: var(--mc-navbar-bg);
+  --bs-tooltip-color: var(--mc-navbar-fg);
   --bs-tooltip-opacity: 1;
   --bs-tooltip-border-radius: #{$border-radius-sm};
   animation: mc-fade-in 0.15s ease;
 }
 
 .tooltip .tooltip-inner {
-  border: 1px solid var(--mc-ember);
+  border: 1px solid var(--mc-navbar-accent);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   font-size: 0.85rem;
   font-weight: 500;
@@ -551,9 +566,9 @@ header#title-block-header h1.title {
 
 // Tippy theme used for navbar controls (matches the dark navbar in both schemes).
 .tippy-box[data-theme~="mc"] {
-  background-color: #111a33;
-  color: #ece6d6;
-  border: 1px solid var(--mc-ember);
+  background-color: var(--mc-navbar-bg);
+  color: var(--mc-navbar-fg);
+  border: 1px solid var(--mc-navbar-accent);
   border-radius: $border-radius-sm;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   font-size: 0.85rem;
