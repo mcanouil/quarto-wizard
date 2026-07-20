@@ -53,9 +53,8 @@ website:
       - text: "{{< iconify octicon:person-16 title='Person' label='Credits' >}} Credits"
         href: credits.qmd
       - text: "{{< iconify octicon:mark-github-16 title='GitHub' label='GitHub' >}}"
-        href: https://github.com/mcanouil/quarto-wizard
-        target: _blank
-        rel: noopener noreferrer
+        href: "#github-widget"
+        aria-label: "GitHub"
 
 metadata-files:
   - _sidebar-getting-started.yml
@@ -91,6 +90,7 @@ format:
       - assets/include/ordinal-dates.html
       - assets/include/a11y-fixes.html
       - assets/include/navbar-tooltips.html
+      - assets/include/github-widget.html
 
 execute:
   freeze: auto

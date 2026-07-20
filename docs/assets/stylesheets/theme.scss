@@ -57,6 +57,29 @@ $mc-stars-3: star-shadows(45, 911111);
   @return mix($body-bg, $body-color, $weight);
 }
 
+// Shared pill shell for the navbar-right control group (search button,
+// colour-scheme toggle, GitHub widget trigger) so they read as one set.
+@mixin navbar-tool-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--mc-border);
+  border-radius: $border-radius-sm;
+  color: inherit !important;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+@mixin navbar-tool-pill-active {
+  background: var(--mc-ember-soft);
+  border-color: var(--mc-ember);
+  color: var(--mc-ember) !important;
+}
+
 /*-- scss:rules --*/
 
 // ===========================================================================
@@ -305,6 +328,189 @@ header#title-block-header h1.title {
   border-top: 1px solid var(--mc-border);
 }
 
+// ===========================================================================
+// NAVBAR TOOLS (search, colour-scheme toggle, GitHub widget)
+// ===========================================================================
+// The search button, the colour-scheme toggle, and the GitHub widget trigger
+// (assets/include/github-widget.html) share one pill shell (see
+// @mixin navbar-tool-pill) so the navbar-right set reads as one control group.
+// Ported from posit-dev/great-docs, restyled onto the quarto-wizard tokens.
+
+.navbar .navbar-nav.ms-auto {
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.navbar #quarto-search {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4rem;
+}
+
+.navbar .quarto-navbar-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.4rem;
+}
+
+// Shared shell for all three controls.
+.navbar #quarto-search .aa-DetachedSearchButton,
+.navbar .quarto-navbar-tools .quarto-color-scheme-toggle,
+.gh-widget-trigger {
+  @include navbar-tool-pill;
+}
+
+// Text pill (GitHub widget) gets horizontal padding and a smaller font.
+.gh-widget-trigger {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+// Icon-only tools (search, toggle) are a fixed 2rem square with the glyph
+// centred; the search button ships its own shadow, so drop it.
+.navbar #quarto-search .aa-DetachedSearchButton,
+.navbar .quarto-navbar-tools .quarto-color-scheme-toggle {
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  box-shadow: none;
+}
+
+// Hover/open state for all three.
+.navbar #quarto-search .aa-DetachedSearchButton:hover,
+.navbar #quarto-search .aa-DetachedSearchButton:focus-visible,
+.navbar .quarto-navbar-tools .quarto-color-scheme-toggle:hover,
+.navbar .quarto-navbar-tools .quarto-color-scheme-toggle:focus-visible,
+.gh-widget-trigger:hover,
+.gh-widget-open .gh-widget-trigger {
+  @include navbar-tool-pill-active;
+}
+
+// Collapse the autocomplete library's own icon slot/glyph to a compact ~1rem
+// icon that follows currentColor, and hide the empty placeholder/query slots
+// so the detached button stays an icon-only square like the toggle.
+// `#quarto-search` (id) outranks the library's `.aa-*` rules.
+.navbar #quarto-search .aa-DetachedSearchButtonIcon {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  color: currentColor;
+}
+
+.navbar #quarto-search .aa-DetachedSearchButtonIcon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.navbar #quarto-search .aa-DetachedSearchButtonPlaceholder,
+.navbar #quarto-search .aa-DetachedSearchButtonQuery {
+  display: none;
+}
+
+// --- GitHub widget internals. --------------------------------------------
+
+#github-widget {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.gh-icon {
+  flex-shrink: 0;
+}
+
+.gh-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh-stat {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-stat svg {
+  opacity: 0.85;
+}
+
+.gh-count {
+  min-width: 1rem;
+  text-align: center;
+}
+
+.gh-dropdown-arrow {
+  opacity: 0.7;
+  transition: transform 150ms ease;
+}
+
+.gh-widget-open .gh-dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.gh-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 14rem;
+  background: body-mix(96%);
+  border: 1px solid var(--mc-border);
+  border-radius: $border-radius;
+  box-shadow: 0 12px 30px -16px var(--mc-glow-strong);
+  padding: 0.35rem;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    visibility 150ms ease;
+  z-index: 1000;
+}
+
+.gh-widget-open .gh-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.gh-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.4rem 0.7rem;
+  color: var(--bs-body-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: $border-radius-sm;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--mc-ember-soft);
+    color: var(--mc-ember);
+    text-decoration: none;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.gh-dropdown-divider {
+  height: 1px;
+  margin: 0.35rem 0;
+  background: var(--mc-border);
+}
+
 // Collapsed (mobile) hamburger menu: lay both link groups out as a compact,
 // left-aligned wrapping row instead of a full-width vertical stack, so each link
 // hugs its content and the underline/tooltip anchor to the link, not the whole bar.
@@ -378,6 +584,23 @@ header#title-block-header h1.title {
 // ===========================================================================
 // Quarto renders an empty <i class="bi">; the glyph is a mask-image so it
 // inherits the surrounding text colour via background-color: currentColor.
+// The navbar instance is additionally squared off by @mixin navbar-tool-pill
+// (see the NAVBAR TOOLS section); this base rule covers other contexts
+// (sidebar, top-right) with a plain circular button.
+
+.quarto-color-scheme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: inherit !important;
+  text-decoration: none;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
 
 $mc-icon-sun: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" viewBox="0 0 16 16"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>');
 $mc-icon-moon: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="black" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>');
@@ -407,6 +630,13 @@ $mc-icon-moon: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" w
   mask-image: $mc-icon-moon;
   -webkit-mask-image: $mc-icon-moon;
   filter: drop-shadow(0 0 6px var(--mc-glow-strong));
+}
+
+.quarto-color-scheme-toggle:hover,
+.quarto-color-scheme-toggle:focus-visible {
+  color: var(--mc-ember) !important;
+  background: var(--mc-ember-soft);
+  text-decoration: none;
 }
 
 // ===========================================================================
@@ -613,6 +843,13 @@ div.code-with-filename pre.sourceCode {
   }
 
   .navbar .nav-link::after {
+    transition: none;
+  }
+
+  .gh-widget-trigger,
+  .gh-dropdown-arrow,
+  .gh-dropdown,
+  .gh-dropdown-item {
     transition: none;
   }
 }
