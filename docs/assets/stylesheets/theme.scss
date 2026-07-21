@@ -538,10 +538,26 @@ header#title-block-header h1.title {
     gap: 0.25rem;
     width: auto;
 
+    // Bootstrap's .navbar-nav-scroll caps the collapsed menu with a max-height
+    // and overflow-y: auto, which both shows a scrollbar and clips the GitHub
+    // widget's absolutely-positioned dropdown (so it grows the scroll region
+    // instead of opening on top). Neutralise it: this selector (0,3,0) outranks
+    // .navbar-nav-scroll (0,1,0), and desktop keeps Bootstrap's expand reset.
+    max-height: none;
+    overflow: visible;
+
     .nav-link {
       width: auto;
       padding-inline: 0.6rem;
     }
+  }
+
+  // Anchor the menu to the widget's left edge on mobile: the wrapped right-hand
+  // group sits near the left, so extending rightward keeps it on screen. It
+  // already carries z-index: 1000, so with the scroll clip gone it overlays.
+  .navbar .gh-dropdown {
+    left: 0;
+    right: auto;
   }
 }
 
