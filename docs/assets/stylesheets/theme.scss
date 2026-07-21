@@ -559,6 +559,20 @@ header#title-block-header h1.title {
     left: 0;
     right: auto;
   }
+
+  // Bootstrap forces navbar .dropdown-menu to position: static below the expand
+  // breakpoint, so an open native dropdown flows in-document and grows the
+  // navbar. Re-anchor it to absolute against a relative .nav-item (Bootstrap's
+  // base z-index: 1000 is kept) so it overlays like the GitHub widget menu.
+  .navbar .navbar-collapse .navbar-nav .nav-item.dropdown {
+    position: relative;
+  }
+
+  .navbar .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
 }
 
 // ===========================================================================
