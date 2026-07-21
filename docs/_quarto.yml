@@ -39,15 +39,15 @@ website:
     background: dark
     foreground: light
     left:
-      - text: Home
-        href: index.qmd
-      - text: Getting Started
+      # - text: "{{< iconify octicon:home-16 title='Home' label='Home' >}} Home"
+      #   href: index.qmd
+      - text: "{{< iconify octicon:rocket-16 title='Getting Started' label='Getting Started' >}} Getting Started"
         href: getting-started/index.qmd
-      - text: Reference
+      - text: "{{< iconify octicon:book-16 title='Reference' label='Reference' >}} Reference"
         href: reference/index.qmd
-      - text: API
+      - text: "{{< iconify octicon:code-16 title='API' label='API' >}} API"
         href: api/index.qmd
-      - text: Changelog
+      - text: "{{< iconify octicon:history-16 title='Changelog' label='Changelog' >}} Changelog"
         href: changelog.qmd
     right:
       - text: "{{< iconify octicon:person-16 title='Person' label='Credits' >}} Credits"
