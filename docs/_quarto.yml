@@ -4,11 +4,10 @@ project:
   resources:
     - assets/schema
 
-lang: en
+lang: en-GB
 # date: today
 # date-modified: today
 date-format: "dddd[, the] Do [of] MMMM, YYYY"
-highlight-style: github
 image: "assets/social/social-card.png"
 
 website:
@@ -19,9 +18,16 @@ website:
   image-alt: "Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
   site-url: "https://m.canouil.dev/quarto-wizard"
   repo-url: https://github.com/mcanouil/quarto-wizard
-  repo-actions: []
+  repo-actions: [edit, issue]
   repo-link-target: _blank
+  repo-link-rel: noopener noreferrer
+  open-graph: true
+  page-navigation: true
+  back-to-top-navigation: true
   llms-txt: true
+  search:
+    location: navbar
+    type: overlay
 
   page-footer:
     border: true
@@ -34,10 +40,12 @@ website:
     right: |
       Licence: [MIT](https://github.com/mcanouil/quarto-wizard?tab=MIT-1-ov-file#readme).
   navbar:
+    title: "Quarto Wizard"
     logo: "assets/logo/logo.png"
     logo-alt: "Quarto Wizard"
     background: dark
     foreground: light
+    search: true
     left:
       # - text: "{{< iconify octicon:home-16 title='Home' label='Home' >}} Home"
       #   href: index.qmd
@@ -70,6 +78,9 @@ format:
         - assets/stylesheets/theme.scss
       dark: *theme
     respect-user-color-scheme: true
+    syntax-highlighting:
+      light: github-light
+      dark: github-dark
     grid:
       sidebar-width: 300px
       body-width: 900px
@@ -82,15 +93,16 @@ format:
     email-obfuscate: javascript
     code-link: false
     code-copy: true
-    code-overflow: scroll
+    code-overflow: wrap
     include-before-body:
-      - assets/include/skip-link.html
+      - assets/scripts/skip-link.html
     include-after-body:
-      - assets/include/current-year.html
-      - assets/include/ordinal-dates.html
-      - assets/include/a11y-fixes.html
-      - assets/include/navbar-tooltips.html
-      - assets/include/github-widget.html
+      - assets/scripts/current-year.html
+      - assets/scripts/external-links.html
+      - assets/scripts/ordinal-dates.html
+      - assets/scripts/a11y-fixes.html
+      - assets/scripts/navbar-tooltips.html
+      - assets/scripts/github-widget.html
 
 execute:
   freeze: auto

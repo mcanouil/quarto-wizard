@@ -724,11 +724,22 @@ $mc-icon-moon: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" w
 // ===========================================================================
 
 .panel-tabset .nav-tabs {
-  border-bottom: 1px solid var(--mc-border);
+  // This line is the panel box's top edge (Quarto leaves .tab-content without a
+  // border-top). --mc-border is only 12% alpha in dark, so the top went
+  // invisible; body-mix() matches the code-surface border and reads in both
+  // schemes, aligning with the tab-content edges below.
+  border-bottom: 1px solid body-mix(85%);
   // Theme-aware overrides for Bootstrap's baked tab colours (active was #000).
   --bs-nav-tabs-link-active-color: var(--bs-body-color);
   --bs-nav-tabs-link-active-bg: transparent;
   --bs-nav-tabs-link-active-border-color: transparent;
+}
+
+// Quarto hard-codes #dee2e6 on the panel's left/right/bottom edges, which does
+// not adapt to dark; re-derive them from body-mix() so all four edges match.
+// The [data-bs-theme] prefix raises specificity above Quarto's per-side rule.
+[data-bs-theme] .panel-tabset > .tab-content {
+  border-color: body-mix(85%);
 }
 
 .panel-tabset .nav-tabs .nav-link {
@@ -869,6 +880,39 @@ div.code-with-filename pre.sourceCode {
     transform: translateY(-1px);
     box-shadow: 0 10px 26px -10px var(--mc-glow-strong);
   }
+}
+
+// ===========================================================================
+// SCROLLBARS
+// ===========================================================================
+// Quarto leaves the browser default scrollbar, a light-grey bar that clashes
+// with the dark navbar and the tinted code surfaces; derive it from the page so
+// it tracks the active scheme, with $primary on hover. The global rules cover
+// the code blocks, tables, and TOC that scroll, so no default bar reappears.
+$scrollbar-track: body-mix(94%);
+$scrollbar-thumb: body-mix(72%);
+
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: #{$scrollbar-thumb} #{$scrollbar-track};
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: $scrollbar-track;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $scrollbar-thumb;
+  border-radius: $border-radius-sm;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: $primary;
 }
 
 // ===========================================================================
