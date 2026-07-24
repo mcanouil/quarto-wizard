@@ -57,29 +57,6 @@ $mc-stars-3: star-shadows(45, 911111);
   @return mix($body-bg, $body-color, $weight);
 }
 
-// Shared pill shell for the navbar-right control group (search button,
-// colour-scheme toggle, GitHub widget trigger) so they read as one set.
-@mixin navbar-tool-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 1px solid var(--mc-navbar-border);
-  border-radius: $border-radius-sm;
-  color: var(--mc-navbar-fg) !important;
-  cursor: pointer;
-  transition:
-    background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease;
-}
-
-@mixin navbar-tool-pill-active {
-  background: var(--mc-navbar-accent-soft);
-  border-color: var(--mc-navbar-accent);
-  color: var(--mc-navbar-accent) !important;
-}
-
 /*-- scss:rules --*/
 
 // ===========================================================================
@@ -341,190 +318,29 @@ header#title-block-header h1.title {
 }
 
 // ===========================================================================
-// NAVBAR TOOLS (search, colour-scheme toggle, GitHub widget)
+// NAVBAR TOOLS (search, colour-scheme toggle, gitlink widget)
 // ===========================================================================
-// The search button, the colour-scheme toggle, and the GitHub widget trigger
-// (assets/include/github-widget.html) share one pill shell (see
-// @mixin navbar-tool-pill) so the navbar-right set reads as one control group.
-// Ported from posit-dev/great-docs, restyled onto the quarto-wizard tokens.
+// Layout, sizing, and the pill shell for the search button, the colour-scheme
+// toggle, and the widget trigger ship with the gitlink extension (widget.css
+// and widget-navbar-tools.css via `widget.style-navbar-tools`); the tokens
+// below repaint it from the --mc-navbar-* palette, which stays on the night
+// palette in both schemes.
 
-.navbar .navbar-nav.ms-auto {
-  align-items: center;
-  gap: 0.4rem;
+.navbar {
+  --gitlink-widget-border: var(--mc-navbar-border);
+  --gitlink-widget-accent: var(--mc-navbar-accent);
+  --gitlink-widget-accent-soft: var(--mc-navbar-accent-soft);
+  --gitlink-widget-menu-bg: var(--mc-navbar-bg);
+  --gitlink-widget-menu-fg: var(--mc-navbar-fg);
 }
 
-.navbar #quarto-search {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.4rem;
-}
+// --- Gitlink widget menu. -------------------------------------------------
+// Structure ships with the extension's widget.css; the site keeps its glow
+// shadow, painted from the navbar tokens set above.
 
-.navbar .quarto-navbar-tools {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-left: 0.4rem;
-}
-
-// Shared shell for all three controls.
-.navbar #quarto-search .aa-DetachedSearchButton,
-.navbar .quarto-navbar-tools .quarto-color-scheme-toggle,
-.gh-widget-trigger {
-  @include navbar-tool-pill;
-}
-
-// Text pill (GitHub widget) gets horizontal padding and a smaller font.
-.gh-widget-trigger {
-  padding: 0.3rem 0.6rem;
-  font-size: 0.85rem;
-}
-
-// Icon-only tools (search, toggle) are a fixed 2rem square with the glyph
-// centred; the search button ships its own shadow, so drop it.
-.navbar #quarto-search .aa-DetachedSearchButton,
-.navbar .quarto-navbar-tools .quarto-color-scheme-toggle {
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  box-shadow: none;
-}
-
-// Hover/open state for all three.
-.navbar #quarto-search .aa-DetachedSearchButton:hover,
-.navbar #quarto-search .aa-DetachedSearchButton:focus-visible,
-.navbar .quarto-navbar-tools .quarto-color-scheme-toggle:hover,
-.navbar .quarto-navbar-tools .quarto-color-scheme-toggle:focus-visible,
-.gh-widget-trigger:hover,
-.gh-widget-open .gh-widget-trigger {
-  @include navbar-tool-pill-active;
-}
-
-// Collapse the autocomplete library's own icon slot/glyph to a compact ~1rem
-// icon that follows currentColor, and hide the empty placeholder/query slots
-// so the detached button stays an icon-only square like the toggle.
-// `#quarto-search` (id) outranks the library's `.aa-*` rules.
-.navbar #quarto-search .aa-DetachedSearchButtonIcon {
-  width: auto;
-  margin: 0;
-  padding: 0;
-  color: currentColor;
-}
-
-.navbar #quarto-search .aa-DetachedSearchButtonIcon svg {
-  width: 1.05rem;
-  height: 1.05rem;
-}
-
-.navbar #quarto-search .aa-DetachedSearchButtonPlaceholder,
-.navbar #quarto-search .aa-DetachedSearchButtonQuery {
-  display: none;
-}
-
-// --- GitHub widget internals. --------------------------------------------
-
-#github-widget {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.gh-icon {
-  flex-shrink: 0;
-}
-
-.gh-stats {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.gh-stat {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.gh-stat svg {
-  opacity: 0.85;
-}
-
-.gh-count {
-  min-width: 1rem;
-  text-align: center;
-}
-
-.gh-dropdown-arrow {
-  opacity: 0.7;
-  transition: transform 150ms ease;
-}
-
-.gh-widget-open .gh-dropdown-arrow {
-  transform: rotate(180deg);
-}
-
-// The menu hangs off the navbar, which stays on the night palette in both
-// schemes, so it is painted from the --mc-navbar-* tokens rather than the page
-// surface. Scoping to .navbar also outranks Quarto's `.navbar a` colour, which
-// would otherwise force the light navbar foreground onto the menu items.
-.navbar .gh-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  min-width: 14rem;
-  background: var(--mc-navbar-bg);
-  border: 1px solid var(--mc-navbar-border);
+body .navbar .gitlink-widget-dropdown {
   border-radius: $border-radius;
   box-shadow: 0 12px 30px -16px var(--mc-glow-strong);
-  padding: 0.35rem;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-8px);
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease,
-    visibility 150ms ease;
-  z-index: 1000;
-}
-
-.navbar .gh-widget-open .gh-dropdown {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.navbar .gh-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0.4rem 0.7rem;
-  color: var(--mc-navbar-fg);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border-radius: $border-radius-sm;
-  transition:
-    background 150ms ease,
-    color 150ms ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--mc-navbar-accent-soft);
-    color: var(--mc-navbar-accent);
-    text-decoration: none;
-  }
-
-  svg {
-    flex-shrink: 0;
-  }
-}
-
-.navbar .gh-dropdown-divider {
-  height: 1px;
-  margin: 0.35rem 0;
-  background: var(--mc-navbar-border);
 }
 
 // Collapsed (mobile) hamburger menu: lay both link groups out as a compact,
@@ -551,14 +367,6 @@ header#title-block-header h1.title {
       width: auto;
       padding-inline: 0.6rem;
     }
-  }
-
-  // Anchor the menu to the widget's left edge on mobile: the wrapped right-hand
-  // group sits near the left, so extending rightward keeps it on screen. It
-  // already carries z-index: 1000, so with the scroll clip gone it overlays.
-  .navbar .gh-dropdown {
-    left: 0;
-    right: auto;
   }
 
   // Bootstrap forces navbar .dropdown-menu to position: static below the expand
@@ -933,14 +741,8 @@ $scrollbar-thumb: body-mix(72%);
     opacity: var(--mc-star-opacity);
   }
 
+  // The gitlink widget ships its own reduced-motion guard.
   .navbar .nav-link::after {
-    transition: none;
-  }
-
-  .gh-widget-trigger,
-  .gh-dropdown-arrow,
-  .gh-dropdown,
-  .gh-dropdown-item {
     transition: none;
   }
 }
