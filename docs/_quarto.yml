@@ -61,7 +61,7 @@ website:
       - text: "{{< iconify octicon:person-16 title='Person' label='Credits' >}} Credits"
         href: credits.qmd
       - text: "{{< iconify octicon:mark-github-16 title='GitHub' label='GitHub' >}}"
-        href: "#github-widget"
+        href: "#gitlink-widget"
         aria-label: "GitHub"
 
 metadata-files:
@@ -102,7 +102,6 @@ format:
       - assets/scripts/ordinal-dates.html
       - assets/scripts/a11y-fixes.html
       - assets/scripts/navbar-tooltips.html
-      - assets/scripts/github-widget.html
 
 execute:
   freeze: auto
@@ -110,3 +109,28 @@ execute:
 
 filters:
   - code-window
+  - at: post-quarto
+    path: gitlink
+
+extensions:
+  gitlink:
+    # Widget only: the platform and repository come from `website.repo-url`,
+    # and in-text reference rewriting stays off.
+    enabled: false
+    widget:
+      enabled: true
+      extra-links:
+        - text: "Ideas / Feature Requests"
+          href: "/discussions/categories/feature-requests"
+          icon: discussion
+        - text: "Q&A"
+          href: "/discussions/categories/q-a"
+          icon: question
+        - text: "Visual Studio Marketplace"
+          href: "https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard"
+          icon: marketplace
+        - text: "Open VSX"
+          href: "https://open-vsx.org/extension/mcanouil/quarto-wizard"
+          icon: globe
+      sponsor: mcanouil
+      style-navbar-tools: true
