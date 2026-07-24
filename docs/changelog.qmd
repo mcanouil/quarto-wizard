@@ -2,19 +2,19 @@
 title: "Changelog"
 ---
 
-## Unreleased {#unreleased}
-
-### Dependency Updates
-
-- chore(deps): upgrade npm dependencies to latest, including js-yaml 4.x to 5.x (YAML 1.2 core schema for parsing) and archiver 7.x to 8.x (class API in tests). `tar` is unpinned from 7.5.15 to `^7.5.21`, picking up upstream security fixes; the previously worked-around abort regression no longer reproduces. Overrides force patched `diff` and `serialize-javascript` under mocha, bringing `npm audit` to zero findings. TypeScript stays on 6.x until typescript-eslint and typedoc support 7.x; `@types/vscode` stays aligned with the `^1.96.0` engine.
-
-### Bug Fixes
-
-- fix: stop installing the extension when the confirmation dialog opened by a `vscode://mcanouil.quarto-wizard/install` or `/use` link is dismissed. Cancelling the dialog, or pressing <kbd>Esc</kbd>, now aborts the operation as intended. The dialog no longer shows a redundant "No" button alongside the built-in Cancel, and it now states the destination folder so the target of the install is visible before confirming.
-
 ## 3 {#version-3}
 
 ### 3.1 {#version-3-1}
+
+#### 3.1.3 (2026-07-24) {#version-3-1-3}
+
+##### Dependency Updates
+
+- chore(deps): upgrade npm dependencies to latest, including js-yaml 4.x to 5.x (YAML 1.2 core schema for parsing) and archiver 7.x to 8.x (class API in tests). `tar` is unpinned from 7.5.15 to `^7.5.21`, picking up upstream security fixes; the previously worked-around abort regression no longer reproduces. Overrides force patched `diff` and `serialize-javascript` under mocha, bringing `npm audit` to zero findings. TypeScript stays on 6.x until typescript-eslint and typedoc support 7.x; `@types/vscode` stays aligned with the `^1.96.0` engine.
+
+##### Bug Fixes
+
+- fix: stop installing the extension when the confirmation dialog opened by a `vscode://mcanouil.quarto-wizard/install` or `/use` link is dismissed. Cancelling the dialog, or pressing <kbd>Esc</kbd>, now aborts the operation as intended. The dialog no longer shows a redundant "No" button alongside the built-in Cancel, and it now states the destination folder so the target of the install is visible before confirming.
 
 #### 3.1.2 (2026-06-16) {#version-3-1-2}
 

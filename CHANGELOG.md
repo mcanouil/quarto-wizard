@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.1.3 (2026-07-24)
 
 ### Dependency Updates
 
