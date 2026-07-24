@@ -83,8 +83,25 @@ export function validateSchemaDefinitionSyntax(
 	}
 
 	try {
-		const parsed = format === "json" ? JSON.parse(content) : yaml.load(content);
-		return { error: null, parsed };
+		if (format === "json") {
+			return { error: null, parsed: JSON.parse(content) };
+		}
+
+		// loadAll tolerates comment-only content (js-yaml v5 load throws on it),
+		// while the length check keeps rejecting multi-document streams.
+		const documents = yaml.loadAll(content);
+		if (documents.length > 1) {
+			return {
+				error: [
+					{
+						message: "expected a single document in the stream, but found more than one",
+						severity: "error",
+						code: "syntax-error",
+					},
+				],
+			};
+		}
+		return { error: null, parsed: documents.length === 1 ? documents[0] : null };
 	} catch (err: unknown) {
 		const finding: SchemaDefinitionFinding = {
 			message: "",
