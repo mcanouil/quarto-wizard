@@ -15,39 +15,45 @@ $enable-smooth-scroll: true;
 
 /*-- scss:functions --*/
 
-// Deterministic pseudo-random star field generator. A small linear congruential
-// sequence keeps the layout stable across builds and avoids the deprecated
-// global random() function (and the division operator).
+// Deterministic pseudo-random star field generator. A Park-Miller (Lehmer)
+// generator carries its state between draws, so consecutive stars are
+// uncorrelated: deriving both coordinates from the loop counter instead gives
+// every star the same offset from the last one, which draws diagonal lines.
+// Every intermediate stays below 2^53, so Sass's double arithmetic is exact,
+// and the sequence is stable across builds without the deprecated global
+// random() function.
+$mc-star-field-width: 3840;
+$mc-star-field-height: 1920;
+
 @function star-shadows($count, $seed) {
   $shadows: null;
+  $state: ($seed % 2147483646) + 1;
 
   @for $i from 1 through $count {
-    $x: (
-      ($i * 1103515245 + $seed) % 1920
-    );
-  $y: (
-    (($i + 31) * 12345 + $seed) % 1920
-  );
-// Each star is emitted twice, 1920px apart, so a -1920px drift loops seamlessly.
-$shadow: #{$x}px #{$y}px var(--mc-star),
-  #{$x}px #{$y + 1920}px var(--mc-star);
+    $state: ($state * 16807) % 2147483647;
+    $x: $state % $mc-star-field-width;
+    $state: ($state * 16807) % 2147483647;
+    $y: $state % $mc-star-field-height;
+    $state: ($state * 16807) % 2147483647;
+    $blur: $state % 3;
 
-@if $shadows ==null {
-  $shadows: $shadow;
+    // Each star is emitted twice, $mc-star-field-height apart, so a drift of
+    // the same distance loops seamlessly.
+    $shadow: #{$x}px #{$y}px #{$blur}px var(--mc-star), #{$x}px #{$y + $mc-star-field-height}px #{$blur}px var(--mc-star);
+
+    @if $shadows == null {
+      $shadows: $shadow;
+    } @else {
+      $shadows: #{$shadows}, #{$shadow};
+    }
+  }
+
+  @return $shadows;
 }
 
-@else {
-  $shadows: #{$shadows},
-    #{$shadow};
-}
-}
-
-@return $shadows;
-}
-
-$mc-stars-1: star-shadows(140, 1009);
-$mc-stars-2: star-shadows(90, 53003);
-$mc-stars-3: star-shadows(45, 911111);
+$mc-stars-1: star-shadows(280, 1009);
+$mc-stars-2: star-shadows(180, 53003);
+$mc-stars-3: star-shadows(90, 911111);
 
 // Mix the theme's own background and foreground. Because brand injects different
 // $body-bg/$body-color into the light and dark compiles, body-mix(95%) resolves
@@ -175,7 +181,7 @@ html::after {
   }
 
   to {
-    transform: translateY(-1920px);
+    transform: translateY(-#{$mc-star-field-height}px);
   }
 }
 
