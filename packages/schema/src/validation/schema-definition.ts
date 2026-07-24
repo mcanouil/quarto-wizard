@@ -87,8 +87,7 @@ export function validateSchemaDefinitionSyntax(
 			return { error: null, parsed: JSON.parse(content) };
 		}
 
-		// loadAll tolerates comment-only content (js-yaml v5 load throws on it),
-		// while the length check keeps rejecting multi-document streams.
+		// loadAll tolerates comment-only content, which js-yaml v5 load throws on.
 		const documents = yaml.loadAll(content);
 		if (documents.length > 1) {
 			return {
@@ -101,7 +100,7 @@ export function validateSchemaDefinitionSyntax(
 				],
 			};
 		}
-		return { error: null, parsed: documents.length === 1 ? documents[0] : null };
+		return { error: null, parsed: documents[0] ?? null };
 	} catch (err: unknown) {
 		const finding: SchemaDefinitionFinding = {
 			message: "",
