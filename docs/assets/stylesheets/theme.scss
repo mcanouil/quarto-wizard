@@ -475,15 +475,24 @@ $mc-icon-moon: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" w
   -webkit-mask-position: center;
 }
 
-.quarto-color-scheme-toggle:not(.alternate) .bi::before {
-  mask-image: $mc-icon-sun;
-  -webkit-mask-image: $mc-icon-sun;
-}
+// Scope to every place the toggle can render so these win over Quarto's default
+// toggle-switch glyph on order; clear its background-image so the sun/moon mask
+// fills instead of clipping a switch shape.
+.navbar .quarto-color-scheme-toggle,
+.sidebar-navigation .quarto-color-scheme-toggle,
+.top-right.quarto-color-scheme-toggle {
+  &:not(.alternate) .bi::before {
+    background-image: none;
+    mask-image: $mc-icon-sun;
+    -webkit-mask-image: $mc-icon-sun;
+  }
 
-.quarto-color-scheme-toggle.alternate .bi::before {
-  mask-image: $mc-icon-moon;
-  -webkit-mask-image: $mc-icon-moon;
-  filter: drop-shadow(0 0 6px var(--mc-glow-strong));
+  &.alternate .bi::before {
+    background-image: none;
+    mask-image: $mc-icon-moon;
+    -webkit-mask-image: $mc-icon-moon;
+    filter: drop-shadow(0 0 6px var(--mc-glow-strong));
+  }
 }
 
 .quarto-color-scheme-toggle:hover,
