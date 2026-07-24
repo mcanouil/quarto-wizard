@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import * as tar from "tar";
 import { detectArchiveFormat, extractArchive, findExtensionRoot, cleanupExtraction } from "../src/archive/extract.js";
 import { extractZip } from "../src/archive/zip.js";
@@ -16,7 +16,7 @@ import { SecurityError } from "../src/errors.js";
 async function createZipArchive(sourceDir: string, zipPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const output = fs.createWriteStream(zipPath);
-		const archive = archiver("zip", { zlib: { level: 9 } });
+		const archive = new ZipArchive({ zlib: { level: 9 } });
 
 		output.on("close", () => resolve());
 		archive.on("error", (err) => reject(err));
@@ -245,6 +245,30 @@ describe("TAR extraction", () => {
 		});
 
 		expect(progressFiles.length).toBeGreaterThan(0);
+	});
+
+	it("rejects symbolic links in tar archives", async () => {
+		const sourceWithSymlink = path.join(tempDir, "source-symlink");
+		await fs.promises.mkdir(sourceWithSymlink);
+		const targetFile = path.join(sourceWithSymlink, "target.txt");
+		await fs.promises.writeFile(targetFile, "symlink-target");
+		try {
+			fs.symlinkSync(targetFile, path.join(sourceWithSymlink, "link.txt"));
+		} catch {
+			// Some filesystems/environments may disallow symbolic links.
+			return;
+		}
+
+		const symlinkTarPath = path.join(tempDir, "symlink.tar.gz");
+		await createTarArchive(sourceWithSymlink, symlinkTarPath);
+		const destDir = path.join(tempDir, "dest-symlink");
+		await expect(extractTar(symlinkTarPath, destDir)).rejects.toThrow(SecurityError);
+	});
+
+	it("rejects tar archives exceeding max size", async () => {
+		const destDir = path.join(tempDir, "dest-oversize");
+
+		await expect(extractTar(tarPath, destDir, { maxSize: 10 })).rejects.toThrow(SecurityError);
 	});
 });
 

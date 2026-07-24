@@ -110,7 +110,7 @@ Automatically routes requests through configured proxy servers.
 function clearProxyAgentCache(): void;
 ```
 
-Defined in: [packages/core/src/proxy/fetch.ts:161](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/fetch.ts#L161)
+Defined in: [packages/core/src/proxy/fetch.ts:161](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/fetch.ts#L161)
 
 Clear the proxy agent cache.
 Useful for testing or when proxy configuration changes.
@@ -125,7 +125,7 @@ Useful for testing or when proxy configuration changes.
 function getProxyConfig(): ProxyConfig;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:88](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/config.ts#L88)
+Defined in: [packages/core/src/proxy/config.ts:88](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/config.ts#L88)
 
 Read proxy configuration from environment variables.
 
@@ -141,7 +141,7 @@ Proxy configuration
 function getProxyForUrl(url, config?): string | undefined;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:146](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/config.ts#L146)
+Defined in: [packages/core/src/proxy/config.ts:146](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/config.ts#L146)
 
 Get the appropriate proxy URL for a given request URL.
 
@@ -164,7 +164,7 @@ Proxy URL or undefined if no proxy should be used
 function proxyFetch(url, options?): Promise<Response>;
 ```
 
-Defined in: [packages/core/src/proxy/fetch.ts:130](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/fetch.ts#L130)
+Defined in: [packages/core/src/proxy/fetch.ts:130](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/fetch.ts#L130)
 
 Proxy-aware fetch function.
 
@@ -190,13 +190,13 @@ Response
 function shouldBypassProxy(hostname, noProxy): boolean;
 ```
 
-Defined in: [packages/core/src/proxy/config.ts:109](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/config.ts#L109)
+Defined in: [packages/core/src/proxy/config.ts:109](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/config.ts#L109)
 
 Check if a hostname should bypass the proxy.
 
 Supports patterns:
 
-- "\*" matches all hosts
+- "*" matches all hosts
 - ".example.com" matches example.com and all subdomains
 - "example.com" matches exactly example.com
 - "192.168.1.0/24" style CIDR is NOT supported (matched literally)
@@ -216,7 +216,7 @@ True if the host should bypass the proxy
 
 ## ProxyConfig {#symbol-interface-proxyconfig}
 
-Defined in: [packages/core/src/proxy/config.ts:46](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/config.ts#L46)
+Defined in: [packages/core/src/proxy/config.ts:46](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/config.ts#L46)
 
 Proxy configuration.
 
@@ -224,13 +224,13 @@ Proxy configuration.
 
 | Property                                       | Type       | Description                                 | Defined in                                                                                                                                                            |
 | ---------------------------------------------- | ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-httpproxy"></a> `httpProxy?`   | `string`   | Proxy URL for HTTP requests.                | [packages/core/src/proxy/config.ts:48](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/config.ts#L48) |
-| <a id="property-httpsproxy"></a> `httpsProxy?` | `string`   | Proxy URL for HTTPS requests.               | [packages/core/src/proxy/config.ts:50](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/config.ts#L50) |
-| <a id="property-noproxy"></a> `noProxy`        | `string[]` | List of hosts/patterns to bypass the proxy. | [packages/core/src/proxy/config.ts:52](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/config.ts#L52) |
+| <a id="property-httpproxy"></a> `httpProxy?`   | `string`   | Proxy URL for HTTP requests.                | [packages/core/src/proxy/config.ts:48](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/config.ts#L48) |
+| <a id="property-httpsproxy"></a> `httpsProxy?` | `string`   | Proxy URL for HTTPS requests.               | [packages/core/src/proxy/config.ts:50](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/config.ts#L50) |
+| <a id="property-noproxy"></a> `noProxy`        | `string[]` | List of hosts/patterns to bypass the proxy. | [packages/core/src/proxy/config.ts:52](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/config.ts#L52) |
 
 ## ProxyFetchOptions {#symbol-interface-proxyfetchoptions}
 
-Defined in: [packages/core/src/proxy/fetch.ts:93](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/fetch.ts#L93)
+Defined in: [packages/core/src/proxy/fetch.ts:93](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/fetch.ts#L93)
 
 Options for proxy-aware fetch.
 
@@ -242,19 +242,19 @@ Options for proxy-aware fetch.
 
 | Property                                               | Type                                                    | Description                                                   | Inherited from               | Defined in                                                                                                                                                          |
 | ------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-body"></a> `body?`                     | `BodyInit`                                              | -                                                             | `RequestInit.body`           | node_modules/undici-types/fetch.d.ts:123                                                                                                                            |
-| <a id="property-cache"></a> `cache?`                   | `RequestCache`                                          | -                                                             | `RequestInit.cache`          | node_modules/undici-types/fetch.d.ts:124                                                                                                                            |
-| <a id="property-credentials"></a> `credentials?`       | `RequestCredentials`                                    | -                                                             | `RequestInit.credentials`    | node_modules/undici-types/fetch.d.ts:125                                                                                                                            |
-| <a id="property-dispatcher"></a> `dispatcher?`         | `Dispatcher`                                            | -                                                             | `RequestInit.dispatcher`     | node_modules/undici-types/fetch.d.ts:126                                                                                                                            |
-| <a id="property-duplex"></a> `duplex?`                 | `"half"`                                                | -                                                             | `RequestInit.duplex`         | node_modules/undici-types/fetch.d.ts:127                                                                                                                            |
-| <a id="property-headers"></a> `headers?`               | `HeadersInit`                                           | -                                                             | `RequestInit.headers`        | node_modules/undici-types/fetch.d.ts:128                                                                                                                            |
-| <a id="property-integrity"></a> `integrity?`           | `string`                                                | -                                                             | `RequestInit.integrity`      | node_modules/undici-types/fetch.d.ts:129                                                                                                                            |
-| <a id="property-keepalive"></a> `keepalive?`           | `boolean`                                               | -                                                             | `RequestInit.keepalive`      | node_modules/undici-types/fetch.d.ts:130                                                                                                                            |
-| <a id="property-method"></a> `method?`                 | `string`                                                | -                                                             | `RequestInit.method`         | node_modules/undici-types/fetch.d.ts:131                                                                                                                            |
-| <a id="property-mode"></a> `mode?`                     | `RequestMode`                                           | -                                                             | `RequestInit.mode`           | node_modules/undici-types/fetch.d.ts:132                                                                                                                            |
-| <a id="property-proxyconfig"></a> `proxyConfig?`       | [`ProxyConfig`](proxy.qmd#symbol-interface-proxyconfig) | Proxy configuration. If not provided, reads from environment. | -                            | [packages/core/src/proxy/fetch.ts:95](https://github.com/mcanouil/quarto-wizard/blob/988caba15087dad08be294894b44a9e1b0b671bb/packages/core/src/proxy/fetch.ts#L95) |
-| <a id="property-redirect"></a> `redirect?`             | `RequestRedirect`                                       | -                                                             | `RequestInit.redirect`       | node_modules/undici-types/fetch.d.ts:133                                                                                                                            |
-| <a id="property-referrer"></a> `referrer?`             | `string`                                                | -                                                             | `RequestInit.referrer`       | node_modules/undici-types/fetch.d.ts:134                                                                                                                            |
-| <a id="property-referrerpolicy"></a> `referrerPolicy?` | `ReferrerPolicy`                                        | -                                                             | `RequestInit.referrerPolicy` | node_modules/undici-types/fetch.d.ts:135                                                                                                                            |
-| <a id="property-signal"></a> `signal?`                 | `AbortSignal` \| `null`                                 | -                                                             | `RequestInit.signal`         | node_modules/undici-types/fetch.d.ts:136                                                                                                                            |
-| <a id="property-window"></a> `window?`                 | `null`                                                  | -                                                             | `RequestInit.window`         | node_modules/undici-types/fetch.d.ts:137                                                                                                                            |
+| <a id="property-body"></a> `body?`                     | `BodyInit`                                              | -                                                             | `RequestInit.body`           | node\_modules/undici-types/fetch.d.ts:143                                                                                                                           |
+| <a id="property-cache"></a> `cache?`                   | `RequestCache`                                          | -                                                             | `RequestInit.cache`          | node\_modules/undici-types/fetch.d.ts:144                                                                                                                           |
+| <a id="property-credentials"></a> `credentials?`       | `RequestCredentials`                                    | -                                                             | `RequestInit.credentials`    | node\_modules/undici-types/fetch.d.ts:145                                                                                                                           |
+| <a id="property-dispatcher"></a> `dispatcher?`         | `Dispatcher`                                            | -                                                             | `RequestInit.dispatcher`     | node\_modules/undici-types/fetch.d.ts:146                                                                                                                           |
+| <a id="property-duplex"></a> `duplex?`                 | `"half"`                                                | -                                                             | `RequestInit.duplex`         | node\_modules/undici-types/fetch.d.ts:147                                                                                                                           |
+| <a id="property-headers"></a> `headers?`               | `HeadersInit`                                           | -                                                             | `RequestInit.headers`        | node\_modules/undici-types/fetch.d.ts:148                                                                                                                           |
+| <a id="property-integrity"></a> `integrity?`           | `string`                                                | -                                                             | `RequestInit.integrity`      | node\_modules/undici-types/fetch.d.ts:149                                                                                                                           |
+| <a id="property-keepalive"></a> `keepalive?`           | `boolean`                                               | -                                                             | `RequestInit.keepalive`      | node\_modules/undici-types/fetch.d.ts:150                                                                                                                           |
+| <a id="property-method"></a> `method?`                 | `string`                                                | -                                                             | `RequestInit.method`         | node\_modules/undici-types/fetch.d.ts:151                                                                                                                           |
+| <a id="property-mode"></a> `mode?`                     | `RequestMode`                                           | -                                                             | `RequestInit.mode`           | node\_modules/undici-types/fetch.d.ts:152                                                                                                                           |
+| <a id="property-proxyconfig"></a> `proxyConfig?`       | [`ProxyConfig`](proxy.qmd#symbol-interface-proxyconfig) | Proxy configuration. If not provided, reads from environment. | -                            | [packages/core/src/proxy/fetch.ts:95](https://github.com/mcanouil/quarto-wizard/blob/fc1c9df97202cf7aef526c15392dc7c451d81c7a/packages/core/src/proxy/fetch.ts#L95) |
+| <a id="property-redirect"></a> `redirect?`             | `RequestRedirect`                                       | -                                                             | `RequestInit.redirect`       | node\_modules/undici-types/fetch.d.ts:153                                                                                                                           |
+| <a id="property-referrer"></a> `referrer?`             | `string`                                                | -                                                             | `RequestInit.referrer`       | node\_modules/undici-types/fetch.d.ts:154                                                                                                                           |
+| <a id="property-referrerpolicy"></a> `referrerPolicy?` | `ReferrerPolicy`                                        | -                                                             | `RequestInit.referrerPolicy` | node\_modules/undici-types/fetch.d.ts:155                                                                                                                           |
+| <a id="property-signal"></a> `signal?`                 | `AbortSignal` \| `null`                                 | -                                                             | `RequestInit.signal`         | node\_modules/undici-types/fetch.d.ts:156                                                                                                                           |
+| <a id="property-window"></a> `window?`                 | `null`                                                  | -                                                             | `RequestInit.window`         | node\_modules/undici-types/fetch.d.ts:157                                                                                                                           |

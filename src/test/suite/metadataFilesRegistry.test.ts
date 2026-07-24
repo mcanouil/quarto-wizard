@@ -172,7 +172,7 @@ suite("Metadata Files Registry Test Suite", () => {
 	});
 
 	test("invalid YAML is tolerated silently", async () => {
-		writeFile(path.join(tempDir, "_quarto.yml"), "metadata-files:\n  - _ok.yml\n: : not valid\n");
+		writeFile(path.join(tempDir, "_quarto.yml"), "metadata-files:\n  - _ok.yml\nkey: [unclosed\n");
 		const files = await getMetadataFiles(tempDir);
 		assert.strictEqual(files.size, 0);
 	});

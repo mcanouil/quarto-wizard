@@ -89,7 +89,9 @@ export function parseSchemaContent(
 	format: "yaml" | "json" = "yaml",
 ): ExtensionSchema {
 	try {
-		const raw = (format === "json" ? JSON.parse(content) : yaml.load(content)) as RawSchema;
+		// js-yaml v5 throws on empty input; treat it as an empty document instead.
+		const empty = format === "yaml" && content.trim() === "";
+		const raw = (empty ? null : format === "json" ? JSON.parse(content) : yaml.load(content)) as RawSchema;
 
 		if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
 			throw new SchemaError("Schema file is empty or invalid", { schemaPath: sourcePath });

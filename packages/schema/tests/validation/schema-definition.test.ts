@@ -26,6 +26,17 @@ describe("validateSchemaDefinitionSyntax", () => {
 		expect(result.error).toBeNull();
 	});
 
+	it("returns empty findings for comment-only content", () => {
+		const result = validateSchemaDefinitionSyntax("# just a comment\n# another\n", "yaml");
+		expect(result.error).toBeNull();
+	});
+
+	it("reports an error for multi-document YAML", () => {
+		const result = validateSchemaDefinitionSyntax("options:\n  foo:\n    type: string\n---\nother: doc\n", "yaml");
+		expect(result.error).not.toBeNull();
+		expect(result.error![0].code).toBe("syntax-error");
+	});
+
 	it("reports YAML syntax errors with line and column", () => {
 		const result = validateSchemaDefinitionSyntax("foo:\n  bar: [\n", "yaml");
 		expect(result.error).not.toBeNull();
