@@ -26,6 +26,27 @@ interface UriActionConfig {
 }
 
 /**
+ * Prompts the user with a modal confirmation for a URI-triggered action.
+ *
+ * A URI can be triggered from any web page, so this dialog is the only consent
+ * gate before an extension is downloaded into the workspace. VS Code adds its
+ * own Cancel button to modal dialogs, so only an explicit "Yes" confirms;
+ * Cancel and Esc both resolve to `undefined` and abort.
+ *
+ * @param message - The confirmation message to display.
+ * @param workspaceFolder - The folder the action would write to.
+ * @returns A Promise that resolves to true only when the user confirms.
+ */
+export async function confirmUriAction(message: string, workspaceFolder: string): Promise<boolean> {
+	const response = await vscode.window.showWarningMessage(
+		message,
+		{ modal: true, detail: `Destination: ${workspaceFolder}` },
+		"Yes",
+	);
+	return response === "Yes";
+}
+
+/**
  * Common handler for URI-based actions.
  * Extracts repo from URI, prompts for workspace folder, confirms action, and executes.
  *
@@ -51,14 +72,7 @@ async function handleUriAction(
 		return;
 	}
 
-	const confirmed = await vscode.window.showInformationMessage(
-		config.confirmMessage(repo),
-		{ modal: true },
-		"Yes",
-		"No",
-	);
-
-	if (confirmed === "No") {
+	if (!(await confirmUriAction(config.confirmMessage(repo), workspaceFolder))) {
 		const message = "Operation cancelled by the user.";
 		logMessage(message, "info");
 		showMessageWithLogs(message, "info");
