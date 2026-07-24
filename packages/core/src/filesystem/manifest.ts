@@ -76,6 +76,11 @@ export function parseManifestFile(manifestPath: string): ExtensionManifest {
  * @throws ManifestError if parsing fails
  */
 export function parseManifestContent(content: string, sourcePath?: string): ExtensionManifest {
+	// js-yaml v5 throws on empty input; guard first to keep the explicit error.
+	if (content.trim() === "") {
+		throw new ManifestError("Manifest file is empty or invalid", { manifestPath: sourcePath });
+	}
+
 	try {
 		const raw = yaml.load(content) as RawManifest;
 

@@ -38,11 +38,7 @@ const CONTRIBUTION_TYPES: Record<string, { icon: string; label: string }> = {
  * Result from the source picker.
  */
 export type SourcePickerResult =
-	| { type: "registry" }
-	| { type: "github" }
-	| { type: "url" }
-	| { type: "local" }
-	| { type: "cancelled" };
+	{ type: "registry" } | { type: "github" } | { type: "url" } | { type: "local" } | { type: "cancelled" };
 
 /**
  * Interface for source picker items.
@@ -237,8 +233,7 @@ export interface ExtensionQuickPickItem extends vscode.QuickPickItem {
  * Result from the extension QuickPick.
  */
 export type ExtensionPickerResult =
-	| { type: "registry"; items: readonly ExtensionQuickPickItem[] }
-	| { type: "cancelled" };
+	{ type: "registry"; items: readonly ExtensionQuickPickItem[] } | { type: "cancelled" };
 
 /**
  * Creates QuickPick items from extension details.

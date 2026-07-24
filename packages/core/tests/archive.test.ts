@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import * as tar from "tar";
 import { detectArchiveFormat, extractArchive, findExtensionRoot, cleanupExtraction } from "../src/archive/extract.js";
 import { extractZip } from "../src/archive/zip.js";
@@ -16,7 +16,7 @@ import { SecurityError } from "../src/errors.js";
 async function createZipArchive(sourceDir: string, zipPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const output = fs.createWriteStream(zipPath);
-		const archive = archiver("zip", { zlib: { level: 9 } });
+		const archive = new ZipArchive({ zlib: { level: 9 } });
 
 		output.on("close", () => resolve());
 		archive.on("error", (err) => reject(err));
