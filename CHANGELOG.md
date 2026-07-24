@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- fix: stop installing the extension when the confirmation dialog opened by a `vscode://mcanouil.quarto-wizard/install` or `/use` link is dismissed. Cancelling the dialog, or pressing <kbd>Esc</kbd>, now aborts the operation as intended. The dialog no longer shows a redundant "No" button alongside the built-in Cancel.
+- fix: stop installing the extension when the confirmation dialog opened by a `vscode://mcanouil.quarto-wizard/install` or `/use` link is dismissed. Cancelling the dialog, or pressing <kbd>Esc</kbd>, now aborts the operation as intended. The dialog no longer shows a redundant "No" button alongside the built-in Cancel, and it now states the destination folder so the target of the install is visible before confirming.
 
 ## 3.1.2 (2026-06-16)
 

@@ -3,18 +3,18 @@ import * as vscode from "vscode";
 import { confirmUriAction } from "../../utils/handleUri";
 
 suite("Handle URI Test Suite", () => {
-	let originalShowInformationMessage: typeof vscode.window.showInformationMessage;
+	let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
 
 	let dialogResult: string | undefined;
 	let dialogCalls: { message: string; options: vscode.MessageOptions; items: string[] }[];
 
 	setup(() => {
-		originalShowInformationMessage = vscode.window.showInformationMessage;
+		originalShowWarningMessage = vscode.window.showWarningMessage;
 
 		dialogResult = undefined;
 		dialogCalls = [];
 
-		Object.defineProperty(vscode.window, "showInformationMessage", {
+		Object.defineProperty(vscode.window, "showWarningMessage", {
 			value: async (message: string, options: vscode.MessageOptions, ...items: string[]) => {
 				dialogCalls.push({ message, options, items });
 				return dialogResult;
@@ -25,8 +25,8 @@ suite("Handle URI Test Suite", () => {
 	});
 
 	teardown(() => {
-		Object.defineProperty(vscode.window, "showInformationMessage", {
-			value: originalShowInformationMessage,
+		Object.defineProperty(vscode.window, "showWarningMessage", {
+			value: originalShowWarningMessage,
 			writable: true,
 			configurable: true,
 		});
@@ -36,7 +36,7 @@ suite("Handle URI Test Suite", () => {
 		test("Should return true when the user selects 'Yes'", async () => {
 			dialogResult = "Yes";
 
-			const result = await confirmUriAction("Do you confirm?");
+			const result = await confirmUriAction("Do you confirm?", "/workspace");
 
 			assert.strictEqual(result, true);
 		});
@@ -44,7 +44,7 @@ suite("Handle URI Test Suite", () => {
 		test("Should return false when the user dismisses the dialog with Cancel or Esc", async () => {
 			dialogResult = undefined;
 
-			const result = await confirmUriAction("Do you confirm?");
+			const result = await confirmUriAction("Do you confirm?", "/workspace");
 
 			assert.strictEqual(result, false);
 		});
@@ -52,7 +52,7 @@ suite("Handle URI Test Suite", () => {
 		test("Should return false for any other response", async () => {
 			dialogResult = "No";
 
-			const result = await confirmUriAction("Do you confirm?");
+			const result = await confirmUriAction("Do you confirm?", "/workspace");
 
 			assert.strictEqual(result, false);
 		});
@@ -60,12 +60,20 @@ suite("Handle URI Test Suite", () => {
 		test("Should show a modal dialog with a single 'Yes' item", async () => {
 			dialogResult = "Yes";
 
-			await confirmUriAction("Do you confirm?");
+			await confirmUriAction("Do you confirm?", "/workspace");
 
 			assert.strictEqual(dialogCalls.length, 1);
 			assert.strictEqual(dialogCalls[0].message, "Do you confirm?");
 			assert.strictEqual(dialogCalls[0].options.modal, true);
 			assert.deepStrictEqual(dialogCalls[0].items, ["Yes"]);
+		});
+
+		test("Should show the destination folder in the dialog detail", async () => {
+			dialogResult = "Yes";
+
+			await confirmUriAction("Do you confirm?", "/home/user/my-project");
+
+			assert.strictEqual(dialogCalls[0].options.detail, "Destination: /home/user/my-project");
 		});
 	});
 });
