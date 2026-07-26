@@ -708,6 +708,44 @@ div.code-with-filename pre.sourceCode {
 }
 
 // ===========================================================================
+// 404 PAGE
+// ===========================================================================
+// Quarto renders 404.qmd as an ordinary page with no distinguishing class;
+// the page opts in by wrapping its content in a .atelier-404 div.
+.atelier-404 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1rem;
+  min-height: 55vh;
+}
+
+.atelier-404 .atelier-404-code {
+  font-size: clamp(6rem, 20vw, 11rem);
+  font-weight: 700;
+  line-height: 1;
+  color: body-mix(88%);
+  user-select: none;
+}
+
+.atelier-404 .atelier-404-home {
+  display: inline-block;
+  padding: 0.45rem 1.1rem;
+  border: 1px solid $primary;
+  border-radius: $border-radius;
+  color: $primary;
+  text-decoration: none;
+}
+
+.atelier-404 .atelier-404-home:hover,
+.atelier-404 .atelier-404-home:focus-visible {
+  background: body-mix(92%);
+  text-decoration: underline;
+}
+
+// ===========================================================================
 // SCROLLBARS
 // ===========================================================================
 // Quarto leaves the browser default scrollbar, a light-grey bar that clashes
