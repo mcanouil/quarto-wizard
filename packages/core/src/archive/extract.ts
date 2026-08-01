@@ -12,6 +12,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { ExtensionError } from "../errors.js";
 import { MANIFEST_FILENAMES } from "../filesystem/manifest.js";
+import { EXTENSIONS_DIR } from "../filesystem/discovery.js";
+import { isQuartoIgnored, readQuartoIgnore } from "../filesystem/quartoignore.js";
 import { extractZip } from "./zip.js";
 import { extractTar } from "./tar.js";
 
@@ -192,11 +194,55 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
 }
 
 /**
+ * Resolve the repository root inside an extraction directory.
+ *
+ * GitHub archives wrap everything in a single top-level directory such as `repo-tag/`.
+ * That wrapper is stripped so `.quartoignore` and `_extensions/` are looked up where the
+ * repository actually declares them. A sole `_extensions/` entry is not a wrapper, and
+ * neither is a directory that is itself an extension.
+ *
+ * @param extractDir - Extraction directory
+ * @returns Path to the repository root
+ */
+async function resolveArchiveRoot(extractDir: string): Promise<string> {
+	let current = extractDir;
+
+	for (let depth = 0; depth <= MAX_FIND_DEPTH; depth++) {
+		for (const name of MANIFEST_FILENAMES) {
+			if (await fileExists(path.join(current, name))) {
+				return current;
+			}
+		}
+
+		let entries: fs.Dirent[];
+		try {
+			entries = await fs.promises.readdir(current, { withFileTypes: true });
+		} catch {
+			return current;
+		}
+
+		if (entries.length !== 1 || !entries[0].isDirectory() || entries[0].name === EXTENSIONS_DIR) {
+			return current;
+		}
+
+		current = path.join(current, entries[0].name);
+	}
+
+	return current;
+}
+
+/**
  * Find all extension roots in an extracted archive.
  *
  * Unlike findExtensionRoot which returns the first match, this function
  * finds all extensions in the archive, useful for repositories that
  * contain multiple extensions.
+ *
+ * The repository's own `_extensions/` is the primary host: when it holds at least one
+ * extension, extensions found elsewhere in the archive are ignored, so a vendored copy
+ * under `docs/_extensions/` is not offered for installation. Paths matched by the
+ * repository's `.quartoignore` are dropped as well. Neither rule is allowed to empty the
+ * result, so an archive that only ships extensions in ignored locations still installs.
  *
  * @param extractDir - Extraction directory
  * @returns Array of discovered extensions
@@ -232,7 +278,38 @@ export async function findAllExtensionRoots(extractDir: string): Promise<Discove
 	}
 
 	await searchDirectory(extractDir);
-	return results;
+
+	if (results.length === 0) {
+		return results;
+	}
+
+	const archiveRoot = await resolveArchiveRoot(extractDir);
+
+	const ignorePatterns = readQuartoIgnore(archiveRoot);
+	const kept = results.filter((ext) => !isQuartoIgnored(ignorePatterns, toRelativePosixPath(archiveRoot, ext.path)));
+
+	const hostDir = path.join(archiveRoot, EXTENSIONS_DIR);
+	const hosted = (kept.length > 0 ? kept : results).filter((ext) => isInside(hostDir, ext.path));
+
+	if (hosted.length > 0) {
+		return hosted;
+	}
+	return kept.length > 0 ? kept : results;
+}
+
+/**
+ * Express `fsPath` relative to `basePath` with POSIX separators.
+ */
+function toRelativePosixPath(basePath: string, fsPath: string): string {
+	return path.relative(basePath, fsPath).split(path.sep).join(path.posix.sep);
+}
+
+/**
+ * True when `child` lives below `parent`.
+ */
+function isInside(parent: string, child: string): boolean {
+	const relative = path.relative(parent, child);
+	return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 /**

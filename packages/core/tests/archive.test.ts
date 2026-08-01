@@ -4,7 +4,13 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { ZipArchive } from "archiver";
 import * as tar from "tar";
-import { detectArchiveFormat, extractArchive, findExtensionRoot, cleanupExtraction } from "../src/archive/extract.js";
+import {
+	detectArchiveFormat,
+	extractArchive,
+	findAllExtensionRoots,
+	findExtensionRoot,
+	cleanupExtraction,
+} from "../src/archive/extract.js";
 import { extractZip } from "../src/archive/zip.js";
 import { extractTar } from "../src/archive/tar.js";
 import { SecurityError } from "../src/errors.js";
@@ -129,6 +135,108 @@ describe("findExtensionRoot", () => {
 		const root = await findExtensionRoot(tempDir);
 
 		expect(root).toBe(current);
+	});
+});
+
+describe("findAllExtensionRoots", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "ext-roots-test-"));
+	});
+
+	afterEach(async () => {
+		await fs.promises.rm(tempDir, { recursive: true, force: true });
+	});
+
+	async function writeExtension(dir: string, title: string): Promise<void> {
+		await fs.promises.mkdir(dir, { recursive: true });
+		await fs.promises.writeFile(path.join(dir, "_extension.yml"), `title: ${title}`);
+	}
+
+	function names(extensions: { id: { name: string } }[]): string[] {
+		return extensions.map((ext) => ext.id.name).sort();
+	}
+
+	it("returns every extension when the repository root has no _extensions/", async () => {
+		const repo = path.join(tempDir, "owner-repo-main");
+		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "iconify"), "iconify");
+		await writeExtension(path.join(repo, "pkg", "_extensions", "mcanouil", "pastel"), "pastel");
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(names(found)).toEqual(["iconify", "pastel"]);
+	});
+
+	it("keeps only the repository root _extensions/ when it is populated", async () => {
+		// Mirrors a GitHub archive of an extension repository that also builds a docs site.
+		const repo = path.join(tempDir, "mcanouil-quarto-code-window-8a3af22");
+		await writeExtension(path.join(repo, "_extensions", "code-window"), "code-window");
+		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "atelier"), "atelier");
+		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "gitlink"), "gitlink");
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(names(found)).toEqual(["code-window"]);
+	});
+
+	it("keeps every extension in the repository root _extensions/", async () => {
+		const repo = path.join(tempDir, "owner-repo-main");
+		await writeExtension(path.join(repo, "_extensions", "mcanouil", "first"), "first");
+		await writeExtension(path.join(repo, "_extensions", "mcanouil", "second"), "second");
+		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "vendored"), "vendored");
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(names(found)).toEqual(["first", "second"]);
+	});
+
+	it("applies the repository root _extensions/ rule without a wrapper directory", async () => {
+		await writeExtension(path.join(tempDir, "_extensions", "code-window"), "code-window");
+		await writeExtension(path.join(tempDir, "docs", "_extensions", "mcanouil", "atelier"), "atelier");
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(names(found)).toEqual(["code-window"]);
+	});
+
+	it("drops extensions matched by the repository .quartoignore", async () => {
+		const repo = path.join(tempDir, "owner-repo-main");
+		await fs.promises.mkdir(repo, { recursive: true });
+		await fs.promises.writeFile(path.join(repo, ".quartoignore"), "# the docs site\ndocs\n");
+		await writeExtension(path.join(repo, "pkg", "_extensions", "mcanouil", "pastel"), "pastel");
+		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "iconify"), "iconify");
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(names(found)).toEqual(["pastel"]);
+	});
+
+	it("keeps the unfiltered set when .quartoignore would discard everything", async () => {
+		const repo = path.join(tempDir, "owner-repo-main");
+		await fs.promises.mkdir(repo, { recursive: true });
+		await fs.promises.writeFile(path.join(repo, ".quartoignore"), "docs\n");
+		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "iconify"), "iconify");
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(names(found)).toEqual(["iconify"]);
+	});
+
+	it("does not mistake a lone _extensions/ directory for an archive wrapper", async () => {
+		await writeExtension(path.join(tempDir, "_extensions", "mcanouil", "only"), "only");
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(names(found)).toEqual(["only"]);
+	});
+
+	it("returns an empty array when the archive holds no extension", async () => {
+		await fs.promises.mkdir(path.join(tempDir, "owner-repo-main", "docs"), { recursive: true });
+
+		const found = await findAllExtensionRoots(tempDir);
+
+		expect(found).toEqual([]);
 	});
 });
 

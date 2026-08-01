@@ -108,6 +108,13 @@ suite("Quarto Project Discovery Test Suite", () => {
 		return file;
 	}
 
+	function writeQuartoIgnore(dir: string, content: string): string {
+		fs.mkdirSync(dir, { recursive: true });
+		const file = path.join(dir, ".quartoignore");
+		fs.writeFileSync(file, content, "utf8");
+		return file;
+	}
+
 	function writeExtensionManifest(projectDir: string, owner: string, name: string): string {
 		const dir = path.join(projectDir, "_extensions", owner, name);
 		fs.mkdirSync(dir, { recursive: true });
@@ -430,6 +437,97 @@ suite("Quarto Project Discovery Test Suite", () => {
 		assert.strictEqual(roots.length, 1);
 		assert.strictEqual(roots[0].fsPath, projectDir);
 		assert.strictEqual(roots[0].label, "workspace/nested/ext-only");
+	});
+
+	// Mirrors an extension development repository: the extension lives in the root
+	// `_extensions/`, and `docs/` is a documentation website with its own project files.
+	function writeExtensionRepoFixture(): string {
+		writeExtensionManifest(tempDir, "mcanouil", "gitlink");
+		const docs = path.join(tempDir, "docs");
+		writeQuartoYml(docs);
+		writeExtensionManifest(docs, "mcanouil", "gitlink");
+		const docPath = path.join(docs, "index.qmd");
+		fs.writeFileSync(docPath, "", "utf8");
+		return docPath;
+	}
+
+	for (const setting of [true, "subFolders", "openEditors"] as const) {
+		test(`setting=${setting}: populated root _extensions/ hides every sub-root`, async () => {
+			const docPath = writeExtensionRepoFixture();
+			mockedConfig.autoProjectDetection = setting;
+			mockedTextDocuments = [makeDocument(docPath)];
+
+			const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+			assert.strictEqual(roots.length, 1);
+			assert.strictEqual(roots[0].fsPath, tempDir);
+			assert.strictEqual(roots[0].label, "workspace");
+		});
+	}
+
+	test("populated root _extensions/ short-circuits before any scan", async () => {
+		writeExtensionRepoFixture();
+		let findFilesCalled = false;
+		vscode.workspace.findFiles = (() => {
+			findFilesCalled = true;
+			return Promise.resolve([]);
+		}) as typeof vscode.workspace.findFiles;
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(findFilesCalled, false);
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, tempDir);
+	});
+
+	test("empty root _extensions/ does not hide sub-roots", async () => {
+		fs.mkdirSync(path.join(tempDir, EXTENSIONS_DIR), { recursive: true });
+		const site = path.join(tempDir, "site");
+		writeQuartoYml(site);
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, site);
+	});
+
+	test(".quartoignore removes matching sub-roots", async () => {
+		writeQuartoIgnore(tempDir, "# the documentation website\ndocs\n");
+		writeQuartoYml(path.join(tempDir, "docs"));
+		const paper = path.join(tempDir, "paper");
+		writeQuartoYml(paper);
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, paper);
+	});
+
+	test(".quartoignore removes sub-roots detected via _extensions/", async () => {
+		writeQuartoIgnore(tempDir, "docs\n");
+		writeExtensionManifest(path.join(tempDir, "docs"), "mcanouil", "gitlink");
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		// Nothing survives the filter, so the workspace folder fallback applies.
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, tempDir);
+	});
+
+	test(".quartoignore removes sub-roots found by the open-editor walk-up", async () => {
+		writeQuartoIgnore(tempDir, "docs\n");
+		const docs = path.join(tempDir, "docs");
+		writeQuartoYml(docs);
+		const docPath = path.join(docs, "index.qmd");
+		fs.writeFileSync(docPath, "", "utf8");
+
+		mockedConfig.autoProjectDetection = "openEditors";
+		mockedTextDocuments = [makeDocument(docPath)];
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.strictEqual(roots.length, 1);
+		assert.strictEqual(roots[0].fsPath, tempDir);
 	});
 
 	test("setting=openEditors: symlink loops in _extensions/ do not cause infinite recursion", async function () {

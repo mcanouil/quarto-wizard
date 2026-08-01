@@ -41,6 +41,34 @@ Ask for confirmation before installing an extension. `ask` to ask for confirmati
 }
 ```
 
+## Project Detection
+
+### Auto Project Detection
+
+**Setting**: `quartoWizard.autoProjectDetection`
+
+When to look for Quarto project roots inside a workspace folder.
+A folder qualifies as a root when it contains `_quarto.yml`/`_quarto.yaml`, or an `_extensions/` directory holding at least one installed extension.
+Detected roots feed the Extensions Installed view and every command that needs a target folder.
+
+| Value         | Description                                               |
+| ------------- | --------------------------------------------------------- |
+| `subFolders`  | Scan direct subfolders of the workspace folder (default). |
+| `true`        | Scan recursively through all nested subfolders.           |
+| `openEditors` | Scan the parent folders of open files.                    |
+| `false`       | Disable scanning; the workspace folder is the only root.  |
+
+Two rules apply whatever the value:
+
+- **The root `_extensions/` wins.** When the workspace folder itself has an `_extensions/` directory with at least one installed extension, that folder is the only root, and no subfolder is offered as a separate target. Quarto resolves extensions by walking up from the document being rendered, so a populated `_extensions/` at the root already serves every document below it. This keeps installs and updates out of places such as the `docs/_extensions/` copy in an extension development repository.
+- **`.quartoignore` is honoured.** Paths matched by the workspace folder's `.quartoignore` are never detected as roots. Listing `docs` there keeps a documentation website out of the picture even when it ships its own `_quarto.yml` and `_extensions/`.
+
+```json
+{
+  "quartoWizard.autoProjectDetection": "subFolders"
+}
+```
+
 ## Cache Settings
 
 ### Cache Duration
@@ -100,7 +128,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.ask.trustAuthors": "ask",
   "quartoWizard.ask.confirmInstall": "ask",
   "quartoWizard.update.crossSource": false,
-  "quartoWizard.autoProjectDetection": subFolders,
+  "quartoWizard.autoProjectDetection": "subFolders",
   "quartoWizard.cache.ttlMinutes": 30,
   "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json",
   "quartoWizard.lint.unknownAttributes": false

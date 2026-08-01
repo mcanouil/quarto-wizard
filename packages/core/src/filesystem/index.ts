@@ -27,3 +27,5 @@ export {
 } from "./discovery.js";
 
 export { type WalkEntry, type WalkCallback, walkDirectory, collectFiles, copyDirectory, pathExists } from "./walk.js";
+
+export { QUARTOIGNORE_FILENAME, readQuartoIgnore, isQuartoIgnored } from "./quartoignore.js";
