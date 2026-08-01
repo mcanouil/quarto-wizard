@@ -96,7 +96,7 @@ jobs:
 
       - name: Set up Node.js
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
 
       - name: Install dependencies
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
@@ -181,7 +181,7 @@ jobs:
           git pull origin main
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
 
       - name: Install dependencies
         shell: bash
@@ -352,7 +352,7 @@ jobs:
 
     steps:
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
 
       - name: Install Visual Studio Code Extension Manager
         shell: bash
@@ -397,7 +397,7 @@ jobs:
 
     steps:
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
 
       - name: Download release bundle
         uses: actions/download-artifact@v8
