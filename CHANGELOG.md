@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New Features
+
+- feat: start files and directories matched by a template repository's `.quartoignore` unselected in the file picker shown by **Use Template**. They stay in the list and can be ticked back on; the ignore file states an intent, not a prohibition. When no picker is involved, they are excluded outright, matching `quarto use template`.
+
 ### Bug Fixes
 
 - fix: treat the workspace folder's `_extensions/` as the primary host. When the folder itself holds at least one installed extension, it is now the only install, update, template and brand target, and the only entry in the Extensions Installed view. Subfolders are no longer offered, so an extension development repository can no longer install into a copy such as `docs/_extensions/`. This already happened by accident for `quartoWizard.autoProjectDetection` set to `true` or `subFolders`; it now also holds for `openEditors`, and for workspaces that exclude `_extensions` through `files.exclude` or `search.exclude`.

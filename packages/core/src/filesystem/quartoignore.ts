@@ -47,7 +47,7 @@ export function readQuartoIgnore(dir: string): string[] {
 		if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("!")) {
 			continue;
 		}
-		const normalised = trimmed.replace(/^\.\//, "").replace(/^\/+/, "").replace(/\/+$/, "");
+		const normalised = trimmed.replace(/^\.?\/+/, "").replace(/\/+$/, "");
 		if (normalised !== "") {
 			patterns.push(normalised);
 		}
@@ -73,28 +73,43 @@ export function readQuartoIgnore(dir: string): string[] {
  * ```
  */
 export function isQuartoIgnored(patterns: readonly string[], relativePath: string): boolean {
-	if (patterns.length === 0) {
-		return false;
-	}
-
+	// An empty path is the directory holding the ignore file, which cannot ignore itself.
 	const segments = relativePath.split("/").filter((segment) => segment !== "" && segment !== ".");
-	if (segments.length === 0) {
-		// The directory holding the ignore file cannot ignore itself.
-		return false;
-	}
+	const prefixes = segments.map((_, index) => segments.slice(0, index + 1).join("/"));
 
+	return patterns.some((pattern) => {
+		// An anchored pattern is matched against whole prefixes only; an unanchored one is
+		// matched against each segment, which is what makes it apply at any depth.
+		const candidates = pattern.includes("/") ? prefixes : segments;
+		return candidates.some((candidate) => minimatch(candidate, pattern, { dot: true }));
+	});
+}
+
+/**
+ * Convert `.quartoignore` patterns into globs matching the ignored paths and their contents.
+ *
+ * {@link isQuartoIgnored} is a predicate over one path; consumers that hand patterns to a
+ * glob matcher need the same semantics expressed as globs instead. Each pattern yields the
+ * path itself and everything below it, plus depth-independent variants for unanchored
+ * patterns.
+ *
+ * @param patterns - Normalised patterns from {@link readQuartoIgnore}
+ * @returns Glob patterns covering the ignored paths and their descendants
+ *
+ * @example
+ * ```typescript
+ * quartoIgnoreGlobs(["docs"]); // ["docs", "docs/**", "**\/docs", "**\/docs/**"]
+ * ```
+ */
+export function quartoIgnoreGlobs(patterns: readonly string[]): string[] {
+	const globs = new Set<string>();
 	for (const pattern of patterns) {
-		const anchored = pattern.includes("/");
-		for (let depth = 1; depth <= segments.length; depth++) {
-			const prefix = segments.slice(0, depth).join("/");
-			if (minimatch(prefix, pattern, { dot: true })) {
-				return true;
-			}
-			if (!anchored && minimatch(segments[depth - 1], pattern, { dot: true })) {
-				return true;
-			}
+		globs.add(pattern);
+		globs.add(`${pattern}/**`);
+		if (!pattern.includes("/")) {
+			globs.add(`**/${pattern}`);
+			globs.add(`**/${pattern}/**`);
 		}
 	}
-
-	return false;
+	return [...globs];
 }

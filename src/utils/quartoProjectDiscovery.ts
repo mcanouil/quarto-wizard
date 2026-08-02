@@ -5,9 +5,14 @@ import {
 	MANIFEST_FILENAMES,
 	QUARTOIGNORE_FILENAME,
 	getErrorMessage,
+	getExtensionsDir,
+	isInside,
 	isQuartoIgnored,
 	readQuartoIgnore,
+	toRelativePosixPath,
 } from "@quarto-wizard/core";
+
+export { isInside } from "@quarto-wizard/core";
 import { getAutoProjectDetection } from "./extensionDetails";
 import { logMessage } from "./log";
 
@@ -94,29 +99,26 @@ export async function discoverQuartoProjectRoots(
 		// Quarto resolves `_extensions/` by walking up from the input file, so a populated
 		// `_extensions/` at the folder root already serves every document below it. It is the
 		// primary host: no sub-folder is offered as a separate install or update target.
-		if (await directoryHasInstalledExtension(vscode.Uri.file(path.join(folderPath, EXTENSIONS_DIR)))) {
+		// The `true` and `subFolders` scans reach the same conclusion on their own; probing
+		// here makes the rule hold for `openEditors` too, and skips the scan entirely.
+		if (await directoryHasInstalledExtension(vscode.Uri.file(getExtensionsDir(folderPath)))) {
 			results.push(buildRoot(folder, folderPath));
 			continue;
 		}
 
 		const ignorePatterns = readQuartoIgnore(folderPath);
+		const discovered =
+			setting === "openEditors"
+				? await findOpenEditorProjectDirs(folder)
+				: await findSubFolderProjectDirs(folder, setting === true);
+
 		const candidates = new Set<string>();
-
-		if (setting === true || setting === "subFolders") {
-			for (const dir of await findSubFolderProjectDirs(folder, setting === true)) {
-				candidates.add(dir);
-			}
-		} else if (setting === "openEditors") {
-			for (const dir of await findOpenEditorProjectDirs(folder)) {
-				candidates.add(dir);
-			}
-		}
-
-		for (const dir of candidates) {
+		for (const dir of discovered) {
 			if (isQuartoIgnored(ignorePatterns, toRelativePosixPath(folderPath, dir))) {
-				candidates.delete(dir);
 				logMessage(`Skipping ${dir}: matched by ${QUARTOIGNORE_FILENAME} in ${folderPath}.`, "debug");
+				continue;
 			}
+			candidates.add(dir);
 		}
 
 		if (candidates.has(folderPath) || candidates.size === 0) {
@@ -140,14 +142,6 @@ function buildRoot(folder: vscode.WorkspaceFolder, fsPath: string): QuartoProjec
 		return { fsPath, workspaceFolder: folder, label: folder.name };
 	}
 	return { fsPath, workspaceFolder: folder, label: `${folder.name}/${toRelativePosixPath(folder.uri.fsPath, fsPath)}` };
-}
-
-/**
- * Expresses `fsPath` relative to `basePath` with POSIX separators, as expected by
- * `.quartoignore` matching and by the project root labels.
- */
-function toRelativePosixPath(basePath: string, fsPath: string): string {
-	return path.relative(basePath, fsPath).split(path.sep).join(path.posix.sep);
 }
 
 async function findSubFolderProjectDirs(folder: vscode.WorkspaceFolder, recursive: boolean): Promise<string[]> {
@@ -289,15 +283,4 @@ async function directoryHasInstalledExtension(extensionsDir: vscode.Uri): Promis
 		}
 	}
 	return false;
-}
-
-/**
- * True when `child` is `parent` or lives below it (resolved, normalised path comparison).
- */
-export function isInside(parent: string, child: string): boolean {
-	const relative = path.relative(parent, child);
-	if (relative === "") {
-		return true;
-	}
-	return !relative.startsWith("..") && !path.isAbsolute(relative);
 }

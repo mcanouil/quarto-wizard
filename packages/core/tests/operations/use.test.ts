@@ -247,3 +247,101 @@ describe("use with targetSubdir", () => {
 		expect(fs.existsSync(path.join(projectDir, "template.qmd"))).toBe(true);
 	});
 });
+
+describe("use honouring .quartoignore", () => {
+	let sourceDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-ignore-source-"));
+		projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-ignore-project-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(sourceDir, { recursive: true, force: true });
+		fs.rmSync(projectDir, { recursive: true, force: true });
+	});
+
+	function createSourceFile(relativePath: string, content = ""): void {
+		const fullPath = path.join(sourceDir, relativePath);
+		fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+		fs.writeFileSync(fullPath, content);
+	}
+
+	function createTemplateSource(): void {
+		createSourceFile(
+			"_extensions/owner/my-ext/_extension.yml",
+			"title: Test\ncontributes:\n  shortcodes:\n    - test.lua",
+		);
+		createSourceFile("_extensions/owner/my-ext/test.lua", "-- test");
+		createSourceFile("template.qmd", "---\ntitle: Template\n---");
+		createSourceFile("scratch/notes.md", "notes");
+		createSourceFile("scratch/nested/deep.md", "deep");
+	}
+
+	it("leaves .quartoignore matches unselected but still offered", async () => {
+		createTemplateSource();
+		createSourceFile(".quartoignore", "# working notes\nscratch\n");
+
+		let offeredFiles: string[] = [];
+		let unselectedPatterns: string[] = [];
+
+		const result = await use(
+			{ type: "local", path: sourceDir },
+			{
+				projectDir,
+				selectFiles: async (availableFiles, _existingFiles, defaultExcludePatterns) => {
+					offeredFiles = availableFiles;
+					unselectedPatterns = defaultExcludePatterns;
+					// The UI would drop the unselected ones; copy everything to prove they are
+					// still selectable rather than removed from the list.
+					return { selectedFiles: availableFiles, overwriteExisting: false };
+				},
+			},
+		);
+
+		expect(result.install.success).toBe(true);
+		// Still offered, so the user can tick them back on.
+		expect(offeredFiles).toContain("scratch/notes.md");
+		expect(offeredFiles).toContain("template.qmd");
+		// And they start unticked.
+		expect(unselectedPatterns).toContain("scratch");
+		expect(unselectedPatterns).toContain("scratch/**");
+		// Selecting them anyway copies them.
+		expect(fs.existsSync(path.join(projectDir, "scratch", "notes.md"))).toBe(true);
+	});
+
+	it("does not add unselected patterns when there is no .quartoignore", async () => {
+		createTemplateSource();
+
+		let unselectedPatterns: string[] = [];
+
+		await use(
+			{ type: "local", path: sourceDir },
+			{
+				projectDir,
+				selectFiles: async (availableFiles, _existingFiles, defaultExcludePatterns) => {
+					unselectedPatterns = defaultExcludePatterns;
+					return { selectedFiles: availableFiles, overwriteExisting: false };
+				},
+			},
+		);
+
+		expect(unselectedPatterns).not.toContain("scratch");
+		// The built-in defaults are still there, minus the extension directory.
+		expect(unselectedPatterns).toContain("README.md");
+		expect(unselectedPatterns).not.toContain("_extensions/**");
+	});
+
+	it("excludes .quartoignore matches outright when there is no selection UI", async () => {
+		createTemplateSource();
+		createSourceFile(".quartoignore", "scratch\n");
+
+		const result = await use({ type: "local", path: sourceDir }, { projectDir });
+
+		expect(result.install.success).toBe(true);
+		expect(result.templateFiles).toContain("template.qmd");
+		expect(result.templateFiles.some((file) => file.startsWith("scratch/"))).toBe(false);
+		expect(fs.existsSync(path.join(projectDir, "scratch"))).toBe(false);
+	});
+});
