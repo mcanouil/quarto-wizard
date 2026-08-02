@@ -520,6 +520,16 @@ describe("filesystem manifest functions", () => {
 			);
 		});
 
+		it("keeps both keys inside the first document", () => {
+			const manifestPath = writeFixture("title: Test\n---\ntitle: Other\n");
+
+			updateManifestSource(manifestPath, "owner/repo", "github");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe(
+				"title: Test\nsource: owner/repo\nsource-type: github\n---\ntitle: Other\n",
+			);
+		});
+
 		it("stops at an explicit document end marker", () => {
 			const manifestPath = writeFixture("title: Test\n...\n");
 
