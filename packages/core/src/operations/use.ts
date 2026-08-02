@@ -26,7 +26,7 @@ import {
 	type InstallResult,
 	type ExtensionSelectionCallback,
 } from "./install.js";
-import { cleanupExtraction, findAllExtensionRoots, type DiscoveredExtension } from "../archive/extract.js";
+import { cleanupExtraction, readArchiveExtensions, type DiscoveredExtension } from "../archive/extract.js";
 import { getExtensionInstallPath } from "../filesystem/discovery.js";
 import { quartoIgnoreGlobs, readQuartoIgnore } from "../filesystem/quartoignore.js";
 
@@ -408,7 +408,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 
 		// STEP 3: Extension selection
 		// Find all extensions in the extracted source
-		const allExtensions = await findAllExtensionRoots(sourceRoot);
+		const { extensions: allExtensions } = await readArchiveExtensions(sourceRoot);
 
 		if (allExtensions.length === 0) {
 			throw new ExtensionError("No extensions found in source", {
@@ -527,9 +527,10 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			skippedFiles,
 		};
 	} finally {
-		// Clean up the extracted source
-		if (dryRunResult?.sourceRoot) {
-			await cleanupExtraction(dryRunResult.sourceRoot);
+		// Only the temporary extraction directory is ours to remove. A local directory
+		// source is the user's own folder and `temporaryDir` is unset for it.
+		if (dryRunResult?.temporaryDir) {
+			await cleanupExtraction(dryRunResult.temporaryDir);
 		}
 	}
 }
@@ -702,9 +703,10 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			skippedFiles,
 		};
 	} finally {
-		// Clean up the source directory after template copying
-		if (installResult.sourceRoot) {
-			await cleanupExtraction(installResult.sourceRoot);
+		// Only the temporary extraction directory is ours to remove. A local directory
+		// source is the user's own folder and `temporaryDir` is unset for it.
+		if (installResult.temporaryDir) {
+			await cleanupExtraction(installResult.temporaryDir);
 		}
 	}
 }

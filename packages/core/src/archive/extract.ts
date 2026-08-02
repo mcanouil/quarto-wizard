@@ -242,7 +242,21 @@ function narrowKeepingNonEmpty<T>(items: T[], keep: (item: T) => boolean): T[] {
 }
 
 /**
- * Find all extension roots in an extracted archive.
+ * What an extracted archive offers for installation.
+ */
+export interface ArchiveExtensions {
+	/**
+	 * The repository root inside the extraction directory, with any archive wrapper
+	 * directory stripped. Template files are relative to this, and it is where the
+	 * repository declares `.quartoignore` and `_extensions/`.
+	 */
+	root: string;
+	/** Extensions the archive offers. */
+	extensions: DiscoveredExtension[];
+}
+
+/**
+ * Read the extensions an extracted archive offers, and the repository root they came from.
  *
  * Unlike findExtensionRoot which returns the first match, this function
  * finds all extensions in the archive, useful for repositories that
@@ -253,11 +267,14 @@ function narrowKeepingNonEmpty<T>(items: T[], keep: (item: T) => boolean): T[] {
  * under `docs/_extensions/` is not offered for installation. Paths matched by the
  * repository's `.quartoignore` are dropped as well. Neither rule is allowed to empty the
  * result, so an archive that only ships extensions in ignored locations still installs.
+ * `discoverQuartoProjectRoots` in the extension host applies the same two rules to a
+ * workspace folder; it checks the host first so it can skip scanning entirely, which is an
+ * ordering the fallback below makes immaterial.
  *
  * @param extractDir - Extraction directory
- * @returns Array of discovered extensions
+ * @returns The repository root and the extensions on offer
  */
-export async function findAllExtensionRoots(extractDir: string): Promise<DiscoveredExtension[]> {
+export async function readArchiveExtensions(extractDir: string): Promise<ArchiveExtensions> {
 	const results: DiscoveredExtension[] = [];
 
 	async function searchDirectory(dir: string, depth = 0): Promise<void> {
@@ -286,19 +303,20 @@ export async function findAllExtensionRoots(extractDir: string): Promise<Discove
 
 	await searchDirectory(extractDir);
 
+	const root = await resolveArchiveRoot(extractDir);
+
 	if (results.length === 0) {
-		return results;
+		return { root, extensions: [] };
 	}
 
-	const archiveRoot = await resolveArchiveRoot(extractDir);
-	const ignorePatterns = readQuartoIgnore(archiveRoot);
-	const hostDir = getExtensionsDir(archiveRoot);
+	const ignorePatterns = readQuartoIgnore(root);
+	const hostDir = getExtensionsDir(root);
 
 	const kept = narrowKeepingNonEmpty(
 		results,
-		(ext) => !isQuartoIgnored(ignorePatterns, toRelativePosixPath(archiveRoot, ext.path)),
+		(ext) => !isQuartoIgnored(ignorePatterns, toRelativePosixPath(root, ext.path)),
 	);
-	return narrowKeepingNonEmpty(kept, (ext) => isInside(hostDir, ext.path));
+	return { root, extensions: narrowKeepingNonEmpty(kept, (ext) => isInside(hostDir, ext.path)) };
 }
 
 /**
