@@ -201,6 +201,14 @@ fig-alt='{{< meta alt-text.extension-selection >}}'
 If the source contains a single extension, it is installed directly without prompting.
 :::
 
+Two rules narrow what a source offers, so that a repository shipping a single extension does not open this dialog:
+
+- When the repository has its own `_extensions/` directory, copies found elsewhere in the source are not offered.
+  This is typically the vendored `docs/_extensions/` of a documentation website built from the same repository.
+- Paths matched by the repository's `.quartoignore` are dropped.
+
+Neither rule can empty the list: a source whose extensions all sit in ignored locations still installs.
+
 ## Conflict Resolution {#conflict-resolution}
 
 If an extension already exists in the target location, you will be asked to confirm before overwriting.

@@ -108,6 +108,17 @@
 			"prefix": "quartoWizard.ask."
 		},
 		{
+			"id": "update",
+			"title": "Update Behaviour",
+			"prefix": "quartoWizard.update."
+		},
+		{
+			"id": "project-detection",
+			"title": "Project Detection",
+			"prefix": "quartoWizard.autoProjectDetection",
+			"notes": "The two rules that apply whatever the value, in detail:\n\n- **The root `_extensions/` wins.** When the workspace folder itself has an `_extensions/` directory with at least one installed extension, that folder is the only root, and no subfolder is offered as a separate target. Quarto resolves extensions by walking up from the document being rendered, so a populated `_extensions/` at the root already serves every document below it. This keeps installs and updates out of places such as the `docs/_extensions/` copy in an extension development repository.\n- **`.quartoignore` is honoured.** Paths matched by the workspace folder's `.quartoignore` are never detected as roots. Listing `docs` there keeps a documentation website out of the picture even when it ships its own `_quarto.yml` and `_extensions/`."
+		},
+		{
 			"id": "cache",
 			"title": "Cache Settings",
 			"prefix": "quartoWizard.cache."
@@ -118,9 +129,9 @@
 			"prefix": "quartoWizard.registry."
 		},
 		{
-			"id": "logging",
-			"title": "Logging",
-			"prefix": "quartoWizard.log."
+			"id": "lint",
+			"title": "Linting",
+			"prefix": "quartoWizard.lint."
 		}
 	],
 	"paths": {

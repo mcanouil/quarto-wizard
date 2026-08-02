@@ -14,15 +14,27 @@
 - fix: remove the whole temporary directory extracted from an archive. The wrapper directory that a downloaded archive unpacks into was left behind in the system temporary folder after every template use.
 - fix: treat the workspace folder's `_extensions/` as the primary host. When the folder itself holds at least one installed extension, it is now the only install, update, template and brand target, and the only entry in the Extensions Installed view. Subfolders are no longer offered, so an extension development repository can no longer install into a copy such as `docs/_extensions/`. This already happened by accident for `quartoWizard.autoProjectDetection` set to `true` or `subFolders`; it now also holds for `openEditors`, and for workspaces that exclude `_extensions` through `files.exclude` or `search.exclude`.
 - fix: skip paths matched by the workspace folder's `.quartoignore` when detecting Quarto project roots. Listing `docs` there keeps a documentation website out of the Extensions Installed view and out of the folder pickers.
-- fix: apply the same two rules to the source side of an installation. When a downloaded repository has extensions in its own `_extensions/`, copies found elsewhere in the archive, typically the vendored `docs/_extensions/` of a documentation site, are no longer offered. Installing such a repository no longer opens a "This repository contains multiple extensions" picker when the repository ships a single extension. Paths matched by the repository's `.quartoignore` are dropped as well. Neither rule can empty the list, so an archive that only ships extensions in ignored locations still installs.
+- fix: narrow what a source offers to install, using the same two rules that apply to the workspace. When a downloaded repository has extensions in its own `_extensions/`, copies found elsewhere in the archive, typically the vendored `docs/_extensions/` of a documentation site, are no longer offered, and paths matched by the repository's `.quartoignore` are dropped. Installing such a repository no longer opens a "This repository contains multiple extensions" picker when the repository ships a single extension. Neither rule can empty the list, so an archive that only ships extensions in ignored locations still installs.
+
+### API Changes
+
+These affect consumers of the `@quarto-wizard/core` package only. Its version tracks the extension, so the removals below are breaking for library consumers despite the minor bump; neither removed symbol is used by [`quarto-extensions-updater`](https://github.com/mcanouil/quarto-extensions-updater).
+
+- refactor!: replace `findAllExtensionRoots()` with `readArchiveExtensions()`, which returns the discovered extensions together with the resolved repository root as an `ArchiveExtensions` object. Callers no longer derive the root by splitting the extension path on `_extensions`, which pointed outside the source for a repository that is itself an extension.
+- refactor!: remove `writeManifest()`. `updateManifestSource()` now patches the `source` and `source-type` lines in place instead of re-serialising the manifest, so a whole-file writer no longer has a caller.
+- feat: export `readQuartoIgnore()`, `isQuartoIgnored()`, `quartoIgnoreGlobs()`, and `QUARTOIGNORE_FILENAME` from `filesystem`, alongside the `toRelativePosixPath()` and `isInside()` path helpers.
+- feat: add `temporaryDir` to `InstallResult`. It is set only when the extraction directory is a temporary one the call created, so a local directory source, which belongs to the user, is never mistaken for something safe to delete.
 
 ### Internal
 
 - test: build the link-rejection tar fixtures byte by byte instead of archiving a real link with node-tar, whose writer emits a late unhandled stream error when it walks a hard link. That error failed the suite intermittently (6 of 15 local runs, and the macOS CI job). The fixtures no longer skip themselves on platforms without link support.
+- build: extend the Prettier globs to `packages/*/tests`, which the formatter skipped entirely.
+- docs: generate the Project Detection, Update Behaviour and Linting sections of the configuration reference instead of hand-editing the generated page, and drop the Logging group, which matched no setting. `configGroups` entries in `scripts/docs-config.json` accept an optional `notes` block, and setting defaults are serialised with `JSON.stringify`, which fixes the unquoted `subFolders` in the example configuration.
 
 ### Dependency Updates
 
 - chore(deps): upgrade `@vscode/test-electron` from 3.0.0 to 3.1.0. VS Code 1.131 dropped the `Contents/MacOS/Electron` alias from its macOS bundle, which made the test suite fail with `spawn .../Contents/MacOS/Electron ENOENT`.
+- chore(deps): add `minimatch` to `@quarto-wizard/core` for `.quartoignore` pattern matching. It was already present in the tree as a dependency of `glob`.
 
 ## 3.1.3 (2026-07-24)
 

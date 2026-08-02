@@ -43,13 +43,19 @@ fig-alt='{{< meta alt-text.explorer-view >}}'
 
 The Explorer View displays:
 
-- **Workspace folders**: Each folder in your workspace that can contain extensions.
+- **Project roots**: Each detected Quarto project root that can contain extensions, starting with the workspace folder itself.
 - **Installed extensions**: Extensions found in the `_extensions` directory.
 - **Extension details**: Metadata rows such as title, author, version, `quarto-required`, compatibility, contributes (filters, shortcodes, formats, etc.), repository, and source.
 - **Schema contributions**: A `Schema` node when the extension provides a valid `_schema.yml`, `_schema.yaml`, or `_schema.json`.
 - **Extension snippets**: A `Snippets` node when snippets are declared via `_snippets.json`.
 - **Version information**: Current version and available updates.
 - **Action buttons**: Quick access to common operations.
+
+::: {.callout-note}
+When the workspace folder itself holds at least one installed extension in `_extensions/`, it is the only root shown, and no subfolder is listed as a separate target.
+Paths matched by the workspace folder's `.quartoignore` are never detected as roots either, so listing `docs` there keeps a documentation website out of the view.
+See [Auto Project Detection](../reference/configuration.qmd#auto-project-detection) for the scanning modes.
+:::
 
 ## Extension Status Indicators
 
@@ -176,6 +182,9 @@ Quarto Wizard can detect when updates are available for your installed extension
 Extensions can only be updated if they were installed by Quarto Wizard or have `source: <owner>/<repository>` in their `_extension.yml` file.
 You can manually add the source field to enable update detection.
 :::
+
+Quarto Wizard records `source` and `source-type` by editing those two lines only.
+The rest of `_extension.yml` is left byte for byte identical, so comments, key order, and quoting written by the extension author are preserved.
 
 ## Visibility
 
