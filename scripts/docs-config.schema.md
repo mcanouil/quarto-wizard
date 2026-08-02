@@ -74,11 +74,12 @@ Commands are read from `package.json` and grouped by these categories.
 Array of configuration setting groupings for the reference documentation.
 Settings are read from `package.json` and grouped by prefix.
 
-| Property | Type   | Description                                              |
-| -------- | ------ | -------------------------------------------------------- |
-| `id`     | string | Unique identifier for the group.                         |
-| `title`  | string | Display title for the section.                           |
-| `prefix` | string | Setting key prefix to match (e.g., `quartoWizard.ask.`). |
+| Property | Type   | Description                                                           |
+| -------- | ------ | --------------------------------------------------------------------- |
+| `id`     | string | Unique identifier for the group.                                      |
+| `title`  | string | Display title for the section.                                        |
+| `prefix` | string | Setting key prefix to match (e.g., `quartoWizard.ask.`).              |
+| `notes`  | string | Optional markdown appended after the group's settings (e.g., a list). |
 
 ### paths
 

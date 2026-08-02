@@ -708,15 +708,16 @@ function generateSettingQuickDesc(prop) {
 
 /**
  * Generate a description for an enum value.
- * @param {string} value - Enum value.
- * @param {string} defaultValue - Default value.
+ * @param {string|boolean} value - Enum value.
+ * @param {string|boolean} defaultValue - Default value.
  * @param {string} description - Description from enumDescriptions.
  * @returns {string} Description.
  */
 function generateEnumDescription(value, defaultValue, description) {
 	const isDefault = value === defaultValue;
 	const defaultSuffix = isDefault ? " (default)." : ".";
-	return description ? description + defaultSuffix : capitalise(value) + defaultSuffix;
+	const text = description ? description.replace(/\.$/, "") : capitalise(String(value));
+	return text + defaultSuffix;
 }
 
 /**
@@ -823,11 +824,19 @@ function generateConfigurationPage(pkg) {
 				sectionLines.push(`| Type | String (URI) |`);
 				if (prop.default) sectionLines.push(`| Default | \`${prop.default}\` |`);
 				sectionLines.push("");
+			} else if (prop.type === "boolean") {
+				sectionLines.push("| Property | Value |", "|----------|-------|");
+				sectionLines.push(`| Type | Boolean |`);
+				if (prop.default !== undefined) sectionLines.push(`| Default | \`${prop.default}\` |`);
+				sectionLines.push("");
 			}
 
 			// Add example JSON
-			const exampleValue = prop.type === "string" ? `"${prop.default}"` : prop.default;
-			sectionLines.push("```json", "{", `  "${key}": ${exampleValue}`, "}", "```", "");
+			sectionLines.push("```json", "{", `  "${key}": ${JSON.stringify(prop.default)}`, "}", "```", "");
+		}
+
+		if (group.notes) {
+			sectionLines.push(group.notes, "");
 		}
 	}
 
@@ -836,8 +845,7 @@ function generateConfigurationPage(pkg) {
 	const allProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	const lastIndex = allProps.length - 1;
 	allProps.forEach(([key, prop], index) => {
-		const value = prop.type === "string" ? `"${prop.default}"` : prop.default;
-		exampleLines.push(`  "${key}": ${value}${index < lastIndex ? "," : ""}`);
+		exampleLines.push(`  "${key}": ${JSON.stringify(prop.default)}${index < lastIndex ? "," : ""}`);
 	});
 	exampleLines.push("}", "```", "");
 
