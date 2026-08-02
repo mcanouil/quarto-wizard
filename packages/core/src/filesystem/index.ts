@@ -10,7 +10,6 @@ export {
 	parseManifestContent,
 	readManifest,
 	hasManifest,
-	writeManifest,
 	updateManifestSource,
 } from "./manifest.js";
 
