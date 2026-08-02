@@ -264,10 +264,7 @@ describe("parseSnippetFile", () => {
 
 	it("reads and parses a snippet file from disk", () => {
 		const snippetPath = path.join(tmpDir, "_snippets.json");
-		fs.writeFileSync(
-			snippetPath,
-			JSON.stringify({ Test: { prefix: "test", body: "hello" } }),
-		);
+		fs.writeFileSync(snippetPath, JSON.stringify({ Test: { prefix: "test", body: "hello" } }));
 
 		const result = parseSnippetFile(snippetPath);
 		expect(result["Test"]).toBeDefined();
@@ -301,10 +298,7 @@ describe("readSnippets", () => {
 
 	it("reads snippets from a directory", () => {
 		const snippetPath = path.join(tmpDir, "_snippets.json");
-		fs.writeFileSync(
-			snippetPath,
-			JSON.stringify({ Test: { prefix: "test", body: "hello" } }),
-		);
+		fs.writeFileSync(snippetPath, JSON.stringify({ Test: { prefix: "test", body: "hello" } }));
 
 		const result = readSnippets(tmpDir);
 		expect(result).not.toBeNull();
@@ -345,10 +339,7 @@ describe("SnippetCache", () => {
 	it("caches missing snippet directories until invalidated", () => {
 		expect(cache.get(tmpDir)).toBeNull();
 
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		expect(cache.get(tmpDir)).toBeNull();
 		cache.invalidate(tmpDir);
@@ -356,10 +347,7 @@ describe("SnippetCache", () => {
 	});
 
 	it("loads and caches snippets on first access", () => {
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		const result = cache.get(tmpDir);
 		expect(result).not.toBeNull();
@@ -367,10 +355,7 @@ describe("SnippetCache", () => {
 	});
 
 	it("returns cached result on subsequent access (referential identity)", () => {
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		const first = cache.get(tmpDir);
 		const second = cache.get(tmpDir);
@@ -379,10 +364,7 @@ describe("SnippetCache", () => {
 	});
 
 	it("has() returns true for cached entries", () => {
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		expect(cache.has(tmpDir)).toBe(false);
 		cache.get(tmpDir);
@@ -390,10 +372,7 @@ describe("SnippetCache", () => {
 	});
 
 	it("invalidate() clears a specific entry", () => {
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		cache.get(tmpDir);
 		expect(cache.has(tmpDir)).toBe(true);
@@ -403,10 +382,7 @@ describe("SnippetCache", () => {
 	});
 
 	it("invalidateAll() clears all entries", () => {
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		cache.get(tmpDir);
 		expect(cache.has(tmpDir)).toBe(true);
@@ -422,10 +398,7 @@ describe("SnippetCache", () => {
 
 		// After invalidateAll and adding a snippet file, get() should read from disk
 		cache.invalidateAll();
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		const result = cache.get(tmpDir);
 		expect(result).not.toBeNull();
@@ -462,10 +435,7 @@ describe("SnippetCache", () => {
 		expect(cache.getError(tmpDir)).not.toBeNull();
 
 		cache.invalidate(tmpDir);
-		fs.writeFileSync(
-			path.join(tmpDir, "_snippets.json"),
-			JSON.stringify({ Test: { prefix: "t", body: "test" } }),
-		);
+		fs.writeFileSync(path.join(tmpDir, "_snippets.json"), JSON.stringify({ Test: { prefix: "t", body: "test" } }));
 
 		const result = cache.get(tmpDir);
 		expect(result).not.toBeNull();

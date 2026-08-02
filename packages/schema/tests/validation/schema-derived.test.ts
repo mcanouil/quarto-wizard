@@ -27,15 +27,7 @@ describe("SCHEMA_META_SCHEMA structure", () => {
 
 describe("ALLOWED_TOP_LEVEL_KEYS", () => {
 	it("contains exactly the expected keys", () => {
-		const expected = new Set([
-			"$schema",
-			"options",
-			"shortcodes",
-			"formats",
-			"projects",
-			"attributes",
-			"classes",
-		]);
+		const expected = new Set(["$schema", "options", "shortcodes", "formats", "projects", "attributes", "classes"]);
 		expect(ALLOWED_TOP_LEVEL_KEYS).toEqual(expected);
 	});
 });
@@ -163,10 +155,7 @@ describe("fieldDescriptorMetadata", () => {
 			if (fieldDescriptorMetadata.yamlHidden.has(key)) {
 				continue;
 			}
-			expect(
-				fieldDescriptorMetadata.propertyDocs[key],
-				`missing doc for visible property: ${key}`,
-			).toBeDefined();
+			expect(fieldDescriptorMetadata.propertyDocs[key], `missing doc for visible property: ${key}`).toBeDefined();
 		}
 	});
 
@@ -183,10 +172,7 @@ describe("fieldDescriptorMetadata", () => {
 describe("shortcodeEntryMetadata", () => {
 	it("propertyDocs has entries for all shortcode entry keys", () => {
 		for (const key of ALLOWED_SHORTCODE_KEYS) {
-			expect(
-				shortcodeEntryMetadata.propertyDocs[key],
-				`missing doc for shortcode key: ${key}`,
-			).toBeDefined();
+			expect(shortcodeEntryMetadata.propertyDocs[key], `missing doc for shortcode key: ${key}`).toBeDefined();
 		}
 	});
 

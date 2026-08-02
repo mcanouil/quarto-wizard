@@ -861,10 +861,7 @@ describe("JSON parsing", () => {
 	});
 
 	it("findSchemaFile finds _schema.json with precedence over .yml", () => {
-		fs.writeFileSync(
-			path.join(tempDir, "_schema.json"),
-			JSON.stringify({ options: { test: { type: "string" } } }),
-		);
+		fs.writeFileSync(path.join(tempDir, "_schema.json"), JSON.stringify({ options: { test: { type: "string" } } }));
 		fs.writeFileSync(path.join(tempDir, "_schema.yml"), "options:\n  test:\n    type: number\n");
 
 		const result = findSchemaFile(tempDir);

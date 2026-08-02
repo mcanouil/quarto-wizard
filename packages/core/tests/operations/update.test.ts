@@ -373,9 +373,7 @@ describe("checkForUpdates", () => {
 			setupExtensionWithType("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome", "github");
 
 			vi.mocked(fetchReleases).mockResolvedValue([]);
-			vi.mocked(fetchTags).mockResolvedValue([
-				{ name: "v3.0.0", sha: "abc", zipballUrl: "", tarballUrl: "" },
-			]);
+			vi.mocked(fetchTags).mockResolvedValue([{ name: "v3.0.0", sha: "abc", zipballUrl: "", tarballUrl: "" }]);
 
 			const updates = await checkForUpdates({ projectDir: tempDir });
 
@@ -509,13 +507,7 @@ describe("checkForUpdates", () => {
 		});
 
 		it("skips GitHub network calls for commit-pinned github-sourced extensions", async () => {
-			setupExtensionWithType(
-				"quarto-ext",
-				"fontawesome",
-				"abc1234",
-				"quarto-ext/fontawesome@abc1234",
-				"github",
-			);
+			setupExtensionWithType("quarto-ext", "fontawesome", "abc1234", "quarto-ext/fontawesome@abc1234", "github");
 
 			const updates = await checkForUpdates({ projectDir: tempDir });
 
