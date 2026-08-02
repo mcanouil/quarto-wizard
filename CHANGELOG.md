@@ -8,6 +8,7 @@
 
 ### Bug Fixes
 
+- fix: record `source` and `source-type` without rewriting the rest of an extension's `_extension.yml`. Installing, updating or using a template re-serialised the whole manifest from a fixed set of known keys, which dropped comments and any other top-level key the author had added, coerced `version: 1.0` to `'1'`, flipped quoting style, and reordered keys. The two fields are now patched line by line, so everything else stays byte for byte identical.
 - fix: stop **Use Template** from deleting a local template folder. The command removed whatever directory it had read the template from, and for a local source that directory is the user's own folder rather than a temporary copy. Only the temporary directory extracted from a downloaded archive is removed now.
 - fix: copy template files from the template's own folder when the repository is itself an extension, that is when `_extension.yml` sits at the top level rather than under `_extensions/`. The folder above the template was used instead, so **Use Template** pulled in that folder's unrelated contents.
 - fix: remove the whole temporary directory extracted from an archive. The wrapper directory that a downloaded archive unpacks into was left behind in the system temporary folder after every template use.

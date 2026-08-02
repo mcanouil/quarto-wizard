@@ -9,7 +9,6 @@ import {
 	findManifestFile,
 	readManifest,
 	hasManifest,
-	writeManifest,
 	updateManifestSource,
 } from "../src/filesystem/manifest.js";
 import { ManifestError } from "../src/errors.js";
@@ -401,254 +400,138 @@ describe("filesystem manifest functions", () => {
 		});
 	});
 
-	describe("writeManifest", () => {
-		it("writes a basic manifest", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test Extension",
-				author: "Test Author",
-				version: "1.0.0",
-				contributes: {},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("title: Test Extension");
-			expect(content).toContain("author: Test Author");
-			expect(content).toContain("version: 1.0.0");
-		});
-
-		it("writes manifest with quarto-required", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				quartoRequired: ">=1.3.0",
-				contributes: {},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("quarto-required");
-		});
-
-		it("writes manifest with source", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				source: "owner/repo@v1.0.0",
-				contributes: {},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("source: owner/repo@v1.0.0");
-		});
-
-		it("writes manifest with filters", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				contributes: {
-					filter: ["filter.lua"],
-				},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("filters:");
-			expect(content).toContain("filter.lua");
-		});
-
-		it("writes manifest with shortcodes", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				contributes: {
-					shortcode: ["shortcode.lua"],
-				},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("shortcodes:");
-		});
-
-		it("writes manifest with formats", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				contributes: {
-					format: { html: { toc: true } },
-				},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("formats:");
-		});
-
-		it("writes manifest with project", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				contributes: {
-					project: { type: "book" },
-				},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("project:");
-		});
-
-		it("writes manifest with revealjs-plugins", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				contributes: {
-					revealjsPlugin: ["plugin.js"],
-				},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("revealjs-plugins:");
-		});
-
-		it("writes manifest with metadata", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				contributes: {
-					metadata: { key: "value" },
-				},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("metadata:");
-		});
-
-		it("omits empty contributes", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				contributes: {},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).not.toContain("contributes:");
-		});
-	});
-
 	describe("updateManifestSource", () => {
-		it("updates the source field in an existing manifest", () => {
+		const writeFixture = (content: string): string => {
 			const manifestPath = path.join(tempDir, "_extension.yml");
-			fs.writeFileSync(manifestPath, "title: Test\nversion: 1.0.0\n");
+			fs.writeFileSync(manifestPath, content);
+			return manifestPath;
+		};
 
-			updateManifestSource(manifestPath, "owner/repo@v2.0.0");
+		it("preserves comments, key order, formatting, and unknown keys", () => {
+			const original = [
+				"# My extension",
+				"title: Fancy Extension  # inline comment",
+				"version: 1.0",
+				'quarto-required: ">=1.4.0"',
+				"contributes:",
+				"  formats:",
+				"    html:",
+				"      theme: custom.scss",
+				"  shortcodes:",
+				"    - fancy.lua",
+				"custom-key: keep me",
+				"",
+			].join("\n");
+			const manifestPath = writeFixture(original);
 
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("source: owner/repo@v2.0.0");
+			updateManifestSource(manifestPath, "owner/repo@v1.2.3", "github");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe(
+				`${original}source: owner/repo@v1.2.3\nsource-type: github\n`,
+			);
 		});
 
-		it("overwrites existing source field", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			fs.writeFileSync(manifestPath, "title: Test\nversion: 1.0.0\nsource: old/source\n");
+		it("replaces an existing source in place", () => {
+			const manifestPath = writeFixture("title: Test\nsource: old/source\nversion: 1.0.0\n");
 
 			updateManifestSource(manifestPath, "new/source@v1.0.0");
 
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("source: new/source@v1.0.0");
-			expect(content).not.toContain("old/source");
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe("title: Test\nsource: new/source@v1.0.0\nversion: 1.0.0\n");
 		});
 
-		it("writes source-type when provided", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			fs.writeFileSync(manifestPath, "title: Test\nversion: 1.0.0\n");
+		it("replaces an existing source-type in place", () => {
+			const manifestPath = writeFixture("title: Test\nsource: owner/repo\nsource-type: local\n");
 
 			updateManifestSource(manifestPath, "owner/repo", "github");
 
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("source: owner/repo");
-			expect(content).toContain("source-type: github");
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe("title: Test\nsource: owner/repo\nsource-type: github\n");
+		});
+
+		it("appends source-type when provided", () => {
+			const manifestPath = writeFixture("title: Test\nversion: 1.0.0\n");
+
+			updateManifestSource(manifestPath, "owner/repo", "github");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe(
+				"title: Test\nversion: 1.0.0\nsource: owner/repo\nsource-type: github\n",
+			);
 		});
 
 		it("omits source-type when not provided", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			fs.writeFileSync(manifestPath, "title: Test\nversion: 1.0.0\n");
+			const manifestPath = writeFixture("title: Test\nversion: 1.0.0\n");
 
 			updateManifestSource(manifestPath, "owner/repo");
 
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("source: owner/repo");
-			expect(content).not.toContain("source-type");
-		});
-	});
-
-	describe("writeManifest with sourceType", () => {
-		it("writes source-type field", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				source: "owner/repo",
-				sourceType: "github" as const,
-				contributes: {},
-			};
-
-			writeManifest(manifestPath, manifest);
-
-			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("source: owner/repo");
-			expect(content).toContain("source-type: github");
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe("title: Test\nversion: 1.0.0\nsource: owner/repo\n");
 		});
 
-		it("omits source-type when undefined", () => {
-			const manifestPath = path.join(tempDir, "_extension.yml");
-			const manifest = {
-				title: "Test",
-				author: "",
-				version: "1.0.0",
-				source: "owner/repo",
-				contributes: {},
-			};
+		it("leaves a nested source key untouched", () => {
+			const manifestPath = writeFixture("title: Test\ncontributes:\n  metadata:\n    source: nested\n");
 
-			writeManifest(manifestPath, manifest);
+			updateManifestSource(manifestPath, "owner/repo");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe(
+				"title: Test\ncontributes:\n  metadata:\n    source: nested\nsource: owner/repo\n",
+			);
+		});
+
+		it("terminates the appended key when the file lacks a trailing newline", () => {
+			const manifestPath = writeFixture("title: Test");
+
+			updateManifestSource(manifestPath, "owner/repo");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe("title: Test\nsource: owner/repo\n");
+		});
+
+		it("preserves CRLF line endings", () => {
+			const manifestPath = writeFixture("title: Test\r\nversion: 1.0.0\r\n");
+
+			updateManifestSource(manifestPath, "owner/repo", "github");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe(
+				"title: Test\r\nversion: 1.0.0\r\nsource: owner/repo\r\nsource-type: github\r\n",
+			);
+		});
+
+		it("removes the continuation lines of a replaced block scalar", () => {
+			const manifestPath = writeFixture("title: Test\nsource: |\n  old\n\n  value\nversion: 1.0.0\n");
+
+			updateManifestSource(manifestPath, "owner/repo");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe("title: Test\nsource: owner/repo\nversion: 1.0.0\n");
+		});
+
+		it("quotes values that require quoting", () => {
+			const manifestPath = writeFixture("title: Test\n");
+
+			updateManifestSource(manifestPath, "*needs: quoting");
 
 			const content = fs.readFileSync(manifestPath, "utf-8");
-			expect(content).toContain("source: owner/repo");
-			expect(content).not.toContain("source-type");
+			expect(parseManifestContent(content).source).toBe("*needs: quoting");
+		});
+
+		it("patches only the first document of a multi-document file", () => {
+			const manifestPath = writeFixture("title: Test\n---\ntitle: Other\nsource: untouched\n");
+
+			updateManifestSource(manifestPath, "owner/repo");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe(
+				"title: Test\nsource: owner/repo\n---\ntitle: Other\nsource: untouched\n",
+			);
+		});
+
+		it("skips a leading document separator when locating the root", () => {
+			const manifestPath = writeFixture("---\ntitle: Test\n");
+
+			updateManifestSource(manifestPath, "owner/repo");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe("---\ntitle: Test\nsource: owner/repo\n");
+		});
+
+		it("throws when the manifest root is a flow mapping", () => {
+			const manifestPath = writeFixture("{title: Test, version: 1.0.0}\n");
+
+			expect(() => updateManifestSource(manifestPath, "owner/repo")).toThrow(ManifestError);
 		});
 	});
 });
