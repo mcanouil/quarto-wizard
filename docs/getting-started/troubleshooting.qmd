@@ -30,7 +30,8 @@ fig-alt='{{< meta alt-text.output-log >}}'
 }
 :::
 
-You can adjust the log level in [Configuration](../reference/configuration.qmd) to see more detailed information.
+Quarto Wizard logs through a VS Code log output channel, so verbosity is set with the `Developer: Set Log Level` command rather than a Quarto Wizard setting.
+Choose `Debug` for the Quarto Wizard channel to see details such as the folders skipped during project detection.
 
 ## Common Issues
 
@@ -69,6 +70,22 @@ You can adjust the log level in [Configuration](../reference/configuration.qmd) 
 
 1. Manually add `source: owner/repository` (full specification: `source: owner/repository/subdirectory@reference` where `reference` is a Git branch, tag, or commit SHA) to the extension's `_extension.yml`.
 2. Reinstall the extension using Quarto Wizard.
+
+### Extensions Install in the Wrong Folder
+
+**Symptoms**: A subfolder is not offered as an install target, or extensions land at the workspace root instead of the subproject you expected.
+
+**Causes**:
+
+- The workspace folder itself holds at least one installed extension in `_extensions/`, which makes it the only target.
+- The subfolder is matched by the workspace folder's `.quartoignore`.
+- `quartoWizard.autoProjectDetection` is set to `false`, or to a mode that does not reach the folder.
+
+**Solutions**:
+
+1. Review [Auto Project Detection](../reference/configuration.qmd#auto-project-detection) and pick the scanning mode that matches your layout.
+2. Remove the entry from `.quartoignore` if the folder should be a target after all.
+3. In an extension development repository, keep the vendored copy (for example `docs/_extensions/`) out of the way by leaving the root `_extensions/` populated, which is the intended behaviour.
 
 ### GitHub Rate Limiting
 
