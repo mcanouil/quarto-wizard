@@ -14,14 +14,12 @@ describe("registry http retry behavior", () => {
 
 	it("retries a transient network error and succeeds", async () => {
 		const mockedProxyFetch = vi.mocked(proxyFetch);
-		mockedProxyFetch
-			.mockRejectedValueOnce(new NetworkError("temporary failure"))
-			.mockResolvedValueOnce(
-				new Response(JSON.stringify({ ok: true }), {
-					status: 200,
-					headers: { "content-type": "application/json" },
-				}),
-			);
+		mockedProxyFetch.mockRejectedValueOnce(new NetworkError("temporary failure")).mockResolvedValueOnce(
+			new Response(JSON.stringify({ ok: true }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			}),
+		);
 
 		const result = await fetchJson<{ ok: boolean }>("https://example.com/registry.json", {
 			retries: 1,
@@ -59,9 +57,7 @@ describe("registry http retry behavior", () => {
 	});
 
 	it("throws plain NetworkError for 403 without X-GitHub-SSO header", async () => {
-		vi.mocked(proxyFetch).mockResolvedValueOnce(
-			new Response("Forbidden", { status: 403 }),
-		);
+		vi.mocked(proxyFetch).mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
 
 		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
 		expect(error).toBeInstanceOf(NetworkError);
@@ -142,9 +138,9 @@ describe("registry http retry behavior", () => {
 			}),
 		);
 
-		await expect(
-			fetchJson("https://example.com/api", { retries: 3, retryDelay: 1 }),
-		).rejects.toBeInstanceOf(SamlSsoError);
+		await expect(fetchJson("https://example.com/api", { retries: 3, retryDelay: 1 })).rejects.toBeInstanceOf(
+			SamlSsoError,
+		);
 		expect(mockedProxyFetch).toHaveBeenCalledTimes(1);
 	});
 

@@ -153,9 +153,7 @@ describe("validateSchemaDefinitionStructure", () => {
 				_any: "bad",
 			},
 		});
-		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "attributes._any")).toBe(
-			true,
-		);
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "attributes._any")).toBe(true);
 	});
 
 	it("accepts valid classes section", () => {
@@ -190,9 +188,7 @@ describe("field descriptor validation", () => {
 		const findings = validateSchemaDefinitionStructure({
 			options: { myField: "not an object" },
 		});
-		expect(
-			findings.some((f) => f.code === "invalid-field-descriptor" && f.keyPath === "options.myField"),
-		).toBe(true);
+		expect(findings.some((f) => f.code === "invalid-field-descriptor" && f.keyPath === "options.myField")).toBe(true);
 	});
 
 	it("warns about unknown field properties", () => {
@@ -588,7 +584,7 @@ describe("validateSchemaDefinition integration", () => {
 			"  html:",
 			"    colour:",
 			"      type: string",
-			"      pattern: \"^#[0-9a-fA-F]{6}$\"",
+			'      pattern: "^#[0-9a-fA-F]{6}$"',
 			"shortcodes:",
 			"  mysc:",
 			"    description: A shortcode.",
