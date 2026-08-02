@@ -28,6 +28,7 @@ import {
 } from "./install.js";
 import { cleanupExtraction, findAllExtensionRoots, type DiscoveredExtension } from "../archive/extract.js";
 import { getExtensionInstallPath } from "../filesystem/discovery.js";
+import { quartoIgnoreGlobs, readQuartoIgnore } from "../filesystem/quartoignore.js";
 
 /**
  * Options for globbing files.
@@ -128,6 +129,25 @@ const DEFAULT_EXCLUDE_PATTERNS = [
 	// LLM
 	".claude/**",
 ];
+
+/**
+ * Patterns the file-selection UI starts with unticked.
+ *
+ * `_extensions/**` is dropped from the defaults because the extension itself is installed
+ * separately and its files are offered on purpose. On top of the defaults, the repository's
+ * own `.quartoignore` declares what a project created from this template should not receive,
+ * so those paths start unselected too. They stay selectable: the ignore file states an
+ * intent, not a prohibition.
+ *
+ * @param sourceRoot - Root of the extracted template source
+ * @returns Glob patterns to leave unselected
+ */
+function defaultUnselectedPatterns(sourceRoot: string): string[] {
+	return [
+		...DEFAULT_EXCLUDE_PATTERNS.filter((pattern) => pattern !== "_extensions/**"),
+		...quartoIgnoreGlobs(readQuartoIgnore(sourceRoot)),
+	];
+}
 
 /**
  * Callback for confirming file overwrites (per-file).
@@ -369,11 +389,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 
 		onProgress?.({ phase: "selecting", message: "Awaiting file selection..." });
 
-		const selectionResult = await selectFiles(
-			allFiles,
-			existingFiles,
-			DEFAULT_EXCLUDE_PATTERNS.filter((p) => p !== "_extensions/**"),
-		);
+		const selectionResult = await selectFiles(allFiles, existingFiles, defaultUnselectedPatterns(sourceRoot));
 
 		if (!selectionResult) {
 			// User cancelled file selection. Cleanup is handled by the finally block.
@@ -620,11 +636,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			}
 
 			// Call the selection callback
-			const selectionResult = await selectFiles(
-				allFiles,
-				existingFiles,
-				DEFAULT_EXCLUDE_PATTERNS.filter((p) => p !== "_extensions/**"),
-			);
+			const selectionResult = await selectFiles(allFiles, existingFiles, defaultUnselectedPatterns(sourceRoot));
 
 			if (!selectionResult) {
 				// User cancelled
@@ -639,8 +651,10 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 			overwriteAll = selectionResult.overwriteExisting;
 		} else {
 			// Legacy mode: use include/exclude patterns
+			// No UI to unselect in, so the repository's `.quartoignore` excludes outright here,
+			// matching what `quarto use template` does.
 			filesToCopy = await globFiles(sourceRoot, {
-				ignore: [...DEFAULT_EXCLUDE_PATTERNS, ...exclude],
+				ignore: [...DEFAULT_EXCLUDE_PATTERNS, ...quartoIgnoreGlobs(readQuartoIgnore(sourceRoot)), ...exclude],
 			});
 
 			if (include && include.length > 0) {

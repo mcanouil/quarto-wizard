@@ -135,6 +135,7 @@ Templates typically include:
 ::: {.callout-note}
 The "Use Template" command retrieves all files from the template repository and allows you to select which ones to copy.
 Common repository files (such as README, LICENSE, and Git configuration) are excluded by default, but you can include them if needed.
+Anything listed in the template repository's `.quartoignore` starts unselected as well, so a documentation website or a scratch directory is not copied unless you tick it back on.
 :::
 
 ## Recently Used Templates

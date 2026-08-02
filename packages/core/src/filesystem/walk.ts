@@ -115,3 +115,32 @@ export async function copyDirectory(sourceDir: string, targetDir: string): Promi
 
 	return filesCreated;
 }
+
+/**
+ * Express `fsPath` relative to `basePath` using POSIX separators.
+ *
+ * Path comparison and pattern matching both work on forward slashes, so callers on Windows
+ * need this normalisation before handing a path to a matcher or to a display label.
+ *
+ * @param basePath - Directory the result is relative to
+ * @param fsPath - Path to express relatively
+ * @returns POSIX-separated relative path, empty when the two paths are equal
+ */
+export function toRelativePosixPath(basePath: string, fsPath: string): string {
+	return path.relative(basePath, fsPath).split(path.sep).join(path.posix.sep);
+}
+
+/**
+ * Check whether a path is `parent` itself or lives below it.
+ *
+ * @param parent - Ancestor directory
+ * @param child - Path to test
+ * @returns True when `child` is `parent` or is contained by it
+ */
+export function isInside(parent: string, child: string): boolean {
+	const relative = path.relative(parent, child);
+	if (relative === "") {
+		return true;
+	}
+	return !relative.startsWith("..") && !path.isAbsolute(relative);
+}

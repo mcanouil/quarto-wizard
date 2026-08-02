@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- feat: start files and directories matched by a template repository's `.quartoignore` unselected in the file picker shown by **Use Template**. They stay in the list and can be ticked back on; the ignore file states an intent, not a prohibition. When no picker is involved, they are excluded outright, matching `quarto use template`.
+
+### Bug Fixes
+
+- fix: treat the workspace folder's `_extensions/` as the primary host. When the folder itself holds at least one installed extension, it is now the only install, update, template and brand target, and the only entry in the Extensions Installed view. Subfolders are no longer offered, so an extension development repository can no longer install into a copy such as `docs/_extensions/`. This already happened by accident for `quartoWizard.autoProjectDetection` set to `true` or `subFolders`; it now also holds for `openEditors`, and for workspaces that exclude `_extensions` through `files.exclude` or `search.exclude`.
+- fix: skip paths matched by the workspace folder's `.quartoignore` when detecting Quarto project roots. Listing `docs` there keeps a documentation website out of the Extensions Installed view and out of the folder pickers.
+- fix: apply the same two rules to the source side of an installation. When a downloaded repository has extensions in its own `_extensions/`, copies found elsewhere in the archive, typically the vendored `docs/_extensions/` of a documentation site, are no longer offered. Installing such a repository no longer opens a "This repository contains multiple extensions" picker when the repository ships a single extension. Paths matched by the repository's `.quartoignore` are dropped as well. Neither rule can empty the list, so an archive that only ships extensions in ignored locations still installs.
+
+### Internal
+
+- test: build the link-rejection tar fixtures byte by byte instead of archiving a real link with node-tar, whose writer emits a late unhandled stream error when it walks a hard link. That error failed the suite intermittently (6 of 15 local runs, and the macOS CI job). The fixtures no longer skip themselves on platforms without link support.
+
+### Dependency Updates
+
+- chore(deps): upgrade `@vscode/test-electron` from 3.0.0 to 3.1.0. VS Code 1.131 dropped the `Contents/MacOS/Electron` alias from its macOS bundle, which made the test suite fail with `spawn .../Contents/MacOS/Electron ENOENT`.
+
 ## 3.1.3 (2026-07-24)
 
 ### Dependency Updates

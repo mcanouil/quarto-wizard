@@ -26,4 +26,15 @@ export {
 	getExtensionInstallPath,
 } from "./discovery.js";
 
-export { type WalkEntry, type WalkCallback, walkDirectory, collectFiles, copyDirectory, pathExists } from "./walk.js";
+export {
+	type WalkEntry,
+	type WalkCallback,
+	walkDirectory,
+	collectFiles,
+	copyDirectory,
+	pathExists,
+	toRelativePosixPath,
+	isInside,
+} from "./walk.js";
+
+export { QUARTOIGNORE_FILENAME, readQuartoIgnore, isQuartoIgnored, quartoIgnoreGlobs } from "./quartoignore.js";

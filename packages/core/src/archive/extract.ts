@@ -12,6 +12,9 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { ExtensionError } from "../errors.js";
 import { MANIFEST_FILENAMES } from "../filesystem/manifest.js";
+import { EXTENSIONS_DIR, getExtensionsDir } from "../filesystem/discovery.js";
+import { isQuartoIgnored, readQuartoIgnore } from "../filesystem/quartoignore.js";
+import { isInside, toRelativePosixPath } from "../filesystem/walk.js";
 import { extractZip } from "./zip.js";
 import { extractTar } from "./tar.js";
 
@@ -108,6 +111,18 @@ async function fileExists(filePath: string): Promise<boolean> {
 const MAX_FIND_DEPTH = 5;
 
 /**
+ * Check whether a directory holds an extension manifest.
+ */
+async function hasManifestFile(directory: string): Promise<boolean> {
+	for (const name of MANIFEST_FILENAMES) {
+		if (await fileExists(path.join(directory, name))) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Find the extension root in an extracted archive.
  *
  * GitHub archives typically have a top-level directory like "repo-tag/".
@@ -122,11 +137,8 @@ export async function findExtensionRoot(extractDir: string, depth = 0): Promise<
 		return null;
 	}
 
-	for (const name of MANIFEST_FILENAMES) {
-		const directPath = path.join(extractDir, name);
-		if (await fileExists(directPath)) {
-			return extractDir;
-		}
+	if (await hasManifestFile(extractDir)) {
+		return extractDir;
 	}
 
 	const entries = await fs.promises.readdir(extractDir, { withFileTypes: true });
@@ -134,12 +146,8 @@ export async function findExtensionRoot(extractDir: string, depth = 0): Promise<
 
 	for (const dir of directories) {
 		const dirPath = path.join(extractDir, dir.name);
-
-		for (const name of MANIFEST_FILENAMES) {
-			const manifestPath = path.join(dirPath, name);
-			if (await fileExists(manifestPath)) {
-				return dirPath;
-			}
+		if (await hasManifestFile(dirPath)) {
+			return dirPath;
 		}
 	}
 
@@ -175,7 +183,7 @@ export interface DiscoveredExtension {
 function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): { owner: string | null; name: string } {
 	const relativePath = path.relative(extractDir, extensionPath);
 	const parts = relativePath.split(path.sep);
-	const extensionsIndex = parts.lastIndexOf("_extensions");
+	const extensionsIndex = parts.lastIndexOf(EXTENSIONS_DIR);
 
 	if (extensionsIndex >= 0 && parts.length > extensionsIndex + 1) {
 		const afterExtensions = parts.slice(extensionsIndex + 1);
@@ -192,11 +200,59 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
 }
 
 /**
+ * Resolve the repository root inside an extraction directory.
+ *
+ * GitHub archives wrap everything in a single top-level directory such as `repo-tag/`.
+ * That wrapper is stripped so `.quartoignore` and `_extensions/` are looked up where the
+ * repository actually declares them. A sole `_extensions/` entry is not a wrapper, and
+ * neither is a directory that is itself an extension.
+ *
+ * @param extractDir - Extraction directory
+ * @returns Path to the repository root
+ */
+async function resolveArchiveRoot(extractDir: string): Promise<string> {
+	if (await hasManifestFile(extractDir)) {
+		return extractDir;
+	}
+
+	let entries: fs.Dirent[];
+	try {
+		entries = await fs.promises.readdir(extractDir, { withFileTypes: true });
+	} catch {
+		return extractDir;
+	}
+
+	if (entries.length !== 1 || !entries[0].isDirectory() || entries[0].name === EXTENSIONS_DIR) {
+		return extractDir;
+	}
+
+	return path.join(extractDir, entries[0].name);
+}
+
+/**
+ * Narrow a list, but never to nothing.
+ *
+ * The primary-host and `.quartoignore` rules both express a preference rather than a hard
+ * requirement: a repository that keeps its only extension in an ignored location must still
+ * be installable.
+ */
+function narrowKeepingNonEmpty<T>(items: T[], keep: (item: T) => boolean): T[] {
+	const narrowed = items.filter(keep);
+	return narrowed.length > 0 ? narrowed : items;
+}
+
+/**
  * Find all extension roots in an extracted archive.
  *
  * Unlike findExtensionRoot which returns the first match, this function
  * finds all extensions in the archive, useful for repositories that
  * contain multiple extensions.
+ *
+ * The repository's own `_extensions/` is the primary host: when it holds at least one
+ * extension, extensions found elsewhere in the archive are ignored, so a vendored copy
+ * under `docs/_extensions/` is not offered for installation. Paths matched by the
+ * repository's `.quartoignore` are dropped as well. Neither rule is allowed to empty the
+ * result, so an archive that only ships extensions in ignored locations still installs.
  *
  * @param extractDir - Extraction directory
  * @returns Array of discovered extensions
@@ -210,16 +266,13 @@ export async function findAllExtensionRoots(extractDir: string): Promise<Discove
 		}
 
 		// Check for manifest in current directory
-		for (const name of MANIFEST_FILENAMES) {
-			const manifestPath = path.join(dir, name);
-			if (await fileExists(manifestPath)) {
-				// Found an extension, derive its ID from path
-				const id = deriveExtensionIdFromPath(dir, extractDir);
-				const relativePath = path.relative(extractDir, dir);
-				results.push({ path: dir, relativePath, id });
-				// Don't search subdirectories of an extension
-				return;
-			}
+		if (await hasManifestFile(dir)) {
+			// Found an extension, derive its ID from path
+			const id = deriveExtensionIdFromPath(dir, extractDir);
+			const relativePath = path.relative(extractDir, dir);
+			results.push({ path: dir, relativePath, id });
+			// Don't search subdirectories of an extension
+			return;
 		}
 
 		// Search subdirectories
@@ -232,7 +285,20 @@ export async function findAllExtensionRoots(extractDir: string): Promise<Discove
 	}
 
 	await searchDirectory(extractDir);
-	return results;
+
+	if (results.length === 0) {
+		return results;
+	}
+
+	const archiveRoot = await resolveArchiveRoot(extractDir);
+	const ignorePatterns = readQuartoIgnore(archiveRoot);
+	const hostDir = getExtensionsDir(archiveRoot);
+
+	const kept = narrowKeepingNonEmpty(
+		results,
+		(ext) => !isQuartoIgnored(ignorePatterns, toRelativePosixPath(archiveRoot, ext.path)),
+	);
+	return narrowKeepingNonEmpty(kept, (ext) => isInside(hostDir, ext.path));
 }
 
 /**
