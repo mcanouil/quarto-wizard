@@ -1,2 +1,3 @@
 # Vendored Quarto extensions: upstream files, not ours to reformat.
 docs/_extensions/
+test-fixtures/_extensions/
