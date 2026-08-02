@@ -46,6 +46,24 @@ export function findManifestFile(directory: string): string | null {
 }
 
 /**
+ * Read a manifest file as text.
+ *
+ * @param manifestPath - Full path to the manifest file
+ * @returns File content
+ * @throws ManifestError if the file cannot be read
+ */
+function readManifestContent(manifestPath: string): string {
+	try {
+		return fs.readFileSync(manifestPath, "utf-8");
+	} catch (error) {
+		throw new ManifestError(`Failed to read manifest file: ${getErrorMessage(error)}`, {
+			manifestPath,
+			cause: error,
+		});
+	}
+}
+
+/**
  * Parse a manifest file from a path.
  *
  * @param manifestPath - Full path to the manifest file
@@ -53,18 +71,7 @@ export function findManifestFile(directory: string): string | null {
  * @throws ManifestError if parsing fails
  */
 export function parseManifestFile(manifestPath: string): ExtensionManifest {
-	try {
-		const content = fs.readFileSync(manifestPath, "utf-8");
-		return parseManifestContent(content, manifestPath);
-	} catch (error) {
-		if (error instanceof ManifestError) {
-			throw error;
-		}
-		throw new ManifestError(`Failed to read manifest file: ${getErrorMessage(error)}`, {
-			manifestPath,
-			cause: error,
-		});
-	}
+	return parseManifestContent(readManifestContent(manifestPath), manifestPath);
 }
 
 /**
@@ -158,12 +165,12 @@ function isIgnorableLine(text: string): boolean {
 	return trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("%");
 }
 
-function isDocumentStart(text: string): boolean {
-	return text === "---" || text.startsWith("--- ") || text.startsWith("---\t");
-}
-
-function isDocumentEnd(text: string): boolean {
-	return text === "..." || text.startsWith("... ") || text.startsWith("...\t");
+/**
+ * Whether a line is the given document marker, `---` or `...`, on its own or
+ * followed by a comment.
+ */
+function isDocumentMarker(text: string, marker: string): boolean {
+	return text === marker || text.startsWith(`${marker} `) || text.startsWith(`${marker}\t`);
 }
 
 /**
@@ -177,13 +184,15 @@ function formatScalar(value: string): string {
 /**
  * Index of the first line of the first document's root mapping.
  * Skips leading comments, directives, and an opening document separator.
+ * A Quarto manifest holds none of those, but this patcher edits a file it
+ * does not own, so they are read rather than assumed away.
  */
 function findRootStart(lines: ManifestLine[]): number {
 	let index = 0;
 	while (index < lines.length && isIgnorableLine(lines[index].text)) {
 		index++;
 	}
-	if (index < lines.length && isDocumentStart(lines[index].text)) {
+	if (index < lines.length && isDocumentMarker(lines[index].text, "---")) {
 		index++;
 		while (index < lines.length && isIgnorableLine(lines[index].text)) {
 			index++;
@@ -199,7 +208,7 @@ function findRootStart(lines: ManifestLine[]): number {
 function findRootEnd(lines: ManifestLine[], start: number): number {
 	for (let index = start; index < lines.length; index++) {
 		const { text } = lines[index];
-		if (isDocumentStart(text) || isDocumentEnd(text)) {
+		if (isDocumentMarker(text, "---") || isDocumentMarker(text, "...")) {
 			return index;
 		}
 	}
@@ -266,10 +275,6 @@ function setTopLevelScalar(content: string, key: string, value: string, manifest
 	}
 
 	const previous = end > 0 ? lines[end - 1] : undefined;
-	if (previous && previous.text === "" && previous.eol === "") {
-		lines.splice(end - 1, 1, { text: newText, eol: defaultEol });
-		return joinLines(lines);
-	}
 	if (previous && previous.eol === "") {
 		previous.eol = defaultEol;
 	}
@@ -291,17 +296,7 @@ function setTopLevelScalar(content: string, key: string, value: string, manifest
  * @throws ManifestError if the manifest cannot be read or patched
  */
 export function updateManifestSource(manifestPath: string, source: string, sourceType?: SourceType): void {
-	let content: string;
-	try {
-		content = fs.readFileSync(manifestPath, "utf-8");
-	} catch (error) {
-		throw new ManifestError(`Failed to read manifest file: ${getErrorMessage(error)}`, {
-			manifestPath,
-			cause: error,
-		});
-	}
-
-	let updated = setTopLevelScalar(content, "source", source, manifestPath);
+	let updated = setTopLevelScalar(readManifestContent(manifestPath), "source", source, manifestPath);
 	if (sourceType) {
 		updated = setTopLevelScalar(updated, "source-type", sourceType, manifestPath);
 	}

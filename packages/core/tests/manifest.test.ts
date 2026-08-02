@@ -520,6 +520,14 @@ describe("filesystem manifest functions", () => {
 			);
 		});
 
+		it("stops at an explicit document end marker", () => {
+			const manifestPath = writeFixture("title: Test\n...\n");
+
+			updateManifestSource(manifestPath, "owner/repo");
+
+			expect(fs.readFileSync(manifestPath, "utf-8")).toBe("title: Test\nsource: owner/repo\n...\n");
+		});
+
 		it("skips a leading document separator when locating the root", () => {
 			const manifestPath = writeFixture("---\ntitle: Test\n");
 
