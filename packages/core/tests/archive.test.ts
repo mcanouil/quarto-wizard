@@ -7,7 +7,7 @@ import * as tar from "tar";
 import {
 	detectArchiveFormat,
 	extractArchive,
-	findAllExtensionRoots,
+	readArchiveExtensions,
 	findExtensionRoot,
 	cleanupExtraction,
 } from "../src/archive/extract.js";
@@ -223,7 +223,7 @@ describe("findExtensionRoot", () => {
 	});
 });
 
-describe("findAllExtensionRoots", () => {
+describe("readArchiveExtensions", () => {
 	let tempDir: string;
 
 	beforeEach(async () => {
@@ -248,7 +248,7 @@ describe("findAllExtensionRoots", () => {
 		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "iconify"), "iconify");
 		await writeExtension(path.join(repo, "pkg", "_extensions", "mcanouil", "pastel"), "pastel");
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(names(found)).toEqual(["iconify", "pastel"]);
 	});
@@ -260,7 +260,7 @@ describe("findAllExtensionRoots", () => {
 		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "atelier"), "atelier");
 		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "gitlink"), "gitlink");
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(names(found)).toEqual(["code-window"]);
 	});
@@ -271,7 +271,7 @@ describe("findAllExtensionRoots", () => {
 		await writeExtension(path.join(repo, "_extensions", "mcanouil", "second"), "second");
 		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "vendored"), "vendored");
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(names(found)).toEqual(["first", "second"]);
 	});
@@ -280,7 +280,7 @@ describe("findAllExtensionRoots", () => {
 		await writeExtension(path.join(tempDir, "_extensions", "code-window"), "code-window");
 		await writeExtension(path.join(tempDir, "docs", "_extensions", "mcanouil", "atelier"), "atelier");
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(names(found)).toEqual(["code-window"]);
 	});
@@ -292,7 +292,7 @@ describe("findAllExtensionRoots", () => {
 		await writeExtension(path.join(repo, "pkg", "_extensions", "mcanouil", "pastel"), "pastel");
 		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "iconify"), "iconify");
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(names(found)).toEqual(["pastel"]);
 	});
@@ -303,7 +303,7 @@ describe("findAllExtensionRoots", () => {
 		await fs.promises.writeFile(path.join(repo, ".quartoignore"), "docs\n");
 		await writeExtension(path.join(repo, "docs", "_extensions", "mcanouil", "iconify"), "iconify");
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(names(found)).toEqual(["iconify"]);
 	});
@@ -311,7 +311,7 @@ describe("findAllExtensionRoots", () => {
 	it("does not mistake a lone _extensions/ directory for an archive wrapper", async () => {
 		await writeExtension(path.join(tempDir, "_extensions", "mcanouil", "only"), "only");
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(names(found)).toEqual(["only"]);
 	});
@@ -319,7 +319,7 @@ describe("findAllExtensionRoots", () => {
 	it("returns an empty array when the archive holds no extension", async () => {
 		await fs.promises.mkdir(path.join(tempDir, "owner-repo-main", "docs"), { recursive: true });
 
-		const found = await findAllExtensionRoots(tempDir);
+		const { extensions: found } = await readArchiveExtensions(tempDir);
 
 		expect(found).toEqual([]);
 	});

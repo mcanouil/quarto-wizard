@@ -20,7 +20,7 @@ import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
 	extractArchive,
-	findAllExtensionRoots,
+	readArchiveExtensions,
 	cleanupExtraction,
 	type DiscoveredExtension,
 } from "../archive/extract.js";
@@ -132,6 +132,12 @@ export interface InstallResult {
 	sourceType?: SourceType;
 	/** Path to extracted source root (only set if keepSourceDir was true). */
 	sourceRoot?: string;
+	/**
+	 * Temporary extraction directory the caller must remove once it is done with
+	 * `sourceRoot` (only set if keepSourceDir was true). Absent for a local directory
+	 * source, which belongs to the user and must not be deleted.
+	 */
+	temporaryDir?: string;
 	/** Whether this was a dry run (no files were actually created). */
 	dryRun?: boolean;
 	/** Files that would be created (only set in dry run mode). */
@@ -314,6 +320,9 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 	let archivePath: string | undefined;
 	let extractDir: string | undefined;
+	// Set only when the extraction directory is a temporary one this call created, so a
+	// local directory source is never mistaken for something safe to delete.
+	let temporaryDir: string | undefined;
 	let tagName: string | undefined;
 	let repoRoot: string | undefined;
 	let commitSha: string | undefined;
@@ -367,10 +376,11 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		} else {
 			const extracted = await extractArchive(archivePath);
 			extractDir = extracted.extractDir;
+			temporaryDir = extracted.extractDir;
 		}
 
 		// Find all extensions in the archive
-		const allExtensions = await findAllExtensionRoots(extractDir);
+		const { root: archiveRoot, extensions: allExtensions } = await readArchiveExtensions(extractDir);
 
 		if (allExtensions.length === 0) {
 			throw new ExtensionError("No _extension.yml found in archive", {
@@ -400,17 +410,12 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		// Use the first selected extension as the primary one
 		const extensionRoot = selectedExtensions[0].path;
 
-		// Compute repo root from extensionRoot
-		// extensionRoot is like /tmp/xxx/owner-repo-tag/_extensions/owner/name
-		// Repo root is the parent of _extensions (e.g., /tmp/xxx/owner-repo-tag)
-		const extensionRootParts = extensionRoot.split(path.sep);
-		const extensionsIndex = extensionRootParts.lastIndexOf("_extensions");
-		if (extensionsIndex >= 0) {
-			repoRoot = extensionRootParts.slice(0, extensionsIndex).join(path.sep) || "/";
-		} else {
-			// No _extensions in path, extension is at repo root level
-			repoRoot = path.dirname(extensionRoot);
-		}
+		// `readArchiveExtensions` already resolved the repository root, wrapper directory and
+		// all, so take its answer rather than deriving a second one from the extension path.
+		// Splitting on `_extensions` used to fall back to the parent directory for a
+		// repository that is itself an extension, which pointed `sourceRoot` outside the
+		// source and made template copying sweep up the parent's contents.
+		repoRoot = archiveRoot;
 
 		const manifestResult = readManifest(extensionRoot);
 
@@ -470,6 +475,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				filesCreated: [],
 				source: sourceString,
 				sourceRoot: keepSourceDir ? repoRoot : undefined,
+				temporaryDir: keepSourceDir ? temporaryDir : undefined,
 				dryRun: true,
 				wouldCreate,
 				alreadyExists,
@@ -561,6 +567,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			source: sourceString,
 			sourceType: effectiveSourceType,
 			sourceRoot: keepSourceDir ? repoRoot : undefined,
+			temporaryDir: keepSourceDir ? temporaryDir : undefined,
 			additionalInstalls: additionalInstalls.length > 0 ? additionalInstalls : undefined,
 			additionalInstallFailures: additionalInstallFailures.length > 0 ? additionalInstallFailures : undefined,
 		};
@@ -572,9 +579,10 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			await fs.promises.unlink(archivePath).catch(() => {});
 		}
 
-		// Only cleanup extraction directory if keepSourceDir is false
-		if (extractDir && source.type !== "local" && !keepSourceDir) {
-			await cleanupExtraction(extractDir);
+		// Only the temporary directory is ours to remove, and only when the caller is not
+		// going to keep reading from it.
+		if (temporaryDir && !keepSourceDir) {
+			await cleanupExtraction(temporaryDir);
 		}
 	}
 }

@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import * as tar from "tar";
 import { getTemplateFiles, use } from "../../src/operations/use.js";
 
 describe("getTemplateFiles", () => {
@@ -343,5 +344,107 @@ describe("use honouring .quartoignore", () => {
 		expect(result.templateFiles).toContain("template.qmd");
 		expect(result.templateFiles.some((file) => file.startsWith("scratch/"))).toBe(false);
 		expect(fs.existsSync(path.join(projectDir, "scratch"))).toBe(false);
+	});
+});
+
+describe("use with an extension at the source root", () => {
+	let sourceDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-flat-source-"));
+		projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-flat-project-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(sourceDir, { recursive: true, force: true });
+		fs.rmSync(projectDir, { recursive: true, force: true });
+	});
+
+	it("copies template files from the source root, not from its parent", async () => {
+		// A repository that is itself an extension: the manifest sits at the top level
+		// instead of under `_extensions/`.
+		fs.writeFileSync(
+			path.join(sourceDir, "_extension.yml"),
+			"title: Flat\ncontributes:\n  shortcodes:\n    - flat.lua",
+		);
+		fs.writeFileSync(path.join(sourceDir, "flat.lua"), "-- flat");
+		fs.writeFileSync(path.join(sourceDir, "template.qmd"), "---\ntitle: Template\n---");
+
+		const result = await use({ type: "local", path: sourceDir }, { projectDir });
+
+		expect(result.install.success).toBe(true);
+		expect(result.templateFiles).toContain("template.qmd");
+		expect(fs.existsSync(path.join(projectDir, "template.qmd"))).toBe(true);
+	});
+});
+
+describe("use with a local directory source", () => {
+	let sourceDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-keep-source-"));
+		projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-keep-project-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(sourceDir, { recursive: true, force: true });
+		fs.rmSync(projectDir, { recursive: true, force: true });
+	});
+
+	it("leaves the source directory on disk", async () => {
+		const extDir = path.join(sourceDir, "_extensions", "owner", "my-ext");
+		fs.mkdirSync(extDir, { recursive: true });
+		fs.writeFileSync(path.join(extDir, "_extension.yml"), "title: Test\ncontributes:\n  shortcodes:\n    - test.lua");
+		fs.writeFileSync(path.join(extDir, "test.lua"), "-- test");
+		fs.writeFileSync(path.join(sourceDir, "template.qmd"), "---\ntitle: Template\n---");
+
+		const result = await use({ type: "local", path: sourceDir }, { projectDir });
+
+		expect(result.install.success).toBe(true);
+		// A local source is the user's own directory: using it as a template must not consume it.
+		expect(fs.existsSync(sourceDir)).toBe(true);
+		expect(fs.existsSync(path.join(sourceDir, "template.qmd"))).toBe(true);
+	});
+});
+
+describe("use with a local archive source", () => {
+	let sourceDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-archive-source-"));
+		projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-archive-project-"));
+	});
+
+	afterEach(() => {
+		fs.rmSync(sourceDir, { recursive: true, force: true });
+		fs.rmSync(projectDir, { recursive: true, force: true });
+	});
+
+	function listExtractionDirs(): string[] {
+		return fs.readdirSync(os.tmpdir()).filter((entry) => entry.startsWith("quarto-ext-"));
+	}
+
+	it("removes the temporary extraction directory", async () => {
+		const contents = path.join(sourceDir, "contents");
+		const extDir = path.join(contents, "_extensions", "owner", "my-ext");
+		fs.mkdirSync(extDir, { recursive: true });
+		fs.writeFileSync(path.join(extDir, "_extension.yml"), "title: Test\ncontributes:\n  shortcodes:\n    - test.lua");
+		fs.writeFileSync(path.join(extDir, "test.lua"), "-- test");
+		fs.writeFileSync(path.join(contents, "template.qmd"), "---\ntitle: Template\n---");
+
+		// Archive the wrapper directory itself, the way a GitHub source archive is shaped.
+		const archivePath = path.join(sourceDir, "source.tar.gz");
+		await tar.create({ gzip: true, file: archivePath, cwd: sourceDir }, ["contents"]);
+
+		const before = listExtractionDirs();
+
+		const result = await use({ type: "local", path: archivePath }, { projectDir });
+
+		expect(result.install.success).toBe(true);
+		expect(result.templateFiles).toContain("template.qmd");
+		expect(listExtractionDirs()).toEqual(before);
 	});
 });

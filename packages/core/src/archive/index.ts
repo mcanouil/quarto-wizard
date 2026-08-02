@@ -15,6 +15,7 @@ export {
 	detectArchiveFormat,
 	extractArchive,
 	findExtensionRoot,
-	findAllExtensionRoots,
+	readArchiveExtensions,
+	type ArchiveExtensions,
 	cleanupExtraction,
 } from "./extract.js";
