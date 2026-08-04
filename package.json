@@ -78,6 +78,7 @@
 		"format": "prettier --write \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\" \"packages/*/tests/**/*.ts\"",
 		"format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\" \"packages/*/tests/**/*.ts\"",
 		"sync-metadata": "node scripts/sync-package-metadata.mjs",
+		"extensions:update": "npm run build:core && node scripts/update-extensions.mjs",
 		"docs:api": "node scripts/process-api-docs.mjs && npm run docs:format",
 		"docs:build": "npm run docs:api && cd docs && quarto render",
 		"docs:preview": "npm run docs:api && cd docs && quarto preview",
