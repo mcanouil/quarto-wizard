@@ -34,9 +34,9 @@ website:
     background: dark
     foreground: light
     left: |
-      Powered by [{{< iconify simple-icons:quarto title="Quarto Logo" label="Quarto Logo" >}} Quarto](https://quarto.org).
+      Powered by [{{< iconify simple-icons:quarto aria-hidden=true >}} Quarto](https://quarto.org).
     center: |
-      &copy; []{#current-year} [Mickaël CANOUIL](https://mickael.canouil.fr). [{{< iconify octicon:heart-fill-16 title="Heart" label="Heart" >}} Sponsor](https://github.com/sponsors/mcanouil?o=esb).
+      &copy; []{#current-year} [Mickaël CANOUIL](https://mickael.canouil.fr). [{{< iconify octicon:heart-fill-16 aria-hidden=true >}} Sponsor](https://github.com/sponsors/mcanouil?o=esb).
     right: |
       Licence: [MIT](https://github.com/mcanouil/quarto-wizard?tab=MIT-1-ov-file#readme).
   navbar:
@@ -47,18 +47,18 @@ website:
     foreground: light
     search: true
     left:
-      # - text: "{{< iconify octicon:home-16 title='Home' label='Home' >}} Home"
+      # - text: "{{< iconify octicon:home-16 aria-hidden=true >}} Home"
       #   href: index.qmd
-      - text: "{{< iconify octicon:rocket-16 title='Getting Started' label='Getting Started' >}} Getting Started"
+      - text: "{{< iconify octicon:rocket-16 aria-hidden=true >}} Getting Started"
         href: getting-started/index.qmd
-      - text: "{{< iconify octicon:book-16 title='Reference' label='Reference' >}} Reference"
+      - text: "{{< iconify octicon:book-16 aria-hidden=true >}} Reference"
         href: reference/index.qmd
-      - text: "{{< iconify octicon:code-16 title='API' label='API' >}} API"
+      - text: "{{< iconify octicon:code-16 aria-hidden=true >}} API"
         href: api/index.qmd
-      - text: "{{< iconify octicon:history-16 title='Changelog' label='Changelog' >}} Changelog"
+      - text: "{{< iconify octicon:history-16 aria-hidden=true >}} Changelog"
         href: changelog.qmd
     right:
-      - text: "{{< iconify octicon:person-16 title='Person' label='Credits' >}} Credits"
+      - text: "{{< iconify octicon:person-16 aria-hidden=true >}} Credits"
         href: credits.qmd
       - text: "{{< iconify octicon:mark-github-16 title='GitHub' label='GitHub' >}}"
         href: "#gitlink-widget"
