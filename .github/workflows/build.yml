@@ -10,6 +10,7 @@ on:
     types:
       - opened
       - synchronize
+      - reopened
       - ready_for_review
     branches:
       - main
@@ -29,6 +30,7 @@ jobs:
   build:
     if: github.event.pull_request.draft == false
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -171,6 +173,7 @@ jobs:
   summary:
     if: github.event.pull_request.draft == false
     needs: build
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - name: Download all job summaries
