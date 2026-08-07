@@ -12,9 +12,14 @@
  *
  * Requires `npm run build:core`.
  *
+ * The GitHub token is taken from `GITHUB_TOKEN`, then `QUARTO_WIZARD_TOKEN`, then
+ * `gh auth token`. Running without any of them works, but shares the unauthenticated
+ * GitHub rate limit.
+ *
  * Usage: node scripts/update-extensions.mjs [dir] [--source id] [--apply] [--refresh] [--cross-source] [--json] [--verbose]
  */
 
+import { execFileSync } from "node:child_process";
 import { readdirSync, existsSync } from "node:fs";
 import { join, dirname, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -47,7 +52,8 @@ const USAGE = `Usage: node scripts/update-extensions.mjs [dir] [options]
   --refresh          Refetch the registry before scanning, ignoring the cache.
   --cross-source     Let GitHub-sourced extensions fall back to the registry.
   --json             Emit a JSON report on stdout instead of text.
-  --verbose          Also list extensions skipped for having no recorded source.
+  --verbose          Also list extensions skipped for having no recorded source,
+                     and report where the GitHub token came from.
   --help             Show this message.
 `;
 
@@ -182,6 +188,37 @@ function createSourceMatcher(value, splitSourceRef) {
 	};
 }
 
+/**
+ * Borrow the token the `gh` CLI already holds, when the environment has none.
+ *
+ * Returns `undefined` whenever core would find a token by itself, so the documented
+ * `GITHUB_TOKEN` then `QUARTO_WIZARD_TOKEN` precedence is left untouched, and also
+ * whenever `gh` is missing, logged out, or fails: an unauthenticated run is still a
+ * valid run, only a more rate-limited one.
+ */
+function resolveGitHubToken(verbose) {
+	if (process.env["GITHUB_TOKEN"] || process.env["QUARTO_WIZARD_TOKEN"]) {
+		return undefined;
+	}
+
+	let token;
+	try {
+		token = execFileSync("gh", ["auth", "token"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+	} catch {
+		token = "";
+	}
+
+	if (verbose) {
+		process.stderr.write(
+			token
+				? "Using the GitHub token from `gh auth token`.\n"
+				: "No GitHub token found; requests are unauthenticated.\n",
+		);
+	}
+
+	return token || undefined;
+}
+
 async function main() {
 	const options = parseArguments(process.argv.slice(2));
 
@@ -207,7 +244,8 @@ async function main() {
 	} = await import(pathToFileURL(corePath).href);
 
 	const matchesSource = options.source === null ? null : createSourceMatcher(options.source, splitSourceRef);
-	const auth = createAuthConfig();
+	const githubToken = resolveGitHubToken(options.verbose);
+	const auth = githubToken ? createAuthConfig({ githubToken }) : createAuthConfig();
 
 	if (options.refresh) {
 		// One forced fetch rewrites the on-disk cache, so the per-project checks below
