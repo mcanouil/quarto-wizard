@@ -48,7 +48,7 @@ options:
 
 Two versions are currently supported in parallel:
 
-- `https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json` (v1, default; kebab-case canonical with camelCase aliases).
+- `https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json` (v1, default; kebab-case canonical with camelCase aliases).
 - `https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json` (v2; JSON Schema canonical names exclusively).
 
 When the `$schema` key is omitted, the file is validated against v1.
