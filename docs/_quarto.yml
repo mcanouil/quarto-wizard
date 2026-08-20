@@ -18,6 +18,7 @@ website:
   image-alt: "Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
   site-url: "https://m.canouil.dev/quarto-wizard"
   repo-url: https://github.com/mcanouil/quarto-wizard
+  repo-subdir: docs
   repo-actions: [edit, issue]
   repo-link-target: _blank
   repo-link-rel: noopener noreferrer
