@@ -19,6 +19,7 @@ on:
       - "packages/**"
       - "package.json"
       - "package-lock.json"
+      - "docs/_extensions/**/_schema.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
@@ -170,13 +171,62 @@ jobs:
           path: job-summary.txt
           retention-days: 1
 
-  summary:
+  lua:
     if: github.event.pull_request.draft == false
-    needs: build
+    name: Lua reference validator
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
+
+      - name: Test Lua reference validator
+        id: test-lua
+        shell: bash
+        working-directory: packages/schema
+        run: npm run test:lua
+
+      - name: Generate job result summary
+        if: always()
+        shell: bash
+        run: |
+          echo "OS: ubuntu-latest (Lua)" > job-summary.txt
+          echo "Node: n/a" >> job-summary.txt
+          if [[ "${{ steps.test-lua.outcome }}" == "failure" ]]; then
+            echo "Status: failure" >> job-summary.txt
+          elif [[ "${{ steps.test-lua.outcome }}" == "cancelled" ]]; then
+            echo "Status: cancelled" >> job-summary.txt
+          else
+            echo "Status: success" >> job-summary.txt
+          fi
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> job-summary.txt
+
+      - name: Upload job summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: job-summary-lua
+          path: job-summary.txt
+          retention-days: 1
+
+  summary:
+    if: always() && github.event.pull_request.draft == false
+    needs:
+      - build
+      - lua
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - name: Download all job summaries
+        # The summary now runs even when a needed job fails, so there may be no
+        # artifact at all. The consolidated summary below falls back to the job
+        # results in that case, which it cannot do if this step fails first.
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           pattern: job-summary-*

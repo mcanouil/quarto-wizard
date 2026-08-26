@@ -23,3 +23,10 @@ for (const { src, out } of versions) {
 	mkdirSync(dirname(docsTarget), { recursive: true });
 	cpSync(srcPath, docsTarget);
 }
+
+// The Lua reference validator is published for other projects to depend on, so
+// it goes to the documentation site only. It is not part of the library API, and
+// nothing consumes it from the npm tarball.
+const luaTarget = join(docsBase, "v2", "schema.lua");
+mkdirSync(dirname(luaTarget), { recursive: true });
+cpSync(join(pkgRoot, "src", "validation", "schema.lua"), luaTarget);
