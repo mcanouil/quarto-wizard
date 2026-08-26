@@ -250,9 +250,11 @@ jobs:
           successful_jobs=0
           failed_jobs=0
           cancelled_jobs=0
+          lua_summary="job-summaries/job-summary-lua/job-summary.txt"
+          build_summaries=$(find job-summaries -type f -name "job-summary.txt" -not -path "*/job-summary-lua/*" 2>/dev/null | wc -l)
 
           # Find all job-summary.txt files in job-summaries subfolders
-          find job-summaries -type f -name "job-summary.txt" | while read summary_file; do
+          find job-summaries -type f -name "job-summary.txt" 2>/dev/null | while read summary_file; do
             if [[ -f "${summary_file}" ]]; then
               total_jobs=$((total_jobs + 1))
               os=$(grep "OS:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
@@ -280,30 +282,43 @@ jobs:
             fi
           done
 
-          # Calculate totals using GitHub API if job summaries are not available
-          if [[ ! -d "job-summaries" ]] || [[ $(find job-summaries -type f -name "job-summary.txt" | wc -l) -eq 0 ]]; then
-            echo "| Build Matrix | All Versions | ${{ needs.build.result == 'success' && '✅ success' || needs.build.result == 'failure' && '❌ failure' || '🟡 cancelled' }} | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> ${GITHUB_STEP_SUMMARY}
+          # A job that is killed by its timeout never reaches its upload step, so
+          # a missing summary file is a result in itself. Count such a job from
+          # the job result, which is always available.
+          count_job_result() {
+            case "$1" in
+              "success") successful_jobs=$((successful_jobs + 1)) ;;
+              "failure") failed_jobs=$((failed_jobs + 1)) ;;
+              "cancelled") cancelled_jobs=$((cancelled_jobs + 1)) ;;
+              *) return 0 ;;
+            esac
+            total_jobs=$((total_jobs + 1))
+          }
+
+          if [[ ! -f "${lua_summary}" ]]; then
             echo "| Lua reference validator | n/a | ${{ needs.lua.result == 'success' && '✅ success' || needs.lua.result == 'failure' && '❌ failure' || '🟡 cancelled' }} | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> "${GITHUB_STEP_SUMMARY}"
-            total_jobs=2
-            for job_result in "${{ needs.build.result }}" "${{ needs.lua.result }}"; do
-              case "${job_result}" in
-                "success") successful_jobs=$((successful_jobs + 1)) ;;
-                "failure") failed_jobs=$((failed_jobs + 1)) ;;
-                "cancelled") cancelled_jobs=$((cancelled_jobs + 1)) ;;
-              esac
-            done
+          fi
+
+          if [[ ${build_summaries} -eq 0 ]]; then
+            echo "| Build Matrix | All Versions | ${{ needs.build.result == 'success' && '✅ success' || needs.build.result == 'failure' && '❌ failure' || '🟡 cancelled' }} | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> ${GITHUB_STEP_SUMMARY}
           fi
 
           echo "" >> ${GITHUB_STEP_SUMMARY}
           echo "## 📈 Summary Statistics" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
 
-          # Calculate totals from the files if they exist
-          if [[ -d "job-summaries" ]]; then
-            total_jobs=$(find job-summaries -type f -name "job-summary.txt" | wc -l)
-            successful_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; | wc -l)
-            failed_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: failure" {} \; | wc -l)
-            cancelled_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: cancelled" {} \; | wc -l)
+          # The table loop above runs in a subshell, so its counters are lost.
+          # Recount here from the files, then add each job that produced none.
+          total_jobs=$(find job-summaries -type f -name "job-summary.txt" 2>/dev/null | wc -l)
+          successful_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; 2>/dev/null | wc -l)
+          failed_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: failure" {} \; 2>/dev/null | wc -l)
+          cancelled_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: cancelled" {} \; 2>/dev/null | wc -l)
+
+          if [[ ${build_summaries} -eq 0 ]]; then
+            count_job_result "${{ needs.build.result }}"
+          fi
+          if [[ ! -f "${lua_summary}" ]]; then
+            count_job_result "${{ needs.lua.result }}"
           fi
 
           success_rate=0
@@ -330,4 +345,10 @@ jobs:
           else
             echo "## 🟡 Overall Result: CANCELLED" >> ${GITHUB_STEP_SUMMARY}
             echo "Some jobs were cancelled during execution." >> ${GITHUB_STEP_SUMMARY}
+          fi
+
+          # The job runs on every outcome, so it has to carry the verdict it
+          # prints. Without this it reports success while the table says failure.
+          if [[ ${failed_jobs} -gt 0 || ${cancelled_jobs} -gt 0 ]]; then
+            exit 1
           fi
