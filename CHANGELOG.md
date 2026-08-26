@@ -4,7 +4,7 @@
 
 ### New Features
 
-- feat: publish the Lua reference validator of the v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/schema.lua`. The vocabulary and the validator carry the same version, and extensions can now resolve the module by URL.
+- feat: publish the Lua reference validator of the v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/schema.lua`. The vocabulary and the validator carry the same version, and extensions can now resolve the module by URL. (#374)
 
 ## 3.2.0 (2026-08-02)
 
