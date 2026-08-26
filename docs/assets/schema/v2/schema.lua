@@ -2219,8 +2219,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
   end
 
   if type(entry.required) == 'table' then
+    -- `merged.attributes` is filled only when the entry declares `attributes`.
+    -- The vocabulary allows `required` on its own, so fall back to what the
+    -- caller supplied rather than reporting every name as missing.
+    local supplied = kwargs or {}
     for _, required in ipairs(entry.required) do
-      if _lookup(merged.attributes, required) == nil then
+      if _lookup(merged.attributes, required) == nil
+        and _lookup(supplied, required) == nil then
         _report(context, 'error', name .. '.' .. required, 'required',
           'is required but was not provided.')
       end

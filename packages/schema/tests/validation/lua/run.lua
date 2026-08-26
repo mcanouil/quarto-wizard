@@ -778,6 +778,30 @@ shortcodes:
   assert_contains(warnings, 'arai-hidden', 'the typo is surfaced')
 end)
 
+test('shortcode required works without an attributes block', function()
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    required:
+      - icon
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { icon = 'star' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+end)
+
+test('shortcode required still reports a missing attribute', function()
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    required:
+      - icon
+]])
+  local valid, errors = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_false(valid, 'a missing required attribute should be reported')
+  assert_contains(errors, 'icon')
+end)
+
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
   local loaded = load_schema([[
 attributes:
