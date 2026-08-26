@@ -14,7 +14,7 @@
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"test:lua": "quarto pandoc lua -e \"assert(loadfile('src/validation/schema.lua'))\" && quarto pandoc lua tests/validation/lua/run.lua && quarto pandoc lua tests/validation/lua/conformance.lua ../../docs/_extensions",
+		"test:lua": "quarto pandoc lua -e \"assert(loadfile('src/validation/schema.lua'))\" && quarto pandoc lua tests/validation/lua/run.lua && quarto pandoc lua tests/validation/lua/conformance.lua ../../docs/_extensions ../../test-fixtures/_extensions",
 		"lint": "eslint --fix --cache \"src/**/*.ts\""
 	},
 	"keywords": [

@@ -25,11 +25,7 @@ local V2_TYPES = {
   array = true, object = true, ['null'] = true, content = true,
 }
 
-local roots = {}
-for index = 1, #arg do
-  roots[#roots + 1] = arg[index]
-end
-if #roots == 0 then
+if #arg == 0 then
   io.stderr:write('usage: conformance.lua <directory> [<directory> ...]\n')
   os.exit(1, true)
 end
@@ -37,7 +33,7 @@ end
 --- List every `_schema.yml` under the given roots, ignoring build output.
 local function find_schemas()
   local found = {}
-  for _, root in ipairs(roots) do
+  for _, root in ipairs(arg) do
     -- Quote for the shell, not with `%q`: Lua's own quoting leaves `$` alone,
     -- so a path containing one would undergo parameter expansion and the sweep
     -- would silently search somewhere else.

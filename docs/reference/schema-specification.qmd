@@ -594,9 +594,8 @@ Quarto extensions load this module to validate their configuration during a rend
 The module is standalone: it requires no other module, and it reaches `pandoc` and `quarto` only through its `_env` table.
 Its `SCHEMA_VERSION` field holds the URL of the meta-schema it implements.
 
-The vocabulary and the validator version together.
-Version 2 of the vocabulary is implemented by version 2 of the module, and a future version 3 of the vocabulary ships with the matching module.
-The version of the module is therefore the version of the vocabulary, and not the version of the `@quarto-wizard/schema` package that publishes both.
+The vocabulary and the validator version together: version 2 of the vocabulary is implemented by version 2 of the module, and a future version 3 ships with its matching module.
+That version is the version of the vocabulary, and not the version of the `@quarto-wizard/schema` package that publishes both.
 
 Example instances showing every supported property are also available:
 
