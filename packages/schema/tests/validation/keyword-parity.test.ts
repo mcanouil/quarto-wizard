@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { ALLOWED_FIELD_PROPERTIES_V2 } from "../../src/validation/schema-derived.js";
+import { validateSchemaDefinitionStructure } from "../../src/validation/schema-definition.js";
+import { SCHEMA_V2_VERSION_URI } from "../../src/types/schema.js";
 
 const validationDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "src", "validation");
 
@@ -34,7 +36,25 @@ describe("keyword parity", () => {
 });
 
 describe("derived vocabulary", () => {
-	it("carries uniqueItems to the editor", () => {
+	// ALLOWED_FIELD_PROPERTIES_V2 does not reach the completion provider: that
+	// provider imports ALLOWED_FIELD_PROPERTIES and fieldDescriptorMetadata,
+	// both derived from the v1 meta-schema. ALLOWED_FIELD_PROPERTIES_V2 is
+	// consumed only by allowedSetsFor(), which feeds the v2 schema diagnostics.
+	// So carrying uniqueItems here does not add it to autocomplete; it stops
+	// the "unknown property" diagnostic from firing on a v2 schema that uses it.
+	it("stops uniqueItems from being flagged as an unknown property in a v2 schema", () => {
 		expect(ALLOWED_FIELD_PROPERTIES_V2.has("uniqueItems")).toBe(true);
+
+		const findings = validateSchemaDefinitionStructure({
+			$schema: SCHEMA_V2_VERSION_URI,
+			options: {
+				myField: {
+					type: "array",
+					items: { type: "string" },
+					uniqueItems: true,
+				},
+			},
+		});
+		expect(findings.filter((f) => f.code === "unknown-field-property")).toHaveLength(0);
 	});
 });
