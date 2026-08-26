@@ -19,6 +19,10 @@ on:
       - "packages/**"
       - "package.json"
       - "package-lock.json"
+      # Swept by the Lua conformance job, and edited through pull requests.
+      # The vendored schemas under docs/ are not listed: a bot updates those
+      # straight on the default branch, where a pull request filter cannot fire.
+      - "test-fixtures/**/_schema.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
