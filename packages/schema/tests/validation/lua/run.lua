@@ -715,6 +715,23 @@ options:
   assert_valid(valid, errors, '1 and "1" are different items')
 end)
 
+test('the duplicate item message names the value alone', function()
+  local loaded = load_schema([[
+options:
+  preload:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+]])
+  local valid, errors = schema.validate({ preload = { 'a', 'a' } }, loaded.options)
+  assert_false(valid, 'a repeated item should be reported')
+  local joined = table.concat(errors, ' | ')
+  assert_true(joined:find('\0', 1, true) == nil, 'the message must not hold a NUL byte')
+  assert_true(joined:find('string', 1, true) == nil, 'the message must not name the Lua type')
+  assert_contains(errors, 'a')
+end)
+
 test('minLength and maxLength count characters, not bytes', function()
   local loaded = load_schema([[
 options:

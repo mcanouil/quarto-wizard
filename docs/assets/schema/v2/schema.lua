@@ -1730,12 +1730,13 @@ local function _check_array(value, spec, path, context)
   if spec.uniqueItems == true then
     local seen = {}
     for index = 1, length do
-      -- Key on the type as well as the rendering, so the number 1 and the
-      -- string "1" are not read as the same item.
-      local key = type(value[index]) .. '\0' .. _format_value(value[index])
+      local rendered = _format_value(value[index])
+      -- The key carries the type so 1 and "1" are different items. The message
+      -- carries only the rendering, because the key is not the author's text.
+      local key = type(value[index]) .. '\0' .. rendered
       if seen[key] then
         _report(context, 'error', path, 'uniqueItems', string.format(
-          'must not repeat items, but %s appears more than once.', key
+          'must not repeat items, but %s appears more than once.', rendered
         ))
         break
       end
