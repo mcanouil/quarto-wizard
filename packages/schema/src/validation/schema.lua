@@ -1944,14 +1944,22 @@ _validate_map = function(values, descriptors, base_path, context, options)
     if type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
         claimed[alias] = true
-        if merged[field] == nil then
-          local aliased, alias_key = _lookup(merged, alias)
-          if aliased ~= nil then
+        local aliased, alias_key = _lookup(merged, alias)
+        if aliased ~= nil then
+          claimed[alias_key] = true
+          if merged[field] == nil then
             merged[field] = aliased
-            claimed[alias_key] = true
-            if alias_key ~= field then
-              merged[alias_key] = nil
-            end
+          elseif alias_key ~= field then
+            -- Both spellings were supplied. The declared name wins, and the
+            -- alias is reported rather than left behind unvalidated.
+            _report(context, 'warning',
+              base_path and (base_path .. '.' .. field) or field,
+              'aliases',
+              string.format('was given as both "%s" and "%s"; "%s" was used.',
+                field, alias_key, field))
+          end
+          if alias_key ~= field then
+            merged[alias_key] = nil
           end
         end
       end

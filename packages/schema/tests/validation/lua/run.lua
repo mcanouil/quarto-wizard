@@ -958,6 +958,74 @@ options:
   assert_eq(loaded.options.count.default, before, 'the loaded schema is untouched')
 end)
 
+test('a value given under both spellings drops the alias key', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { colour = 'red', color = 'blue' }, loaded.options)
+  assert_eq(merged.colour, 'red', 'the declared name should win')
+  assert_eq(merged.color, nil, 'the alias key should not survive in merged')
+  assert_true(
+    #errors > 0 or #warnings > 0,
+    'supplying both spellings should be reported'
+  )
+end)
+
+test('a value given only under an alias still moves to the declared name', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+]])
+  local valid, errors, _, merged = schema.validate({ color = 'blue' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.colour, 'blue', 'the alias value should move to the declared name')
+  assert_eq(merged.color, nil, 'the alias key should be removed')
+end)
+
+test('two different aliases supplied for the same field both drop, with a warning', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+      - farbe
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { color = 'blue', farbe = 'rot' }, loaded.options)
+  assert_eq(merged.colour, 'blue', 'the first alias in declaration order wins')
+  assert_eq(merged.color, nil, 'the first alias key should not survive in merged')
+  assert_eq(merged.farbe, nil, 'the second alias key should not survive in merged')
+  assert_true(
+    #errors > 0 or #warnings > 0,
+    'supplying two aliases for the same field should be reported'
+  )
+end)
+
+test('an alias matched via hyphen/underscore normalisation moves without a false conflict', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - text-color
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { text_color = 'blue' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#warnings, 0, 'a single spelling, even a normalised one, is not a conflict')
+  assert_eq(merged.colour, 'blue', 'the normalised alias value should move to the declared name')
+  assert_eq(merged.text_color, nil, 'the normalised alias key should be removed')
+end)
+
 -- ============================================================================
 -- REPORT
 -- ============================================================================
