@@ -1238,6 +1238,71 @@ options:
   assert_contains(errors, 'got ""')
 end)
 
+test('a null element in the middle of a document metadata sequence does not leave a hole', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [~, b]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#merged.tags, 1, 'the null element should be dropped, not leave a hole')
+  assert_eq(merged.tags[1], 'b', 'the surviving element should be first')
+end)
+
+test('a document metadata sequence of only null elements becomes an empty array', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [~]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_false(valid, 'an empty array should fail minItems 1')
+  assert_eq(#merged.tags, 0, 'the null element should be dropped, leaving an empty array')
+  assert_contains(errors, 'at least 1 items')
+end)
+
+test('a null element at the end of a document metadata sequence is dropped', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [a, ~]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#merged.tags, 1, 'the null element should be dropped')
+  assert_eq(merged.tags[1], 'a', 'the surviving element should be kept')
+end)
+
+test('a document metadata sequence with no null elements is unaffected', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [a, b]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#merged.tags, 2, 'both elements should be kept')
+  assert_eq(merged.tags[1], 'a', 'the first element should be kept')
+  assert_eq(merged.tags[2], 'b', 'the second element should be kept')
+end)
+
 -- ============================================================================
 -- REPORT
 -- ============================================================================
