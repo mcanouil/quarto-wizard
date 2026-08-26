@@ -728,9 +728,15 @@ local function _convert_pandoc_value(value)
   end
 
   if _is_array(value) and #value > 0 then
+    -- A null element is absent, the same rule this module applies to a null
+    -- key. Writing it into a running count rather than the source index
+    -- keeps the result a proper sequence instead of leaving a gap.
     local result = {}
     for index = 1, #value do
-      result[index] = _convert_pandoc_value(value[index])
+      local converted = _convert_pandoc_value(value[index])
+      if converted ~= nil then
+        result[#result + 1] = converted
+      end
     end
     return result
   end
