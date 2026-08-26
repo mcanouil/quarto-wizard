@@ -442,7 +442,7 @@ local function _compile_pattern(regex)
         local mapped = ESCAPE_INSIDE[next_char]
         if mapped then
           out[#out + 1] = mapped
-        elseif next_char:match('%d') then
+        elseif next_char:match('[1-9]') then
           return nil, 'unsupported backreference "\\' .. next_char .. '"'
         elseif next_char == '%' then
           out[#out + 1] = '%%'

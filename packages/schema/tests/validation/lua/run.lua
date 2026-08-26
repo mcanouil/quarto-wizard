@@ -367,6 +367,12 @@ test('a refused escape inside a character class is reported too', function()
   assert_true(reason ~= nil, 'a reason should be given')
 end)
 
+test('a zero escape inside a character class is named an escape, not a backreference', function()
+  local branches, reason = schema._compile_pattern('[\\0]')
+  assert_eq(branches, nil, '[\\0] should not compile')
+  assert_contains(reason, 'unsupported escape "\\0"')
+end)
+
 test('a control escape inside a character class matches its character', function()
   assert_true(pattern_matches('[\\n]', '\n'), '[\\n] should match a newline')
   assert_false(pattern_matches('[\\n]', 'n'), '[\\n] should not match the letter n')
