@@ -347,6 +347,35 @@ test('an unanchored alternation still compiles', function()
   assert_true(pattern_matches('abc|def', 'def'), 'abc|def should match def')
 end)
 
+test('a control escape maps to its character', function()
+  assert_true(pattern_matches('a\\nb', 'a\nb'), '\\n should match a newline')
+  assert_true(pattern_matches('a\\tb', 'a\tb'), '\\t should match a tab')
+end)
+
+test('an escape this compiler cannot express is refused', function()
+  local branches, reason = schema._compile_pattern('a\\bc')
+  assert_eq(branches, nil, '\\b should not compile to the letter b')
+  assert_true(
+    reason ~= nil and reason:find('escape', 1, true) ~= nil,
+    'the reason should name the escape, got: ' .. tostring(reason)
+  )
+end)
+
+test('a refused escape inside a character class is reported too', function()
+  local branches, reason = schema._compile_pattern('[\\b]')
+  assert_eq(branches, nil, '\\b inside a class should not compile')
+  assert_true(reason ~= nil, 'a reason should be given')
+end)
+
+test('a control escape inside a character class matches its character', function()
+  assert_true(pattern_matches('[\\n]', '\n'), '[\\n] should match a newline')
+  assert_false(pattern_matches('[\\n]', 'n'), '[\\n] should not match the letter n')
+end)
+
+test('an ordinary pattern still compiles', function()
+  assert_true(pattern_matches('abc', 'abc'), 'abc should match abc')
+end)
+
 -- ============================================================================
 -- KEYWORD COVERAGE
 -- ============================================================================

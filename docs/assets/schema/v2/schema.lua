@@ -361,6 +361,16 @@ local ESCAPE_INSIDE = {
   d = '%d', D = '%D', w = '%w_', s = '%s', S = '%S',
 }
 
+--- Escapes with a real Lua equivalent. Anything else alphanumeric is refused,
+--- because compiling it to the bare letter would accept the wrong values.
+local CONTROL_ESCAPES = {
+  n = '\n',
+  t = '\t',
+  r = '\r',
+  f = '\f',
+  v = '\v',
+}
+
 --- Characters Lua treats as magic outside a character class.
 local LUA_MAGIC = '^$()%.[]*+-?'
 
@@ -436,8 +446,10 @@ local function _compile_pattern(regex)
           return nil, 'unsupported backreference "\\' .. next_char .. '"'
         elseif next_char == '%' then
           out[#out + 1] = '%%'
+        elseif CONTROL_ESCAPES[next_char] then
+          out[#out + 1] = CONTROL_ESCAPES[next_char]
         elseif next_char:match('%w') then
-          out[#out + 1] = next_char
+          return nil, 'unsupported escape "\\' .. next_char .. '"'
         else
           out[#out + 1] = '%' .. next_char
         end
@@ -523,8 +535,10 @@ local function _compile_pattern(regex)
       local atom
       if mapped then
         atom = mapped
+      elseif CONTROL_ESCAPES[next_char] then
+        atom = CONTROL_ESCAPES[next_char]
       elseif next_char:match('%w') then
-        atom = next_char
+        return nil, 'unsupported escape "\\' .. next_char .. '"'
       else
         atom = _escape_literal(next_char)
       end
