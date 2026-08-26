@@ -1123,6 +1123,7 @@ local function _read_block_scalar(lines, start, parent_indent, style)
 end
 
 local _parse_block
+local _parse_sequence
 
 --- The order in which each parsed mapping declared its keys.
 --- Lua tables have no key order, but a schema is authored in a meaningful one,
@@ -1200,6 +1201,23 @@ local function _parse_map(lines, start, indent, depth)
           if err then
             return nil, next_index, err
           end
+
+          -- A block sequence may sit at the column of its own key, which
+          -- `_parse_block` declines because its guard wants a deeper line.
+          -- Nothing was consumed in that case, so read the sequence here.
+          if value == nil and next_index == index then
+            local peek = _skip_insignificant(lines, index)
+            if peek <= #lines and lines[peek].indent == indent then
+              local ahead = _content(lines[peek])
+              if ahead == '-' or ahead:sub(1, 2) == '- ' then
+                value, next_index, err = _parse_sequence(lines, peek, indent, depth + 1)
+                if err then
+                  return nil, next_index, err
+                end
+              end
+            end
+          end
+
           map[key] = value
           index = next_index
         elseif rest:sub(1, 1) == '[' or rest:sub(1, 1) == '{' then
@@ -1232,7 +1250,7 @@ end
 --- @return table|nil sequence
 --- @return number next_index
 --- @return string|nil err
-local function _parse_sequence(lines, start, indent, depth)
+_parse_sequence = function(lines, start, indent, depth)
   local sequence = {}
   local index = start
 
