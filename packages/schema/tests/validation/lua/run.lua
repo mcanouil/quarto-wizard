@@ -329,6 +329,24 @@ test('the only pattern used in the corpus still works', function()
   assert_false(pattern_matches(regex, '3'))
 end)
 
+test('an anchor across an alternation is refused rather than misapplied', function()
+  local branches, reason = schema._compile_pattern('^abc|def$')
+  assert_eq(branches, nil, 'an anchored alternation should not compile')
+  assert_true(
+    reason ~= nil and reason:find('alternation', 1, true) ~= nil,
+    'the reason should name the alternation, got: ' .. tostring(reason)
+  )
+end)
+
+test('an anchor on a single branch still compiles', function()
+  assert_true(pattern_matches('^abc$', 'abc'), '^abc$ should match abc')
+  assert_false(pattern_matches('^abc$', 'xabc'), '^abc$ should not match xabc')
+end)
+
+test('an unanchored alternation still compiles', function()
+  assert_true(pattern_matches('abc|def', 'def'), 'abc|def should match def')
+end)
+
 -- ============================================================================
 -- KEYWORD COVERAGE
 -- ============================================================================

@@ -386,6 +386,7 @@ local function _compile_pattern(regex)
   local length = #regex
   local anchor_start = false
   local anchor_end = false
+  local has_top_level_alternation = false
   local parse_alternation
 
   --- Combine a set of prefixes with a set of continuations.
@@ -603,7 +604,9 @@ local function _compile_pattern(regex)
 
   parse_alternation = function(depth)
     local all = {}
+    local iterations = 0
     while true do
+      iterations = iterations + 1
       local branches, reason = parse_sequence(depth)
       if not branches then
         return nil, reason
@@ -620,6 +623,9 @@ local function _compile_pattern(regex)
         break
       end
     end
+    if depth == 0 and iterations > 1 then
+      has_top_level_alternation = true
+    end
     return all
   end
 
@@ -629,6 +635,12 @@ local function _compile_pattern(regex)
   end
   if position <= length then
     return nil, 'unbalanced ")" in pattern'
+  end
+
+  -- The anchors are collected for the expression as a whole, so applying them
+  -- to multiple top-level branches would anchor branches the author did not anchor.
+  if has_top_level_alternation and (anchor_start or anchor_end) then
+    return nil, 'unsupported anchor in a top-level alternation'
   end
 
   local prefix = anchor_start and '^' or ''
