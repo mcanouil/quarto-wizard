@@ -544,6 +544,46 @@ options:
   assert_valid(ok_valid, ok_errors)
 end)
 
+test('dependentRequired sees a value supplied under an alias', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+        aliases:
+          - pass
+]])
+  local valid, errors = schema.validate(
+    { auth = { user = 'me', pass = 'secret' } }, loaded.options)
+  assert_valid(valid, errors)
+end)
+
+test('dependentRequired still reports a genuinely missing dependent', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+]])
+  local valid, errors = schema.validate({ auth = { user = 'me' } }, loaded.options)
+  assert_false(valid, 'a missing dependent should be reported')
+  assert_contains(errors, 'password')
+end)
+
 test('nested properties contribute defaults and coercion to merged', function()
   local loaded = load_schema([[
 options:

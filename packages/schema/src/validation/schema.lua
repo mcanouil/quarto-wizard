@@ -1759,20 +1759,6 @@ local function _check_object(value, spec, path, context)
     end
   end
 
-  if type(spec.dependentRequired) == 'table' then
-    for key, dependents in pairs(spec.dependentRequired) do
-      if _lookup(value, key) ~= nil and type(dependents) == 'table' then
-        for _, dependent in ipairs(dependents) do
-          if _lookup(value, dependent) == nil then
-            _report(context, 'error', path, 'dependentRequired', string.format(
-              'requires "%s" when "%s" is present.', dependent, key
-            ))
-          end
-        end
-      end
-    end
-  end
-
   if type(spec.properties) == 'table' then
     local sub = _validate_map(value, spec.properties, path, context, {
       unknown = spec.additionalProperties == false and 'error' or 'ignore',
@@ -1800,6 +1786,23 @@ local function _check_object(value, spec, path, context)
       value[key] = coerced
       if coerced ~= nil and coerced ~= '' then
         _validate_value(coerced, spec.additionalProperties, path .. '.' .. tostring(key), context)
+      end
+    end
+  end
+
+  -- Runs after the properties block, which writes the resolved members back
+  -- into `value`. Before that, a dependent supplied under an alias or filled
+  -- by a default is not yet there to be found.
+  if type(spec.dependentRequired) == 'table' then
+    for key, dependents in pairs(spec.dependentRequired) do
+      if _lookup(value, key) ~= nil and type(dependents) == 'table' then
+        for _, dependent in ipairs(dependents) do
+          if _lookup(value, dependent) == nil then
+            _report(context, 'error', path, 'dependentRequired', string.format(
+              'requires "%s" when "%s" is present.', dependent, key
+            ))
+          end
+        end
       end
     end
   end
