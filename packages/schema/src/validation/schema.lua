@@ -1784,7 +1784,7 @@ local function _check_object(value, spec, path, context)
     for key, member in pairs(value) do
       local coerced = _coerce(member, spec.additionalProperties.type)
       value[key] = coerced
-      if coerced ~= nil and coerced ~= '' then
+      if coerced ~= nil then
         _validate_value(coerced, spec.additionalProperties, path .. '.' .. tostring(key), context)
       end
     end
@@ -1982,7 +1982,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
   for _, entry in ipairs(fields) do
     local value = merged[entry.name]
-    if entry.spec.deprecated and value ~= nil and value ~= '' then
+    if entry.spec.deprecated and value ~= nil then
       local message, cleared = _apply_deprecation(entry.name, entry.spec, value, merged)
       _report(context, 'warning', entry.path, 'deprecated', message)
       entry.cleared = cleared
@@ -1999,17 +1999,17 @@ _validate_map = function(values, descriptors, base_path, context, options)
       value = _coerce(merged[field], spec.type)
       merged[field] = value
 
-      if (value == nil or value == '') and spec.default ~= nil then
+      if value == nil and spec.default ~= nil then
         value = spec.default
         merged[field] = value
       end
     end
 
-    local is_empty = value == nil or value == ''
-
-    if spec.required == true and is_empty then
+    -- An empty string is a value the author wrote. Only a missing key is
+    -- absent, so `minLength`, `const` and `enum` can be tested against ''.
+    if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
-    elseif not is_empty then
+    elseif value ~= nil then
       _validate_value(value, spec, path, context)
     end
   end
@@ -2160,15 +2160,14 @@ function M.validate_arguments(args, argument_specs, options)
     local path = string.format('argument %d ("%s")', index, name)
 
     local value = _coerce(args[index], spec.type)
-    if (value == nil or value == '') and spec.default ~= nil then
+    if value == nil and spec.default ~= nil then
       value = spec.default
     end
     merged[name] = value
 
-    local is_empty = value == nil or value == ''
-    if spec.required == true and is_empty then
+    if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
-    elseif not is_empty then
+    elseif value ~= nil then
       _validate_value(value, spec, path, context)
     end
   end

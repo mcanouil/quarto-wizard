@@ -9,6 +9,7 @@
 ### Bug Fixes
 
 - fix: report an error for every value of a field whose `pattern` the Lua reference validator cannot compile, instead of compiling that pattern to one that matches the wrong values. The refusal now covers an anchored alternation such as `^a|b$`, and the escapes `\b`, `\B`, `\0`, `\c`, `\u`, `\x`, `\p` and `\k`.
+- fix: treat an empty string as a value in the Lua reference validator. A key set to `""` keeps that value, does not take its `default`, and is tested against `minLength`, `const` and `enum`. An extension that relied on an empty string falling back to its default no longer gets that fallback.
 
 ## 3.2.0 (2026-08-02)
 

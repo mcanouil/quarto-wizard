@@ -1090,6 +1090,62 @@ options:
   assert_eq(merged.text_color, nil, 'the normalised alias key should be removed')
 end)
 
+test('an explicit empty string is not replaced by the default', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    default: fallback
+]])
+  local _, _, _, merged = schema.validate({ label = '' }, loaded.options)
+  assert_eq(merged.label, '', 'an empty string should survive')
+end)
+
+test('an absent key still takes its default', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    default: fallback
+]])
+  local _, _, _, merged = schema.validate({}, loaded.options)
+  assert_eq(merged.label, 'fallback', 'an absent key should take the default')
+end)
+
+test('required is satisfied by an empty string', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    required: true
+]])
+  local valid, errors = schema.validate({ label = '' }, loaded.options)
+  assert_valid(valid, errors)
+end)
+
+test('required still reports an absent key', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    required: true
+]])
+  local valid = schema.validate({}, loaded.options)
+  assert_false(valid, 'an absent required key should be reported')
+end)
+
+test('minLength is enforced against an empty string', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    minLength: 1
+]])
+  local valid, errors = schema.validate({ label = '' }, loaded.options)
+  assert_false(valid, 'an empty string should fail minLength 1')
+  assert_contains(errors, 'label')
+end)
+
 -- ============================================================================
 -- REPORT
 -- ============================================================================
