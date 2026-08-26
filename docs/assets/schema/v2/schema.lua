@@ -167,6 +167,9 @@ end
 local function _format_value(value)
   local kind = type(value)
   if kind == 'string' then
+    if value == '' then
+      return '""'
+    end
     return value
   elseif kind == 'number' or kind == 'boolean' then
     return tostring(value)
@@ -693,11 +696,18 @@ end
 --- @param value any Pandoc metadata value
 --- @return any Native Lua value
 local function _convert_pandoc_value(value)
+  local kind = _env.pandoc_type(value)
+
+  -- A bare key, `null` and `~` all arrive as an empty Pandoc `string`, which
+  -- is how Pandoc collapses YAML null. An explicit `""` arrives as an empty
+  -- `Inlines` instead, so the two are told apart before either is unwrapped.
+  if kind == 'string' and value == '' then
+    return nil
+  end
+
   if type(value) ~= 'table' then
     return value
   end
-
-  local kind = _env.pandoc_type(value)
 
   if kind == 'Inlines' or kind == 'Blocks' or kind == 'Inline' or kind == 'Block' then
     return _env.stringify(value)
@@ -1730,7 +1740,7 @@ local function _check_items(value, spec, path, context)
   for index = 1, #value do
     local element = _coerce(value[index], spec.items.type)
     value[index] = element
-    if element ~= nil and element ~= '' then
+    if element ~= nil then
       _validate_value(element, spec.items, string.format('%s[%d]', path, index), context)
     end
   end
@@ -2021,7 +2031,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
         if options.additional then
           local coerced = _coerce(value, options.additional.type)
           merged[key] = coerced
-          if coerced ~= nil and coerced ~= '' then
+          if coerced ~= nil then
             _validate_value(coerced, options.additional, path, context)
           end
         elseif unknown_policy == 'error' then

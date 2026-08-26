@@ -310,8 +310,8 @@ All properties are optional.
 | `content-media-type`    | `string`                      | Media type of a string value (e.g. `application/json`). Annotation only.                                      |
 
 An empty string is a value, not an absent key.
-A key set to `""` keeps that value, does not take its `default`, satisfies `required`, and is tested against `minLength`, `const` and `enum`.
-Only a key that is missing is absent.
+A key set to `""` keeps that value, does not take its `default`, satisfies `required`, and is tested against `minLength`, `const` and `enum`, for a plain option value, an array element, and a surplus key matched by `additionalProperties`.
+A key with no value, or set to `null` or `~`, is absent in the same way as a key that is missing entirely, and takes its `default`.
 
 The `integer` type validates that the value is a whole number.
 It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of`).

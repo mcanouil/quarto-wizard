@@ -1146,6 +1146,98 @@ options:
   assert_contains(errors, 'label')
 end)
 
+test('a bare option in document metadata is absent and takes its default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count:')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, 'fallback', 'a bare key should take the default')
+end)
+
+test('an option set to null in document metadata is absent and takes its default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count: null')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, 'fallback', 'an explicit null should take the default')
+end)
+
+test('an option set to ~ in document metadata is absent and takes its default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count: ~')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, 'fallback', 'an explicit ~ should take the default')
+end)
+
+test('an option set to "" in document metadata is an empty string, not the default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count: ""')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, '', 'an explicit empty string should survive, not take the default')
+end)
+
+test('minLength is enforced against an empty array element', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    items:
+      type: string
+      minLength: 1
+]])
+  local valid, errors = schema.validate({ tags = { '' } }, loaded.options)
+  assert_false(valid, 'an empty array element should fail minLength 1')
+  assert_contains(errors, 'tags[1]')
+end)
+
+test('minLength is enforced against a surplus key when properties and additionalProperties are both declared', function()
+  local loaded = load_schema([[
+options:
+  layout:
+    type: object
+    properties:
+      columns:
+        type: number
+    additionalProperties:
+      type: string
+      minLength: 1
+]])
+  local valid, errors = schema.validate(
+    { layout = { columns = 2, extra = '' } }, loaded.options)
+  assert_false(valid, 'a surplus key set to an empty string should fail minLength 1')
+  assert_contains(errors, 'layout.extra')
+end)
+
+test('an empty string is rendered as "" in an error message', function()
+  local loaded = load_schema([[
+options:
+  echo:
+    type: string
+    enum: [a, b]
+]])
+  local valid, errors = schema.validate({ echo = '' }, loaded.options)
+  assert_false(valid, 'an empty string not in the enum should be reported')
+  assert_contains(errors, 'got ""')
+end)
+
 -- ============================================================================
 -- REPORT
 -- ============================================================================

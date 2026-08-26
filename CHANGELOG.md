@@ -10,6 +10,8 @@
 
 - fix: report an error for every value of a field whose `pattern` the Lua reference validator cannot compile, instead of compiling that pattern to one that matches the wrong values. The refusal now covers an anchored alternation such as `^a|b$`, and the escapes `\b`, `\B`, `\0`, `\c`, `\u`, `\x`, `\p` and `\k`.
 - fix: treat an empty string as a value in the Lua reference validator. A key set to `""` keeps that value, does not take its `default`, and is tested against `minLength`, `const` and `enum`. An extension that relied on an empty string falling back to its default no longer gets that fallback.
+- fix: warn when a deprecated option is set to an empty string in the Lua reference validator. The deprecation warning used to be skipped for `""` in the same way as for an absent key.
+- fix: validate a surplus key matched by `additionalProperties`, and an array element matched by `items`, when the value is an empty string in the Lua reference validator. Both used to skip `""` instead of testing it.
 
 ## 3.2.0 (2026-08-02)
 
