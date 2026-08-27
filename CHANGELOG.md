@@ -6,6 +6,10 @@
 
 - feat: publish the Lua reference validator of the v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/schema.lua`. The vocabulary and the validator carry the same version, and extensions can now resolve the module by URL. (#374)
 
+### Bug Fixes
+
+- fix: report an error for every value of a field whose `pattern` the Lua reference validator cannot compile, instead of compiling that pattern to one that matches the wrong values. The refusal now covers an anchored alternation such as `^a|b$`, and the escapes `\b`, `\B`, `\0`, `\c`, `\u`, `\x`, `\p` and `\k`.
+
 ## 3.2.0 (2026-08-02)
 
 ### New Features

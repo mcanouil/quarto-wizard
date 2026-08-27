@@ -329,6 +329,59 @@ test('the only pattern used in the corpus still works', function()
   assert_false(pattern_matches(regex, '3'))
 end)
 
+test('an anchor across an alternation is refused rather than misapplied', function()
+  local branches, reason = schema._compile_pattern('^abc|def$')
+  assert_eq(branches, nil, 'an anchored alternation should not compile')
+  assert_true(
+    reason ~= nil and reason:find('alternation', 1, true) ~= nil,
+    'the reason should name the alternation, got: ' .. tostring(reason)
+  )
+end)
+
+test('an anchor on a single branch still compiles', function()
+  assert_true(pattern_matches('^abc$', 'abc'), '^abc$ should match abc')
+  assert_false(pattern_matches('^abc$', 'xabc'), '^abc$ should not match xabc')
+end)
+
+test('an unanchored alternation still compiles', function()
+  assert_true(pattern_matches('abc|def', 'def'), 'abc|def should match def')
+end)
+
+test('a control escape maps to its character', function()
+  assert_true(pattern_matches('a\\nb', 'a\nb'), '\\n should match a newline')
+  assert_true(pattern_matches('a\\tb', 'a\tb'), '\\t should match a tab')
+end)
+
+test('an escape this compiler cannot express is refused', function()
+  local branches, reason = schema._compile_pattern('a\\bc')
+  assert_eq(branches, nil, '\\b should not compile to the letter b')
+  assert_true(
+    reason ~= nil and reason:find('escape', 1, true) ~= nil,
+    'the reason should name the escape, got: ' .. tostring(reason)
+  )
+end)
+
+test('a refused escape inside a character class is reported too', function()
+  local branches, reason = schema._compile_pattern('[\\b]')
+  assert_eq(branches, nil, '\\b inside a class should not compile')
+  assert_true(reason ~= nil, 'a reason should be given')
+end)
+
+test('a zero escape inside a character class is named an escape, not a backreference', function()
+  local branches, reason = schema._compile_pattern('[\\0]')
+  assert_eq(branches, nil, '[\\0] should not compile')
+  assert_contains(reason, 'unsupported escape "\\0"')
+end)
+
+test('a control escape inside a character class matches its character', function()
+  assert_true(pattern_matches('[\\n]', '\n'), '[\\n] should match a newline')
+  assert_false(pattern_matches('[\\n]', 'n'), '[\\n] should not match the letter n')
+end)
+
+test('an ordinary pattern still compiles', function()
+  assert_true(pattern_matches('abc', 'abc'), 'abc should match abc')
+end)
+
 -- ============================================================================
 -- KEYWORD COVERAGE
 -- ============================================================================
