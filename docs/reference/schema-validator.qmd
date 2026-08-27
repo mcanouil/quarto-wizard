@@ -31,12 +31,16 @@ It requires no other module, so one file is the whole dependency.
 ## Load the Module
 
 ```lua
-local schema = require('_modules.schema')
+local schema = require(quarto.utils.resolve_path('_modules/schema.lua'):gsub('%.lua$', ''))
 ```
 
-Quarto puts the directory of your extension on the Lua path, so the module name is relative to the root of your extension.
-`require` needs no resolved path, and this holds for a document in any directory of a project.
-A file that the module reads is different, because the operating system reads that path.
+`quarto.utils.resolve_path` turns a path that is relative to the root of your extension into an absolute path.
+`require` takes a module name and not a file name, so the `.lua` suffix is removed.
+
+Do not write `require('_modules.schema')`.
+Lua keys its module cache by the name that you pass, and every extension that vendors this module uses the same relative name.
+The second extension of a render then receives the copy of the first one, at whatever version that copy holds, and nothing reports it.
+An absolute path is unique to your extension, so it cannot collide.
 
 ## Read the Schema
 
