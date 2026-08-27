@@ -64,6 +64,7 @@
 			"description": "List of classification tags.",
 			"minItems": 1,
 			"maxItems": 10,
+			"uniqueItems": true,
 			"items": {
 				"type": "string",
 				"minLength": 1
@@ -121,6 +122,12 @@
 				"type": "file",
 				"extensions": [".png", ".svg", ".jpg"]
 			}
+		},
+		"inlineLogo": {
+			"type": "string",
+			"description": "Inline logo image, encoded as base64.",
+			"contentEncoding": "base64",
+			"contentMediaType": "image/png"
 		}
 	},
 	"shortcodes": {

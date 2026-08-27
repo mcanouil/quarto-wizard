@@ -50,13 +50,21 @@ options:
     exclusive-maximum: 1
 
   # An integer option with inclusive min/max bounds.
-  # "minimum" and "maximum" are accepted aliases for "min" and "max".
   count:
     type: number
     description: "Number of items to display."
     default: 3
     min: 1
     max: 100
+
+  # The same two bounds, written with the "minimum" and "maximum" aliases.
+  # v1 accepts either spelling, and this file shows both.
+  threshold:
+    type: number
+    description: "Cut-off value between 0 and 1."
+    default: 0.8
+    minimum: 0
+    maximum: 1
 
   # A string option with pattern validation.
   slug:
@@ -142,6 +150,14 @@ options:
         - .png
         - .svg
         - .jpg
+
+  # content-encoding and content-media-type are annotations. They describe the
+  # string value, and no check rejects a value that disagrees with them.
+  inline-logo:
+    type: string
+    description: "Inline logo image, encoded as base64."
+    content-encoding: base64
+    content-media-type: image/png
 
   # A field with freeform completion and placeholder.
   custom-css:

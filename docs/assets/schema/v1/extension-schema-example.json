@@ -24,6 +24,13 @@
 			"min": 1,
 			"max": 100
 		},
+		"threshold": {
+			"type": "number",
+			"description": "Cut-off value between 0 and 1.",
+			"default": 0.8,
+			"minimum": 0,
+			"maximum": 1
+		},
 		"slug": {
 			"type": "string",
 			"description": "URL-safe identifier for the output.",
@@ -99,6 +106,12 @@
 				"type": "file",
 				"extensions": [".png", ".svg", ".jpg"]
 			}
+		},
+		"inlineLogo": {
+			"type": "string",
+			"description": "Inline logo image, encoded as base64.",
+			"contentEncoding": "base64",
+			"contentMediaType": "image/png"
 		},
 		"customCss": {
 			"type": "string",
