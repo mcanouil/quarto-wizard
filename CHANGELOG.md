@@ -19,6 +19,7 @@
 - fix: accept a document that supplies both a field's declared name and one of its aliases in the Lua reference validator. Under `additionalProperties: false` the leftover alias key made the document invalid, and it now produces a warning.
 - fix: apply `dependentRequired` after aliases resolve in the Lua reference validator, so a dependent supplied under an alias is found. A trigger key whose value came from its own `default` no longer requires its dependents.
 - fix: show every keyword of the vocabulary in the published example schemas. The v2 examples gained `uniqueItems`, the v1 examples gained `minimum` and `maximum`, every example gained the two content keywords, and a test now holds each example to the vocabulary of its version. (#381)
+- fix: teach the canonical v2 vocabulary in the schema generation prompt. The prompt named 14 v1 spellings such as `min-length` and `pattern-exact`, and told the author to declare the v2 meta-schema, which rejects all of them. A test now holds every property that the prompt names to the v2 vocabulary.
 
 ## 3.2.0 (2026-08-02)
 
