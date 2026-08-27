@@ -10,6 +10,10 @@ import { parseKeywordTable, metaSchemaProperties } from "../helpers/schemaVocabu
 const validationDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "src", "validation");
 
 const luaSource = readFileSync(join(validationDir, "schema.lua"), "utf-8");
+
+// The meta-schema is read here rather than taken from ALLOWED_FIELD_PROPERTIES_V2,
+// which derives from the same file. This test holds the module to the shipped
+// artefact, so it must not compare it against another piece of source code.
 const metaSchema = JSON.parse(readFileSync(join(validationDir, "extension-schema-v2.json"), "utf-8"));
 
 describe("keyword parity", () => {
@@ -27,10 +31,13 @@ describe("keyword parity", () => {
 
 	// The split is the reason that this test exists, because the meta-schema
 	// cannot record which keywords the module acts on. A reformat that hides
-	// an entry now changes a count and fails here.
+	// an entry now changes a count and fails here. The two counts are asserted
+	// over the names and not over the values, so a failure prints the list and
+	// names the keyword that moved.
 	it("holds 25 acted-on keywords and 7 annotations", () => {
-		expect([...entries.values()].filter((acted) => acted)).toHaveLength(25);
-		expect([...entries.values()].filter((acted) => !acted)).toHaveLength(7);
+		const named = (wanted: boolean) => [...entries].filter(([, acted]) => acted === wanted).map(([name]) => name);
+		expect(named(true)).toHaveLength(25);
+		expect(named(false)).toHaveLength(7);
 	});
 });
 
