@@ -3,6 +3,7 @@ import {
 	parseKeywordTable,
 	readSchemaVersion,
 	metaSchemaProperties,
+	metaSchemaVocabulary,
 	keywordGroups,
 } from "../helpers/schemaVocabulary.js";
 
@@ -72,6 +73,27 @@ describe("metaSchemaProperties", () => {
 	// would pass over nothing.
 	it("raises when the field descriptor is absent", () => {
 		expect(() => metaSchemaProperties({})).toThrow("$defs.fieldDescriptor.properties not found in meta-schema");
+	});
+});
+
+describe("metaSchemaVocabulary", () => {
+	it("reads the property names of every definition", () => {
+		const metaSchema = {
+			$defs: {
+				fieldDescriptor: { properties: { type: {}, deprecated: {} } },
+				deprecatedSpec: { properties: { since: {}, type: {} } },
+			},
+		};
+		expect(metaSchemaVocabulary(metaSchema)).toEqual(["type", "deprecated", "since"]);
+	});
+
+	// The same reason as the two readers above. An empty list would report that
+	// one version supersedes no spelling of the other, which is the answer that
+	// a caller reads as "nothing to correct".
+	it("raises when no definition holds properties", () => {
+		expect(() => metaSchemaVocabulary({ $defs: { fieldDescriptor: {} } })).toThrow(
+			"no $defs entry holds properties in meta-schema",
+		);
 	});
 });
 

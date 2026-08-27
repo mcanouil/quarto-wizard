@@ -706,6 +706,8 @@ For every field use the following properties where applicable:
   describe what each array element looks like (its type, enum, etc.).
 - `properties`: schema for keys of an `object` type. Use `properties`
   to describe each expected key and its constraints.
+- `name`: the name of a positional shortcode argument. Required in an
+  entry of an `arguments` list, and used nowhere else.
 
 Output only the YAML content of `_schema.yml`, nothing else.
 Use camelCase for multi-word property names (`enumCaseInsensitive`,

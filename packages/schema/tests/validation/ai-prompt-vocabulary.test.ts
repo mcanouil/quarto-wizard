@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
-import { metaSchemaProperties } from "../helpers/schemaVocabulary.js";
+import { metaSchemaProperties, metaSchemaVocabulary } from "../helpers/schemaVocabulary.js";
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const repoRoot = join(pkgRoot, "..", "..");
@@ -16,6 +16,19 @@ function readMetaSchema(file: string): unknown {
 
 const metaSchema = readMetaSchema("extension-schema-v2.json");
 
+/**
+ * Every spelling that v1 holds and v2 does not.
+ *
+ * The prompt names a key of the structured `deprecated` value as well as a
+ * field descriptor property, so the whole vocabulary of each version is read. A
+ * name here is one that the v2 meta-schema rejects, and the prompt must not
+ * teach it.
+ */
+const canonical = new Set(metaSchemaVocabulary(metaSchema));
+const superseded = new Set(
+	metaSchemaVocabulary(readMetaSchema("extension-schema.json")).filter((name) => !canonical.has(name)),
+);
+
 // The prompt tells the author to declare the v2 meta-schema, and
 // `$defs.fieldDescriptor` sets `additionalProperties: false`, so a property
 // that the prompt names and the vocabulary does not hold is an error in every
@@ -28,7 +41,7 @@ const PROMPT_BLOCK = /```\{\.markdown filename="Prompt for generating[^"]*"\}\n(
 // "- `minLength` / `maxLength`: string length constraints.". A bullet runs to
 // the next bullet or to the blank line that ends the list, because a
 // description can take several lines.
-const PROPERTY_BULLET = /^- (`[A-Za-z][A-Za-z0-9-]*`(?: \/ `[A-Za-z][A-Za-z0-9-]*`)*):([\s\S]*?)(?=\n- `|\n\n)/gm;
+const PROPERTY_BULLET = /^- (`[^`]+`(?: \/ `[^`]+`)*):([\s\S]*?)(?=\n- `|\n\n)/gm;
 
 /** The body of the code block that holds the AI prompt. */
 function promptBlock(): string {
@@ -52,42 +65,37 @@ function backtickedNames(text: string): string[] {
 	return [...text.matchAll(/`([^`]+)`/g)].map((name) => name[1]);
 }
 
-/**
- * Every spelling that v1 holds and v2 does not.
- *
- * The prompt names a key of the structured `deprecated` value as well as a
- * field descriptor property, so both maps are read. A name here is one that
- * the v2 meta-schema rejects, and the prompt must not teach it.
- */
-function supersededSpellings(): Set<string> {
-	const properties = (version: unknown): string[] => [
-		...metaSchemaProperties(version),
-		...Object.keys(
-			(version as { $defs: { deprecatedSpec: { properties: Record<string, unknown> } } }).$defs.deprecatedSpec
-				.properties,
-		),
-	];
-	const canonical = new Set(properties(metaSchema));
-	return new Set(properties(readMetaSchema("extension-schema.json")).filter((name) => !canonical.has(name)));
+/** Every property name that the head of a bullet declares. */
+function namedProperties(): string[] {
+	return propertyBullets().flatMap((bullet) => backtickedNames(bullet.head));
 }
 
 describe("AI prompt vocabulary", () => {
 	it("names only properties that the v2 meta-schema holds", () => {
 		const allowed = new Set(metaSchemaProperties(metaSchema));
-		const named = [...new Set(propertyBullets().flatMap((bullet) => backtickedNames(bullet.head)))];
-		expect(named.filter((name) => !allowed.has(name))).toEqual([]);
+		expect(namedProperties().filter((name) => !allowed.has(name))).toEqual([]);
+	});
+
+	// The other direction, and the one that a reformat breaks. A bullet head
+	// written in a shape that `PROPERTY_BULLET` does not match drops out of the
+	// list in silence, and the check above then passes over a short baseline.
+	// This check fails instead, because the dropped name is no longer covered.
+	it("names every property of the v2 vocabulary", () => {
+		const named = new Set(namedProperties());
+		expect(metaSchemaProperties(metaSchema).filter((name) => !named.has(name))).toEqual([]);
 	});
 
 	// A description names a key as well, as in "an object with `since`,
 	// `message`, and `replaceWith` keys". The head alone therefore leaves a v1
 	// spelling free to survive inside a description.
 	it("teaches no spelling that v2 supersedes", () => {
-		const superseded = supersededSpellings();
 		const taught = propertyBullets().flatMap((bullet) => backtickedNames(bullet.description));
-		expect([...new Set(taught)].filter((name) => superseded.has(name))).toEqual([]);
+		expect(taught.filter((name) => superseded.has(name))).toEqual([]);
 	});
 
+	// The closing instruction is prose and not a bullet, so no check above
+	// reaches it. It is also where the v1 rule was stated.
 	it("does not tell the author to use kebab-case", () => {
-		expect(page).not.toMatch(/Use kebab-case for multi-word property names/);
+		expect(promptBlock()).not.toContain("Use kebab-case for multi-word property names");
 	});
 });
