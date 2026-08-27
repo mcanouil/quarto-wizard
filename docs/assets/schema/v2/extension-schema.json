@@ -190,7 +190,7 @@
 				},
 				"uniqueItems": {
 					"type": "boolean",
-					"description": "Reject an array that repeats an item. Items are compared by type and rendered value, so the number 1 and the string \"1\" are different items."
+					"description": "Reject an array that repeats an item. Items are compared by type, so the number 1 and the string \"1\" are different items; a string is compared by its own text, and any other value by its rendering."
 				},
 				"additionalProperties": {
 					"description": "Whether object values may contain keys beyond those in `properties`. Boolean or a nested field descriptor.",
