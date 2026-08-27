@@ -2,14 +2,13 @@
 /**
  * Synchronises metadata fields from the root package.json to every workspace package.
  *
- * Fields synchronised: author, license, bugs, homepage, version, sponsor.
+ * SYNC_FIELDS below lists the fields that are copied as they are.
  * `repository` is synchronised as well, but not through SYNC_FIELDS, because
  * each package gets its own `directory` inside the copied value.
- * `version` is synchronised, so a workspace package is not independent: the
- * root version is written into every package. `packages/schema` therefore
- * reports the version of the extension by design, and anything that reasons
- * about a published package version has to know this.
- * Nothing is merged, because MERGE_ARRAY_FIELDS is empty.
+ * `version` is one of the copied fields, so a workspace package is not
+ * independent: the root version is written into every package.
+ * `packages/schema` therefore reports the version of the extension by design,
+ * and anything that reasons about a published package version has to know this.
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
@@ -21,9 +20,6 @@ const rootDir = join(__dirname, "..");
 
 /** Fields to copy directly from root to packages */
 const SYNC_FIELDS = ["author", "license", "bugs", "homepage", "version", "sponsor"];
-
-/** Fields to merge (package values are preserved, root values added if missing) */
-const MERGE_ARRAY_FIELDS = [];
 
 function readJson(filePath) {
 	return JSON.parse(readFileSync(filePath, "utf-8"));
@@ -56,13 +52,6 @@ function syncRepository(rootRepo, pkgPath) {
 	};
 }
 
-// function mergeKeywords(rootKeywords, pkgKeywords) {
-// 	if (!rootKeywords && !pkgKeywords) return undefined;
-// 	const root = rootKeywords || [];
-// 	const pkg = pkgKeywords || [];
-// 	return [...new Set([...pkg, ...root])];
-// }
-
 function syncPackage(rootPkg, pkgDir) {
 	const pkgPath = join(pkgDir, "package.json");
 	const pkg = readJson(pkgPath);
@@ -88,12 +77,6 @@ function syncPackage(rootPkg, pkgDir) {
 			changed = true;
 		}
 	}
-
-	// const mergedKeywords = mergeKeywords(rootPkg.keywords, pkg.keywords);
-	// if (mergedKeywords && JSON.stringify(mergedKeywords) !== JSON.stringify(pkg.keywords)) {
-	// 	pkg.keywords = mergedKeywords;
-	// 	changed = true;
-	// }
 
 	if (changed) {
 		writeJson(pkgPath, pkg);
