@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 /**
- * Synchronises metadata fields from root package.json to all workspace packages.
+ * Synchronises metadata fields from the root package.json to every workspace package.
  *
- * Fields synchronised: author, license, repository, bugs, homepage
- * Version is NOT synchronised as packages may have independent versioning.
- * Keywords are merged (package-specific keywords are preserved).
+ * Fields synchronised: author, license, bugs, homepage, version, sponsor.
+ * `repository` is synchronised as well, but not through SYNC_FIELDS, because
+ * each package gets its own `directory` inside the copied value.
+ * `version` is synchronised, so a workspace package is not independent: the
+ * root version is written into every package. `packages/schema` therefore
+ * reports the version of the extension by design, and anything that reasons
+ * about a published package version has to know this.
+ * Nothing is merged, because MERGE_ARRAY_FIELDS is empty.
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
