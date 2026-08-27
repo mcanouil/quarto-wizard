@@ -37,9 +37,10 @@ describe("parseKeywordTable", () => {
 		expect(entries.get("beta")).toBe(false);
 	});
 
-	// A missing table has to raise. A reader that returned an empty map would
-	// give every parity check a baseline of nothing to compare against, and
-	// each one would pass.
+	// A missing table has to raise, so that the failure names its cause. A
+	// reader that returned an empty map would report a parity mismatch
+	// instead, which names the wrong cause, and the check that every module
+	// keyword is held by the meta-schema would pass over nothing.
 	it("raises when the source holds no keyword table", () => {
 		expect(() => parseKeywordTable("local M = {}\n")).toThrow("M.KEYWORDS table not found");
 	});
@@ -65,8 +66,10 @@ describe("metaSchemaProperties", () => {
 		expect(metaSchemaProperties(metaSchema)).toEqual(["type", "min-length"]);
 	});
 
-	// The same reason as the missing keyword table: an empty list would give
-	// each parity check nothing to compare against, and it would pass.
+	// The same reason as the missing keyword table, in the other direction. An
+	// empty list would report a parity mismatch that names the wrong cause,
+	// and the check that every meta-schema property is named by the module
+	// would pass over nothing.
 	it("raises when the field descriptor is absent", () => {
 		expect(() => metaSchemaProperties({})).toThrow("$defs.fieldDescriptor.properties not found in meta-schema");
 	});

@@ -59,7 +59,7 @@ export function metaSchemaProperties(metaSchema: unknown): string[] {
  *
  * This groups a pair that differs by a hyphen only, such as `minLength` and
  * `min-length`. It does not group a short alias with its long name, because
- * `min` and `minimum` differ by more than a hyphen. `KEY_ALIASES` in
+ * `min` and `minimum` differ by more than a hyphen. `FIELD_ALIAS_PAIRS` in
  * `src/types/schema.ts` holds those pairs, and a caller that needs them has to
  * read it. v1 therefore yields 34 groups from 48 property names, and `min`,
  * `minimum`, `max` and `maximum` are four of those groups and not two.
