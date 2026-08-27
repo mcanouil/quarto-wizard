@@ -584,6 +584,46 @@ options:
   assert_contains(errors, 'password')
 end)
 
+test('a trigger key filled by its own default does not fire dependentRequired', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+        default: anonymous
+      password:
+        type: string
+]])
+  local valid, errors, _, merged = schema.validate({ auth = {} }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.auth.user, 'anonymous', 'the default is still applied')
+end)
+
+test('a trigger key the author supplied still fires dependentRequired', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+        default: anonymous
+      password:
+        type: string
+]])
+  local valid, errors = schema.validate({ auth = { user = 'me' } }, loaded.options)
+  assert_false(valid, 'a supplied trigger fires even when the field has a default')
+  assert_contains(errors, 'password')
+end)
+
 test('nested properties contribute defaults and coercion to merged', function()
   local loaded = load_schema([[
 options:
@@ -1074,6 +1114,42 @@ options:
   )
 end)
 
+test('the declared name wins over an alias, even in its normalised spelling', function()
+  local loaded = load_schema([[
+options:
+  text-color:
+    type: string
+    aliases:
+      - color
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { text_color = 'a', color = 'b' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged['text-color'], 'a', 'the declared name should win over the alias')
+  assert_eq(merged.color, nil, 'the alias key should be removed')
+  assert_eq(merged.text_color, nil, 'the normalised declared key should be removed')
+  assert_contains(warnings, '"text_color" and "color"', 'the warning names both supplied keys')
+  for _, warning in ipairs(warnings) do
+    assert_false(
+      warning:find('not a recognised key', 1, true) ~= nil,
+      'the declared spelling is not an unknown key: ' .. warning
+    )
+  end
+end)
+
+test('the conflict warning names the two keys the author supplied', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+      - farbe
+]])
+  local _, _, warnings = schema.validate({ color = 'blue', farbe = 'rot' }, loaded.options)
+  assert_contains(warnings, 'was given as both "color" and "farbe"; "color" was used.')
+end)
+
 test('an alias matched via hyphen/underscore normalisation moves without a false conflict', function()
   local loaded = load_schema([[
 options:
@@ -1192,6 +1268,19 @@ options:
   local options = doc_options('    count: ""')
   local _, _, _, merged = schema.validate(options, loaded.options)
   assert_eq(merged.count, '', 'an explicit empty string should survive, not take the default')
+end)
+
+test('an empty string on a numeric field is a type error, not the default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: number
+    default: 3
+]])
+  local valid, errors, _, merged = schema.validate({ count = '' }, loaded.options)
+  assert_false(valid, 'an empty string is not a number')
+  assert_contains(errors, 'must be of type "number", got "string"')
+  assert_eq(merged.count, '', 'the empty string is not replaced by the default')
 end)
 
 test('minLength is enforced against an empty array element', function()

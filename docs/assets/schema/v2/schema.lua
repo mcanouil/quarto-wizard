@@ -1781,8 +1781,10 @@ local function _check_object(value, spec, path, context)
     end
   end
 
+  local defaulted = {}
+
   if type(spec.properties) == 'table' then
-    local sub = _validate_map(value, spec.properties, path, context, {
+    local sub, filled = _validate_map(value, spec.properties, path, context, {
       unknown = spec.additionalProperties == false and 'error' or 'ignore',
       additional = type(spec.additionalProperties) == 'table' and spec.additionalProperties or nil,
     })
@@ -1802,6 +1804,7 @@ local function _check_object(value, spec, path, context)
     for key, member in pairs(sub) do
       value[key] = member
     end
+    defaulted = filled
   elseif type(spec.additionalProperties) == 'table' then
     for key, member in pairs(value) do
       local coerced = _coerce(member, spec.additionalProperties.type)
@@ -1813,11 +1816,13 @@ local function _check_object(value, spec, path, context)
   end
 
   -- Runs after the properties block, which writes the resolved members back
-  -- into `value`. Before that, a dependent supplied under an alias or filled
-  -- by a default is not yet there to be found.
+  -- into `value`. Before that, a dependent supplied under an alias is not yet
+  -- there to be found. A `default` is an annotation and does not change the
+  -- instance, so a key that only holds one never triggers a requirement.
   if type(spec.dependentRequired) == 'table' then
     for key, dependents in pairs(spec.dependentRequired) do
-      if _lookup(value, key) ~= nil and type(dependents) == 'table' then
+      local trigger, trigger_key = _lookup(value, key)
+      if trigger ~= nil and not defaulted[trigger_key] and type(dependents) == 'table' then
         for _, dependent in ipairs(dependents) do
           if _lookup(value, dependent) == nil then
             _report(context, 'error', path, 'dependentRequired', string.format(
@@ -1939,6 +1944,7 @@ end
 --- @param context table Validation context
 --- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor}
 --- @return table merged Values with aliases, coercion and defaults applied
+--- @return table defaulted Set of field names whose value came from `default`
 _validate_map = function(values, descriptors, base_path, context, options)
   options = options or {}
   local unknown_policy = options.unknown or 'ignore'
@@ -1949,6 +1955,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
   end
 
   local claimed = {}
+  local defaulted = {}
   local fields = {}
 
   -- Three passes, because `pairs` yields descriptors in no particular order.
@@ -1966,6 +1973,18 @@ _validate_map = function(values, descriptors, base_path, context, options)
     -- A value found under an alias, or under the other spelling, moves to the
     -- name the schema declares. The key it came from is removed, so `merged`
     -- never carries the same value twice, once coerced and once raw.
+    -- The declared name is read first, so it wins over any alias.
+    local supplied_key
+    local found, found_key = _lookup(merged, field)
+    if found ~= nil then
+      merged[field] = found
+      claimed[found_key] = true
+      supplied_key = found_key
+      if found_key ~= field then
+        merged[found_key] = nil
+      end
+    end
+
     if type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
         claimed[alias] = true
@@ -1974,29 +1993,20 @@ _validate_map = function(values, descriptors, base_path, context, options)
           claimed[alias_key] = true
           if merged[field] == nil then
             merged[field] = aliased
+            supplied_key = alias_key
           elseif alias_key ~= field then
-            -- Both spellings were supplied. The declared name wins, and the
-            -- alias is reported rather than left behind unvalidated.
+            -- Two spellings were supplied. The first one read wins, and the
+            -- other is reported rather than left behind unvalidated. Both
+            -- names come from the document, never from the schema.
             _report(context, 'warning',
               base_path and (base_path .. '.' .. field) or field,
               'aliases',
               string.format('was given as both "%s" and "%s"; "%s" was used.',
-                field, alias_key, field))
+                supplied_key, alias_key, supplied_key))
           end
           if alias_key ~= field then
             merged[alias_key] = nil
           end
-        end
-      end
-    end
-
-    if merged[field] == nil then
-      local found, found_key = _lookup(merged, field)
-      if found ~= nil then
-        merged[field] = found
-        claimed[found_key] = true
-        if found_key ~= field then
-          merged[found_key] = nil
         end
       end
     end
@@ -2024,6 +2034,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
       if value == nil and spec.default ~= nil then
         value = spec.default
         merged[field] = value
+        defaulted[field] = true
       end
     end
 
@@ -2055,7 +2066,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
     end
   end
 
-  return merged
+  return merged, defaulted
 end
 
 --- Start a validation run.
