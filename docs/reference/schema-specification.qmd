@@ -321,8 +321,10 @@ The `content` type is specific to shortcode arguments and accepts any Pandoc Inl
 Quarto Wizard rejects `type: content` outside shortcode arguments.
 Validation only checks presence (for `required`); no further type or pattern checking applies.
 
-The `null` type matches the explicit YAML value `null` (or `~`).
-Combine it with another type for nullable fields, e.g. `type: [string, "null"]`.
+The `null` type never matches a supplied value, because a key set to `null` or `~` is read as an absent key.
+A field declared `type: "null"` and `required: true` is therefore reported as missing.
+List `"null"` beside another type, as in `type: [string, "null"]`, to document that a key may be written as `~`.
+Such a key takes its `default`, like any other absent key.
 
 In JSON schema files, multi-word property names use camelCase equivalents: `enumCaseInsensitive`, `patternExact`, `minLength`, `maxLength`, `minItems`, `maxItems`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `additionalProperties`, `propertyNames`, `dependentRequired`, `contentEncoding`, and `contentMediaType`.
 Mixing camelCase and kebab-case forms of the same keyword on one descriptor produces a warning.
