@@ -1,0 +1,160 @@
+---
+title: "Using the Lua Validator"
+subtitle: "How an extension validates its own options during a render"
+---
+
+## Two Artefacts, Two Jobs
+
+The project publishes two things, and they run at different times.
+
+The **meta-schema JSON** validates your `_schema.yml` while you write it.
+An editor or any JSON Schema tool reads it.
+It never runs during a render.
+
+The **Lua module** validates the document metadata of your user during a render.
+It tests that metadata against the schema that you wrote.
+It never reads the meta-schema.
+
+## Get the Module
+
+The module is published at [`v2/schema.lua`](/assets/schema/v2/schema.lua).
+
+Vendor it into your extension, at `_extensions/<name>/_modules/schema.lua`.
+A render must not need network access, so a vendored copy is the normal choice.
+
+The module is standalone.
+It requires no other module, so one file is the whole dependency.
+
+## Load the Module
+
+```lua
+local schema = require('_modules.schema')
+```
+
+Quarto puts the directory of your extension on the Lua path, so the module name is relative to the root of your extension.
+
+## Read the Schema
+
+```lua
+local definition, err = schema.load_schema('_schema.yml')
+```
+
+`load_schema` returns the schema, or `nil` and a message that says why the file could not be read.
+The argument is optional, and it defaults to `_schema.yml`.
+
+The returned table always holds the keys `$schema`, `options`, `shortcodes`, `formats`, `projects`, `attributes` and `classes`.
+A section that the file omits is an empty table.
+
+A failure is returned and not raised.
+Quarto replaces `error` with a logger that returns instead of unwinding.
+A raise here therefore lets a caller continue with a `nil` schema, and fail later somewhere unrelated.
+
+## Validate the Options of an Extension
+
+This is the common entry point.
+
+```lua
+local options = schema.validate_options(meta, 'iconify', quarto.utils.resolve_path('_schema.yml'))
+```
+
+| Parameter        | Type         | Meaning                                                                |
+| ---------------- | ------------ | ---------------------------------------------------------------------- |
+| `meta`           | table        | Document metadata.                                                     |
+| `extension_name` | string       | The name of your extension.                                            |
+| `schema_path`    | string       | Path to the schema file, resolved by the caller.                       |
+| `options`        | table or nil | `{unknown = 'warn'}`, `{unknown = 'error'}` or `{unknown = 'ignore'}`. |
+
+It returns one value, the validated options, with every default applied.
+It reads the options from `meta.extensions.<extension_name>`, and it reports every error and every warning through the host logger.
+
+A schema that cannot be read is reported, and the call returns an empty table.
+The module does not stop a render because of a configuration file.
+An empty table is also returned when the schema declares no `options` section.
+
+## Narrower Entry Points
+
+Each of these returns `valid`, `errors`, `warnings`, `merged` and `findings`, in that order.
+`valid` is `true` when no error was reported.
+`errors` and `warnings` hold arrays of strings.
+`merged` holds the values with aliases, coercion and defaults applied.
+`findings` holds the same reports as structured tables.
+
+```lua
+local valid, errors, warnings, merged = schema.validate(values, definition.options)
+local valid, errors, warnings, merged = schema.validate_arguments(args, entry.arguments)
+local valid, errors, warnings, merged = schema.validate_shortcode('iconify', args, kwargs, definition.shortcodes.iconify)
+local valid, errors, warnings, merged = schema.validate_attributes(el.attributes, 'callout-note', definition)
+local valid, errors, warnings, merged = schema.validate_format(meta, 'typst', definition)
+```
+
+`validate` takes a map of values and a map of field descriptors.
+`validate_arguments` takes an array of positional values and an array of argument descriptors.
+It keys `merged` by the `name` of each descriptor, and a descriptor with no `name` is keyed by its position.
+`validate_shortcode` takes the shortcode name, its positional arguments, its named attributes, and the entry at `definition.shortcodes[name]`.
+It also enforces the parent-level `required` array of that entry.
+`validate_attributes` takes the attributes of an element, the group that they belong to, and the loaded schema.
+`validate_format` takes the metadata, a format name, and the loaded schema.
+
+Each also accepts an optional `{unknown = ...}` table as its last parameter.
+`validate`, `validate_shortcode`, `validate_attributes` and `validate_format` accept `warn`, `error` or `ignore`.
+`validate_arguments` accepts `warn` or `ignore`, because a surplus positional argument is never an error.
+
+`validate`, `validate_arguments` and `validate_shortcode` default to `warn`.
+`validate_attributes` and `validate_format` default to `ignore`, because a Pandoc element and a format block both carry keys from Quarto and from other filters.
+
+A group or a format that the schema does not declare is not an error.
+`validate_attributes` then returns the supplied attributes unchanged, and `validate_format` returns an empty table.
+
+## Read the Options of an Extension
+
+```lua
+local values = schema.extract_meta_options(meta, 'iconify')
+```
+
+`extract_meta_options` reads `meta.extensions.<extension_name>` and returns a plain Lua table.
+It keeps every key as the document wrote it, and it applies no default.
+`validate_options` calls it, so a caller needs it only to validate by hand.
+
+## List the Keys of a Mapping
+
+```lua
+for _, name in ipairs(schema.key_order(definition.options)) do
+```
+
+`key_order` returns an array of the keys of a mapping, in the order that the schema declared them.
+A Lua table holds no order, so a generator that turns a schema into documentation needs this reader.
+For a table that the module did not parse, the keys are sorted.
+
+## Report the Result
+
+```lua
+local message = schema.format_errors(errors, 'iconify')
+local notice = schema.format_warnings(warnings, 'iconify')
+```
+
+Each takes an array of strings and an optional extension name, and returns one readable block.
+An empty array returns an empty string.
+
+## The Environment Seam
+
+The module reaches `pandoc` and `quarto` through its `_env` table only, which a caller reaches as `schema._env`.
+
+| Field                   | Job                                                    |
+| ----------------------- | ------------------------------------------------------ |
+| `stringify(value)`      | Shows a Pandoc value as plain text.                    |
+| `pandoc_type(value)`    | Reports the Pandoc type of a value.                    |
+| `warn(message)`         | Sends a warning to `quarto.log.warning`, or to stderr. |
+| `report_error(message)` | Sends an error to `quarto.log.error`, or to stderr.    |
+
+The seam resolves at call time.
+A test harness can therefore install stubs and run the module outside a render.
+
+## Versions
+
+`SCHEMA_VERSION` holds the URL of the meta-schema that the module implements.
+The vocabulary and the module carry the same version.
+Version 2 of the vocabulary is implemented by version 2 of the module.
+
+The module and the meta-schema that it implements are published by the same release.
+Take a vendored copy from that release, and refresh it from the release that ships the next version of the vocabulary.
+A module and a meta-schema from two different releases can disagree.
