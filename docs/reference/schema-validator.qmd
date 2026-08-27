@@ -35,15 +35,21 @@ local schema = require('_modules.schema')
 ```
 
 Quarto puts the directory of your extension on the Lua path, so the module name is relative to the root of your extension.
+`require` needs no resolved path, and this holds for a document in any directory of a project.
+A file that the module reads is different, because the operating system reads that path.
 
 ## Read the Schema
 
 ```lua
-local definition, err = schema.load_schema('_schema.yml')
+local definition, err = schema.load_schema(quarto.utils.resolve_path('_schema.yml'))
 ```
 
 `load_schema` returns the schema, or `nil` and a message that says why the file could not be read.
-The argument is optional, and it defaults to `_schema.yml`.
+
+The path is read as the operating system reads it, so it is relative to the directory of the render and not to your extension.
+Resolve it with `quarto.utils.resolve_path`.
+A bare `_schema.yml` fails during a render, with the message `Could not open schema file: _schema.yml`.
+The argument is optional, and it defaults to `_schema.yml`, which is useful outside a render only.
 
 The returned table always holds the six section keys `options`, `shortcodes`, `formats`, `projects`, `attributes` and `classes`.
 A section that the file omits is an empty table.
