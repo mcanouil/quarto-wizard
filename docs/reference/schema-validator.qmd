@@ -42,8 +42,9 @@ local definition, err = schema.load_schema('_schema.yml')
 `load_schema` returns the schema, or `nil` and a message that says why the file could not be read.
 The argument is optional, and it defaults to `_schema.yml`.
 
-The returned table always holds the keys `$schema`, `options`, `shortcodes`, `formats`, `projects`, `attributes` and `classes`.
+The returned table always holds the six section keys `options`, `shortcodes`, `formats`, `projects`, `attributes` and `classes`.
 A section that the file omits is an empty table.
+It also holds `$schema`, but only when the file declares that key.
 
 A failure is returned and not raised.
 Quarto replaces `error` with a logger that returns instead of unwinding.
@@ -89,7 +90,8 @@ local valid, errors, warnings, merged = schema.validate_format(meta, 'typst', de
 
 `validate` takes a map of values and a map of field descriptors.
 `validate_arguments` takes an array of positional values and an array of argument descriptors.
-It keys `merged` by the `name` of each descriptor, and a descriptor with no `name` is keyed by its position.
+It keys `merged` by the `name` of each descriptor.
+A descriptor with no `name` is keyed by its position, written as a string, such as `'1'`.
 `validate_shortcode` takes the shortcode name, its positional arguments, its named attributes, and the entry at `definition.shortcodes[name]`.
 It also enforces the parent-level `required` array of that entry.
 `validate_attributes` takes the attributes of an element, the group that they belong to, and the loaded schema.
