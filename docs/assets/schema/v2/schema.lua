@@ -1730,12 +1730,18 @@ local function _check_array(value, spec, path, context)
   if spec.uniqueItems == true then
     local seen = {}
     for index = 1, length do
-      -- Key on the type as well as the rendering, so the number 1 and the
-      -- string "1" are not read as the same item.
-      local key = type(value[index]) .. '\0' .. _format_value(value[index])
+      local element = value[index]
+      local rendered = _format_value(element)
+      -- The key carries the type so 1 and "1" are different items. A string
+      -- keys on its own text rather than on the rendering, because
+      -- `_format_value` renders an empty string as `""`, which would make it
+      -- collide with the two-character string `""`. The message carries only
+      -- the rendering, because the key is not the author's text.
+      local raw = type(element) == 'string' and element or rendered
+      local key = type(element) .. '\0' .. raw
       if seen[key] then
         _report(context, 'error', path, 'uniqueItems', string.format(
-          'must not repeat items, but %s appears more than once.', key
+          'must not repeat items, but %s appears more than once.', rendered
         ))
         break
       end

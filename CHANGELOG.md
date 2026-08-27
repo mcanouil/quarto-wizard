@@ -5,6 +5,7 @@
 ### New Features
 
 - feat: publish the Lua reference validator of the v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/schema.lua`. The vocabulary and the validator carry the same version, and extensions can now resolve the module by URL. (#374)
+- feat: accept `uniqueItems` in a field descriptor. The Lua reference validator already enforced the keyword, and the meta-schema now allows it, so a schema that uses it passes both.
 
 ### Bug Fixes
 
