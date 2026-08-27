@@ -586,6 +586,17 @@ The JSON Schema meta-schemas that formally describe the structure of `_schema.ym
 These are the same schemas referenced by the `$schema` key at the top of schema definition files.
 They can be used by any JSON Schema-aware tool for validation and autocompletion.
 
+The reference implementation of the v2 vocabulary is a Lua module, published at:
+
+- [`v2/schema.lua`](/assets/schema/v2/schema.lua) (reference validator; reads `_schema.yml` and validates options at render time).
+
+Quarto extensions load this module to validate their configuration during a render.
+The module is standalone: it requires no other module, and it reaches `pandoc` and `quarto` only through its `_env` table.
+Its `SCHEMA_VERSION` field holds the URL of the meta-schema it implements.
+
+The vocabulary and the validator version together: version 2 of the vocabulary is implemented by version 2 of the module, and a future version 3 ships with its matching module.
+That version is the version of the vocabulary, and not the version of the `@quarto-wizard/schema` package that publishes both.
+
 Example instances showing every supported property are also available:
 
 - [`v1/extension-schema-example.yml`](/assets/schema/v1/extension-schema-example.yml) (v1 YAML, kebab-case keys).

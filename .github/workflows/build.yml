@@ -19,6 +19,10 @@ on:
       - "packages/**"
       - "package.json"
       - "package-lock.json"
+      # Swept by the Lua conformance job, and edited through pull requests.
+      # The vendored schemas under docs/ are not listed: a bot updates those
+      # straight on the default branch, where a pull request filter cannot fire.
+      - "test-fixtures/**/_schema.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
@@ -170,13 +174,58 @@ jobs:
           path: job-summary.txt
           retention-days: 1
 
-  summary:
+  lua:
     if: github.event.pull_request.draft == false
-    needs: build
+    name: Lua reference validator
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
+
+      - name: Test Lua reference validator
+        id: test-lua
+        shell: bash
+        working-directory: packages/schema
+        run: npm run test:lua
+
+      - name: Generate job result summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "OS: ubuntu-latest (Lua)"
+            echo "Node: n/a"
+            echo "Status: ${{ steps.test-lua.outcome }}"
+            echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          } > job-summary.txt
+
+      - name: Upload job summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: job-summary-lua
+          path: job-summary.txt
+          retention-days: 1
+
+  summary:
+    if: always() && github.event.pull_request.draft == false
+    needs:
+      - build
+      - lua
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - name: Download all job summaries
+        # The summary now runs even when a needed job fails, so there may be no
+        # artifact at all. The consolidated summary below falls back to the job
+        # results in that case, which it cannot do if this step fails first.
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           pattern: job-summary-*
@@ -201,85 +250,64 @@ jobs:
           echo "| Operating System | Node.js Version | Status | Timestamp |" >> ${GITHUB_STEP_SUMMARY}
           echo "|------------------|-----------------|--------|-----------|" >> ${GITHUB_STEP_SUMMARY}
 
-          total_jobs=0
-          successful_jobs=0
-          failed_jobs=0
-          cancelled_jobs=0
+          lua_summary="job-summaries/job-summary-lua/job-summary.txt"
 
-          # Find all job-summary.txt files in job-summaries subfolders
-          find job-summaries -type f -name "job-summary.txt" | while read summary_file; do
-            if [[ -f "${summary_file}" ]]; then
-              total_jobs=$((total_jobs + 1))
-              os=$(grep "OS:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
-              node=$(grep "Node:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
-              status=$(grep "Status:" "${summary_file}" | cut -d' ' -f2- || echo "unknown")
-              timestamp=$(grep "Timestamp:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
-              case "${status}" in
-                "success")
-                  status_emoji="✅"
-                  successful_jobs=$((successful_jobs + 1))
-                  ;;
-                "failure")
-                  status_emoji="❌"
-                  failed_jobs=$((failed_jobs + 1))
-                  ;;
-                "cancelled")
-                  status_emoji="🟡"
-                  cancelled_jobs=$((cancelled_jobs + 1))
-                  ;;
-                *)
-                  status_emoji="⚠️"
-                  ;;
-              esac
-              echo "| ${os} | ${node} | ${status_emoji} ${status} | ${timestamp} |" >> ${GITHUB_STEP_SUMMARY}
-            fi
+          # The table reports the cells that uploaded a summary. A cell killed by
+          # its timeout never reaches its upload step, so the table can be short.
+          # The verdict below therefore comes from the job results, not from here.
+          find job-summaries -type f -name "job-summary.txt" 2>/dev/null | while read summary_file; do
+            os=$(grep "OS:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+            node=$(grep "Node:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+            status=$(grep "Status:" "${summary_file}" | cut -d' ' -f2- || echo "unknown")
+            timestamp=$(grep "Timestamp:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+            case "${status}" in
+              "success") status_emoji="✅" ;;
+              "failure") status_emoji="❌" ;;
+              "cancelled") status_emoji="🟡" ;;
+              *) status_emoji="⚠️" ;;
+            esac
+            echo "| ${os} | ${node} | ${status_emoji} ${status} | ${timestamp} |" >> ${GITHUB_STEP_SUMMARY}
           done
 
-          # Calculate totals using GitHub API if job summaries are not available
-          if [[ ! -d "job-summaries" ]] || [[ $(find job-summaries -type f -name "job-summary.txt" | wc -l) -eq 0 ]]; then
-            echo "| Build Matrix | All Versions | ${{ needs.build.result == 'success' && '✅ success' || needs.build.result == 'failure' && '❌ failure' || '🟡 cancelled' }} | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> ${GITHUB_STEP_SUMMARY}
-            total_jobs=1
-            case "${{ needs.build.result }}" in
-              "success") successful_jobs=1 ;;
-              "failure") failed_jobs=1 ;;
-              "cancelled") cancelled_jobs=1 ;;
-            esac
+          if [[ ! -f "${lua_summary}" ]]; then
+            echo "| Lua reference validator | n/a | ⚠️ ${{ needs.lua.result }} (no summary uploaded) | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> "${GITHUB_STEP_SUMMARY}"
           fi
 
           echo "" >> ${GITHUB_STEP_SUMMARY}
           echo "## 📈 Summary Statistics" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
 
-          # Calculate totals from the files if they exist
-          if [[ -d "job-summaries" ]]; then
-            total_jobs=$(find job-summaries -type f -name "job-summary.txt" | wc -l)
-            successful_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; | wc -l)
-            failed_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: failure" {} \; | wc -l)
-            cancelled_jobs=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: cancelled" {} \; | wc -l)
-          fi
+          # The table loop runs in a subshell, so its counters are lost. Recount
+          # the reported cells here. These describe the table, not the verdict.
+          reported_cells=$(find job-summaries -type f -name "job-summary.txt" 2>/dev/null | wc -l)
+          successful_cells=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; 2>/dev/null | wc -l)
 
-          success_rate=0
-          if [[ ${total_jobs} -gt 0 ]]; then
-            success_rate=$(( successful_jobs * 100 / total_jobs ))
-          fi
-
-          echo "- **Total Jobs**: ${total_jobs}" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Successful**: ${successful_jobs} ✅" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Failed**: ${failed_jobs} ❌" >> ${GITHUB_STEP_SUMMARY}
-          if [[ ${cancelled_jobs} -gt 0 ]]; then
-            echo "- **Cancelled**: ${cancelled_jobs} 🟡" >> ${GITHUB_STEP_SUMMARY}
-          fi
-          echo "- **Success Rate**: ${success_rate}%" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Reported Cells**: ${reported_cells// /}" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Successful**: ${successful_cells// /} ✅" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Build Matrix**: ${{ needs.build.result }}" >> ${GITHUB_STEP_SUMMARY}
+          echo "- **Lua reference validator**: ${{ needs.lua.result }}" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
 
-          # Overall workflow status
-          if [[ ${failed_jobs} -eq 0 && ${cancelled_jobs} -eq 0 ]]; then
+          # The verdict comes from the job results, which are reported whatever
+          # a job managed to upload. A matrix cell killed by its timeout leaves
+          # no summary file, so counting files would call that run a success.
+          failed_names=""
+          for job in "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
+            if [[ "${job#*:}" != "success" ]]; then
+              failed_names="${failed_names} ${job}"
+            fi
+          done
+
+          if [[ -z "${failed_names}" ]]; then
             echo "## 🎉 Overall Result: SUCCESS" >> ${GITHUB_STEP_SUMMARY}
-            echo "All build matrix jobs completed successfully!" >> ${GITHUB_STEP_SUMMARY}
-          elif [[ ${failed_jobs} -gt 0 ]]; then
-            echo "## ⚠️ Overall Result: FAILURE" >> ${GITHUB_STEP_SUMMARY}
-            echo "${failed_jobs} out of ${total_jobs} jobs failed. Please check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
+            echo "Every job completed successfully." >> ${GITHUB_STEP_SUMMARY}
           else
-            echo "## 🟡 Overall Result: CANCELLED" >> ${GITHUB_STEP_SUMMARY}
-            echo "Some jobs were cancelled during execution." >> ${GITHUB_STEP_SUMMARY}
+            echo "## ⚠️ Overall Result: FAILURE" >> ${GITHUB_STEP_SUMMARY}
+            echo "Not successful:${failed_names}. Check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
+          fi
+
+          # The job runs on every outcome, so it has to carry the verdict it
+          # prints. Without this it reports success while the table says failure.
+          if [[ -n "${failed_names}" ]]; then
+            exit 1
           fi
