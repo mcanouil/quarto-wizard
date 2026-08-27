@@ -15,6 +15,9 @@ The **Lua module** validates the document metadata of your user during a render.
 It tests that metadata against the schema that you wrote.
 It never reads the meta-schema.
 
+This page describes the module.
+For the vocabulary that a schema file may use, read the [Extension Schema Specification](schema-specification.qmd).
+
 ## Get the Module
 
 The module is published at [`v2/schema.lua`](/assets/schema/v2/schema.lua).
@@ -55,7 +58,7 @@ A raise here therefore lets a caller continue with a `nil` schema, and fail late
 This is the common entry point.
 
 ```lua
-local options = schema.validate_options(meta, 'iconify', quarto.utils.resolve_path('_schema.yml'))
+local validated = schema.validate_options(meta, 'iconify', quarto.utils.resolve_path('_schema.yml'))
 ```
 
 | Parameter        | Type         | Meaning                                                                |
@@ -94,14 +97,22 @@ It keys `merged` by the `name` of each descriptor.
 A descriptor with no `name` is keyed by its position, written as a string, such as `'1'`.
 `validate_shortcode` takes the shortcode name, its positional arguments, its named attributes, and the entry at `definition.shortcodes[name]`.
 It also enforces the parent-level `required` array of that entry.
+It is the one exception for `merged`, which holds `{arguments = ..., attributes = ...}`, because a shortcode call carries two sets of values.
 `validate_attributes` takes the attributes of an element, the group that they belong to, and the loaded schema.
 `validate_format` takes the metadata, a format name, and the loaded schema.
 
 Each also accepts an optional `{unknown = ...}` table as its last parameter.
-`validate`, `validate_shortcode`, `validate_attributes` and `validate_format` accept `warn`, `error` or `ignore`.
-`validate_arguments` accepts `warn` or `ignore`, because a surplus positional argument is never an error.
+It says what to do with a key that the schema does not declare.
 
-`validate`, `validate_arguments` and `validate_shortcode` default to `warn`.
+| Function              | Accepts                     | Default  |
+| --------------------- | --------------------------- | -------- |
+| `validate`            | `warn`, `error` or `ignore` | `warn`   |
+| `validate_arguments`  | `warn` or `ignore`          | `warn`   |
+| `validate_shortcode`  | `warn`, `error` or `ignore` | `warn`   |
+| `validate_attributes` | `warn`, `error` or `ignore` | `ignore` |
+| `validate_format`     | `warn`, `error` or `ignore` | `ignore` |
+
+`validate_arguments` has no `error` value, because a surplus positional argument is never an error.
 `validate_attributes` and `validate_format` default to `ignore`, because a Pandoc element and a format block both carry keys from Quarto and from other filters.
 
 A group or a format that the schema does not declare is not an error.
@@ -154,8 +165,8 @@ A test harness can therefore install stubs and run the module outside a render.
 ## Versions
 
 `SCHEMA_VERSION` holds the URL of the meta-schema that the module implements.
-The vocabulary and the module carry the same version.
 Version 2 of the vocabulary is implemented by version 2 of the module.
+That number is the version of the vocabulary, and not the version of the `@quarto-wizard/schema` package that publishes both.
 
 The module and the meta-schema that it implements are published by the same release.
 Take a vendored copy from that release, and refresh it from the release that ships the next version of the vocabulary.
