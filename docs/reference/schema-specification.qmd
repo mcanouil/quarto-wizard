@@ -693,7 +693,7 @@ For every field use the following properties where applicable:
 - `examples`: list of example values for documentation and tooling.
 - `aliases`: alternative key names accepted by the code.
 - `deprecated`: `true`, a message string, or an object with `since`,
-  `message`, and `replace-with` keys.
+  `message`, and `replaceWith` keys.
 - `description`: one sentence in British English explaining the option.
 - `completion`: controls IDE autocompletion behaviour. Sub-properties:
   `type` (`color` for CSS colour values, `file` for file paths,
