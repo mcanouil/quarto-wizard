@@ -56,5 +56,22 @@ describe("derived vocabulary", () => {
 			},
 		});
 		expect(findings.filter((f) => f.code === "unknown-field-property")).toHaveLength(0);
+
+		// Control: the same call reports a property the vocabulary does not hold,
+		// so the assertion above cannot pass on an empty finding list alone.
+		const control = validateSchemaDefinitionStructure({
+			$schema: SCHEMA_V2_VERSION_URI,
+			options: {
+				myField: {
+					type: "array",
+					items: { type: "string" },
+					uniqueItems: true,
+					notAKeyword: true,
+				},
+			},
+		});
+		const unknown = control.filter((f) => f.code === "unknown-field-property");
+		expect(unknown).toHaveLength(1);
+		expect(unknown[0].message).toContain("notAKeyword");
 	});
 });

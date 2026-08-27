@@ -732,6 +732,33 @@ options:
   assert_contains(errors, 'a')
 end)
 
+test('uniqueItems distinguishes an empty string from a pair of quote characters', function()
+  local loaded = load_schema([[
+options:
+  marks:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+]])
+  local valid, errors = schema.validate({ marks = { '', '""' } }, loaded.options)
+  assert_valid(valid, errors, 'an empty string and the string \'""\' are different items')
+end)
+
+test('uniqueItems reports a repeated empty string as ""', function()
+  local loaded = load_schema([[
+options:
+  marks:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+]])
+  local valid, errors = schema.validate({ marks = { '', '' } }, loaded.options)
+  assert_false(valid, 'a repeated empty string should be reported')
+  assert_contains(errors, 'but "" appears more than once')
+end)
+
 test('minLength and maxLength count characters, not bytes', function()
   local loaded = load_schema([[
 options:
