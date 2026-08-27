@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import * as yaml from "js-yaml";
+import { validateSchemaDefinitionStructure } from "../../src/validation/schema-definition.js";
 import { metaSchemaProperties, keywordGroups } from "../helpers/schemaVocabulary.js";
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -101,5 +102,13 @@ describe.each(versions)("$name example files show the whole vocabulary", ({ name
 			.filter((spellings) => !spellings.some((spelling) => keys.has(spelling)))
 			.map((spellings) => spellings.join(" or "));
 		expect(uncovered).toEqual([]);
+	});
+
+	// Coverage alone lets an example gain an illegal key, or a v1 spelling in a
+	// v2 file, and stay green. The validator reads the `$schema` of the file, so
+	// it holds each example to the vocabulary of its own version.
+	it.each(formats)("the $format example is valid against its meta-schema", ({ extension, parse }) => {
+		const source = readFileSync(join(docsBase, name, `extension-schema-example.${extension}`), "utf-8");
+		expect(validateSchemaDefinitionStructure(parse(source))).toEqual([]);
 	});
 });
