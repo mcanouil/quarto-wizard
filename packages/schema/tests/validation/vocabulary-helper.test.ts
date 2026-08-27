@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { parseKeywordTable, readSchemaVersion, keywordGroups } from "../helpers/schemaVocabulary.js";
+import {
+	parseKeywordTable,
+	readSchemaVersion,
+	metaSchemaProperties,
+	keywordGroups,
+} from "../helpers/schemaVocabulary.js";
 
 describe("parseKeywordTable", () => {
 	// Each case is a way the previous regular expression stopped matching
@@ -31,6 +36,13 @@ describe("parseKeywordTable", () => {
 		expect(entries.get("alpha")).toBe(true);
 		expect(entries.get("beta")).toBe(false);
 	});
+
+	// A missing table has to raise. A reader that returned an empty map would
+	// give every parity check a baseline of nothing to compare against, and
+	// each one would pass.
+	it("raises when the source holds no keyword table", () => {
+		expect(() => parseKeywordTable("local M = {}\n")).toThrow("M.KEYWORDS table not found");
+	});
 });
 
 describe("readSchemaVersion", () => {
@@ -44,6 +56,19 @@ describe("readSchemaVersion", () => {
 
 	it("returns null when the assignment is absent", () => {
 		expect(readSchemaVersion("local M = {}")).toBeNull();
+	});
+});
+
+describe("metaSchemaProperties", () => {
+	it("reads the property names of a field descriptor", () => {
+		const metaSchema = { $defs: { fieldDescriptor: { properties: { type: {}, "min-length": {} } } } };
+		expect(metaSchemaProperties(metaSchema)).toEqual(["type", "min-length"]);
+	});
+
+	// The same reason as the missing keyword table: an empty list would give
+	// each parity check nothing to compare against, and it would pass.
+	it("raises when the field descriptor is absent", () => {
+		expect(() => metaSchemaProperties({})).toThrow("$defs.fieldDescriptor.properties not found in meta-schema");
 	});
 });
 
