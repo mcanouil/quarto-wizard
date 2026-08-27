@@ -18,7 +18,6 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, "..");
 
-/** Fields to copy directly from root to packages */
 const SYNC_FIELDS = ["author", "license", "bugs", "homepage", "version", "sponsor"];
 
 function readJson(filePath) {
@@ -42,16 +41,6 @@ function getPackageDirs() {
 		});
 }
 
-function syncRepository(rootRepo, pkgPath) {
-	if (!rootRepo) return undefined;
-
-	const relativePath = pkgPath.replace(rootDir + "/", "");
-	return {
-		...rootRepo,
-		directory: relativePath,
-	};
-}
-
 function syncPackage(rootPkg, pkgDir) {
 	const pkgPath = join(pkgDir, "package.json");
 	const pkg = readJson(pkgPath);
@@ -71,7 +60,7 @@ function syncPackage(rootPkg, pkgDir) {
 	}
 
 	if (rootPkg.repository) {
-		const newRepo = syncRepository(rootPkg.repository, relativePath);
+		const newRepo = { ...rootPkg.repository, directory: relativePath };
 		if (JSON.stringify(newRepo) !== JSON.stringify(pkg.repository)) {
 			pkg.repository = newRepo;
 			changed = true;
@@ -104,8 +93,6 @@ function main() {
 	}
 
 	console.log(`\nDone. Updated ${updatedCount} of ${packageDirs.length} packages.`);
-
-	return updatedCount > 0 ? 0 : 0;
 }
 
 main();
