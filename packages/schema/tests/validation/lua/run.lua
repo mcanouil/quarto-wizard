@@ -615,6 +615,31 @@ test('an empty sequence item is refused rather than shifting later items', funct
   assert_contains(tostring(err), 'empty')
 end)
 
+test('a block sequence may sit at the column of its key', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+    - color
+]])
+  local aliases = loaded.options.colour.aliases
+  assert_eq(type(aliases), 'table', 'aliases should parse to a table')
+  assert_eq(#aliases, 1, 'aliases should hold one entry')
+  assert_eq(aliases[1], 'color', 'the alias should be "color"')
+end)
+
+test('an indented block sequence still parses', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+]])
+  assert_eq(loaded.options.colour.aliases[1], 'color', 'the alias should be "color"')
+end)
+
 -- ============================================================================
 -- STRUCTURE AND ENTRY POINTS
 -- ============================================================================
