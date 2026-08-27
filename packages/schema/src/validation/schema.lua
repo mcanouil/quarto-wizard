@@ -167,6 +167,9 @@ end
 local function _format_value(value)
   local kind = type(value)
   if kind == 'string' then
+    if value == '' then
+      return '""'
+    end
     return value
   elseif kind == 'number' or kind == 'boolean' then
     return tostring(value)
@@ -693,28 +696,47 @@ end
 --- @param value any Pandoc metadata value
 --- @return any Native Lua value
 local function _convert_pandoc_value(value)
+  local kind = _env.pandoc_type(value)
+
+  -- A bare key, `null` and `~` all arrive as an empty Pandoc `string`, which
+  -- is how Pandoc collapses YAML null. An explicit `""` arrives as an empty
+  -- `Inlines` instead, so the two are told apart before either is unwrapped.
+  if kind == 'string' and value == '' then
+    return nil
+  end
+
   if type(value) ~= 'table' then
     return value
   end
-
-  local kind = _env.pandoc_type(value)
 
   if kind == 'Inlines' or kind == 'Blocks' or kind == 'Inline' or kind == 'Block' then
     return _env.stringify(value)
   end
 
   if kind == 'List' then
+    -- A null element is absent, the same rule this module applies to a null
+    -- key. Writing it into a running count rather than the source index
+    -- keeps the result a proper sequence instead of leaving a gap.
     local result = {}
     for index = 1, #value do
-      result[index] = _convert_pandoc_value(value[index])
+      local converted = _convert_pandoc_value(value[index])
+      if converted ~= nil then
+        result[#result + 1] = converted
+      end
     end
     return result
   end
 
   if _is_array(value) and #value > 0 then
+    -- A null element is absent, the same rule this module applies to a null
+    -- key. Writing it into a running count rather than the source index
+    -- keeps the result a proper sequence instead of leaving a gap.
     local result = {}
     for index = 1, #value do
-      result[index] = _convert_pandoc_value(value[index])
+      local converted = _convert_pandoc_value(value[index])
+      if converted ~= nil then
+        result[#result + 1] = converted
+      end
     end
     return result
   end
@@ -1730,7 +1752,7 @@ local function _check_items(value, spec, path, context)
   for index = 1, #value do
     local element = _coerce(value[index], spec.items.type)
     value[index] = element
-    if element ~= nil and element ~= '' then
+    if element ~= nil then
       _validate_value(element, spec.items, string.format('%s[%d]', path, index), context)
     end
   end
@@ -1759,22 +1781,10 @@ local function _check_object(value, spec, path, context)
     end
   end
 
-  if type(spec.dependentRequired) == 'table' then
-    for key, dependents in pairs(spec.dependentRequired) do
-      if _lookup(value, key) ~= nil and type(dependents) == 'table' then
-        for _, dependent in ipairs(dependents) do
-          if _lookup(value, dependent) == nil then
-            _report(context, 'error', path, 'dependentRequired', string.format(
-              'requires "%s" when "%s" is present.', dependent, key
-            ))
-          end
-        end
-      end
-    end
-  end
+  local defaulted = {}
 
   if type(spec.properties) == 'table' then
-    local sub = _validate_map(value, spec.properties, path, context, {
+    local sub, filled = _validate_map(value, spec.properties, path, context, {
       unknown = spec.additionalProperties == false and 'error' or 'ignore',
       additional = type(spec.additionalProperties) == 'table' and spec.additionalProperties or nil,
     })
@@ -1794,12 +1804,32 @@ local function _check_object(value, spec, path, context)
     for key, member in pairs(sub) do
       value[key] = member
     end
+    defaulted = filled
   elseif type(spec.additionalProperties) == 'table' then
     for key, member in pairs(value) do
       local coerced = _coerce(member, spec.additionalProperties.type)
       value[key] = coerced
-      if coerced ~= nil and coerced ~= '' then
+      if coerced ~= nil then
         _validate_value(coerced, spec.additionalProperties, path .. '.' .. tostring(key), context)
+      end
+    end
+  end
+
+  -- Runs after the properties block, which writes the resolved members back
+  -- into `value`. Before that, a dependent supplied under an alias is not yet
+  -- there to be found. A `default` is an annotation and does not change the
+  -- instance, so a key that only holds one never triggers a requirement.
+  if type(spec.dependentRequired) == 'table' then
+    for key, dependents in pairs(spec.dependentRequired) do
+      local trigger, trigger_key = _lookup(value, key)
+      if trigger ~= nil and not defaulted[trigger_key] and type(dependents) == 'table' then
+        for _, dependent in ipairs(dependents) do
+          if _lookup(value, dependent) == nil then
+            _report(context, 'error', path, 'dependentRequired', string.format(
+              'requires "%s" when "%s" is present.', dependent, key
+            ))
+          end
+        end
       end
     end
   end
@@ -1914,6 +1944,7 @@ end
 --- @param context table Validation context
 --- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor}
 --- @return table merged Values with aliases, coercion and defaults applied
+--- @return table defaulted Set of field names whose value came from `default`
 _validate_map = function(values, descriptors, base_path, context, options)
   options = options or {}
   local unknown_policy = options.unknown or 'ignore'
@@ -1924,6 +1955,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
   end
 
   local claimed = {}
+  local defaulted = {}
   local fields = {}
 
   -- Three passes, because `pairs` yields descriptors in no particular order.
@@ -1941,29 +1973,40 @@ _validate_map = function(values, descriptors, base_path, context, options)
     -- A value found under an alias, or under the other spelling, moves to the
     -- name the schema declares. The key it came from is removed, so `merged`
     -- never carries the same value twice, once coerced and once raw.
-    if type(spec.aliases) == 'table' then
-      for _, alias in ipairs(spec.aliases) do
-        claimed[alias] = true
-        if merged[field] == nil then
-          local aliased, alias_key = _lookup(merged, alias)
-          if aliased ~= nil then
-            merged[field] = aliased
-            claimed[alias_key] = true
-            if alias_key ~= field then
-              merged[alias_key] = nil
-            end
-          end
-        end
+    -- The declared name is read first, so it wins over any alias.
+    local supplied_key
+    local found, found_key = _lookup(merged, field)
+    if found ~= nil then
+      merged[field] = found
+      claimed[found_key] = true
+      supplied_key = found_key
+      if found_key ~= field then
+        merged[found_key] = nil
       end
     end
 
-    if merged[field] == nil then
-      local found, found_key = _lookup(merged, field)
-      if found ~= nil then
-        merged[field] = found
-        claimed[found_key] = true
-        if found_key ~= field then
-          merged[found_key] = nil
+    if type(spec.aliases) == 'table' then
+      for _, alias in ipairs(spec.aliases) do
+        claimed[alias] = true
+        local aliased, alias_key = _lookup(merged, alias)
+        if aliased ~= nil then
+          claimed[alias_key] = true
+          if merged[field] == nil then
+            merged[field] = aliased
+            supplied_key = alias_key
+          elseif alias_key ~= field then
+            -- Two spellings were supplied. The first one read wins, and the
+            -- other is reported rather than left behind unvalidated. Both
+            -- names come from the document, never from the schema.
+            _report(context, 'warning',
+              base_path and (base_path .. '.' .. field) or field,
+              'aliases',
+              string.format('was given as both "%s" and "%s"; "%s" was used.',
+                supplied_key, alias_key, supplied_key))
+          end
+          if alias_key ~= field then
+            merged[alias_key] = nil
+          end
         end
       end
     end
@@ -1971,7 +2014,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
   for _, entry in ipairs(fields) do
     local value = merged[entry.name]
-    if entry.spec.deprecated and value ~= nil and value ~= '' then
+    if entry.spec.deprecated and value ~= nil then
       local message, cleared = _apply_deprecation(entry.name, entry.spec, value, merged)
       _report(context, 'warning', entry.path, 'deprecated', message)
       entry.cleared = cleared
@@ -1988,17 +2031,18 @@ _validate_map = function(values, descriptors, base_path, context, options)
       value = _coerce(merged[field], spec.type)
       merged[field] = value
 
-      if (value == nil or value == '') and spec.default ~= nil then
+      if value == nil and spec.default ~= nil then
         value = spec.default
         merged[field] = value
+        defaulted[field] = true
       end
     end
 
-    local is_empty = value == nil or value == ''
-
-    if spec.required == true and is_empty then
+    -- An empty string is a value the author wrote. Only a missing key is
+    -- absent, so `minLength`, `const` and `enum` can be tested against ''.
+    if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
-    elseif not is_empty then
+    elseif value ~= nil then
       _validate_value(value, spec, path, context)
     end
   end
@@ -2010,7 +2054,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
         if options.additional then
           local coerced = _coerce(value, options.additional.type)
           merged[key] = coerced
-          if coerced ~= nil and coerced ~= '' then
+          if coerced ~= nil then
             _validate_value(coerced, options.additional, path, context)
           end
         elseif unknown_policy == 'error' then
@@ -2022,7 +2066,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
     end
   end
 
-  return merged
+  return merged, defaulted
 end
 
 --- Start a validation run.
@@ -2149,15 +2193,14 @@ function M.validate_arguments(args, argument_specs, options)
     local path = string.format('argument %d ("%s")', index, name)
 
     local value = _coerce(args[index], spec.type)
-    if (value == nil or value == '') and spec.default ~= nil then
+    if value == nil and spec.default ~= nil then
       value = spec.default
     end
     merged[name] = value
 
-    local is_empty = value == nil or value == ''
-    if spec.required == true and is_empty then
+    if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
-    elseif not is_empty then
+    elseif value ~= nil then
       _validate_value(value, spec, path, context)
     end
   end
@@ -2211,8 +2254,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
   end
 
   if type(entry.required) == 'table' then
+    -- `merged.attributes` is filled only when the entry declares `attributes`.
+    -- The vocabulary allows `required` on its own, so fall back to what the
+    -- caller supplied rather than reporting every name as missing.
+    local supplied = kwargs or {}
     for _, required in ipairs(entry.required) do
-      if _lookup(merged.attributes, required) == nil then
+      if _lookup(merged.attributes, required) == nil
+        and _lookup(supplied, required) == nil then
         _report(context, 'error', name .. '.' .. required, 'required',
           'is required but was not provided.')
       end

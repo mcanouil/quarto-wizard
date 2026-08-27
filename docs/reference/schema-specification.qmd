@@ -309,6 +309,11 @@ All properties are optional.
 | `content-encoding`      | `string`                      | Content encoding for a string value (e.g. `base64`). Annotation only.                                         |
 | `content-media-type`    | `string`                      | Media type of a string value (e.g. `application/json`). Annotation only.                                      |
 
+An empty string is a value, not an absent key.
+A key set to `""` keeps that value, does not take its `default`, satisfies `required`, and is tested against `minLength`, `const` and `enum`, for a plain option value, an array element, and a surplus key matched by `additionalProperties`.
+A key with no value, or set to `null` or `~`, is absent in the same way as a key that is missing entirely, and takes its `default`.
+A `null` or `~` element inside a sequence follows the same rule and is dropped, rather than becoming an empty string.
+
 The `integer` type validates that the value is a whole number.
 It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of`).
 
@@ -316,8 +321,10 @@ The `content` type is specific to shortcode arguments and accepts any Pandoc Inl
 Quarto Wizard rejects `type: content` outside shortcode arguments.
 Validation only checks presence (for `required`); no further type or pattern checking applies.
 
-The `null` type matches the explicit YAML value `null` (or `~`).
-Combine it with another type for nullable fields, e.g. `type: [string, "null"]`.
+The `null` type never matches a supplied value, because a key set to `null` or `~` is read as an absent key.
+A field declared `type: "null"` and `required: true` is therefore reported as missing.
+List `"null"` beside another type, as in `type: [string, "null"]`, to document that a key may be written as `~`.
+Such a key takes its `default`, like any other absent key.
 
 In JSON schema files, multi-word property names use camelCase equivalents: `enumCaseInsensitive`, `patternExact`, `minLength`, `maxLength`, `minItems`, `maxItems`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `additionalProperties`, `propertyNames`, `dependentRequired`, `contentEncoding`, and `contentMediaType`.
 Mixing camelCase and kebab-case forms of the same keyword on one descriptor produces a warning.

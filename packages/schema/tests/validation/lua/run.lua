@@ -544,6 +544,86 @@ options:
   assert_valid(ok_valid, ok_errors)
 end)
 
+test('dependentRequired sees a value supplied under an alias', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+        aliases:
+          - pass
+]])
+  local valid, errors = schema.validate(
+    { auth = { user = 'me', pass = 'secret' } }, loaded.options)
+  assert_valid(valid, errors)
+end)
+
+test('dependentRequired still reports a genuinely missing dependent', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+]])
+  local valid, errors = schema.validate({ auth = { user = 'me' } }, loaded.options)
+  assert_false(valid, 'a missing dependent should be reported')
+  assert_contains(errors, 'password')
+end)
+
+test('a trigger key filled by its own default does not fire dependentRequired', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+        default: anonymous
+      password:
+        type: string
+]])
+  local valid, errors, _, merged = schema.validate({ auth = {} }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.auth.user, 'anonymous', 'the default is still applied')
+end)
+
+test('a trigger key the author supplied still fires dependentRequired', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+        default: anonymous
+      password:
+        type: string
+]])
+  local valid, errors = schema.validate({ auth = { user = 'me' } }, loaded.options)
+  assert_false(valid, 'a supplied trigger fires even when the field has a default')
+  assert_contains(errors, 'password')
+end)
+
 test('nested properties contribute defaults and coercion to merged', function()
   local loaded = load_schema([[
 options:
@@ -778,6 +858,30 @@ shortcodes:
   assert_contains(warnings, 'arai-hidden', 'the typo is surfaced')
 end)
 
+test('shortcode required works without an attributes block', function()
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    required:
+      - icon
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { icon = 'star' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+end)
+
+test('shortcode required still reports a missing attribute', function()
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    required:
+      - icon
+]])
+  local valid, errors = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_false(valid, 'a missing required attribute should be reported')
+  assert_contains(errors, 'icon')
+end)
+
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
   local loaded = load_schema([[
 attributes:
@@ -956,6 +1060,336 @@ options:
   local before = loaded.options.count.default
   schema.validate({}, loaded.options)
   assert_eq(loaded.options.count.default, before, 'the loaded schema is untouched')
+end)
+
+test('a value given under both spellings drops the alias key', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { colour = 'red', color = 'blue' }, loaded.options)
+  assert_eq(merged.colour, 'red', 'the declared name should win')
+  assert_eq(merged.color, nil, 'the alias key should not survive in merged')
+  assert_true(
+    #errors > 0 or #warnings > 0,
+    'supplying both spellings should be reported'
+  )
+end)
+
+test('a value given only under an alias still moves to the declared name', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+]])
+  local valid, errors, _, merged = schema.validate({ color = 'blue' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.colour, 'blue', 'the alias value should move to the declared name')
+  assert_eq(merged.color, nil, 'the alias key should be removed')
+end)
+
+test('two different aliases supplied for the same field both drop, with a warning', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+      - farbe
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { color = 'blue', farbe = 'rot' }, loaded.options)
+  assert_eq(merged.colour, 'blue', 'the first alias in declaration order wins')
+  assert_eq(merged.color, nil, 'the first alias key should not survive in merged')
+  assert_eq(merged.farbe, nil, 'the second alias key should not survive in merged')
+  assert_true(
+    #errors > 0 or #warnings > 0,
+    'supplying two aliases for the same field should be reported'
+  )
+end)
+
+test('the declared name wins over an alias, even in its normalised spelling', function()
+  local loaded = load_schema([[
+options:
+  text-color:
+    type: string
+    aliases:
+      - color
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { text_color = 'a', color = 'b' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged['text-color'], 'a', 'the declared name should win over the alias')
+  assert_eq(merged.color, nil, 'the alias key should be removed')
+  assert_eq(merged.text_color, nil, 'the normalised declared key should be removed')
+  assert_contains(warnings, '"text_color" and "color"', 'the warning names both supplied keys')
+  for _, warning in ipairs(warnings) do
+    assert_false(
+      warning:find('not a recognised key', 1, true) ~= nil,
+      'the declared spelling is not an unknown key: ' .. warning
+    )
+  end
+end)
+
+test('the conflict warning names the two keys the author supplied', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - color
+      - farbe
+]])
+  local _, _, warnings = schema.validate({ color = 'blue', farbe = 'rot' }, loaded.options)
+  assert_contains(warnings, 'was given as both "color" and "farbe"; "color" was used.')
+end)
+
+test('an alias matched via hyphen/underscore normalisation moves without a false conflict', function()
+  local loaded = load_schema([[
+options:
+  colour:
+    type: string
+    aliases:
+      - text-color
+]])
+  local valid, errors, warnings, merged = schema.validate(
+    { text_color = 'blue' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#warnings, 0, 'a single spelling, even a normalised one, is not a conflict')
+  assert_eq(merged.colour, 'blue', 'the normalised alias value should move to the declared name')
+  assert_eq(merged.text_color, nil, 'the normalised alias key should be removed')
+end)
+
+test('an explicit empty string is not replaced by the default', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    default: fallback
+]])
+  local _, _, _, merged = schema.validate({ label = '' }, loaded.options)
+  assert_eq(merged.label, '', 'an empty string should survive')
+end)
+
+test('an absent key still takes its default', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    default: fallback
+]])
+  local _, _, _, merged = schema.validate({}, loaded.options)
+  assert_eq(merged.label, 'fallback', 'an absent key should take the default')
+end)
+
+test('required is satisfied by an empty string', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    required: true
+]])
+  local valid, errors = schema.validate({ label = '' }, loaded.options)
+  assert_valid(valid, errors)
+end)
+
+test('required still reports an absent key', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    required: true
+]])
+  local valid = schema.validate({}, loaded.options)
+  assert_false(valid, 'an absent required key should be reported')
+end)
+
+test('minLength is enforced against an empty string', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    minLength: 1
+]])
+  local valid, errors = schema.validate({ label = '' }, loaded.options)
+  assert_false(valid, 'an empty string should fail minLength 1')
+  assert_contains(errors, 'label')
+end)
+
+test('a bare option in document metadata is absent and takes its default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count:')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, 'fallback', 'a bare key should take the default')
+end)
+
+test('an option set to null in document metadata is absent and takes its default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count: null')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, 'fallback', 'an explicit null should take the default')
+end)
+
+test('an option set to ~ in document metadata is absent and takes its default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count: ~')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, 'fallback', 'an explicit ~ should take the default')
+end)
+
+test('an option set to "" in document metadata is an empty string, not the default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: string
+    default: fallback
+]])
+  local options = doc_options('    count: ""')
+  local _, _, _, merged = schema.validate(options, loaded.options)
+  assert_eq(merged.count, '', 'an explicit empty string should survive, not take the default')
+end)
+
+test('an empty string on a numeric field is a type error, not the default', function()
+  local loaded = load_schema([[
+options:
+  count:
+    type: number
+    default: 3
+]])
+  local valid, errors, _, merged = schema.validate({ count = '' }, loaded.options)
+  assert_false(valid, 'an empty string is not a number')
+  assert_contains(errors, 'must be of type "number", got "string"')
+  assert_eq(merged.count, '', 'the empty string is not replaced by the default')
+end)
+
+test('minLength is enforced against an empty array element', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    items:
+      type: string
+      minLength: 1
+]])
+  local valid, errors = schema.validate({ tags = { '' } }, loaded.options)
+  assert_false(valid, 'an empty array element should fail minLength 1')
+  assert_contains(errors, 'tags[1]')
+end)
+
+test('minLength is enforced against a surplus key when properties and additionalProperties are both declared', function()
+  local loaded = load_schema([[
+options:
+  layout:
+    type: object
+    properties:
+      columns:
+        type: number
+    additionalProperties:
+      type: string
+      minLength: 1
+]])
+  local valid, errors = schema.validate(
+    { layout = { columns = 2, extra = '' } }, loaded.options)
+  assert_false(valid, 'a surplus key set to an empty string should fail minLength 1')
+  assert_contains(errors, 'layout.extra')
+end)
+
+test('an empty string is rendered as "" in an error message', function()
+  local loaded = load_schema([[
+options:
+  echo:
+    type: string
+    enum: [a, b]
+]])
+  local valid, errors = schema.validate({ echo = '' }, loaded.options)
+  assert_false(valid, 'an empty string not in the enum should be reported')
+  assert_contains(errors, 'got ""')
+end)
+
+test('a null element in the middle of a document metadata sequence does not leave a hole', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [~, b]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#merged.tags, 1, 'the null element should be dropped, not leave a hole')
+  assert_eq(merged.tags[1], 'b', 'the surviving element should be first')
+end)
+
+test('a document metadata sequence of only null elements becomes an empty array', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [~]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_false(valid, 'an empty array should fail minItems 1')
+  assert_eq(#merged.tags, 0, 'the null element should be dropped, leaving an empty array')
+  assert_contains(errors, 'at least 1 items')
+end)
+
+test('a null element at the end of a document metadata sequence is dropped', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [a, ~]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#merged.tags, 1, 'the null element should be dropped')
+  assert_eq(merged.tags[1], 'a', 'the surviving element should be kept')
+end)
+
+test('a document metadata sequence with no null elements is unaffected', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+]])
+  local options = doc_options('    tags: [a, b]')
+  local valid, errors, _, merged = schema.validate(options, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#merged.tags, 2, 'both elements should be kept')
+  assert_eq(merged.tags[1], 'a', 'the first element should be kept')
+  assert_eq(merged.tags[2], 'b', 'the second element should be kept')
 end)
 
 -- ============================================================================
