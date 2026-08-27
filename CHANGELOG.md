@@ -9,9 +9,14 @@
 ### Bug Fixes
 
 - fix: report an error for every value of a field whose `pattern` the Lua reference validator cannot compile, instead of compiling that pattern to one that matches the wrong values. The refusal now covers an anchored alternation such as `^a|b$`, and the escapes `\b`, `\B`, `\0`, `\c`, `\u`, `\x`, `\p` and `\k`.
-- fix: treat an empty string as a value in the Lua reference validator. A key set to `""` keeps that value, does not take its `default`, and is tested against `minLength`, `const` and `enum`. An extension that relied on an empty string falling back to its default no longer gets that fallback.
+- fix: treat an empty string as a value in the Lua reference validator. A key set to `""` keeps that value and is tested against `type`, `minLength`, `const` and `enum`.
+- fix: stop an empty string from taking a field's `default` in the Lua reference validator. `count: ""` on a field declared `type: number` is now an error that reads `must be of type "number", got "string"`, where it used to take the default.
+- fix: drop a `null` element from a document metadata sequence in the Lua reference validator, where it used to become an empty string. `tags: [a, ~]` now holds one element rather than two, so a field declared `minItems: 2` no longer passes.
 - fix: warn when a deprecated option is set to an empty string in the Lua reference validator. The deprecation warning used to be skipped for `""` in the same way as for an absent key.
 - fix: validate a surplus key matched by `additionalProperties`, and an array element matched by `items`, when the value is an empty string in the Lua reference validator. Both used to skip `""` instead of testing it.
+- fix: let the name a schema declares win over an alias in the Lua reference validator. The conflict warning now names the two keys the author wrote, rather than a name that only the schema uses.
+- fix: accept a document that supplies both a field's declared name and one of its aliases in the Lua reference validator. Under `additionalProperties: false` the leftover alias key made the document invalid, and it now produces a warning.
+- fix: apply `dependentRequired` after aliases resolve in the Lua reference validator, so a dependent supplied under an alias is found. A trigger key whose value came from its own `default` no longer requires its dependents.
 
 ## 3.2.0 (2026-08-02)
 
