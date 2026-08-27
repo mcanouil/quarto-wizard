@@ -18,17 +18,68 @@ const versions = [
 	{ name: "v2", metaSchema: "extension-schema-v2.json", dir: "v2" },
 ];
 
-/** Every key of a parsed document, at any depth. */
-function collectKeys(value: unknown, found: Set<string> = new Set()): Set<string> {
-	if (Array.isArray(value)) {
-		for (const element of value) {
-			collectKeys(element, found);
+type Descriptor = Record<string, unknown>;
+
+function asRecord(value: unknown): Descriptor | undefined {
+	return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Descriptor) : undefined;
+}
+
+/**
+ * The keys of one field descriptor, and of every descriptor nested in it.
+ *
+ * The walk goes down through `properties`, `items` and `additionalProperties`
+ * only, because those three hold a descriptor. It does not go down through
+ * `completion`, `deprecated` or `dependentRequired`, whose own keys belong to
+ * another vocabulary.
+ */
+function descriptorKeys(value: unknown, found: Set<string>): Set<string> {
+	const descriptor = asRecord(value);
+	if (descriptor === undefined) {
+		return found;
+	}
+	for (const [key, nested] of Object.entries(descriptor)) {
+		found.add(key);
+		if (key === "items" || key === "additionalProperties") {
+			descriptorKeys(nested, found);
+		} else if (key === "properties") {
+			for (const property of Object.values(asRecord(nested) ?? {})) {
+				descriptorKeys(property, found);
+			}
 		}
-	} else if (value !== null && typeof value === "object") {
-		for (const [key, nested] of Object.entries(value)) {
-			found.add(key);
-			collectKeys(nested, found);
+	}
+	return found;
+}
+
+/**
+ * Every keyword that an example file uses, read from descriptor positions only.
+ *
+ * A walk over all keys at all depths is wrong here. It reads an option name, a
+ * shortcode name and an attribute name as a keyword, so an example that names
+ * an option `title` covers the `title` keyword without using it. The test then
+ * passes after the last real use of that keyword is deleted, which is the drift
+ * that it exists to catch.
+ */
+function vocabularyKeys(document: unknown): Set<string> {
+	const found = new Set<string>();
+	const root = asRecord(document) ?? {};
+	const descriptorMap = (value: unknown) => {
+		for (const descriptor of Object.values(asRecord(value) ?? {})) {
+			descriptorKeys(descriptor, found);
 		}
+	};
+	descriptorMap(root.options);
+	for (const shortcode of Object.values(asRecord(root.shortcodes) ?? {})) {
+		const entry = asRecord(shortcode) ?? {};
+		for (const argument of Array.isArray(entry.arguments) ? entry.arguments : []) {
+			descriptorKeys(argument, found);
+		}
+		descriptorMap(entry.attributes);
+	}
+	for (const format of Object.values(asRecord(root.formats) ?? {})) {
+		descriptorMap(format);
+	}
+	for (const group of Object.values(asRecord(root.attributes) ?? {})) {
+		descriptorMap(group);
 	}
 	return found;
 }
@@ -37,16 +88,14 @@ describe.each(versions)("$name example files show the whole vocabulary", ({ meta
 	const properties = metaSchemaProperties(JSON.parse(readFileSync(join(validationDir, metaSchema), "utf-8")));
 	const groups = keywordGroups(properties);
 
-	// A key walk, and not a text search. A text search for `type` matches inside
-	// `contentMediaType`, so the test would pass on a wrong result.
 	const examples = [
 		{
 			format: "yaml",
-			keys: collectKeys(yaml.load(readFileSync(join(docsBase, dir, "extension-schema-example.yml"), "utf-8"))),
+			keys: vocabularyKeys(yaml.load(readFileSync(join(docsBase, dir, "extension-schema-example.yml"), "utf-8"))),
 		},
 		{
 			format: "json",
-			keys: collectKeys(JSON.parse(readFileSync(join(docsBase, dir, "extension-schema-example.json"), "utf-8"))),
+			keys: vocabularyKeys(JSON.parse(readFileSync(join(docsBase, dir, "extension-schema-example.json"), "utf-8"))),
 		},
 	];
 
