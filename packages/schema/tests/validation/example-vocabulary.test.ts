@@ -14,40 +14,46 @@ const docsBase = join(pkgRoot, "..", "..", "docs", "assets", "schema");
 // meta-schema could reach the published site while the example stayed behind,
 // which is how `uniqueItems` was missed.
 const versions = [
-	{ name: "v1", metaSchema: "extension-schema.json", dir: "v1" },
-	{ name: "v2", metaSchema: "extension-schema-v2.json", dir: "v2" },
+	{ name: "v1", metaSchema: "extension-schema.json" },
+	{ name: "v2", metaSchema: "extension-schema-v2.json" },
 ];
 
-type Descriptor = Record<string, unknown>;
+const formats = [
+	{ format: "yaml", extension: "yml", parse: (text: string): unknown => yaml.load(text) },
+	{ format: "json", extension: "json", parse: (text: string): unknown => JSON.parse(text) },
+];
 
-function asRecord(value: unknown): Descriptor | undefined {
-	return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Descriptor) : undefined;
+/** The value as a plain object, or an empty one when it is not a plain object. */
+function asRecord(value: unknown): Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+/** Every key that a nested descriptor holds. v1 spells one of these in kebab-case. */
+const NESTED_DESCRIPTOR_KEYS = new Set(["items", "additionalProperties", "additional-properties"]);
+
 /**
- * The keys of one field descriptor, and of every descriptor nested in it.
+ * Add the keys of one field descriptor, and of every descriptor nested in it.
  *
- * The walk goes down through `properties`, `items` and `additionalProperties`
- * only, because those three hold a descriptor. It does not go down through
- * `completion`, `deprecated` or `dependentRequired`, whose own keys belong to
- * another vocabulary.
+ * The walk goes down through the keys that hold a descriptor. It does not go
+ * down through `completion`, `deprecated` or `dependentRequired`, whose own
+ * keys belong to another vocabulary.
  */
-function descriptorKeys(value: unknown, found: Set<string>): Set<string> {
-	const descriptor = asRecord(value);
-	if (descriptor === undefined) {
-		return found;
-	}
-	for (const [key, nested] of Object.entries(descriptor)) {
+function descriptorKeys(value: unknown, found: Set<string>): void {
+	for (const [key, nested] of Object.entries(asRecord(value))) {
 		found.add(key);
-		if (key === "items" || key === "additionalProperties") {
+		if (NESTED_DESCRIPTOR_KEYS.has(key)) {
 			descriptorKeys(nested, found);
 		} else if (key === "properties") {
-			for (const property of Object.values(asRecord(nested) ?? {})) {
-				descriptorKeys(property, found);
-			}
+			descriptorMap(nested, found);
 		}
 	}
-	return found;
+}
+
+/** Add the keys of every descriptor in a map of name to descriptor. */
+function descriptorMap(value: unknown, found: Set<string>): void {
+	for (const descriptor of Object.values(asRecord(value))) {
+		descriptorKeys(descriptor, found);
+	}
 }
 
 /**
@@ -58,48 +64,37 @@ function descriptorKeys(value: unknown, found: Set<string>): Set<string> {
  * an option `title` covers the `title` keyword without using it. The test then
  * passes after the last real use of that keyword is deleted, which is the drift
  * that it exists to catch.
+ *
+ * `validateSchemaDefinitionStructure` in `src/validation/schema-definition.ts`
+ * walks the same sections. A section added there has to be added here as well.
  */
 function vocabularyKeys(document: unknown): Set<string> {
 	const found = new Set<string>();
-	const root = asRecord(document) ?? {};
-	const descriptorMap = (value: unknown) => {
-		for (const descriptor of Object.values(asRecord(value) ?? {})) {
-			descriptorKeys(descriptor, found);
-		}
-	};
-	descriptorMap(root.options);
-	for (const shortcode of Object.values(asRecord(root.shortcodes) ?? {})) {
-		const entry = asRecord(shortcode) ?? {};
+	const root = asRecord(document);
+	descriptorMap(root.options, found);
+	for (const shortcode of Object.values(asRecord(root.shortcodes))) {
+		const entry = asRecord(shortcode);
 		for (const argument of Array.isArray(entry.arguments) ? entry.arguments : []) {
 			descriptorKeys(argument, found);
 		}
-		descriptorMap(entry.attributes);
+		descriptorMap(entry.attributes, found);
 	}
-	for (const format of Object.values(asRecord(root.formats) ?? {})) {
-		descriptorMap(format);
-	}
-	for (const group of Object.values(asRecord(root.attributes) ?? {})) {
-		descriptorMap(group);
+	for (const container of [root.formats, root.attributes]) {
+		for (const group of Object.values(asRecord(container))) {
+			descriptorMap(group, found);
+		}
 	}
 	return found;
 }
 
-describe.each(versions)("$name example files show the whole vocabulary", ({ metaSchema, dir }) => {
-	const properties = metaSchemaProperties(JSON.parse(readFileSync(join(validationDir, metaSchema), "utf-8")));
-	const groups = keywordGroups(properties);
+describe.each(versions)("$name example files show the whole vocabulary", ({ name, metaSchema }) => {
+	const groups = keywordGroups(
+		metaSchemaProperties(JSON.parse(readFileSync(join(validationDir, metaSchema), "utf-8"))),
+	);
 
-	const examples = [
-		{
-			format: "yaml",
-			keys: vocabularyKeys(yaml.load(readFileSync(join(docsBase, dir, "extension-schema-example.yml"), "utf-8"))),
-		},
-		{
-			format: "json",
-			keys: vocabularyKeys(JSON.parse(readFileSync(join(docsBase, dir, "extension-schema-example.json"), "utf-8"))),
-		},
-	];
-
-	it.each(examples)("the $format example shows one spelling of every keyword", ({ keys }) => {
+	it.each(formats)("the $format example shows one spelling of every keyword", ({ extension, parse }) => {
+		const source = readFileSync(join(docsBase, name, `extension-schema-example.${extension}`), "utf-8");
+		const keys = vocabularyKeys(parse(source));
 		// One spelling is enough. v1 YAML uses kebab-case and v1 JSON uses
 		// camelCase, by the stated design of those files.
 		const uncovered = [...groups.values()]
