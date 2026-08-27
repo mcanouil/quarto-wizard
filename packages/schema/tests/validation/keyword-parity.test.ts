@@ -13,7 +13,8 @@ const luaSource = readFileSync(join(validationDir, "schema.lua"), "utf-8");
 const metaSchema = JSON.parse(readFileSync(join(validationDir, "extension-schema-v2.json"), "utf-8"));
 
 describe("keyword parity", () => {
-	const inModule = new Set(parseKeywordTable(luaSource).keys());
+	const entries = parseKeywordTable(luaSource);
+	const inModule = new Set(entries.keys());
 	const inMetaSchema = new Set<string>(metaSchemaProperties(metaSchema));
 
 	it("every keyword the module names is in the meta-schema", () => {
@@ -28,7 +29,6 @@ describe("keyword parity", () => {
 	// cannot record which keywords the module acts on. A reformat that hides
 	// an entry now changes a count and fails here.
 	it("holds 25 acted-on keywords and 7 annotations", () => {
-		const entries = parseKeywordTable(luaSource);
 		expect([...entries.values()].filter((acted) => acted)).toHaveLength(25);
 		expect([...entries.values()].filter((acted) => !acted)).toHaveLength(7);
 	});
