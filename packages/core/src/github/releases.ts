@@ -137,10 +137,7 @@ function getGitHubHeaders(auth?: AuthConfig): Record<string, string> {
  */
 function repoApiUrl(owner: string, repo: string, ...segments: string[]): string {
 	const base = `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
-	if (segments.length === 0) {
-		return base;
-	}
-	return `${base}/${segments.map(encodeURIComponent).join("/")}`;
+	return [base, ...segments.map(encodeURIComponent)].join("/");
 }
 
 /**

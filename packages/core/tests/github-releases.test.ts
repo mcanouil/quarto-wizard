@@ -77,6 +77,20 @@ function repoMetadataCalls(fetchJson: { mock: { calls: unknown[][] } }): unknown
 	return fetchJson.mock.calls.filter((call) => typeof call[0] === "string" && isRepoMetadataUrl(call[0]));
 }
 
+/**
+ * Build a `fetchJson` implementation for the three endpoints `resolveVersion` reads.
+ * An endpoint with no answer rejects, so a test states what it expects to be called.
+ */
+function githubApiMock(endpoints: { releases?: unknown[]; tags?: unknown[]; repoMetadata?: () => Promise<unknown> }) {
+	const { releases = [], tags = [], repoMetadata } = endpoints;
+	return (url: string) => {
+		if (url.includes("/releases")) return Promise.resolve(releases);
+		if (url.includes("/tags")) return Promise.resolve(tags);
+		if (repoMetadata && isRepoMetadataUrl(url)) return repoMetadata();
+		return Promise.reject(new Error("Unknown URL"));
+	};
+}
+
 describe("handleGitHubError SAML pass-through", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -191,11 +205,7 @@ describe("resolveVersion", () => {
 
 	it("uses custom default branch when no releases/tags", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation((url: string) => {
-			if (url.includes("/releases")) return Promise.resolve([]);
-			if (url.includes("/tags")) return Promise.resolve([]);
-			return Promise.reject(new Error("Unknown URL"));
-		});
+		fetchJson.mockImplementation(githubApiMock({}));
 
 		const result = await resolveVersion(
 			"owner",
@@ -212,12 +222,7 @@ describe("resolveVersion", () => {
 
 	it("reads the default branch from GitHub when no releases, tags or registry hint exist", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation((url: string) => {
-			if (url.includes("/releases")) return Promise.resolve([]);
-			if (url.includes("/tags")) return Promise.resolve([]);
-			if (isRepoMetadataUrl(url)) return Promise.resolve({ default_branch: "master" });
-			return Promise.reject(new Error("Unknown URL"));
-		});
+		fetchJson.mockImplementation(githubApiMock({ repoMetadata: () => Promise.resolve({ default_branch: "master" }) }));
 
 		const result = await resolveVersion("owner", "repo", { type: "latest" });
 
@@ -228,14 +233,11 @@ describe("resolveVersion", () => {
 
 	it("falls back to main when the default branch lookup fails", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation((url: string) => {
-			if (url.includes("/releases")) return Promise.resolve([]);
-			if (url.includes("/tags")) return Promise.resolve([]);
-			if (isRepoMetadataUrl(url)) {
-				return Promise.reject(new NetworkError("HTTP 403: rate limit exceeded", { statusCode: 403 }));
-			}
-			return Promise.reject(new Error("Unknown URL"));
-		});
+		fetchJson.mockImplementation(
+			githubApiMock({
+				repoMetadata: () => Promise.reject(new NetworkError("HTTP 403: rate limit exceeded", { statusCode: 403 })),
+			}),
+		);
 
 		const result = await resolveVersion("owner", "repo", { type: "latest" });
 
@@ -246,24 +248,19 @@ describe("resolveVersion", () => {
 	it("propagates a SAML SSO error from the default branch lookup", async () => {
 		const samlUrl = "https://github.com/orgs/myorg/sso?authorization_request=abc";
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation((url: string) => {
-			if (url.includes("/releases")) return Promise.resolve([]);
-			if (url.includes("/tags")) return Promise.resolve([]);
-			if (isRepoMetadataUrl(url)) {
-				return Promise.reject(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl }));
-			}
-			return Promise.reject(new Error("Unknown URL"));
-		});
+		fetchJson.mockImplementation(
+			githubApiMock({
+				repoMetadata: () =>
+					Promise.reject(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl })),
+			}),
+		);
 
 		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(SamlSsoError);
 	});
 
 	it("does not look up the default branch when a release exists", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation((url: string) => {
-			if (url.includes("/releases")) return Promise.resolve(mockReleases);
-			return Promise.reject(new Error("Unknown URL"));
-		});
+		fetchJson.mockImplementation(githubApiMock({ releases: mockReleases }));
 
 		const result = await resolveVersion("owner", "repo", { type: "latest" });
 
