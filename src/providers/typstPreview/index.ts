@@ -107,16 +107,15 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	const usePanel = (): TypstPreviewPanel => panel ?? holdPanel(TypstPreviewPanel.create(context.extensionUri));
 
 	/**
-	 * Say why there is nothing to show.
+	 * Put a message in front of the reader.
 	 *
 	 * An open panel takes the message itself, which is both quieter and closer to
-	 * the thing the reader is looking at than a notification would be.
+	 * the thing the reader is looking at than a notification would be. It is
+	 * revealed as well: a message written into a background tab is a command that
+	 * appears to do nothing.
 	 */
-	const report = (message: string): void => {
-		logMessage(`Typst preview: ${message}`, "debug");
+	const show = (message: string): void => {
 		if (panel) {
-			// Reveal it as well. A message written into a panel sitting in a
-			// background tab is a command that appears to do nothing.
 			panel.reveal();
 			panel.showError(message);
 			return;
@@ -124,16 +123,43 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		void showMessageWithLogs(message, "warning");
 	};
 
-	/** Say once that the feature cannot run here at all. */
+	/** Say why there is nothing to show. */
+	const report = (message: string): void => {
+		logMessage(`Typst preview: ${message}`, "debug");
+		show(message);
+	};
+
+	/**
+	 * Say once that the feature cannot run here at all.
+	 *
+	 * The log line is not part of what is said once. The binary probe caches its
+	 * result and logs only on the first attempt, so without this every later
+	 * attempt on an unavailable machine would leave no trace at all, and the log
+	 * would stop being enough to diagnose an inert preview.
+	 */
 	const reportUnavailable = (message: string): void => {
+		logMessage(`Typst preview: ${message}`, "debug");
 		if (reportedUnavailable) {
 			return;
 		}
 		reportedUnavailable = true;
-		report(message);
+		show(message);
 	};
 
-	const preview = async (): Promise<void> => {
+	/**
+	 * Compile the block under the cursor into the panel.
+	 *
+	 * @param asked - Whether the user asked for this. A restore did not, and at
+	 *   that moment the editors are often not back yet, so saying that no block
+	 *   is under the cursor would be an error message on most window reloads.
+	 */
+	const preview = async (asked: boolean): Promise<void> => {
+		const explain = (message: string): void => {
+			if (asked) {
+				report(message);
+			}
+		};
+
 		if (!vscode.workspace.isTrusted) {
 			reportUnavailable("The Typst preview needs a trusted workspace, because it runs the Typst compiler.");
 			return;
@@ -141,21 +167,21 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
-			report("Open a Quarto document to preview a Typst block.");
+			explain("Open a Quarto document to preview a Typst block.");
 			return;
 		}
 
 		const document = editor.document;
 		const block = typstBlockAt(document.getText(), document.offsetAt(editor.selection.active));
 		if (block === undefined) {
-			report("Put the cursor inside a Typst block to preview it.");
+			explain("Put the cursor inside a Typst block to preview it.");
 			return;
 		}
 		if (block.kind !== "plain") {
 			// A raw block needs the ones before it, and a cell needs its options
 			// resolved. Compiling either one alone would show an image that the
 			// render does not produce.
-			report(`A \`${block.kind}\` Typst block cannot be previewed yet.`);
+			explain(`A \`${block.kind}\` Typst block cannot be previewed yet.`);
 			return;
 		}
 
@@ -191,7 +217,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		}
 	};
 
-	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.previewTypstBlock", () => preview()));
+	context.subscriptions.push(vscode.commands.registerCommand("quartoWizard.previewTypstBlock", () => preview(true)));
 
 	// A window reload restores the panel. Recompile into it rather than restoring
 	// a serialised image, which would be stale the moment the document changed.
@@ -203,7 +229,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 					return;
 				}
 				holdPanel(new TypstPreviewPanel(restored, context.extensionUri));
-				await preview();
+				await preview(false);
 			},
 		}),
 	);

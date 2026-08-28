@@ -111,6 +111,9 @@ export class TypstPreviewPanel {
 
 	/** Bring the panel back to the front. */
 	reveal(): void {
+		if (this.closed) {
+			return;
+		}
 		this.panel.reveal(vscode.ViewColumn.Beside, true);
 	}
 
@@ -135,6 +138,13 @@ export class TypstPreviewPanel {
 	}
 
 	private post(message: PreviewMessage): void {
+		if (this.closed) {
+			// A compile can outlive the panel: it runs for up to the timeout, and
+			// the user can close the tab meanwhile. The result is stale, and posting
+			// to a disposed webview throws, which would turn a discarded result into
+			// a failed command.
+			return;
+		}
 		if (!this.ready) {
 			if (message.type === "image") {
 				// A compile that succeeded answers the failure before it, so the

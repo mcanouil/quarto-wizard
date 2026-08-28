@@ -200,6 +200,7 @@ export class TypstCompiler {
 			// line of a Typst diagnostic starts with one, so the position would be
 			// lost exactly when it is needed.
 			const errorOutput: Buffer[] = [];
+			let errorBytes = 0;
 			let settled = false;
 
 			const timer = setTimeout(
@@ -246,6 +247,14 @@ export class TypstCompiler {
 			});
 
 			child.stderr?.on("data", (chunk: Buffer) => {
+				// Bounded by the same limit as the image. A loop that reports once per
+				// iteration fills this as fast as a runaway document fills the other,
+				// and a cap on one of the two is not a cap. Whole chunks are kept, and
+				// the head is what carries the first diagnostic.
+				if (errorBytes >= maxOutputBytes) {
+					return;
+				}
+				errorBytes += chunk.length;
 				errorOutput.push(chunk);
 			});
 

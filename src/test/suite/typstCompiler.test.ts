@@ -176,6 +176,25 @@ suite("Typst Compiler Test Suite", () => {
 			}
 		});
 
+		test("Should stop collecting standard error past the limit", async () => {
+			// A cap on the image alone is not a cap: a loop that reports once per
+			// iteration fills standard error just as fast. The run still finishes,
+			// because the diagnostics are not the product and the head carries the
+			// first one.
+			const compiler = new TypstCompiler(RUNTIME, { maxOutputBytes: 64 });
+			try {
+				const result = await compiler.compile(
+					"",
+					run("for (let i = 0; i < 40; i++) { process.stderr.write('error: '.repeat(8) + '\\n'); }"),
+					never,
+				);
+				assert.ok(result.stderr.length > 0, "the head of the output is kept");
+				assert.ok(result.stderr.length < 2240, `bounded, got ${result.stderr.length}`);
+			} finally {
+				compiler.dispose();
+			}
+		});
+
 		test("Should reject the previous run when a second one supersedes it", async () => {
 			const compiler = new TypstCompiler(RUNTIME);
 			try {
