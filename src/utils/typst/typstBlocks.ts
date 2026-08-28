@@ -1,4 +1,12 @@
-import { getCodeBlockRanges, getYamlFrontMatterRange, OPENING_FENCE, closingFenceRegExp } from "../yamlPosition";
+import {
+	getCodeBlockRanges,
+	getYamlFrontMatterRange,
+	parseOpeningFence,
+	closingFenceRegExp,
+	stripBlockquoteMarkers,
+	stripCarriageReturn,
+	removeIndentColumns,
+} from "../yamlPosition";
 
 /**
  * The three fence kinds that carry Typst source in a Quarto document.
@@ -38,13 +46,8 @@ export interface TypstBlock {
 	fenceStart: number;
 	/** Zero-based line number of the opening fence. */
 	fenceLine: number;
-	/** Indent of the opening fence, in characters. */
+	/** Indent of the opening fence, measured after any blockquote markers. */
 	indent: number;
-}
-
-/** Drop a trailing carriage return left by a CRLF document. */
-function stripCarriageReturn(line: string): string {
-	return line.endsWith("\r") ? line.slice(0, -1) : line;
 }
 
 /**
@@ -76,31 +79,44 @@ function classifyInfoString(info: string): TypstBlockKind | undefined {
 }
 
 /**
- * The body of a block, without its closing fence and without the fence indent.
+ * The body of a block, without its closing fence, its blockquote markers or the
+ * fence indent.
  *
- * Typst is whitespace sensitive, so an indented fence must not leave its indent
- * on every line of the compiled source.
+ * Typst is whitespace sensitive and knows nothing about Markdown, so neither an
+ * indent nor a quote marker may survive into the compiled source.
  */
-function blockBody(text: string, bodyStart: number, bodyEnd: number, fence: string, indent: number): string {
+function blockBody(
+	text: string,
+	bodyStart: number,
+	bodyEnd: number,
+	fence: string,
+	indent: number,
+	quoteDepth: number,
+): string {
+	// Chosen once. How deep the block sits is a property of the fence, not of
+	// each line, so testing it per line says the same thing many times and
+	// invites the two uses below to drift apart.
+	//
+	// At most the depth of the fence is removed. A marker beyond that is content:
+	// one quote deep, the line `> > #x` reaches Typst as the text `> #x`.
+	const unquote =
+		quoteDepth > 0 ? (line: string) => stripBlockquoteMarkers(line, quoteDepth).content : (line: string) => line;
+
 	// Cut at the start of the closing fence line rather than dropping that line
 	// after a split, which would take the newline of the line above with it and
 	// glue the last body line to whatever follows it.
 	const slice = text.slice(bodyStart, bodyEnd);
 	const lastNewline = slice.lastIndexOf("\n");
 	const closing = closingFenceRegExp(fence);
-	const body = closing.test(stripCarriageReturn(slice.slice(lastNewline + 1)))
-		? slice.slice(0, lastNewline + 1)
-		: slice;
+	const lastLine = stripCarriageReturn(slice.slice(lastNewline + 1));
+	const body = closing.test(unquote(lastLine)) ? slice.slice(0, lastNewline + 1) : slice;
 
-	if (indent === 0) {
-		return body;
-	}
-	// Spaces and tabs only. A carriage return is part of the line ending on a
-	// CRLF document, and stripping it here would corrupt the source.
-	const leading = new RegExp(`^[ \\t]{0,${indent}}`);
+	// The indent comes off by column, because the fence owns a number of columns
+	// and not a number of characters. A carriage return is part of the line
+	// ending on a CRLF document, and is left alone.
 	return body
 		.split("\n")
-		.map((line) => line.replace(leading, ""))
+		.map((line) => removeIndentColumns(unquote(line), indent))
 		.join("\n");
 }
 
@@ -223,12 +239,13 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 
 	for (const range of getCodeBlockRanges(source)) {
 		const fence = fenceLineRange(source, range.start);
-		const opening = OPENING_FENCE.exec(stripCarriageReturn(source.slice(fence.start, fence.end)));
-		if (opening === null) {
+		const fenceLineText = stripBlockquoteMarkers(stripCarriageReturn(source.slice(fence.start, fence.end)));
+		const opening = parseOpeningFence(fenceLineText.content);
+		if (opening === undefined) {
 			continue;
 		}
 
-		const kind = classifyInfoString(opening[3]);
+		const kind = classifyInfoString(opening.info);
 		if (kind === undefined) {
 			continue;
 		}
@@ -239,8 +256,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			}
 		}
 
-		const indent = opening[1].length;
-		const body = blockBody(source, range.start, range.end, opening[2], indent);
+		const body = blockBody(source, range.start, range.end, opening.fence, opening.indent, fenceLineText.depth);
 		// Only a cell carries options. For the other two kinds a `//|` line is an
 		// ordinary Typst comment, so the body passes through untouched.
 		const parsed = kind === "cell" ? parseOptions(body) : { options: {}, code: body };
@@ -255,7 +271,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			bodyEnd: range.end + from,
 			fenceStart: fence.start + from,
 			fenceLine: line,
-			indent,
+			indent: opening.indent,
 		});
 	}
 

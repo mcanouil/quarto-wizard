@@ -45,6 +45,56 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
 		});
 
+		test("Should ignore a fence indented by four spaces at the top level", () => {
+			// Four spaces at the top level is an indented code block, so this is a
+			// documented example of a Typst block and not one. Compiling it would
+			// run source the author wrote to be read.
+			const text = "before\n\n    ```typst\n    #a\n    ```\n";
+			assert.deepStrictEqual(findTypstBlocks(text), []);
+		});
+
+		test("Should remove the blockquote marker from every body line", () => {
+			// Typst is whitespace sensitive and knows nothing about Markdown, so a
+			// marker left on a body line is a syntax error in the compiled source.
+			const found = findTypstBlocks("> ```typst\n> #let a = 1\n> #a\n> ```\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
+		});
+
+		test("Should remove the fence indent by column, not by character", () => {
+			// The fence is indented by one tab, which is four columns. A body line
+			// indented by a tab keeps whatever follows it, so four spaces of Typst
+			// indent survive. Counting characters instead would eat the tab and
+			// three of those spaces.
+			const found = findTypstBlocks("1. Step\n\n\t```typst\n\t    #x\n\t```\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "    #x\n");
+		});
+
+		test("Should read a blockquoted cell with its options", () => {
+			// The option reader sees the body after the markers are removed, which is
+			// the one path where the two rules meet.
+			const found = findTypstBlocks("> ```{typst}\n> //| width: 3\n> #x\n> ```\n");
+			assert.strictEqual(found.length, 1);
+			assert.deepStrictEqual(found[0].options, { width: "3" });
+			assert.strictEqual(found[0].code, "#x\n");
+		});
+
+		test("Should keep CRLF line endings in a blockquoted block", () => {
+			const found = findTypstBlocks("> ```typst\r\n> #a\r\n> ```\r\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "#a\r\n");
+		});
+
+		test("Should keep a marker the blockquote itself does not consume", () => {
+			// The fence sits one quote deep, so Pandoc hands Typst the body with one
+			// marker removed and the second one intact. Removing both would delete a
+			// character the author wrote.
+			const found = findTypstBlocks("> ```typst\n> > #x\n> ```\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "> #x\n");
+		});
+
 		test("Should read an unclosed block to the end of the text", () => {
 			const found = findTypstBlocks("```typst\n#let a = 1\n");
 			assert.strictEqual(found.length, 1);
