@@ -325,6 +325,14 @@
 				"icon": "$(folder)",
 				"category": "Quarto Wizard",
 				"description": "Install extension(s) from a local directory or archive file."
+			},
+			{
+				"command": "quartoWizard.previewTypstBlock",
+				"title": "Preview Typst Block",
+				"shortTitle": "Preview Typst",
+				"icon": "$(preview)",
+				"category": "Quarto Wizard",
+				"description": "Compile the Typst block under the cursor and show it in a panel."
 			}
 		],
 		"submenus": [

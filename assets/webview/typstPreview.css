@@ -1,0 +1,50 @@
+/* The Typst preview panel. */
+
+body {
+	margin: 0;
+	padding: 0;
+	/* The editor background follows a theme change with no recompile. */
+	background-color: var(--vscode-editor-background);
+	color: var(--vscode-foreground);
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+}
+
+#header {
+	position: sticky;
+	top: 0;
+	padding: 0.4em 0.8em;
+	background-color: var(--vscode-editorWidget-background);
+	border-bottom: 1px solid var(--vscode-editorWidget-border);
+	color: var(--vscode-descriptionForeground);
+	font-size: 0.9em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#error {
+	margin: 0;
+	padding: 0.6em 0.8em;
+	background-color: var(--vscode-inputValidation-errorBackground);
+	border-bottom: 1px solid var(--vscode-inputValidation-errorBorder);
+	color: var(--vscode-errorForeground);
+	font-family: var(--vscode-editor-font-family);
+	font-size: var(--vscode-editor-font-size);
+	white-space: pre-wrap;
+}
+
+#figure {
+	display: flex;
+	justify-content: center;
+	padding: 1em;
+}
+
+#image {
+	max-width: 100%;
+	height: auto;
+}
+
+[hidden] {
+	display: none;
+}
