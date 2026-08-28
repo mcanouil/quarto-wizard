@@ -34,6 +34,8 @@ export interface TypstBlock {
 	bodyStart: number;
 	/** Offset one past the last character of the body. */
 	bodyEnd: number;
+	/** Offset of the first character of the opening fence line. */
+	fenceStart: number;
 	/** Zero-based line number of the opening fence. */
 	fenceLine: number;
 	/** Indent of the opening fence, in characters. */
@@ -181,6 +183,12 @@ export function hasLateOptionLine(block: TypstBlock): boolean {
 export function findTypstBlocks(text: string): TypstBlock[] {
 	const frontMatter = getYamlFrontMatterRange(text);
 	const blocks: TypstBlock[] = [];
+	// The ranges come back sorted, so the line number of each fence continues
+	// from the last one. Counting from the start of the document for every block
+	// would walk the whole prefix again each time, and a page of examples can
+	// carry ninety fences.
+	let counted = 0;
+	let line = 0;
 
 	for (const range of getCodeBlockRanges(text)) {
 		if (frontMatter !== undefined && range.start < frontMatter.end) {
@@ -198,6 +206,12 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			continue;
 		}
 
+		for (; counted < fence.start; counted++) {
+			if (text[counted] === "\n") {
+				line++;
+			}
+		}
+
 		const indent = opening[1].length;
 		const body = blockBody(text, range.start, range.end, opening[2], indent);
 		// Only a cell carries options. For the other two kinds a `//|` line is an
@@ -211,7 +225,8 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			options: parsed.options,
 			bodyStart: range.start,
 			bodyEnd: range.end,
-			fenceLine: text.slice(0, fence.start).split("\n").length - 1,
+			fenceStart: fence.start,
+			fenceLine: line,
 			indent,
 		});
 	}
@@ -226,10 +241,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
  * cursor on the fence means that block, and the body range starts after it.
  */
 export function typstBlockAt(text: string, offset: number): TypstBlock | undefined {
-	return findTypstBlocks(text).find((block) => {
-		const fence = fenceLineRange(text, block.bodyStart);
-		return offset >= fence.start && offset <= block.bodyEnd;
-	});
+	return findTypstBlocks(text).find((block) => offset >= block.fenceStart && offset <= block.bodyEnd);
 }
 
 /**

@@ -24,15 +24,17 @@ function rootLength(root: string, name: string): number | undefined {
 	return Number.isFinite(value) ? value : undefined;
 }
 
+/** The size a root element declares, or undefined when it declares none. */
+function rootSize(root: string): SvgSize | undefined {
+	const width = rootLength(root, "width");
+	const height = rootLength(root, "height");
+	return width === undefined || height === undefined ? undefined : { width, height };
+}
+
 /** The intrinsic size the root element declares, or undefined when it has none. */
 export function svgSize(svg: string): SvgSize | undefined {
 	const root = ROOT_ELEMENT.exec(svg);
-	if (root === null) {
-		return undefined;
-	}
-	const width = rootLength(root[0], "width");
-	const height = rootLength(root[0], "height");
-	return width === undefined || height === undefined ? undefined : { width, height };
+	return root === null ? undefined : rootSize(root[0]);
 }
 
 /**
@@ -43,15 +45,12 @@ export function svgSize(svg: string): SvgSize | undefined {
  * root declares no size, is returned unchanged.
  */
 export function clampSvg(svg: string, maxHeight: number): string {
-	const size = svgSize(svg);
-	if (size === undefined || size.height <= maxHeight || size.height <= 0) {
+	const root = ROOT_ELEMENT.exec(svg);
+	const size = root === null ? undefined : rootSize(root[0]);
+	if (root === null || size === undefined || size.height <= maxHeight || size.height <= 0) {
 		return svg;
 	}
 	const scale = maxHeight / size.height;
-	const root = ROOT_ELEMENT.exec(svg);
-	if (root === null) {
-		return svg;
-	}
 	const scaled = root[0]
 		.replace(/\bwidth="(-?[0-9.]+)(pt|px)?"/, `width="${size.width * scale}$2"`)
 		.replace(/\bheight="(-?[0-9.]+)(pt|px)?"/, `height="${maxHeight}$2"`);
