@@ -14,15 +14,10 @@ on:
       - ready_for_review
     branches:
       - main
-    paths:
-      - "src/**"
-      - "packages/**"
-      - "package.json"
-      - "package-lock.json"
-      # Swept by the Lua conformance job, and edited through pull requests.
-      # The vendored schemas under docs/ are not listed: a bot updates those
-      # straight on the default branch, where a pull request filter cannot fire.
-      - "test-fixtures/**/_schema.yml"
+    # No paths filter. The ruleset requires the summary job, and a required
+    # check that never starts blocks a pull request for ever. The workflow
+    # therefore always runs, and the changes job below decides whether the
+    # expensive jobs have anything to do.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
@@ -31,8 +26,50 @@ concurrency:
 permissions: read-all
 
 jobs:
-  build:
+  changes:
     if: github.event.pull_request.draft == false
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compare the pull request against its base
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # A manual run has no pull request to compare against, so it builds.
+          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            echo "code=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")
+          echo "Changed files:"
+          echo "${changed}"
+
+          # The inputs of the build. Fixtures are swept by the Lua job and are
+          # edited through pull requests. The vendored schemas under docs/ are
+          # not listed: a bot updates those straight on the default branch,
+          # where no pull request event fires at all.
+          if echo "${changed}" | grep -qE '^(src/|packages/|package\.json$|package-lock\.json$|test-fixtures/.+/_schema\.yml$)'; then
+            echo "code=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "code=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -175,7 +212,8 @@ jobs:
           retention-days: 1
 
   lua:
-    if: github.event.pull_request.draft == false
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Lua reference validator
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -216,6 +254,7 @@ jobs:
   summary:
     if: always() && github.event.pull_request.draft == false
     needs:
+      - changes
       - build
       - lua
     timeout-minutes: 10
@@ -291,16 +330,24 @@ jobs:
           # The verdict comes from the job results, which are reported whatever
           # a job managed to upload. A matrix cell killed by its timeout leaves
           # no summary file, so counting files would call that run a success.
+          # A skipped job is not a failure: this job is the required check, so
+          # a pull request that changes no build input has nothing to run and
+          # must still report a verdict.
           failed_names=""
-          for job in "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
-            if [[ "${job#*:}" != "success" ]]; then
-              failed_names="${failed_names} ${job}"
-            fi
+          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
+            case "${job#*:}" in
+              "success" | "skipped") ;;
+              *) failed_names="${failed_names} ${job}" ;;
+            esac
           done
 
           if [[ -z "${failed_names}" ]]; then
             echo "## 🎉 Overall Result: SUCCESS" >> ${GITHUB_STEP_SUMMARY}
-            echo "Every job completed successfully." >> ${GITHUB_STEP_SUMMARY}
+            if [[ "${{ needs.changes.outputs.code }}" == "true" ]]; then
+              echo "Every job completed successfully." >> "${GITHUB_STEP_SUMMARY}"
+            else
+              echo "This pull request changes no build input, so the build matrix and the Lua job did not run." >> "${GITHUB_STEP_SUMMARY}"
+            fi
           else
             echo "## ⚠️ Overall Result: FAILURE" >> ${GITHUB_STEP_SUMMARY}
             echo "Not successful:${failed_names}. Check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
