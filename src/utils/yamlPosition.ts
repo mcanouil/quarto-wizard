@@ -42,6 +42,28 @@ export function hasUnquotedBacktick(infoString: string): boolean {
 }
 
 /**
+ * An opening code fence, capturing its indent, its run and its info string.
+ *
+ * Exported so that a reader which derives the info string of a block, such as
+ * the Typst block scanner, matches the fence exactly as this module does. Two
+ * copies of the rule drift apart in silence.
+ */
+export const OPENING_FENCE = /^(\s*)(`{3,}|~{3,})(.*)$/;
+
+/**
+ * The closing fence that ends a block opened by the given run.
+ *
+ * A fence closes on the same character, repeated at least as many times, alone
+ * on its line. The character is always a backtick or a tilde, and neither is a
+ * regular expression metacharacter.
+ *
+ * @param fence - The run of the opening fence, as captured by `OPENING_FENCE`.
+ */
+export function closingFenceRegExp(fence: string): RegExp {
+	return new RegExp(`^\\s*${fence[0]}{${fence.length},}\\s*$`);
+}
+
+/**
  * Find all fenced code block body regions in the document text.
  *
  * Recognises both backtick (`` ``` ``) and tilde (`~~~`) fences, with
@@ -82,7 +104,7 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 		}
 
 		// Check for opening fence, optionally indented.
-		const openMatch = /^(\s*)(`{3,}|~{3,})(.*)$/.exec(line);
+		const openMatch = OPENING_FENCE.exec(line);
 		if (openMatch) {
 			// The info string must not contain bare backticks when using backtick
 			// fences (CommonMark spec).  Backticks inside quoted attribute values
@@ -95,8 +117,7 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			// attributes in the header (e.g. {r}, {python}) stay outside.
 			blockStart = offset;
 			// Compile the closing fence regex once per block.
-			// fenceChar is always ` or ~, neither is a regex metacharacter.
-			closingFenceRe = new RegExp(`^\\s*${openMatch[2][0]}{${openMatch[2].length},}\\s*$`);
+			closingFenceRe = closingFenceRegExp(openMatch[2]);
 		}
 	}
 

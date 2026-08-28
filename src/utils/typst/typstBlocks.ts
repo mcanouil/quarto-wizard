@@ -1,4 +1,4 @@
-import { getCodeBlockRanges, getYamlFrontMatterRange } from "../yamlPosition";
+import { getCodeBlockRanges, getYamlFrontMatterRange, OPENING_FENCE, closingFenceRegExp } from "../yamlPosition";
 
 /**
  * The three fence kinds that carry Typst source in a Quarto document.
@@ -87,7 +87,7 @@ function blockBody(text: string, bodyStart: number, bodyEnd: number, fence: stri
 	// glue the last body line to whatever follows it.
 	const slice = text.slice(bodyStart, bodyEnd);
 	const lastNewline = slice.lastIndexOf("\n");
-	const closing = new RegExp(`^\\s*${fence[0]}{${fence.length},}\\s*$`);
+	const closing = closingFenceRegExp(fence);
 	const body = closing.test(stripCarriageReturn(slice.slice(lastNewline + 1)))
 		? slice.slice(0, lastNewline + 1)
 		: slice;
@@ -191,7 +191,14 @@ export function hasLateOptionLine(block: TypstBlock): boolean {
  * block and is never reported here.
  */
 export function findTypstBlocks(text: string): TypstBlock[] {
+	// Scan below the front matter rather than dropping its ranges afterwards. A
+	// block scalar can hold a line that looks like a fence, and that opens a
+	// block which only closes on a bare fence line, so it swallows the opening
+	// fence of the first real block and takes it out of the results entirely.
 	const frontMatter = getYamlFrontMatterRange(text);
+	const from = frontMatter?.end ?? 0;
+	const source = from === 0 ? text : text.slice(from);
+
 	const blocks: TypstBlock[] = [];
 	// The ranges come back sorted, so the line number of each fence continues
 	// from the last one. Counting from the start of the document for every block
@@ -199,14 +206,15 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 	// carry ninety fences.
 	let counted = 0;
 	let line = 0;
-
-	for (const range of getCodeBlockRanges(text)) {
-		if (frontMatter !== undefined && range.start < frontMatter.end) {
-			continue;
+	for (let index = 0; index < from; index++) {
+		if (text[index] === "\n") {
+			line++;
 		}
+	}
 
-		const fence = fenceLineRange(text, range.start);
-		const opening = /^(\s*)(`{3,}|~{3,})(.*)$/.exec(stripCarriageReturn(text.slice(fence.start, fence.end)));
+	for (const range of getCodeBlockRanges(source)) {
+		const fence = fenceLineRange(source, range.start);
+		const opening = OPENING_FENCE.exec(stripCarriageReturn(source.slice(fence.start, fence.end)));
 		if (opening === null) {
 			continue;
 		}
@@ -217,13 +225,13 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 		}
 
 		for (; counted < fence.start; counted++) {
-			if (text[counted] === "\n") {
+			if (source[counted] === "\n") {
 				line++;
 			}
 		}
 
 		const indent = opening[1].length;
-		const body = blockBody(text, range.start, range.end, opening[2], indent);
+		const body = blockBody(source, range.start, range.end, opening[2], indent);
 		// Only a cell carries options. For the other two kinds a `//|` line is an
 		// ordinary Typst comment, so the body passes through untouched.
 		const parsed = kind === "cell" ? parseOptions(body) : { options: {}, code: body };
@@ -233,9 +241,10 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			body,
 			code: parsed.code,
 			options: parsed.options,
-			bodyStart: range.start,
-			bodyEnd: range.end,
-			fenceStart: fence.start,
+			// Offsets are reported against the document, not against the slice.
+			bodyStart: range.start + from,
+			bodyEnd: range.end + from,
+			fenceStart: fence.start + from,
 			fenceLine: line,
 			indent,
 		});

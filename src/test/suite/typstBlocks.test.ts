@@ -77,6 +77,26 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(found[0].body, "#a\n");
 		});
 
+		test("Should find a block below a fence line inside the front matter", () => {
+			// A block scalar can hold a line that looks like a fence. Scanning the
+			// whole document opens a phantom block there, and because that block
+			// only closes on a bare fence line it swallows the opening fence of the
+			// real block below, which then goes unreported.
+			const text = "---\ndescription: |\n  text\n```\n---\n\n```typst\n#a\n```\n";
+			const found = findTypstBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].kind, "plain");
+			assert.strictEqual(found[0].body, "#a\n");
+		});
+
+		test("Should report offsets and line numbers past the front matter", () => {
+			const text = "---\ntitle: t\n---\n\n```typst\n#a\n```\n";
+			const found = findTypstBlocks(text);
+			assert.strictEqual(found[0].fenceLine, 4);
+			assert.strictEqual(text.slice(found[0].fenceStart, found[0].fenceStart + 8), "```typst");
+			assert.strictEqual(text.slice(found[0].bodyStart, found[0].bodyEnd), "#a\n```");
+		});
+
 		test("Should report the fence line of each block", () => {
 			const found = findTypstBlocks("intro\n\n```typst\n#a\n```\n\n```{=typst}\n#b\n```\n");
 			assert.deepStrictEqual(
