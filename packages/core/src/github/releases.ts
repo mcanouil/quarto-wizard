@@ -11,7 +11,14 @@ import type { AuthConfig } from "../types/auth.js";
 import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { USER_AGENT } from "../constants.js";
-import { AuthenticationError, NetworkError, RepositoryNotFoundError, SamlSsoError, VersionError } from "../errors.js";
+import {
+	AuthenticationError,
+	NetworkError,
+	RepositoryNotFoundError,
+	SamlSsoError,
+	VersionError,
+	isCancellationError,
+} from "../errors.js";
 import { fetchJson } from "../registry/http.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -268,7 +275,8 @@ async function validateCommit(owner: string, repo: string, commit: string, optio
  * This is used only when no release, no tag and no registry entry give a
  * reference to install. A failed lookup returns `undefined`, so the caller keeps
  * its own fallback. A SAML SSO error is rethrown, because the user must act on
- * it.
+ * it, and a cancellation is rethrown, because the user asked the operation to
+ * stop.
  *
  * @param owner - Repository owner
  * @param repo - Repository name
@@ -291,7 +299,7 @@ async function fetchDefaultBranch(
 		});
 		return raw.default_branch || undefined;
 	} catch (error) {
-		if (error instanceof SamlSsoError) {
+		if (error instanceof SamlSsoError || isCancellationError(error)) {
 			throw error;
 		}
 		return undefined;

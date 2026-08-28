@@ -65,7 +65,7 @@ import {
 	resolveVersion,
 	constructArchiveUrl,
 } from "../src/github/releases.js";
-import { AuthenticationError, NetworkError, SamlSsoError } from "../src/errors.js";
+import { AuthenticationError, CancellationError, NetworkError, SamlSsoError } from "../src/errors.js";
 
 const REPO_METADATA_URL = "https://api.github.com/repos/owner/repo";
 
@@ -256,6 +256,13 @@ describe("resolveVersion", () => {
 		);
 
 		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(SamlSsoError);
+	});
+
+	it("propagates a cancellation from the default branch lookup", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation(githubApiMock({ repoMetadata: () => Promise.reject(new CancellationError()) }));
+
+		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(CancellationError);
 	});
 
 	it("does not look up the default branch when a release exists", async () => {
