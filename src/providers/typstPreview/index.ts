@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { typstBlockAt, type TypstBlock } from "../../utils/typst/typstBlocks";
-import { parseTypstStderr } from "../../utils/typst/typstDiagnostics";
+import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary } from "./typstCompiler";
 import { TypstPreviewPanel } from "./typstPreviewPanel";
@@ -43,14 +43,32 @@ function assembleSource(block: TypstBlock): AssembledSource {
 	return { source: `${PAGE_SETUP}\n${block.body}`, injectedLines: 1 };
 }
 
-/** The first line of a failure, as it is shown inside the panel. */
-function errorText(stderr: string, injectedLines: number): string {
+/**
+ * The one line a failure shows inside the panel.
+ *
+ * Exported for its tests. The choice of which diagnostic to show carries most
+ * of the behaviour, and it is not reachable through the command.
+ */
+export function errorText(stderr: string, injectedLines: number): string {
 	const diagnostics = parseTypstStderr(stderr, injectedLines);
-	if (diagnostics.length === 0) {
-		return "Typst produced no image and reported nothing.";
+	// A warning can sit above the error that stopped the compile, so the first
+	// diagnostic is not the one to show. Headlining a failure as a warning
+	// misstates why there is no image.
+	const mapped = diagnostics.find((diagnostic) => diagnostic.severity === "error") ?? diagnostics[0];
+	if (mapped) {
+		// The line is counted inside the block, while the panel header counts
+		// document lines, so it says which of the two it means.
+		return `${mapped.severity} at line ${mapped.line + 1}, column ${mapped.column + 1} of the block: ${mapped.message}`;
 	}
-	const first = diagnostics[0];
-	return `${first.severity} at line ${first.line + 1}, column ${first.column + 1}: ${first.message}`;
+
+	// Nothing mapped, which means every diagnostic pointed at another file, such
+	// as an imported one. There is no position to show, but there is still a
+	// message, and reporting none would contradict the missing image.
+	const messages = typstMessages(stderr);
+	const outside = messages.find((message) => message.severity === "error") ?? messages[0];
+	return outside === undefined
+		? "Typst produced no image and reported nothing."
+		: `${outside.severity} outside this block: ${outside.message}`;
 }
 
 /** What the panel shows about the block it is displaying. */
@@ -97,6 +115,9 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	const report = (message: string): void => {
 		logMessage(`Typst preview: ${message}`, "debug");
 		if (panel) {
+			// Reveal it as well. A message written into a panel sitting in a
+			// background tab is a command that appears to do nothing.
+			panel.reveal();
 			panel.showError(message);
 			return;
 		}

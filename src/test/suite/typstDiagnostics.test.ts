@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { parseTypstStderr } from "../../utils/typst/typstDiagnostics";
+import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 
 // Both samples below are the real output of
 // `typst compile --format svg - -`, captured from the binary that ships inside
@@ -83,5 +83,28 @@ suite("Typst Diagnostics Test Suite", () => {
 	test("Should return nothing for output that holds no diagnostic", () => {
 		assert.deepStrictEqual(parseTypstStderr("", 0), []);
 		assert.deepStrictEqual(parseTypstStderr("<svg></svg>", 0), []);
+	});
+
+	suite("typstMessages", () => {
+		test("Should read a heading that parseTypstStderr drops", () => {
+			// The position names another file, so there is nothing in the block to
+			// mark and `parseTypstStderr` reports nothing. The message survives here,
+			// which is what lets a caller avoid claiming a failed compile was silent.
+			const stderr = ["error: file not found", "  ┌─ preamble.typ:4:2", "  │", "4 │ #x", ""].join("\n");
+			assert.deepStrictEqual(parseTypstStderr(stderr, 0), []);
+			assert.deepStrictEqual(typstMessages(stderr), [{ severity: "error", message: "file not found" }]);
+		});
+
+		test("Should read every heading in order", () => {
+			const stderr = "warning: unused\n  ┌─ <stdin>:1:0\nerror: expected expression\n  ┌─ <stdin>:2:4\n";
+			assert.deepStrictEqual(typstMessages(stderr), [
+				{ severity: "warning", message: "unused" },
+				{ severity: "error", message: "expected expression" },
+			]);
+		});
+
+		test("Should return nothing for output that holds no heading", () => {
+			assert.deepStrictEqual(typstMessages("<svg></svg>"), []);
+		});
 	});
 });

@@ -120,6 +120,12 @@ export interface TypstCompileResult {
 	stderr: string;
 }
 
+/** Limits a caller can lower, which is how the lifecycle is put under test. */
+export interface TypstCompilerOptions {
+	timeoutMs?: number;
+	maxOutputBytes?: number;
+}
+
 /** A compile that never reached Typst, or that was stopped before it finished. */
 export class TypstCompileFailure extends Error {}
 
@@ -163,7 +169,10 @@ export class TypstCompiler {
 	private abortCurrent: ((error: Error) => void) | undefined;
 	private disposed = false;
 
-	constructor(private readonly binary: string) {}
+	constructor(
+		private readonly binary: string,
+		private readonly options: TypstCompilerOptions = {},
+	) {}
 
 	/**
 	 * Compile one source, superseding whatever was running.
@@ -178,17 +187,24 @@ export class TypstCompiler {
 		}
 		this.stopCurrent();
 
+		const timeoutMs = this.options.timeoutMs ?? TIMEOUT_MS;
+		const maxOutputBytes = this.options.maxOutputBytes ?? MAX_OUTPUT_BYTES;
+
 		return new Promise<TypstCompileResult>((resolve, reject) => {
 			const child = spawn(this.binary, argv, { shell: false, windowsHide: true });
 
 			const output: Buffer[] = [];
 			let outputBytes = 0;
-			let stderr = "";
+			// Kept as bytes and decoded once. Decoding each chunk splits a
+			// multi-byte character that straddles a chunk boundary, and the position
+			// line of a Typst diagnostic starts with one, so the position would be
+			// lost exactly when it is needed.
+			const errorOutput: Buffer[] = [];
 			let settled = false;
 
 			const timer = setTimeout(
-				() => abort(new TypstCompileFailure(`Typst did not finish within ${TIMEOUT_MS} ms.`)),
-				TIMEOUT_MS,
+				() => abort(new TypstCompileFailure(`Typst did not finish within ${timeoutMs} ms.`)),
+				timeoutMs,
 			);
 			const cancellation = token.onCancellationRequested(() => abort(new vscode.CancellationError()));
 
@@ -222,15 +238,15 @@ export class TypstCompiler {
 
 			child.stdout?.on("data", (chunk: Buffer) => {
 				outputBytes += chunk.length;
-				if (outputBytes > MAX_OUTPUT_BYTES) {
-					abort(new TypstCompileFailure(`Typst produced more than ${MAX_OUTPUT_BYTES} bytes.`));
+				if (outputBytes > maxOutputBytes) {
+					abort(new TypstCompileFailure(`Typst produced more than ${maxOutputBytes} bytes.`));
 					return;
 				}
 				output.push(chunk);
 			});
 
 			child.stderr?.on("data", (chunk: Buffer) => {
-				stderr += chunk.toString("utf-8");
+				errorOutput.push(chunk);
 			});
 
 			child.on("error", (error: Error) =>
@@ -240,6 +256,7 @@ export class TypstCompiler {
 			child.on("close", (code: number | null) => {
 				settle(() => {
 					const svg = Buffer.concat(output).toString("utf-8");
+					const stderr = Buffer.concat(errorOutput).toString("utf-8");
 					resolve(code === 0 && svg.length > 0 ? { svg, stderr } : { stderr });
 				});
 			});

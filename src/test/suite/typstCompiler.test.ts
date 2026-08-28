@@ -1,8 +1,39 @@
 import * as assert from "assert";
+import * as vscode from "vscode";
 import * as path from "node:path";
-import { typstBinaryCandidate, probeTypstBinary, type TypstProbe } from "../../providers/typstPreview/typstCompiler";
+import {
+	typstBinaryCandidate,
+	probeTypstBinary,
+	TypstCompiler,
+	TypstCompileFailure,
+	type TypstProbe,
+} from "../../providers/typstPreview/typstCompiler";
 
 const BIN = path.join("/opt", "quarto", "bin");
+
+/**
+ * A stand-in for the compiler binary.
+ *
+ * The lifecycle of `compile` is about processes and not about Typst, so these
+ * tests drive it with this runtime instead. Continuous integration has no Quarto
+ * and therefore no Typst, so a test that needed the real binary could never run
+ * there, and this is the code most worth covering in the whole slice.
+ */
+const RUNTIME = process.execPath;
+
+/** Arguments that run one expression in a child process. */
+function run(source: string): string[] {
+	return ["-e", source];
+}
+
+/** A token that is already cancelled. */
+function cancelled(): vscode.CancellationToken {
+	const source = new vscode.CancellationTokenSource();
+	source.cancel();
+	return source.token;
+}
+
+const never = new vscode.CancellationTokenSource().token;
 
 /**
  * A probe whose only real input is the set of paths that exist.
@@ -65,6 +96,136 @@ suite("Typst Compiler Test Suite", () => {
 			);
 			assert.strictEqual(found, undefined);
 			assert.deepStrictEqual(attempted, [path.join(BIN, "tools", "aarch64", "typst")]);
+		});
+	});
+
+	suite("TypstCompiler.compile", () => {
+		test("Should resolve with the output of a run that produced one", async () => {
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				const result = await compiler.compile("", run("process.stdout.write('<svg/>')"), never);
+				assert.strictEqual(result.svg, "<svg/>");
+				assert.strictEqual(result.stderr, "");
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should resolve without an image when the run failed", async () => {
+			// A failed compile is a result the caller renders, not an exception.
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				const result = await compiler.compile("", run("process.stderr.write('error: no'); process.exit(1)"), never);
+				assert.strictEqual(result.svg, undefined);
+				assert.strictEqual(result.stderr, "error: no");
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should write the source to standard input", async () => {
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				const result = await compiler.compile(
+					"the source",
+					run("process.stdin.on('data', (d) => process.stdout.write(d))"),
+					never,
+				);
+				assert.strictEqual(result.svg, "the source");
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should keep a multi-byte character split across two chunks", async () => {
+			// Typst writes its position line starting with `┌─`. Decoding each chunk
+			// as it arrives would cut that character in half and lose the position.
+			const compiler = new TypstCompiler(RUNTIME);
+			const halves =
+				"const b = Buffer.from('┌─ <stdin>:1:0'); process.stderr.write(b.subarray(0, 2)); setTimeout(() => { process.stderr.write(b.subarray(2)); process.exit(1); }, 20)";
+			try {
+				const result = await compiler.compile("", run(halves), never);
+				assert.strictEqual(result.stderr, "┌─ <stdin>:1:0");
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should reject when the run outlives the timeout", async () => {
+			const compiler = new TypstCompiler(RUNTIME, { timeoutMs: 100 });
+			try {
+				await assert.rejects(
+					compiler.compile("", run("setTimeout(() => {}, 10000)"), never),
+					(error: unknown) =>
+						error instanceof TypstCompileFailure && /did not finish within 100 ms/.test(String(error)),
+				);
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should reject when the run produces more than the limit", async () => {
+			const compiler = new TypstCompiler(RUNTIME, { maxOutputBytes: 64 });
+			try {
+				await assert.rejects(
+					compiler.compile("", run("process.stdout.write('x'.repeat(4096))"), never),
+					(error: unknown) => error instanceof TypstCompileFailure && /more than 64 bytes/.test(String(error)),
+				);
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should reject the previous run when a second one supersedes it", async () => {
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				const first = compiler.compile("", run("setTimeout(() => {}, 10000)"), never);
+				const second = compiler.compile("", run("process.stdout.write('<svg/>')"), never);
+				await assert.rejects(first, (error: unknown) => error instanceof vscode.CancellationError);
+				assert.strictEqual((await second).svg, "<svg/>");
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should reject when the token is cancelled", async () => {
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				await assert.rejects(
+					compiler.compile("", run("setTimeout(() => {}, 10000)"), cancelled()),
+					(error: unknown) => error instanceof vscode.CancellationError,
+				);
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should reject when the binary is not there", async () => {
+			const compiler = new TypstCompiler(path.join(BIN, "tools", "aarch64", "typst"));
+			try {
+				await assert.rejects(
+					compiler.compile("", [], never),
+					(error: unknown) => error instanceof TypstCompileFailure && /Failed to start Typst/.test(String(error)),
+				);
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should refuse to compile once disposed", async () => {
+			const compiler = new TypstCompiler(RUNTIME);
+			compiler.dispose();
+			await assert.rejects(
+				compiler.compile("", run("process.stdout.write('<svg/>')"), never),
+				(error: unknown) => error instanceof TypstCompileFailure && /disposed/.test(String(error)),
+			);
+		});
+
+		test("Should stop the running child when disposed", async () => {
+			const compiler = new TypstCompiler(RUNTIME);
+			const running = compiler.compile("", run("setTimeout(() => {}, 10000)"), never);
+			compiler.dispose();
+			await assert.rejects(running, (error: unknown) => error instanceof vscode.CancellationError);
 		});
 	});
 });

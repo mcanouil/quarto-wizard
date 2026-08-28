@@ -27,6 +27,26 @@ const HEADING = /^(error|warning): (.+)$/;
 const POSITION = /^\s*┌─\s*(\S+):(\d+):(\d+)/;
 
 /**
+ * Every heading Typst wrote, with no position and no mapping.
+ *
+ * `parseTypstStderr` skips a diagnostic that names a file other than `<stdin>`,
+ * because there is nothing in the block to mark. That can leave a failed
+ * compile with no mapped diagnostic at all, and a caller which then says
+ * nothing was reported contradicts both the log and the fact that no image
+ * came back. Reading the headings gives it something true to say.
+ */
+export function typstMessages(stderr: string): { severity: "error" | "warning"; message: string }[] {
+	const messages: { severity: "error" | "warning"; message: string }[] = [];
+	for (const line of stderr.split(/\r?\n/)) {
+		const heading = HEADING.exec(line);
+		if (heading !== null) {
+			messages.push({ severity: heading[1] as "error" | "warning", message: heading[2] });
+		}
+	}
+	return messages;
+}
+
+/**
  * Every diagnostic in a Typst run, mapped onto the block body.
  *
  * Typst writes the message and the position on separate lines:

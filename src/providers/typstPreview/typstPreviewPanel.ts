@@ -30,14 +30,19 @@ export class TypstPreviewPanel {
 	/** Whether the page has reported that it is listening. */
 	private ready = false;
 	/**
-	 * The update that arrived before the page was listening.
+	 * The updates that arrived before the page was listening.
 	 *
 	 * The page is loaded asynchronously, and the first compile usually finishes
-	 * first, so without this queue the first image is posted into nothing.
+	 * first, so without this queue the first image is posted into nothing. The
+	 * two kinds are held apart, because an image and the error over it are not
+	 * alternatives: a single slot would drop the image and show a panel that is
+	 * empty behind its error.
 	 */
-	private pending: PreviewMessage | undefined;
+	private pendingImage: PreviewMessage | undefined;
+	private pendingError: PreviewMessage | undefined;
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly onDidDisposeEmitter = new vscode.EventEmitter<void>();
+	private closed = false;
 
 	/** Fires when the user closes the panel. */
 	readonly onDidDispose = this.onDidDisposeEmitter.event;
@@ -69,17 +74,23 @@ export class TypstPreviewPanel {
 
 		this.disposables.push(
 			panel.webview.onDidReceiveMessage((message: { type?: string }) => {
-				if (message?.type === "initialized") {
-					this.ready = true;
-					if (this.pending) {
-						void panel.webview.postMessage(this.pending);
-						this.pending = undefined;
+				if (message?.type !== "initialized") {
+					return;
+				}
+				this.ready = true;
+				// The image goes first, so the error lands on top of it and not
+				// underneath.
+				for (const queued of [this.pendingImage, this.pendingError]) {
+					if (queued) {
+						void panel.webview.postMessage(queued);
 					}
 				}
+				this.pendingImage = undefined;
+				this.pendingError = undefined;
 			}),
 		);
 
-		this.disposables.push(panel.onDidDispose(() => this.onDidDisposeEmitter.fire()));
+		this.disposables.push(panel.onDidDispose(() => this.handleClosed()));
 	}
 
 	/** Show a compiled image, and describe where it came from. */
@@ -104,16 +115,35 @@ export class TypstPreviewPanel {
 	}
 
 	dispose(): void {
+		// Closing the panel raises `onDidDispose`, so the clean-up runs there and
+		// covers the user closing the tab as well, which never reaches this method.
 		this.panel.dispose();
+	}
+
+	/** Clean up once, whether the panel was closed by the user or by us. */
+	private handleClosed(): void {
+		if (this.closed) {
+			return;
+		}
+		this.closed = true;
+		this.onDidDisposeEmitter.fire();
 		this.onDidDisposeEmitter.dispose();
 		for (const disposable of this.disposables) {
 			disposable.dispose();
 		}
+		this.disposables.length = 0;
 	}
 
 	private post(message: PreviewMessage): void {
 		if (!this.ready) {
-			this.pending = message;
+			if (message.type === "image") {
+				// A compile that succeeded answers the failure before it, so the
+				// queued error is stale and must not replay over the new image.
+				this.pendingImage = message;
+				this.pendingError = undefined;
+			} else {
+				this.pendingError = message;
+			}
 			return;
 		}
 		void this.panel.webview.postMessage(message);

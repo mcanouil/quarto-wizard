@@ -59,6 +59,7 @@
 		"workspaceContains:**/_extension.{yml,yaml}",
 		"workspaceContains:**/_schema.{yml,yaml,json}",
 		"workspaceContains:**/_extensions/**/_snippets.json",
+		"onWebviewPanel:quartoWizard.typstPreview",
 		"onUri"
 	],
 	"main": "./dist/extension",
