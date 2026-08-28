@@ -4,6 +4,7 @@ import {
 	parseOpeningFence,
 	closingFenceRegExp,
 	stripBlockquoteMarkers,
+	stripCarriageReturn,
 } from "../yamlPosition";
 
 /**
@@ -46,11 +47,6 @@ export interface TypstBlock {
 	fenceLine: number;
 	/** Indent of the opening fence, measured after any blockquote markers. */
 	indent: number;
-}
-
-/** Drop a trailing carriage return left by a CRLF document. */
-function stripCarriageReturn(line: string): string {
-	return line.endsWith("\r") ? line.slice(0, -1) : line;
 }
 
 /**
@@ -96,6 +92,11 @@ function blockBody(
 	indent: number,
 	quoted: boolean,
 ): string {
+	// Chosen once. Whether the block sits in a blockquote is a property of the
+	// fence, not of each line, so testing it per line says the same thing many
+	// times and invites the two uses below to drift apart.
+	const unquote = quoted ? (line: string) => stripBlockquoteMarkers(line).content : (line: string) => line;
+
 	// Cut at the start of the closing fence line rather than dropping that line
 	// after a split, which would take the newline of the line above with it and
 	// glue the last body line to whatever follows it.
@@ -103,19 +104,14 @@ function blockBody(
 	const lastNewline = slice.lastIndexOf("\n");
 	const closing = closingFenceRegExp(fence);
 	const lastLine = stripCarriageReturn(slice.slice(lastNewline + 1));
-	const body = closing.test(quoted ? stripBlockquoteMarkers(lastLine).content : lastLine)
-		? slice.slice(0, lastNewline + 1)
-		: slice;
+	const body = closing.test(unquote(lastLine)) ? slice.slice(0, lastNewline + 1) : slice;
 
-	if (indent === 0 && !quoted) {
-		return body;
-	}
 	// Spaces and tabs only. A carriage return is part of the line ending on a
 	// CRLF document, and stripping it here would corrupt the source.
 	const leading = new RegExp(`^[ \\t]{0,${indent}}`);
 	return body
 		.split("\n")
-		.map((line) => (quoted ? stripBlockquoteMarkers(line).content : line).replace(leading, ""))
+		.map((line) => unquote(line).replace(leading, ""))
 		.join("\n");
 }
 
@@ -238,8 +234,8 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 
 	for (const range of getCodeBlockRanges(source)) {
 		const fence = fenceLineRange(source, range.start);
-		const quoted = stripBlockquoteMarkers(stripCarriageReturn(source.slice(fence.start, fence.end)));
-		const opening = parseOpeningFence(quoted.content);
+		const fenceLineText = stripBlockquoteMarkers(stripCarriageReturn(source.slice(fence.start, fence.end)));
+		const opening = parseOpeningFence(fenceLineText.content);
 		if (opening === undefined) {
 			continue;
 		}
@@ -255,8 +251,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			}
 		}
 
-		const indent = opening.indent;
-		const body = blockBody(source, range.start, range.end, opening.fence, indent, quoted.depth > 0);
+		const body = blockBody(source, range.start, range.end, opening.fence, opening.indent, fenceLineText.depth > 0);
 		// Only a cell carries options. For the other two kinds a `//|` line is an
 		// ordinary Typst comment, so the body passes through untouched.
 		const parsed = kind === "cell" ? parseOptions(body) : { options: {}, code: body };
@@ -271,7 +266,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			bodyEnd: range.end + from,
 			fenceStart: fence.start + from,
 			fenceLine: line,
-			indent,
+			indent: opening.indent,
 		});
 	}
 

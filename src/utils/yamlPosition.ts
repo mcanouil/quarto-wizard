@@ -58,8 +58,69 @@ const MAX_FENCE_INDENT = 3;
  */
 const BLOCKQUOTE_MARKERS = /^(?: {0,3}>[ \t]?)+/;
 
-/** A list item marker, which opens a container whose content is indented. */
-const LIST_ITEM = /^( *)([-+*]|\d{1,9}[.)])( +)\S/;
+/**
+ * A list item marker, which opens a container whose content is indented.
+ *
+ * The match runs to the first character of the content, so its length is the
+ * column that content starts at.
+ */
+const LIST_ITEM = /^ *([-+*]|\d{1,9}[.)]) +(?=\S)/;
+
+/** Space, tab, `>`, and the marker characters a list item can start with. */
+const SPACE = 32;
+const TAB = 9;
+const GREATER_THAN = 62;
+const LIST_MARKERS = new Set(["-", "+", "*", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+
+/**
+ * Whether a line can carry a blockquote marker at all.
+ *
+ * A marker takes at most three spaces and then a `>`, so four characters settle
+ * it. This runs on every line of every document, including every line inside
+ * every code block, which is why it is worth answering without a match object.
+ */
+function mayBeQuoted(line: string): boolean {
+	for (let index = 0; index < 4 && index < line.length; index++) {
+		const code = line.charCodeAt(index);
+		if (code === GREATER_THAN) {
+			return true;
+		}
+		if (code !== SPACE) {
+			return false;
+		}
+	}
+	return false;
+}
+
+/**
+ * How many spaces a line starts with.
+ *
+ * Spaces only, matching `OPENING_FENCE`: a tab counts as four columns, so a tab
+ * is never part of a fence indent.
+ */
+function leadingSpaces(content: string): number {
+	let index = 0;
+	while (index < content.length && content.charCodeAt(index) === SPACE) {
+		index++;
+	}
+	return index;
+}
+
+/** Whether a line holds nothing but whitespace, from a known offset onwards. */
+function isBlankFrom(content: string, from: number): boolean {
+	for (let index = from; index < content.length; index++) {
+		const code = content.charCodeAt(index);
+		if (code !== SPACE && code !== TAB) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/** Drop a trailing carriage return left by a CRLF document. */
+export function stripCarriageReturn(line: string): string {
+	return line.endsWith("\r") ? line.slice(0, -1) : line;
+}
 
 /**
  * An opening code fence, on a line already stripped of blockquote markers.
@@ -85,11 +146,20 @@ export interface QuotedLine {
  * them.
  */
 export function stripBlockquoteMarkers(line: string): QuotedLine {
+	if (!mayBeQuoted(line)) {
+		return { content: line, depth: 0 };
+	}
 	const found = BLOCKQUOTE_MARKERS.exec(line);
 	if (found === null) {
 		return { content: line, depth: 0 };
 	}
-	return { content: line.slice(found[0].length), depth: found[0].split(">").length - 1 };
+	let depth = 0;
+	for (let index = 0; index < found[0].length; index++) {
+		if (found[0].charCodeAt(index) === GREATER_THAN) {
+			depth++;
+		}
+	}
+	return { content: line.slice(found[0].length), depth };
 }
 
 /** An opening fence, as read from one line. */
@@ -162,19 +232,18 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 	let inBlock = false;
 	let blockStart = 0;
 	let blockDepth = 0;
-	let previousLineEnd = 0;
 	let closingFenceRe: RegExp | undefined;
-	// The content column of the innermost open list item. A fence is measured
-	// against this and not against the document, because a fence indented four
-	// spaces inside a list item is live while the same fence at the margin is
-	// literal text. The value is only ever lowered by a line that dedents past
-	// it, so an unclosed item makes the reader accept too much rather than lose
-	// a real block.
+	// The content column of the innermost open container, as far as one scan can
+	// tell. A fence is measured against this and not against the document,
+	// because a fence indented four spaces inside a list item is live while the
+	// same fence at the margin is literal text. The value is only ever lowered by
+	// a line that dedents past it, so an unclosed container makes the reader
+	// accept too much rather than lose a real block.
 	let containerIndent = 0;
 
 	for (let i = 0; i < lines.length; i++) {
 		const rawLine = lines[i];
-		const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+		const line = stripCarriageReturn(rawLine);
 		const lineStart = offset;
 		const lineEnd = lineStart + rawLine.length;
 		// Advance offset past the newline for the next iteration.
@@ -191,29 +260,23 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 					ranges.push({ start: blockStart, end: lineEnd });
 					inBlock = false;
 				}
-				previousLineEnd = lineEnd;
 				continue;
 			}
 			// The blockquote ended, and the code block inside it ends with it. Lazy
 			// continuation carries a paragraph across such a line, never the content
 			// of a code block. The line itself is not part of the block, so it falls
-			// through and can open the next one.
-			ranges.push({ start: blockStart, end: Math.max(blockStart, previousLineEnd) });
+			// through and can open the next one. The block ends at the end of the
+			// line above, which is one character back from the start of this one.
+			ranges.push({ start: blockStart, end: Math.max(blockStart, lineStart - 1) });
 			inBlock = false;
 		}
 
-		previousLineEnd = lineEnd;
-
-		if (content.trim() !== "") {
-			const item = LIST_ITEM.exec(content);
-			if (item) {
-				containerIndent = item[1].length + item[2].length + item[3].length;
-			} else {
-				const indent = content.length - content.trimStart().length;
-				if (indent < containerIndent) {
-					containerIndent = indent;
-				}
-			}
+		const indent = leadingSpaces(content);
+		if (!isBlankFrom(content, indent)) {
+			// The marker test comes first, because a list item both opens a
+			// container and sits at the indent of the one around it.
+			const item = LIST_MARKERS.has(content[indent]) ? LIST_ITEM.exec(content) : null;
+			containerIndent = item ? item[0].length : Math.min(containerIndent, indent);
 		}
 
 		const opening = parseOpeningFence(content);
