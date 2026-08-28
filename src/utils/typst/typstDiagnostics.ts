@@ -4,10 +4,17 @@
  * Both fields are zero-based, which is what a VS Code position takes.
  */
 export interface TypstDiagnostic {
-	/** Zero-based line within the block body. */
-	line: number;
+	/**
+	 * Zero-based line within the block body.
+	 *
+	 * Absent when Typst reported no position at all, which happens when the
+	 * failure is not about a place in the source: a package that would not
+	 * download, or an input it could not read. The two position fields are
+	 * always both present or both absent.
+	 */
+	line?: number;
 	/** Zero-based column. */
-	column: number;
+	column?: number;
 	/** The message, without its severity prefix. */
 	message: string;
 	severity: "error" | "warning";
@@ -25,6 +32,26 @@ const HEADING = /^(error|warning): (.+)$/;
  * different case again, and is kept.
  */
 const POSITION = /^\s*┌─\s*(\S+):(\d+):(\d+)/;
+
+/**
+ * Every heading Typst wrote, with no position and no mapping.
+ *
+ * `parseTypstStderr` skips a diagnostic that names a file other than `<stdin>`,
+ * because there is nothing in the block to mark. That can leave a failed
+ * compile with no mapped diagnostic at all, and a caller which then says
+ * nothing was reported contradicts both the log and the fact that no image
+ * came back. Reading the headings gives it something true to say.
+ */
+export function typstMessages(stderr: string): { severity: "error" | "warning"; message: string }[] {
+	const messages: { severity: "error" | "warning"; message: string }[] = [];
+	for (const line of stderr.split(/\r?\n/)) {
+		const heading = HEADING.exec(line);
+		if (heading !== null) {
+			messages.push({ severity: heading[1] as "error" | "warning", message: heading[2] });
+		}
+	}
+	return messages;
+}
 
 /**
  * Every diagnostic in a Typst run, mapped onto the block body.
@@ -59,8 +86,10 @@ export function parseTypstStderr(stderr: string, injectedLines: number): TypstDi
 		if (position === null) {
 			// A failure to read the input, or to fetch a package, has nothing to
 			// point at. It still has to be reported: a caller that counts
-			// diagnostics would otherwise call a failed compile a clean block.
-			diagnostics.push({ line: 0, column: 0, message: heading[2], severity });
+			// diagnostics would otherwise call a failed compile a clean block. It is
+			// reported without a position, because giving it the start of the body
+			// would mark a character that has nothing to do with the failure.
+			diagnostics.push({ message: heading[2], severity });
 			continue;
 		}
 

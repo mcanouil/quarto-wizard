@@ -22,6 +22,7 @@ import { registerShortcodeCompletionProvider } from "./providers/shortcodeComple
 import { registerElementAttributeProviders } from "./providers/elementAttributeCompletionProvider";
 import { registerInlineAttributeDiagnostics } from "./providers/inlineAttributeDiagnosticsProvider";
 import { registerSnippetCompletionProvider } from "./providers/snippetCompletionProvider";
+import { registerTypstPreview } from "./providers/typstPreview";
 
 /**
  * This method is called when the extension is activated.
@@ -163,6 +164,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register snippet completion provider for Quarto documents
 	registerSnippetCompletionProvider(context, snippetCache);
+
+	// Register the Typst block preview for Quarto documents
+	registerTypstPreview(context);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(
