@@ -284,17 +284,12 @@ export function findTypstBlocks(text: string): TypstBlock[] {
  * The opening fence line counts as part of its block. A reader who puts the
  * cursor on the fence means that block, and the body range starts after it.
  *
- * Takes a list rather than the text, because a caller that also needs the
- * blocks around the one under the cursor would otherwise scan the document
- * twice.
+ * Takes a list rather than the document text, because every caller also needs
+ * the blocks around the one under the cursor: a raw block compiles with the raw
+ * blocks above it. Taking the text would scan the document a second time.
  */
 export function blockAtOffset(blocks: TypstBlock[], offset: number): TypstBlock | undefined {
 	return blocks.find((block) => offset >= block.fenceStart && offset <= block.bodyEnd);
-}
-
-/** The Typst block of a document that holds an offset. */
-export function typstBlockAt(text: string, offset: number): TypstBlock | undefined {
-	return blockAtOffset(findTypstBlocks(text), offset);
 }
 
 /**

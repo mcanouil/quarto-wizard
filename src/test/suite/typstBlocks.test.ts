@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import {
 	findTypstBlocks,
-	typstBlockAt,
+	blockAtOffset,
 	precedingRawBlocks,
 	hasLateOptionLine,
 	invalidatesPreview,
@@ -293,23 +293,24 @@ suite("Typst Blocks Test Suite", () => {
 		});
 	});
 
-	suite("typstBlockAt", () => {
+	suite("blockAtOffset", () => {
 		const text = "intro\n\n```typst\n#a\n```\n\ntext\n\n```{=typst}\n#b\n```\n";
+		const blocks = findTypstBlocks(text);
 
 		test("Should find the block holding an offset inside a body", () => {
-			assert.strictEqual(typstBlockAt(text, text.indexOf("#a"))?.kind, "plain");
-			assert.strictEqual(typstBlockAt(text, text.indexOf("#b"))?.kind, "raw");
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("#a"))?.kind, "plain");
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("#b"))?.kind, "raw");
 		});
 
 		test("Should find the block when the cursor sits on its opening fence", () => {
 			// A reader who puts the cursor on the fence means that block, and the
 			// body range starts after the fence line, so the fence needs its own case.
-			assert.strictEqual(typstBlockAt(text, text.indexOf("```typst"))?.kind, "plain");
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("```typst"))?.kind, "plain");
 		});
 
 		test("Should find nothing outside every block", () => {
-			assert.strictEqual(typstBlockAt(text, 0), undefined);
-			assert.strictEqual(typstBlockAt(text, text.indexOf("text")), undefined);
+			assert.strictEqual(blockAtOffset(blocks, 0), undefined);
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("text")), undefined);
 		});
 	});
 
