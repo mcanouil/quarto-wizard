@@ -90,6 +90,17 @@ suite("Typst Source Test Suite", () => {
 			assert.strictEqual(buildRawSource(blocks, blocks[0], HEADER).source, `${HEADER}\n//| width: 10cm\n#circle()\n`);
 		});
 
+		test("Should add nothing for an empty raw block above the target", () => {
+			// An empty body has no line to contribute, so counting it would push
+			// every diagnostic of the target down by one.
+			const text = "```{=typst}\n```\n\n```{=typst}\n#circle()\n```\n";
+			const blocks = findTypstBlocks(text);
+			assert.deepStrictEqual(buildRawSource(blocks, blocks[1], HEADER), {
+				source: `${HEADER}\n#circle()\n`,
+				injectedLines: 1,
+			});
+		});
+
 		test("Should separate two bodies that do not end with a line ending", () => {
 			// The closing fence of an unclosed block never arrives, so the last body
 			// line has no line ending of its own and would otherwise be glued to the

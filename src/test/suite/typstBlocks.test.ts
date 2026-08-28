@@ -400,6 +400,12 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(invalidatesPreview(firstRaw, insertion(text.indexOf("prose"))), false);
 		});
 
+		test("Should invalidate a plain block changed on its closing fence", () => {
+			// The body ends where the closing fence starts, so an edit exactly at
+			// that offset removes or moves the end of the block.
+			assert.strictEqual(invalidatesPreview(plain, insertion(plain.bodyEnd)), true);
+		});
+
 		test("Should invalidate a block a deletion reaches from above", () => {
 			// The change starts outside the block and ends inside it, so testing its
 			// start offset alone would miss it.

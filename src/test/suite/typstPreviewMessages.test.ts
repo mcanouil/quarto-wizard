@@ -29,6 +29,14 @@ suite("Typst Preview Messages Test Suite", () => {
 			);
 		});
 
+		test("Should claim no position for a failure in a block above this one", () => {
+			// A raw block compiles under every raw block before it, so the error can
+			// belong to one of those. Reporting line 1 of this block would name the
+			// wrong block and the wrong line.
+			const text = errorText(diagnostic("error", "unknown variable: accent", 2, 4), 5);
+			assert.strictEqual(text, "error: unknown variable: accent");
+		});
+
 		test("Should claim no position when Typst gave none", () => {
 			// A package that would not download is not about a place in the block.
 			// Reporting "line 1, column 1" would assert a position that does not
