@@ -249,8 +249,13 @@ export class TypstCompiler {
 			child.stderr?.on("data", (chunk: Buffer) => {
 				// Bounded by the same limit as the image. A loop that reports once per
 				// iteration fills this as fast as a runaway document fills the other,
-				// and a cap on one of the two is not a cap. Whole chunks are kept, and
-				// the head is what carries the first diagnostic.
+				// and a cap on one of the two is not a cap.
+				//
+				// Collection stops once the limit is reached, so the total is the
+				// limit plus at most the one chunk that crossed it, which a pipe
+				// bounds on its own. Whole chunks are kept rather than cut to the
+				// byte, because a cut lands mid-character as easily as anywhere else,
+				// and the head is what carries the first diagnostic.
 				if (errorBytes >= maxOutputBytes) {
 					return;
 				}

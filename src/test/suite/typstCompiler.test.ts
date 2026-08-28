@@ -181,15 +181,21 @@ suite("Typst Compiler Test Suite", () => {
 			// iteration fills standard error just as fast. The run still finishes,
 			// because the diagnostics are not the product and the head carries the
 			// first one.
+			//
+			// The child writes four megabytes. The bound asserted here is the limit
+			// plus the one chunk that crosses it, and a chunk is bounded by the pipe,
+			// so how the writes happen to arrive cannot decide the outcome. Asserting
+			// the limit itself would fail wherever the whole stream lands in a single
+			// chunk, which is what the runner does and a developer machine does not.
 			const compiler = new TypstCompiler(RUNTIME, { maxOutputBytes: 64 });
 			try {
 				const result = await compiler.compile(
 					"",
-					run("for (let i = 0; i < 40; i++) { process.stderr.write('error: '.repeat(8) + '\\n'); }"),
+					run("for (let i = 0; i < 4096; i++) { process.stderr.write('error: '.repeat(146) + '\\n'); }"),
 					never,
 				);
-				assert.ok(result.stderr.length > 0, "the head of the output is kept");
-				assert.ok(result.stderr.length < 2240, `bounded, got ${result.stderr.length}`);
+				assert.ok(result.stderr.startsWith("error: "), "the head of the output is kept");
+				assert.ok(result.stderr.length < 1024 * 1024, `bounded, got ${result.stderr.length}`);
 			} finally {
 				compiler.dispose();
 			}
