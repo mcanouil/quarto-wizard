@@ -7,7 +7,12 @@ import { metaSchemaProperties, metaSchemaVocabulary } from "../helpers/schemaVoc
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const repoRoot = join(pkgRoot, "..", "..");
 const validationDir = join(pkgRoot, "src", "validation");
-const page = readFileSync(join(repoRoot, "docs", "reference", "schema-specification.qmd"), "utf-8");
+// Every pattern below anchors on a line feed, and a Windows checkout holds a
+// carriage return before each one, so the page is normalised on read.
+const page = readFileSync(join(repoRoot, "docs", "reference", "schema-specification.qmd"), "utf-8").replace(
+	/\r\n/g,
+	"\n",
+);
 
 /** A meta-schema, read from the directory that publishes it. */
 function readMetaSchema(file: string): unknown {
