@@ -52,7 +52,21 @@ jobs:
             exit 0
           fi
 
-          changed=$(gh api --paginate "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')
+          # The files endpoint stops at 3000 entries, so a larger pull request
+          # gives a short list. Build rather than skip in that case: a wrong
+          # skip merges an untested change, a wrong build only costs time.
+          total=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files')
+          if [[ "${total}" -gt 3000 ]]; then
+            echo "${total} changed files exceeds the API limit, so the build runs."
+            echo "code=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # A rename carries the old path in previous_filename. Without it, a
+          # file renamed out of src/ reports only its new path, and the build
+          # would skip although its inputs lost a file.
+          changed=$(gh api --paginate "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)')
           echo "Changed files:"
           echo "${changed}"
 
@@ -60,7 +74,11 @@ jobs:
           # edited through pull requests. The vendored schemas under docs/ are
           # not listed: a bot updates those straight on the default branch,
           # where no pull request event fires at all.
-          if echo "${changed}" | grep -qE '^(src/|packages/|package\.json$|package-lock\.json$|test-fixtures/.+/_schema\.yml$)'; then
+          #
+          # A here-string and not a pipe. The runner sets pipefail, and grep -q
+          # exits at the first match, so a list past the pipe buffer would send
+          # SIGPIPE to the writer and the whole condition would read as false.
+          if grep -qE '^(src/|packages/|package\.json$|package-lock\.json$|test-fixtures/.+/_schema\.yml$)' <<< "${changed}"; then
             echo "code=true" >> "${GITHUB_OUTPUT}"
           else
             echo "code=false" >> "${GITHUB_OUTPUT}"
