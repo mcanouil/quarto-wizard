@@ -543,6 +543,25 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
 		});
 
+		test("should open a container for an empty item with trailing whitespace", () => {
+			// An editor leaves a space after the marker as a matter of course, so
+			// this shape is at least as common as the bare marker.
+			const text = "1. \n\n    ```{r}\n    x = 1\n    ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
+		});
+
+		test("should keep the list indent across a lazy continuation line", () => {
+			// The second line continues the paragraph of the item, so the item is
+			// still open and the fence under it is live. Reading the continuation as
+			// a new block at the margin closes the item and loses the fence.
+			const text = "1. Step\ncontinuation\n\n    ```{r}\n    x = 1\n    ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
+		});
+
 		test("should open a container for a list item written with a tab", () => {
 			const text = "-\titem\n\n    ```{r}\n    x = 1\n    ```\n";
 			const ranges = getCodeBlockRanges(text);

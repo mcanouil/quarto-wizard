@@ -63,9 +63,10 @@ const BLOCKQUOTE_MARKER = /^ {0,3}>[ \t]?/;
  *
  * The match runs to the first character of the content, so its length gives the
  * column that content starts at. An item with nothing on its line is still an
- * item, and its content column is one past the marker.
+ * item, and its content column is one past the marker, which is why the marker
+ * is captured separately: trailing whitespace after it is not content.
  */
-const LIST_ITEM = /^ *([-+*]|\d{1,9}[.)])(?:[ \t]+(?=\S)|$)/;
+const LIST_ITEM = /^( *)([-+*]|\d{1,9}[.)])(?:[ \t]+(?=\S)|[ \t]*$)/;
 
 /** Space, tab, `>`, and the marker characters a list item can start with. */
 const SPACE = 32;
@@ -284,10 +285,19 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 	// The content column of the innermost open container, as far as one scan can
 	// tell. A fence is measured against this and not against the document,
 	// because a fence indented four spaces inside a list item is live while the
-	// same fence at the margin is literal text. The value is only ever lowered by
-	// a line that dedents past it, so an unclosed container makes the reader
-	// accept too much rather than lose a real block.
+	// same fence at the margin is literal text.
+	//
+	// This is an approximation of container parsing and not the real thing. It
+	// is lowered only by a line that both starts a block and dedents past it, so
+	// it errs towards accepting a fence rather than losing one. The known gap
+	// runs the other way: a tab stop is counted from the start of the quoted
+	// content rather than from the start of the line, so a tab-indented fence
+	// inside a blockquote is charged four columns instead of the two it takes,
+	// and is not read as a fence.
 	let containerIndent = 0;
+	// Whether the line above was blank, which is what makes the line below it
+	// the start of a block rather than a continuation of the one above.
+	let previousBlank = true;
 
 	for (let i = 0; i < lines.length; i++) {
 		const rawLine = lines[i];
@@ -331,15 +341,22 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			// The marker test comes first, because a list item both opens a
 			// container and sits at the indent of the one around it.
 			const item = LIST_MARKERS.has(content[contentStart]) ? LIST_ITEM.exec(content) : null;
-			if (item === null) {
-				containerIndent = Math.min(containerIndent, columnAt(content, contentStart));
-			} else {
+			if (item !== null) {
 				// An item with nothing after its marker matched to the end of the
-				// line, and its content starts in the column after it.
+				// line, and its content starts in the column after the marker rather
+				// than after the whitespace that follows it.
 				const empty = item[0].length === content.length;
-				containerIndent = columnAt(content, item[0].length) + (empty ? 1 : 0);
+				const markerEnd = item[1].length + item[2].length;
+				containerIndent = empty ? columnAt(content, markerEnd) + 1 : columnAt(content, item[0].length);
+			} else if (previousBlank) {
+				// Only a line that starts a block can close a container. A line that
+				// continues the paragraph of an open item is written at the margin as
+				// often as not, and lowering the allowance for it would lose a fence
+				// the item still holds open.
+				containerIndent = Math.min(containerIndent, columnAt(content, contentStart));
 			}
 		}
+		previousBlank = contentStart === content.length;
 
 		const opening = parseOpeningFence(content);
 		if (opening && opening.indent <= containerIndent + MAX_FENCE_INDENT) {
