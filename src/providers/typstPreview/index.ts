@@ -56,9 +56,16 @@ export function errorText(stderr: string, injectedLines: number): string {
 	// misstates why there is no image.
 	const mapped = diagnostics.find((diagnostic) => diagnostic.severity === "error") ?? diagnostics[0];
 	if (mapped) {
+		if (mapped.line === undefined) {
+			// A package that would not download, or an input Typst could not read.
+			// Naming a position here would point at a character that has nothing to
+			// do with the failure.
+			return `${mapped.severity}: ${mapped.message}`;
+		}
 		// The line is counted inside the block, while the panel header counts
 		// document lines, so it says which of the two it means.
-		return `${mapped.severity} at line ${mapped.line + 1}, column ${mapped.column + 1} of the block: ${mapped.message}`;
+		const column = (mapped.column ?? 0) + 1;
+		return `${mapped.severity} at line ${mapped.line + 1}, column ${column} of the block: ${mapped.message}`;
 	}
 
 	// Nothing mapped, which means every diagnostic pointed at another file, such

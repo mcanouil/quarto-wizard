@@ -29,6 +29,14 @@ suite("Typst Preview Messages Test Suite", () => {
 			);
 		});
 
+		test("Should claim no position when Typst gave none", () => {
+			// A package that would not download is not about a place in the block.
+			// Reporting "line 1, column 1" would assert a position that does not
+			// exist and mark a character that is not at fault.
+			const stderr = "error: failed to download package @preview/example:0.1.0\n";
+			assert.strictEqual(errorText(stderr, 1), "error: failed to download package @preview/example:0.1.0");
+		});
+
 		test("Should report a failure that points at another file", () => {
 			// Every diagnostic is dropped by the mapping, because none of them names
 			// a position in this block. Reporting nothing would contradict both the
