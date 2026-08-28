@@ -61,6 +61,31 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
 		});
 
+		test("Should remove the fence indent by column, not by character", () => {
+			// The fence is indented by one tab, which is four columns. A body line
+			// indented by a tab keeps whatever follows it, so four spaces of Typst
+			// indent survive. Counting characters instead would eat the tab and
+			// three of those spaces.
+			const found = findTypstBlocks("1. Step\n\n\t```typst\n\t    #x\n\t```\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "    #x\n");
+		});
+
+		test("Should read a blockquoted cell with its options", () => {
+			// The option reader sees the body after the markers are removed, which is
+			// the one path where the two rules meet.
+			const found = findTypstBlocks("> ```{typst}\n> //| width: 3\n> #x\n> ```\n");
+			assert.strictEqual(found.length, 1);
+			assert.deepStrictEqual(found[0].options, { width: "3" });
+			assert.strictEqual(found[0].code, "#x\n");
+		});
+
+		test("Should keep CRLF line endings in a blockquoted block", () => {
+			const found = findTypstBlocks("> ```typst\r\n> #a\r\n> ```\r\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "#a\r\n");
+		});
+
 		test("Should keep a marker the blockquote itself does not consume", () => {
 			// The fence sits one quote deep, so Pandoc hands Typst the body with one
 			// marker removed and the second one intact. Removing both would delete a

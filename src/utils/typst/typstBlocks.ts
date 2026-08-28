@@ -5,6 +5,7 @@ import {
 	closingFenceRegExp,
 	stripBlockquoteMarkers,
 	stripCarriageReturn,
+	removeIndentColumns,
 } from "../yamlPosition";
 
 /**
@@ -110,12 +111,12 @@ function blockBody(
 	const lastLine = stripCarriageReturn(slice.slice(lastNewline + 1));
 	const body = closing.test(unquote(lastLine)) ? slice.slice(0, lastNewline + 1) : slice;
 
-	// Spaces and tabs only. A carriage return is part of the line ending on a
-	// CRLF document, and stripping it here would corrupt the source.
-	const leading = new RegExp(`^[ \\t]{0,${indent}}`);
+	// The indent comes off by column, because the fence owns a number of columns
+	// and not a number of characters. A carriage return is part of the line
+	// ending on a CRLF document, and is left alone.
 	return body
 		.split("\n")
-		.map((line) => unquote(line).replace(leading, ""))
+		.map((line) => removeIndentColumns(unquote(line), indent))
 		.join("\n");
 }
 

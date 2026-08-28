@@ -533,6 +533,23 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
 		});
 
+		test("should open a container for a list item with nothing on its line", () => {
+			// `1.` alone is a valid empty item, and its content starts one column
+			// past the marker. Reading it as ordinary prose drops the allowance and
+			// loses the fence indented under it.
+			const text = "1.\n\n    ```{r}\n    x = 1\n    ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
+		});
+
+		test("should open a container for a list item written with a tab", () => {
+			const text = "-\titem\n\n    ```{r}\n    x = 1\n    ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
+		});
+
 		test("should not treat a tab-indented fence at the top level as a fence", () => {
 			const text = "before\n\n\t```{r}\n\tx = 1\n\t```\n";
 			assert.deepStrictEqual(getCodeBlockRanges(text), []);

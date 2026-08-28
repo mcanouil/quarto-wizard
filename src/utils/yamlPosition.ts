@@ -61,10 +61,11 @@ const BLOCKQUOTE_MARKER = /^ {0,3}>[ \t]?/;
 /**
  * A list item marker, which opens a container whose content is indented.
  *
- * The match runs to the first character of the content, so its length is the
- * column that content starts at.
+ * The match runs to the first character of the content, so its length gives the
+ * column that content starts at. An item with nothing on its line is still an
+ * item, and its content column is one past the marker.
  */
-const LIST_ITEM = /^ *([-+*]|\d{1,9}[.)]) +(?=\S)/;
+const LIST_ITEM = /^ *([-+*]|\d{1,9}[.)])(?:[ \t]+(?=\S)|$)/;
 
 /** Space, tab, `>`, and the marker characters a list item can start with. */
 const SPACE = 32;
@@ -111,6 +112,37 @@ function firstNonWhitespace(content: string): number {
 		index++;
 	}
 	return index;
+}
+
+/**
+ * The same line with a number of columns of indent taken off the front.
+ *
+ * Columns and not characters, because the fence indent is measured in columns:
+ * removing that many characters from a line indented with a tab would take the
+ * tab and three spaces where the fence owns only the tab.
+ *
+ * A tab that straddles the boundary is replaced by the spaces it contributes
+ * past it, which is how CommonMark splits one.
+ */
+export function removeIndentColumns(line: string, indent: number): string {
+	let column = 0;
+	let index = 0;
+	while (index < line.length && column < indent) {
+		const code = line.charCodeAt(index);
+		if (code === SPACE) {
+			column++;
+		} else if (code === TAB) {
+			const advance = TAB_WIDTH - (column % TAB_WIDTH);
+			if (column + advance > indent) {
+				return " ".repeat(column + advance - indent) + line.slice(index + 1);
+			}
+			column += advance;
+		} else {
+			break;
+		}
+		index++;
+	}
+	return line.slice(index);
 }
 
 /**
@@ -299,9 +331,14 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			// The marker test comes first, because a list item both opens a
 			// container and sits at the indent of the one around it.
 			const item = LIST_MARKERS.has(content[contentStart]) ? LIST_ITEM.exec(content) : null;
-			containerIndent = item
-				? columnAt(content, item[0].length)
-				: Math.min(containerIndent, columnAt(content, contentStart));
+			if (item === null) {
+				containerIndent = Math.min(containerIndent, columnAt(content, contentStart));
+			} else {
+				// An item with nothing after its marker matched to the end of the
+				// line, and its content starts in the column after it.
+				const empty = item[0].length === content.length;
+				containerIndent = columnAt(content, item[0].length) + (empty ? 1 : 0);
+			}
 		}
 
 		const opening = parseOpeningFence(content);
