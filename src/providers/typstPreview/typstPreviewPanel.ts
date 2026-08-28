@@ -5,13 +5,15 @@ import { svgDataUri } from "../../utils/typst/typstSvg";
 /** What the host sends to the page. */
 type PreviewMessage = { type: "image"; uri: string; header: string } | { type: "error"; message: string };
 
-/** The webview options, which are also needed when a panel is restored. */
-function webviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions & vscode.WebviewPanelOptions {
+/**
+ * The webview options, which a restored panel needs set again.
+ *
+ * Panel options such as `retainContextWhenHidden` are not webview options and
+ * cannot be set here, so they are passed where the panel itself is created.
+ */
+function webviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
 	return {
 		enableScripts: true,
-		// The panel keeps its image while it is in a background tab, so returning
-		// to it does not need a recompile.
-		retainContextWhenHidden: true,
 		localResourceRoots: [vscode.Uri.joinPath(extensionUri, "assets", "webview")],
 	};
 }
@@ -46,7 +48,12 @@ export class TypstPreviewPanel {
 			TypstPreviewPanel.viewType,
 			"Typst Preview",
 			{ viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
-			webviewOptions(extensionUri),
+			{
+				...webviewOptions(extensionUri),
+				// The panel keeps its image while it is in a background tab, so
+				// returning to it does not need a recompile.
+				retainContextWhenHidden: true,
+			},
 		);
 		return new TypstPreviewPanel(panel, extensionUri);
 	}

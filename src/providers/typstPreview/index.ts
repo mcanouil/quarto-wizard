@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { typstBlockAt, type TypstBlock } from "../../utils/typst/typstBlocks";
 import { parseTypstStderr } from "../../utils/typst/typstDiagnostics";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
@@ -15,15 +16,36 @@ import { TypstPreviewPanel } from "./typstPreviewPanel";
  */
 const PAGE_SETUP = "#set page(width: auto, height: auto, margin: 0.5em)";
 
-/** How many lines {@link PAGE_SETUP} adds above the block body. */
-const INJECTED_LINES = 1;
-
 /** Read the source from stdin, write the image to stdout. */
 const ARGV = ["compile", "--format", "svg", "-", "-"];
 
+/** One compile request. */
+interface AssembledSource {
+	/** The whole source to send to the compiler. */
+	source: string;
+	/**
+	 * How many lines sit above the block body.
+	 *
+	 * A diagnostic reports a position in the assembled source, so it has to lose
+	 * these before it means anything in the document.
+	 */
+	injectedLines: number;
+}
+
+/**
+ * The source for one block.
+ *
+ * The count travels with the source rather than beside it, because it stops
+ * being a constant as soon as a raw block prepends the blocks before it, or a
+ * cell prepends its resolved options.
+ */
+function assembleSource(block: TypstBlock): AssembledSource {
+	return { source: `${PAGE_SETUP}\n${block.body}`, injectedLines: 1 };
+}
+
 /** The first line of a failure, as it is shown inside the panel. */
-function errorText(stderr: string): string {
-	const diagnostics = parseTypstStderr(stderr, INJECTED_LINES);
+function errorText(stderr: string, injectedLines: number): string {
+	const diagnostics = parseTypstStderr(stderr, injectedLines);
 	if (diagnostics.length === 0) {
 		return "Typst produced no image and reported nothing.";
 	}
@@ -46,23 +68,25 @@ function headerText(document: vscode.TextDocument, block: TypstBlock): string {
 export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	let panel: TypstPreviewPanel | undefined;
 	let compiler: TypstCompiler | undefined;
-	let compiling: vscode.CancellationTokenSource | undefined;
 	// One message per session, so a machine that cannot run the preview at all
 	// does not report the same thing on every request.
 	let reportedUnavailable = false;
+	// The compiler supersedes its own running child, so the caller has nothing to
+	// cancel. This source is never cancelled, and exists only because `compile`
+	// takes a token and the API has no ready-made one that never fires.
+	const uncancelled = new vscode.CancellationTokenSource();
+	context.subscriptions.push(uncancelled);
 
-	/** The one panel, adopting a restored one when the window was reloaded. */
-	const usePanel = (restored?: TypstPreviewPanel): TypstPreviewPanel => {
-		if (panel === undefined) {
-			panel = restored ?? TypstPreviewPanel.create(context.extensionUri);
-			panel.onDidDispose(() => {
-				panel = undefined;
-			});
-		} else if (restored !== undefined && restored !== panel) {
-			restored.dispose();
-		}
-		return panel;
+	/** Keep a panel, and forget it when the user closes it. */
+	const holdPanel = (held: TypstPreviewPanel): TypstPreviewPanel => {
+		panel = held;
+		held.onDidDispose(() => {
+			panel = undefined;
+		});
+		return held;
 	};
+
+	const usePanel = (): TypstPreviewPanel => panel ?? holdPanel(TypstPreviewPanel.create(context.extensionUri));
 
 	/**
 	 * Say why there is nothing to show.
@@ -81,7 +105,6 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 
 	/** Say once that the feature cannot run here at all. */
 	const reportUnavailable = (message: string): void => {
-		logMessage(`Typst preview: ${message}`, "debug");
 		if (reportedUnavailable) {
 			return;
 		}
@@ -125,16 +148,12 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		const surface = usePanel();
 		surface.reveal();
 
-		compiling?.cancel();
-		compiling?.dispose();
-		const cancellation = new vscode.CancellationTokenSource();
-		compiling = cancellation;
-
+		const assembled = assembleSource(block);
 		try {
-			const result = await compiler.compile(`${PAGE_SETUP}\n${block.body}`, ARGV, cancellation.token);
+			const result = await compiler.compile(assembled.source, ARGV, uncancelled.token);
 			if (result.svg === undefined) {
 				logMessage(`Typst preview: the compiler reported:\n${result.stderr}`, "debug");
-				surface.showError(errorText(result.stderr));
+				surface.showError(errorText(result.stderr, assembled.injectedLines));
 				return;
 			}
 			if (result.stderr.length > 0) {
@@ -145,14 +164,9 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			if (error instanceof vscode.CancellationError) {
 				return;
 			}
-			const message = error instanceof Error ? error.message : String(error);
+			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
 			surface.showError(message);
-		} finally {
-			if (compiling === cancellation) {
-				compiling = undefined;
-			}
-			cancellation.dispose();
 		}
 	};
 
@@ -163,7 +177,11 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.window.registerWebviewPanelSerializer(TypstPreviewPanel.viewType, {
 			deserializeWebviewPanel: async (restored: vscode.WebviewPanel) => {
-				usePanel(new TypstPreviewPanel(restored, context.extensionUri));
+				if (panel) {
+					restored.dispose();
+					return;
+				}
+				holdPanel(new TypstPreviewPanel(restored, context.extensionUri));
 				await preview();
 			},
 		}),
@@ -182,8 +200,6 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 
 	context.subscriptions.push({
 		dispose: () => {
-			compiling?.cancel();
-			compiling?.dispose();
 			compiler?.dispose();
 			panel?.dispose();
 		},

@@ -101,10 +101,16 @@ export function invalidateTypstBinary(): void {
 const KILL_GRACE_MS = 2000;
 
 /** How long one compile gets, which also covers a first-use package download. */
-export const DEFAULT_TIMEOUT_MS = 20000;
+const TIMEOUT_MS = 20000;
 
-/** How much output one compile may produce before it is treated as a failure. */
-export const DEFAULT_MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
+/**
+ * How much output one compile may produce before it is treated as a failure.
+ *
+ * A block is a fragment, so even a page dense with glyph outlines stays well
+ * under this. The limit exists so that a runaway document fails cleanly rather
+ * than growing a buffer until the extension host runs out of memory.
+ */
+const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 /** The outcome of one compile that Typst itself reported on. */
 export interface TypstCompileResult {
@@ -112,11 +118,6 @@ export interface TypstCompileResult {
 	svg?: string;
 	/** The captured standard error, which carries every diagnostic. */
 	stderr: string;
-}
-
-export interface TypstCompilerOptions {
-	timeoutMs?: number;
-	maxOutputBytes?: number;
 }
 
 /** A compile that never reached Typst, or that was stopped before it finished. */
@@ -159,14 +160,10 @@ function killChild(child: ChildProcess): void {
  * strings, so an argv array with `shell: false` is a hard requirement.
  */
 export class TypstCompiler {
-	private child: ChildProcess | undefined;
 	private abortCurrent: ((error: Error) => void) | undefined;
 	private disposed = false;
 
-	constructor(
-		private readonly binary: string,
-		private readonly options: TypstCompilerOptions = {},
-	) {}
+	constructor(private readonly binary: string) {}
 
 	/**
 	 * Compile one source, superseding whatever was running.
@@ -181,17 +178,8 @@ export class TypstCompiler {
 		}
 		this.stopCurrent();
 
-		const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-		const maxOutputBytes = this.options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
-
 		return new Promise<TypstCompileResult>((resolve, reject) => {
-			let child: ChildProcess;
-			try {
-				child = spawn(this.binary, argv, { shell: false, windowsHide: true });
-			} catch (error) {
-				reject(new TypstCompileFailure(`Failed to start Typst: ${String(error)}.`));
-				return;
-			}
+			const child = spawn(this.binary, argv, { shell: false, windowsHide: true });
 
 			const output: Buffer[] = [];
 			let outputBytes = 0;
@@ -199,8 +187,8 @@ export class TypstCompiler {
 			let settled = false;
 
 			const timer = setTimeout(
-				() => abort(new TypstCompileFailure(`Typst did not finish within ${timeoutMs} ms.`)),
-				timeoutMs,
+				() => abort(new TypstCompileFailure(`Typst did not finish within ${TIMEOUT_MS} ms.`)),
+				TIMEOUT_MS,
 			);
 			const cancellation = token.onCancellationRequested(() => abort(new vscode.CancellationError()));
 
@@ -211,8 +199,7 @@ export class TypstCompiler {
 				settled = true;
 				clearTimeout(timer);
 				cancellation.dispose();
-				if (this.child === child) {
-					this.child = undefined;
+				if (this.abortCurrent === abort) {
 					this.abortCurrent = undefined;
 				}
 				act();
@@ -223,7 +210,6 @@ export class TypstCompiler {
 				settle(() => reject(error));
 			}
 
-			this.child = child;
 			this.abortCurrent = abort;
 
 			// Attach this before writing. Typst closes stdin as soon as it gives up
@@ -236,8 +222,8 @@ export class TypstCompiler {
 
 			child.stdout?.on("data", (chunk: Buffer) => {
 				outputBytes += chunk.length;
-				if (outputBytes > maxOutputBytes) {
-					abort(new TypstCompileFailure(`Typst produced more than ${maxOutputBytes} bytes.`));
+				if (outputBytes > MAX_OUTPUT_BYTES) {
+					abort(new TypstCompileFailure(`Typst produced more than ${MAX_OUTPUT_BYTES} bytes.`));
 					return;
 				}
 				output.push(chunk);

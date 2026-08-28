@@ -491,6 +491,10 @@
 			],
 			"commandPalette": [
 				{
+					"command": "quartoWizard.previewTypstBlock",
+					"when": "editorLangId == quarto"
+				},
+				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
 					"when": "false"
 				},

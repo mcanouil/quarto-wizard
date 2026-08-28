@@ -44,12 +44,6 @@ suite("Typst Compiler Test Suite", () => {
 			assert.strictEqual(await probeTypstBinary(probe({ present: [candidate] })), candidate);
 		});
 
-		test("Should return undefined when the candidate is absent", async () => {
-			// There is no fallback route, so a layout Quarto does not produce leaves
-			// the feature inert rather than reaching for a binary somewhere else.
-			assert.strictEqual(await probeTypstBinary(probe({ present: [path.join(BIN, "tools", "typst")] })), undefined);
-		});
-
 		test("Should return undefined when Quarto is unavailable", async () => {
 			// No Quarto extension, no API, or an API that reports unavailable. The
 			// feature is inert, and reading it must not throw.
@@ -57,7 +51,9 @@ suite("Typst Compiler Test Suite", () => {
 			assert.strictEqual(found, undefined);
 		});
 
-		test("Should probe exactly one path", async () => {
+		test("Should probe exactly one path, and give up when it is absent", async () => {
+			// There is no fallback route, so a layout Quarto does not produce leaves
+			// the feature inert rather than reaching for a binary somewhere else.
 			const attempted: string[] = [];
 			const found = await probeTypstBinary(
 				probe({
