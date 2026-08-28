@@ -65,7 +65,7 @@ jobs:
           # A rename carries the old path in previous_filename. Without it, a
           # file renamed out of src/ reports only its new path, and the build
           # would skip although its inputs lost a file.
-          changed=$(gh api --paginate "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files" \
+          changed=$(gh api --paginate "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
             --jq '.[] | .filename, (.previous_filename // empty)')
           echo "Changed files:"
           echo "${changed}"
@@ -81,6 +81,7 @@ jobs:
           inputs+='|webpack\.config\.js$'                 # webpack
           inputs+='|eslint\.config\.mjs$'                 # lint
           inputs+='|\.prettierrc\.json$|\.prettierignore$' # format:check
+          inputs+='|\.vscode-test\.mjs$'                  # npm test
           inputs+='|\.vscodeignore$'                      # vsce package
           inputs+='|\.github/workflows/build\.yml$)'      # this workflow
 
