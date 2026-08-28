@@ -14,15 +14,10 @@ on:
       - ready_for_review
     branches:
       - main
-    paths:
-      - "src/**"
-      - "packages/**"
-      - "package.json"
-      - "package-lock.json"
-      # Swept by the Lua conformance job, and edited through pull requests.
-      # The vendored schemas under docs/ are not listed: a bot updates those
-      # straight on the default branch, where a pull request filter cannot fire.
-      - "test-fixtures/**/_schema.yml"
+    # No paths filter. The ruleset requires the summary job, and a required
+    # check that never starts blocks a pull request for ever. The workflow
+    # therefore always runs, and the changes job below decides whether the
+    # expensive jobs have anything to do.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
@@ -31,8 +26,77 @@ concurrency:
 permissions: read-all
 
 jobs:
-  build:
+  changes:
     if: github.event.pull_request.draft == false
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      # No checkout. The file list comes from the API, so this job does not
+      # clone the repository at all, where a `git diff` between the base and
+      # the head would need the full history.
+      - name: List the files the pull request touches
+        id: filter
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # A manual run has no pull request to compare against, so it builds.
+          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            echo "code=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # The files endpoint stops at 3000 entries, so a larger pull request
+          # gives a short list. Build rather than skip in that case: a wrong
+          # skip merges an untested change, a wrong build only costs time.
+          total=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files')
+          if [[ "${total}" -gt 3000 ]]; then
+            echo "${total} changed files exceeds the API limit, so the build runs."
+            echo "code=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # A rename carries the old path in previous_filename. Without it, a
+          # file renamed out of src/ reports only its new path, and the build
+          # would skip although its inputs lost a file.
+          changed=$(gh api --paginate "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+            --jq '.[] | .filename, (.previous_filename // empty)')
+          echo "Changed files:"
+          echo "${changed}"
+
+          # The inputs of the build: the sources, and every file that a step of
+          # the build job reads. Fixtures are swept by the Lua job and are
+          # edited through pull requests. The vendored schemas under docs/ are
+          # not listed: a bot updates those straight on the default branch,
+          # where no pull request event fires at all.
+          inputs='^(src/|packages/|test-fixtures/.+/_schema\.yml$'
+          inputs+='|package\.json$|package-lock\.json$'   # npm ci
+          inputs+='|tsconfig\.json$'                      # test-compile
+          inputs+='|webpack\.config\.js$'                 # webpack
+          inputs+='|eslint\.config\.mjs$'                 # lint
+          inputs+='|\.prettierrc\.json$|\.prettierignore$' # format:check
+          inputs+='|\.vscode-test\.mjs$'                  # npm test
+          inputs+='|\.vscodeignore$'                      # vsce package
+          inputs+='|\.github/workflows/build\.yml$)'      # this workflow
+
+          # A here-string and not a pipe. The runner sets pipefail, and grep -q
+          # exits at the first match, so a list past the pipe buffer would send
+          # SIGPIPE to the writer and the whole condition would read as false.
+          if grep -qE "${inputs}" <<< "${changed}"; then
+            echo "code=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "code=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -175,7 +239,8 @@ jobs:
           retention-days: 1
 
   lua:
-    if: github.event.pull_request.draft == false
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Lua reference validator
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -216,6 +281,7 @@ jobs:
   summary:
     if: always() && github.event.pull_request.draft == false
     needs:
+      - changes
       - build
       - lua
     timeout-minutes: 10
@@ -291,16 +357,24 @@ jobs:
           # The verdict comes from the job results, which are reported whatever
           # a job managed to upload. A matrix cell killed by its timeout leaves
           # no summary file, so counting files would call that run a success.
+          # A skipped job is not a failure: this job is the required check, so
+          # a pull request that changes no build input has nothing to run and
+          # must still report a verdict.
           failed_names=""
-          for job in "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
-            if [[ "${job#*:}" != "success" ]]; then
-              failed_names="${failed_names} ${job}"
-            fi
+          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
+            case "${job#*:}" in
+              "success" | "skipped") ;;
+              *) failed_names="${failed_names} ${job}" ;;
+            esac
           done
 
           if [[ -z "${failed_names}" ]]; then
             echo "## 🎉 Overall Result: SUCCESS" >> ${GITHUB_STEP_SUMMARY}
-            echo "Every job completed successfully." >> ${GITHUB_STEP_SUMMARY}
+            if [[ "${{ needs.changes.outputs.code }}" == "true" ]]; then
+              echo "Every job completed successfully." >> "${GITHUB_STEP_SUMMARY}"
+            else
+              echo "This pull request changes no build input, so the build matrix and the Lua job did not run." >> "${GITHUB_STEP_SUMMARY}"
+            fi
           else
             echo "## ⚠️ Overall Result: FAILURE" >> ${GITHUB_STEP_SUMMARY}
             echo "Not successful:${failed_names}. Check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
