@@ -82,6 +82,7 @@ options:
     description: "List of classification tags."
     minItems: 1
     maxItems: 10
+    uniqueItems: true
     items:
       type: string
       minLength: 1
@@ -144,6 +145,14 @@ options:
         - .png
         - .svg
         - .jpg
+
+  # contentEncoding and contentMediaType are annotations. They describe the
+  # string value, and no check rejects a value that disagrees with them.
+  inlineLogo:
+    type: string
+    description: "Inline logo image, encoded as base64."
+    contentEncoding: base64
+    contentMediaType: image/png
 
 # ---------------------------------------------------------------------------
 # shortcodes
