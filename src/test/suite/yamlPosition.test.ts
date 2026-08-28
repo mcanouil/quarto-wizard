@@ -451,6 +451,63 @@ suite("YAML Position Utils Test Suite", () => {
 			const body = text.substring(ranges[0].start, ranges[0].end);
 			assert.ok(body.includes("x = 1"));
 		});
+
+		test("should not treat a four-space indented fence at the top level as a fence", () => {
+			// Four spaces at the top level is an indented code block, so the fence is
+			// literal text. Treating it as live is how a documented example of a
+			// fence ends up linted, and compiled, as if it were code.
+			const text = "before\n\n    ```{r}\n    x = 1\n    ```\n\nafter";
+			assert.deepStrictEqual(getCodeBlockRanges(text), []);
+		});
+
+		test("should detect a three-space indented fence at the top level", () => {
+			const text = "before\n\n   ```{r}\n   x = 1\n   ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
+		});
+
+		test("should detect a four-space indented fence inside an ordered list item", () => {
+			// `1. ` opens an item whose content starts at column three, so a fence at
+			// column four is indented by one relative to the item and is live. This
+			// is the ordinary shape of a Quarto document, so the indent limit is
+			// measured against the open item and not against the document.
+			const text = "1. Step one\n\n    ```{r}\n    x = 1\n    ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
+		});
+
+		test("should stop allowing the list indent after the list ends", () => {
+			const text = "- item\n\nback at the margin\n\n    ```{r}\n    x = 1\n    ```\n";
+			assert.deepStrictEqual(getCodeBlockRanges(text), []);
+		});
+
+		test("should detect a fenced code block inside a blockquote", () => {
+			// Pandoc reads this as a real code block, and every reader built on this
+			// function used to skip it entirely.
+			const text = "> ```{r}\n> x <- 1\n> ```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "> x <- 1\n> ```");
+		});
+
+		test("should detect a fenced code block inside a nested blockquote", () => {
+			const text = "> > ~~~python\n> > x = 1\n> > ~~~\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "> > x = 1\n> > ~~~");
+		});
+
+		test("should end a blockquoted block where the quote ends", () => {
+			// A line without the marker ends the blockquote, and the code block goes
+			// with it. Lazy continuation applies to a paragraph and not to the
+			// content of a code block.
+			const text = "> ```\n> code\nafter\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "> code");
+		});
 	});
 
 	suite("isInCodeBlockRange", () => {

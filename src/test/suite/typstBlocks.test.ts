@@ -45,6 +45,22 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
 		});
 
+		test("Should ignore a fence indented by four spaces at the top level", () => {
+			// Four spaces at the top level is an indented code block, so this is a
+			// documented example of a Typst block and not one. Compiling it would
+			// run source the author wrote to be read.
+			const text = "before\n\n    ```typst\n    #a\n    ```\n";
+			assert.deepStrictEqual(findTypstBlocks(text), []);
+		});
+
+		test("Should remove the blockquote marker from every body line", () => {
+			// Typst is whitespace sensitive and knows nothing about Markdown, so a
+			// marker left on a body line is a syntax error in the compiled source.
+			const found = findTypstBlocks("> ```typst\n> #let a = 1\n> #a\n> ```\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
+		});
+
 		test("Should read an unclosed block to the end of the text", () => {
 			const found = findTypstBlocks("```typst\n#let a = 1\n");
 			assert.strictEqual(found.length, 1);

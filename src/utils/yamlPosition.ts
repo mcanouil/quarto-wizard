@@ -42,13 +42,91 @@ export function hasUnquotedBacktick(infoString: string): boolean {
 }
 
 /**
- * An opening code fence, capturing its indent, its run and its info string.
+ * How far a fence may be indented past its container before it is not a fence.
+ *
+ * CommonMark gives four spaces to an indented code block, so a fence at that
+ * indent is literal text. The limit is measured from the content column of the
+ * open container, because a fence inside a list item is indented to that item.
+ */
+const MAX_FENCE_INDENT = 3;
+
+/**
+ * The blockquote markers a line starts with.
+ *
+ * Each marker takes up to three spaces, a `>`, and one optional space. The run
+ * repeats for a nested quote.
+ */
+const BLOCKQUOTE_MARKERS = /^(?: {0,3}>[ \t]?)+/;
+
+/** A list item marker, which opens a container whose content is indented. */
+const LIST_ITEM = /^( *)([-+*]|\d{1,9}[.)])( +)\S/;
+
+/**
+ * An opening code fence, on a line already stripped of blockquote markers.
+ *
+ * The indent is spaces only. A tab counts as four columns, so a tab-indented
+ * fence is inside an indented code block and is not a fence at all.
+ */
+const OPENING_FENCE = /^( *)(`{3,}|~{3,})(.*)$/;
+
+/** A line with its blockquote markers taken off. */
+export interface QuotedLine {
+	/** The line without the markers. */
+	content: string;
+	/** How many markers the line carried, so how deep the quote is. */
+	depth: number;
+}
+
+/**
+ * Take the blockquote markers off a line.
+ *
+ * A fence inside a blockquote is a real code block for Pandoc, and the markers
+ * are structure rather than content, so every fence rule reads the line without
+ * them.
+ */
+export function stripBlockquoteMarkers(line: string): QuotedLine {
+	const found = BLOCKQUOTE_MARKERS.exec(line);
+	if (found === null) {
+		return { content: line, depth: 0 };
+	}
+	return { content: line.slice(found[0].length), depth: found[0].split(">").length - 1 };
+}
+
+/** An opening fence, as read from one line. */
+export interface OpeningFence {
+	/** The indent of the fence, measured after any blockquote markers. */
+	indent: number;
+	/** The run of the fence, which a closing fence must match or exceed. */
+	fence: string;
+	/** The info string that follows the run. */
+	info: string;
+}
+
+/**
+ * Read an opening fence from a line, or report that the line is not one.
  *
  * Exported so that a reader which derives the info string of a block, such as
  * the Typst block scanner, matches the fence exactly as this module does. Two
  * copies of the rule drift apart in silence.
+ *
+ * The indent limit is not applied here, because it depends on the container the
+ * line sits in, which only a reader walking the whole document knows.
+ *
+ * @param content - One line, with its blockquote markers already removed.
  */
-export const OPENING_FENCE = /^(\s*)(`{3,}|~{3,})(.*)$/;
+export function parseOpeningFence(content: string): OpeningFence | undefined {
+	const found = OPENING_FENCE.exec(content);
+	if (found === null) {
+		return undefined;
+	}
+	// The info string of a backtick fence carries no bare backtick, per
+	// CommonMark. A backtick inside a quoted attribute value is a Quarto
+	// extension and is allowed.
+	if (found[2][0] === "`" && hasUnquotedBacktick(found[3])) {
+		return undefined;
+	}
+	return { indent: found[1].length, fence: found[2], info: found[3] };
+}
 
 /**
  * The closing fence that ends a block opened by the given run.
@@ -83,7 +161,16 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 	let offset = 0;
 	let inBlock = false;
 	let blockStart = 0;
+	let blockDepth = 0;
+	let previousLineEnd = 0;
 	let closingFenceRe: RegExp | undefined;
+	// The content column of the innermost open list item. A fence is measured
+	// against this and not against the document, because a fence indented four
+	// spaces inside a list item is live while the same fence at the margin is
+	// literal text. The value is only ever lowered by a line that dedents past
+	// it, so an unclosed item makes the reader accept too much rather than lose
+	// a real block.
+	let containerIndent = 0;
 
 	for (let i = 0; i < lines.length; i++) {
 		const rawLine = lines[i];
@@ -93,31 +180,51 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 		// Advance offset past the newline for the next iteration.
 		offset = lineEnd + (i < lines.length - 1 ? 1 : 0);
 
-		if (inBlock) {
-			// Check for closing fence: same character, at least as many repetitions,
-			// optionally followed by whitespace, at the start of the line.
-			if (closingFenceRe?.test(line)) {
-				ranges.push({ start: blockStart, end: lineEnd });
-				inBlock = false;
-			}
-			continue;
-		}
+		const { content, depth } = stripBlockquoteMarkers(line);
 
-		// Check for opening fence, optionally indented.
-		const openMatch = OPENING_FENCE.exec(line);
-		if (openMatch) {
-			// The info string must not contain bare backticks when using backtick
-			// fences (CommonMark spec).  Backticks inside quoted attribute values
-			// are allowed (Pandoc/Quarto extension).
-			if (openMatch[2][0] === "`" && hasUnquotedBacktick(openMatch[3])) {
+		if (inBlock) {
+			if (depth >= blockDepth) {
+				// Check for closing fence: same character, at least as many
+				// repetitions, optionally followed by whitespace, at the start of the
+				// line.
+				if (closingFenceRe?.test(content)) {
+					ranges.push({ start: blockStart, end: lineEnd });
+					inBlock = false;
+				}
+				previousLineEnd = lineEnd;
 				continue;
 			}
+			// The blockquote ended, and the code block inside it ends with it. Lazy
+			// continuation carries a paragraph across such a line, never the content
+			// of a code block. The line itself is not part of the block, so it falls
+			// through and can open the next one.
+			ranges.push({ start: blockStart, end: Math.max(blockStart, previousLineEnd) });
+			inBlock = false;
+		}
+
+		previousLineEnd = lineEnd;
+
+		if (content.trim() !== "") {
+			const item = LIST_ITEM.exec(content);
+			if (item) {
+				containerIndent = item[1].length + item[2].length + item[3].length;
+			} else {
+				const indent = content.length - content.trimStart().length;
+				if (indent < containerIndent) {
+					containerIndent = indent;
+				}
+			}
+		}
+
+		const opening = parseOpeningFence(content);
+		if (opening && opening.indent <= containerIndent + MAX_FENCE_INDENT) {
 			inBlock = true;
+			blockDepth = depth;
 			// Start the range after the opening fence line so that
 			// attributes in the header (e.g. {r}, {python}) stay outside.
 			blockStart = offset;
 			// Compile the closing fence regex once per block.
-			closingFenceRe = closingFenceRegExp(openMatch[2]);
+			closingFenceRe = closingFenceRegExp(opening.fence);
 		}
 	}
 
