@@ -67,6 +67,13 @@ interface RawRelease {
 }
 
 /**
+ * Raw repository response from GitHub API.
+ */
+interface RawRepository {
+	default_branch: string;
+}
+
+/**
  * Raw tag response from GitHub API.
  */
 interface RawTag {
@@ -129,8 +136,11 @@ function getGitHubHeaders(auth?: AuthConfig): Record<string, string> {
  * Build a GitHub API URL with encoded path segments.
  */
 function repoApiUrl(owner: string, repo: string, ...segments: string[]): string {
-	const encoded = segments.map(encodeURIComponent);
-	return `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encoded.join("/")}`;
+	const base = `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+	if (segments.length === 0) {
+		return base;
+	}
+	return `${base}/${segments.map(encodeURIComponent).join("/")}`;
 }
 
 /**
@@ -256,6 +266,42 @@ async function validateCommit(owner: string, repo: string, commit: string, optio
 }
 
 /**
+ * Fetch the default branch of a repository.
+ *
+ * This is used only when no release, no tag and no registry entry give a
+ * reference to install. A failed lookup returns `undefined`, so the caller keeps
+ * its own fallback. A SAML SSO error is rethrown, because the user must act on
+ * it.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param options - GitHub options
+ * @returns Default branch name, or undefined when the lookup fails
+ */
+async function fetchDefaultBranch(
+	owner: string,
+	repo: string,
+	options: GitHubOptions = {},
+): Promise<string | undefined> {
+	const { auth, timeout, signal } = options;
+
+	try {
+		const raw = await fetchJson<RawRepository>(repoApiUrl(owner, repo), {
+			headers: getGitHubHeaders(auth),
+			timeout,
+			retries: 1,
+			signal,
+		});
+		return raw.default_branch || undefined;
+	} catch (error) {
+		if (error instanceof SamlSsoError) {
+			throw error;
+		}
+		return undefined;
+	}
+}
+
+/**
  * Fetch releases for a repository.
  *
  * @param owner - Repository owner
@@ -359,7 +405,7 @@ export async function resolveVersion(
 	version: VersionSpec,
 	options: ResolveVersionOptions = {},
 ): Promise<ResolvedVersion> {
-	const { defaultBranch = "main", latestCommit } = options;
+	const { defaultBranch, latestCommit } = options;
 
 	switch (version.type) {
 		case "latest": {
@@ -381,12 +427,14 @@ export async function resolveVersion(
 				};
 			}
 
-			// Fallback to default branch with commit tracking
+			// Fallback to default branch with commit tracking. The registry hint is
+			// preferred, then GitHub itself, because the branch is not always "main".
+			const branch = defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
 			const commitSha = latestCommit?.substring(0, 7);
 			return {
 				tagName: commitSha ?? "HEAD",
-				zipballUrl: constructArchiveUrl(owner, repo, defaultBranch, "branch", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, defaultBranch, "branch", "tarball"),
+				zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
+				tarballUrl: constructArchiveUrl(owner, repo, branch, "branch", "tarball"),
 				commitSha,
 			};
 		}

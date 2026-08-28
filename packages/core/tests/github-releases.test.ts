@@ -65,7 +65,17 @@ import {
 	resolveVersion,
 	constructArchiveUrl,
 } from "../src/github/releases.js";
-import { AuthenticationError, SamlSsoError } from "../src/errors.js";
+import { AuthenticationError, NetworkError, SamlSsoError } from "../src/errors.js";
+
+const REPO_METADATA_URL = "https://api.github.com/repos/owner/repo";
+
+function isRepoMetadataUrl(url: string): boolean {
+	return url === REPO_METADATA_URL;
+}
+
+function repoMetadataCalls(fetchJson: { mock: { calls: unknown[][] } }): unknown[][] {
+	return fetchJson.mock.calls.filter((call) => typeof call[0] === "string" && isRepoMetadataUrl(call[0]));
+}
 
 describe("handleGitHubError SAML pass-through", () => {
 	beforeEach(() => {
@@ -180,7 +190,8 @@ describe("resolveVersion", () => {
 	});
 
 	it("uses custom default branch when no releases/tags", async () => {
-		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockImplementation((url: string) => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
 			if (url.includes("/releases")) return Promise.resolve([]);
 			if (url.includes("/tags")) return Promise.resolve([]);
 			return Promise.reject(new Error("Unknown URL"));
@@ -196,6 +207,68 @@ describe("resolveVersion", () => {
 		expect(result.tagName).toBe("abc1234");
 		expect(result.zipballUrl).toContain("refs/heads/develop");
 		expect(result.commitSha).toBe("abc1234");
+		expect(repoMetadataCalls(fetchJson)).toHaveLength(0);
+	});
+
+	it("reads the default branch from GitHub when no releases, tags or registry hint exist", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/releases")) return Promise.resolve([]);
+			if (url.includes("/tags")) return Promise.resolve([]);
+			if (isRepoMetadataUrl(url)) return Promise.resolve({ default_branch: "master" });
+			return Promise.reject(new Error("Unknown URL"));
+		});
+
+		const result = await resolveVersion("owner", "repo", { type: "latest" });
+
+		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/master.zip");
+		expect(result.tarballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/master.tar.gz");
+		expect(repoMetadataCalls(fetchJson)).toHaveLength(1);
+	});
+
+	it("falls back to main when the default branch lookup fails", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/releases")) return Promise.resolve([]);
+			if (url.includes("/tags")) return Promise.resolve([]);
+			if (isRepoMetadataUrl(url)) {
+				return Promise.reject(new NetworkError("HTTP 403: rate limit exceeded", { statusCode: 403 }));
+			}
+			return Promise.reject(new Error("Unknown URL"));
+		});
+
+		const result = await resolveVersion("owner", "repo", { type: "latest" });
+
+		expect(result.tagName).toBe("HEAD");
+		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/main.zip");
+	});
+
+	it("propagates a SAML SSO error from the default branch lookup", async () => {
+		const samlUrl = "https://github.com/orgs/myorg/sso?authorization_request=abc";
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/releases")) return Promise.resolve([]);
+			if (url.includes("/tags")) return Promise.resolve([]);
+			if (isRepoMetadataUrl(url)) {
+				return Promise.reject(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl }));
+			}
+			return Promise.reject(new Error("Unknown URL"));
+		});
+
+		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(SamlSsoError);
+	});
+
+	it("does not look up the default branch when a release exists", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/releases")) return Promise.resolve(mockReleases);
+			return Promise.reject(new Error("Unknown URL"));
+		});
+
+		const result = await resolveVersion("owner", "repo", { type: "latest" });
+
+		expect(result.tagName).toBe("v2.0.0");
+		expect(repoMetadataCalls(fetchJson)).toHaveLength(0);
 	});
 });
 
