@@ -79,7 +79,9 @@ function repoMetadataCalls(fetchJson: { mock: { calls: unknown[][] } }): unknown
 
 /**
  * Build a `fetchJson` implementation for the three endpoints `resolveVersion` reads.
- * An endpoint with no answer rejects, so a test states what it expects to be called.
+ * The releases and the tags endpoints answer with an empty list unless a test gives
+ * one. The repository endpoint rejects unless a test gives an answer, so a test that
+ * expects no default branch lookup fails when one is made.
  */
 function githubApiMock(endpoints: { releases?: unknown[]; tags?: unknown[]; repoMetadata?: () => Promise<unknown> }) {
 	const { releases = [], tags = [], repoMetadata } = endpoints;
