@@ -9,7 +9,7 @@
 
 ### Bug Fixes
 
-- fix: report an error for every value of a field whose `pattern` the Lua reference validator cannot compile, instead of compiling that pattern to one that matches the wrong values. The refusal now covers an anchored alternation such as `^a|b$`, and the escapes `\b`, `\B`, `\0`, `\c`, `\u`, `\x`, `\p` and `\k`.
+- fix: report an error for every value of a field whose `pattern` the Lua reference validator cannot compile, instead of compiling that pattern to one that matches the wrong values. The refusal now covers an anchored alternation such as `^a|b$`, and the escapes `\b`, `\B`, `\c`, `\u`, `\x`, `\p` and `\k`.
 - fix: treat an empty string as a value in the Lua reference validator. A key set to `""` keeps that value and is tested against `type`, `minLength`, `const` and `enum`.
 - fix: stop an empty string from taking a field's `default` in the Lua reference validator. `count: ""` on a field declared `type: number` is now an error that reads `must be of type "number", got "string"`, where it used to take the default.
 - fix: drop a `null` element from a document metadata sequence in the Lua reference validator, where it used to become an empty string. `tags: [a, ~]` now holds one element rather than two, so a field declared `minItems: 2` no longer passes.
