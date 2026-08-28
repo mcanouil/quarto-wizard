@@ -282,34 +282,34 @@ All properties are optional.
 
 ### Type and Value Constraints
 
-| Property                | Type                          | Description                                                                                                                                                         |
-| ----------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `type`                  | `string`                      | Expected value type: `string`, `number`, `integer`, `boolean`, `array`, `object`, `null`, or `content`.                                                             |
-| `required`              | `boolean`                     | Whether the field must be present. Default: `false`.                                                                                                                |
-| `default`               | any                           | Default value applied when not provided.                                                                                                                            |
-| `const`                 | any                           | Fixed value the field must equal.                                                                                                                                   |
-| `enum`                  | array                         | List of allowed values.                                                                                                                                             |
-| `enum-case-insensitive` | `boolean`                     | Case-insensitive enum matching. Default: `false`.                                                                                                                   |
-| `pattern`               | `string`                      | Regular expression the value must match (JS regex syntax).                                                                                                          |
-| `pattern-exact`         | `boolean`                     | Deprecated. Anchor the pattern to match the entire value (wraps in `^...$`). Prefer writing `^...$` directly.                                                       |
-| `min`                   | `number`                      | Minimum value (inclusive, for `type: number` or `type: integer`).                                                                                                   |
-| `max`                   | `number`                      | Maximum value (inclusive, for `type: number` or `type: integer`).                                                                                                   |
-| `minimum`               | `number`                      | Alias for `min`.                                                                                                                                                    |
-| `maximum`               | `number`                      | Alias for `max`.                                                                                                                                                    |
-| `exclusive-minimum`     | `number`                      | Exclusive minimum (value must be strictly greater).                                                                                                                 |
-| `exclusive-maximum`     | `number`                      | Exclusive maximum (value must be strictly less).                                                                                                                    |
-| `multiple-of`           | `number`                      | Value must be a positive multiple of this number (for `type: number` or `type: integer`).                                                                           |
-| `min-length`            | `integer`                     | Minimum string length (for `type: string`).                                                                                                                         |
-| `max-length`            | `integer`                     | Maximum string length (for `type: string`).                                                                                                                         |
-| `min-items`             | `integer`                     | Minimum number of items (for `type: array`).                                                                                                                        |
-| `max-items`             | `integer`                     | Maximum number of items (for `type: array`).                                                                                                                        |
+| Property                | Type                          | Description                                                                                                                                                                                                                  |
+| ----------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                  | `string`                      | Expected value type: `string`, `number`, `integer`, `boolean`, `array`, `object`, `null`, or `content`.                                                                                                                      |
+| `required`              | `boolean`                     | Whether the field must be present. Default: `false`.                                                                                                                                                                         |
+| `default`               | any                           | Default value applied when not provided.                                                                                                                                                                                     |
+| `const`                 | any                           | Fixed value the field must equal.                                                                                                                                                                                            |
+| `enum`                  | array                         | List of allowed values.                                                                                                                                                                                                      |
+| `enum-case-insensitive` | `boolean`                     | Case-insensitive enum matching. Default: `false`.                                                                                                                                                                            |
+| `pattern`               | `string`                      | Regular expression the value must match (JS regex syntax).                                                                                                                                                                   |
+| `pattern-exact`         | `boolean`                     | Deprecated. Anchor the pattern to match the entire value (wraps in `^...$`). Prefer writing `^...$` directly.                                                                                                                |
+| `min`                   | `number`                      | Minimum value (inclusive, for `type: number` or `type: integer`).                                                                                                                                                            |
+| `max`                   | `number`                      | Maximum value (inclusive, for `type: number` or `type: integer`).                                                                                                                                                            |
+| `minimum`               | `number`                      | Alias for `min`.                                                                                                                                                                                                             |
+| `maximum`               | `number`                      | Alias for `max`.                                                                                                                                                                                                             |
+| `exclusive-minimum`     | `number`                      | Exclusive minimum (value must be strictly greater).                                                                                                                                                                          |
+| `exclusive-maximum`     | `number`                      | Exclusive maximum (value must be strictly less).                                                                                                                                                                             |
+| `multiple-of`           | `number`                      | Value must be a positive multiple of this number (for `type: number` or `type: integer`).                                                                                                                                    |
+| `min-length`            | `integer`                     | Minimum string length (for `type: string`).                                                                                                                                                                                  |
+| `max-length`            | `integer`                     | Maximum string length (for `type: string`).                                                                                                                                                                                  |
+| `min-items`             | `integer`                     | Minimum number of items (for `type: array`).                                                                                                                                                                                 |
+| `max-items`             | `integer`                     | Maximum number of items (for `type: array`).                                                                                                                                                                                 |
 | `uniqueItems`           | `boolean`                     | Reject an array that repeats an item, for `type: array`. Items are compared by type, so the number `1` and the string `"1"` are different items; a string is compared by its own text, and any other value by its rendering. |
-| `additional-properties` | `boolean` or field descriptor | Whether object values may carry keys beyond those in `properties`. Default: `true`.                                                                                 |
-| `property-names`        | `string`                      | Regular expression all object keys must match (for `type: object`).                                                                                                 |
-| `dependent-required`    | `object`                      | Map of key → list of keys that become required when that key is present (for `type: object`).                                                                       |
-| `format`                | `string`                      | JSON Schema format hint (e.g. `uri`, `email`, `date-time`). Annotation only.                                                                                        |
-| `content-encoding`      | `string`                      | Content encoding for a string value (e.g. `base64`). Annotation only.                                                                                               |
-| `content-media-type`    | `string`                      | Media type of a string value (e.g. `application/json`). Annotation only.                                                                                            |
+| `additional-properties` | `boolean` or field descriptor | Whether object values may carry keys beyond those in `properties`. Default: `true`.                                                                                                                                          |
+| `property-names`        | `string`                      | Regular expression all object keys must match (for `type: object`).                                                                                                                                                          |
+| `dependent-required`    | `object`                      | Map of key → list of keys that become required when that key is present (for `type: object`).                                                                                                                                |
+| `format`                | `string`                      | JSON Schema format hint (e.g. `uri`, `email`, `date-time`). Annotation only.                                                                                                                                                 |
+| `content-encoding`      | `string`                      | Content encoding for a string value (e.g. `base64`). Annotation only.                                                                                                                                                        |
+| `content-media-type`    | `string`                      | Media type of a string value (e.g. `application/json`). Annotation only.                                                                                                                                                     |
 
 An empty string is a value, not an absent key.
 A key set to `""` keeps that value, does not take its `default`, satisfies `required`, and is tested against `minLength`, `const` and `enum`, for a plain option value, an array element, and a surplus key matched by `additionalProperties`.
@@ -665,30 +665,35 @@ For every field use the following properties where applicable:
   exactly one value.
 - `enum`: list of allowed values when the code checks against a
   fixed set.
-- `enum-case-insensitive`: `true` when the code lowercases or
+- `enumCaseInsensitive`: `true` when the code lowercases or
   case-folds before comparing.
 - `pattern`: regular expression the value must match (JS syntax).
-- `pattern-exact`: `true` to anchor the pattern with `^...$`.
-- `min` / `max`: inclusive numeric bounds
-  (`minimum` and `maximum` are accepted as aliases).
-- `exclusive-minimum` / `exclusive-maximum`: exclusive numeric bounds
+  Anchor it with `^` and `$` in the value itself when the whole string
+  must match.
+- `minimum` / `maximum`: inclusive numeric bounds.
+- `exclusiveMinimum` / `exclusiveMaximum`: exclusive numeric bounds
   (value must be strictly greater / strictly less).
-- `multiple-of`: value must be a positive multiple of this number.
-- `min-length` / `max-length`: string length constraints.
-- `min-items` / `max-items`: array item count constraints.
-- `additional-properties`: `false` to forbid extra keys on a
+- `multipleOf`: value must be a positive multiple of this number.
+- `minLength` / `maxLength`: string length constraints.
+- `minItems` / `maxItems`: array item count constraints.
+- `uniqueItems`: `true` when every element of an `array` must differ.
+- `additionalProperties`: `false` to forbid extra keys on a
   `type: object`, or a nested field descriptor that every extra value
   must match.
-- `property-names`: regular expression every object key must match.
-- `dependent-required`: map of key → list of keys that become required
+- `propertyNames`: regular expression every object key must match.
+- `dependentRequired`: map of key → list of keys that become required
   whenever that key is present.
 - `format`: JSON Schema format hint (`uri`, `email`, `date-time`, etc.).
   Annotation only.
+- `contentEncoding`: how a string value is encoded, for example
+  `base64`. Annotation only.
+- `contentMediaType`: the media type of a string value, for example
+  `image/png`. Annotation only.
 - `title`: short human-readable label.
 - `examples`: list of example values for documentation and tooling.
 - `aliases`: alternative key names accepted by the code.
 - `deprecated`: `true`, a message string, or an object with `since`,
-  `message`, and `replace-with` keys.
+  `message`, and `replaceWith` keys.
 - `description`: one sentence in British English explaining the option.
 - `completion`: controls IDE autocompletion behaviour. Sub-properties:
   `type` (`color` for CSS colour values, `file` for file paths,
@@ -701,10 +706,14 @@ For every field use the following properties where applicable:
   describe what each array element looks like (its type, enum, etc.).
 - `properties`: schema for keys of an `object` type. Use `properties`
   to describe each expected key and its constraints.
+- `name`: the name of a positional shortcode argument. Required in an
+  entry of an `arguments` list, and used nowhere else.
 
 Output only the YAML content of `_schema.yml`, nothing else.
-Use kebab-case for multi-word property names (`enum-case-insensitive`,
-not `enumCaseInsensitive`).
+Use camelCase for multi-word property names (`enumCaseInsensitive`,
+not `enum-case-insensitive`).
+The v2 vocabulary holds the canonical names only, and it rejects the v1
+dual-key spellings such as `min`, `max` and `pattern-exact`.
 Add a one-line comment header: `# Schema for the <name> extension`.
 Optionally include `$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json`
 at the top level.

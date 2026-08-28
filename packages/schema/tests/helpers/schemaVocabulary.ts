@@ -49,6 +49,26 @@ export function metaSchemaProperties(metaSchema: unknown): string[] {
 	return Object.keys(properties);
 }
 
+type DefsShape = { $defs?: Record<string, { properties?: Record<string, unknown> } | undefined> };
+
+/**
+ * Every property name that a meta-schema declares, from every entry of `$defs`.
+ *
+ * A vocabulary is wider than one field descriptor. The structured `deprecated`
+ * value and the completion hint carry their own keys, and a caller that
+ * compares two versions has to see them, because a superseded spelling can sit
+ * in any of those maps. Naming the entries one by one leaves the next entry out
+ * in silence, so every entry is read.
+ */
+export function metaSchemaVocabulary(metaSchema: unknown): string[] {
+	const defs = Object.values((metaSchema as DefsShape).$defs ?? {});
+	const names = new Set(defs.flatMap((def) => Object.keys(def?.properties ?? {})));
+	if (names.size === 0) {
+		throw new Error("no $defs entry holds properties in meta-schema");
+	}
+	return [...names];
+}
+
 /**
  * Group the camelCase and the kebab-case spelling of one keyword.
  *
