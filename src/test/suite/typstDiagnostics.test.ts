@@ -39,16 +39,20 @@ suite("Typst Diagnostics Test Suite", () => {
 	test("Should subtract the injected lines so a position maps to the document", () => {
 		// The compiled source carries a header the author never wrote, so the
 		// reported line is ahead of the block by exactly that many lines.
-		assert.deepStrictEqual(parseTypstStderr(ONE_ERROR, 2), [
+		// One injected line above a report on Typst line 2 leaves the first line
+		// of the body, and the column survives because the line is still inside it.
+		assert.deepStrictEqual(parseTypstStderr(ONE_ERROR, 1), [
 			{ line: 0, column: 4, message: "expected pattern", severity: "error" },
 		]);
 	});
 
-	test("Should never report a negative line", () => {
-		// An error inside the injected header itself maps above the block, and a
-		// negative line is not a position any editor can take.
+	test("Should point at the start of the body for an error in the header", () => {
+		// An error inside the injected header maps above the block. A negative
+		// line is not a position any editor can take, and the column that came
+		// with it was measured against a line the author never wrote, so keeping
+		// it would put the mark at an arbitrary character of the first body line.
 		assert.deepStrictEqual(parseTypstStderr(ONE_ERROR, 10), [
-			{ line: 0, column: 4, message: "expected pattern", severity: "error" },
+			{ line: 0, column: 0, message: "expected pattern", severity: "error" },
 		]);
 	});
 

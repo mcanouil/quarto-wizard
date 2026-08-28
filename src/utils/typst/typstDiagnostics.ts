@@ -54,14 +54,18 @@ export function parseTypstStderr(stderr: string, injectedLines: number): TypstDi
 		if (position === null) {
 			continue;
 		}
+		// Typst mixes its bases, which was checked against the caret it prints:
+		// for `#let a = ` it reports 1:8, and the caret sits at index 8 of that
+		// line. So the line counts from one and the column counts from zero.
+		const line = Number(position[1]) - 1 - injectedLines;
+
 		diagnostics.push({
-			// Typst mixes its bases, which was checked against the caret it prints:
-			// for `#let a = ` it reports 1:8, and the caret sits at index 8 of that
-			// line. So the line counts from one and the column counts from zero.
 			// A position inside the injected header is not a place in the block, so
-			// it clamps to the first line.
-			line: Math.max(0, Number(position[1]) - 1 - injectedLines),
-			column: Number(position[2]),
+			// it points at the start of the body instead. The column goes with it:
+			// a column measured against a header line means nothing on the first
+			// line of the body, and would put the mark at an arbitrary character.
+			line: Math.max(0, line),
+			column: line < 0 ? 0 : Number(position[2]),
 			message: heading[2],
 			severity: heading[1] as "error" | "warning",
 		});

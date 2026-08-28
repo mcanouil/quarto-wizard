@@ -14,9 +14,15 @@ export interface SvgSize {
  */
 const ROOT_ELEMENT = /^\s*<svg\b[^>]*>/;
 
-/** One length attribute of the root element, with an optional unit. */
+/**
+ * One length attribute of the root element, with an optional unit.
+ *
+ * The name is preceded by a lookbehind and not a word boundary, because a
+ * boundary holds between a hyphen and a letter: `\bwidth` also matches the
+ * `stroke-width` of a root element and would read the stroke as the size.
+ */
 function rootLength(root: string, name: string): number | undefined {
-	const found = new RegExp(`\\b${name}="(-?[0-9.]+)(?:pt|px)?"`).exec(root);
+	const found = new RegExp(`(?<![-\\w])${name}="(-?[0-9.]+)(?:pt|px)?"`).exec(root);
 	if (found === null) {
 		return undefined;
 	}
@@ -52,8 +58,8 @@ export function clampSvg(svg: string, maxHeight: number): string {
 	}
 	const scale = maxHeight / size.height;
 	const scaled = root[0]
-		.replace(/\bwidth="(-?[0-9.]+)(pt|px)?"/, `width="${size.width * scale}$2"`)
-		.replace(/\bheight="(-?[0-9.]+)(pt|px)?"/, `height="${maxHeight}$2"`);
+		.replace(/(?<![-\w])width="(-?[0-9.]+)(pt|px)?"/, `width="${size.width * scale}$2"`)
+		.replace(/(?<![-\w])height="(-?[0-9.]+)(pt|px)?"/, `height="${maxHeight}$2"`);
 	return scaled + svg.slice(root[0].length);
 }
 

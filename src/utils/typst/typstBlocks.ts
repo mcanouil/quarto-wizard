@@ -119,7 +119,17 @@ function blockBody(text: string, bodyStart: number, bodyEnd: number, fence: stri
  */
 const OPTION_LINE = /^\s*\/\/\|\s*([A-Za-z0-9-]+):\s*(.+)$/;
 
-/** The Lua guard at `:110`, which warns about an option line that came late. */
+/**
+ * The Lua guard at `_modules/code-cell.lua:110`, which warns about an option
+ * line that came after the code.
+ *
+ * It is deliberately not the same rule as the key pattern above, because the
+ * two are not the same in Lua either: the guard ends with a colon and one
+ * whitespace character, while the key pattern accepts a colon with nothing
+ * after it. So a line spelled without that space parses as an option at the top
+ * of a block and is passed over in silence lower down. That is upstream
+ * behaviour, and it is reproduced rather than corrected.
+ */
 const LATE_OPTION_LINE = /^\s*\/\/\|\s*[A-Za-z0-9-]+:\s/;
 
 /** One parsed value, following `code-cell.lua:95-102`. */

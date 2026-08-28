@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { findTypstBlocks, typstBlockAt, precedingRawBlocks } from "../../utils/typst/typstBlocks";
+import { findTypstBlocks, typstBlockAt, precedingRawBlocks, hasLateOptionLine } from "../../utils/typst/typstBlocks";
 
 /** A minimal document holding one fence with the given info string. */
 function fence(info: string): string {
@@ -169,6 +169,35 @@ suite("Typst Blocks Test Suite", () => {
 			const block = findTypstBlocks("```{=typst}\n//| dpi: 300\n#a\n```\n")[0];
 			assert.deepStrictEqual(block.options, {});
 			assert.strictEqual(block.code, "//| dpi: 300\n#a\n");
+		});
+	});
+
+	suite("hasLateOptionLine", () => {
+		test("Should report a cell whose option line comes after the code", () => {
+			const block = findTypstBlocks("```{typst}\n#a\n//| dpi: 300\n```\n")[0];
+			assert.strictEqual(hasLateOptionLine(block), true);
+		});
+
+		test("Should not report a cell whose options are all in the leading run", () => {
+			const block = findTypstBlocks("```{typst}\n//| dpi: 300\n#a\n```\n")[0];
+			assert.strictEqual(hasLateOptionLine(block), false);
+		});
+
+		test("Should not report a plain or a raw block", () => {
+			// A comment-pipe line is an ordinary Typst comment in both, so there is
+			// nothing to warn about.
+			const text = "```typst\n#a\n//| dpi: 300\n```\n\n```{=typst}\n#b\n//| dpi: 300\n```\n";
+			for (const block of findTypstBlocks(text)) {
+				assert.strictEqual(hasLateOptionLine(block), false, block.kind);
+			}
+		});
+
+		test("Should not report a late line written without a space after the colon", () => {
+			// The Lua guard at `:110` ends with a colon and one whitespace, while
+			// the key pattern at `:89` does not, so upstream passes over this line
+			// in silence. The port keeps that difference.
+			const block = findTypstBlocks("```{typst}\n#a\n//| dpi:300\n```\n")[0];
+			assert.strictEqual(hasLateOptionLine(block), false);
 		});
 	});
 
