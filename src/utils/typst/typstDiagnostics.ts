@@ -16,6 +16,15 @@ export interface TypstDiagnostic {
 	line?: number;
 	/** Zero-based column. */
 	column?: number;
+	/**
+	 * Whether Typst gave a position and it sits above the block body.
+	 *
+	 * This separates the two reasons a diagnostic carries no position. A failure
+	 * above the body has a place the reader can go and look at, in the preview
+	 * header or in a block compiled above this one, while a package that would
+	 * not download has no place at all.
+	 */
+	aboveBody?: boolean;
 	/** The message, without its severity prefix. */
 	message: string;
 	severity: "error" | "warning";
@@ -111,7 +120,7 @@ export function parseTypstStderr(stderr: string, injectedLines: number): TypstDi
 			// block compiles under every raw block before it, so the failure can
 			// belong to a different block of the document. Naming a line here would
 			// blame this block for it.
-			diagnostics.push({ message: heading[2], severity });
+			diagnostics.push({ message: heading[2], severity, aboveBody: true });
 			continue;
 		}
 

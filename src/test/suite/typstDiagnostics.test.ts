@@ -51,7 +51,17 @@ suite("Typst Diagnostics Test Suite", () => {
 		// compiled under every raw block before it. Pinning such an error to the
 		// first line of the body blamed this block for a failure in another one,
 		// so the position is dropped and only the message survives.
-		assert.deepStrictEqual(parseTypstStderr(ONE_ERROR, 10), [{ message: "expected pattern", severity: "error" }]);
+		assert.deepStrictEqual(parseTypstStderr(ONE_ERROR, 10), [
+			{ message: "expected pattern", severity: "error", aboveBody: true },
+		]);
+	});
+
+	test("Should not call a failure without any position one above the body", () => {
+		// A package that would not download has no place at all, which is not the
+		// same as a place the reader can go and look at.
+		assert.deepStrictEqual(parseTypstStderr("error: failed to download package\n", 10), [
+			{ message: "failed to download package", severity: "error" },
+		]);
 	});
 
 	test("Should read a warning as well as an error", () => {

@@ -33,6 +33,13 @@ export function errorText(stderr: string, injectedLines: number): string {
 	// misstates why there is no image.
 	const mapped = diagnostics.find((diagnostic) => diagnostic.severity === "error") ?? diagnostics[0];
 	if (mapped) {
+		if (mapped.aboveBody) {
+			// A raw block compiles under every raw block before it, so the failure
+			// can belong to one of those. There is no line of this block to name,
+			// but saying nothing about where it is would leave the reader looking
+			// at a block that compiles.
+			return `${mapped.severity} above this block: ${mapped.message}`;
+		}
 		if (mapped.line === undefined) {
 			// A package that would not download, or an input Typst could not read.
 			// Naming a position here would point at a character that has nothing to
