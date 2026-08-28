@@ -169,11 +169,20 @@ function parseOptions(body: string): { options: Record<string, string | boolean>
 		options[match[1]] = optionValue(match[2].trim());
 	}
 
-	// The Lua reader warns here and keeps the line as code. Nothing in this
-	// module reports to the user, so the line is kept and the warning belongs to
-	// whichever surface renders the block.
-	const code = lines.slice(index).join("\n");
-	return { options, code };
+	// Slice the body at the end of the option run rather than joining the
+	// remaining lines. Joining would write one line ending everywhere and leave
+	// `code` normalised while `body` kept its own, so an offset taken in one
+	// would drift against the other by a character a line.
+	//
+	// The Lua reader warns about a late option line and keeps it as code. Nothing
+	// in this module reports to the user, so the line is kept here too and the
+	// warning belongs to whichever surface renders the block.
+	let offset = 0;
+	for (let consumed = 0; consumed < index; consumed++) {
+		const newline = body.indexOf("\n", offset);
+		offset = newline === -1 ? body.length : newline + 1;
+	}
+	return { options, code: body.slice(offset) };
 }
 
 /** Whether a body carries an option line after its code, which Lua warns about. */

@@ -70,6 +70,16 @@ suite("Typst Diagnostics Test Suite", () => {
 		assert.deepStrictEqual(parseTypstStderr(stderr, 0), []);
 	});
 
+	test("Should keep a diagnostic that carries no position", () => {
+		// A failure to read the input or to fetch a package has nothing to point
+		// at. Dropping it leaves a caller that counts diagnostics reporting a
+		// clean block for a compile that produced no image at all.
+		const stderr = "error: failed to download package @preview/example:0.1.0\n";
+		assert.deepStrictEqual(parseTypstStderr(stderr, 0), [
+			{ line: 0, column: 0, message: "failed to download package @preview/example:0.1.0", severity: "error" },
+		]);
+	});
+
 	test("Should return nothing for output that holds no diagnostic", () => {
 		assert.deepStrictEqual(parseTypstStderr("", 0), []);
 		assert.deepStrictEqual(parseTypstStderr("<svg></svg>", 0), []);

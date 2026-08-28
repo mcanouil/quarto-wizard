@@ -97,6 +97,22 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(text.slice(found[0].bodyStart, found[0].bodyEnd), "#a\n```");
 		});
 
+		test("Should read a tilde fence and keep a backtick line in its body", () => {
+			// A tilde block closes only on tildes, so a backtick line inside it is
+			// content. The bare-backtick rule does not apply to a tilde fence either.
+			const found = findTypstBlocks("~~~typst\n#a\n```\n#b\n~~~\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].kind, "plain");
+			assert.strictEqual(found[0].body, "#a\n```\n#b\n");
+		});
+
+		test("Should keep the line endings of a CRLF cell in its code", () => {
+			// `body` and `code` describe the same text, so one must not be
+			// normalised while the other is not.
+			const block = findTypstBlocks("```{typst}\r\n//| a: 1\r\n#x\r\n#y\r\n```\r\n")[0];
+			assert.strictEqual(block.code, "#x\r\n#y\r\n");
+		});
+
 		test("Should report the fence line of each block", () => {
 			const found = findTypstBlocks("intro\n\n```typst\n#a\n```\n\n```{=typst}\n#b\n```\n");
 			assert.deepStrictEqual(
