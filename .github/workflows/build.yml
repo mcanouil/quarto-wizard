@@ -70,15 +70,24 @@ jobs:
           echo "Changed files:"
           echo "${changed}"
 
-          # The inputs of the build. Fixtures are swept by the Lua job and are
+          # The inputs of the build: the sources, and every file that a step of
+          # the build job reads. Fixtures are swept by the Lua job and are
           # edited through pull requests. The vendored schemas under docs/ are
           # not listed: a bot updates those straight on the default branch,
           # where no pull request event fires at all.
-          #
+          inputs='^(src/|packages/|test-fixtures/.+/_schema\.yml$'
+          inputs+='|package\.json$|package-lock\.json$'   # npm ci
+          inputs+='|tsconfig\.json$'                      # test-compile
+          inputs+='|webpack\.config\.js$'                 # webpack
+          inputs+='|eslint\.config\.mjs$'                 # lint
+          inputs+='|\.prettierrc\.json$|\.prettierignore$' # format:check
+          inputs+='|\.vscodeignore$'                      # vsce package
+          inputs+='|\.github/workflows/build\.yml$)'      # this workflow
+
           # A here-string and not a pipe. The runner sets pipefail, and grep -q
           # exits at the first match, so a list past the pipe buffer would send
           # SIGPIPE to the writer and the whole condition would read as false.
-          if grep -qE '^(src/|packages/|package\.json$|package-lock\.json$|test-fixtures/.+/_schema\.yml$)' <<< "${changed}"; then
+          if grep -qE "${inputs}" <<< "${changed}"; then
             echo "code=true" >> "${GITHUB_OUTPUT}"
           else
             echo "code=false" >> "${GITHUB_OUTPUT}"
