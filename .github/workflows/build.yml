@@ -34,18 +34,17 @@ jobs:
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Compare the pull request against its base
+      # No checkout. The file list comes from the API, so this job does not
+      # clone the repository at all, where a `git diff` between the base and
+      # the head would need the full history.
+      - name: List the files the pull request touches
         id: filter
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # A manual run has no pull request to compare against, so it builds.
           if [[ "${EVENT_NAME}" != "pull_request" ]]; then
@@ -53,7 +52,7 @@ jobs:
             exit 0
           fi
 
-          changed=$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")
+          changed=$(gh api --paginate "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')
           echo "Changed files:"
           echo "${changed}"
 
