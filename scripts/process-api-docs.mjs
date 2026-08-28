@@ -909,6 +909,7 @@ function generateReferenceSidebar() {
             - reference/commands.qmd
             - reference/configuration.qmd
             - reference/schema-specification.qmd
+            - reference/schema-validator.qmd
             - reference/snippet-specification.qmd
             - reference/environment-variables.qmd
 `;
