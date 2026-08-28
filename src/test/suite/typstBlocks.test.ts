@@ -61,6 +61,15 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
 		});
 
+		test("Should keep a marker the blockquote itself does not consume", () => {
+			// The fence sits one quote deep, so Pandoc hands Typst the body with one
+			// marker removed and the second one intact. Removing both would delete a
+			// character the author wrote.
+			const found = findTypstBlocks("> ```typst\n> > #x\n> ```\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "> #x\n");
+		});
+
 		test("Should read an unclosed block to the end of the text", () => {
 			const found = findTypstBlocks("```typst\n#let a = 1\n");
 			assert.strictEqual(found.length, 1);

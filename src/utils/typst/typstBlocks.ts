@@ -90,12 +90,16 @@ function blockBody(
 	bodyEnd: number,
 	fence: string,
 	indent: number,
-	quoted: boolean,
+	quoteDepth: number,
 ): string {
-	// Chosen once. Whether the block sits in a blockquote is a property of the
-	// fence, not of each line, so testing it per line says the same thing many
-	// times and invites the two uses below to drift apart.
-	const unquote = quoted ? (line: string) => stripBlockquoteMarkers(line).content : (line: string) => line;
+	// Chosen once. How deep the block sits is a property of the fence, not of
+	// each line, so testing it per line says the same thing many times and
+	// invites the two uses below to drift apart.
+	//
+	// At most the depth of the fence is removed. A marker beyond that is content:
+	// one quote deep, the line `> > #x` reaches Typst as the text `> #x`.
+	const unquote =
+		quoteDepth > 0 ? (line: string) => stripBlockquoteMarkers(line, quoteDepth).content : (line: string) => line;
 
 	// Cut at the start of the closing fence line rather than dropping that line
 	// after a split, which would take the newline of the line above with it and
@@ -251,7 +255,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			}
 		}
 
-		const body = blockBody(source, range.start, range.end, opening.fence, opening.indent, fenceLineText.depth > 0);
+		const body = blockBody(source, range.start, range.end, opening.fence, opening.indent, fenceLineText.depth);
 		// Only a cell carries options. For the other two kinds a `//|` line is an
 		// ordinary Typst comment, so the body passes through untouched.
 		const parsed = kind === "cell" ? parseOptions(body) : { options: {}, code: body };

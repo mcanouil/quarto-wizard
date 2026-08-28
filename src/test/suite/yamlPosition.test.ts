@@ -499,6 +499,45 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "> > x = 1\n> > ~~~");
 		});
 
+		test("should not close a top-level block on a quoted fence line", () => {
+			// Inside a fenced block every line is content, and container parsing does
+			// not resume until the block closes. Stripping the marker first and then
+			// testing for a closing fence closes the block on its own content.
+			const text = "```\n> ```\nstill code\n```\nafter";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.slice(ranges[0].start, ranges[0].end).includes("still code"));
+		});
+
+		test("should not close a quoted block on a more deeply quoted fence line", () => {
+			const text = "> ```\n> > ```\n> still code\n> ```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.slice(ranges[0].start, ranges[0].end).includes("still code"));
+		});
+
+		test("should detect a blockquoted fence with CRLF line endings", () => {
+			const text = "> ```{r}\r\n> x <- 1\r\n> ```\r\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "> x <- 1\r\n> ```\r");
+		});
+
+		test("should detect a tab-indented fence inside a list item", () => {
+			// A tab advances to the next multiple of four, so this fence sits at
+			// column four, one past the content column of `1. `. It is live, and
+			// losing it is the failure direction this reader is meant to avoid.
+			const text = "1. Step one\n\n\t```{r}\n\tx = 1\n\t```\n";
+			const ranges = getCodeBlockRanges(text);
+			assert.strictEqual(ranges.length, 1);
+			assert.ok(text.substring(ranges[0].start, ranges[0].end).includes("x = 1"));
+		});
+
+		test("should not treat a tab-indented fence at the top level as a fence", () => {
+			const text = "before\n\n\t```{r}\n\tx = 1\n\t```\n";
+			assert.deepStrictEqual(getCodeBlockRanges(text), []);
+		});
+
 		test("should end a blockquoted block where the quote ends", () => {
 			// A line without the marker ends the blockquote, and the code block goes
 			// with it. Lazy continuation applies to a paragraph and not to the

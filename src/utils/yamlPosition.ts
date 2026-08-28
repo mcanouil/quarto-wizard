@@ -51,12 +51,12 @@ export function hasUnquotedBacktick(infoString: string): boolean {
 const MAX_FENCE_INDENT = 3;
 
 /**
- * The blockquote markers a line starts with.
+ * One blockquote marker: up to three spaces, a `>`, and one optional space.
  *
- * Each marker takes up to three spaces, a `>`, and one optional space. The run
- * repeats for a nested quote.
+ * Matched one at a time rather than as a run, because a reader sometimes has to
+ * remove a fixed number of them and leave the rest as content.
  */
-const BLOCKQUOTE_MARKERS = /^(?: {0,3}>[ \t]?)+/;
+const BLOCKQUOTE_MARKER = /^ {0,3}>[ \t]?/;
 
 /**
  * A list item marker, which opens a container whose content is indented.
@@ -92,29 +92,39 @@ function mayBeQuoted(line: string): boolean {
 	return false;
 }
 
+/** How far a tab advances: to the next multiple of four, per CommonMark. */
+const TAB_WIDTH = 4;
+
 /**
- * How many spaces a line starts with.
+ * The index of the first character that is neither a space nor a tab.
  *
- * Spaces only, matching `OPENING_FENCE`: a tab counts as four columns, so a tab
- * is never part of a fence indent.
+ * Equal to the length of the line when it holds nothing else, which is what
+ * makes it the blank test as well.
  */
-function leadingSpaces(content: string): number {
+function firstNonWhitespace(content: string): number {
 	let index = 0;
-	while (index < content.length && content.charCodeAt(index) === SPACE) {
+	while (index < content.length) {
+		const code = content.charCodeAt(index);
+		if (code !== SPACE && code !== TAB) {
+			return index;
+		}
 		index++;
 	}
 	return index;
 }
 
-/** Whether a line holds nothing but whitespace, from a known offset onwards. */
-function isBlankFrom(content: string, from: number): boolean {
-	for (let index = from; index < content.length; index++) {
-		const code = content.charCodeAt(index);
-		if (code !== SPACE && code !== TAB) {
-			return false;
-		}
+/**
+ * The column an index sits at, counting a tab to the next tab stop.
+ *
+ * Indentation is compared in columns rather than characters, because one tab
+ * and four spaces put the following text in the same place.
+ */
+function columnAt(content: string, index: number): number {
+	let column = 0;
+	for (let i = 0; i < index; i++) {
+		column += content.charCodeAt(i) === TAB ? TAB_WIDTH - (column % TAB_WIDTH) : 1;
 	}
-	return true;
+	return column;
 }
 
 /** Drop a trailing carriage return left by a CRLF document. */
@@ -125,16 +135,18 @@ export function stripCarriageReturn(line: string): string {
 /**
  * An opening code fence, on a line already stripped of blockquote markers.
  *
- * The indent is spaces only. A tab counts as four columns, so a tab-indented
- * fence is inside an indented code block and is not a fence at all.
+ * The indent is measured in columns and not in characters, because a tab
+ * advances to the next multiple of four. A tab at the margin therefore opens an
+ * indented code block, while the same tab inside a list item is one column of
+ * indent and leaves the fence live.
  */
-const OPENING_FENCE = /^( *)(`{3,}|~{3,})(.*)$/;
+const OPENING_FENCE = /^([ \t]*)(`{3,}|~{3,})(.*)$/;
 
 /** A line with its blockquote markers taken off. */
 export interface QuotedLine {
-	/** The line without the markers. */
+	/** The line without the markers that were removed. */
 	content: string;
-	/** How many markers the line carried, so how deep the quote is. */
+	/** How many markers were removed. */
 	depth: number;
 }
 
@@ -144,22 +156,26 @@ export interface QuotedLine {
  * A fence inside a blockquote is a real code block for Pandoc, and the markers
  * are structure rather than content, so every fence rule reads the line without
  * them.
+ *
+ * @param limit - How many markers to remove at most. A reader inside a quoted
+ *   block passes the depth of that block, because a marker beyond it belongs to
+ *   the content: at one quote deep, `> > #x` is the text `> #x`.
  */
-export function stripBlockquoteMarkers(line: string): QuotedLine {
-	if (!mayBeQuoted(line)) {
+export function stripBlockquoteMarkers(line: string, limit = Number.POSITIVE_INFINITY): QuotedLine {
+	if (limit <= 0 || !mayBeQuoted(line)) {
 		return { content: line, depth: 0 };
 	}
-	const found = BLOCKQUOTE_MARKERS.exec(line);
-	if (found === null) {
-		return { content: line, depth: 0 };
-	}
+	let content = line;
 	let depth = 0;
-	for (let index = 0; index < found[0].length; index++) {
-		if (found[0].charCodeAt(index) === GREATER_THAN) {
-			depth++;
+	while (depth < limit) {
+		const found = BLOCKQUOTE_MARKER.exec(content);
+		if (found === null) {
+			break;
 		}
+		content = content.slice(found[0].length);
+		depth++;
 	}
-	return { content: line.slice(found[0].length), depth };
+	return { content, depth };
 }
 
 /** An opening fence, as read from one line. */
@@ -195,7 +211,7 @@ export function parseOpeningFence(content: string): OpeningFence | undefined {
 	if (found[2][0] === "`" && hasUnquotedBacktick(found[3])) {
 		return undefined;
 	}
-	return { indent: found[1].length, fence: found[2], info: found[3] };
+	return { indent: columnAt(found[1], found[1].length), fence: found[2], info: found[3] };
 }
 
 /**
@@ -252,7 +268,14 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 		const { content, depth } = stripBlockquoteMarkers(line);
 
 		if (inBlock) {
-			if (depth >= blockDepth) {
+			if (depth > blockDepth) {
+				// A line quoted more deeply than the block is content. Inside a fenced
+				// block the container parsing stops, so the extra marker is text the
+				// author wrote, and testing the stripped line for a closing fence
+				// would close the block on its own body.
+				continue;
+			}
+			if (depth === blockDepth) {
 				// Check for closing fence: same character, at least as many
 				// repetitions, optionally followed by whitespace, at the start of the
 				// line.
@@ -271,12 +294,14 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			inBlock = false;
 		}
 
-		const indent = leadingSpaces(content);
-		if (!isBlankFrom(content, indent)) {
+		const contentStart = firstNonWhitespace(content);
+		if (contentStart < content.length) {
 			// The marker test comes first, because a list item both opens a
 			// container and sits at the indent of the one around it.
-			const item = LIST_MARKERS.has(content[indent]) ? LIST_ITEM.exec(content) : null;
-			containerIndent = item ? item[0].length : Math.min(containerIndent, indent);
+			const item = LIST_MARKERS.has(content[contentStart]) ? LIST_ITEM.exec(content) : null;
+			containerIndent = item
+				? columnAt(content, item[0].length)
+				: Math.min(containerIndent, columnAt(content, contentStart));
 		}
 
 		const opening = parseOpeningFence(content);
