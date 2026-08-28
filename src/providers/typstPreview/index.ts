@@ -31,6 +31,11 @@ export function errorText(stderr: string, injectedLines: number): string {
 	// A warning can sit above the error that stopped the compile, so the first
 	// diagnostic is not the one to show. Headlining a failure as a warning
 	// misstates why there is no image.
+	//
+	// Among the errors it is the first that is shown, which is the earliest in
+	// the compiled source. A block compiled under a broken one reports errors of
+	// its own, and those are consequences: showing one of them would send the
+	// reader to a line that is only wrong because the source above it is.
 	const mapped = diagnostics.find((diagnostic) => diagnostic.severity === "error") ?? diagnostics[0];
 	if (mapped) {
 		if (mapped.aboveBody) {
