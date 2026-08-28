@@ -722,4 +722,3 @@ Reference: https://m.canouil.dev/quarto-wizard/reference/schema-specification.ll
 ```
 
 :::
-```
