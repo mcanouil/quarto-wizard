@@ -279,13 +279,17 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 }
 
 /**
- * The Typst block that holds an offset, or undefined when none does.
+ * The block of a list that holds an offset, or undefined when none does.
  *
  * The opening fence line counts as part of its block. A reader who puts the
  * cursor on the fence means that block, and the body range starts after it.
+ *
+ * Takes a list rather than the document text, because every caller also needs
+ * the blocks around the one under the cursor: a raw block compiles with the raw
+ * blocks above it. Taking the text would scan the document a second time.
  */
-export function typstBlockAt(text: string, offset: number): TypstBlock | undefined {
-	return findTypstBlocks(text).find((block) => offset >= block.fenceStart && offset <= block.bodyEnd);
+export function blockAtOffset(blocks: TypstBlock[], offset: number): TypstBlock | undefined {
+	return blocks.find((block) => offset >= block.fenceStart && offset <= block.bodyEnd);
 }
 
 /**
@@ -298,4 +302,33 @@ export function typstBlockAt(text: string, offset: number): TypstBlock | undefin
  */
 export function precedingRawBlocks(blocks: TypstBlock[], target: TypstBlock): TypstBlock[] {
 	return blocks.filter((block) => block.kind === "raw" && block.bodyStart < target.bodyStart);
+}
+
+/**
+ * One edit of a document, in the shape `TextDocumentContentChangeEvent` uses.
+ *
+ * Structural, so this module keeps importing no `vscode`.
+ */
+export interface DocumentChange {
+	/** Offset of the first character the edit replaced. */
+	rangeOffset: number;
+	/** How many characters the edit replaced. */
+	rangeLength: number;
+}
+
+/**
+ * Whether an edit makes the preview of a block out of date.
+ *
+ * A raw block is the one kind whose source reaches outside itself: it compiles
+ * with every raw block above it, so anything above it counts, including prose,
+ * where a new fence is typed. A plain block and a cell compile alone, so only
+ * an edit that touches the block itself counts.
+ *
+ * The opening fence is inside that region, because the info string decides the
+ * kind, and so is the closing fence, because removing it changes where the body
+ * ends.
+ */
+export function invalidatesPreview(block: TypstBlock, change: DocumentChange): boolean {
+	const from = block.kind === "raw" ? 0 : block.fenceStart;
+	return change.rangeOffset <= block.bodyEnd && change.rangeOffset + change.rangeLength >= from;
 }

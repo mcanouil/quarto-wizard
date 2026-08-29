@@ -1,5 +1,11 @@
 import * as assert from "assert";
-import { findTypstBlocks, typstBlockAt, precedingRawBlocks, hasLateOptionLine } from "../../utils/typst/typstBlocks";
+import {
+	findTypstBlocks,
+	blockAtOffset,
+	precedingRawBlocks,
+	hasLateOptionLine,
+	invalidatesPreview,
+} from "../../utils/typst/typstBlocks";
 
 /** A minimal document holding one fence with the given info string. */
 function fence(info: string): string {
@@ -287,23 +293,24 @@ suite("Typst Blocks Test Suite", () => {
 		});
 	});
 
-	suite("typstBlockAt", () => {
+	suite("blockAtOffset", () => {
 		const text = "intro\n\n```typst\n#a\n```\n\ntext\n\n```{=typst}\n#b\n```\n";
+		const blocks = findTypstBlocks(text);
 
 		test("Should find the block holding an offset inside a body", () => {
-			assert.strictEqual(typstBlockAt(text, text.indexOf("#a"))?.kind, "plain");
-			assert.strictEqual(typstBlockAt(text, text.indexOf("#b"))?.kind, "raw");
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("#a"))?.kind, "plain");
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("#b"))?.kind, "raw");
 		});
 
 		test("Should find the block when the cursor sits on its opening fence", () => {
 			// A reader who puts the cursor on the fence means that block, and the
 			// body range starts after the fence line, so the fence needs its own case.
-			assert.strictEqual(typstBlockAt(text, text.indexOf("```typst"))?.kind, "plain");
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("```typst"))?.kind, "plain");
 		});
 
 		test("Should find nothing outside every block", () => {
-			assert.strictEqual(typstBlockAt(text, 0), undefined);
-			assert.strictEqual(typstBlockAt(text, text.indexOf("text")), undefined);
+			assert.strictEqual(blockAtOffset(blocks, 0), undefined);
+			assert.strictEqual(blockAtOffset(blocks, text.indexOf("text")), undefined);
 		});
 	});
 
@@ -332,6 +339,81 @@ suite("Typst Blocks Test Suite", () => {
 		test("Should return nothing when the target is the first raw block", () => {
 			const blocks = findTypstBlocks("```{=typst}\n#a\n```\n");
 			assert.deepStrictEqual(precedingRawBlocks(blocks, blocks[0]), []);
+		});
+	});
+
+	suite("invalidatesPreview", () => {
+		// A raw block, then prose, then a plain block and a second raw block, so
+		// every case has something above it and something below it.
+		const text = [
+			"```{=typst}",
+			"#let a = 1",
+			"```",
+			"",
+			"prose",
+			"",
+			"```typst",
+			"#circle()",
+			"```",
+			"",
+			"```{=typst}",
+			"#a",
+			"```",
+			"",
+		].join("\n");
+		const [firstRaw, plain, secondRaw] = findTypstBlocks(text);
+
+		/** A one character insertion at an offset. */
+		function insertion(offset: number): { rangeOffset: number; rangeLength: number } {
+			return { rangeOffset: offset, rangeLength: 0 };
+		}
+
+		test("Should invalidate a plain block changed inside its body", () => {
+			assert.strictEqual(invalidatesPreview(plain, insertion(text.indexOf("#circle"))), true);
+		});
+
+		test("Should invalidate a plain block changed on its opening fence", () => {
+			// The info string decides the kind, so editing the fence can stop the
+			// block being a Typst block at all.
+			assert.strictEqual(invalidatesPreview(plain, insertion(plain.fenceStart)), true);
+		});
+
+		test("Should leave a plain block alone when the change is above it", () => {
+			// A plain block is compiled on its own, so nothing outside it changes
+			// what it renders.
+			assert.strictEqual(invalidatesPreview(plain, insertion(text.indexOf("prose"))), false);
+		});
+
+		test("Should invalidate a raw block changed anywhere above it", () => {
+			// A raw block compiles with every raw block before it, so a change above
+			// it can bind, rebind or remove a name it uses.
+			assert.strictEqual(invalidatesPreview(secondRaw, insertion(text.indexOf("#let"))), true);
+		});
+
+		test("Should invalidate a raw block when a change above it is not in a block", () => {
+			// Prose is where a new fence is typed, and that new block would sit
+			// above the target.
+			assert.strictEqual(invalidatesPreview(secondRaw, insertion(text.indexOf("prose"))), true);
+		});
+
+		test("Should leave a raw block alone when the change is below it", () => {
+			assert.strictEqual(invalidatesPreview(firstRaw, insertion(text.indexOf("prose"))), false);
+		});
+
+		test("Should invalidate a plain block changed on its closing fence", () => {
+			// The body ends where the closing fence starts, so an edit exactly at
+			// that offset removes or moves the end of the block.
+			assert.strictEqual(invalidatesPreview(plain, insertion(plain.bodyEnd)), true);
+		});
+
+		test("Should invalidate a block a deletion reaches from above", () => {
+			// The change starts outside the block and ends inside it, so testing its
+			// start offset alone would miss it.
+			const start = text.indexOf("prose");
+			assert.strictEqual(
+				invalidatesPreview(plain, { rangeOffset: start, rangeLength: text.indexOf("#circle") - start }),
+				true,
+			);
 		});
 	});
 });

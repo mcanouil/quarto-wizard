@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { typstBlockAt, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { buildPlainSource, buildRawSource } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary } from "./typstCompiler";
@@ -19,30 +20,6 @@ const PAGE_SETUP = "#set page(width: auto, height: auto, margin: 0.5em)";
 /** Read the source from stdin, write the image to stdout. */
 const ARGV = ["compile", "--format", "svg", "-", "-"];
 
-/** One compile request. */
-interface AssembledSource {
-	/** The whole source to send to the compiler. */
-	source: string;
-	/**
-	 * How many lines sit above the block body.
-	 *
-	 * A diagnostic reports a position in the assembled source, so it has to lose
-	 * these before it means anything in the document.
-	 */
-	injectedLines: number;
-}
-
-/**
- * The source for one block.
- *
- * The count travels with the source rather than beside it, because it stops
- * being a constant as soon as a raw block prepends the blocks before it, or a
- * cell prepends its resolved options.
- */
-function assembleSource(block: TypstBlock): AssembledSource {
-	return { source: `${PAGE_SETUP}\n${block.body}`, injectedLines: 1 };
-}
-
 /**
  * The one line a failure shows inside the panel.
  *
@@ -54,8 +31,20 @@ export function errorText(stderr: string, injectedLines: number): string {
 	// A warning can sit above the error that stopped the compile, so the first
 	// diagnostic is not the one to show. Headlining a failure as a warning
 	// misstates why there is no image.
+	//
+	// Among the errors it is the first that is shown, which is the earliest in
+	// the compiled source. A block compiled under a broken one reports errors of
+	// its own, and those are consequences: showing one of them would send the
+	// reader to a line that is only wrong because the source above it is.
 	const mapped = diagnostics.find((diagnostic) => diagnostic.severity === "error") ?? diagnostics[0];
 	if (mapped) {
+		if (mapped.aboveBody) {
+			// A raw block compiles under every raw block before it, so the failure
+			// can belong to one of those. There is no line of this block to name,
+			// but saying nothing about where it is would leave the reader looking
+			// at a block that compiles.
+			return `${mapped.severity} above this block: ${mapped.message}`;
+		}
 		if (mapped.line === undefined) {
 			// A package that would not download, or an input Typst could not read.
 			// Naming a position here would point at a character that has nothing to
@@ -80,7 +69,11 @@ export function errorText(stderr: string, injectedLines: number): string {
 
 /** What the panel shows about the block it is displaying. */
 function headerText(document: vscode.TextDocument, block: TypstBlock): string {
-	return `${path.basename(document.fileName)} · line ${block.fenceLine + 1}`;
+	const place = `${path.basename(document.fileName)} · line ${block.fenceLine + 1}`;
+	// A raw block reaches Typst through the document template, which contributes
+	// imports, show rules and set directives the preview cannot apply. Saying so
+	// beside the image is what stops a divergence being read as a defect.
+	return block.kind === "raw" ? `${place} · raw passthrough, document template not applied` : place;
 }
 
 /**
@@ -179,16 +172,20 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		}
 
 		const document = editor.document;
-		const block = typstBlockAt(document.getText(), document.offsetAt(editor.selection.active));
+		// The whole list is kept, because a raw block compiles with the raw blocks
+		// above it and scanning the document a second time to find them would say
+		// the same thing twice.
+		const blocks = findTypstBlocks(document.getText());
+		const block = blockAtOffset(blocks, document.offsetAt(editor.selection.active));
 		if (block === undefined) {
 			explain("Put the cursor inside a Typst block to preview it.");
 			return;
 		}
-		if (block.kind !== "plain") {
-			// A raw block needs the ones before it, and a cell needs its options
-			// resolved. Compiling either one alone would show an image that the
-			// render does not produce.
-			explain(`A \`${block.kind}\` Typst block cannot be previewed yet.`);
+		if (block.kind === "cell") {
+			// A cell needs its options resolved and its extension present.
+			// Compiling it alone would show an image that the render does not
+			// produce.
+			explain("A `{typst}` cell cannot be previewed yet.");
 			return;
 		}
 
@@ -202,7 +199,8 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		const surface = usePanel();
 		surface.reveal();
 
-		const assembled = assembleSource(block);
+		const assembled =
+			block.kind === "raw" ? buildRawSource(blocks, block, PAGE_SETUP) : buildPlainSource(block, PAGE_SETUP);
 		try {
 			const result = await compiler.compile(assembled.source, ARGV, uncancelled.token);
 			if (result.svg === undefined) {

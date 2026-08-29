@@ -46,13 +46,21 @@ suite("Typst Diagnostics Test Suite", () => {
 		]);
 	});
 
-	test("Should point at the start of the body for an error in the header", () => {
-		// An error inside the injected header maps above the block. A negative
-		// line is not a position any editor can take, and the column that came
-		// with it was measured against a line the author never wrote, so keeping
-		// it would put the mark at an arbitrary character of the first body line.
+	test("Should give no position for an error above the block body", () => {
+		// The injected lines are not all written by the preview: a raw block is
+		// compiled under every raw block before it. Pinning such an error to the
+		// first line of the body blamed this block for a failure in another one,
+		// so the position is dropped and only the message survives.
 		assert.deepStrictEqual(parseTypstStderr(ONE_ERROR, 10), [
-			{ line: 0, column: 0, message: "expected pattern", severity: "error" },
+			{ message: "expected pattern", severity: "error", aboveBody: true },
+		]);
+	});
+
+	test("Should not call a failure without any position one above the body", () => {
+		// A package that would not download has no place at all, which is not the
+		// same as a place the reader can go and look at.
+		assert.deepStrictEqual(parseTypstStderr("error: failed to download package\n", 10), [
+			{ message: "failed to download package", severity: "error" },
 		]);
 	});
 

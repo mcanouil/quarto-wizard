@@ -7,14 +7,24 @@ export interface TypstDiagnostic {
 	/**
 	 * Zero-based line within the block body.
 	 *
-	 * Absent when Typst reported no position at all, which happens when the
-	 * failure is not about a place in the source: a package that would not
-	 * download, or an input it could not read. The two position fields are
-	 * always both present or both absent.
+	 * Absent when there is no position in this block to report. That is either a
+	 * failure Typst gave no position for, such as a package that would not
+	 * download, or a position above the body, which belongs to the preview header
+	 * or to a block the preview compiled above this one. The two position fields
+	 * are always both present or both absent.
 	 */
 	line?: number;
 	/** Zero-based column. */
 	column?: number;
+	/**
+	 * Whether Typst gave a position and it sits above the block body.
+	 *
+	 * This separates the two reasons a diagnostic carries no position. A failure
+	 * above the body has a place the reader can go and look at, in the preview
+	 * header or in a block compiled above this one, while a package that would
+	 * not download has no place at all.
+	 */
+	aboveBody?: boolean;
 	/** The message, without its severity prefix. */
 	message: string;
 	severity: "error" | "warning";
@@ -104,16 +114,17 @@ export function parseTypstStderr(stderr: string, injectedLines: number): TypstDi
 		// line. So the line counts from one and the column counts from zero.
 		const line = Number(position[2]) - 1 - injectedLines;
 
-		diagnostics.push({
-			// A position inside the injected header is not a place in the block, so
-			// it points at the start of the body instead. The column goes with it:
-			// a column measured against a header line means nothing on the first
-			// line of the body, and would put the mark at an arbitrary character.
-			line: Math.max(0, line),
-			column: line < 0 ? 0 : Number(position[3]),
-			message: heading[2],
-			severity,
-		});
+		if (line < 0) {
+			// Above the block body, which is a real place but not one in this
+			// block. The injected lines are not all written by the preview: a raw
+			// block compiles under every raw block before it, so the failure can
+			// belong to a different block of the document. Naming a line here would
+			// blame this block for it.
+			diagnostics.push({ message: heading[2], severity, aboveBody: true });
+			continue;
+		}
+
+		diagnostics.push({ line, column: Number(position[3]), message: heading[2], severity });
 	}
 
 	return diagnostics;
