@@ -113,6 +113,18 @@ function typstColour(hex: string): string {
 }
 
 /**
+ * One colour setting, with a blank value read as `auto`.
+ *
+ * Clearing the field in the settings user interface leaves an empty string,
+ * which is neither of the two words and is not an expression either. Written
+ * through it gives `fill: )`, and every compile then fails on the injected
+ * header rather than on the block the reader is looking at.
+ */
+function setting(value: string): string {
+	return value.trim() === "" ? AUTO : value.trim();
+}
+
+/**
  * The header a plain or a raw block compiles under.
  *
  * The page setup is always written: a block is a fragment and not a document,
@@ -130,14 +142,16 @@ function typstColour(hex: string): string {
  *   its own, or any Typst colour expression, used as it is.
  */
 export function themeHeader(kind: TypstThemeKind, foreground: string, background: string): TypstThemeHeader {
+	const text = setting(foreground);
 	// An `auto` page is transparent, so the surface behind the image supplies the
 	// background and follows a theme change with no recompile.
-	const fill = background === NONE ? "" : `, fill: ${background === AUTO ? NONE : background}`;
-	const page = `#set page(width: auto, height: auto, margin: 0.5em${fill})`;
+	const page = setting(background);
+	const fill = page === NONE ? "" : `, fill: ${page === AUTO ? NONE : page}`;
+	const geometry = `#set page(width: auto, height: auto, margin: 0.5em${fill})`;
 
-	if (foreground === NONE) {
-		return { header: page, foreground: "" };
+	if (text === NONE) {
+		return { header: geometry, foreground: "" };
 	}
-	const colour = foreground === AUTO ? typstColour(THEME_TEXT[kind]) : foreground;
-	return { header: `${page}\n#set text(fill: ${colour})`, foreground: colour };
+	const colour = text === AUTO ? typstColour(THEME_TEXT[kind]) : text;
+	return { header: `${geometry}\n#set text(fill: ${colour})`, foreground: colour };
 }

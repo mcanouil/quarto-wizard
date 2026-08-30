@@ -38,6 +38,24 @@ interface TypstPreviewSettings {
 	timeoutMs: number;
 }
 
+/** The bounds `package.json` declares, repeated here because it cannot enforce them. */
+const MIN_TIMEOUT_MS = 1000;
+const MAX_TIMEOUT_MS = 300000;
+
+/**
+ * A usable compile timeout, whatever the setting holds.
+ *
+ * Exported for its tests. The bounds in `package.json` only guide the settings
+ * user interface, so a hand-edited `settings.json` reaches `setTimeout`
+ * unchecked, and `0` there fails every preview before Typst has read anything.
+ */
+export function previewTimeoutMs(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return DEFAULT_TIMEOUT_MS;
+	}
+	return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, value));
+}
+
 /**
  * The settings in force for one document.
  *
@@ -49,8 +67,15 @@ function previewSettings(document: vscode.TextDocument): TypstPreviewSettings {
 	return {
 		foreground: config.get<string>("foreground", "auto"),
 		background: config.get<string>("background", "auto"),
-		timeoutMs: config.get<number>("timeoutMs", DEFAULT_TIMEOUT_MS),
+		timeoutMs: previewTimeoutMs(config.get<number>("timeoutMs", DEFAULT_TIMEOUT_MS)),
 	};
+}
+
+/** The text colour the settings and the active theme resolve to. */
+function resolvedForeground(document: vscode.TextDocument): string {
+	const settings = previewSettings(document);
+	return themeHeader(themeKindOf(vscode.window.activeColorTheme.kind), settings.foreground, settings.background)
+		.foreground;
 }
 
 /**
@@ -122,6 +147,9 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	// The compiler reads its timeout once, and the setting is resource scoped, so
 	// the value it was built with is kept to know when it no longer applies.
 	let compilerTimeoutMs: number | undefined;
+	// The colour the image on screen was compiled with, so a theme change can
+	// tell a new colour from a theme that resolves to the same one.
+	let shownForeground: string | undefined;
 	// One message per session, so a machine that cannot run the preview at all
 	// does not report the same thing on every request.
 	let reportedUnavailable = false;
@@ -252,11 +280,12 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		const surface = usePanel();
 		surface.reveal();
 
-		const { header } = themeHeader(
+		const { header, foreground } = themeHeader(
 			themeKindOf(vscode.window.activeColorTheme.kind),
 			settings.foreground,
 			settings.background,
 		);
+		shownForeground = foreground;
 		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
 		try {
 			const result = await useCompiler(binary, settings.timeoutMs).compile(assembled.source, ARGV, uncancelled.token);
@@ -293,6 +322,21 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 				holdPanel(new TypstPreviewPanel(restored, context.extensionUri));
 				await preview(false);
 			},
+		}),
+	);
+
+	// The text colour is derived from the theme kind and baked into the image, so
+	// a theme change leaves the panel showing the wrong one. The panel background
+	// is a CSS variable and needs no help, and two themes of the same kind
+	// resolve to the same colour, so only a colour that actually changed is worth
+	// a compile.
+	context.subscriptions.push(
+		vscode.window.onDidChangeActiveColorTheme(() => {
+			const editor = vscode.window.activeTextEditor;
+			if (panel === undefined || editor === undefined || resolvedForeground(editor.document) === shownForeground) {
+				return;
+			}
+			void preview(false);
 		}),
 	);
 

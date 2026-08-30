@@ -173,6 +173,14 @@ suite("Typst Source Test Suite", () => {
 			);
 		});
 
+		test("Should read a blank colour as auto rather than as an expression", () => {
+			// A user who clears the field in the settings user interface leaves an
+			// empty string, which is neither `auto` nor `none`. Written through as an
+			// expression it gives `fill: )`, and every compile then fails on the
+			// header rather than on the block.
+			assert.deepStrictEqual(themeHeader("dark", "  ", ""), themeHeader("dark", "auto", "auto"));
+		});
+
 		test("Should count both header lines as injected lines", () => {
 			// A diagnostic reports a position in the assembled source, so a header
 			// that grows by a line and does not say so moves every reported line.
