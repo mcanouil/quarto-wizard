@@ -1,0 +1,16 @@
+---
+engine: markdown
+format: html
+filters:
+  - typst-render
+extensions:
+  typst-render:
+    output-directory: ./recorded
+    output-source: true
+---
+
+```{typst}
+//| margin: 2mm
+//| width: 5cm
+#circle(radius: 8pt)
+```

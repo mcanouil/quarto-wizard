@@ -1,0 +1,17 @@
+---
+engine: markdown
+format: html
+filters:
+  - typst-render
+extensions:
+  typst-render:
+    output-directory: ./recorded
+    output-source: true
+    preamble:
+      - "#let accent = orange"
+      - shared.typ
+---
+
+```{typst}
+#text(fill: accent)[#greeting]
+```

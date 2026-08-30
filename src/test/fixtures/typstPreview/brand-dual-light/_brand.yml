@@ -1,0 +1,14 @@
+color:
+  palette:
+    ink: "#1b1b1b"
+    paper: "#fdf6e3"
+  foreground:
+    light: ink
+    dark: "#e8e8e8"
+  background:
+    light: paper
+    dark: "#101418"
+  primary: "#268bd2"
+typography:
+  base:
+    family: Inter
