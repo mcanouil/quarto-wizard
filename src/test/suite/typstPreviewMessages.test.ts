@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { errorText, previewTimeoutMs, themeKindOf } from "../../providers/typstPreview";
+import { errorText, previewColour, previewTimeoutMs, themeKindOf } from "../../providers/typstPreview";
 import { DEFAULT_TIMEOUT_MS } from "../../providers/typstPreview/typstCompiler";
 
 /** One diagnostic as Typst writes it, on the two lines it uses. */
@@ -77,6 +77,24 @@ suite("Typst Preview Messages Test Suite", () => {
 				// A hand-edited `settings.json` reaches the compiler unchecked, and
 				// `setTimeout` accepts every one of these without complaining.
 				assert.strictEqual(previewTimeoutMs(value), expected);
+			});
+		}
+	});
+
+	suite("previewColour", () => {
+		const cases: [string, unknown, string][] = [
+			["a colour expression", 'rgb("#ff9800")', 'rgb("#ff9800")'],
+			["one of the two words", "none", "none"],
+			["a number, which has no trim", 5, "auto"],
+			["a null, which a cleared key can leave", null, "auto"],
+			["an object", { r: 1 }, "auto"],
+		];
+
+		for (const [description, value, expected] of cases) {
+			test(`Should handle ${description}`, () => {
+				// The header trims the value, so a value that is not a string throws
+				// where nothing catches it, and the panel opens and then stays empty.
+				assert.strictEqual(previewColour(value), expected);
 			});
 		}
 	});

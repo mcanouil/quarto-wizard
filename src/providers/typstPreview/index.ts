@@ -43,6 +43,19 @@ const MIN_TIMEOUT_MS = 1000;
 const MAX_TIMEOUT_MS = 300000;
 
 /**
+ * A usable colour setting, whatever the setting holds.
+ *
+ * Exported for its tests. `package.json` declares the type, and a hand-edited
+ * `settings.json` ignores it, so a value that is not a string reaches the
+ * header and is trimmed there.
+ */
+export function previewColour(value: unknown): string {
+	// The header trims the value, so a value that is not a string throws where
+	// nothing catches it, and the panel opens and then stays empty.
+	return typeof value === "string" ? value : "auto";
+}
+
+/**
  * A usable compile timeout, whatever the setting holds.
  *
  * Exported for its tests. The bounds in `package.json` only guide the settings
@@ -65,8 +78,8 @@ export function previewTimeoutMs(value: unknown): number {
 function previewSettings(document: vscode.TextDocument): TypstPreviewSettings {
 	const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview", document.uri);
 	return {
-		foreground: config.get<string>("foreground", "auto"),
-		background: config.get<string>("background", "auto"),
+		foreground: previewColour(config.get("foreground")),
+		background: previewColour(config.get("background")),
 		timeoutMs: previewTimeoutMs(config.get<number>("timeoutMs", DEFAULT_TIMEOUT_MS)),
 	};
 }
@@ -285,7 +298,6 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			settings.foreground,
 			settings.background,
 		);
-		shownForeground = foreground;
 		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
 		try {
 			const result = await useCompiler(binary, settings.timeoutMs).compile(assembled.source, ARGV, uncancelled.token);
@@ -297,6 +309,10 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			if (result.stderr.length > 0) {
 				logMessage(`Typst preview: the compiler warned:\n${result.stderr}`, "debug");
 			}
+			// Recorded here and nowhere else. A failed compile leaves the last good
+			// image on screen, so the colour that image was compiled with is still
+			// the colour the reader is looking at.
+			shownForeground = foreground;
 			surface.show(result.svg, headerText(document, block));
 		} catch (error) {
 			if (error instanceof vscode.CancellationError) {
