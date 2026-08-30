@@ -1,5 +1,6 @@
 import * as assert from "assert";
-import { errorText } from "../../providers/typstPreview";
+import * as vscode from "vscode";
+import { errorText, themeKindOf } from "../../providers/typstPreview";
 
 /** One diagnostic as Typst writes it, on the two lines it uses. */
 function diagnostic(severity: string, message: string, line: number, column: number, file = "<stdin>"): string {
@@ -57,5 +58,22 @@ suite("Typst Preview Messages Test Suite", () => {
 		test("Should say so when the compiler reported nothing at all", () => {
 			assert.strictEqual(errorText("", 1), "Typst produced no image and reported nothing.");
 		});
+	});
+
+	suite("themeKindOf", () => {
+		const kinds: [vscode.ColorThemeKind, string][] = [
+			[vscode.ColorThemeKind.Light, "light"],
+			[vscode.ColorThemeKind.Dark, "dark"],
+			[vscode.ColorThemeKind.HighContrast, "high-contrast"],
+			[vscode.ColorThemeKind.HighContrastLight, "high-contrast-light"],
+		];
+
+		for (const [kind, expected] of kinds) {
+			test(`Should map ${expected} onto the pure kind`, () => {
+				// `HighContrast` is the dark one and `HighContrastLight` the light one,
+				// which is the pairing a mapping written from the names gets wrong.
+				assert.strictEqual(themeKindOf(kind), expected);
+			});
+		}
 	});
 });

@@ -145,6 +145,51 @@ Report inline attributes not declared by any installed extension schema as `Unkn
 }
 ```
 
+## Typst Preview
+
+### Preview Text Colour
+
+**Setting**: `quartoWizard.typstPreview.foreground`
+
+Text colour for the Typst block preview. `auto` derives a colour from the active colour theme kind, because the editor does not expose the colour values themselves. `none` injects nothing, so Typst uses its own default of black. Any other value is a Typst colour expression used as it is, for example `luma(80%)` or `rgb("#ff9800")`. The colour is injected above the block, so a `#set text(fill: ...)` inside the block wins. Applies to a plain `typst` block and to a `{=typst}` raw block only, because a `{typst}` cell carries its own colour options.
+
+```json
+{
+  "quartoWizard.typstPreview.foreground": "auto"
+}
+```
+
+### Preview Page Colour
+
+**Setting**: `quartoWizard.typstPreview.background`
+
+Page colour for the Typst block preview. `auto` leaves the page transparent, so the editor or panel background shows through and follows a theme change with no recompile. `none` injects nothing, so Typst uses its own default of white. Any other value is a Typst colour expression used as it is, for example `rgb("#1e1e1e")`. Applies to a plain `typst` block and to a `{=typst}` raw block only.
+
+```json
+{
+  "quartoWizard.typstPreview.background": "auto"
+}
+```
+
+### Preview Timeout
+
+**Setting**: `quartoWizard.typstPreview.timeoutMs`
+
+How long one Typst compile may run, in milliseconds. The default of 20000 covers a first-use package download, which is by far the slowest compile a preview makes. Raise it on a slow connection, and lower it to fail faster when no package is ever downloaded.
+
+| Property | Value    |
+| -------- | -------- |
+| Type     | Number   |
+| Default  | `20000`  |
+| Minimum  | `1000`   |
+| Maximum  | `300000` |
+
+```json
+{
+  "quartoWizard.typstPreview.timeoutMs": 20000
+}
+```
+
 ## Workspace vs User Settings
 
 All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
@@ -167,6 +212,9 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.autoProjectDetection": "subFolders",
   "quartoWizard.cache.ttlMinutes": 30,
   "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json",
-  "quartoWizard.lint.unknownAttributes": false
+  "quartoWizard.lint.unknownAttributes": false,
+  "quartoWizard.typstPreview.foreground": "auto",
+  "quartoWizard.typstPreview.background": "auto",
+  "quartoWizard.typstPreview.timeoutMs": 20000
 }
 ```
