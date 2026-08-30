@@ -177,6 +177,8 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		panel = held;
 		held.onDidDispose(() => {
 			panel = undefined;
+			// There is no image on screen any more, so no colour describes one.
+			shownForeground = undefined;
 		});
 		return held;
 	};
