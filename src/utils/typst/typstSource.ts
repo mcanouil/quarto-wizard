@@ -74,10 +74,10 @@ export function buildRawSource(blocks: TypstBlock[], target: TypstBlock, header:
  */
 export type TypstThemeKind = "light" | "dark" | "high-contrast" | "high-contrast-light";
 
-/** The lines the preview puts above a block body, and the colour they carry. */
+/** What the preview puts above a block body, and the colour it carries. */
 export interface TypstThemeHeader {
-	/** The `#set` lines, in the order they are written. */
-	lines: string[];
+	/** The `#set` lines, which is what the builders take. */
+	header: string;
 	/**
 	 * The text colour as it is written into the source, empty when none is.
 	 *
@@ -130,13 +130,14 @@ function typstColour(hex: string): string {
  *   its own, or any Typst colour expression, used as it is.
  */
 export function themeHeader(kind: TypstThemeKind, foreground: string, background: string): TypstThemeHeader {
+	// An `auto` page is transparent, so the surface behind the image supplies the
+	// background and follows a theme change with no recompile.
 	const fill = background === NONE ? "" : `, fill: ${background === AUTO ? NONE : background}`;
-	const lines = [`#set page(width: auto, height: auto, margin: 0.5em${fill})`];
+	const page = `#set page(width: auto, height: auto, margin: 0.5em${fill})`;
 
 	if (foreground === NONE) {
-		return { lines, foreground: "" };
+		return { header: page, foreground: "" };
 	}
 	const colour = foreground === AUTO ? typstColour(THEME_TEXT[kind]) : foreground;
-	lines.push(`#set text(fill: ${colour})`);
-	return { lines, foreground: colour };
+	return { header: `${page}\n#set text(fill: ${colour})`, foreground: colour };
 }

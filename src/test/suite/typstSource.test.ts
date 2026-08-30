@@ -5,11 +5,6 @@ import { buildPlainSource, buildRawSource, themeHeader, type TypstThemeKind } fr
 /** The page setup a preview injects above every block. */
 const HEADER = "#set page(width: auto, height: auto, margin: 0.5em)";
 
-/** The whole header as one string, which is what the builders take. */
-function header(kind: TypstThemeKind, foreground: string, background: string): string {
-	return themeHeader(kind, foreground, background).lines.join("\n");
-}
-
 /**
  * A raw block binding a name, a cell between the two, and a raw block using
  * that name.
@@ -121,8 +116,8 @@ suite("Typst Source Test Suite", () => {
 			// A block is a fragment and not a document, so the page shrinks to it.
 			// The margin is not decoration: on a `width: auto` page the glyphs of the
 			// outermost characters clip at the edge of the viewBox without it.
-			const { lines } = themeHeader("dark", "none", "none");
-			assert.deepStrictEqual(lines, ["#set page(width: auto, height: auto, margin: 0.5em)"]);
+			const { header } = themeHeader("dark", "none", "none");
+			assert.strictEqual(header, "#set page(width: auto, height: auto, margin: 0.5em)");
 		});
 
 		const kinds: [TypstThemeKind, string][] = [
@@ -136,36 +131,36 @@ suite("Typst Source Test Suite", () => {
 			test(`Should give a ${kind} theme its own text colour`, () => {
 				// The extension host cannot read a theme colour value, so the kind is
 				// all there is to derive one from.
-				const { lines, foreground } = themeHeader(kind, "auto", "none");
+				const { header, foreground } = themeHeader(kind, "auto", "none");
 				assert.strictEqual(foreground, `rgb("${colour}")`);
-				assert.strictEqual(lines[1], `#set text(fill: rgb("${colour}"))`);
+				assert.ok(header.endsWith(`\n#set text(fill: rgb("${colour}"))`));
 			});
 		}
 
 		test("Should write no text line when the foreground is none", () => {
 			// This is what lets an author who sets the colour inside the block keep
 			// the preview out of it entirely.
-			const { lines, foreground } = themeHeader("dark", "none", "auto");
-			assert.strictEqual(lines.length, 1);
+			const { header, foreground } = themeHeader("dark", "none", "auto");
+			assert.ok(!header.includes("#set text"));
 			assert.strictEqual(foreground, "");
 		});
 
 		test("Should pass a Typst colour expression through unchanged", () => {
 			// The value is Typst source and not a colour this module understands, so
 			// anything that is neither `auto` nor `none` is written as it is.
-			const { lines, foreground } = themeHeader("dark", "luma(80%)", "rgb(30, 30, 30)");
+			const { header, foreground } = themeHeader("dark", "luma(80%)", "rgb(30, 30, 30)");
 			assert.strictEqual(foreground, "luma(80%)");
-			assert.deepStrictEqual(lines, [
-				"#set page(width: auto, height: auto, margin: 0.5em, fill: rgb(30, 30, 30))",
-				"#set text(fill: luma(80%))",
-			]);
+			assert.strictEqual(
+				header,
+				"#set page(width: auto, height: auto, margin: 0.5em, fill: rgb(30, 30, 30))\n#set text(fill: luma(80%))",
+			);
 		});
 
 		test("Should leave the page transparent when the background is auto", () => {
 			// The surface behind the image already carries the editor background and
 			// follows a theme change with no recompile, so the page stays out of it.
-			const { lines } = themeHeader("dark", "none", "auto");
-			assert.deepStrictEqual(lines, ["#set page(width: auto, height: auto, margin: 0.5em, fill: none)"]);
+			const { header } = themeHeader("dark", "none", "auto");
+			assert.strictEqual(header, "#set page(width: auto, height: auto, margin: 0.5em, fill: none)");
 		});
 
 		test("Should report the same foreground for two kinds that share a colour", () => {
@@ -182,7 +177,8 @@ suite("Typst Source Test Suite", () => {
 			// A diagnostic reports a position in the assembled source, so a header
 			// that grows by a line and does not say so moves every reported line.
 			const blocks = findTypstBlocks("```typst\n#circle()\n```\n");
-			assert.strictEqual(buildPlainSource(blocks[0], header("dark", "auto", "auto")).injectedLines, 2);
+			const { header } = themeHeader("dark", "auto", "auto");
+			assert.strictEqual(buildPlainSource(blocks[0], header).injectedLines, 2);
 		});
 	});
 });

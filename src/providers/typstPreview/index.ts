@@ -143,6 +143,23 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	const usePanel = (): TypstPreviewPanel => panel ?? holdPanel(TypstPreviewPanel.create(context.extensionUri));
 
 	/**
+	 * The compiler for these settings.
+	 *
+	 * The timeout is read once at construction and the setting is resource
+	 * scoped, so the compiler is replaced when the value it was built with no
+	 * longer applies. Nothing is lost by replacing it mid-run, because the next
+	 * compile supersedes whatever is running anyway.
+	 */
+	const useCompiler = (binary: string, timeoutMs: number): TypstCompiler => {
+		if (compiler === undefined || compilerTimeoutMs !== timeoutMs) {
+			compiler?.dispose();
+			compiler = new TypstCompiler(binary, { timeoutMs });
+			compilerTimeoutMs = timeoutMs;
+		}
+		return compiler;
+	};
+
+	/**
 	 * Put a message in front of the reader.
 	 *
 	 * An open panel takes the message itself, which is both quieter and closer to
@@ -232,25 +249,17 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		}
 
 		const settings = previewSettings(document);
-		if (compiler === undefined || compilerTimeoutMs !== settings.timeoutMs) {
-			// Superseding whatever is running is what the next compile would do
-			// anyway, so nothing is lost by replacing the compiler here.
-			compiler?.dispose();
-			compiler = new TypstCompiler(binary, { timeoutMs: settings.timeoutMs });
-			compilerTimeoutMs = settings.timeoutMs;
-		}
-
 		const surface = usePanel();
 		surface.reveal();
 
-		const header = themeHeader(
+		const { header } = themeHeader(
 			themeKindOf(vscode.window.activeColorTheme.kind),
 			settings.foreground,
 			settings.background,
-		).lines.join("\n");
+		);
 		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
 		try {
-			const result = await compiler.compile(assembled.source, ARGV, uncancelled.token);
+			const result = await useCompiler(binary, settings.timeoutMs).compile(assembled.source, ARGV, uncancelled.token);
 			if (result.svg === undefined) {
 				logMessage(`Typst preview: the compiler reported:\n${result.stderr}`, "debug");
 				surface.showError(errorText(result.stderr, assembled.injectedLines));
