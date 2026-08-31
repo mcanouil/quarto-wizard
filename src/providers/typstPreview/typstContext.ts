@@ -9,6 +9,7 @@ import {
 	type Unavailable,
 } from "../../utils/typst/typstSource";
 import { TYPST_RENDER, documentBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
+import { EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
 import { getInstalledExtensionsCached } from "../../utils/installedExtensionsCache";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
 import { logMessage } from "../../utils/log";
@@ -41,6 +42,14 @@ const TYPST_RENDER_OWNER = "mcanouil";
 export interface CompileRequest {
 	/** The block under the cursor. */
 	block: TypstBlock;
+	/**
+	 * Where the block sits in the document, counted from the top.
+	 *
+	 * This is the identity of the block across an edit. Every offset it carries
+	 * moves when the text above it changes, so two requests for the same block
+	 * agree on nothing else.
+	 */
+	blockIndex: number;
 	/** The whole source to send to the compiler. */
 	source: string;
 	/** How many lines sit above the block body, for mapping a diagnostic back. */
@@ -127,6 +136,103 @@ function reportDrift(version: string | undefined): void {
 	);
 }
 
+/** Everything a cell reads from disk, which no document version predicts. */
+export interface CellContext {
+	/** The installed `typst-render`, absent when the project has none. */
+	installed?: { version?: string };
+	/** The metadata the document compiles under. */
+	chain: MetadataChain;
+	/** The brand the document resolves its `auto` colours against. */
+	brand: Brand;
+}
+
+/**
+ * The disk half of one cell, read together so a caller can cache it whole.
+ *
+ * The gate comes before the metadata chain, because it needs only the project
+ * root and it rejects every cell in a project that never installed the
+ * extension. Reading the chain first would spend the whole directory walk to
+ * say no.
+ */
+export async function readCellContext(document: vscode.TextDocument, text: string): Promise<CellContext> {
+	const projectRoot = await findOwningProjectRoot(document.uri);
+	const installed = await installedTypstRender(projectRoot);
+	if (installed === undefined) {
+		return { chain: { levels: [], metadata: {} }, brand: EMPTY_BRAND };
+	}
+	const chain = await readMetadataChain(document, text, projectRoot);
+	return { installed, chain, brand: await readBrand(chain) };
+}
+
+/**
+ * What a request would otherwise read again on every keystroke.
+ *
+ * The blocks of a document are a function of its text alone, so its version is
+ * the whole key. What a cell reads from disk is not a function of the document
+ * at all: the version says when the document moved, and a watcher says when the
+ * disk did, so the two halves are forgotten by different events.
+ */
+export class TypstContextCache {
+	private readonly blocks = new Map<string, { version: number; blocks: TypstBlock[] }>();
+	private readonly cells = new Map<string, { version: number; context: Promise<CellContext> }>();
+
+	/** The blocks of one document version. */
+	blocksOf(document: vscode.TextDocument, text: string): TypstBlock[] {
+		const key = document.uri.toString();
+		const held = this.blocks.get(key);
+		if (held?.version === document.version) {
+			return held.blocks;
+		}
+		const blocks = findTypstBlocks(text);
+		this.blocks.set(key, { version: document.version, blocks });
+		return blocks;
+	}
+
+	/** What one document version's cells read from disk. */
+	cellContext(document: vscode.TextDocument, text: string): Promise<CellContext> {
+		const key = document.uri.toString();
+		const held = this.cells.get(key);
+		if (held?.version === document.version) {
+			return held.context;
+		}
+		// The promise is held and not its value, so two requests arriving inside one
+		// directory walk share it rather than walking twice. A rejected read is
+		// forgotten, or one unreadable file would answer every later request.
+		const context = readCellContext(document, text).catch((error: unknown) => {
+			if (this.cells.get(key)?.context === context) {
+				this.cells.delete(key);
+			}
+			throw error;
+		});
+		this.cells.set(key, { version: document.version, context });
+		return context;
+	}
+
+	/** Forget one document, which a closed document no longer needs. */
+	forget(uri: vscode.Uri): void {
+		const key = uri.toString();
+		this.blocks.delete(key);
+		this.cells.delete(key);
+	}
+
+	/**
+	 * Forget everything read from disk.
+	 *
+	 * Every document is forgotten and not only the one under the changed file. A
+	 * `_metadata.yml` reaches every document below it and a `.typ` reaches every
+	 * document that names it, so working out which entries a change reaches costs
+	 * more than the one directory walk that rebuilds them.
+	 */
+	forgetFiles(): void {
+		this.cells.clear();
+	}
+
+	clear(): void {
+		this.blocks.clear();
+		this.cells.clear();
+	}
+}
+
 /**
  * The compile one block asks for.
  *
@@ -135,21 +241,27 @@ function reportDrift(version: string | undefined): void {
  * the filter writes the page fill and the text fill itself, from the options in
  * force, and a second set of directives above them would show an image the
  * render does not produce.
+ *
+ * @param cache - What a caller repeating the request remembers. A caller with
+ *   no cache reads the document and the disk again, which is what a one-off
+ *   request wants.
  */
 export async function buildCompileRequest(
 	document: vscode.TextDocument,
 	position: vscode.Position,
 	header: string,
+	cache?: TypstContextCache,
 ): Promise<CompileRequest | Unavailable> {
 	const text = document.getText();
 	// The whole list is kept, because a raw block compiles with the raw blocks
 	// above it and scanning the document a second time would say the same thing
 	// twice.
-	const blocks = findTypstBlocks(text);
+	const blocks = cache === undefined ? findTypstBlocks(text) : cache.blocksOf(document, text);
 	const block = blockAtOffset(blocks, document.offsetAt(position));
 	if (block === undefined) {
 		return { unavailable: "Put the cursor inside a Typst block to preview it." };
 	}
+	const blockIndex = blocks.indexOf(block);
 
 	if (block.kind !== "cell") {
 		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
@@ -157,14 +269,11 @@ export async function buildCompileRequest(
 		// imports, show rules and set directives the preview cannot apply. Saying so
 		// beside the image is what stops a divergence being read as a defect.
 		const notes = block.kind === "raw" ? ["the document template is not applied to a raw passthrough"] : [];
-		return { block, ...assembled, notes, bodyLineOffset: 0 };
+		return { block, blockIndex, ...assembled, notes, bodyLineOffset: 0 };
 	}
 
-	// The gate comes before the metadata chain, because it needs only the project
-	// root and it rejects every cell in a project that never installed the
-	// extension. Reading the chain first would spend the whole walk to say no.
-	const projectRoot = await findOwningProjectRoot(document.uri);
-	const installed = await installedTypstRender(projectRoot);
+	const { installed, chain, brand } =
+		cache === undefined ? await readCellContext(document, text) : await cache.cellContext(document, text);
 	if (installed === undefined) {
 		// Never previewed with guessed options. A cell compiled without the
 		// extension's own defaults would show an image the render does not
@@ -175,8 +284,6 @@ export async function buildCompileRequest(
 	}
 	reportDrift(installed.version);
 
-	const chain = await readMetadataChain(document, text, projectRoot);
-	const brand = await readBrand(chain);
 	// The one deliberate deviation from the filter. It always defaults to light,
 	// and the preview follows the editor theme instead, so a dark editor shows a
 	// dark image. An explicit `brand-mode:` still wins.
@@ -192,7 +299,7 @@ export async function buildCompileRequest(
 		return built;
 	}
 
-	return { block, ...built, brandMode };
+	return { block, blockIndex, ...built, brandMode };
 }
 
 /**

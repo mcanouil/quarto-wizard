@@ -1,6 +1,13 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { errorText, previewColour, previewTimeoutMs, themeKindOf } from "../../providers/typstPreview";
+import {
+	DEFAULT_DEBOUNCE_MS,
+	errorText,
+	previewColour,
+	previewDebounceMs,
+	previewTimeoutMs,
+	themeKindOf,
+} from "../../providers/typstPreview/typstPreviewController";
 import { DEFAULT_TIMEOUT_MS } from "../../providers/typstPreview/typstCompiler";
 
 /** One diagnostic as Typst writes it, on the two lines it uses. */
@@ -104,6 +111,25 @@ suite("Typst Preview Messages Test Suite", () => {
 				// A hand-edited `settings.json` reaches the compiler unchecked, and
 				// `setTimeout` accepts every one of these without complaining.
 				assert.strictEqual(previewTimeoutMs(value), expected);
+			});
+		}
+	});
+
+	suite("previewDebounceMs", () => {
+		const cases: [string, unknown, number][] = [
+			["a value inside the bounds", 500, 500],
+			["zero, which asks for a compile per keystroke", 0, 0],
+			["a negative value", -1, 0],
+			["a value above the upper bound", 999999, 5000],
+			["a value that is not a number at all", "slowly", DEFAULT_DEBOUNCE_MS],
+			["a value that is not finite", Number.NaN, DEFAULT_DEBOUNCE_MS],
+		];
+
+		for (const [description, value, expected] of cases) {
+			test(`Should handle ${description}`, () => {
+				// Zero is a value a reader can mean, unlike the compile timeout, so it
+				// is kept rather than raised to the lower bound.
+				assert.strictEqual(previewDebounceMs(value), expected);
 			});
 		}
 	});

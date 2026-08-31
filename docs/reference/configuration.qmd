@@ -190,6 +190,25 @@ How long one Typst compile may run, in milliseconds. The default of 20000 covers
 }
 ```
 
+### Preview Debounce Delay
+
+**Setting**: `quartoWizard.typstPreview.debounceMs`
+
+How long the Typst block preview waits after an edit before it compiles again, in milliseconds. Raise it when a block is slow to compile and the preview gets in the way of typing. `0` compiles on every keystroke. Moving the cursor to another block is not an edit and always updates after 250 milliseconds, and saving the document compiles at once.
+
+| Property | Value  |
+| -------- | ------ |
+| Type     | Number |
+| Default  | `300`  |
+| Minimum  | `0`    |
+| Maximum  | `5000` |
+
+```json
+{
+  "quartoWizard.typstPreview.debounceMs": 300
+}
+```
+
 ## Workspace vs User Settings
 
 All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
@@ -215,6 +234,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.lint.unknownAttributes": false,
   "quartoWizard.typstPreview.foreground": "auto",
   "quartoWizard.typstPreview.background": "auto",
-  "quartoWizard.typstPreview.timeoutMs": 20000
+  "quartoWizard.typstPreview.timeoutMs": 20000,
+  "quartoWizard.typstPreview.debounceMs": 300
 }
 ```

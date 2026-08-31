@@ -3,7 +3,8 @@ import { randomBytes } from "node:crypto";
 import { svgDataUri } from "../../utils/typst/typstSvg";
 
 /** What the host sends to the page. */
-type PreviewMessage = { type: "image"; uri: string; header: string } | { type: "error"; message: string };
+type PreviewMessage =
+	{ type: "image"; uri: string; header: string } | { type: "clear" } | { type: "error"; message: string };
 
 /**
  * The webview options, which a restored panel needs set again.
@@ -99,6 +100,17 @@ export class TypstPreviewPanel {
 	}
 
 	/**
+	 * Take the image away, because none describes what is being looked at.
+	 *
+	 * This is the block under the cursor changing, or the document closing. An
+	 * error of one block over the image of another says nothing true about either
+	 * of them.
+	 */
+	clear(): void {
+		this.post({ type: "clear" });
+	}
+
+	/**
 	 * Report a failure, keeping the last image behind it.
 	 *
 	 * A parse error is the normal state of a block halfway through an edit, so
@@ -146,13 +158,14 @@ export class TypstPreviewPanel {
 			return;
 		}
 		if (!this.ready) {
-			if (message.type === "image") {
-				// A compile that succeeded answers the failure before it, so the
-				// queued error is stale and must not replay over the new image.
+			if (message.type === "error") {
+				this.pendingError = message;
+			} else {
+				// A compile that succeeded answers the failure before it, and so does
+				// moving to another block, so the queued error is stale and must not
+				// replay over what replaced it.
 				this.pendingImage = message;
 				this.pendingError = undefined;
-			} else {
-				this.pendingError = message;
 			}
 			return;
 		}
@@ -196,9 +209,19 @@ export class TypstPreviewPanel {
 			window.addEventListener("message", (event) => {
 				const message = event.data;
 				if (message.type === "image") {
-					image.src = message.uri;
+					// Only a different image is assigned. The same one is re-posted
+					// whenever the header changes, and re-assigning it makes the panel
+					// blink through a decode it does not need.
+					if (image.src !== message.uri) {
+						image.src = message.uri;
+					}
 					image.hidden = false;
 					header.textContent = message.header;
+					error.hidden = true;
+				} else if (message.type === "clear") {
+					image.hidden = true;
+					image.removeAttribute("src");
+					header.textContent = "";
 					error.hidden = true;
 				} else if (message.type === "error") {
 					error.textContent = message.message;
