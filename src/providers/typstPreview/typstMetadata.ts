@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import { getMetadataFiles } from "../../utils/metadataFilesRegistry";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
+import { parseFrontMatter } from "../../utils/yamlPosition";
 import {
 	BRAND_CANDIDATES,
 	EMPTY_BRAND,
@@ -11,7 +12,7 @@ import {
 	splitBrand,
 	type Brand,
 } from "../../utils/typst/typstBrand";
-import { extensionLevel, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
+import { extensionLevel, mapping, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
 
 /**
  * The Quarto metadata chain of one document, read from disk.
@@ -29,27 +30,47 @@ export interface MetadataChain {
 	metadata: Record<string, unknown>;
 	/** The project root that owns the document, when one does. */
 	projectRoot?: string;
+	/** The directory holding the document, when it is a file on disk. */
+	documentDirectory?: string;
+	/**
+	 * The directory a relative `brand:` path resolves from.
+	 *
+	 * Quarto splits the two cases at `src/project/project-shared.ts:597` and
+	 * `:665`: a `brand:` in the project configuration resolves from the project
+	 * root, and one reaching the file metadata resolves from the directory of the
+	 * document. So this is the project root when `_quarto.yml` is the only level
+	 * that names the key, and the document directory when any higher level does.
+	 */
+	brandBase?: string;
 }
 
-/** A YAML document read from disk, or undefined when it is absent or invalid. */
-async function readYaml(fsPath: string): Promise<unknown> {
-	// The open document wins, so an unsaved edit to `_quarto.yml` drives the
-	// preview the way an unsaved edit to the document itself already does.
+/**
+ * A file read as text, preferring a copy open in the editor.
+ *
+ * An unsaved edit to `_quarto.yml` or to a `.typ` beside the block drives the
+ * preview the way an unsaved edit to the document itself already does.
+ */
+export async function readSourceText(fsPath: string): Promise<string | undefined> {
+	const target = path.normalize(fsPath);
 	for (const open of vscode.workspace.textDocuments) {
-		if (open.uri.scheme === "file" && path.normalize(open.uri.fsPath) === path.normalize(fsPath)) {
-			return parse(open.getText());
+		if (open.uri.scheme === "file" && path.normalize(open.uri.fsPath) === target) {
+			return open.getText();
 		}
 	}
 	try {
 		const buffer = await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath));
-		return parse(Buffer.from(buffer).toString("utf8"));
+		return Buffer.from(buffer).toString("utf8");
 	} catch {
 		return undefined;
 	}
 }
 
-/** A YAML string parsed, or undefined when it does not parse. */
-function parse(text: string): unknown {
+/** A YAML document read from disk, or undefined when it is absent or invalid. */
+async function readYaml(fsPath: string): Promise<unknown> {
+	const text = await readSourceText(fsPath);
+	if (text === undefined) {
+		return undefined;
+	}
 	try {
 		return yaml.load(text);
 	} catch {
@@ -57,31 +78,34 @@ function parse(text: string): unknown {
 	}
 }
 
-/** The first of a set of candidate file names that reads, in the given order. */
+/**
+ * The first of a set of candidate file names that reads.
+ *
+ * The candidates are read together and the first defined one wins, because a
+ * directory carrying neither is the common case in the `_metadata.yml` walk and
+ * reading them one after another would pay two misses per directory.
+ */
 async function readFirst(directory: string, names: readonly string[]): Promise<unknown> {
-	for (const name of names) {
-		const document = await readYaml(path.join(directory, name));
-		if (document !== undefined) {
-			return document;
-		}
-	}
-	return undefined;
+	const documents = await Promise.all(names.map((name) => readYaml(path.join(directory, name))));
+	return documents.find((document) => document !== undefined);
 }
 
 /**
- * The front matter of a Quarto document.
+ * A path Quarto resolves against a document or a project,
+ * `_modules/paths.lua:34-48` and `src/project/project-shared.ts:574-584`.
  *
- * Deliberately its own reader rather than `getYamlFrontMatterRange`, which
- * answers a range in a document that may be open and edited. Here the text is
- * already in hand and only the parsed mapping is wanted.
+ * A leading `/` means the project root, and every other path is relative to the
+ * directory passed in. Undefined when there is no directory to resolve against,
+ * which is a document that lives outside every project root.
  */
-export function readFrontMatter(text: string): unknown {
-	const normalised = text.replace(/\r\n/g, "\n");
-	if (!normalised.startsWith("---\n")) {
-		return undefined;
-	}
-	const end = normalised.indexOf("\n---", 3);
-	return end === -1 ? undefined : parse(normalised.slice(4, end + 1));
+export function resolveQuartoPath(
+	quartoPath: string,
+	from: string | undefined,
+	projectRoot: string | undefined,
+): string | undefined {
+	const fromProjectRoot = quartoPath.startsWith("/");
+	const base = fromProjectRoot ? projectRoot : from;
+	return base === undefined ? undefined : path.join(base, fromProjectRoot ? quartoPath.slice(1) : quartoPath);
 }
 
 /**
@@ -104,6 +128,12 @@ function directoriesDownTo(projectRoot: string, documentDirectory: string): stri
 	return directories;
 }
 
+/** One level of the chain, and where a `brand:` path it names would resolve from. */
+interface Level {
+	source: unknown;
+	brandBase?: string;
+}
+
 /**
  * The metadata chain of a document, lowest level first.
  *
@@ -111,59 +141,73 @@ function directoriesDownTo(projectRoot: string, documentDirectory: string): stri
  * through `metadata-files:`, the `_metadata.yml` walk from the project root down
  * to the document directory, and the document front matter last.
  *
+ * Every level is read at once. None of them depends on another's value, and a
+ * document three directories deep otherwise pays a dozen serial reads on every
+ * request. `Promise.all` keeps the index order, which is the precedence order.
+ *
  * `getMetadataFiles` is not itself the chain. It returns only the files reached
  * through `metadata-files:`, and it returns them as a set, so they are read in
  * path order rather than in declaration order. Two of them setting the same key
  * is the only case where that differs, and Quarto is the authority on it, not
  * this preview.
+ *
+ * @param text - The document text, when the caller already has it.
+ * @param projectRoot - The owning root, when the caller has already found it.
  */
-export async function readMetadataChain(document: vscode.TextDocument): Promise<MetadataChain> {
-	const documents: unknown[] = [];
-	const projectRoot = await findOwningProjectRoot(document.uri);
+export async function readMetadataChain(
+	document: vscode.TextDocument,
+	text = document.getText(),
+	projectRoot?: string,
+): Promise<MetadataChain> {
+	const owningRoot = projectRoot ?? (await findOwningProjectRoot(document.uri));
 	const documentDirectory = document.uri.scheme === "file" ? path.dirname(document.uri.fsPath) : undefined;
 
-	if (projectRoot !== undefined) {
-		documents.push(await readFirst(projectRoot, ["_quarto.yml", "_quarto.yaml"]));
+	// The project configuration is its own case for `brand:`, so each level says
+	// which directory a relative path it names would resolve from. Every level
+	// above `_quarto.yml` reaches Quarto through the file metadata, which resolves
+	// from the directory of the document rather than from the level's own.
+	const pending: Promise<Level>[] = [];
+	const level = async (source: Promise<unknown>, brandBase?: string): Promise<Level> => ({
+		source: await source,
+		brandBase,
+	});
 
-		for (const file of [...(await getMetadataFiles(projectRoot))].sort()) {
-			documents.push(await readYaml(file));
+	if (owningRoot !== undefined) {
+		pending.push(level(readFirst(owningRoot, ["_quarto.yml", "_quarto.yaml"]), owningRoot));
+
+		for (const file of [...(await getMetadataFiles(owningRoot))].sort()) {
+			pending.push(level(readYaml(file), documentDirectory));
 		}
 
 		if (documentDirectory !== undefined) {
-			for (const directory of directoriesDownTo(projectRoot, documentDirectory)) {
-				documents.push(await readFirst(directory, ["_metadata.yml", "_metadata.yaml"]));
+			for (const directory of directoriesDownTo(owningRoot, documentDirectory)) {
+				pending.push(level(readFirst(directory, ["_metadata.yml", "_metadata.yaml"]), documentDirectory));
 			}
 		}
 	}
 
-	documents.push(readFrontMatter(document.getText()));
-
 	const levels: TypstGlobalLevel[] = [];
 	const metadata: Record<string, unknown> = {};
-	for (const source of documents) {
-		if (source === null || typeof source !== "object" || Array.isArray(source)) {
+	let brandBase: string | undefined;
+	for (const { source, brandBase: base } of [
+		...(await Promise.all(pending)),
+		{ source: parseFrontMatter(text), brandBase: documentDirectory },
+	]) {
+		const map = mapping(source);
+		if (map === undefined) {
 			continue;
 		}
-		Object.assign(metadata, source as Record<string, unknown>);
-		const level = extensionLevel(source);
-		if (level !== undefined) {
-			levels.push(level);
+		Object.assign(metadata, map);
+		if (map.brand !== undefined) {
+			brandBase = base;
+		}
+		const extension = extensionLevel(map);
+		if (extension !== undefined) {
+			levels.push(extension);
 		}
 	}
 
-	return { levels, metadata, projectRoot };
-}
-
-/**
- * A `brand:` path resolved the way Quarto resolves one,
- * `src/project/project-shared.ts:574-584`.
- *
- * A leading `/` means the project root. Every other path is relative to the
- * directory of the level that wrote the key, which is the document directory for
- * a document-level `brand:` and the project root for a project-level one.
- */
-function resolveBrandPath(brandPath: string, from: string, projectRoot: string): string {
-	return brandPath.startsWith("/") ? path.join(projectRoot, brandPath.slice(1)) : path.join(from, brandPath);
+	return { levels, metadata, projectRoot: owningRoot, documentDirectory, brandBase };
 }
 
 /**
@@ -176,36 +220,36 @@ function resolveBrandPath(brandPath: string, from: string, projectRoot: string):
  * A document outside every project root has no brand, because a brand is a
  * property of a project and there is no root to resolve a path against.
  */
-export async function readBrand(chain: MetadataChain, documentDirectory: string | undefined): Promise<Brand> {
+export async function readBrand(chain: MetadataChain): Promise<Brand> {
 	const projectRoot = chain.projectRoot;
 	if (projectRoot === undefined) {
 		return EMPTY_BRAND;
 	}
 
 	const override = readBrandOverride(chain.metadata.brand);
-	// The key is read from the merged chain, so the level that wrote it is the
-	// highest one that names it. The document directory is where a document-level
-	// path resolves from, and the project root is the fallback.
-	const from = documentDirectory ?? projectRoot;
+	// The chain recorded which level wrote the key, because the project
+	// configuration resolves a relative path from the project root and every level
+	// above it resolves from the directory of the document.
+	const from = chain.brandBase ?? projectRoot;
+	const read = async (brandPath: string | undefined): Promise<unknown> => {
+		const resolved = brandPath === undefined ? undefined : resolveQuartoPath(brandPath, from, projectRoot);
+		return resolved === undefined ? undefined : readYaml(resolved);
+	};
 
 	if (override.kind === "disabled") {
 		return EMPTY_BRAND;
 	}
 	if (override.kind === "unified") {
-		return splitBrand(await readYaml(resolveBrandPath(override.path, from, projectRoot)));
+		return splitBrand(await read(override.path));
 	}
 	if (override.kind === "split") {
-		const read = async (brandPath: string | undefined): Promise<unknown> =>
-			brandPath === undefined ? undefined : readYaml(resolveBrandPath(brandPath, from, projectRoot));
-		return joinBrands(await read(override.light), await read(override.dark));
+		const [light, dark] = await Promise.all([read(override.light), read(override.dark)]);
+		return joinBrands(light, dark);
 	}
 
-	let brand = EMPTY_BRAND;
-	for (const candidate of BRAND_CANDIDATES) {
-		const document = await readYaml(path.join(projectRoot, candidate));
-		if (document !== undefined) {
-			brand = splitBrand(document);
-		}
-	}
-	return brand;
+	// All four are read together, because the last one that exists wins and every
+	// one of them has to be looked at to know which that is.
+	const documents = await Promise.all(BRAND_CANDIDATES.map((candidate) => readYaml(path.join(projectRoot, candidate))));
+	const last = documents.filter((document) => document !== undefined).pop();
+	return last === undefined ? EMPTY_BRAND : splitBrand(last);
 }

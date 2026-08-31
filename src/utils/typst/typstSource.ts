@@ -7,7 +7,6 @@ import {
 	resolveTypstOptions,
 	type ResolvedTypstOptions,
 	type TypstBrandMode,
-	type TypstColour,
 	type TypstGlobalLevel,
 } from "./typstOptions";
 
@@ -226,7 +225,7 @@ function cellBody(body: string): string {
  * render. A cell that reads it is out of scope for the first version and the
  * panel says so.
  */
-export function buildCellSource(block: TypstBlock, options: CellSourceOptions): AssembledSource {
+function buildCellSource(block: TypstBlock, options: CellSourceOptions): AssembledSource {
 	const above = [
 		`#let _typst_render_background = ${options.background}`,
 		`#let _typst_render_foreground = ${options.foreground ?? "none"}`,
@@ -263,38 +262,32 @@ export function buildCellSource(block: TypstBlock, options: CellSourceOptions): 
  * The reads are injected, so this module keeps importing no `vscode` and a test
  * needs no file on disk.
  */
-export function resolvePreamble(
+export async function resolvePreamble(
 	value: string | readonly string[] | undefined,
-	readFile: (documentPath: string) => string | undefined,
-): string {
+	readFile: ReadFile,
+): Promise<string> {
 	if (value === undefined || value === "") {
 		return "";
 	}
 	const entries = typeof value === "string" ? [value] : value;
-	const parts: string[] = [];
-	for (const entry of entries) {
-		if (entry === "") {
-			continue;
-		}
-		if (!entry.endsWith(".typ")) {
-			parts.push(entry);
-			continue;
-		}
-		const content = readFile(entry);
-		if (content !== undefined) {
-			parts.push(content);
-		}
-	}
-	return parts.join("\n");
+	// The entries are independent, so they are read together rather than one
+	// after another. Their order in the source is the order they are written in,
+	// which `Promise.all` preserves.
+	const resolved = await Promise.all(entries.map(async (entry) => (entry.endsWith(".typ") ? readFile(entry) : entry)));
+	// An entry that cannot be read is dropped rather than failing the whole
+	// preview, which is what the filter does as well.
+	return resolved.filter((part): part is string => part !== undefined && part !== "").join("\n");
 }
+
+/** A `preamble:` or `file:` path read as text, or undefined when it cannot be. */
+export type ReadFile = (documentPath: string) => Promise<string | undefined>;
 
 /**
  * Everything outside a cell that decides what it compiles to.
  *
  * The levels arrive lowest first, and the caller is what knows where they came
- * from. The reads are injected for the same reason `resolvePreamble` injects
- * them: this module imports no `vscode`, and a fixture drives the whole pipeline
- * from strings alone.
+ * from. The read is injected, so this module imports no `vscode` and a fixture
+ * drives the whole pipeline from strings alone.
  */
 export interface CellContext {
 	/** The `extensions.typst-render:` mapping of each level, lowest first. */
@@ -303,51 +296,52 @@ export interface CellContext {
 	brand: Brand;
 	/** Which side of the brand the compile reads. */
 	mode: TypstBrandMode;
-	/** A `preamble:` or `file:` path read as text, or undefined when it cannot be. */
-	readFile: (documentPath: string) => string | undefined;
+	readFile: ReadFile;
 }
 
-/** A cell that cannot be compiled, and the one line that says why. */
-export interface UnavailableCell {
+/** Something the preview cannot do, and the one line that says why. */
+export interface Unavailable {
 	unavailable: string;
 }
 
-/** The result of assembling one cell. */
-export type CellResult = AssembledSource | UnavailableCell;
-
-/** Whether assembling a cell reported why it could not be done. */
-export function isUnavailable(result: CellResult): result is UnavailableCell {
+/** Whether a result reported why it could not be produced. */
+export function isUnavailable<T extends object>(result: T | Unavailable): result is Unavailable {
 	return "unavailable" in result;
 }
 
+/** One cell assembled, with what the preview does not reproduce about it. */
+export interface AssembledCell extends AssembledSource {
+	/** What the panel should say about the block beside the image. */
+	notes: string[];
+}
+
 /**
- * One merged option written into the source.
+ * What the preview does not reproduce about a cell.
  *
- * The filter formats the geometry with `%s`, which stringifies whatever the
- * option held, so a value that is not a string reaches Typst as its own text and
- * fails there with the value in the message. The merge always leaves a value,
- * because the three geometry keys all carry a default.
+ * Each of these compiles to something, so refusing them would be worse than
+ * showing the image and saying what is missing from it.
+ *
+ * Read from the merged options and not from the block's own `//|` run, because
+ * every one of the three is a global key as well: a `format: pdf` written in
+ * `_quarto.yml` applies to a block that never mentions it.
  */
-function optionText(options: ResolvedTypstOptions, key: string): string {
-	return String(options[key]);
-}
-
-/** One merged option as a colour, which is the only shape the two colour keys take. */
-function optionColour(options: ResolvedTypstOptions, key: string): TypstColour | undefined {
-	const value = options[key];
-	if (typeof value === "string") {
-		return value;
+export function cellNotes(options: ResolvedTypstOptions): string[] {
+	const notes: string[] = [];
+	const format = options.format;
+	if (format === "pdf" || format === "html") {
+		// The preview always compiles to SVG, because that is what a webview, a
+		// hover and a decoration can all show.
+		notes.push(`the preview compiles to SVG, not to ${format}`);
 	}
-	return typeof value === "object" && !Array.isArray(value) ? (value as TypstColour) : undefined;
-}
-
-/** The `preamble:` option, which the global pass stores as a list. */
-function optionPreamble(options: ResolvedTypstOptions): string | readonly string[] | undefined {
-	const value = options.preamble;
-	if (typeof value === "string") {
-		return value;
+	if (options.output === "asis") {
+		// An `asis` cell is emitted into the document Typst is already laying out,
+		// so it inherits a page the preview has no way to reproduce.
+		notes.push("an `output: asis` cell inherits the document page, which the preview cannot apply");
 	}
-	return Array.isArray(value) ? (value as readonly string[]) : undefined;
+	if (typeof options.pages === "string" && options.pages !== "all") {
+		notes.push("the preview shows the first page only");
+	}
+	return notes;
 }
 
 /**
@@ -357,35 +351,36 @@ function optionPreamble(options: ResolvedTypstOptions): string | readonly string
  * are resolved and merged, the block options are merged over them, the colours
  * of the mode in force are picked out, and the parts are assembled.
  */
-export function buildCell(block: TypstBlock, context: CellContext): CellResult {
+export async function buildCell(block: TypstBlock, context: CellContext): Promise<AssembledCell | Unavailable> {
 	const brand = brandColourReader(context.brand);
 	const global = mergeGlobalConfigs(context.levels, brand);
 	const options = resolveTypstOptions(block, global, brand);
 
+	// The preamble and the `file:` are independent reads, so they run together.
+	const [preamble, code] = await Promise.all([
+		resolvePreamble(options.preamble, context.readFile),
+		options.file === undefined || options.file === "" ? undefined : context.readFile(options.file),
+	]);
+
 	// A `file:` replaces the cell body entirely. The filter logs and renders
 	// nothing when the read fails, which in a preview would be a blank image with
 	// no reason beside it.
-	let code: string | undefined;
-	const file = options.file;
-	if (typeof file === "string" && file !== "") {
-		code = context.readFile(file);
-		if (code === undefined) {
-			return { unavailable: `The file option names \`${file}\`, and it could not be read.` };
-		}
+	if (options.file !== undefined && options.file !== "" && code === undefined) {
+		return { unavailable: `The file option names \`${options.file}\`, and it could not be read.` };
 	}
 
-	return buildCellSource(block, {
+	const assembled = buildCellSource(block, {
 		// The fallback is `DEFAULTS.background`, which `resolve_opts_colours` applies
 		// at `typst-render.lua:884`. Only the background has one: a cell with no
 		// foreground writes no text fill line at all.
-		background:
-			resolveColourValue(optionColour(options, "background"), context.mode) ?? String(TYPST_DEFAULTS.background),
-		foreground: resolveColourValue(optionColour(options, "foreground"), context.mode),
-		width: optionText(options, "width"),
-		height: optionText(options, "height"),
-		margin: optionText(options, "margin"),
+		background: resolveColourValue(options.background, context.mode) ?? String(TYPST_DEFAULTS.background),
+		foreground: resolveColourValue(options.foreground, context.mode),
+		width: String(options.width),
+		height: String(options.height),
+		margin: String(options.margin),
 		brand: brandDictionary(context.brand, context.mode),
-		preamble: resolvePreamble(optionPreamble(options), context.readFile),
+		preamble,
 		code,
 	});
+	return { ...assembled, notes: cellNotes(options) };
 }

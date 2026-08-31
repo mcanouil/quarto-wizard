@@ -1,13 +1,19 @@
-import * as path from "node:path";
-import { readFileSync } from "node:fs";
 import * as vscode from "vscode";
+import * as semver from "semver";
 import type { SchemaCache } from "@quarto-wizard/schema";
 import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
-import { buildPlainSource, buildRawSource, buildCell, isUnavailable } from "../../utils/typst/typstSource";
+import {
+	buildPlainSource,
+	buildRawSource,
+	buildCell,
+	isUnavailable,
+	type Unavailable,
+} from "../../utils/typst/typstSource";
 import { TYPST_RENDER, documentBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
 import { getWorkspaceSchemaIndex } from "../../utils/workspaceSchemaIndex";
+import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
 import { logMessage } from "../../utils/log";
-import { readBrand, readMetadataChain } from "./typstMetadata";
+import { readBrand, readMetadataChain, readSourceText, resolveQuartoPath, type MetadataChain } from "./typstMetadata";
 
 /**
  * One document and one position turned into a compile.
@@ -46,16 +52,6 @@ export interface CompileRequest {
 	notes: string[];
 }
 
-/** A block that cannot be previewed, and the one line that says why. */
-export interface UnavailableRequest {
-	unavailable: string;
-}
-
-/** Whether building a request reported why it could not be done. */
-export function isUnavailableRequest(result: CompileRequest | UnavailableRequest): result is UnavailableRequest {
-	return "unavailable" in result;
-}
-
 /** The brand mode the editor theme asks for, when the document names none. */
 function themeBrandMode(): TypstBrandMode {
 	const kind = vscode.window.activeColorTheme.kind;
@@ -63,7 +59,7 @@ function themeBrandMode(): TypstBrandMode {
 }
 
 /**
- * The installed `typst-render`, when the owning project has one.
+ * The installed `typst-render`, or undefined when the project has none.
  *
  * The owning project root is what is asked, not the workspace folder. A project
  * in a subfolder keeps its own `_extensions/`, and asking the folder would miss
@@ -73,71 +69,45 @@ function themeBrandMode(): TypstBrandMode {
 async function installedTypstRender(
 	projectRoot: string | undefined,
 	schemaCache: SchemaCache,
-): Promise<{ installed: false } | { installed: true; version?: string }> {
+): Promise<{ version?: string } | undefined> {
 	if (projectRoot === undefined) {
-		return { installed: false };
+		return undefined;
 	}
 	const index = await getWorkspaceSchemaIndex(projectRoot, schemaCache);
 	// The index registers the full identifier and the short name, and a project
 	// can have installed the extension under either.
 	if (index.schemaMap.get(TYPST_RENDER_ID) === undefined && index.schemaMap.get(TYPST_RENDER) === undefined) {
-		return { installed: false };
+		return undefined;
 	}
-	return {
-		installed: true,
-		version: (index.extMap.get(TYPST_RENDER_ID) ?? index.extMap.get(TYPST_RENDER))?.manifest.version,
-	};
+	return { version: (index.extMap.get(TYPST_RENDER_ID) ?? index.extMap.get(TYPST_RENDER))?.manifest.version };
 }
 
-/** Whether an installed version is above the version the fixtures were recorded from. */
+/**
+ * Whether an installed version is above the one the fixtures were recorded from.
+ *
+ * A version this cannot read is not a warning. `semver.valid` rejects a version
+ * the extension is free to write, and reporting one as drift would send a reader
+ * to a refresh procedure that has nothing to do with what they are seeing.
+ */
 export function isNewerThanPinned(installed: string, pinned: string = PINNED_TYPST_RENDER_VERSION): boolean {
-	const parts = (value: string): number[] => value.split(/[.+-]/).map((part) => Number.parseInt(part, 10));
-	const left = parts(installed);
-	const right = parts(pinned);
-	for (let index = 0; index < Math.max(left.length, right.length); index++) {
-		const a = left[index];
-		const b = right[index];
-		// A part that is not a number ends the comparison rather than deciding it.
-		// A pre-release suffix is not worth a warning of its own.
-		if (Number.isNaN(a) || Number.isNaN(b) || a === undefined || b === undefined) {
-			return false;
-		}
-		if (a !== b) {
-			return a > b;
-		}
-	}
-	return false;
+	const left = semver.coerce(installed);
+	return left !== null && semver.gt(left, pinned);
 }
 
 /** Said once per session, because the version does not change while it runs. */
 let reportedDrift = false;
 
-/**
- * What the first version of the preview does not reproduce about a cell.
- *
- * Each of these compiles to something, so refusing them would be worse than
- * showing the image and saying what is missing from it.
- *
- * Exported for its tests: the panel is what shows these, and reaching them
- * through a compile would need the extension installed and Typst running.
- */
-export function limitations(block: TypstBlock): string[] {
-	const notes: string[] = [];
-	const format = block.options.format;
-	if (format === "pdf" || format === "html") {
-		// The preview always compiles to SVG, because that is what a webview, a
-		// hover and a decoration can all show.
-		notes.push(`the preview compiles to SVG, not to ${format}`);
+/** Report once that the fixtures may no longer describe the installed filter. */
+function reportDrift(version: string | undefined): void {
+	if (version === undefined || reportedDrift || !isNewerThanPinned(version)) {
+		return;
 	}
-	if (block.options.output === "asis") {
-		// An `asis` cell is emitted into the document Typst is already laying out,
-		// so it inherits a page the preview has no way to reproduce.
-		notes.push("an `output: asis` cell inherits the document page, which the preview cannot apply");
-	}
-	if (typeof block.options.pages === "string" && block.options.pages !== "all") {
-		notes.push("the preview shows the first page only");
-	}
-	return notes;
+	reportedDrift = true;
+	logMessage(
+		`Typst preview: typst-render ${version} is installed and the golden fixtures were recorded from ` +
+			`${PINNED_TYPST_RENDER_VERSION}. Refresh them, following src/test/fixtures/typstPreview/README.md.`,
+		"warn",
+	);
 }
 
 /**
@@ -154,11 +124,12 @@ export async function buildCompileRequest(
 	position: vscode.Position,
 	header: string,
 	schemaCache: SchemaCache,
-): Promise<CompileRequest | UnavailableRequest> {
+): Promise<CompileRequest | Unavailable> {
+	const text = document.getText();
 	// The whole list is kept, because a raw block compiles with the raw blocks
 	// above it and scanning the document a second time would say the same thing
 	// twice.
-	const blocks = findTypstBlocks(document.getText());
+	const blocks = findTypstBlocks(text);
 	const block = blockAtOffset(blocks, document.offsetAt(position));
 	if (block === undefined) {
 		return { unavailable: "Put the cursor inside a Typst block to preview it." };
@@ -166,12 +137,19 @@ export async function buildCompileRequest(
 
 	if (block.kind !== "cell") {
 		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
-		return { block, ...assembled, notes: [] };
+		// A raw block reaches Typst through the document template, which contributes
+		// imports, show rules and set directives the preview cannot apply. Saying so
+		// beside the image is what stops a divergence being read as a defect.
+		const notes = block.kind === "raw" ? ["the document template is not applied to a raw passthrough"] : [];
+		return { block, ...assembled, notes };
 	}
 
-	const chain = await readMetadataChain(document);
-	const installed = await installedTypstRender(chain.projectRoot, schemaCache);
-	if (!installed.installed) {
+	// The gate comes before the metadata chain, because it needs only the project
+	// root and it rejects every cell in a project that never installed the
+	// extension. Reading the chain first would spend the whole walk to say no.
+	const projectRoot = await findOwningProjectRoot(document.uri);
+	const installed = await installedTypstRender(projectRoot, schemaCache);
+	if (installed === undefined) {
 		// Never previewed with guessed options. A cell compiled without the
 		// extension's own defaults would show an image the render does not
 		// produce, which is worse than showing none.
@@ -179,33 +157,26 @@ export async function buildCompileRequest(
 			unavailable: "A `{typst}` cell needs the typst-render extension, and this project does not have it installed.",
 		};
 	}
-	if (installed.version !== undefined && !reportedDrift && isNewerThanPinned(installed.version)) {
-		reportedDrift = true;
-		logMessage(
-			`Typst preview: typst-render ${installed.version} is installed and the golden fixtures were recorded from ` +
-				`${PINNED_TYPST_RENDER_VERSION}. Refresh them, following src/test/fixtures/typstPreview/README.md.`,
-			"warn",
-		);
-	}
+	reportDrift(installed.version);
 
-	const documentDirectory = document.uri.scheme === "file" ? path.dirname(document.uri.fsPath) : undefined;
-	const brand = await readBrand(chain, documentDirectory);
+	const chain = await readMetadataChain(document, text, projectRoot);
+	const brand = await readBrand(chain);
 	// The one deliberate deviation from the filter. It always defaults to light,
 	// and the preview follows the editor theme instead, so a dark editor shows a
 	// dark image. An explicit `brand-mode:` still wins.
 	const brandMode = documentBrandMode(chain.metadata) ?? themeBrandMode();
 
-	const built = buildCell(block, {
+	const built = await buildCell(block, {
 		levels: chain.levels,
 		brand,
 		mode: brandMode,
-		readFile: (documentPath) => readTypstFile(documentPath, documentDirectory, chain.projectRoot),
+		readFile: (documentPath) => readTypstFile(documentPath, chain),
 	});
 	if (isUnavailable(built)) {
-		return { unavailable: built.unavailable };
+		return built;
 	}
 
-	return { block, ...built, brandMode, notes: limitations(block) };
+	return { block, ...built, brandMode };
 }
 
 /**
@@ -216,36 +187,12 @@ export async function buildCompileRequest(
  * `package-path` follow, and conflating the two would read a preamble from the
  * wrong directory in every project whose documents are not at its root.
  *
- * Synchronous, because the pure assembler takes the read as a plain callback and
- * an asynchronous one would push the whole pipeline into a second pass.
- *
  * The path is not confined to the project, because the filter does not confine
  * it either and a preview that refused a path a render accepts would be wrong
  * about the document. The whole feature is gated on a trusted workspace, which
  * is the same boundary a render itself sits behind.
  */
-function readTypstFile(
-	documentPath: string,
-	documentDirectory: string | undefined,
-	projectRoot: string | undefined,
-): string | undefined {
-	const fromProjectRoot = documentPath.startsWith("/");
-	const base = fromProjectRoot ? projectRoot : documentDirectory;
-	if (base === undefined) {
-		return undefined;
-	}
-	const resolved = path.join(base, fromProjectRoot ? documentPath.slice(1) : documentPath);
-
-	// The open document wins, so a `.typ` being edited beside the block previews
-	// before it is saved.
-	for (const open of vscode.workspace.textDocuments) {
-		if (open.uri.scheme === "file" && path.normalize(open.uri.fsPath) === path.normalize(resolved)) {
-			return open.getText();
-		}
-	}
-	try {
-		return readFileSync(resolved, "utf8");
-	} catch {
-		return undefined;
-	}
+async function readTypstFile(documentPath: string, chain: MetadataChain): Promise<string | undefined> {
+	const resolved = resolveQuartoPath(documentPath, chain.documentDirectory, chain.projectRoot);
+	return resolved === undefined ? undefined : readSourceText(resolved);
 }

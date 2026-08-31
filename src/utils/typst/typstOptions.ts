@@ -29,7 +29,25 @@ export type TypstColour = string | { readonly light?: string; readonly dark?: st
 export type TypstOptionValue = string | number | boolean | readonly string[] | TypstColour | Record<string, string>;
 
 /**
+ * A value that is a YAML mapping, or undefined when it is anything else.
+ *
+ * A mapping is what almost every read here has to establish first, and the test
+ * has three parts that are all easy to leave out: `null` is an object, an array
+ * is an object, and neither carries the keys a mapping is asked for.
+ */
+export function mapping(value: unknown): Record<string, unknown> | undefined {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) {
+		return undefined;
+	}
+	return value as Record<string, unknown>;
+}
+
+/**
  * The merged option table of one block.
+ *
+ * The keys the source reads are typed, and the rest are reachable through the
+ * index signature: the filter forwards any option it does not consume as an
+ * HTML attribute, so the table is open by design.
  *
  * A key with a `nil` default is absent rather than undefined, because
  * `merge_options` copies with `pairs`, which skips a `nil` value
@@ -38,7 +56,24 @@ export type TypstOptionValue = string | number | boolean | readonly string[] | T
  * tests `opts.foreground` for truthiness, so an absent key and a key holding an
  * empty string are not the same thing.
  */
-export type ResolvedTypstOptions = Readonly<Record<string, TypstOptionValue>>;
+export interface ResolvedTypstOptions {
+	/** The page fill. Always present, because its default is the word `none`. */
+	readonly background?: TypstColour;
+	/** The text fill, absent unless a level or the block sets one. */
+	readonly foreground?: TypstColour;
+	readonly width?: TypstOptionValue;
+	readonly height?: TypstOptionValue;
+	readonly margin?: TypstOptionValue;
+	/** Inline Typst code, a `.typ` path, or a list of either. */
+	readonly preamble?: string | readonly string[];
+	/** A `.typ` path whose contents replace the block body. */
+	readonly file?: string;
+	/** The image format the render would produce, which the preview may not. */
+	readonly format?: TypstOptionValue;
+	readonly output?: TypstOptionValue;
+	readonly pages?: TypstOptionValue;
+	readonly [key: string]: TypstOptionValue | undefined;
+}
 
 /**
  * The filter's own defaults, `typst-render.lua:35-64`.
@@ -177,9 +212,10 @@ export function resolveColourConfig(
 
 	// Every table takes this branch upstream, a list included: the test there is
 	// against the `Inlines` shape a plain YAML scalar has, and a list is not it.
-	// A list therefore holds neither `light` nor `dark` and resolves to nothing.
+	// A list therefore holds neither `light` nor `dark` and resolves to nothing,
+	// which is why the list case is folded in here rather than tested for.
 	if (typeof raw === "object") {
-		const map = raw as Record<string, string | undefined>;
+		const map = mapping(raw) ?? {};
 		const light = map.light === undefined ? undefined : cssColourToTypst(String(map.light));
 		const dark = map.dark === undefined ? undefined : cssColourToTypst(String(map.dark));
 		if (light !== undefined && dark !== undefined) {
@@ -232,22 +268,11 @@ export const TYPST_RENDER = "typst-render";
  * document written the old way previews the way it renders.
  */
 export function extensionLevel(metadata: unknown): TypstGlobalLevel | undefined {
-	if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) {
+	const map = mapping(metadata);
+	if (map === undefined) {
 		return undefined;
 	}
-	const map = metadata as Record<string, unknown>;
-	const extensions = map.extensions;
-	if (extensions !== null && typeof extensions === "object" && !Array.isArray(extensions)) {
-		const level = (extensions as Record<string, unknown>)[TYPST_RENDER];
-		if (level !== null && typeof level === "object" && !Array.isArray(level)) {
-			return level as TypstGlobalLevel;
-		}
-	}
-	const legacy = map[TYPST_RENDER];
-	if (legacy !== null && typeof legacy === "object" && !Array.isArray(legacy)) {
-		return legacy as TypstGlobalLevel;
-	}
-	return undefined;
+	return mapping(mapping(map.extensions)?.[TYPST_RENDER]) ?? mapping(map[TYPST_RENDER]);
 }
 
 /**
@@ -258,10 +283,7 @@ export function extensionLevel(metadata: unknown): TypstGlobalLevel | undefined 
  * follows the editor theme instead, so a dark editor shows a dark image.
  */
 export function documentBrandMode(metadata: unknown): TypstBrandMode | undefined {
-	if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) {
-		return undefined;
-	}
-	const value = (metadata as Record<string, unknown>)["brand-mode"];
+	const value = mapping(metadata)?.["brand-mode"];
 	if (value === undefined || value === null) {
 		return undefined;
 	}
@@ -276,13 +298,24 @@ function stringify(value: unknown): string {
 	if (Array.isArray(value)) {
 		return value.map(stringify).join("");
 	}
-	if (typeof value === "object") {
-		return Object.values(value as Record<string, unknown>)
-			.map(stringify)
-			.join("");
+	const map = mapping(value);
+	if (map !== undefined) {
+		return Object.values(map).map(stringify).join("");
 	}
 	return String(value);
 }
+
+/**
+ * The keys that take a boolean or one named word, and the word each takes.
+ *
+ * `typst-render.lua:1799-1854` writes the three out separately, and the three
+ * bodies are the same but for the word.
+ */
+const THREE_WAY_KEYS: Readonly<Record<string, string>> = {
+	echo: "fenced",
+	"code-fold": "show",
+	output: "asis",
+};
 
 /**
  * One global value, coerced by the rules at `typst-render.lua:1795-1886`.
@@ -291,24 +324,16 @@ function stringify(value: unknown): string {
  * `dpi` that is not a number at all.
  */
 function coerceGlobal(key: string, raw: unknown): TypstOptionValue | undefined {
-	if (key === "echo") {
+	// Three keys are a boolean with one extra word. Anything but that word and
+	// `true` is false, which is also what the warning upstream leaves behind for
+	// a `code-fold` spelled some fourth way.
+	const keyword = THREE_WAY_KEYS[key];
+	if (keyword !== undefined) {
 		if (typeof raw === "boolean") {
 			return raw;
 		}
 		const value = stringify(raw);
-		return value === "fenced" ? "fenced" : value === "true";
-	}
-	if (key === "code-fold") {
-		if (typeof raw === "boolean") {
-			return raw;
-		}
-		const value = stringify(raw);
-		if (value === "show") {
-			return "show";
-		}
-		// Anything but `true`, `false` and `show` is a warning upstream and
-		// disables the fold, which is the same answer `false` gives.
-		return value === "true";
+		return value === keyword ? keyword : value === "true";
 	}
 	if (key === "code-line-numbers") {
 		if (typeof raw === "boolean") {
@@ -320,13 +345,6 @@ function coerceGlobal(key: string, raw: unknown): TypstOptionValue | undefined {
 		}
 		// A value such as `1|3-4` is kept verbatim for Quarto's own pass.
 		return value;
-	}
-	if (key === "output") {
-		if (typeof raw === "boolean") {
-			return raw;
-		}
-		const value = stringify(raw);
-		return value === "asis" ? "asis" : value === "true";
 	}
 	if (key === "code-summary") {
 		// Upstream keeps Markdown markup here by writing the inlines back out.
@@ -387,10 +405,10 @@ export function resolveGlobalConfig(level: TypstGlobalLevel, brand: BrandColourR
 
 	// `input` is a map and nothing else. A string is a warning upstream and is
 	// dropped, which leaves whatever an outer level set.
-	const input = level.input;
-	if (input !== undefined && input !== null && typeof input === "object" && !Array.isArray(input)) {
+	const input = mapping(level.input);
+	if (input !== undefined) {
 		const map: Record<string, string> = {};
-		for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+		for (const [key, value] of Object.entries(input)) {
 			map[key] = stringify(value);
 		}
 		config.input = map;
@@ -451,25 +469,23 @@ export function resolveTypstOptions(
 	delete blockOptions["cache-refresh"];
 
 	// `input` is a comma-separated string per block and a map globally, so the
-	// merge would otherwise replace the map with the string.
-	const blockInput = typeof blockOptions.input === "string" ? blockOptions.input : undefined;
-	if (blockInput !== undefined) {
-		delete blockOptions.input;
-	}
+	// merge would otherwise replace the map with the string. The filter keeps the
+	// block string aside under a key of its own and passes it to the compiler.
+	// Nothing here emits `--input`, so it is dropped rather than carried under an
+	// invented key that no reader knows about.
+	delete blockOptions.input;
 
-	const merged: Record<string, TypstOptionValue> = { ...TYPST_DEFAULTS, ...global, ...blockOptions };
-	if (blockInput !== undefined) {
-		merged._block_input = blockInput;
-	}
+	const merged: Record<string, TypstOptionValue | undefined> = { ...TYPST_DEFAULTS, ...global, ...blockOptions };
 
 	for (const key of ["background", "foreground"] as const) {
 		const raw = block.options[key];
 		if (raw === "auto") {
-			const resolved = resolveColourConfig("auto", key, brand);
+			// The fallback is `DEFAULTS[key]`, which differs between the two: `none`
+			// for the background and nil for the foreground. Assigning nil in Lua
+			// removes the key, so an `auto` foreground with no brand leaves no key at
+			// all while an `auto` background falls back to the default fill.
+			const resolved = resolveColourConfig("auto", key, brand) ?? TYPST_DEFAULTS[key];
 			if (resolved === undefined) {
-				// `DEFAULTS[key]` is `nil` for `foreground`, and assigning `nil` in Lua
-				// removes the key, so an `auto` foreground with no brand leaves no key
-				// at all rather than an empty one.
 				delete merged[key];
 			} else {
 				merged[key] = resolved;

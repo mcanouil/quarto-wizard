@@ -280,6 +280,13 @@ suite("Typst Options Test Suite", () => {
 			assert.strictEqual(options.background, 'rgb("#fdf6e3")');
 		});
 
+		test("Should fall back to the default fill when an auto background finds no brand", () => {
+			// The fallback is `DEFAULTS[key]`, and the two colours differ there: the
+			// background has one and the foreground does not.
+			const options = resolveTypstOptions(cell(["background: auto"]), {}, NO_BRAND_READER);
+			assert.strictEqual(options.background, "none");
+		});
+
 		test("Should leave no foreground key when auto finds no brand", () => {
 			// The filter assigns `DEFAULTS.foreground`, which is nil, and assigning
 			// nil in Lua removes the key.
@@ -292,11 +299,12 @@ suite("Typst Options Test Suite", () => {
 			assert.strictEqual(options["cache-refresh"], false);
 		});
 
-		test("Should keep a block input string apart from the global input map", () => {
-			// The merge would otherwise replace the map with the string.
+		test("Should keep the global input map when a block writes an input string", () => {
+			// `input` is a map globally and a comma-separated string per block, so a
+			// plain merge would replace the map with the string and every later reader
+			// of the map would find one.
 			const options = resolveTypstOptions(cell(["input: theme=dark"]), { input: { lang: "en" } }, NO_BRAND_READER);
 			assert.deepStrictEqual(options.input, { lang: "en" });
-			assert.strictEqual(options._block_input, "theme=dark");
 		});
 
 		test("Should keep a block dpi as the string the comment-pipe parsed", () => {

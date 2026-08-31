@@ -3,9 +3,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
-import { splitBrand, EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
+import { BRAND_CANDIDATES, splitBrand, EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
 import { extensionLevel, type TypstBrandMode, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
+import { parseFrontMatter } from "../../utils/yamlPosition";
 import { buildCell, isUnavailable } from "../../utils/typst/typstSource";
+import { PINNED_TYPST_RENDER_VERSION } from "../../providers/typstPreview/typstContext";
 
 /**
  * The recorded fixtures of the `typst-render` cell pipeline.
@@ -25,16 +27,6 @@ const FIXTURES = path.join(__dirname, "..", "..", "..", "src", "test", "fixtures
 interface FixtureMeta {
 	brandMode: TypstBrandMode;
 	extensionVersion: string;
-}
-
-/** The front matter of a `.qmd`, parsed, or undefined when it has none. */
-function frontMatter(text: string): unknown {
-	const normalised = text.replace(/\r\n/g, "\n");
-	if (!normalised.startsWith("---\n")) {
-		return undefined;
-	}
-	const end = normalised.indexOf("\n---", 3);
-	return end === -1 ? undefined : yaml.load(normalised.slice(4, end + 1));
 }
 
 /** One YAML file of a fixture directory, or undefined when it is absent. */
@@ -64,7 +56,7 @@ function levelsOf(directory: string, metadata: unknown): TypstGlobalLevel[] {
 
 /** The brand of a fixture, from the first candidate path that exists. */
 function brandOf(directory: string): Brand {
-	for (const candidate of ["_brand.yml", "_brand.yaml"]) {
+	for (const candidate of BRAND_CANDIDATES) {
 		const document = readYaml(directory, candidate);
 		if (document !== undefined) {
 			return splitBrand(document);
@@ -97,12 +89,15 @@ suite("Typst Fixtures Test Suite", () => {
 	for (const name of names) {
 		const directory = path.join(FIXTURES, name);
 
-		test(`Should compile the ${name} fixture byte for byte`, () => {
+		test(`Should compile the ${name} fixture byte for byte`, async () => {
 			const meta = JSON.parse(fs.readFileSync(path.join(directory, "meta.json"), "utf8")) as FixtureMeta;
+			// The constant is what the runtime drift warning compares against, so a
+			// fixture recorded from another version would make that warning lie.
+			assert.strictEqual(meta.extensionVersion, PINNED_TYPST_RENDER_VERSION);
 			const text = fs.readFileSync(path.join(directory, "block.qmd"), "utf8");
-			const metadata = frontMatter(text);
+			const metadata = parseFrontMatter(text);
 
-			const built = buildCell(cellOf(text), {
+			const built = await buildCell(cellOf(text), {
 				levels: levelsOf(directory, metadata),
 				brand: brandOf(directory),
 				// `meta.json` pins the side of the recording, which is what the fixture
@@ -110,7 +105,7 @@ suite("Typst Fixtures Test Suite", () => {
 				// document whose colours differ between the two is rendered twice, and
 				// each side is one fixture.
 				mode: meta.brandMode,
-				readFile: (documentPath) => {
+				readFile: async (documentPath) => {
 					const file = path.join(directory, documentPath);
 					return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
 				},

@@ -5,6 +5,8 @@
  * to a structured key path by tracking indentation levels.
  */
 
+import * as yaml from "js-yaml";
+
 /**
  * A half-open text range: [start, end).
  */
@@ -515,6 +517,36 @@ export function getYamlFrontMatterRange(text: string): TextRange | undefined {
 	}
 
 	return undefined;
+}
+
+/**
+ * Parse the YAML front matter of a Quarto document.
+ *
+ * Built on `getYamlFrontMatterRange` so that the metadata a reader sees and the
+ * blocks a scanner finds agree on where the front matter ends.  A rule of its
+ * own here would close on any line starting `---`, while the scanner needs a
+ * line that trims to exactly `---`, and the two would disagree on the same
+ * document.
+ *
+ * @param text - The full document text.
+ * @returns The parsed mapping, or `undefined` when the document has no closed
+ *   front matter, when it is empty, or when it does not parse.
+ */
+export function parseFrontMatter(text: string): unknown {
+	const range = getYamlFrontMatterRange(text);
+	if (range === undefined) {
+		return undefined;
+	}
+	const bodyStart = text.indexOf("\n") + 1;
+	const bodyEnd = text.lastIndexOf("\n", range.end - 1) + 1;
+	if (bodyEnd <= bodyStart) {
+		return undefined;
+	}
+	try {
+		return yaml.load(text.slice(bodyStart, bodyEnd));
+	} catch {
+		return undefined;
+	}
 }
 
 /**

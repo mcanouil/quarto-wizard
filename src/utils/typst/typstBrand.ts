@@ -14,6 +14,7 @@
  * defaults are not read, because no colour option needs them.
  */
 
+import { mapping } from "./typstOptions";
 import type { BrandColourReader, TypstBrandMode } from "./typstOptions";
 
 /**
@@ -81,11 +82,8 @@ function splitColour(value: unknown): { light?: string; dark?: string } {
 	if (typeof value === "string") {
 		return { light: value, dark: value };
 	}
-	if (value === null || typeof value !== "object" || Array.isArray(value)) {
-		return {};
-	}
-	const map = value as Record<string, unknown>;
-	return { light: stringAt(map, "light"), dark: stringAt(map, "dark") };
+	const map = mapping(value);
+	return map === undefined ? {} : { light: stringAt(map, "light"), dark: stringAt(map, "dark") };
 }
 
 /**
@@ -95,26 +93,22 @@ function splitColour(value: unknown): { light?: string; dark?: string } {
  * both sides while the name it points at differs by mode.
  */
 export function splitBrand(document: unknown): Brand {
-	const empty = (): SingleBrand => ({ palette: {}, colours: {} });
-	if (document === null || typeof document !== "object" || Array.isArray(document)) {
-		return { light: empty(), dark: empty(), fonts: {} };
+	const map = mapping(document);
+	if (map === undefined) {
+		return EMPTY_BRAND;
 	}
 
-	const fonts = readFonts((document as Record<string, unknown>).typography);
+	const fonts = readFonts(map.typography);
 
-	const colour = (document as Record<string, unknown>).color;
-	if (colour === null || typeof colour !== "object" || Array.isArray(colour)) {
-		return { light: empty(), dark: empty(), fonts };
+	const colourMap = mapping(map.color);
+	if (colourMap === undefined) {
+		return { ...EMPTY_BRAND, fonts };
 	}
 
-	const colourMap = colour as Record<string, unknown>;
 	const palette: Record<string, string> = {};
-	const rawPalette = colourMap.palette;
-	if (rawPalette !== null && typeof rawPalette === "object" && !Array.isArray(rawPalette)) {
-		for (const [name, value] of Object.entries(rawPalette as Record<string, unknown>)) {
-			if (typeof value === "string") {
-				palette[name] = value;
-			}
+	for (const [name, value] of Object.entries(mapping(colourMap.palette) ?? {})) {
+		if (typeof value === "string") {
+			palette[name] = value;
 		}
 	}
 
@@ -145,21 +139,19 @@ export function splitBrand(document: unknown): Brand {
  */
 function readFonts(typography: unknown): Record<string, string> {
 	const fonts: Record<string, string> = {};
-	if (typography === null || typeof typography !== "object" || Array.isArray(typography)) {
+	const map = mapping(typography);
+	if (map === undefined) {
 		return fonts;
 	}
-	const map = typography as Record<string, unknown>;
 	for (const name of BRAND_TYPOGRAPHY_ENTRIES) {
 		const entry = map[name];
 		if (typeof entry === "string" && entry !== "") {
 			fonts[name] = entry;
 			continue;
 		}
-		if (entry !== null && typeof entry === "object" && !Array.isArray(entry)) {
-			const family = stringAt(entry as Record<string, unknown>, "family");
-			if (family !== undefined && family !== "") {
-				fonts[name] = family;
-			}
+		const family = stringAt(mapping(entry) ?? {}, "family");
+		if (family !== undefined && family !== "") {
+			fonts[name] = family;
 		}
 	}
 	return fonts;
@@ -269,11 +261,9 @@ export function readBrandOverride(value: unknown): BrandOverride {
 	if (typeof value === "string") {
 		return { kind: "unified", path: value };
 	}
-	if (typeof value === "object" && !Array.isArray(value)) {
-		const map = value as Record<string, unknown>;
-		if ("light" in map || "dark" in map) {
-			return { kind: "split", light: stringAt(map, "light"), dark: stringAt(map, "dark") };
-		}
+	const map = mapping(value);
+	if (map !== undefined && ("light" in map || "dark" in map)) {
+		return { kind: "split", light: stringAt(map, "light"), dark: stringAt(map, "dark") };
 	}
 	return { kind: "default" };
 }
@@ -293,11 +283,11 @@ export function joinBrands(light: unknown, dark: unknown): Brand {
 }
 
 /** A brand that defines nothing, which is what no brand file at all means. */
-export const EMPTY_BRAND: Brand = {
+export const EMPTY_BRAND: Brand = Object.freeze({
 	light: { palette: {}, colours: {} },
 	dark: { palette: {}, colours: {} },
 	fonts: {},
-};
+});
 
 /**
  * The semantic roles `_typst_render_brand` carries, `typst-render.lua:331-334`.
@@ -334,25 +324,6 @@ function hexOnly(css: string): string | undefined {
 	return count === 3 || count === 4 || count === 6 || count === 8 ? css : undefined;
 }
 
-/**
- * One brand entry, read from the wanted mode and then from the other,
- * `typst-render.lua:380-398`.
- *
- * The scan is per entry and not per brand. Quarto marks a brand as carrying a
- * dark mode as soon as any one role declares a dark value, so a role written for
- * light only would otherwise vanish in dark mode.
- */
-function lookupAcrossModes<T>(mode: TypstBrandMode, read: (side: TypstBrandMode) => T | undefined): T | undefined {
-	const other = mode === "light" ? "dark" : "light";
-	for (const side of [mode, other] as const) {
-		const value = read(side);
-		if (value !== undefined) {
-			return value;
-		}
-	}
-	return undefined;
-}
-
 /** A Typst string literal, `_modules/string.lua:264-271`. */
 function typstString(value: string): string {
 	return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")}"`;
@@ -383,12 +354,18 @@ function typstDictionary(entries: Readonly<Record<string, string>>): string {
 export function brandDictionary(brand: Brand, mode: TypstBrandMode): string {
 	const read = brandColourReader(brand);
 
+	// Each role is read from the wanted mode and then from the other
+	// (`typst-render.lua:380-398`). The scan is per role and not per brand: Quarto
+	// marks a brand as carrying a dark mode as soon as any one role declares a dark
+	// value, so a role written for light only would otherwise vanish in dark mode.
+	const hexAt = (side: TypstBrandMode, role: string): string | undefined => {
+		const value = read(side, role);
+		return value === undefined || value === "" ? undefined : hexOnly(value);
+	};
+	const other = mode === "light" ? "dark" : "light";
 	const colours: Record<string, string> = {};
 	for (const role of BRAND_COLOUR_ROLES) {
-		const hex = lookupAcrossModes(mode, (side) => {
-			const value = read(side, role);
-			return value === undefined || value === "" ? undefined : hexOnly(value);
-		});
+		const hex = hexAt(mode, role) ?? hexAt(other, role);
 		if (hex !== undefined) {
 			colours[role] = typstString(hex);
 		}
