@@ -103,7 +103,7 @@
 		"@types/mocha": "^10.0.10",
 		"@types/node": "^26.1.1",
 		"@types/semver": "^7.7.1",
-		"@types/vscode": "^1.96.0",
+		"@types/vscode": "1.96.0",
 		"@vscode/test-cli": "^0.0.15",
 		"@vscode/test-electron": "^3.1.0",
 		"@vscode/vsce": "^3.9.2",
@@ -787,23 +787,22 @@
 					"minimum": 20,
 					"maximum": 4000,
 					"default": 200,
-					"markdownDescription": "The greatest height of the image the `inline` and `hover` surfaces show, in the points Typst writes into the image. A taller image is scaled down proportionally, and a shorter one is shown at its own size. The `panel` surface scrolls instead, so it is never clamped.",
+					"markdownDescription": "The greatest height of the image a hover shows, in the points Typst writes into the image. A taller image is scaled down proportionally, and a shorter one is shown at its own size. The `panel` surface scrolls instead, so it is never clamped.",
 					"title": "Preview Maximum Height",
-					"description": "Greatest image height for the inline and hover surfaces."
+					"description": "Greatest image height for a hover."
 				},
 				"quartoWizard.typstPreview.surface": {
 					"order": 25,
 					"scope": "resource",
 					"type": "string",
-					"enum": ["panel", "inline", "hover", "off"],
+					"enum": ["panel", "hover", "off"],
 					"enumDescriptions": [
 						"Show the image in a panel beside the editor, which follows the cursor while it is open.",
-						"Draw the image in the editor, after the closing fence of the block under the cursor.",
 						"Show the image when the pointer rests on a block.",
 						"Show no image, and offer no code lens."
 					],
 					"default": "panel",
-					"markdownDescription": "Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off.",
+					"markdownDescription": "Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off. There is no surface that draws the image inside the document, because the editor does not let an extension change the height of a line.",
 					"title": "Preview Surface",
 					"description": "Where a previewed block is shown."
 				},

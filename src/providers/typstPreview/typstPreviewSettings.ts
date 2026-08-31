@@ -8,11 +8,22 @@ import * as vscode from "vscode";
  * surface to reach it.
  */
 
-/** Where a preview is shown. */
-export type TypstPreviewSurface = "panel" | "inline" | "hover" | "off";
+/**
+ * Where a preview is shown.
+ *
+ * There is no surface that draws inside the document. An image after the block
+ * would have to grow the height of its line, and the editor decides line height
+ * from `IModelDecorationOptions.lineHeight`, which the extension API does not
+ * expose at any version. A decoration attachment is laid out inside a line of
+ * fixed height, so a tall one paints over the lines below it rather than moving
+ * them. The API that would do it is `createWebviewTextEditorInset`, proposed in
+ * microsoft/vscode#85682, which has been on the backlog since 2019 and is
+ * refused to a published extension at run time.
+ */
+export type TypstPreviewSurface = "panel" | "hover" | "off";
 
 /** The values `package.json` declares, repeated here because it cannot enforce them. */
-const SURFACES: readonly string[] = ["panel", "inline", "hover", "off"];
+const SURFACES: readonly string[] = ["panel", "hover", "off"];
 
 /** The surface `package.json` declares as the default. */
 export const DEFAULT_SURFACE: TypstPreviewSurface = "panel";

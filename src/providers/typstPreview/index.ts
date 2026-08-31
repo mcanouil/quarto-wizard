@@ -3,7 +3,6 @@ import { logMessage, showMessageWithLogs } from "../../utils/log";
 import { TypstPreviewController, type TypstPreviewUpdate } from "./typstPreviewController";
 import { TypstPreviewPanel } from "./typstPreviewPanel";
 import { TypstPreviewCodeLens } from "./typstPreviewCodeLens";
-import { TypstPreviewDecoration } from "./typstPreviewDecoration";
 import { TypstPreviewHover } from "./typstPreviewHover";
 import { surfaceOf } from "./typstPreviewSettings";
 
@@ -13,8 +12,8 @@ const SELECTOR: vscode.DocumentSelector = { language: "quarto" };
 /**
  * Register the Typst block preview.
  *
- * The controller owns the state and every event, and this owns the four
- * surfaces that render it. The feature is inert unless the workspace is trusted
+ * The controller owns the state and every event, and this owns the surfaces
+ * that render it. The feature is inert unless the workspace is trusted
  * and Quarto ships a Typst binary. Neither condition is worth a prompt: the
  * extension does many other things, and a user who never writes a Typst block
  * should never hear about it.
@@ -23,7 +22,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	let panel: TypstPreviewPanel | undefined;
 	/** Held while the panel is open, which is what makes an edit worth a compile. */
 	let panelSurface: vscode.Disposable | undefined;
-	/** Held while the active document asks for a surface that follows the cursor. */
+	/** Held while the active document asks for the hover surface. */
 	let followSurface: vscode.Disposable | undefined;
 
 	/**
@@ -62,17 +61,16 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	const usePanel = (): TypstPreviewPanel => panel ?? holdPanel(TypstPreviewPanel.create(context.extensionUri));
 
 	/**
-	 * Hold a surface open for the inline and the hover surface.
+	 * Hold a surface open for the hover surface.
 	 *
-	 * Neither is a window the reader opens, so without this nothing would tell
-	 * the controller that an edit is worth a compile and neither would ever
-	 * update. The active document is what is asked, because the setting is
-	 * resource scoped: a folder set to `panel` or to `off` should not pay for the
-	 * compiles another folder asked for.
+	 * A hover is not a window the reader opens, so without this nothing would
+	 * tell the controller that an edit is worth a compile, and every hover would
+	 * pay for a compile of its own. The active document is what is asked, because
+	 * the setting is resource scoped: a folder set to `panel` or to `off` should
+	 * not pay for the compiles another folder asked for.
 	 */
 	const followActiveSurface = (): void => {
-		const kind = surfaceOf(vscode.window.activeTextEditor?.document);
-		const wanted = kind === "inline" || kind === "hover";
+		const wanted = surfaceOf(vscode.window.activeTextEditor?.document) === "hover";
 		if (wanted === (followSurface !== undefined)) {
 			return;
 		}
@@ -151,7 +149,6 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(codeLens);
 	context.subscriptions.push(vscode.languages.registerCodeLensProvider(SELECTOR, codeLens));
 	context.subscriptions.push(vscode.languages.registerHoverProvider(SELECTOR, new TypstPreviewHover(controller)));
-	context.subscriptions.push(new TypstPreviewDecoration(controller));
 
 	followActiveSurface();
 	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(() => followActiveSurface()));

@@ -429,14 +429,22 @@ export class TypstPreviewController implements vscode.Disposable {
 	}
 
 	/**
-	 * Preview the block under a position, because a surface is showing it.
+	 * Preview the block under a position, and wait for the image.
 	 *
 	 * This is a hover over a block the preview is not following. It publishes
 	 * like an edit does and opens nothing, because nobody asked for a panel: the
 	 * surface that asked is already on screen.
+	 *
+	 * The result is awaited rather than left to the next call. A hover cannot ask
+	 * to be shown again, so answering before the image exists would leave every
+	 * block needing two passes to read. Nothing is lost by waiting: the hover
+	 * widget has no timeout, and shows a loading message of its own meanwhile.
+	 *
+	 * Resolves to nothing when a newer request superseded this one, when the
+	 * block cannot be previewed, or when the compile failed on the way.
 	 */
-	preview(document: vscode.TextDocument, position: vscode.Position): void {
-		this.start(document, position, false);
+	preview(document: vscode.TextDocument, position: vscode.Position): Promise<TypstPreviewResult | undefined> {
+		return this.attempt(document, position, false);
 	}
 
 	/** Preview the block under the cursor again, because something changed. */
@@ -476,21 +484,32 @@ export class TypstPreviewController implements vscode.Disposable {
 	}
 
 	/**
-	 * Start one preview, and let nothing it does escape as a rejection.
+	 * One preview, with nothing escaping as a rejection.
 	 *
-	 * No caller awaits a preview, so a throw on the way to the compiler would be
-	 * an unhandled rejection: no log line, no message, and a preview that looks
-	 * inert. A metadata file or a brand file that cannot be read is exactly that
-	 * case, because the context cache rethrows rather than remembering a failure.
+	 * A caller that starts a preview and walks away would otherwise turn a throw
+	 * on the way to the compiler into an unhandled rejection: no log line, no
+	 * message, and a preview that looks inert. A metadata file or a brand file
+	 * that cannot be read is exactly that case, because the context cache
+	 * rethrows rather than remembering a failure.
 	 */
-	private start(document: vscode.TextDocument, position: vscode.Position, asked: boolean): void {
-		void this.run(document, position, asked).catch((error: unknown) => {
+	private attempt(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+		asked: boolean,
+	): Promise<TypstPreviewResult | undefined> {
+		return this.run(document, position, asked).catch((error: unknown) => {
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
 			if (asked) {
 				this.options.show(message);
 			}
+			return undefined;
 		});
+	}
+
+	/** Start one preview for a caller that is not waiting for it. */
+	private start(document: vscode.TextDocument, position: vscode.Position, asked: boolean): void {
+		void this.attempt(document, position, asked);
 	}
 
 	dispose(): void {
@@ -516,10 +535,21 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.result = undefined;
 	}
 
-	/** One preview, from a position to a published result. */
-	private async run(document: vscode.TextDocument, position: vscode.Position, asked: boolean): Promise<void> {
+	/**
+	 * One preview, from a position to a published result.
+	 *
+	 * Reports what it published, so a surface that is waiting for the image can
+	 * render it directly. Nothing published means nothing to render: a newer
+	 * request took over, the block cannot be previewed, or the machine cannot
+	 * compile at all.
+	 */
+	private async run(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+		asked: boolean,
+	): Promise<TypstPreviewResult | undefined> {
 		if (this.disposed || (!asked && !this.hasSurface())) {
-			return;
+			return undefined;
 		}
 
 		const version = ++this.requestVersion;
@@ -530,7 +560,7 @@ export class TypstPreviewController implements vscode.Disposable {
 
 		if (!vscode.workspace.isTrusted) {
 			this.reportUnavailable("The Typst preview needs a trusted workspace, because it runs the Typst compiler.");
-			return;
+			return undefined;
 		}
 
 		// Raised by the first request and not by the first result. A cell in a
@@ -549,7 +579,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		);
 		const request = await buildCompileRequest(document, position, header, this.contexts);
 		if (stale()) {
-			return;
+			return undefined;
 		}
 		if (isUnavailable(request)) {
 			// Said only to a reader who asked. An edit or a cursor move that lands
@@ -559,7 +589,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			if (asked) {
 				this.options.show(request.unavailable);
 			}
-			return;
+			return undefined;
 		}
 
 		const binary = await this.resolveBinary();
@@ -567,10 +597,10 @@ export class TypstPreviewController implements vscode.Disposable {
 			this.reportUnavailable(
 				"The Typst preview needs the Typst binary that ships inside Quarto, and it was not found.",
 			);
-			return;
+			return undefined;
 		}
 		if (stale()) {
-			return;
+			return undefined;
 		}
 
 		// The image is decided by the source, the arguments and the binary, and by
@@ -585,8 +615,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// what the eviction below removes.
 			this.cache.delete(key);
 			this.cache.set(key, held);
-			this.publish(document, request, held, asked);
-			return;
+			return this.publish(document, request, held, asked);
 		}
 
 		try {
@@ -596,33 +625,38 @@ export class TypstPreviewController implements vscode.Disposable {
 				this.uncancelled.token,
 			);
 			if (stale()) {
-				return;
+				return undefined;
 			}
 			this.remember(key, compiled);
-			this.publish(document, request, compiled, asked);
+			return this.publish(document, request, compiled, asked);
 		} catch (error) {
 			if (stale() || error instanceof vscode.CancellationError) {
-				return;
+				return undefined;
 			}
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
-			this.publish(document, request, { stderr: "" }, asked, message);
+			return this.publish(document, request, { stderr: "" }, asked, message);
 		}
 	}
 
-	/** Publish what one compile means for the surfaces. */
+	/**
+	 * Publish what one compile means for the surfaces.
+	 *
+	 * Reports the result it published, or nothing when it dropped it, so a caller
+	 * awaiting one preview learns which of the two happened.
+	 */
 	private publish(
 		document: vscode.TextDocument,
 		request: CompileRequest,
 		compiled: TypstCompileResult,
 		asked: boolean,
 		failure?: string,
-	): void {
+	): TypstPreviewResult | undefined {
 		if (!asked && !this.hasSurface()) {
 			// A compile runs for up to the timeout and the reader can close the last
 			// surface meanwhile. The result is nobody's, and publishing it would have
 			// a surface build itself to render it, which reopens what was just closed.
-			return;
+			return undefined;
 		}
 
 		if (compiled.svg === undefined) {
@@ -649,6 +683,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
 		this.resultEmitter.fire({ result: this.result, asked });
+		return this.result;
 	}
 
 	/** Remember one compile, and forget those used longest ago to make room. */

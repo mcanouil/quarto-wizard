@@ -213,7 +213,7 @@ How long the Typst block preview waits after an edit before it compiles again, i
 
 **Setting**: `quartoWizard.typstPreview.maxHeight`
 
-The greatest height of the image the `inline` and `hover` surfaces show, in the points Typst writes into the image. A taller image is scaled down proportionally, and a shorter one is shown at its own size. The `panel` surface scrolls instead, so it is never clamped.
+The greatest height of the image a hover shows, in the points Typst writes into the image. A taller image is scaled down proportionally, and a shorter one is shown at its own size. The `panel` surface scrolls instead, so it is never clamped.
 
 | Property | Value  |
 | -------- | ------ |
@@ -232,14 +232,13 @@ The greatest height of the image the `inline` and `hover` surfaces show, in the 
 
 **Setting**: `quartoWizard.typstPreview.surface`
 
-Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off.
+Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off. There is no surface that draws the image inside the document, because the editor does not let an extension change the height of a line.
 
-| Value    | Description                                                                                       |
-| -------- | ------------------------------------------------------------------------------------------------- |
-| `panel`  | Show the image in a panel beside the editor, which follows the cursor while it is open (default). |
-| `inline` | Draw the image in the editor, after the closing fence of the block under the cursor.              |
-| `hover`  | Show the image when the pointer rests on a block.                                                 |
-| `off`    | Show no image, and offer no code lens.                                                            |
+| Value   | Description                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------- |
+| `panel` | Show the image in a panel beside the editor, which follows the cursor while it is open (default). |
+| `hover` | Show the image when the pointer rests on a block.                                                 |
+| `off`   | Show no image, and offer no code lens.                                                            |
 
 ```json
 {

@@ -4,18 +4,15 @@ import { TypstPreviewController, type TypstCompilerLike } from "../../providers/
 import type { TypstCompileResult } from "../../providers/typstPreview/typstCompiler";
 import { TypstPreviewCodeLens } from "../../providers/typstPreview/typstPreviewCodeLens";
 import { TypstPreviewHover } from "../../providers/typstPreview/typstPreviewHover";
-import { TypstPreviewDecoration } from "../../providers/typstPreview/typstPreviewDecoration";
 import {
 	previewMaxHeight,
 	previewSurface,
 	type TypstPreviewSurface,
+	type TypstSurfaceSettings,
 } from "../../providers/typstPreview/typstPreviewSettings";
 
 /** An image that is never compiled, so nothing here spawns Typst. */
 const SVG = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"></svg>';
-
-/** An image taller than the height the surfaces clamp to. */
-const TALL_SVG = '<svg viewBox="0 0 10 1000" width="10pt" height="1000pt"></svg>';
 
 /** A compiler that answers every compile with the same image. */
 class StubCompiler implements TypstCompilerLike {
@@ -30,31 +27,6 @@ class StubCompiler implements TypstCompilerLike {
 
 	dispose(): void {
 		/* Nothing is spawned, so there is nothing to kill. */
-	}
-}
-
-/**
- * A decoration type that remembers whether it was disposed.
- *
- * Leaking decoration types is the classic bug in this pattern, and the only way
- * to see it is to hold the types the surface built. The real type is kept
- * inside, because `setDecorations` reads its key.
- */
-class RecordedType implements vscode.TextEditorDecorationType {
-	disposed = false;
-
-	constructor(
-		private readonly real: vscode.TextEditorDecorationType,
-		readonly options: vscode.DecorationRenderOptions,
-	) {}
-
-	get key(): string {
-		return this.real.key;
-	}
-
-	dispose(): void {
-		this.disposed = true;
-		this.real.dispose();
 	}
 }
 
@@ -120,7 +92,7 @@ function nextResultFor(
 }
 
 /** Settings that answer the same way for every document. */
-function fixedSettings(surface: TypstPreviewSurface, maxHeight = 200, codeLens = true) {
+function fixedSettings(surface: TypstPreviewSurface, maxHeight = 200, codeLens = true): TypstSurfaceSettings {
 	return {
 		surfaceOf: () => surface,
 		maxHeightOf: () => maxHeight,
@@ -130,9 +102,19 @@ function fixedSettings(surface: TypstPreviewSurface, maxHeight = 200, codeLens =
 
 const NO_CANCEL = new vscode.CancellationTokenSource().token;
 
+/** The markdown of a hover, which every assertion here reads. */
+function hoverText(hover: vscode.Hover | undefined): string {
+	assert.ok(hover, "expected a hover");
+	return (hover.contents[0] as vscode.MarkdownString).value;
+}
+
 suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should hold a surface setting inside the values it declares", () => {
-		assert.strictEqual(previewSurface("inline"), "inline");
+		assert.strictEqual(previewSurface("hover"), "hover");
+		assert.strictEqual(previewSurface("off"), "off");
+		// `inline` was a value once and cannot render without an editor API that
+		// VS Code does not expose, so a settings file still holding it falls back.
+		assert.strictEqual(previewSurface("inline"), "panel");
 		assert.strictEqual(previewSurface("everywhere"), "panel");
 		assert.strictEqual(previewSurface(undefined), "panel");
 		assert.strictEqual(previewMaxHeight(0), 20);
@@ -199,39 +181,52 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		controller.dispose();
 	});
 
-	test("Should show the compiled image in a hover without awaiting a compile", async () => {
+	test("Should compile and show the image in one hover", async () => {
+		// The hover used to answer with a compiling message and leave the image to
+		// the next hover, so every block took two passes to read. VS Code has no
+		// hover timeout: it shows its own loading message and updates the widget
+		// when a late result arrives, so the compile is awaited instead.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_RAW, NO_CANCEL);
+
+		assert.ok(
+			hoverText(shown).includes("data:image/svg+xml;base64,"),
+			`no image in the first hover: ${hoverText(shown)}`,
+		);
+		assert.strictEqual(compiler.sources.length, 1);
+		controller.dispose();
+	});
+
+	test("Should answer from the preview on screen without compiling again", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
 		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
 		const document = await quartoDocument(THREE_KINDS);
 
 		await nextResultFor(controller, document, INSIDE_PLAIN);
-		const shown = hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
-		assert.ok(shown, "the compiled block has a hover");
-		const markdown = shown.contents[0] as vscode.MarkdownString;
-		assert.ok(markdown.value.includes("data:image/svg+xml;base64,"), `the hover carries no image: ${markdown.value}`);
+		assert.ok(hoverText(shown).includes("data:image/svg+xml;base64,"));
+		assert.strictEqual(compiler.sources.length, 1, "the block on screen is not compiled a second time");
 		controller.dispose();
 	});
 
-	test("Should say a hover is compiling rather than waiting for the compile", async () => {
-		// VS Code cancels a hover that takes around 500 milliseconds, and the reader
-		// then sees nothing at all, so the answer is given before the image exists.
+	test("Should give up a hover the pointer has already left", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
 		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
 		const document = await quartoDocument(THREE_KINDS);
+		const cancelled = new vscode.CancellationTokenSource();
+		cancelled.cancel();
 
-		const shown = hover.provideHover(document, INSIDE_RAW, NO_CANCEL);
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, cancelled.token);
 
-		assert.ok(shown, "a block with no image yet still has a hover");
-		assert.ok(!(shown instanceof Promise), "the hover is answered without awaiting anything");
-		const markdown = shown.contents[0] as vscode.MarkdownString;
-		assert.ok(markdown.value.includes("Compiling"), `unexpected hover: ${markdown.value}`);
-
-		// The compile it started is what makes the next hover instant.
-		await new Promise((resolve) => setTimeout(resolve, 100));
-		assert.strictEqual(compiler.sources.length, 1);
+		assert.strictEqual(shown, undefined);
+		assert.strictEqual(compiler.sources.length, 0, "a hover nobody is waiting for compiles nothing");
 		controller.dispose();
 	});
 
@@ -241,95 +236,31 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
 		const document = await quartoDocument(THREE_KINDS);
 
-		await nextResultFor(controller, document, INSIDE_PLAIN);
-		const shown = hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
-		const markdown = (shown as vscode.Hover).contents[0] as vscode.MarkdownString;
-		assert.ok(!markdown.value.includes("base64"), "an oversized image is not encoded into the hover");
-		assert.ok(markdown.value.includes("panel"), `unexpected hover: ${markdown.value}`);
+		assert.ok(!hoverText(shown).includes("base64"), "an oversized image is not encoded into the hover");
+		assert.ok(hoverText(shown).includes("panel"), `unexpected hover: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 
 	test("Should offer no hover when the document asks for another surface", async () => {
-		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
 		const hover = new TypstPreviewHover(controller, fixedSettings("panel"));
 		const document = await quartoDocument(THREE_KINDS);
 
 		await nextResultFor(controller, document, INSIDE_PLAIN);
 
-		assert.strictEqual(hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL), undefined);
+		assert.strictEqual(await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL), undefined);
 		controller.dispose();
 	});
 
-	test("Should dispose the decoration type it replaces", async () => {
-		// `createTextEditorDecorationType` bakes the image into the type, so a new
-		// one is needed per image. Keeping the old one alive leaks a type per
-		// keystroke, and every leaked type still paints.
-		const types: RecordedType[] = [];
-		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
-		const controller = makeController(compiler);
-		const document = await quartoDocument(THREE_KINDS);
-		await vscode.window.showTextDocument(document);
-		const decoration = new TypstPreviewDecoration(controller, {
-			...fixedSettings("inline"),
-			createType: (options) => {
-				const recorded = new RecordedType(vscode.window.createTextEditorDecorationType(options), options);
-				types.push(recorded);
-				return recorded;
-			},
-		});
-
-		await nextResultFor(controller, document, INSIDE_PLAIN);
-		await nextResultFor(controller, document, INSIDE_RAW);
-
-		assert.strictEqual(types.length, 2, "one type per image");
-		assert.ok(types[0].disposed, "the type it replaced is disposed");
-		assert.ok(!types[1].disposed, "the type on screen is not");
-		decoration.dispose();
-		assert.ok(types[1].disposed, "disposing the surface takes the last type with it");
-		controller.dispose();
-	});
-
-	test("Should clamp a tall image to the height the setting allows", async () => {
-		const types: RecordedType[] = [];
-		const controller = makeController(new StubCompiler({ svg: TALL_SVG, stderr: "" }));
-		const document = await quartoDocument(THREE_KINDS);
-		await vscode.window.showTextDocument(document);
-		const decoration = new TypstPreviewDecoration(controller, {
-			...fixedSettings("inline", 50),
-			createType: (options) => {
-				const recorded = new RecordedType(vscode.window.createTextEditorDecorationType(options), options);
-				types.push(recorded);
-				return recorded;
-			},
-		});
-
-		await nextResultFor(controller, document, INSIDE_PLAIN);
-
-		assert.strictEqual(types.length, 1);
-		assert.strictEqual(types[0].options.after?.height, "50pt");
-		decoration.dispose();
-		controller.dispose();
-	});
-
-	test("Should render no decoration when the document asks for another surface", async () => {
-		const types: RecordedType[] = [];
+	test("Should offer no hover outside a Typst block", async () => {
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
 		const document = await quartoDocument(THREE_KINDS);
-		await vscode.window.showTextDocument(document);
-		const decoration = new TypstPreviewDecoration(controller, {
-			...fixedSettings("panel"),
-			createType: (options) => {
-				const recorded = new RecordedType(vscode.window.createTextEditorDecorationType(options), options);
-				types.push(recorded);
-				return recorded;
-			},
-		});
 
-		await nextResultFor(controller, document, INSIDE_PLAIN);
-
-		assert.deepStrictEqual(types, []);
-		decoration.dispose();
+		assert.strictEqual(await hover.provideHover(document, new vscode.Position(0, 0), NO_CANCEL), undefined);
 		controller.dispose();
 	});
 });

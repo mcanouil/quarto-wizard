@@ -23,9 +23,6 @@ import { maxHeightOf, surfaceOf, type TypstPreviewSurface, type TypstSurfaceSett
  */
 const IMAGE_LIMIT_BYTES = 256 * 1024;
 
-/** What is said while the compile that will answer the next hover is running. */
-const COMPILING = "Compiling the Typst block...";
-
 export class TypstPreviewHover implements vscode.HoverProvider {
 	private readonly surfaceOf: (document: vscode.TextDocument) => TypstPreviewSurface;
 	private readonly maxHeightOf: (document: vscode.TextDocument) => number;
@@ -39,18 +36,22 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 	}
 
 	/**
-	 * The image of the block under the pointer, without ever awaiting a compile.
+	 * The image of the block under the pointer.
 	 *
-	 * VS Code takes a hover away after about half a second, so awaiting a compile
-	 * would show the reader nothing at all. The compile is started and the answer
-	 * is given now: it lands in the cache, and the next hover over the same block
-	 * is instant.
+	 * The compile is awaited. The hover widget has no timeout of its own: it puts
+	 * up a loading message after three times the hover delay and updates itself
+	 * when a late result arrives, so waiting costs nothing and answering early
+	 * would leave every block needing a second hover to read.
+	 *
+	 * The block already on screen answers without waiting at all, and a block
+	 * compiled before answers from the cache, so only the first sight of a block
+	 * ever waits.
 	 */
-	provideHover(
+	async provideHover(
 		document: vscode.TextDocument,
 		position: vscode.Position,
 		token: vscode.CancellationToken,
-	): vscode.Hover | undefined {
+	): Promise<vscode.Hover | undefined> {
 		if (this.surfaceOf(document) !== "hover" || token.isCancellationRequested) {
 			return undefined;
 		}
@@ -67,12 +68,18 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 			shown !== undefined &&
 			shown.uri.toString() === document.uri.toString() &&
 			shown.blockIndex === blocks.indexOf(block);
-		if (isShown) {
-			return new vscode.Hover(this.describe(shown, document), range);
-		}
+		const result = isShown ? shown : await this.controller.preview(document, position);
 
-		this.controller.preview(document, position);
-		return new vscode.Hover(new vscode.MarkdownString(COMPILING), range);
+		// The pointer left while Typst ran, so the reader is looking somewhere else.
+		// The compile still finished and is held, which is what makes the hover they
+		// come back to instant.
+		if (result === undefined || token.isCancellationRequested) {
+			return undefined;
+		}
+		if (result.svg === undefined && result.error === undefined) {
+			return undefined;
+		}
+		return new vscode.Hover(this.describe(result, document), range);
 	}
 
 	/** One preview as markdown, which is an image, a failure, or both. */
@@ -97,9 +104,6 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 			// Written as text and not as markdown: a Typst message carries backticks,
 			// underscores and asterisks, and rendering them would change what it says.
 			markdown.appendText(result.error);
-		}
-		if (markdown.value.length === 0) {
-			markdown.appendText(COMPILING);
 		}
 		return markdown;
 	}
