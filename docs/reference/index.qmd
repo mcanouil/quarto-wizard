@@ -33,15 +33,18 @@ See [Configuration Reference](configuration.qmd) for all available options.
 
 ### Quick Reference
 
-| Setting                               | Default                                    | Description                                           |
-| ------------------------------------- | ------------------------------------------ | ----------------------------------------------------- |
-| `quartoWizard.ask.trustAuthors`       | `ask`                                      | Prompt before trusting authors.                       |
-| `quartoWizard.ask.confirmInstall`     | `ask`                                      | Prompt before installing.                             |
-| `quartoWizard.update.crossSource`     | `false`                                    | Allow registry lookup for GitHub-sourced extensions.  |
-| `quartoWizard.autoProjectDetection`   | `subFolders`                               | When to auto-detect Quarto projects.                  |
-| `quartoWizard.cache.ttlMinutes`       | `30`                                       | Cache duration in minutes.                            |
-| `quartoWizard.registry.url`           | [see docs](configuration.qmd#registry-url) | Custom registry URL.                                  |
-| `quartoWizard.lint.unknownAttributes` | `false`                                    | Flag inline attributes absent from extension schemas. |
+| Setting                                | Default                                    | Description                                           |
+| -------------------------------------- | ------------------------------------------ | ----------------------------------------------------- |
+| `quartoWizard.ask.trustAuthors`        | `ask`                                      | Prompt before trusting authors.                       |
+| `quartoWizard.ask.confirmInstall`      | `ask`                                      | Prompt before installing.                             |
+| `quartoWizard.update.crossSource`      | `false`                                    | Allow registry lookup for GitHub-sourced extensions.  |
+| `quartoWizard.autoProjectDetection`    | `subFolders`                               | When to auto-detect Quarto projects.                  |
+| `quartoWizard.cache.ttlMinutes`        | `30`                                       | Cache duration in minutes.                            |
+| `quartoWizard.registry.url`            | [see docs](configuration.qmd#registry-url) | Custom registry URL.                                  |
+| `quartoWizard.lint.unknownAttributes`  | `false`                                    | Flag inline attributes absent from extension schemas. |
+| `quartoWizard.typstPreview.foreground` | `auto`                                     | Text colour injected above a previewed block.         |
+| `quartoWizard.typstPreview.background` | `auto`                                     | Page colour injected above a previewed block.         |
+| `quartoWizard.typstPreview.timeoutMs`  | `20000`                                    | Time limit for one preview compile.                   |
 
 ## Extension Schema
 

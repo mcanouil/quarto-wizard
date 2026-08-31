@@ -2,23 +2,94 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
-import { buildPlainSource, buildRawSource } from "../../utils/typst/typstSource";
+import { buildPlainSource, buildRawSource, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
-import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary } from "./typstCompiler";
+import { DEFAULT_TIMEOUT_MS, TypstCompiler, invalidateTypstBinary, resolveTypstBinary } from "./typstCompiler";
 import { TypstPreviewPanel } from "./typstPreviewPanel";
-
-/**
- * The page setup every preview compiles with.
- *
- * A block is a fragment and not a document, so the page has to shrink to it.
- * The margin is not decoration: on a `width: auto` page the glyphs of the
- * outermost characters clip at the edge of the viewBox without it.
- */
-const PAGE_SETUP = "#set page(width: auto, height: auto, margin: 0.5em)";
 
 /** Read the source from stdin, write the image to stdout. */
 const ARGV = ["compile", "--format", "svg", "-", "-"];
+
+/**
+ * The active colour theme as the pure modules name it.
+ *
+ * Exported for its tests. `HighContrast` is the dark one and `HighContrastLight`
+ * the light one, which is the pairing a mapping written from the names alone
+ * gets wrong.
+ */
+export function themeKindOf(kind: vscode.ColorThemeKind): TypstThemeKind {
+	switch (kind) {
+		case vscode.ColorThemeKind.Light:
+			return "light";
+		case vscode.ColorThemeKind.HighContrast:
+			return "high-contrast";
+		case vscode.ColorThemeKind.HighContrastLight:
+			return "high-contrast-light";
+		default:
+			return "dark";
+	}
+}
+
+/** What the settings say about previewing one document. */
+interface TypstPreviewSettings {
+	foreground: string;
+	background: string;
+	timeoutMs: number;
+}
+
+/** The bounds `package.json` declares, repeated here because it cannot enforce them. */
+const MIN_TIMEOUT_MS = 1000;
+const MAX_TIMEOUT_MS = 300000;
+
+/**
+ * A usable colour setting, whatever the setting holds.
+ *
+ * Exported for its tests. `package.json` declares the type, and a hand-edited
+ * `settings.json` ignores it, so a value that is not a string reaches the
+ * header and is trimmed there.
+ */
+export function previewColour(value: unknown): string {
+	// The header trims the value, so a value that is not a string throws where
+	// nothing catches it, and the panel opens and then stays empty.
+	return typeof value === "string" ? value : "auto";
+}
+
+/**
+ * A usable compile timeout, whatever the setting holds.
+ *
+ * Exported for its tests. The bounds in `package.json` only guide the settings
+ * user interface, so a hand-edited `settings.json` reaches `setTimeout`
+ * unchecked, and `0` there fails every preview before Typst has read anything.
+ */
+export function previewTimeoutMs(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return DEFAULT_TIMEOUT_MS;
+	}
+	return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, value));
+}
+
+/**
+ * The settings in force for one document.
+ *
+ * They are resource scoped, so a multi-root workspace can hold a different
+ * answer per folder, and the document is what says which folder that is.
+ */
+function previewSettings(document: vscode.TextDocument): TypstPreviewSettings {
+	const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview", document.uri);
+	return {
+		foreground: previewColour(config.get("foreground")),
+		background: previewColour(config.get("background")),
+		timeoutMs: previewTimeoutMs(config.get<number>("timeoutMs", DEFAULT_TIMEOUT_MS)),
+	};
+}
+
+/** The text colour the settings and the active theme resolve to. */
+function resolvedForeground(document: vscode.TextDocument): string {
+	const settings = previewSettings(document);
+	return themeHeader(themeKindOf(vscode.window.activeColorTheme.kind), settings.foreground, settings.background)
+		.foreground;
+}
 
 /**
  * The one line a failure shows inside the panel.
@@ -86,6 +157,12 @@ function headerText(document: vscode.TextDocument, block: TypstBlock): string {
 export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	let panel: TypstPreviewPanel | undefined;
 	let compiler: TypstCompiler | undefined;
+	// The compiler reads its timeout once, and the setting is resource scoped, so
+	// the value it was built with is kept to know when it no longer applies.
+	let compilerTimeoutMs: number | undefined;
+	// The colour the image on screen was compiled with, so a theme change can
+	// tell a new colour from a theme that resolves to the same one.
+	let shownForeground: string | undefined;
 	// One message per session, so a machine that cannot run the preview at all
 	// does not report the same thing on every request.
 	let reportedUnavailable = false;
@@ -100,11 +177,30 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		panel = held;
 		held.onDidDispose(() => {
 			panel = undefined;
+			// There is no image on screen any more, so no colour describes one.
+			shownForeground = undefined;
 		});
 		return held;
 	};
 
 	const usePanel = (): TypstPreviewPanel => panel ?? holdPanel(TypstPreviewPanel.create(context.extensionUri));
+
+	/**
+	 * The compiler for these settings.
+	 *
+	 * The timeout is read once at construction and the setting is resource
+	 * scoped, so the compiler is replaced when the value it was built with no
+	 * longer applies. Nothing is lost by replacing it mid-run, because the next
+	 * compile supersedes whatever is running anyway.
+	 */
+	const useCompiler = (binary: string, timeoutMs: number): TypstCompiler => {
+		if (compiler === undefined || compilerTimeoutMs !== timeoutMs) {
+			compiler?.dispose();
+			compiler = new TypstCompiler(binary, { timeoutMs });
+			compilerTimeoutMs = timeoutMs;
+		}
+		return compiler;
+	};
 
 	/**
 	 * Put a message in front of the reader.
@@ -194,15 +290,19 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			reportUnavailable("The Typst preview needs the Typst binary that ships inside Quarto, and it was not found.");
 			return;
 		}
-		compiler ??= new TypstCompiler(binary);
 
+		const settings = previewSettings(document);
 		const surface = usePanel();
 		surface.reveal();
 
-		const assembled =
-			block.kind === "raw" ? buildRawSource(blocks, block, PAGE_SETUP) : buildPlainSource(block, PAGE_SETUP);
+		const { header, foreground } = themeHeader(
+			themeKindOf(vscode.window.activeColorTheme.kind),
+			settings.foreground,
+			settings.background,
+		);
+		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
 		try {
-			const result = await compiler.compile(assembled.source, ARGV, uncancelled.token);
+			const result = await useCompiler(binary, settings.timeoutMs).compile(assembled.source, ARGV, uncancelled.token);
 			if (result.svg === undefined) {
 				logMessage(`Typst preview: the compiler reported:\n${result.stderr}`, "debug");
 				surface.showError(errorText(result.stderr, assembled.injectedLines));
@@ -211,6 +311,10 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			if (result.stderr.length > 0) {
 				logMessage(`Typst preview: the compiler warned:\n${result.stderr}`, "debug");
 			}
+			// Recorded here and nowhere else. A failed compile leaves the last good
+			// image on screen, so the colour that image was compiled with is still
+			// the colour the reader is looking at.
+			shownForeground = foreground;
 			surface.show(result.svg, headerText(document, block));
 		} catch (error) {
 			if (error instanceof vscode.CancellationError) {
@@ -239,6 +343,21 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		}),
 	);
 
+	// The text colour is derived from the theme kind and baked into the image, so
+	// a theme change leaves the panel showing the wrong one. The panel background
+	// is a CSS variable and needs no help, and two themes of the same kind
+	// resolve to the same colour, so only a colour that actually changed is worth
+	// a compile.
+	context.subscriptions.push(
+		vscode.window.onDidChangeActiveColorTheme(() => {
+			const editor = vscode.window.activeTextEditor;
+			if (panel === undefined || editor === undefined || resolvedForeground(editor.document) === shownForeground) {
+				return;
+			}
+			void preview(false);
+		}),
+	);
+
 	// Installing or removing the Quarto extension changes where the binary is, or
 	// whether there is one at all.
 	context.subscriptions.push(
@@ -246,6 +365,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			invalidateTypstBinary();
 			compiler?.dispose();
 			compiler = undefined;
+			compilerTimeoutMs = undefined;
 			reportedUnavailable = false;
 		}),
 	);

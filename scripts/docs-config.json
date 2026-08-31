@@ -132,6 +132,11 @@
 			"id": "lint",
 			"title": "Linting",
 			"prefix": "quartoWizard.lint."
+		},
+		{
+			"id": "typst-preview",
+			"title": "Typst Preview",
+			"prefix": "quartoWizard.typstPreview."
 		}
 	],
 	"paths": {

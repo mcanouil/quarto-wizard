@@ -65,3 +65,93 @@ export function buildRawSource(blocks: TypstBlock[], target: TypstBlock, header:
 	const context = precedingRawBlocks(blocks, target).map((block) => block.body);
 	return assemble([header, ...context], target.body);
 }
+
+/**
+ * The colour themes the preview tells apart.
+ *
+ * This mirrors `vscode.ColorThemeKind`, which cannot be named here because this
+ * module imports no `vscode`. The provider maps one onto the other.
+ */
+export type TypstThemeKind = "light" | "dark" | "high-contrast" | "high-contrast-light";
+
+/** What the preview puts above a block body, and the colour it carries. */
+export interface TypstThemeHeader {
+	/** The `#set` lines, which is what the builders take. */
+	header: string;
+	/**
+	 * The text colour as it is written into the source, empty when none is.
+	 *
+	 * A theme change recompiles only when this value changes. It is the whole
+	 * theme dependence of the header, because the page never derives anything
+	 * from the theme kind.
+	 */
+	foreground: string;
+}
+
+/** The two values a colour setting can take that are not a colour. */
+const AUTO = "auto";
+const NONE = "none";
+
+/**
+ * The text colour each theme kind gets.
+ *
+ * The host cannot read a theme colour value, so these are the `editor.foreground`
+ * of the four default themes: Light Modern, Dark Modern, High Contrast and High
+ * Contrast Light. A theme of a given kind sits close enough to its default for
+ * the text to stay legible, and an author who disagrees sets the colour.
+ */
+const THEME_TEXT: Record<TypstThemeKind, string> = {
+	light: "#3b3b3b",
+	dark: "#cccccc",
+	"high-contrast": "#ffffff",
+	"high-contrast-light": "#292929",
+};
+
+/** A hex colour as Typst source, which has no bare hex literal. */
+function typstColour(hex: string): string {
+	return `rgb("${hex}")`;
+}
+
+/**
+ * One colour setting, with a blank value read as `auto`.
+ *
+ * Clearing the field in the settings user interface leaves an empty string,
+ * which is neither of the two words and is not an expression either. Written
+ * through it gives `fill: )`, and every compile then fails on the injected
+ * header rather than on the block the reader is looking at.
+ */
+function setting(value: string): string {
+	return value.trim() === "" ? AUTO : value.trim();
+}
+
+/**
+ * The header a plain or a raw block compiles under.
+ *
+ * The page setup is always written: a block is a fragment and not a document,
+ * so the page has to shrink to it, and on a `width: auto` page the glyphs of the
+ * outermost characters clip at the edge of the viewBox without the margin.
+ *
+ * The colours are a floor and not a ceiling. They are written above the body, so
+ * a later `#set` in the author's own code wins.
+ *
+ * @param kind - The active colour theme kind, which is all the host exposes.
+ * @param foreground - `auto` to derive from the kind, `none` to write no text
+ *   line at all, or any Typst colour expression, used as it is.
+ * @param background - `auto` for a transparent page, so the surface behind the
+ *   image supplies the background, `none` to write no page fill and leave Typst
+ *   its own, or any Typst colour expression, used as it is.
+ */
+export function themeHeader(kind: TypstThemeKind, foreground: string, background: string): TypstThemeHeader {
+	const text = setting(foreground);
+	// An `auto` page is transparent, so the surface behind the image supplies the
+	// background and follows a theme change with no recompile.
+	const page = setting(background);
+	const fill = page === NONE ? "" : `, fill: ${page === AUTO ? NONE : page}`;
+	const geometry = `#set page(width: auto, height: auto, margin: 0.5em${fill})`;
+
+	if (text === NONE) {
+		return { header: geometry, foreground: "" };
+	}
+	const colour = text === AUTO ? typstColour(THEME_TEXT[kind]) : text;
+	return { header: `${geometry}\n#set text(fill: ${colour})`, foreground: colour };
+}

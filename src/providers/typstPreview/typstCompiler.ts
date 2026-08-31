@@ -100,8 +100,13 @@ export function invalidateTypstBinary(): void {
 /** How long a killed child gets to exit before it is killed again, harder. */
 const KILL_GRACE_MS = 2000;
 
-/** How long one compile gets, which also covers a first-use package download. */
-const TIMEOUT_MS = 20000;
+/**
+ * How long one compile gets, which also covers a first-use package download.
+ *
+ * Exported so that the setting which overrides it reads its own default from
+ * here, rather than repeating the number a third time.
+ */
+export const DEFAULT_TIMEOUT_MS = 20000;
 
 /**
  * How much output one compile may produce before it is treated as a failure.
@@ -187,7 +192,7 @@ export class TypstCompiler {
 		}
 		this.stopCurrent();
 
-		const timeoutMs = this.options.timeoutMs ?? TIMEOUT_MS;
+		const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 		const maxOutputBytes = this.options.maxOutputBytes ?? MAX_OUTPUT_BYTES;
 
 		return new Promise<TypstCompileResult>((resolve, reject) => {

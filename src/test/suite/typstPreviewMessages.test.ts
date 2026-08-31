@@ -1,5 +1,7 @@
 import * as assert from "assert";
-import { errorText } from "../../providers/typstPreview";
+import * as vscode from "vscode";
+import { errorText, previewColour, previewTimeoutMs, themeKindOf } from "../../providers/typstPreview";
+import { DEFAULT_TIMEOUT_MS } from "../../providers/typstPreview/typstCompiler";
 
 /** One diagnostic as Typst writes it, on the two lines it uses. */
 function diagnostic(severity: string, message: string, line: number, column: number, file = "<stdin>"): string {
@@ -57,5 +59,60 @@ suite("Typst Preview Messages Test Suite", () => {
 		test("Should say so when the compiler reported nothing at all", () => {
 			assert.strictEqual(errorText("", 1), "Typst produced no image and reported nothing.");
 		});
+	});
+
+	suite("previewTimeoutMs", () => {
+		const cases: [string, unknown, number][] = [
+			["a value inside the bounds", 5000, 5000],
+			["zero, which would fail every compile at once", 0, 1000],
+			["a negative value", -1, 1000],
+			["a value above the upper bound", 999999, 300000],
+			["a value that is not a number at all", "soon", DEFAULT_TIMEOUT_MS],
+			["a value that is not finite", Number.NaN, DEFAULT_TIMEOUT_MS],
+		];
+
+		for (const [description, value, expected] of cases) {
+			test(`Should handle ${description}`, () => {
+				// The bounds in `package.json` only guide the settings user interface.
+				// A hand-edited `settings.json` reaches the compiler unchecked, and
+				// `setTimeout` accepts every one of these without complaining.
+				assert.strictEqual(previewTimeoutMs(value), expected);
+			});
+		}
+	});
+
+	suite("previewColour", () => {
+		const cases: [string, unknown, string][] = [
+			["a colour expression", 'rgb("#ff9800")', 'rgb("#ff9800")'],
+			["one of the two words", "none", "none"],
+			["a number, which has no trim", 5, "auto"],
+			["a null, which a cleared key can leave", null, "auto"],
+			["an object", { r: 1 }, "auto"],
+		];
+
+		for (const [description, value, expected] of cases) {
+			test(`Should handle ${description}`, () => {
+				// The header trims the value, so a value that is not a string throws
+				// where nothing catches it, and the panel opens and then stays empty.
+				assert.strictEqual(previewColour(value), expected);
+			});
+		}
+	});
+
+	suite("themeKindOf", () => {
+		const kinds: [vscode.ColorThemeKind, string][] = [
+			[vscode.ColorThemeKind.Light, "light"],
+			[vscode.ColorThemeKind.Dark, "dark"],
+			[vscode.ColorThemeKind.HighContrast, "high-contrast"],
+			[vscode.ColorThemeKind.HighContrastLight, "high-contrast-light"],
+		];
+
+		for (const [kind, expected] of kinds) {
+			test(`Should map ${expected} onto the pure kind`, () => {
+				// `HighContrast` is the dark one and `HighContrastLight` the light one,
+				// which is the pairing a mapping written from the names gets wrong.
+				assert.strictEqual(themeKindOf(kind), expected);
+			});
+		}
 	});
 });
