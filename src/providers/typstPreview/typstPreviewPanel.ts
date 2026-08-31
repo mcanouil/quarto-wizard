@@ -3,7 +3,8 @@ import { randomBytes } from "node:crypto";
 import { svgDataUri } from "../../utils/typst/typstSvg";
 
 /** What the host sends to the page. */
-type PreviewMessage = { type: "image"; uri: string; header: string } | { type: "error"; message: string };
+type PreviewMessage =
+	{ type: "image"; uri: string; header: string } | { type: "clear" } | { type: "error"; message: string };
 
 /**
  * The webview options, which a restored panel needs set again.
@@ -40,6 +41,10 @@ export class TypstPreviewPanel {
 	 */
 	private pendingImage: PreviewMessage | undefined;
 	private pendingError: PreviewMessage | undefined;
+	/** What the page is already showing, so an unchanged image is not sent again. */
+	private shownSvg: string | undefined;
+	private shownHeader: string | undefined;
+	private showingError = false;
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly onDidDisposeEmitter = new vscode.EventEmitter<void>();
 	private closed = false;
@@ -95,7 +100,35 @@ export class TypstPreviewPanel {
 
 	/** Show a compiled image, and describe where it came from. */
 	show(svg: string, header: string): void {
+		// The same image is shown again whenever a failure is reported over it, and
+		// encoding it costs a copy a third larger than the image and a message
+		// across the webview boundary. Neither buys anything when nothing moved.
+		//
+		// An error on screen is the exception. The page takes its error away when
+		// an image arrives, so a block that is broken and then restored compiles to
+		// the image already shown, and skipping that message would leave a failure
+		// reported over a block that compiles.
+		if (svg === this.shownSvg && header === this.shownHeader && !this.showingError) {
+			return;
+		}
+		this.shownSvg = svg;
+		this.shownHeader = header;
+		this.showingError = false;
 		this.post({ type: "image", uri: svgDataUri(svg), header });
+	}
+
+	/**
+	 * Take the image away, because none describes what is being looked at.
+	 *
+	 * This is the block under the cursor changing, or the document closing. An
+	 * error of one block over the image of another says nothing true about either
+	 * of them.
+	 */
+	clear(): void {
+		this.shownSvg = undefined;
+		this.shownHeader = undefined;
+		this.showingError = false;
+		this.post({ type: "clear" });
 	}
 
 	/**
@@ -106,6 +139,7 @@ export class TypstPreviewPanel {
 	 * keystroke.
 	 */
 	showError(message: string): void {
+		this.showingError = true;
 		this.post({ type: "error", message });
 	}
 
@@ -146,13 +180,14 @@ export class TypstPreviewPanel {
 			return;
 		}
 		if (!this.ready) {
-			if (message.type === "image") {
-				// A compile that succeeded answers the failure before it, so the
-				// queued error is stale and must not replay over the new image.
+			if (message.type === "error") {
+				this.pendingError = message;
+			} else {
+				// A compile that succeeded answers the failure before it, and so does
+				// moving to another block, so the queued error is stale and must not
+				// replay over what replaced it.
 				this.pendingImage = message;
 				this.pendingError = undefined;
-			} else {
-				this.pendingError = message;
 			}
 			return;
 		}
@@ -196,9 +231,19 @@ export class TypstPreviewPanel {
 			window.addEventListener("message", (event) => {
 				const message = event.data;
 				if (message.type === "image") {
-					image.src = message.uri;
+					// Only a different image is assigned. The same one is re-posted
+					// whenever the header changes, and re-assigning it makes the panel
+					// blink through a decode it does not need.
+					if (image.src !== message.uri) {
+						image.src = message.uri;
+					}
 					image.hidden = false;
 					header.textContent = message.header;
+					error.hidden = true;
+				} else if (message.type === "clear") {
+					image.hidden = true;
+					image.removeAttribute("src");
+					header.textContent = "";
 					error.hidden = true;
 				} else if (message.type === "error") {
 					error.textContent = message.message;

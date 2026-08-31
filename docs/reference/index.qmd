@@ -45,6 +45,7 @@ See [Configuration Reference](configuration.qmd) for all available options.
 | `quartoWizard.typstPreview.foreground` | `auto`                                     | Text colour injected above a previewed block.         |
 | `quartoWizard.typstPreview.background` | `auto`                                     | Page colour injected above a previewed block.         |
 | `quartoWizard.typstPreview.timeoutMs`  | `20000`                                    | Time limit for one preview compile.                   |
+| `quartoWizard.typstPreview.debounceMs` | `300`                                      | Delay between an edit and the next preview compile.   |
 
 ## Extension Schema
 
