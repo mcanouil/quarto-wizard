@@ -405,5 +405,9 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 		preamble,
 		code,
 	});
-	return { ...assembled, notes: cellNotes(options), bodyLineOffset, externalFile: options.file };
+	// Named only when the file actually replaced the body. An empty `file:` skips
+	// the read and compiles the body, and reporting it as the external file would
+	// print a position "of " with no name and drop the option run correction.
+	const externalFile = code === undefined ? undefined : options.file;
+	return { ...assembled, notes: cellNotes(options), bodyLineOffset, externalFile };
 }

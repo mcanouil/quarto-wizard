@@ -99,6 +99,16 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.ok(!built.source.includes("#circle()"));
 		});
 
+		test("Should compile the body and name no file when a file option is empty", async () => {
+			// An empty `file:` skips the read, so the body is what compiles. Reporting
+			// it as the external file would print a position with no name beside it
+			// and drop the option run correction that the body needs.
+			const built = await buildCell(cell(['file: ""']), context);
+			assert.ok(!isUnavailable(built));
+			assert.strictEqual(built.externalFile, undefined);
+			assert.ok(built.source.endsWith("#circle()"));
+		});
+
 		test("Should say so when a file option cannot be read", async () => {
 			// The filter renders nothing here. A blank image with no reason beside
 			// it would look like the block itself was empty.
@@ -241,11 +251,17 @@ suite("Typst Preview Context Test Suite", () => {
 		}
 
 		/** A temporary project, with `typst-render` installed when asked. */
-		function project(withExtension: boolean): string {
+		function project(withExtension: boolean | "ownerless"): string {
 			const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-gate-")));
 			fs.writeFileSync(path.join(directory, "_quarto.yml"), "project:\n  type: default\n");
 			if (withExtension) {
-				const manifest = path.join(directory, "_extensions", "mcanouil", "typst-render");
+				// An extension installed from a repository sits under its owner, and a
+				// copy placed by hand sits straight under `_extensions`. Discovery
+				// reports the second with no owner, and the gate has to accept both.
+				const manifest =
+					withExtension === "ownerless"
+						? path.join(directory, "_extensions", "typst-render")
+						: path.join(directory, "_extensions", "mcanouil", "typst-render");
 				fs.mkdirSync(manifest, { recursive: true });
 				fs.writeFileSync(
 					path.join(manifest, "_extension.yml"),
@@ -280,6 +296,18 @@ suite("Typst Preview Context Test Suite", () => {
 				// a diagnostic has to have it added back.
 				assert.strictEqual(request.bodyLineOffset, 1);
 				assert.ok(request.brandMode === "light" || request.brandMode === "dark");
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should assemble a cell when typst-render is installed with no owner", async () => {
+			const directory = project("ownerless");
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), CELL);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER);
+				assert.ok(!isUnavailable(request));
 			} finally {
 				fs.rmSync(directory, { recursive: true, force: true });
 			}

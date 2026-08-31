@@ -91,7 +91,10 @@ async function installedTypstRender(projectRoot: string | undefined): Promise<{ 
 	const installed = extensions.find(
 		(extension) =>
 			extension.id.name === TYPST_RENDER &&
-			(extension.id.owner === undefined || extension.id.owner === TYPST_RENDER_OWNER),
+			// Discovery reports `null` and not `undefined` for an ownerless install,
+			// so the loose comparison is deliberate: a copy placed by hand straight
+			// into `_extensions/typst-render/` has no owner directory to read.
+			(extension.id.owner == null || extension.id.owner === TYPST_RENDER_OWNER),
 	);
 	return installed === undefined ? undefined : { version: installed.manifest.version };
 }
