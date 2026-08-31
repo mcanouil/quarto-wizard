@@ -112,6 +112,17 @@ export function previewDebounceMs(value: unknown): number {
 	return boundedNumber(value, DEFAULT_DEBOUNCE_MS, MIN_DEBOUNCE_MS, MAX_DEBOUNCE_MS);
 }
 
+/**
+ * Whether a code lens is wanted, whatever the setting holds.
+ *
+ * Exported for its tests. A cast would let a hand-edited `settings.json` turn
+ * the lens back on with the string "false", which is truthy, and this module
+ * exists so that no setting is read without that check.
+ */
+export function previewCodeLens(value: unknown): boolean {
+	return typeof value === "boolean" ? value : true;
+}
+
 /** What a surface asks about the document it is rendering. */
 export interface TypstSurfaceSettings {
 	surface: TypstPreviewSurface;
@@ -131,7 +142,7 @@ export function surfaceSettings(document: vscode.TextDocument): TypstSurfaceSett
 	return {
 		surface: previewSurface(config.get("surface")),
 		maxHeight: previewMaxHeight(config.get<number>("maxHeight", DEFAULT_MAX_HEIGHT)),
-		codeLens: config.get<boolean>("codeLens", true),
+		codeLens: previewCodeLens(config.get("codeLens")),
 	};
 }
 

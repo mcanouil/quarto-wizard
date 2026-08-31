@@ -5,6 +5,7 @@ import type { TypstCompileResult } from "../../providers/typstPreview/typstCompi
 import { TypstPreviewCodeLens } from "../../providers/typstPreview/typstPreviewCodeLens";
 import { TypstPreviewHover } from "../../providers/typstPreview/typstPreviewHover";
 import {
+	previewCodeLens,
 	previewMaxHeight,
 	previewSurface,
 	type TypstPreviewSurface,
@@ -115,6 +116,11 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		assert.strictEqual(previewMaxHeight(0), 20);
 		assert.strictEqual(previewMaxHeight("tall"), 200);
 		assert.strictEqual(previewMaxHeight(500), 500);
+		// A hand-edited `settings.json` reaches this unchecked, and the string
+		// "false" is truthy, so a cast alone would turn the lens back on.
+		assert.strictEqual(previewCodeLens(false), false);
+		assert.strictEqual(previewCodeLens("false"), true);
+		assert.strictEqual(previewCodeLens(undefined), true);
 	});
 
 	test("Should offer one code lens per block, on its opening fence line", async () => {
@@ -216,6 +222,56 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 		assert.ok(hoverText(shown).includes("data:image/svg+xml;base64,"));
 		assert.strictEqual(compiler.sources.length, 1);
+		controller.dispose();
+	});
+
+	test("Should not serve a hover the image of the block before it was edited", async () => {
+		// With the hover as the only surface nothing recompiles in the background,
+		// so the held result outlives the text it describes. Matching on the block's
+		// place alone served the pre-edit image until the pointer visited another
+		// block. The compile cache still answers a source it has seen, so asking
+		// again costs nothing when the edit is undone.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = new TypstPreviewController({
+			hasSurface: () => false,
+			show: () => {
+				/* Nothing here asks a question. */
+			},
+			resolveBinary: () => Promise.resolve("/typst"),
+			createCompiler: () => compiler,
+		});
+		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const document = await quartoDocument(THREE_KINDS);
+
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		assert.strictEqual(compiler.sources.length, 1);
+
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(document.uri, new vscode.Position(3, 0), "#");
+		assert.ok(await vscode.workspace.applyEdit(edit));
+
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.strictEqual(compiler.sources.length, 2, "the edited block is compiled again");
+		assert.ok(compiler.sources[1].includes("##circle()"), `unexpected source: ${compiler.sources[1]}`);
+		controller.dispose();
+	});
+
+	test("Should carry a compile failure into the hover as plain text", async () => {
+		// A Typst message carries backticks, underscores and asterisks, so it is
+		// written as text: rendering it as markdown would change what it says.
+		const stderr = "error: unknown variable: _x_\n  ┌─ <stdin>:3:1\n  │\n";
+		const controller = makeController(new StubCompiler({ stderr }));
+		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("unknown"), `no diagnostic in the hover: ${hoverText(shown)}`);
+		// Escaped rather than rendered: `_x_` would otherwise reach the reader as
+		// italic `x`, which is not the name Typst could not find.
+		assert.ok(hoverText(shown).includes("\\_x\\_"), `the message was rendered as markdown: ${hoverText(shown)}`);
+		assert.ok(!hoverText(shown).includes("base64"), "a failed compile carries no image");
 		controller.dispose();
 	});
 

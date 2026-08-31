@@ -58,12 +58,12 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		// The whole block, so the hover stays up while the pointer moves inside it.
 		const range = new vscode.Range(document.positionAt(block.fenceStart), document.positionAt(block.bodyEnd));
 
-		const shown = this.controller.current();
-		const isShown =
-			shown !== undefined &&
-			shown.uri.toString() === document.uri.toString() &&
-			shown.blockIndex === blocks.indexOf(block);
-		const result = isShown ? shown : await this.controller.preview(document, position);
+		const blockIndex = blocks.indexOf(block);
+		// The version is part of the identity, not decoration. Nothing recompiles in
+		// the background while the hover is the only surface, so a result that
+		// matches on place alone can describe text that has since been edited.
+		const held = this.showing(document, blockIndex);
+		const result = held ?? (await this.controller.preview(document, position)) ?? this.showing(document, blockIndex);
 
 		// The pointer left while Typst ran, so the reader is looking somewhere else.
 		// The compile still finished and is held, which is what makes the hover they
@@ -75,6 +75,25 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 			return undefined;
 		}
 		return new vscode.Hover(this.describe(result, settings.maxHeight), range);
+	}
+
+	/**
+	 * The held preview, when it describes this block of this document version.
+	 *
+	 * Asked twice: before compiling, because the block on screen needs no compile,
+	 * and after, because a theme change or a watched file can supersede the
+	 * hover's own request while the pointer still rests. Without the second ask
+	 * that race renders no hover at all, and VS Code does not come back to a
+	 * provider until the pointer moves.
+	 */
+	private showing(document: vscode.TextDocument, blockIndex: number): TypstPreviewResult | undefined {
+		const shown = this.controller.current();
+		return shown !== undefined &&
+			shown.uri.toString() === document.uri.toString() &&
+			shown.blockIndex === blockIndex &&
+			shown.version === document.version
+			? shown
+			: undefined;
 	}
 
 	/** One preview as markdown, which is an image, a failure, or both. */

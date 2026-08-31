@@ -1,5 +1,5 @@
 /** The intrinsic size of a compiled image, in points. */
-export interface SvgSize {
+interface SvgSize {
 	width: number;
 	height: number;
 }
@@ -35,12 +35,6 @@ function rootSize(root: string): SvgSize | undefined {
 	const width = rootLength(root, "width");
 	const height = rootLength(root, "height");
 	return width === undefined || height === undefined ? undefined : { width, height };
-}
-
-/** The intrinsic size the root element declares, or undefined when it has none. */
-export function svgSize(svg: string): SvgSize | undefined {
-	const root = ROOT_ELEMENT.exec(svg);
-	return root === null ? undefined : rootSize(root[0]);
 }
 
 /**

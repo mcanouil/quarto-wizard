@@ -85,6 +85,15 @@ export interface TypstPreviewResult {
 	block: TypstBlock;
 	/** Where that block sits in the document, which is its identity across an edit. */
 	blockIndex: number;
+	/**
+	 * The document version this describes.
+	 *
+	 * A surface that reads the held result rather than compiling has to know that
+	 * the text has not moved under it. With the hover as the only surface nothing
+	 * recompiles in the background, so the result outlives the text it describes,
+	 * and the place of the block alone cannot say that.
+	 */
+	version: number;
 	/** The image on screen, which is the last one this block compiled to. */
 	svg?: string;
 	/** What the surface says about the block beside the image. */
@@ -603,6 +612,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			uri: document.uri,
 			block: request.block,
 			blockIndex: request.blockIndex,
+			version: document.version,
 			svg: compiled.svg ?? (sameBlock ? this.result?.svg : undefined),
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
