@@ -54,10 +54,16 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			panel?.clear();
 			return;
 		}
-		const surface = usePanel();
+		// Only a request the user made opens a panel. An edit renders into the one
+		// already there, and never builds one, so a result that outlived the panel
+		// it was compiled for does not reopen it.
+		const surface = asked ? usePanel() : panel;
+		if (surface === undefined) {
+			return;
+		}
 		if (asked) {
-			// Only a request the user made brings the panel forward. Doing it on an
-			// edit would pull the tab back over whatever they moved to.
+			// The user asked, so the panel comes forward. Doing it on an edit would
+			// pull the tab back over whatever they moved to.
 			surface.reveal();
 		}
 		if (result.svg === undefined) {

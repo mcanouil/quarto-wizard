@@ -358,6 +358,8 @@ export class TypstPreviewController implements vscode.Disposable {
 	private readonly selectionDebounce: DebouncedFunction<() => void>;
 	private readonly contextDebounce: DebouncedFunction<() => void>;
 	private documentDebounce: DebouncedFunction<() => void> | undefined;
+	/** The delay the document debouncer was built with, which the setting can move. */
+	private documentDelayMs: number | undefined;
 	private compiler: TypstCompilerLike | undefined;
 	/** What the compiler was built for, so it is replaced when that changes. */
 	private compilerKey: string | undefined;
@@ -391,7 +393,7 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Preview the block under a position, because the user asked for it. */
 	request(document: vscode.TextDocument, position: vscode.Position): void {
-		void this.run(document, position, true);
+		this.start(document, position, true);
 	}
 
 	/** Preview the block under the cursor again, because something changed. */
@@ -400,7 +402,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		if (editor === undefined || !isRelevantDocument(editor.document)) {
 			return;
 		}
-		void this.run(editor.document, editor.selection.active, false);
+		this.start(editor.document, editor.selection.active, false);
 	}
 
 	/**
@@ -427,7 +429,25 @@ export class TypstPreviewController implements vscode.Disposable {
 		if (block === undefined) {
 			return;
 		}
-		void this.run(document, document.positionAt(block.fenceStart), false);
+		this.start(document, document.positionAt(block.fenceStart), false);
+	}
+
+	/**
+	 * Start one preview, and let nothing it does escape as a rejection.
+	 *
+	 * No caller awaits a preview, so a throw on the way to the compiler would be
+	 * an unhandled rejection: no log line, no message, and a preview that looks
+	 * inert. A metadata file or a brand file that cannot be read is exactly that
+	 * case, because the context cache rethrows rather than remembering a failure.
+	 */
+	private start(document: vscode.TextDocument, position: vscode.Position, asked: boolean): void {
+		void this.run(document, position, asked).catch((error: unknown) => {
+			const message = getErrorMessage(error);
+			logMessage(`Typst preview: ${message}`, "error");
+			if (asked) {
+				this.options.show(message);
+			}
+		});
 	}
 
 	dispose(): void {
@@ -469,6 +489,12 @@ export class TypstPreviewController implements vscode.Disposable {
 			this.reportUnavailable("The Typst preview needs a trusted workspace, because it runs the Typst compiler.");
 			return;
 		}
+
+		// Raised by the first request and not by the first result. A cell in a
+		// project that has not installed the extension never produces a result, and
+		// the manifest watcher is what lets it start working once the extension is
+		// installed, so waiting for a result would keep that case broken for good.
+		this.watchFiles();
 
 		const settings = previewSettings(document);
 		// The header applies to a plain block and a raw block. A cell keeps the
@@ -549,6 +575,13 @@ export class TypstPreviewController implements vscode.Disposable {
 		asked: boolean,
 		failure?: string,
 	): void {
+		if (!asked && !this.options.hasSurface()) {
+			// A compile runs for up to the timeout and the reader can close the last
+			// surface meanwhile. The result is nobody's, and publishing it would have
+			// a surface build itself to render it, which reopens what was just closed.
+			return;
+		}
+
 		if (compiled.svg === undefined) {
 			if (failure === undefined) {
 				logMessage(`Typst preview: the compiler reported:\n${compiled.stderr}`, "debug");
@@ -572,7 +605,6 @@ export class TypstPreviewController implements vscode.Disposable {
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
-		this.watchFiles();
 		this.resultEmitter.fire({ result: this.result, asked });
 	}
 
@@ -656,11 +688,15 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Rebuild the preview after an edit, at the delay the settings ask for. */
 	private scheduleDocument(document: vscode.TextDocument): void {
-		// The delay is fixed when a debouncer is built, so it is read once and kept
-		// rather than on every keystroke. A configuration change forgets it, which
-		// is the only event that can move it.
-		if (this.documentDebounce === undefined) {
-			this.documentDebounce = debounce(() => this.refresh(), documentDelayOf(document));
+		// The delay is fixed when a debouncer is built and the setting is resource
+		// scoped, so the debouncer is rebuilt when the document being edited asks
+		// for a different one. A multi-root workspace can hold one delay per folder,
+		// and keeping the first would give the second folder the wrong one.
+		const delayMs = documentDelayOf(document);
+		if (this.documentDebounce === undefined || this.documentDelayMs !== delayMs) {
+			this.documentDebounce?.cancel();
+			this.documentDelayMs = delayMs;
+			this.documentDebounce = debounce(() => this.refresh(), delayMs);
 		}
 		this.documentDebounce();
 	}
@@ -669,6 +705,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	private forgetDocumentDelay(): void {
 		this.documentDebounce?.cancel();
 		this.documentDebounce = undefined;
+		this.documentDelayMs = undefined;
 	}
 
 	private wireEvents(): void {

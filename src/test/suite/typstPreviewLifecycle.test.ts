@@ -1,9 +1,13 @@
 import * as assert from "assert";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import {
 	TypstPreviewController,
 	type TypstCompilerLike,
 	type TypstPreviewResult,
+	type TypstPreviewUpdate,
 } from "../../providers/typstPreview/typstPreviewController";
 import type { TypstCompileResult } from "../../providers/typstPreview/typstCompiler";
 
@@ -49,12 +53,28 @@ class StubCompiler implements TypstCompilerLike {
 	}
 }
 
+/** The text of a document holding one plain Typst block, which needs nothing from disk. */
+function plainText(body = "#circle()"): string {
+	return `# Title\n\n\`\`\`typst\n${body}\n\`\`\`\n`;
+}
+
 /** A document holding one plain Typst block, which needs nothing from disk. */
 async function plainDocument(body = "#circle()"): Promise<vscode.TextDocument> {
-	return vscode.workspace.openTextDocument({
-		language: "quarto",
-		content: `# Title\n\n\`\`\`typst\n${body}\n\`\`\`\n`,
-	});
+	return vscode.workspace.openTextDocument({ language: "quarto", content: plainText(body) });
+}
+
+/**
+ * The same document, written to disk as a `.qmd`.
+ *
+ * An untitled document is neither named `.qmd` nor given the `quarto` language,
+ * which is contributed by another extension, so the cursor-driven path does not
+ * recognise it as a document this feature previews.
+ */
+async function plainFile(body = "#circle()"): Promise<vscode.TextDocument> {
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-"));
+	const file = path.join(directory, "doc.qmd");
+	fs.writeFileSync(file, plainText(body));
+	return vscode.workspace.openTextDocument(vscode.Uri.file(file));
 }
 
 /** The position inside the one block of `plainDocument`. */
@@ -309,6 +329,55 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		assert.strictEqual(result?.blockIndex, 0);
 		assert.strictEqual(compiler.sources.length, 2);
 		assert.ok(compiler.sources[1].includes("##circle()"), `unexpected source: ${compiler.sources[1]}`);
+		controller.dispose();
+	});
+
+	test("Should drop a background result whose surface closed while it compiled", async () => {
+		// A compile runs for up to the timeout and the reader can close the panel
+		// meanwhile. Publishing anyway would have the surface build itself again,
+		// which reopens a panel the reader just closed.
+		const compiler = new StubCompiler();
+		let showing = true;
+		const { controller } = makeController(compiler, { hasSurface: () => showing });
+		const document = await plainFile();
+
+		// Driven through the cursor, which is what a background request follows.
+		await vscode.window.showTextDocument(document, { selection: new vscode.Range(INSIDE_BLOCK, INSIDE_BLOCK) });
+		await settle();
+		controller.refresh();
+		await settle();
+		assert.strictEqual(compiler.sources.length, 1);
+
+		const published: TypstPreviewUpdate[] = [];
+		const subscription = controller.onDidChangeResult((update) => published.push(update));
+		showing = false;
+		compiler.answer(0, { svg: SVG, stderr: "" });
+		await settle();
+
+		assert.deepStrictEqual(published, []);
+		subscription.dispose();
+		controller.dispose();
+	});
+
+	test("Should report a failure to read the context rather than rejecting", async () => {
+		// Every caller starts a request and does not await it, so a throw on the way
+		// to the compiler would be an unhandled rejection: no log line, no message,
+		// and a preview that looks inert.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const messages: string[] = [];
+		const controller = new TypstPreviewController({
+			hasSurface: () => true,
+			show: (message) => messages.push(message),
+			resolveBinary: () => Promise.reject(new Error("the probe failed")),
+			createCompiler: () => compiler,
+		});
+		const document = await plainDocument();
+
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+
+		assert.deepStrictEqual(messages, ["the probe failed"]);
+		assert.strictEqual(compiler.sources.length, 0);
 		controller.dispose();
 	});
 
