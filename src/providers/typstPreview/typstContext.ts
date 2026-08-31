@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import * as semver from "semver";
-import type { SchemaCache } from "@quarto-wizard/schema";
 import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
 import {
 	buildPlainSource,
@@ -10,7 +9,7 @@ import {
 	type Unavailable,
 } from "../../utils/typst/typstSource";
 import { TYPST_RENDER, documentBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
-import { getWorkspaceSchemaIndex } from "../../utils/workspaceSchemaIndex";
+import { getInstalledExtensionsCached } from "../../utils/installedExtensionsCache";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
 import { logMessage } from "../../utils/log";
 import { readBrand, readMetadataChain, readSourceText, resolveQuartoPath, type MetadataChain } from "./typstMetadata";
@@ -35,8 +34,8 @@ import { readBrand, readMetadataChain, readSourceText, resolveQuartoPath, type M
  */
 export const PINNED_TYPST_RENDER_VERSION = "0.21.0";
 
-/** The full identifier the schema index registers beside the short name. */
-const TYPST_RENDER_ID = `mcanouil/${TYPST_RENDER}`;
+/** The owner the extension is published under, beside its bare name. */
+const TYPST_RENDER_OWNER = "mcanouil";
 
 /** Everything the compiler and the panel need for one block. */
 export interface CompileRequest {
@@ -48,6 +47,15 @@ export interface CompileRequest {
 	injectedLines: number;
 	/** The brand mode a cell resolved with, absent for the other two kinds. */
 	brandMode?: TypstBrandMode;
+	/**
+	 * How many lines of the block body sit above the first compiled line.
+	 *
+	 * Zero for a plain block and a raw block, whose whole body is compiled. A
+	 * cell compiles its code and not its body, so its leading `//|` run counts.
+	 */
+	bodyLineOffset: number;
+	/** The `file:` whose contents replaced a cell body, when one did. */
+	externalFile?: string;
 	/** What the panel should say about the block beside the image. */
 	notes: string[];
 }
@@ -65,21 +73,27 @@ function themeBrandMode(): TypstBrandMode {
  * in a subfolder keeps its own `_extensions/`, and asking the folder would miss
  * it and report a cell as unpreviewable in a project that installed the
  * extension.
+ *
+ * The question is whether the extension is installed, so the installed
+ * extensions are what is read. The workspace schema index answers a narrower
+ * question: it holds only extensions whose `_schema.yml` parsed, so an install
+ * with a missing or broken schema file would read as absent and the preview
+ * would tell a user to install something they already have.
+ *
+ * The owner is matched when the manifest carries one, because an extension
+ * installed from a repository records it and one copied by hand may not.
  */
-async function installedTypstRender(
-	projectRoot: string | undefined,
-	schemaCache: SchemaCache,
-): Promise<{ version?: string } | undefined> {
+async function installedTypstRender(projectRoot: string | undefined): Promise<{ version?: string } | undefined> {
 	if (projectRoot === undefined) {
 		return undefined;
 	}
-	const index = await getWorkspaceSchemaIndex(projectRoot, schemaCache);
-	// The index registers the full identifier and the short name, and a project
-	// can have installed the extension under either.
-	if (index.schemaMap.get(TYPST_RENDER_ID) === undefined && index.schemaMap.get(TYPST_RENDER) === undefined) {
-		return undefined;
-	}
-	return { version: (index.extMap.get(TYPST_RENDER_ID) ?? index.extMap.get(TYPST_RENDER))?.manifest.version };
+	const extensions = await getInstalledExtensionsCached(projectRoot);
+	const installed = extensions.find(
+		(extension) =>
+			extension.id.name === TYPST_RENDER &&
+			(extension.id.owner === undefined || extension.id.owner === TYPST_RENDER_OWNER),
+	);
+	return installed === undefined ? undefined : { version: installed.manifest.version };
 }
 
 /**
@@ -123,7 +137,6 @@ export async function buildCompileRequest(
 	document: vscode.TextDocument,
 	position: vscode.Position,
 	header: string,
-	schemaCache: SchemaCache,
 ): Promise<CompileRequest | Unavailable> {
 	const text = document.getText();
 	// The whole list is kept, because a raw block compiles with the raw blocks
@@ -141,14 +154,14 @@ export async function buildCompileRequest(
 		// imports, show rules and set directives the preview cannot apply. Saying so
 		// beside the image is what stops a divergence being read as a defect.
 		const notes = block.kind === "raw" ? ["the document template is not applied to a raw passthrough"] : [];
-		return { block, ...assembled, notes };
+		return { block, ...assembled, notes, bodyLineOffset: 0 };
 	}
 
 	// The gate comes before the metadata chain, because it needs only the project
 	// root and it rejects every cell in a project that never installed the
 	// extension. Reading the chain first would spend the whole walk to say no.
 	const projectRoot = await findOwningProjectRoot(document.uri);
-	const installed = await installedTypstRender(projectRoot, schemaCache);
+	const installed = await installedTypstRender(projectRoot);
 	if (installed === undefined) {
 		// Never previewed with guessed options. A cell compiled without the
 		// extension's own defaults would show an image the render does not

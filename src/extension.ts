@@ -166,7 +166,7 @@ export function activate(context: vscode.ExtensionContext) {
 	registerSnippetCompletionProvider(context, snippetCache);
 
 	// Register the Typst block preview for Quarto documents
-	registerTypstPreview(context, schemaCache);
+	registerTypstPreview(context);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(

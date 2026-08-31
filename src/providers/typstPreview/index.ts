@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
-import type { SchemaCache } from "@quarto-wizard/schema";
 import { isUnavailable, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
@@ -11,6 +10,16 @@ import { TypstPreviewPanel } from "./typstPreviewPanel";
 
 /** Read the source from stdin, write the image to stdout. */
 const ARGV = ["compile", "--format", "svg", "-", "-"];
+
+/** Where the lines of a compile live, so a diagnostic can be placed. */
+export interface ErrorPlace {
+	/** How many lines sit above the compiled code in the assembled source. */
+	injectedLines: number;
+	/** How many lines of the block body sit above the first compiled line. */
+	bodyLineOffset?: number;
+	/** The file whose contents were compiled instead of the block body. */
+	externalFile?: string;
+}
 
 /**
  * The active colour theme as the pure modules name it.
@@ -98,8 +107,8 @@ function resolvedForeground(document: vscode.TextDocument): string {
  * Exported for its tests. The choice of which diagnostic to show carries most
  * of the behaviour, and it is not reachable through the command.
  */
-export function errorText(stderr: string, injectedLines: number): string {
-	const diagnostics = parseTypstStderr(stderr, injectedLines);
+export function errorText(stderr: string, place: ErrorPlace): string {
+	const diagnostics = parseTypstStderr(stderr, place.injectedLines);
 	// A warning can sit above the error that stopped the compile, so the first
 	// diagnostic is not the one to show. Headlining a failure as a warning
 	// misstates why there is no image.
@@ -123,10 +132,19 @@ export function errorText(stderr: string, injectedLines: number): string {
 			// do with the failure.
 			return `${mapped.severity}: ${mapped.message}`;
 		}
-		// The line is counted inside the block, while the panel header counts
-		// document lines, so it says which of the two it means.
 		const column = (mapped.column ?? 0) + 1;
-		return `${mapped.severity} at line ${mapped.line + 1}, column ${column} of the block: ${mapped.message}`;
+		if (place.externalFile !== undefined) {
+			// The body was replaced by that file, so no line of the block corresponds
+			// to the failure at all. Naming the block would send the reader to a line
+			// that has nothing to do with it.
+			return `${mapped.severity} at line ${mapped.line + 1}, column ${column} of ${place.externalFile}: ${mapped.message}`;
+		}
+		// The line is counted inside the block, while the panel header counts
+		// document lines, so it says which of the two it means. A cell compiles its
+		// code and not its body, so the leading option run is added back: without it
+		// every position in a cell with options is short by the length of that run.
+		const line = mapped.line + (place.bodyLineOffset ?? 0) + 1;
+		return `${mapped.severity} at line ${line}, column ${column} of the block: ${mapped.message}`;
 	}
 
 	// Nothing mapped, which means every diagnostic pointed at another file, such
@@ -160,7 +178,7 @@ function headerText(document: vscode.TextDocument, request: CompileRequest): str
  * binary. Neither condition is worth a prompt: the extension does many other
  * things, and a user who never writes a Typst block should never hear about it.
  */
-export function registerTypstPreview(context: vscode.ExtensionContext, schemaCache: SchemaCache): void {
+export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	let panel: TypstPreviewPanel | undefined;
 	let compiler: TypstCompiler | undefined;
 	// The compiler reads its timeout once, and the setting is resource scoped, so
@@ -282,7 +300,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext, schemaCac
 			settings.foreground,
 			settings.background,
 		);
-		const request = await buildCompileRequest(document, editor.selection.active, header, schemaCache);
+		const request = await buildCompileRequest(document, editor.selection.active, header);
 		if (isUnavailable(request)) {
 			explain(request.unavailable);
 			return;
@@ -301,7 +319,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext, schemaCac
 			const result = await useCompiler(binary, settings.timeoutMs).compile(request.source, ARGV, uncancelled.token);
 			if (result.svg === undefined) {
 				logMessage(`Typst preview: the compiler reported:\n${result.stderr}`, "debug");
-				surface.showError(errorText(result.stderr, request.injectedLines));
+				surface.showError(errorText(result.stderr, request));
 				return;
 			}
 			if (result.stderr.length > 0) {

@@ -7,7 +7,6 @@ import { findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks"
 import { EMPTY_BRAND, brandColourReader, splitBrand } from "../../utils/typst/typstBrand";
 import { mergeGlobalConfigs, resolveTypstOptions, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
 import { buildCell, cellNotes, isUnavailable, resolvePreamble } from "../../utils/typst/typstSource";
-import type { SchemaCache } from "@quarto-wizard/schema";
 import {
 	buildCompileRequest,
 	isNewerThanPinned,
@@ -15,6 +14,7 @@ import {
 } from "../../providers/typstPreview/typstContext";
 import { readBrand, readMetadataChain, resolveQuartoPath } from "../../providers/typstPreview/typstMetadata";
 import { invalidateProjectRoots, setProjectRoots } from "../../utils/projectRootsRegistry";
+import { invalidateInstalledExtensionsCache } from "../../utils/installedExtensionsCache";
 import { parseFrontMatter } from "../../utils/yamlPosition";
 import { makeFolder, makeRoot } from "./projectFixtures";
 
@@ -235,33 +235,96 @@ suite("Typst Preview Context Test Suite", () => {
 		/** The page setup a preview injects above a plain block and a raw block. */
 		const HEADER = "#set page(width: auto, height: auto, margin: 0.5em)";
 
-		/**
-		 * A cache the cell path would read and the other two never touch.
-		 *
-		 * The paths under test here never reach the schema gate, so a stub is what
-		 * says that rather than a real cache quietly making it look reachable.
-		 */
-		const NO_SCHEMA_CACHE = {
-			get: () => {
-				throw new Error("the schema cache is only for a cell");
-			},
-		} as unknown as SchemaCache;
-
 		/** An open document holding the given text. */
 		async function documentOf(text: string): Promise<vscode.TextDocument> {
 			return vscode.workspace.openTextDocument({ language: "quarto", content: text });
 		}
 
+		/** A temporary project, with `typst-render` installed when asked. */
+		function project(withExtension: boolean): string {
+			const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-gate-")));
+			fs.writeFileSync(path.join(directory, "_quarto.yml"), "project:\n  type: default\n");
+			if (withExtension) {
+				const manifest = path.join(directory, "_extensions", "mcanouil", "typst-render");
+				fs.mkdirSync(manifest, { recursive: true });
+				fs.writeFileSync(
+					path.join(manifest, "_extension.yml"),
+					"title: Typst Render\nauthor: Mickael Canouil\nversion: 0.21.0\ncontributes:\n  filters:\n    - typst-render.lua\n",
+				);
+			}
+			setProjectRoots([makeRoot(makeFolder("typst-gate", directory))]);
+			return directory;
+		}
+
+		/** The one cell document every gate test previews. */
+		const CELL = "```{typst}\n//| margin: 2mm\n#circle()\n```\n";
+
+		teardown(() => {
+			invalidateProjectRoots();
+			invalidateInstalledExtensionsCache();
+		});
+
+		test("Should assemble a cell when the project has typst-render installed", async () => {
+			const directory = project(true);
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), CELL);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER);
+				assert.ok(!isUnavailable(request));
+				// The filter's own contract, and not the preview's theme header: the
+				// bindings and the page directive come from the options in force.
+				assert.ok(request.source.includes("#let _typst_render_background = none"));
+				assert.ok(request.source.includes("margin: 2mm"));
+				assert.ok(!request.source.includes(HEADER));
+				// The option run is in the document but not in the compiled source, so
+				// a diagnostic has to have it added back.
+				assert.strictEqual(request.bodyLineOffset, 1);
+				assert.ok(request.brandMode === "light" || request.brandMode === "dark");
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should refuse a cell when the project has no typst-render", async () => {
+			// Never previewed with guessed options: an image compiled without the
+			// extension's own defaults is not the image the render produces.
+			const directory = project(false);
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), CELL);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER);
+				assert.ok(isUnavailable(request));
+				assert.ok(request.unavailable.includes("typst-render"));
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should still preview a plain block in a project with no typst-render", async () => {
+			// The gate is the cell's alone. A plain block is never executed by Quarto,
+			// so the extension has nothing to do with it.
+			const directory = project(false);
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), "```typst\n#circle()\n```\n");
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER);
+				assert.ok(!isUnavailable(request));
+				assert.strictEqual(request.source, `${HEADER}\n#circle()\n`);
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
 		test("Should say so when the cursor is in no block", async () => {
 			const document = await documentOf("Prose only.\n");
-			const request = await buildCompileRequest(document, new vscode.Position(0, 0), HEADER, NO_SCHEMA_CACHE);
+			const request = await buildCompileRequest(document, new vscode.Position(0, 0), HEADER);
 			assert.ok(isUnavailable(request));
 			assert.ok(request.unavailable.includes("cursor"));
 		});
 
 		test("Should assemble a plain block under the preview's own header", async () => {
 			const document = await documentOf("```typst\n#circle()\n```\n");
-			const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, NO_SCHEMA_CACHE);
+			const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER);
 			assert.ok(!isUnavailable(request));
 			assert.strictEqual(request.source, `${HEADER}\n#circle()\n`);
 			assert.strictEqual(request.block.kind, "plain");
@@ -274,7 +337,7 @@ suite("Typst Preview Context Test Suite", () => {
 		test("Should assemble a raw block under the raw blocks above it", async () => {
 			const text = "```{=typst}\n#let a = red\n```\n\n```{=typst}\n#text(fill: a)[Hi]\n```\n";
 			const document = await documentOf(text);
-			const request = await buildCompileRequest(document, new vscode.Position(5, 0), HEADER, NO_SCHEMA_CACHE);
+			const request = await buildCompileRequest(document, new vscode.Position(5, 0), HEADER);
 			assert.ok(!isUnavailable(request));
 			assert.strictEqual(request.source, `${HEADER}\n#let a = red\n#text(fill: a)[Hi]\n`);
 			assert.strictEqual(request.injectedLines, 2);

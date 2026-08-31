@@ -313,6 +313,23 @@ export function isUnavailable<T extends object>(result: T | Unavailable): result
 export interface AssembledCell extends AssembledSource {
 	/** What the panel should say about the block beside the image. */
 	notes: string[];
+	/**
+	 * How many lines of the block body sit above the first compiled line.
+	 *
+	 * A cell compiles its `code` and not its `body`, so the leading `//|` run is
+	 * in the document but not in the source Typst reads. A diagnostic that lost
+	 * only the injected lines would name a line of the block that is short by the
+	 * length of that run.
+	 */
+	bodyLineOffset: number;
+	/**
+	 * The `file:` whose contents replaced the body, when one did.
+	 *
+	 * A diagnostic then has no line of the block at all: it names a position in
+	 * that file, and reporting it against the block would send the reader to a
+	 * line that has nothing to do with the failure.
+	 */
+	externalFile?: string;
 }
 
 /**
@@ -369,6 +386,12 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 		return { unavailable: `The file option names \`${options.file}\`, and it could not be read.` };
 	}
 
+	// The compiled code starts below the block's own option run, and a `file:`
+	// replaces the body outright, so the panel is told where the lines it is about
+	// to be handed actually live.
+	const bodyLineOffset =
+		code === undefined ? block.body.slice(0, block.body.length - block.code.length).split("\n").length - 1 : 0;
+
 	const assembled = buildCellSource(block, {
 		// The fallback is `DEFAULTS.background`, which `resolve_opts_colours` applies
 		// at `typst-render.lua:884`. Only the background has one: a cell with no
@@ -382,5 +405,5 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 		preamble,
 		code,
 	});
-	return { ...assembled, notes: cellNotes(options) };
+	return { ...assembled, notes: cellNotes(options), bodyLineOffset, externalFile: options.file };
 }

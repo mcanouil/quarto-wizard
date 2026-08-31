@@ -355,7 +355,11 @@ function coerceGlobal(key: string, raw: unknown): TypstOptionValue | undefined {
 
 	const fallback = TYPST_DEFAULTS[key];
 	if (typeof fallback === "number") {
-		const parsed = Number(stringify(raw));
+		// `Number("")` and `Number(" ")` are both zero, while `tonumber` upstream
+		// answers nil for either and the key keeps its default. Reading `dpi: ""` as
+		// zero would compile at no resolution at all.
+		const text = stringify(raw).trim();
+		const parsed = text === "" ? Number.NaN : Number(text);
 		return Number.isNaN(parsed) ? undefined : parsed;
 	}
 	if (typeof fallback === "boolean") {

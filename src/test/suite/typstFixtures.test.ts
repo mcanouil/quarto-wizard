@@ -80,6 +80,14 @@ suite("Typst Fixtures Test Suite", () => {
 		.map((entry) => entry.name)
 		.sort();
 
+	test("Should keep the CRLF fixture written with CRLF", () => {
+		// Both sides are normalised before the comparison, so a checkout that turned
+		// this file into LF would leave its test passing while covering nothing. The
+		// root `.gitattributes` is what stops that, and this is what notices.
+		const text = fs.readFileSync(path.join(FIXTURES, "crlf", "block.qmd"), "utf8");
+		assert.ok(text.includes("\r\n"), "the crlf fixture must be written with CRLF line endings");
+	});
+
 	test("Should find the recorded fixtures", () => {
 		// A path that stopped resolving would otherwise turn every comparison below
 		// into a suite that silently asserts nothing.
