@@ -49,6 +49,14 @@ class StubCompiler implements TypstCompilerLike {
 		resolve(result);
 	}
 
+	/** Answer every compile asked for so far. */
+	answerAll(result: TypstCompileResult): void {
+		assert.ok(this.pending.length > 0, "no compile was asked for");
+		for (const resolve of this.pending) {
+			resolve(result);
+		}
+	}
+
 	dispose(): void {
 		this.disposed = true;
 	}
@@ -73,10 +81,14 @@ async function plainDocument(body = "#circle()"): Promise<vscode.TextDocument> {
  */
 async function plainFile(body = "#circle()"): Promise<vscode.TextDocument> {
 	const directory = fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-"));
+	written.push(directory);
 	const file = path.join(directory, "doc.qmd");
 	fs.writeFileSync(file, plainText(body));
 	return vscode.workspace.openTextDocument(vscode.Uri.file(file));
 }
+
+/** The directories `plainFile` made, removed when the suite is over. */
+const written: string[] = [];
 
 /** The position inside the one block of `plainDocument`. */
 const INSIDE_BLOCK = new vscode.Position(3, 1);
@@ -124,6 +136,13 @@ function settle(delayMs = 50): Promise<void> {
 }
 
 suite("Typst Preview Lifecycle Test Suite", () => {
+	suiteTeardown(() => {
+		for (const directory of written) {
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+		written.length = 0;
+	});
+
 	test("Should publish the compiled image of the block under the cursor", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller } = makeController(compiler);
@@ -343,16 +362,18 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		const document = await plainFile();
 
 		// Driven through the cursor, which is what a background request follows.
+		// Showing the document is itself an event the controller acts on, so the
+		// count is not pinned: what matters is that something is in flight.
 		await vscode.window.showTextDocument(document, { selection: new vscode.Range(INSIDE_BLOCK, INSIDE_BLOCK) });
 		await settle();
 		controller.refresh();
 		await settle();
-		assert.strictEqual(compiler.sources.length, 1);
+		assert.ok(compiler.sources.length >= 1, "a background compile is in flight");
 
 		const published: TypstPreviewUpdate[] = [];
 		const subscription = controller.onDidChangeResult((update) => published.push(update));
 		showing = false;
-		compiler.answer(0, { svg: SVG, stderr: "" });
+		compiler.answerAll({ svg: SVG, stderr: "" });
 		await settle();
 
 		assert.deepStrictEqual(published, []);
@@ -403,6 +424,36 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		assert.strictEqual(compiler.sources.length, CACHE_LIMIT + 1);
 		await nextResultFor(controller, documents[0]);
 		assert.strictEqual(compiler.sources.length, CACHE_LIMIT + 2);
+		controller.dispose();
+	});
+
+	test("Should keep the cache under its byte budget, and never empty", async () => {
+		// The count alone is not a bound: one compile may produce megabytes, so a
+		// handful of dense pages would hold far more than the count suggests. One
+		// entry is kept whatever its size, or a block larger than the whole budget
+		// would recompile on every request that already has its answer.
+		const big = `<svg>${"x".repeat(600)}</svg>`;
+		const compiler = new StubCompiler({ svg: big, stderr: "" });
+		const messages: string[] = [];
+		const controller = new TypstPreviewController({
+			hasSurface: () => true,
+			show: (message) => messages.push(message),
+			resolveBinary: () => Promise.resolve("/typst"),
+			createCompiler: () => compiler,
+			cacheLimitBytes: 1000,
+		});
+		const first = await plainDocument("#circle()");
+		const second = await plainDocument("#square()");
+
+		await nextResultFor(controller, first);
+		await nextResultFor(controller, second);
+		assert.strictEqual(compiler.sources.length, 2);
+
+		// Two images are over the budget, so the older one went and the newer stayed.
+		await nextResultFor(controller, second);
+		assert.strictEqual(compiler.sources.length, 2, "the newest entry survives the eviction");
+		await nextResultFor(controller, first);
+		assert.strictEqual(compiler.sources.length, 3, "the oldest entry was evicted");
 		controller.dispose();
 	});
 

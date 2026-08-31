@@ -129,6 +129,8 @@ export interface TypstPreviewControllerOptions {
 	resolveBinary?: () => Promise<string | undefined>;
 	/** The compiler for one binary and one timeout. Injected for the same reason. */
 	createCompiler?: (binary: string, timeoutMs: number) => TypstCompilerLike;
+	/** How many bytes of image to hold. Lowered by the test that bounds it. */
+	cacheLimitBytes?: number;
 }
 
 /** What the settings say about compiling one document. */
@@ -365,7 +367,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	private compilerKey: string | undefined;
 	/** How many bytes of image the cache is holding. */
 	private cacheBytes = 0;
-	/** Whether the file watchers are up, which the first published result raises. */
+	/** Whether the file watchers are up, which the first request raises. */
 	private watching = false;
 	/** Rises with every request, so a result that arrives out of order is dropped. */
 	private requestVersion = 0;
@@ -616,7 +618,8 @@ export class TypstPreviewController implements vscode.Disposable {
 		// first key is the one used longest ago. Both bounds matter: the count keeps
 		// a session of small blocks from growing without end, and the byte total
 		// keeps a handful of dense pages from holding the extension host.
-		while (this.cache.size > CACHE_LIMIT || (this.cacheBytes > CACHE_LIMIT_BYTES && this.cache.size > 1)) {
+		const limitBytes = this.options.cacheLimitBytes ?? CACHE_LIMIT_BYTES;
+		while (this.cache.size > CACHE_LIMIT || (this.cacheBytes > limitBytes && this.cache.size > 1)) {
 			const oldest = this.cache.keys().next();
 			if (oldest.done) {
 				return;
@@ -781,10 +784,14 @@ export class TypstPreviewController implements vscode.Disposable {
 	/**
 	 * Watch the files a preview reads beside the block.
 	 *
-	 * Raised by the first published result rather than at registration. These are
-	 * workspace-wide watchers, and until something is being previewed every event
-	 * they deliver reaches a `recompile` that has nothing to recompile, so a
-	 * session that never opens the preview should not pay for them.
+	 * Raised by the first request rather than at registration. These are
+	 * workspace-wide watchers, and until a preview is asked for every event they
+	 * deliver reaches a `recompile` that has nothing to recompile, so a session
+	 * that never opens the preview should not pay for them.
+	 *
+	 * A request and not a result, because a cell in a project that has not
+	 * installed the extension produces no result, and the manifest watcher is
+	 * what lets it start working once the extension is installed.
 	 */
 	private watchFiles(): void {
 		if (this.watching) {

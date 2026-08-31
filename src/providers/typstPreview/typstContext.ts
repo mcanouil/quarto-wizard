@@ -46,9 +46,15 @@ export interface CompileRequest {
 	/**
 	 * Where the block sits in the document, counted from the top.
 	 *
-	 * This is the identity of the block across an edit. Every offset it carries
-	 * moves when the text above it changes, so two requests for the same block
-	 * agree on nothing else.
+	 * This is how two requests agree that they mean the same block. Every offset
+	 * a block carries moves when the text above it changes, and the place in the
+	 * order does not, so the offsets cannot answer that question.
+	 *
+	 * It is not an identity that survives everything: adding or removing a block
+	 * above this one shifts it, and until the cursor moves again a recompile can
+	 * take its neighbour. The window is narrow, because adding a block above is
+	 * itself an edit at a place the cursor is at, and the cursor moving is what
+	 * resolves the block again.
 	 */
 	blockIndex: number;
 	/** The whole source to send to the compiler. */
