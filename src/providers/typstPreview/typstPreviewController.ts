@@ -115,14 +115,6 @@ export interface TypstCompilerLike {
 
 /** How the controller reaches the parts of the world it does not own. */
 export interface TypstPreviewControllerOptions {
-	/**
-	 * Whether a surface is showing a preview now.
-	 *
-	 * A background edit is only worth a compile when something is displaying the
-	 * result. A request the user asked for compiles either way, because the
-	 * surface it opens is the answer.
-	 */
-	hasSurface: () => boolean;
 	/** Put a message in front of the reader. */
 	show: (message: string) => void;
 	/** The Typst binary. Injected so that no test spawns Typst. */
@@ -367,6 +359,8 @@ export class TypstPreviewController implements vscode.Disposable {
 	private compilerKey: string | undefined;
 	/** How many bytes of image the cache is holding. */
 	private cacheBytes = 0;
+	/** How many surfaces are showing previews, which is what a background edit needs. */
+	private surfaces = 0;
 	/** Whether the file watchers are up, which the first request raises. */
 	private watching = false;
 	/** Rises with every request, so a result that arrives out of order is dropped. */
@@ -388,14 +382,61 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.wireEvents();
 	}
 
+	/**
+	 * Say that something is showing previews, until the result is disposed.
+	 *
+	 * A background edit is only worth a compile when something would render the
+	 * result, and there is more than one surface, so counting registrations is
+	 * how the controller knows. A request the user asked for compiles either way,
+	 * because the panel it opens is the answer.
+	 */
+	registerSurface(): vscode.Disposable {
+		this.surfaces++;
+		let released = false;
+		return {
+			dispose: () => {
+				// Disposed twice is the normal way a surface is torn down: once by its
+				// own clean-up and once by the subscription list holding it. The second
+				// call must not take another surface's registration away.
+				if (released) {
+					return;
+				}
+				released = true;
+				this.surfaces--;
+			},
+		};
+	}
+
 	/** What is being previewed, which is what a surface renders. */
 	current(): TypstPreviewResult | undefined {
 		return this.result;
 	}
 
+	/**
+	 * The Typst blocks of a document, as the preview reads them.
+	 *
+	 * The surfaces need the same list the compile was built from, and the cache
+	 * is keyed on the document version, so asking here costs one scan per edit
+	 * however many surfaces ask.
+	 */
+	blocksOf(document: vscode.TextDocument): TypstBlock[] {
+		return this.contexts.blocksOf(document, document.getText());
+	}
+
 	/** Preview the block under a position, because the user asked for it. */
 	request(document: vscode.TextDocument, position: vscode.Position): void {
 		this.start(document, position, true);
+	}
+
+	/**
+	 * Preview the block under a position, because a surface is showing it.
+	 *
+	 * This is a hover over a block the preview is not following. It publishes
+	 * like an edit does and opens nothing, because nobody asked for a panel: the
+	 * surface that asked is already on screen.
+	 */
+	preview(document: vscode.TextDocument, position: vscode.Position): void {
+		this.start(document, position, false);
 	}
 
 	/** Preview the block under the cursor again, because something changed. */
@@ -477,7 +518,7 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** One preview, from a position to a published result. */
 	private async run(document: vscode.TextDocument, position: vscode.Position, asked: boolean): Promise<void> {
-		if (this.disposed || (!asked && !this.options.hasSurface())) {
+		if (this.disposed || (!asked && !this.hasSurface())) {
 			return;
 		}
 
@@ -577,7 +618,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		asked: boolean,
 		failure?: string,
 	): void {
-		if (!asked && !this.options.hasSurface()) {
+		if (!asked && !this.hasSurface()) {
 			// A compile runs for up to the timeout and the reader can close the last
 			// surface meanwhile. The result is nobody's, and publishing it would have
 			// a surface build itself to render it, which reopens what was just closed.
@@ -635,6 +676,11 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.cacheBytes = 0;
 	}
 
+	/** Whether anything would render a result compiled for a background change. */
+	private hasSurface(): boolean {
+		return this.surfaces > 0;
+	}
+
 	private resolveBinary(): Promise<string | undefined> {
 		return (this.options.resolveBinary ?? resolveTypstBinary)();
 	}
@@ -648,7 +694,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * compile supersedes whatever is running anyway.
 	 */
 	private useCompiler(binary: string, timeoutMs: number): TypstCompilerLike {
-		const key = `${binary} ${timeoutMs}`;
+		const key = `${binary}\u0000${timeoutMs}`;
 		if (this.compiler === undefined || this.compilerKey !== key) {
 			this.compiler?.dispose();
 			this.compiler = this.options.createCompiler?.(binary, timeoutMs) ?? new TypstCompiler(binary, { timeoutMs });
@@ -718,7 +764,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// keystroke as well, and typing is what the document delay is for, so
 			// following it here would make that setting mean nothing below 250 ms.
 			vscode.window.onDidChangeTextEditorSelection((event) => {
-				if (this.options.hasSurface() && isRelevantDocument(event.textEditor.document) && this.movedBlock(event)) {
+				if (this.hasSurface() && isRelevantDocument(event.textEditor.document) && this.movedBlock(event)) {
 					this.selectionDebounce();
 				}
 			}),
@@ -844,7 +890,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			this.contextDebounce();
 			return;
 		}
-		if (!this.options.hasSurface()) {
+		if (!this.hasSurface()) {
 			// Nothing is showing a preview, so nothing would render the result. The
 			// document change events of a whole session arrive here, so this is the
 			// one place where the cost of a keystroke is worth naming.

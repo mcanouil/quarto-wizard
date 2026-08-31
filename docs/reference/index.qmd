@@ -33,19 +33,22 @@ See [Configuration Reference](configuration.qmd) for all available options.
 
 ### Quick Reference
 
-| Setting                                | Default                                    | Description                                           |
-| -------------------------------------- | ------------------------------------------ | ----------------------------------------------------- |
-| `quartoWizard.ask.trustAuthors`        | `ask`                                      | Prompt before trusting authors.                       |
-| `quartoWizard.ask.confirmInstall`      | `ask`                                      | Prompt before installing.                             |
-| `quartoWizard.update.crossSource`      | `false`                                    | Allow registry lookup for GitHub-sourced extensions.  |
-| `quartoWizard.autoProjectDetection`    | `subFolders`                               | When to auto-detect Quarto projects.                  |
-| `quartoWizard.cache.ttlMinutes`        | `30`                                       | Cache duration in minutes.                            |
-| `quartoWizard.registry.url`            | [see docs](configuration.qmd#registry-url) | Custom registry URL.                                  |
-| `quartoWizard.lint.unknownAttributes`  | `false`                                    | Flag inline attributes absent from extension schemas. |
-| `quartoWizard.typstPreview.foreground` | `auto`                                     | Text colour injected above a previewed block.         |
-| `quartoWizard.typstPreview.background` | `auto`                                     | Page colour injected above a previewed block.         |
-| `quartoWizard.typstPreview.timeoutMs`  | `20000`                                    | Time limit for one preview compile.                   |
-| `quartoWizard.typstPreview.debounceMs` | `300`                                      | Delay between an edit and the next preview compile.   |
+| Setting                                | Default                                    | Description                                              |
+| -------------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
+| `quartoWizard.ask.trustAuthors`        | `ask`                                      | Prompt before trusting authors.                          |
+| `quartoWizard.ask.confirmInstall`      | `ask`                                      | Prompt before installing.                                |
+| `quartoWizard.update.crossSource`      | `false`                                    | Allow registry lookup for GitHub-sourced extensions.     |
+| `quartoWizard.autoProjectDetection`    | `subFolders`                               | When to auto-detect Quarto projects.                     |
+| `quartoWizard.cache.ttlMinutes`        | `30`                                       | Cache duration in minutes.                               |
+| `quartoWizard.registry.url`            | [see docs](configuration.qmd#registry-url) | Custom registry URL.                                     |
+| `quartoWizard.lint.unknownAttributes`  | `false`                                    | Flag inline attributes absent from extension schemas.    |
+| `quartoWizard.typstPreview.foreground` | `auto`                                     | Text colour injected above a previewed block.            |
+| `quartoWizard.typstPreview.background` | `auto`                                     | Page colour injected above a previewed block.            |
+| `quartoWizard.typstPreview.timeoutMs`  | `20000`                                    | Time limit for one preview compile.                      |
+| `quartoWizard.typstPreview.debounceMs` | `300`                                      | Delay between an edit and the next preview compile.      |
+| `quartoWizard.typstPreview.maxHeight`  | `200`                                      | Greatest image height for the inline and hover surfaces. |
+| `quartoWizard.typstPreview.surface`    | `panel`                                    | Where a previewed block is shown.                        |
+| `quartoWizard.typstPreview.codeLens`   | `true`                                     | Offer a preview above every Typst block.                 |
 
 ## Extension Schema
 

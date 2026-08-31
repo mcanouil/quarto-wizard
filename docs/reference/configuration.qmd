@@ -209,6 +209,61 @@ How long the Typst block preview waits after an edit before it compiles again, i
 }
 ```
 
+### Preview Maximum Height
+
+**Setting**: `quartoWizard.typstPreview.maxHeight`
+
+The greatest height of the image the `inline` and `hover` surfaces show, in the points Typst writes into the image. A taller image is scaled down proportionally, and a shorter one is shown at its own size. The `panel` surface scrolls instead, so it is never clamped.
+
+| Property | Value  |
+| -------- | ------ |
+| Type     | Number |
+| Default  | `200`  |
+| Minimum  | `20`   |
+| Maximum  | `4000` |
+
+```json
+{
+  "quartoWizard.typstPreview.maxHeight": 200
+}
+```
+
+### Preview Surface
+
+**Setting**: `quartoWizard.typstPreview.surface`
+
+Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off.
+
+| Value    | Description                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------- |
+| `panel`  | Show the image in a panel beside the editor, which follows the cursor while it is open (default). |
+| `inline` | Draw the image in the editor, after the closing fence of the block under the cursor.              |
+| `hover`  | Show the image when the pointer rests on a block.                                                 |
+| `off`    | Show no image, and offer no code lens.                                                            |
+
+```json
+{
+  "quartoWizard.typstPreview.surface": "panel"
+}
+```
+
+### Preview Code Lens
+
+**Setting**: `quartoWizard.typstPreview.codeLens`
+
+Show a code lens above every Typst block, offering to preview it. Turn it off to keep the editor clear: a document of many examples carries one lens per block. The lens is never shown when `#quartoWizard.typstPreview.surface#` is `off`.
+
+| Property | Value   |
+| -------- | ------- |
+| Type     | Boolean |
+| Default  | `true`  |
+
+```json
+{
+  "quartoWizard.typstPreview.codeLens": true
+}
+```
+
 ## Workspace vs User Settings
 
 All Quarto Wizard settings are scoped to "resource", meaning they can be configured at:
@@ -235,6 +290,9 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.typstPreview.foreground": "auto",
   "quartoWizard.typstPreview.background": "auto",
   "quartoWizard.typstPreview.timeoutMs": 20000,
-  "quartoWizard.typstPreview.debounceMs": 300
+  "quartoWizard.typstPreview.debounceMs": 300,
+  "quartoWizard.typstPreview.maxHeight": 200,
+  "quartoWizard.typstPreview.surface": "panel",
+  "quartoWizard.typstPreview.codeLens": true
 }
 ```

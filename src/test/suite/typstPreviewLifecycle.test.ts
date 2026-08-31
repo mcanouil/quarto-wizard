@@ -93,19 +93,19 @@ const written: string[] = [];
 /** The position inside the one block of `plainDocument`. */
 const INSIDE_BLOCK = new vscode.Position(3, 1);
 
-/** A controller wired to a stub, with no surface unless the test says otherwise. */
+/** A controller wired to a stub, with one surface unless the test says otherwise. */
 function makeController(
 	compiler: TypstCompilerLike,
-	overrides: { hasSurface?: () => boolean; binary?: string | undefined } = {},
-): { controller: TypstPreviewController; messages: string[] } {
+	overrides: { surface?: boolean; binary?: string | undefined } = {},
+): { controller: TypstPreviewController; messages: string[]; surface?: vscode.Disposable } {
 	const messages: string[] = [];
 	const controller = new TypstPreviewController({
-		hasSurface: overrides.hasSurface ?? (() => true),
 		show: (message) => messages.push(message),
 		resolveBinary: () => Promise.resolve("binary" in overrides ? overrides.binary : "/typst"),
 		createCompiler: () => compiler,
 	});
-	return { controller, messages };
+	const surface = overrides.surface === false ? undefined : controller.registerSurface();
+	return { controller, messages, surface };
 }
 
 /** The next result the controller publishes, or a rejection when none arrives. */
@@ -266,7 +266,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 	test("Should not compile for a background change when no surface is showing", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
-		const { controller } = makeController(compiler, { hasSurface: () => false });
+		const { controller } = makeController(compiler, { surface: false });
 		const document = await plainDocument();
 
 		controller.refresh();
@@ -357,8 +357,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		// meanwhile. Publishing anyway would have the surface build itself again,
 		// which reopens a panel the reader just closed.
 		const compiler = new StubCompiler();
-		let showing = true;
-		const { controller } = makeController(compiler, { hasSurface: () => showing });
+		const { controller, surface } = makeController(compiler);
 		const document = await plainFile();
 
 		// Driven through the cursor, which is what a background request follows.
@@ -372,7 +371,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 		const published: TypstPreviewUpdate[] = [];
 		const subscription = controller.onDidChangeResult((update) => published.push(update));
-		showing = false;
+		surface?.dispose();
 		compiler.answerAll({ svg: SVG, stderr: "" });
 		await settle();
 
@@ -388,11 +387,11 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const messages: string[] = [];
 		const controller = new TypstPreviewController({
-			hasSurface: () => true,
 			show: (message) => messages.push(message),
 			resolveBinary: () => Promise.reject(new Error("the probe failed")),
 			createCompiler: () => compiler,
 		});
+		controller.registerSurface();
 		const document = await plainDocument();
 
 		controller.request(document, INSIDE_BLOCK);
@@ -436,12 +435,12 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		const compiler = new StubCompiler({ svg: big, stderr: "" });
 		const messages: string[] = [];
 		const controller = new TypstPreviewController({
-			hasSurface: () => true,
 			show: (message) => messages.push(message),
 			resolveBinary: () => Promise.resolve("/typst"),
 			createCompiler: () => compiler,
 			cacheLimitBytes: 1000,
 		});
+		controller.registerSurface();
 		const first = await plainDocument("#circle()");
 		const second = await plainDocument("#square()");
 

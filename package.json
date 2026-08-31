@@ -779,6 +779,42 @@
 					"markdownDescription": "How long the Typst block preview waits after an edit before it compiles again, in milliseconds. Raise it when a block is slow to compile and the preview gets in the way of typing. `0` compiles on every keystroke. Moving the cursor to another block is not an edit and always updates after 250 milliseconds, and saving the document compiles at once.",
 					"title": "Preview Debounce Delay",
 					"description": "Delay between an edit and the next preview compile."
+				},
+				"quartoWizard.typstPreview.maxHeight": {
+					"order": 24,
+					"scope": "resource",
+					"type": "number",
+					"minimum": 20,
+					"maximum": 4000,
+					"default": 200,
+					"markdownDescription": "The greatest height of the image the `inline` and `hover` surfaces show, in the points Typst writes into the image. A taller image is scaled down proportionally, and a shorter one is shown at its own size. The `panel` surface scrolls instead, so it is never clamped.",
+					"title": "Preview Maximum Height",
+					"description": "Greatest image height for the inline and hover surfaces."
+				},
+				"quartoWizard.typstPreview.surface": {
+					"order": 25,
+					"scope": "resource",
+					"type": "string",
+					"enum": ["panel", "inline", "hover", "off"],
+					"enumDescriptions": [
+						"Show the image in a panel beside the editor, which follows the cursor while it is open.",
+						"Draw the image in the editor, after the closing fence of the block under the cursor.",
+						"Show the image when the pointer rests on a block.",
+						"Show no image, and offer no code lens."
+					],
+					"default": "panel",
+					"markdownDescription": "Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off.",
+					"title": "Preview Surface",
+					"description": "Where a previewed block is shown."
+				},
+				"quartoWizard.typstPreview.codeLens": {
+					"order": 26,
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Show a code lens above every Typst block, offering to preview it. Turn it off to keep the editor clear: a document of many examples carries one lens per block. The lens is never shown when `#quartoWizard.typstPreview.surface#` is `off`.",
+					"title": "Preview Code Lens",
+					"description": "Offer a preview above every Typst block."
 				}
 			}
 		}
