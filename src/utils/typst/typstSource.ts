@@ -1,4 +1,14 @@
 import { precedingRawBlocks, type TypstBlock } from "./typstBlocks";
+import { brandColourReader, brandDictionary, type Brand } from "./typstBrand";
+import {
+	TYPST_DEFAULTS,
+	mergeGlobalConfigs,
+	resolveColourValue,
+	resolveTypstOptions,
+	type ResolvedTypstOptions,
+	type TypstBrandMode,
+	type TypstGlobalLevel,
+} from "./typstOptions";
 
 /** The source of one compile, and how far it pushed the block body down. */
 export interface AssembledSource {
@@ -154,4 +164,250 @@ export function themeHeader(kind: TypstThemeKind, foreground: string, background
 	}
 	const colour = text === AUTO ? typstColour(THEME_TEXT[kind]) : text;
 	return { header: `${geometry}\n#set text(fill: ${colour})`, foreground: colour };
+}
+
+/**
+ * Everything a ```` ```{typst} ```` cell needs, once the disk has been read.
+ *
+ * A cell keeps the colour contract of the `typst-render` filter and never takes
+ * the preview's own theme header: the filter writes the page fill and the text
+ * fill itself, from the options in force, and a second set of directives above
+ * them would show an image the render does not produce.
+ */
+export interface CellSourceOptions {
+	/** The page fill, already a Typst expression. */
+	background: string;
+	/** The text fill, or undefined when the options set none. */
+	foreground?: string;
+	/** The page width, `auto` unless an option says otherwise. */
+	width: string;
+	/** The page height. */
+	height: string;
+	/** The page margin, which is what keeps a glyph off the edge of the image. */
+	margin: string;
+	/** The `_typst_render_brand` dictionary literal for the mode in force. */
+	brand: string;
+	/** The preamble, resolved from inline code and `.typ` files, or empty. */
+	preamble: string;
+	/**
+	 * The contents of a `file:` option, which replace the cell body entirely
+	 * (`typst-render.lua:2047-2052`). Absent when the cell has no `file:`.
+	 */
+	code?: string;
+}
+
+/**
+ * The body of a cell as Pandoc hands it to the filter.
+ *
+ * A `CodeBlock` carries no trailing line ending, because the closing fence is
+ * not part of the block. The scanner keeps the one before that fence, so it
+ * comes off here rather than in the scanner, where the other two kinds need it.
+ *
+ * A `file:` substitution is not passed through here. The filter reads that file
+ * whole, trailing line ending included, and the compiled source keeps it.
+ */
+function cellBody(body: string): string {
+	return body.replace(/\r?\n$/, "");
+}
+
+/**
+ * The source of one ```` ```{typst} ```` cell.
+ *
+ * A port of `build_typst_source` at `typst-render.lua:943-962`, together with
+ * the bindings it injects at `:907-915` and the page directive it builds at
+ * `:920-925`. The parts are joined with newlines in the filter's own order, and
+ * the order is load-bearing: the author's preamble sits below the `#set`
+ * directives so it can override them, and above the code so the code can use it.
+ *
+ * One part is deliberately not emitted. `build_define_preamble` at `:946-949`
+ * writes the `typst_define()` payload of the R and Python helpers, which the
+ * preview cannot see: it lives in metadata Quarto's engine produces during a
+ * render. A cell that reads it is out of scope for the first version and the
+ * panel says so.
+ */
+function buildCellSource(block: TypstBlock, options: CellSourceOptions): AssembledSource {
+	const above = [
+		`#let _typst_render_background = ${options.background}`,
+		`#let _typst_render_foreground = ${options.foreground ?? "none"}`,
+		`#let _typst_render_brand = ${options.brand}`,
+		`#set page(width: ${options.width}, height: ${options.height}, margin: ${options.margin}, fill: ${options.background})`,
+	];
+	if (options.foreground !== undefined) {
+		above.push(`#set text(fill: ${options.foreground})`);
+	}
+	if (options.preamble !== "") {
+		above.push(options.preamble);
+	}
+
+	// Joined and not terminated, which is where a cell differs from the other two
+	// kinds. `table.concat(parts, '\n')` puts exactly one line ending between two
+	// parts, so a preamble file that ends with a newline of its own contributes a
+	// blank line, and a preview that dropped it would not match the render.
+	const prefix = above.join("\n");
+	// The block is taken rather than only its code so a caller cannot pass the
+	// body of one cell beside the options of another.
+	const code = options.code ?? cellBody(block.code);
+	return { source: `${prefix}\n${code}`, injectedLines: prefix.split("\n").length };
+}
+
+/**
+ * A `preamble:` option resolved to Typst code,
+ * `typst-render.lua:701-749`.
+ *
+ * An entry ending in `.typ` is a path and is read; every other entry is inline
+ * Typst code. A list is resolved entry by entry and joined with newlines, and an
+ * entry that cannot be read is dropped rather than failing the whole preview,
+ * which is what the filter does as well.
+ *
+ * The reads are injected, so this module keeps importing no `vscode` and a test
+ * needs no file on disk.
+ */
+export async function resolvePreamble(
+	value: string | readonly string[] | undefined,
+	readFile: ReadFile,
+): Promise<string> {
+	if (value === undefined || value === "") {
+		return "";
+	}
+	const entries = typeof value === "string" ? [value] : value;
+	// The entries are independent, so they are read together rather than one
+	// after another. Their order in the source is the order they are written in,
+	// which `Promise.all` preserves.
+	const resolved = await Promise.all(entries.map(async (entry) => (entry.endsWith(".typ") ? readFile(entry) : entry)));
+	// An entry that cannot be read is dropped rather than failing the whole
+	// preview, which is what the filter does as well.
+	return resolved.filter((part): part is string => part !== undefined && part !== "").join("\n");
+}
+
+/** A `preamble:` or `file:` path read as text, or undefined when it cannot be. */
+export type ReadFile = (documentPath: string) => Promise<string | undefined>;
+
+/**
+ * Everything outside a cell that decides what it compiles to.
+ *
+ * The levels arrive lowest first, and the caller is what knows where they came
+ * from. The read is injected, so this module imports no `vscode` and a fixture
+ * drives the whole pipeline from strings alone.
+ */
+export interface CellContext {
+	/** The `extensions.typst-render:` mapping of each level, lowest first. */
+	levels: readonly TypstGlobalLevel[];
+	/** The parsed `_brand.yml`, or an empty brand when the project has none. */
+	brand: Brand;
+	/** Which side of the brand the compile reads. */
+	mode: TypstBrandMode;
+	readFile: ReadFile;
+}
+
+/** Something the preview cannot do, and the one line that says why. */
+export interface Unavailable {
+	unavailable: string;
+}
+
+/** Whether a result reported why it could not be produced. */
+export function isUnavailable<T extends object>(result: T | Unavailable): result is Unavailable {
+	return "unavailable" in result;
+}
+
+/** One cell assembled, with what the preview does not reproduce about it. */
+export interface AssembledCell extends AssembledSource {
+	/** What the panel should say about the block beside the image. */
+	notes: string[];
+	/**
+	 * How many lines of the block body sit above the first compiled line.
+	 *
+	 * A cell compiles its `code` and not its `body`, so the leading `//|` run is
+	 * in the document but not in the source Typst reads. A diagnostic that lost
+	 * only the injected lines would name a line of the block that is short by the
+	 * length of that run.
+	 */
+	bodyLineOffset: number;
+	/**
+	 * The `file:` whose contents replaced the body, when one did.
+	 *
+	 * A diagnostic then has no line of the block at all: it names a position in
+	 * that file, and reporting it against the block would send the reader to a
+	 * line that has nothing to do with the failure.
+	 */
+	externalFile?: string;
+}
+
+/**
+ * What the preview does not reproduce about a cell.
+ *
+ * Each of these compiles to something, so refusing them would be worse than
+ * showing the image and saying what is missing from it.
+ *
+ * Read from the merged options and not from the block's own `//|` run, because
+ * every one of the three is a global key as well: a `format: pdf` written in
+ * `_quarto.yml` applies to a block that never mentions it.
+ */
+export function cellNotes(options: ResolvedTypstOptions): string[] {
+	const notes: string[] = [];
+	const format = options.format;
+	if (format === "pdf" || format === "html") {
+		// The preview always compiles to SVG, because that is what a webview, a
+		// hover and a decoration can all show.
+		notes.push(`the preview compiles to SVG, not to ${format}`);
+	}
+	if (options.output === "asis") {
+		// An `asis` cell is emitted into the document Typst is already laying out,
+		// so it inherits a page the preview has no way to reproduce.
+		notes.push("an `output: asis` cell inherits the document page, which the preview cannot apply");
+	}
+	if (typeof options.pages === "string" && options.pages !== "all") {
+		notes.push("the preview shows the first page only");
+	}
+	return notes;
+}
+
+/**
+ * One ```` ```{typst} ```` cell, from its context to its compiled source.
+ *
+ * The whole pipeline of the filter, in the filter's own order: the global levels
+ * are resolved and merged, the block options are merged over them, the colours
+ * of the mode in force are picked out, and the parts are assembled.
+ */
+export async function buildCell(block: TypstBlock, context: CellContext): Promise<AssembledCell | Unavailable> {
+	const brand = brandColourReader(context.brand);
+	const global = mergeGlobalConfigs(context.levels, brand);
+	const options = resolveTypstOptions(block, global, brand);
+
+	// The preamble and the `file:` are independent reads, so they run together.
+	const [preamble, code] = await Promise.all([
+		resolvePreamble(options.preamble, context.readFile),
+		options.file === undefined || options.file === "" ? undefined : context.readFile(options.file),
+	]);
+
+	// A `file:` replaces the cell body entirely. The filter logs and renders
+	// nothing when the read fails, which in a preview would be a blank image with
+	// no reason beside it.
+	if (options.file !== undefined && options.file !== "" && code === undefined) {
+		return { unavailable: `The file option names \`${options.file}\`, and it could not be read.` };
+	}
+
+	// The compiled code starts below the block's own option run, and a `file:`
+	// replaces the body outright, so the panel is told where the lines it is about
+	// to be handed actually live.
+	const bodyLineOffset =
+		code === undefined ? block.body.slice(0, block.body.length - block.code.length).split("\n").length - 1 : 0;
+
+	const assembled = buildCellSource(block, {
+		// The fallback is `DEFAULTS.background`, which `resolve_opts_colours` applies
+		// at `typst-render.lua:884`. Only the background has one: a cell with no
+		// foreground writes no text fill line at all.
+		background: resolveColourValue(options.background, context.mode) ?? String(TYPST_DEFAULTS.background),
+		foreground: resolveColourValue(options.foreground, context.mode),
+		width: String(options.width),
+		height: String(options.height),
+		margin: String(options.margin),
+		brand: brandDictionary(context.brand, context.mode),
+		preamble,
+		code,
+	});
+	// Named only when the file actually replaced the body. An empty `file:` skips
+	// the read and compiles the body, and reporting it as the external file would
+	// print a position "of " with no name and drop the option run correction.
+	const externalFile = code === undefined ? undefined : options.file;
+	return { ...assembled, notes: cellNotes(options), bodyLineOffset, externalFile };
 }

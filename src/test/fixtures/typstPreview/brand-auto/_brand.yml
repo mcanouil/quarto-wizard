@@ -1,0 +1,10 @@
+color:
+  palette:
+    ink: "#1b1b1b"
+    paper: "#fdf6e3"
+  foreground: ink
+  background: paper
+  primary: "#268bd2"
+typography:
+  base:
+    family: Inter

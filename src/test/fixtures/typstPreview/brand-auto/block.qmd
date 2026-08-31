@@ -1,0 +1,16 @@
+---
+engine: markdown
+format: html
+filters:
+  - typst-render
+extensions:
+  typst-render:
+    output-directory: ./recorded
+    output-source: true
+    background: auto
+    foreground: auto
+---
+
+```{typst}
+#text[Branded]
+```

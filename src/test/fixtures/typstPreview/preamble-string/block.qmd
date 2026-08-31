@@ -1,0 +1,15 @@
+---
+engine: markdown
+format: html
+filters:
+  - typst-render
+extensions:
+  typst-render:
+    output-directory: ./recorded
+    output-source: true
+---
+
+```{typst}
+//| preamble: "#let accent = red"
+#text(fill: accent)[Hi]
+```

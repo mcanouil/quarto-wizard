@@ -1,0 +1,17 @@
+---
+engine: markdown
+format: html
+filters:
+  - typst-render
+extensions:
+  typst-render:
+    output-directory: ./recorded
+    output-source: true
+---
+
+```{typst}
+//| width: 6cm
+//| height: 4cm
+//| margin: 1cm
+#rect(width: 100%)
+```

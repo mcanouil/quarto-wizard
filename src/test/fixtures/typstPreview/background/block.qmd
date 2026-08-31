@@ -1,0 +1,15 @@
+---
+engine: markdown
+format: html
+filters:
+  - typst-render
+extensions:
+  typst-render:
+    output-directory: ./recorded
+    output-source: true
+---
+
+```{typst}
+//| background: "#faf6ee"
+#circle(radius: 10pt)
+```

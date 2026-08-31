@@ -1,0 +1,4 @@
+# The Typst preview fixtures are recorded input and recorded output, and one of
+# them is written with CRLF on purpose. Normalising line endings on checkout or
+# on commit would leave that fixture passing while covering nothing.
+src/test/fixtures/typstPreview/** -text

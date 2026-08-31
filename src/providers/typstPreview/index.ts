@@ -1,15 +1,25 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
-import { buildPlainSource, buildRawSource, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
+import { isUnavailable, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
+import { buildCompileRequest, type CompileRequest } from "./typstContext";
 import { DEFAULT_TIMEOUT_MS, TypstCompiler, invalidateTypstBinary, resolveTypstBinary } from "./typstCompiler";
 import { TypstPreviewPanel } from "./typstPreviewPanel";
 
 /** Read the source from stdin, write the image to stdout. */
 const ARGV = ["compile", "--format", "svg", "-", "-"];
+
+/** Where the lines of a compile live, so a diagnostic can be placed. */
+export interface ErrorPlace {
+	/** How many lines sit above the compiled code in the assembled source. */
+	injectedLines: number;
+	/** How many lines of the block body sit above the first compiled line. */
+	bodyLineOffset?: number;
+	/** The file whose contents were compiled instead of the block body. */
+	externalFile?: string;
+}
 
 /**
  * The active colour theme as the pure modules name it.
@@ -97,8 +107,8 @@ function resolvedForeground(document: vscode.TextDocument): string {
  * Exported for its tests. The choice of which diagnostic to show carries most
  * of the behaviour, and it is not reachable through the command.
  */
-export function errorText(stderr: string, injectedLines: number): string {
-	const diagnostics = parseTypstStderr(stderr, injectedLines);
+export function errorText(stderr: string, place: ErrorPlace): string {
+	const diagnostics = parseTypstStderr(stderr, place.injectedLines);
 	// A warning can sit above the error that stopped the compile, so the first
 	// diagnostic is not the one to show. Headlining a failure as a warning
 	// misstates why there is no image.
@@ -122,10 +132,19 @@ export function errorText(stderr: string, injectedLines: number): string {
 			// do with the failure.
 			return `${mapped.severity}: ${mapped.message}`;
 		}
-		// The line is counted inside the block, while the panel header counts
-		// document lines, so it says which of the two it means.
 		const column = (mapped.column ?? 0) + 1;
-		return `${mapped.severity} at line ${mapped.line + 1}, column ${column} of the block: ${mapped.message}`;
+		if (place.externalFile !== undefined) {
+			// The body was replaced by that file, so no line of the block corresponds
+			// to the failure at all. Naming the block would send the reader to a line
+			// that has nothing to do with it.
+			return `${mapped.severity} at line ${mapped.line + 1}, column ${column} of ${place.externalFile}: ${mapped.message}`;
+		}
+		// The line is counted inside the block, while the panel header counts
+		// document lines, so it says which of the two it means. A cell compiles its
+		// code and not its body, so the leading option run is added back: without it
+		// every position in a cell with options is short by the length of that run.
+		const line = mapped.line + (place.bodyLineOffset ?? 0) + 1;
+		return `${mapped.severity} at line ${line}, column ${column} of the block: ${mapped.message}`;
 	}
 
 	// Nothing mapped, which means every diagnostic pointed at another file, such
@@ -139,12 +158,17 @@ export function errorText(stderr: string, injectedLines: number): string {
 }
 
 /** What the panel shows about the block it is displaying. */
-function headerText(document: vscode.TextDocument, block: TypstBlock): string {
-	const place = `${path.basename(document.fileName)} · line ${block.fenceLine + 1}`;
-	// A raw block reaches Typst through the document template, which contributes
-	// imports, show rules and set directives the preview cannot apply. Saying so
-	// beside the image is what stops a divergence being read as a defect.
-	return block.kind === "raw" ? `${place} · raw passthrough, document template not applied` : place;
+function headerText(document: vscode.TextDocument, request: CompileRequest): string {
+	const parts = [`${path.basename(document.fileName)} · line ${request.block.fenceLine + 1}`];
+	if (request.brandMode !== undefined) {
+		// A cell resolves its `auto` colours against one side of the brand, and
+		// which side it took is not visible in the image when the two are close.
+		parts.push(`${request.brandMode} brand`);
+	}
+	// Everything the preview does not reproduce about this block. Saying so beside
+	// the image is what stops a divergence being read as a defect.
+	parts.push(...request.notes);
+	return parts.join(" · ");
 }
 
 /**
@@ -268,20 +292,17 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		}
 
 		const document = editor.document;
-		// The whole list is kept, because a raw block compiles with the raw blocks
-		// above it and scanning the document a second time to find them would say
-		// the same thing twice.
-		const blocks = findTypstBlocks(document.getText());
-		const block = blockAtOffset(blocks, document.offsetAt(editor.selection.active));
-		if (block === undefined) {
-			explain("Put the cursor inside a Typst block to preview it.");
-			return;
-		}
-		if (block.kind === "cell") {
-			// A cell needs its options resolved and its extension present.
-			// Compiling it alone would show an image that the render does not
-			// produce.
-			explain("A `{typst}` cell cannot be previewed yet.");
+		const settings = previewSettings(document);
+		// The header applies to a plain block and a raw block. A cell keeps the
+		// colour contract of the filter instead, and drops it.
+		const { header, foreground } = themeHeader(
+			themeKindOf(vscode.window.activeColorTheme.kind),
+			settings.foreground,
+			settings.background,
+		);
+		const request = await buildCompileRequest(document, editor.selection.active, header);
+		if (isUnavailable(request)) {
+			explain(request.unavailable);
 			return;
 		}
 
@@ -291,21 +312,14 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			return;
 		}
 
-		const settings = previewSettings(document);
 		const surface = usePanel();
 		surface.reveal();
 
-		const { header, foreground } = themeHeader(
-			themeKindOf(vscode.window.activeColorTheme.kind),
-			settings.foreground,
-			settings.background,
-		);
-		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
 		try {
-			const result = await useCompiler(binary, settings.timeoutMs).compile(assembled.source, ARGV, uncancelled.token);
+			const result = await useCompiler(binary, settings.timeoutMs).compile(request.source, ARGV, uncancelled.token);
 			if (result.svg === undefined) {
 				logMessage(`Typst preview: the compiler reported:\n${result.stderr}`, "debug");
-				surface.showError(errorText(result.stderr, assembled.injectedLines));
+				surface.showError(errorText(result.stderr, request));
 				return;
 			}
 			if (result.stderr.length > 0) {
@@ -315,7 +329,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			// image on screen, so the colour that image was compiled with is still
 			// the colour the reader is looking at.
 			shownForeground = foreground;
-			surface.show(result.svg, headerText(document, block));
+			surface.show(result.svg, headerText(document, request));
 		} catch (error) {
 			if (error instanceof vscode.CancellationError) {
 				return;
