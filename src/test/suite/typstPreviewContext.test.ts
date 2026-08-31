@@ -407,6 +407,62 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.deepStrictEqual(chain.levels, [{ margin: "1cm" }, { margin: "2cm" }, { margin: "3cm" }]);
 		});
 
+		test("Should splice a metadata-files target above the level that named it", async () => {
+			// Quarto merges the included metadata over the file that included it, so
+			// the target wins against its own declaring level and loses to every level
+			// above it.
+			asProject();
+			write(
+				"_quarto.yml",
+				"metadata-files:\n  - shared.yml\nextensions:\n  typst-render:\n    margin: 1cm\n    width: 6cm\n",
+			);
+			write("shared.yml", "extensions:\n  typst-render:\n    margin: 2cm\n");
+			write("sub/_metadata.yml", "extensions:\n  typst-render:\n    width: 9cm\n");
+			write("sub/doc.qmd", "Body\n");
+
+			const chain = await readMetadataChain(await open("sub/doc.qmd"));
+			assert.deepStrictEqual(chain.levels, [{ margin: "1cm", width: "6cm" }, { margin: "2cm" }, { width: "9cm" }]);
+		});
+
+		test("Should not read a metadata-files target another document named", async () => {
+			// The registry aggregates every target declared anywhere under the project
+			// root, so a chain built from it would merge this file into a preview of
+			// the other document and show an image its render never produces.
+			asProject();
+			write("a/doc-a.qmd", "---\nmetadata-files:\n  - opts.yml\n---\n\nBody\n");
+			write("a/opts.yml", 'extensions:\n  typst-render:\n    background: "#000000"\n');
+			write("b/doc-b.qmd", "Body\n");
+			// Open the other document, so a registry-driven chain would have seen it.
+			await open("a/doc-a.qmd");
+
+			const chain = await readMetadataChain(await open("b/doc-b.qmd"));
+			assert.deepStrictEqual(chain.levels, []);
+		});
+
+		test("Should read a metadata-files target the document itself names", async () => {
+			asProject();
+			write("sub/opts.yml", "extensions:\n  typst-render:\n    margin: 3cm\n");
+			write("sub/doc.qmd", "---\nmetadata-files:\n  - opts.yml\n---\n\nBody\n");
+
+			const chain = await readMetadataChain(await open("sub/doc.qmd"));
+			assert.deepStrictEqual(chain.levels, [{ margin: "3cm" }]);
+		});
+
+		test("Should resolve a brand a project metadata-files target names from the root", async () => {
+			// The target was pulled in by `_quarto.yml`, so it is project metadata and
+			// its `brand:` resolves from the project root, not from the directory of
+			// whichever document is being previewed.
+			asProject();
+			write("_quarto.yml", "metadata-files:\n  - shared.yml\n");
+			write("shared.yml", "brand: theme/x.yml\n");
+			write("theme/x.yml", "color:\n  background: '#101418'\n");
+			write("sub/doc.qmd", "Body\n");
+
+			const chain = await readMetadataChain(await open("sub/doc.qmd"));
+			const brand = await readBrand(chain);
+			assert.strictEqual(brandColourReader(brand)("light", "background"), "#101418");
+		});
+
 		test("Should read the bare typst-render key of a level as well", async () => {
 			asProject();
 			write("doc.qmd", "---\ntypst-render:\n  margin: 2cm\n---\n\nBody\n");

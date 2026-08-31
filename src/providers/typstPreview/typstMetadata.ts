@@ -1,7 +1,6 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
-import { getMetadataFiles } from "../../utils/metadataFilesRegistry";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
 import { parseFrontMatter } from "../../utils/yamlPosition";
 import {
@@ -131,25 +130,58 @@ function directoriesDownTo(projectRoot: string, documentDirectory: string): stri
 /** One level of the chain, and where a `brand:` path it names would resolve from. */
 interface Level {
 	source: unknown;
+	/** The directory the level's own relative paths resolve against. */
+	directory: string;
+	/** The directory a `brand:` it names resolves against, which is not the same. */
 	brandBase?: string;
+}
+
+/**
+ * The files one level pulls in through `metadata-file:` and `metadata-files:`,
+ * `src/config/metadata.ts:51-66`.
+ *
+ * The singular key comes first, then the list in declaration order, and every
+ * path resolves against the directory of the file that named it.
+ */
+function includedPaths(level: Level): string[] {
+	const map = mapping(level.source);
+	if (map === undefined) {
+		return [];
+	}
+	const named: string[] = [];
+	if (typeof map["metadata-file"] === "string") {
+		named.push(map["metadata-file"]);
+	}
+	if (Array.isArray(map["metadata-files"])) {
+		named.push(...map["metadata-files"].filter((entry): entry is string => typeof entry === "string"));
+	}
+	return named.map((name) => path.resolve(level.directory, name));
 }
 
 /**
  * The metadata chain of a document, lowest level first.
  *
- * The order is Quarto's own: the project `_quarto.yml`, the files it reaches
- * through `metadata-files:`, the `_metadata.yml` walk from the project root down
- * to the document directory, and the document front matter last.
+ * The order is Quarto's own: the project `_quarto.yml`, the `_metadata.yml` walk
+ * from the project root down to the document directory, and the document front
+ * matter last. Each of those can pull in more files, and those sit immediately
+ * above the level that named them, because `mergeProjectMetadata` at
+ * `src/project/project-context.ts:613` merges the included metadata over the
+ * file that included it.
  *
- * Every level is read at once. None of them depends on another's value, and a
- * document three directories deep otherwise pays a dozen serial reads on every
- * request. `Promise.all` keeps the index order, which is the precedence order.
+ * The targets are read per level rather than through `getMetadataFiles`, which
+ * is not the chain and cannot be made into one. It aggregates every target
+ * declared anywhere under the project root into one unordered set, so previewing
+ * one document would merge a file named only in another document's front matter,
+ * and no target would carry the directory that decides where a `brand:` it names
+ * resolves from.
  *
- * `getMetadataFiles` is not itself the chain. It returns only the files reached
- * through `metadata-files:`, and it returns them as a set, so they are read in
- * path order rather than in declaration order. Two of them setting the same key
- * is the only case where that differs, and Quarto is the authority on it, not
- * this preview.
+ * The levels are read together, then their targets are read together. None of
+ * them depends on another's value, and a document three directories deep
+ * otherwise pays a dozen serial reads on every request. `Promise.all` keeps the
+ * index order, which is the precedence order.
+ *
+ * Inclusion is not recursive: a target's own `metadata-files:` is not followed,
+ * which is what Quarto does as well.
  *
  * @param text - The document text, when the caller already has it.
  * @param projectRoot - The owning root, when the caller has already found it.
@@ -165,34 +197,44 @@ export async function readMetadataChain(
 	// The project configuration is its own case for `brand:`, so each level says
 	// which directory a relative path it names would resolve from. Every level
 	// above `_quarto.yml` reaches Quarto through the file metadata, which resolves
-	// from the directory of the document rather than from the level's own.
+	// a `brand:` from the directory of the document rather than from the level's
+	// own, while `metadata-files:` always resolves from the level's own.
 	const pending: Promise<Level>[] = [];
-	const level = async (source: Promise<unknown>, brandBase?: string): Promise<Level> => ({
+	const read = async (source: Promise<unknown>, directory: string, brandBase?: string): Promise<Level> => ({
 		source: await source,
+		directory,
 		brandBase,
 	});
 
 	if (owningRoot !== undefined) {
-		pending.push(level(readFirst(owningRoot, ["_quarto.yml", "_quarto.yaml"]), owningRoot));
-
-		for (const file of [...(await getMetadataFiles(owningRoot))].sort()) {
-			pending.push(level(readYaml(file), documentDirectory));
-		}
+		pending.push(read(readFirst(owningRoot, ["_quarto.yml", "_quarto.yaml"]), owningRoot, owningRoot));
 
 		if (documentDirectory !== undefined) {
 			for (const directory of directoriesDownTo(owningRoot, documentDirectory)) {
-				pending.push(level(readFirst(directory, ["_metadata.yml", "_metadata.yaml"]), documentDirectory));
+				pending.push(read(readFirst(directory, ["_metadata.yml", "_metadata.yaml"]), directory, documentDirectory));
 			}
 		}
 	}
 
+	const declared = [
+		...(await Promise.all(pending)),
+		{ source: parseFrontMatter(text), directory: documentDirectory ?? "", brandBase: documentDirectory },
+	];
+
+	// Every target of every level, read together, then spliced in above the level
+	// that named it.
+	const included = await Promise.all(
+		declared.map((level) => Promise.all(includedPaths(level).map((file) => readYaml(file)))),
+	);
+	const ordered = declared.flatMap((level, index) => [
+		level,
+		...included[index].map((source) => ({ ...level, source })),
+	]);
+
 	const levels: TypstGlobalLevel[] = [];
 	const metadata: Record<string, unknown> = {};
 	let brandBase: string | undefined;
-	for (const { source, brandBase: base } of [
-		...(await Promise.all(pending)),
-		{ source: parseFrontMatter(text), brandBase: documentDirectory },
-	]) {
+	for (const { source, brandBase: base } of ordered) {
 		const map = mapping(source);
 		if (map === undefined) {
 			continue;

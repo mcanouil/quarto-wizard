@@ -13,8 +13,9 @@ An expectation written by hand would only ever agree with the port.
 The fixtures were recorded from `mcanouil/quarto-typst-render` version `0.21.0`.
 Every `meta.json` repeats that version beside the brand mode of its recording.
 
-`src/providers/typstPreview/typstContext.ts` reads the installed version from the workspace schema index and logs a warning when it is above the pinned one.
+`src/providers/typstPreview/typstContext.ts` reads the installed version from the extension's own `_extension.yml` manifest and logs a warning when it is above the pinned one.
 That turns silent drift into a log line between refreshes.
+The fixture suite checks the same constant against every `meta.json`, so a fixture recorded from another version fails the build rather than making that warning lie.
 
 ## What each fixture covers
 
