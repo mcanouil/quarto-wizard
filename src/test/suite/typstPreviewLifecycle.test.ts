@@ -93,19 +93,20 @@ const written: string[] = [];
 /** The position inside the one block of `plainDocument`. */
 const INSIDE_BLOCK = new vscode.Position(3, 1);
 
-/** A controller wired to a stub, with one surface unless the test says otherwise. */
+/** A controller wired to a stub, with a surface showing unless the test says otherwise. */
 function makeController(
 	compiler: TypstCompilerLike,
 	overrides: { surface?: boolean; binary?: string | undefined } = {},
-): { controller: TypstPreviewController; messages: string[]; surface?: vscode.Disposable } {
+): { controller: TypstPreviewController; messages: string[]; showing: { value: boolean } } {
 	const messages: string[] = [];
+	const showing = { value: overrides.surface !== false };
 	const controller = new TypstPreviewController({
+		hasSurface: () => showing.value,
 		show: (message) => messages.push(message),
 		resolveBinary: () => Promise.resolve("binary" in overrides ? overrides.binary : "/typst"),
 		createCompiler: () => compiler,
 	});
-	const surface = overrides.surface === false ? undefined : controller.registerSurface();
-	return { controller, messages, surface };
+	return { controller, messages, showing };
 }
 
 /** The next result the controller publishes, or a rejection when none arrives. */
@@ -281,6 +282,34 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should compile nothing for a document whose surface is off", async () => {
+		// The gate is here and not in each surface, because this is what spawns the
+		// process. With the gate in the surfaces alone, an open panel went on
+		// compiling every edit in a folder that had turned the feature off.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller, messages } = makeController(compiler);
+		const document = await plainDocument();
+		const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview");
+		await config.update("surface", "off", vscode.ConfigurationTarget.Global);
+
+		try {
+			controller.request(document, INSIDE_BLOCK);
+			await settle();
+
+			assert.strictEqual(compiler.sources.length, 0);
+			assert.strictEqual(messages.length, 1, `unexpected messages: ${messages.join(" | ")}`);
+			assert.ok(messages[0].includes("surface"), `the message does not name the setting: ${messages[0]}`);
+
+			// An edit is not a question, so it is refused without saying anything.
+			controller.refresh();
+			await settle();
+			assert.strictEqual(messages.length, 1);
+		} finally {
+			await config.update("surface", undefined, vscode.ConfigurationTarget.Global);
+			controller.dispose();
+		}
+	});
+
 	test("Should say once that there is no Typst binary", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller, messages } = makeController(compiler, { binary: undefined });
@@ -357,7 +386,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		// meanwhile. Publishing anyway would have the surface build itself again,
 		// which reopens a panel the reader just closed.
 		const compiler = new StubCompiler();
-		const { controller, surface } = makeController(compiler);
+		const { controller, showing } = makeController(compiler);
 		const document = await plainFile();
 
 		// Driven through the cursor, which is what a background request follows.
@@ -371,7 +400,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 		const published: TypstPreviewUpdate[] = [];
 		const subscription = controller.onDidChangeResult((update) => published.push(update));
-		surface?.dispose();
+		showing.value = false;
 		compiler.answerAll({ svg: SVG, stderr: "" });
 		await settle();
 
@@ -387,11 +416,11 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const messages: string[] = [];
 		const controller = new TypstPreviewController({
+			hasSurface: () => true,
 			show: (message) => messages.push(message),
 			resolveBinary: () => Promise.reject(new Error("the probe failed")),
 			createCompiler: () => compiler,
 		});
-		controller.registerSurface();
 		const document = await plainDocument();
 
 		controller.request(document, INSIDE_BLOCK);
@@ -435,12 +464,12 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		const compiler = new StubCompiler({ svg: big, stderr: "" });
 		const messages: string[] = [];
 		const controller = new TypstPreviewController({
+			hasSurface: () => true,
 			show: (message) => messages.push(message),
 			resolveBinary: () => Promise.resolve("/typst"),
 			createCompiler: () => compiler,
 			cacheLimitBytes: 1000,
 		});
-		controller.registerSurface();
 		const first = await plainDocument("#circle()");
 		const second = await plainDocument("#square()");
 

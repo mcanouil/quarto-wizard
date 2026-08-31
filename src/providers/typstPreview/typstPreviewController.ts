@@ -10,13 +10,8 @@ import { logMessage } from "../../utils/log";
 import { isQmdFile } from "../../utils/metadataFilesRegistry";
 import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
 import { buildCompileRequest, TypstContextCache, type CompileRequest } from "./typstContext";
-import {
-	DEFAULT_TIMEOUT_MS,
-	TypstCompiler,
-	invalidateTypstBinary,
-	resolveTypstBinary,
-	type TypstCompileResult,
-} from "./typstCompiler";
+import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
+import { compileSettings, documentDelayOf, surfaceOf } from "./typstPreviewSettings";
 
 /**
  * The one owner of the preview state.
@@ -57,15 +52,6 @@ export const CACHE_LIMIT = 32;
  * pages would hold far more of the extension host than the count suggests.
  */
 const CACHE_LIMIT_BYTES = 16 * 1024 * 1024;
-
-/** The bounds `package.json` declares, repeated here because it cannot enforce them. */
-const MIN_TIMEOUT_MS = 1000;
-const MAX_TIMEOUT_MS = 300000;
-const MIN_DEBOUNCE_MS = 0;
-const MAX_DEBOUNCE_MS = 5000;
-
-/** The document change delay `package.json` declares. */
-export const DEFAULT_DEBOUNCE_MS = 300;
 
 /** Where the lines of a compile live, so a diagnostic can be placed. */
 export interface ErrorPlace {
@@ -113,8 +99,34 @@ export interface TypstCompilerLike {
 	dispose(): void;
 }
 
+/**
+ * Why one preview is being compiled.
+ *
+ * The three differ in two ways that are not derivable from each other: whether
+ * a panel may open for it, and whether it is worth compiling when nothing is
+ * showing a preview.
+ *
+ * - `asked`, the command. A panel opens, and it compiles whatever is on screen,
+ *   because the panel it opens is the answer.
+ * - `surface`, a hover over a block the preview is not following. Opens nothing,
+ *   and still compiles: the surface asking is itself on screen and waiting.
+ * - `background`, an edit, a cursor move, a theme or a watched file. Opens
+ *   nothing, and compiles only while something would render the result.
+ */
+export type PreviewReason = "asked" | "surface" | "background";
+
 /** How the controller reaches the parts of the world it does not own. */
 export interface TypstPreviewControllerOptions {
+	/**
+	 * Whether a surface is showing a preview now.
+	 *
+	 * Only a background compile asks. A panel renders every result it is given,
+	 * so it answers this; a hover renders nothing until the pointer rests, so it
+	 * does not, and it drives its own compile through `preview` instead. Making
+	 * a hover answer yes would spawn Typst on every edit and every cursor move
+	 * for a reader who may never point at a block.
+	 */
+	hasSurface: () => boolean;
 	/** Put a message in front of the reader. */
 	show: (message: string) => void;
 	/** The Typst binary. Injected so that no test spawns Typst. */
@@ -123,13 +135,6 @@ export interface TypstPreviewControllerOptions {
 	createCompiler?: (binary: string, timeoutMs: number) => TypstCompilerLike;
 	/** How many bytes of image to hold. Lowered by the test that bounds it. */
 	cacheLimitBytes?: number;
-}
-
-/** What the settings say about compiling one document. */
-interface TypstPreviewSettings {
-	foreground: string;
-	background: string;
-	timeoutMs: number;
 }
 
 /**
@@ -150,70 +155,6 @@ export function themeKindOf(kind: vscode.ColorThemeKind): TypstThemeKind {
 		default:
 			return "dark";
 	}
-}
-
-/**
- * A usable colour setting, whatever the setting holds.
- *
- * Exported for its tests. `package.json` declares the type, and a hand-edited
- * `settings.json` ignores it, so a value that is not a string reaches the
- * header and is trimmed there.
- */
-export function previewColour(value: unknown): string {
-	// The header trims the value, so a value that is not a string throws where
-	// nothing catches it, and the panel opens and then stays empty.
-	return typeof value === "string" ? value : "auto";
-}
-
-/** A number setting held inside its bounds, whatever the setting holds. */
-function boundedNumber(value: unknown, fallback: number, lowest: number, highest: number): number {
-	if (typeof value !== "number" || !Number.isFinite(value)) {
-		return fallback;
-	}
-	return Math.min(highest, Math.max(lowest, value));
-}
-
-/**
- * A usable compile timeout, whatever the setting holds.
- *
- * Exported for its tests. The bounds in `package.json` only guide the settings
- * user interface, so a hand-edited `settings.json` reaches `setTimeout`
- * unchecked, and `0` there fails every preview before Typst has read anything.
- */
-export function previewTimeoutMs(value: unknown): number {
-	return boundedNumber(value, DEFAULT_TIMEOUT_MS, MIN_TIMEOUT_MS, MAX_TIMEOUT_MS);
-}
-
-/**
- * A usable document change delay, whatever the setting holds.
- *
- * Exported for its tests. Zero is allowed and means a compile per keystroke,
- * which a fast machine can carry, and the upper bound stops a mistyped value
- * from looking like a preview that never updates.
- */
-export function previewDebounceMs(value: unknown): number {
-	return boundedNumber(value, DEFAULT_DEBOUNCE_MS, MIN_DEBOUNCE_MS, MAX_DEBOUNCE_MS);
-}
-
-/**
- * The settings in force for one document.
- *
- * They are resource scoped, so a multi-root workspace can hold a different
- * answer per folder, and the document is what says which folder that is.
- */
-function previewSettings(document: vscode.TextDocument): TypstPreviewSettings {
-	const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview", document.uri);
-	return {
-		foreground: previewColour(config.get("foreground")),
-		background: previewColour(config.get("background")),
-		timeoutMs: previewTimeoutMs(config.get<number>("timeoutMs", DEFAULT_TIMEOUT_MS)),
-	};
-}
-
-/** How long an edit waits before the preview follows it. */
-function documentDelayOf(document: vscode.TextDocument): number {
-	const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview", document.uri);
-	return previewDebounceMs(config.get<number>("debounceMs", DEFAULT_DEBOUNCE_MS));
 }
 
 /**
@@ -359,8 +300,6 @@ export class TypstPreviewController implements vscode.Disposable {
 	private compilerKey: string | undefined;
 	/** How many bytes of image the cache is holding. */
 	private cacheBytes = 0;
-	/** How many surfaces are showing previews, which is what a background edit needs. */
-	private surfaces = 0;
 	/** Whether the file watchers are up, which the first request raises. */
 	private watching = false;
 	/** Rises with every request, so a result that arrives out of order is dropped. */
@@ -382,31 +321,6 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.wireEvents();
 	}
 
-	/**
-	 * Say that something is showing previews, until the result is disposed.
-	 *
-	 * A background edit is only worth a compile when something would render the
-	 * result, and there is more than one surface, so counting registrations is
-	 * how the controller knows. A request the user asked for compiles either way,
-	 * because the panel it opens is the answer.
-	 */
-	registerSurface(): vscode.Disposable {
-		this.surfaces++;
-		let released = false;
-		return {
-			dispose: () => {
-				// Disposed twice is the normal way a surface is torn down: once by its
-				// own clean-up and once by the subscription list holding it. The second
-				// call must not take another surface's registration away.
-				if (released) {
-					return;
-				}
-				released = true;
-				this.surfaces--;
-			},
-		};
-	}
-
 	/** What is being previewed, which is what a surface renders. */
 	current(): TypstPreviewResult | undefined {
 		return this.result;
@@ -420,12 +334,12 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * however many surfaces ask.
 	 */
 	blocksOf(document: vscode.TextDocument): TypstBlock[] {
-		return this.contexts.blocksOf(document, document.getText());
+		return this.contexts.blocksOf(document, () => document.getText());
 	}
 
 	/** Preview the block under a position, because the user asked for it. */
 	request(document: vscode.TextDocument, position: vscode.Position): void {
-		this.start(document, position, true);
+		void this.attempt(document, position, "asked");
 	}
 
 	/**
@@ -444,7 +358,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * block cannot be previewed, or when the compile failed on the way.
 	 */
 	preview(document: vscode.TextDocument, position: vscode.Position): Promise<TypstPreviewResult | undefined> {
-		return this.attempt(document, position, false);
+		return this.attempt(document, position, "surface");
 	}
 
 	/** Preview the block under the cursor again, because something changed. */
@@ -453,7 +367,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		if (editor === undefined || !isRelevantDocument(editor.document)) {
 			return;
 		}
-		this.start(editor.document, editor.selection.active, false);
+		void this.attempt(editor.document, editor.selection.active, "background");
 	}
 
 	/**
@@ -476,11 +390,11 @@ export class TypstPreviewController implements vscode.Disposable {
 		if (document === undefined) {
 			return;
 		}
-		const block = this.contexts.blocksOf(document, document.getText())[shown.blockIndex];
+		const block = this.blocksOf(document)[shown.blockIndex];
 		if (block === undefined) {
 			return;
 		}
-		this.start(document, document.positionAt(block.fenceStart), false);
+		void this.attempt(document, document.positionAt(block.fenceStart), "background");
 	}
 
 	/**
@@ -495,21 +409,16 @@ export class TypstPreviewController implements vscode.Disposable {
 	private attempt(
 		document: vscode.TextDocument,
 		position: vscode.Position,
-		asked: boolean,
+		reason: PreviewReason,
 	): Promise<TypstPreviewResult | undefined> {
-		return this.run(document, position, asked).catch((error: unknown) => {
+		return this.run(document, position, reason).catch((error: unknown) => {
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
-			if (asked) {
+			if (reason === "asked") {
 				this.options.show(message);
 			}
 			return undefined;
 		});
-	}
-
-	/** Start one preview for a caller that is not waiting for it. */
-	private start(document: vscode.TextDocument, position: vscode.Position, asked: boolean): void {
-		void this.attempt(document, position, asked);
 	}
 
 	dispose(): void {
@@ -546,9 +455,25 @@ export class TypstPreviewController implements vscode.Disposable {
 	private async run(
 		document: vscode.TextDocument,
 		position: vscode.Position,
-		asked: boolean,
+		reason: PreviewReason,
 	): Promise<TypstPreviewResult | undefined> {
-		if (this.disposed || (!asked && !this.hasSurface())) {
+		if (this.disposed || (reason === "background" && !this.options.hasSurface())) {
+			return undefined;
+		}
+
+		if (surfaceOf(document) === "off") {
+			// Asked here rather than in each surface, because a surface that renders
+			// nothing is not the same as a document that wants nothing compiled: with
+			// the gate in the surfaces alone, an open panel went on spawning Typst for
+			// every edit in a folder that had turned the feature off.
+			//
+			// Naming the setting is what makes it recoverable, and only a reader who
+			// asked hears it: an edit in such a folder is not a question.
+			const message = "The Typst preview is off. Set `quartoWizard.typstPreview.surface` to show a preview.";
+			logMessage(`Typst preview: ${message}`, "debug");
+			if (reason === "asked") {
+				this.options.show(message);
+			}
 			return undefined;
 		}
 
@@ -569,7 +494,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		// installed, so waiting for a result would keep that case broken for good.
 		this.watchFiles();
 
-		const settings = previewSettings(document);
+		const settings = compileSettings(document);
 		// The header applies to a plain block and a raw block. A cell keeps the
 		// colour contract of the filter instead, and drops it.
 		const { header } = themeHeader(
@@ -586,7 +511,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// outside every block is not a question, so answering it would put a
 			// message in front of someone who did nothing.
 			logMessage(`Typst preview: ${request.unavailable}`, "debug");
-			if (asked) {
+			if (reason === "asked") {
 				this.options.show(request.unavailable);
 			}
 			return undefined;
@@ -615,7 +540,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// what the eviction below removes.
 			this.cache.delete(key);
 			this.cache.set(key, held);
-			return this.publish(document, request, held, asked);
+			return this.publish(document, request, held, reason);
 		}
 
 		try {
@@ -628,14 +553,14 @@ export class TypstPreviewController implements vscode.Disposable {
 				return undefined;
 			}
 			this.remember(key, compiled);
-			return this.publish(document, request, compiled, asked);
+			return this.publish(document, request, compiled, reason);
 		} catch (error) {
 			if (stale() || error instanceof vscode.CancellationError) {
 				return undefined;
 			}
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
-			return this.publish(document, request, { stderr: "" }, asked, message);
+			return this.publish(document, request, { stderr: "" }, reason, message);
 		}
 	}
 
@@ -649,10 +574,10 @@ export class TypstPreviewController implements vscode.Disposable {
 		document: vscode.TextDocument,
 		request: CompileRequest,
 		compiled: TypstCompileResult,
-		asked: boolean,
+		reason: PreviewReason,
 		failure?: string,
 	): TypstPreviewResult | undefined {
-		if (!asked && !this.hasSurface()) {
+		if (reason === "background" && !this.options.hasSurface()) {
 			// A compile runs for up to the timeout and the reader can close the last
 			// surface meanwhile. The result is nobody's, and publishing it would have
 			// a surface build itself to render it, which reopens what was just closed.
@@ -682,7 +607,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
-		this.resultEmitter.fire({ result: this.result, asked });
+		this.resultEmitter.fire({ result: this.result, asked: reason === "asked" });
 		return this.result;
 	}
 
@@ -709,11 +634,6 @@ export class TypstPreviewController implements vscode.Disposable {
 	private forgetImages(): void {
 		this.cache.clear();
 		this.cacheBytes = 0;
-	}
-
-	/** Whether anything would render a result compiled for a background change. */
-	private hasSurface(): boolean {
-		return this.surfaces > 0;
 	}
 
 	private resolveBinary(): Promise<string | undefined> {
@@ -799,7 +719,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// keystroke as well, and typing is what the document delay is for, so
 			// following it here would make that setting mean nothing below 250 ms.
 			vscode.window.onDidChangeTextEditorSelection((event) => {
-				if (this.hasSurface() && isRelevantDocument(event.textEditor.document) && this.movedBlock(event)) {
+				if (this.options.hasSurface() && isRelevantDocument(event.textEditor.document) && this.movedBlock(event)) {
 					this.selectionDebounce();
 				}
 			}),
@@ -925,7 +845,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			this.contextDebounce();
 			return;
 		}
-		if (!this.hasSurface()) {
+		if (!this.options.hasSurface()) {
 			// Nothing is showing a preview, so nothing would render the result. The
 			// document change events of a whole session arrive here, so this is the
 			// one place where the cost of a keystroke is worth naming.

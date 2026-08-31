@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { debounce, type DebouncedFunction } from "../../utils/debounce";
 import type { TypstBlockKind } from "../../utils/typst/typstBlocks";
 import type { TypstPreviewController } from "./typstPreviewController";
-import { codeLensOf, surfaceOf, type TypstPreviewSurface, type TypstSurfaceSettings } from "./typstPreviewSettings";
+import { surfaceSettings, type TypstSurfaceSettings } from "./typstPreviewSettings";
 
 /**
  * A lens above every Typst block, offering to preview that block.
@@ -32,17 +32,13 @@ export class TypstPreviewCodeLens implements vscode.CodeLensProvider, vscode.Dis
 	private readonly changeEmitter = new vscode.EventEmitter<void>();
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly changeDebounce: DebouncedFunction<() => void>;
-	private readonly surfaceOf: (document: vscode.TextDocument) => TypstPreviewSurface;
-	private readonly codeLensOf: (document: vscode.TextDocument) => boolean;
 
 	readonly onDidChangeCodeLenses = this.changeEmitter.event;
 
 	constructor(
 		private readonly controller: TypstPreviewController,
-		settings: TypstSurfaceSettings = {},
+		private readonly settingsOf: (document: vscode.TextDocument) => TypstSurfaceSettings = surfaceSettings,
 	) {
-		this.surfaceOf = settings.surfaceOf ?? surfaceOf;
-		this.codeLensOf = settings.codeLensOf ?? codeLensOf;
 		this.changeDebounce = debounce(() => this.changeEmitter.fire(), CHANGE_DEBOUNCE_MS);
 
 		this.disposables.push(
@@ -50,7 +46,13 @@ export class TypstPreviewCodeLens implements vscode.CodeLensProvider, vscode.Dis
 			// fence below it, so the lenses are asked for again either way. The delay
 			// is what keeps that off the keystroke path.
 			vscode.workspace.onDidChangeTextDocument((event) => {
-				if (event.contentChanges.length > 0 && event.document.languageId === "quarto") {
+				if (event.contentChanges.length === 0 || !this.wanted(event.document)) {
+					return;
+				}
+				// Only a document someone is looking at. An edit to a background one,
+				// from a code action or a checkout, would have the editor re-request
+				// the lenses of every visible editor to rebuild an unchanged list.
+				if (vscode.window.visibleTextEditors.some((editor) => editor.document === event.document)) {
 					this.changeDebounce();
 				}
 			}),
@@ -60,15 +62,26 @@ export class TypstPreviewCodeLens implements vscode.CodeLensProvider, vscode.Dis
 			// Turning the lens on or off changes every lens at once, and the reader is
 			// waiting for it, so this one is not delayed.
 			vscode.workspace.onDidChangeConfiguration((event) => {
-				if (event.affectsConfiguration("quartoWizard.typstPreview")) {
+				// The two settings a lens depends on. The section also holds the delay,
+				// the timeout, the colours and the height, none of which move a lens.
+				if (
+					event.affectsConfiguration("quartoWizard.typstPreview.surface") ||
+					event.affectsConfiguration("quartoWizard.typstPreview.codeLens")
+				) {
 					this.changeEmitter.fire();
 				}
 			}),
 		);
 	}
 
+	/** Whether this document asks for a lens above each of its Typst blocks. */
+	private wanted(document: vscode.TextDocument): boolean {
+		const settings = this.settingsOf(document);
+		return settings.surface !== "off" && settings.codeLens;
+	}
+
 	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] {
-		if (this.surfaceOf(document) === "off" || !this.codeLensOf(document)) {
+		if (!this.wanted(document)) {
 			return [];
 		}
 		const lenses: vscode.CodeLens[] = [];

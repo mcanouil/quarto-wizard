@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { blockAtOffset } from "../../utils/typst/typstBlocks";
 import { clampSvg, svgDataUri } from "../../utils/typst/typstSvg";
 import type { TypstPreviewController, TypstPreviewResult } from "./typstPreviewController";
-import { maxHeightOf, surfaceOf, type TypstPreviewSurface, type TypstSurfaceSettings } from "./typstPreviewSettings";
+import { surfaceSettings, type TypstSurfaceSettings } from "./typstPreviewSettings";
 
 /**
  * The image of a block, shown when the pointer rests on it.
@@ -24,16 +24,10 @@ import { maxHeightOf, surfaceOf, type TypstPreviewSurface, type TypstSurfaceSett
 const IMAGE_LIMIT_BYTES = 256 * 1024;
 
 export class TypstPreviewHover implements vscode.HoverProvider {
-	private readonly surfaceOf: (document: vscode.TextDocument) => TypstPreviewSurface;
-	private readonly maxHeightOf: (document: vscode.TextDocument) => number;
-
 	constructor(
 		private readonly controller: TypstPreviewController,
-		settings: TypstSurfaceSettings = {},
-	) {
-		this.surfaceOf = settings.surfaceOf ?? surfaceOf;
-		this.maxHeightOf = settings.maxHeightOf ?? maxHeightOf;
-	}
+		private readonly settingsOf: (document: vscode.TextDocument) => TypstSurfaceSettings = surfaceSettings,
+	) {}
 
 	/**
 	 * The image of the block under the pointer.
@@ -52,7 +46,8 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		position: vscode.Position,
 		token: vscode.CancellationToken,
 	): Promise<vscode.Hover | undefined> {
-		if (this.surfaceOf(document) !== "hover" || token.isCancellationRequested) {
+		const settings = this.settingsOf(document);
+		if (settings.surface !== "hover" || token.isCancellationRequested) {
 			return undefined;
 		}
 		const blocks = this.controller.blocksOf(document);
@@ -79,16 +74,16 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		if (result.svg === undefined && result.error === undefined) {
 			return undefined;
 		}
-		return new vscode.Hover(this.describe(result, document), range);
+		return new vscode.Hover(this.describe(result, settings.maxHeight), range);
 	}
 
 	/** One preview as markdown, which is an image, a failure, or both. */
-	private describe(result: TypstPreviewResult, document: vscode.TextDocument): vscode.MarkdownString {
+	private describe(result: TypstPreviewResult, maxHeight: number): vscode.MarkdownString {
 		const markdown = new vscode.MarkdownString();
 		if (result.svg !== undefined) {
 			// A hover cannot size an image, so the root element is scaled instead and
 			// the `viewBox` is left alone, which keeps the drawing filling it.
-			const clamped = clampSvg(result.svg, this.maxHeightOf(document));
+			const clamped = clampSvg(result.svg, maxHeight);
 			if (clamped.length > IMAGE_LIMIT_BYTES) {
 				markdown.appendText(
 					"The compiled image is too large for a hover. Run Quarto Wizard: Preview Typst Block to see it in the panel.",

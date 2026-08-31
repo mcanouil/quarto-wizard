@@ -4,7 +4,6 @@ import { TypstPreviewController, type TypstPreviewUpdate } from "./typstPreviewC
 import { TypstPreviewPanel } from "./typstPreviewPanel";
 import { TypstPreviewCodeLens } from "./typstPreviewCodeLens";
 import { TypstPreviewHover } from "./typstPreviewHover";
-import { surfaceOf } from "./typstPreviewSettings";
 
 /** The documents every surface is offered on. */
 const SELECTOR: vscode.DocumentSelector = { language: "quarto" };
@@ -20,10 +19,6 @@ const SELECTOR: vscode.DocumentSelector = { language: "quarto" };
  */
 export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	let panel: TypstPreviewPanel | undefined;
-	/** Held while the panel is open, which is what makes an edit worth a compile. */
-	let panelSurface: vscode.Disposable | undefined;
-	/** Held while the active document asks for the hover surface. */
-	let followSurface: vscode.Disposable | undefined;
 
 	/**
 	 * Put a message in front of the reader.
@@ -43,40 +38,22 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		void showMessageWithLogs(message, "warning");
 	};
 
-	const controller = new TypstPreviewController({ show });
+	// The panel is the only surface that renders every result it is given, so it
+	// is the only one that makes a background edit worth a compile. A hover shows
+	// nothing until the pointer rests, and drives its own compile when it does.
+	const controller = new TypstPreviewController({ hasSurface: () => panel !== undefined, show });
 	context.subscriptions.push(controller);
 
 	/** Keep a panel, and forget it when the user closes it. */
 	const holdPanel = (held: TypstPreviewPanel): TypstPreviewPanel => {
 		panel = held;
-		panelSurface = controller.registerSurface();
 		held.onDidDispose(() => {
-			panelSurface?.dispose();
-			panelSurface = undefined;
 			panel = undefined;
 		});
 		return held;
 	};
 
 	const usePanel = (): TypstPreviewPanel => panel ?? holdPanel(TypstPreviewPanel.create(context.extensionUri));
-
-	/**
-	 * Hold a surface open for the hover surface.
-	 *
-	 * A hover is not a window the reader opens, so without this nothing would
-	 * tell the controller that an edit is worth a compile, and every hover would
-	 * pay for a compile of its own. The active document is what is asked, because
-	 * the setting is resource scoped: a folder set to `panel` or to `off` should
-	 * not pay for the compiles another folder asked for.
-	 */
-	const followActiveSurface = (): void => {
-		const wanted = surfaceOf(vscode.window.activeTextEditor?.document) === "hover";
-		if (wanted === (followSurface !== undefined)) {
-			return;
-		}
-		followSurface?.dispose();
-		followSurface = wanted ? controller.registerSurface() : undefined;
-	};
 
 	/** Render one update, opening the panel when there is none yet. */
 	const render = ({ result, asked }: TypstPreviewUpdate): void => {
@@ -135,12 +112,8 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 				show("Open a Quarto document to preview a Typst block.");
 				return;
 			}
-			if (surfaceOf(target.document) === "off") {
-				// The reader turned every surface off, so opening one would contradict
-				// the setting. Naming the setting is what makes that recoverable.
-				show("The Typst preview is off. Set `quartoWizard.typstPreview.surface` to show a preview.");
-				return;
-			}
+			// Whether the document wants a preview at all is the controller's to
+			// answer, because it is what spawns the process, and it says so itself.
 			controller.request(target.document, target.position);
 		}),
 	);
@@ -149,22 +122,6 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(codeLens);
 	context.subscriptions.push(vscode.languages.registerCodeLensProvider(SELECTOR, codeLens));
 	context.subscriptions.push(vscode.languages.registerHoverProvider(SELECTOR, new TypstPreviewHover(controller)));
-
-	followActiveSurface();
-	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(() => followActiveSurface()));
-	context.subscriptions.push(
-		vscode.workspace.onDidChangeConfiguration((event) => {
-			if (event.affectsConfiguration("quartoWizard.typstPreview")) {
-				followActiveSurface();
-			}
-		}),
-	);
-	context.subscriptions.push({
-		dispose: () => {
-			followSurface?.dispose();
-			followSurface = undefined;
-		},
-	});
 
 	// A window reload restores the panel. Recompile into it rather than restoring
 	// a serialised image, which would be stale the moment the document changed.

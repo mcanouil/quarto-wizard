@@ -58,17 +58,16 @@ async function quartoDocument(content: string): Promise<vscode.TextDocument> {
 	return vscode.workspace.openTextDocument({ language: "quarto", content });
 }
 
-/** A controller wired to a stub, with one surface holding it open. */
+/** A controller wired to a stub, with a surface showing. */
 function makeController(compiler: TypstCompilerLike): TypstPreviewController {
-	const controller = new TypstPreviewController({
+	return new TypstPreviewController({
+		hasSurface: () => true,
 		show: () => {
 			/* Nothing here asks a question, so nothing answers one. */
 		},
 		resolveBinary: () => Promise.resolve("/typst"),
 		createCompiler: () => compiler,
 	});
-	controller.registerSurface();
-	return controller;
 }
 
 /** Ask for one preview and wait for the result it publishes. */
@@ -92,12 +91,8 @@ function nextResultFor(
 }
 
 /** Settings that answer the same way for every document. */
-function fixedSettings(surface: TypstPreviewSurface, maxHeight = 200, codeLens = true): TypstSurfaceSettings {
-	return {
-		surfaceOf: () => surface,
-		maxHeightOf: () => maxHeight,
-		codeLensOf: () => codeLens,
-	};
+function fixedSettings(surface: TypstPreviewSurface, maxHeight = 200, codeLens = true): () => TypstSurfaceSettings {
+	return () => ({ surface, maxHeight, codeLens });
 }
 
 const NO_CANCEL = new vscode.CancellationTokenSource().token;
@@ -197,6 +192,29 @@ suite("Typst Preview Surfaces Test Suite", () => {
 			hoverText(shown).includes("data:image/svg+xml;base64,"),
 			`no image in the first hover: ${hoverText(shown)}`,
 		);
+		assert.strictEqual(compiler.sources.length, 1);
+		controller.dispose();
+	});
+
+	test("Should compile for a hover even when nothing is showing a preview", async () => {
+		// A hover renders nothing until the pointer rests, so it is not a surface
+		// that makes a background edit worth compiling. It still has to be able to
+		// drive a compile of its own, or the surface would never show anything.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = new TypstPreviewController({
+			hasSurface: () => false,
+			show: () => {
+				/* Nothing here asks a question. */
+			},
+			resolveBinary: () => Promise.resolve("/typst"),
+			createCompiler: () => compiler,
+		});
+		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/svg+xml;base64,"));
 		assert.strictEqual(compiler.sources.length, 1);
 		controller.dispose();
 	});

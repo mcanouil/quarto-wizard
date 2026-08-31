@@ -1,13 +1,12 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
+import { errorText, themeKindOf } from "../../providers/typstPreview/typstPreviewController";
 import {
 	DEFAULT_DEBOUNCE_MS,
-	errorText,
 	previewColour,
 	previewDebounceMs,
 	previewTimeoutMs,
-	themeKindOf,
-} from "../../providers/typstPreview/typstPreviewController";
+} from "../../providers/typstPreview/typstPreviewSettings";
 import { DEFAULT_TIMEOUT_MS } from "../../providers/typstPreview/typstCompiler";
 
 /** One diagnostic as Typst writes it, on the two lines it uses. */
