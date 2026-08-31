@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
-import { TypstPreviewController, type TypstPreviewResult } from "./typstPreviewController";
+import { TypstPreviewController, type TypstPreviewUpdate } from "./typstPreviewController";
 import { TypstPreviewPanel } from "./typstPreviewPanel";
 
 /**
@@ -47,15 +47,15 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	const controller = new TypstPreviewController({ hasSurface: () => panel !== undefined, show });
 	context.subscriptions.push(controller);
 
-	/** Render one result, opening the panel when there is none yet. */
-	const render = (result: TypstPreviewResult | undefined): void => {
+	/** Render one update, opening the panel when there is none yet. */
+	const render = ({ result, asked }: TypstPreviewUpdate): void => {
 		if (result === undefined) {
 			// The document went away, so there is no block left to describe.
 			panel?.clear();
 			return;
 		}
 		const surface = usePanel();
-		if (result.asked) {
+		if (asked) {
 			// Only a request the user made brings the panel forward. Doing it on an
 			// edit would pull the tab back over whatever they moved to.
 			surface.reveal();

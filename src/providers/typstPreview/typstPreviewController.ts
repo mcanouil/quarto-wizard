@@ -7,8 +7,16 @@ import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnost
 import { debounce, type DebouncedFunction } from "../../utils/debounce";
 import { generateHashKey } from "../../utils/hash";
 import { logMessage } from "../../utils/log";
+import { isQmdFile } from "../../utils/metadataFilesRegistry";
+import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
 import { buildCompileRequest, TypstContextCache, type CompileRequest } from "./typstContext";
-import { DEFAULT_TIMEOUT_MS, TypstCompiler, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
+import {
+	DEFAULT_TIMEOUT_MS,
+	TypstCompiler,
+	invalidateTypstBinary,
+	resolveTypstBinary,
+	type TypstCompileResult,
+} from "./typstCompiler";
 
 /**
  * The one owner of the preview state.
@@ -37,9 +45,18 @@ const CONTEXT_DEBOUNCE_MS = 300;
  *
  * Enough to hold every block of a document under an edit and its undo history,
  * and small enough that a session of many documents does not grow without
- * bound. An entry is one image, which is tens of kilobytes.
+ * bound.
  */
 const CACHE_LIMIT = 32;
+
+/**
+ * How many bytes of image the remembered results may hold together.
+ *
+ * The count alone is not a bound. One compile may produce up to the compiler's
+ * own output limit, which is measured in megabytes, so a cache of a few dense
+ * pages would hold far more of the extension host than the count suggests.
+ */
+const CACHE_LIMIT_BYTES = 16 * 1024 * 1024;
 
 /** The bounds `package.json` declares, repeated here because it cannot enforce them. */
 const MIN_TIMEOUT_MS = 1000;
@@ -60,6 +77,20 @@ export interface ErrorPlace {
 	externalFile?: string;
 }
 
+/**
+ * One change of the preview, as the surfaces hear about it.
+ *
+ * `asked` describes the request and not the block, so it is not part of the
+ * result: a surface reading `current()` later would find it describing a
+ * request that is long over.
+ */
+export interface TypstPreviewUpdate {
+	/** What is being previewed, absent when there is nothing any more. */
+	result?: TypstPreviewResult;
+	/** Whether the user asked for this, rather than an edit driving it. */
+	asked: boolean;
+}
+
 /** What a surface needs to render the current preview. */
 export interface TypstPreviewResult {
 	/** The document the block belongs to. */
@@ -74,8 +105,6 @@ export interface TypstPreviewResult {
 	header: string;
 	/** The one line a failure shows, absent when the compile produced an image. */
 	error?: string;
-	/** Whether the user asked for this preview, rather than an edit driving it. */
-	asked: boolean;
 }
 
 /** What the controller needs of a compiler, which is what makes it stubbable. */
@@ -102,12 +131,11 @@ export interface TypstPreviewControllerOptions {
 	createCompiler?: (binary: string, timeoutMs: number) => TypstCompilerLike;
 }
 
-/** What the settings say about previewing one document. */
+/** What the settings say about compiling one document. */
 interface TypstPreviewSettings {
 	foreground: string;
 	background: string;
 	timeoutMs: number;
-	debounceMs: number;
 }
 
 /**
@@ -185,8 +213,13 @@ function previewSettings(document: vscode.TextDocument): TypstPreviewSettings {
 		foreground: previewColour(config.get("foreground")),
 		background: previewColour(config.get("background")),
 		timeoutMs: previewTimeoutMs(config.get<number>("timeoutMs", DEFAULT_TIMEOUT_MS)),
-		debounceMs: previewDebounceMs(config.get<number>("debounceMs", DEFAULT_DEBOUNCE_MS)),
 	};
+}
+
+/** How long an edit waits before the preview follows it. */
+function documentDelayOf(document: vscode.TextDocument): number {
+	const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview", document.uri);
+	return previewDebounceMs(config.get<number>("debounceMs", DEFAULT_DEBOUNCE_MS));
 }
 
 /**
@@ -261,20 +294,37 @@ export function headerText(document: vscode.TextDocument, request: CompileReques
 
 /** Whether a document is one this feature previews at all. */
 function isRelevantDocument(document: vscode.TextDocument): boolean {
-	return document.languageId === "quarto" || document.fileName.endsWith(".qmd");
+	return document.languageId === "quarto" || isQmdFile(document.fileName);
 }
+
+/**
+ * The metadata files a preview reads beside the block.
+ *
+ * `_quarto` and `_metadata` are the chain, and `_brand` is where an `auto`
+ * colour resolves from. The glob and the name test below are both built from
+ * this, because two hand-kept lists of one set drift apart in silence.
+ */
+const CONTEXT_FILE_NAMES = ["quarto", "metadata", "brand"] as const;
+
+/** Every metadata file of the chain, at any depth, including `_brand/_brand.yml`. */
+const CONTEXT_FILE_GLOB = `**/_{${CONTEXT_FILE_NAMES.join(",")}}.{yml,yaml}`;
+
+/** A `preamble:` or a `file:`, which a cell compiles in place of its own body. */
+const TYPST_FILE_GLOB = "**/*.typ";
 
 /**
  * Whether a document is one a preview reads beside the block.
  *
- * These are the files the metadata chain, the brand and a `preamble:` come
- * from. An unsaved edit to one of them drives the preview the way an unsaved
- * edit to the document itself already does, because the chain prefers the copy
- * open in the editor.
+ * An unsaved edit to one of these drives the preview the way an unsaved edit to
+ * the document itself already does, because the chain prefers the copy open in
+ * the editor. An extension manifest is not among them: nothing reads one from
+ * the editor, so the watcher over the installed manifests is what covers it.
  */
 function isContextDocument(document: vscode.TextDocument): boolean {
-	const name = path.basename(document.fileName);
-	return /^_(quarto|metadata|brand)\.ya?ml$/.test(name) || name.endsWith(".typ") || /^_extension\.ya?ml$/.test(name);
+	const name = path.basename(document.fileName).toLowerCase();
+	return (
+		CONTEXT_FILE_NAMES.some((stem) => name === `_${stem}.yml` || name === `_${stem}.yaml`) || name.endsWith(".typ")
+	);
 }
 
 /**
@@ -287,7 +337,7 @@ function isContextDocument(document: vscode.TextDocument): boolean {
 export class TypstPreviewController implements vscode.Disposable {
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly contexts = new TypstContextCache();
-	private readonly resultEmitter = new vscode.EventEmitter<TypstPreviewResult | undefined>();
+	private readonly resultEmitter = new vscode.EventEmitter<TypstPreviewUpdate>();
 	/**
 	 * The compiled results, most recently used last.
 	 *
@@ -308,10 +358,13 @@ export class TypstPreviewController implements vscode.Disposable {
 	private readonly selectionDebounce: DebouncedFunction<() => void>;
 	private readonly contextDebounce: DebouncedFunction<() => void>;
 	private documentDebounce: DebouncedFunction<() => void> | undefined;
-	private documentDelayMs: number | undefined;
 	private compiler: TypstCompilerLike | undefined;
-	private compilerBinary: string | undefined;
-	private compilerTimeoutMs: number | undefined;
+	/** What the compiler was built for, so it is replaced when that changes. */
+	private compilerKey: string | undefined;
+	/** How many bytes of image the cache is holding. */
+	private cacheBytes = 0;
+	/** Whether the file watchers are up, which the first published result raises. */
+	private watching = false;
 	/** Rises with every request, so a result that arrives out of order is dropped. */
 	private requestVersion = 0;
 	private result: TypstPreviewResult | undefined;
@@ -319,7 +372,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	private reportedUnavailable = false;
 	private disposed = false;
 
-	/** Fires when the preview changes, with nothing when there is none any more. */
+	/** Fires when the preview changes, carrying nothing when there is none. */
 	readonly onDidChangeResult = this.resultEmitter.event;
 
 	constructor(private readonly options: TypstPreviewControllerOptions) {
@@ -377,11 +430,6 @@ export class TypstPreviewController implements vscode.Disposable {
 		void this.run(document, document.positionAt(block.fenceStart), false);
 	}
 
-	/** Forget every compiled image, so the next request compiles again. */
-	clearCache(): void {
-		this.cache.clear();
-	}
-
 	dispose(): void {
 		if (this.disposed) {
 			return;
@@ -400,7 +448,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.compiler = undefined;
 		this.uncancelled.dispose();
 		this.resultEmitter.dispose();
-		this.cache.clear();
+		this.forgetImages();
 		this.contexts.clear();
 		this.result = undefined;
 	}
@@ -416,13 +464,6 @@ export class TypstPreviewController implements vscode.Disposable {
 		// has. A closed document raised its own event already, so publishing a
 		// result for it here would bring back a preview that was taken away.
 		const stale = (): boolean => this.disposed || version !== this.requestVersion || document.isClosed;
-		/** Say why there is nothing to show, and only to a reader who asked. */
-		const explain = (message: string): void => {
-			logMessage(`Typst preview: ${message}`, "debug");
-			if (asked) {
-				this.options.show(message);
-			}
-		};
 
 		if (!vscode.workspace.isTrusted) {
 			this.reportUnavailable("The Typst preview needs a trusted workspace, because it runs the Typst compiler.");
@@ -442,7 +483,13 @@ export class TypstPreviewController implements vscode.Disposable {
 			return;
 		}
 		if (isUnavailable(request)) {
-			explain(request.unavailable);
+			// Said only to a reader who asked. An edit or a cursor move that lands
+			// outside every block is not a question, so answering it would put a
+			// message in front of someone who did nothing.
+			logMessage(`Typst preview: ${request.unavailable}`, "debug");
+			if (asked) {
+				this.options.show(request.unavailable);
+			}
 			return;
 		}
 
@@ -502,59 +549,55 @@ export class TypstPreviewController implements vscode.Disposable {
 		asked: boolean,
 		failure?: string,
 	): void {
-		const header = headerText(document, request);
-		if (compiled.svg !== undefined) {
-			if (compiled.stderr.length > 0) {
-				logMessage(`Typst preview: the compiler warned:\n${compiled.stderr}`, "debug");
+		if (compiled.svg === undefined) {
+			if (failure === undefined) {
+				logMessage(`Typst preview: the compiler reported:\n${compiled.stderr}`, "debug");
 			}
-			this.result = {
-				uri: document.uri,
-				block: request.block,
-				blockIndex: request.blockIndex,
-				svg: compiled.svg,
-				header,
-				asked,
-			};
-			this.resultEmitter.fire(this.result);
-			return;
+		} else if (compiled.stderr.length > 0) {
+			logMessage(`Typst preview: the compiler warned:\n${compiled.stderr}`, "debug");
 		}
 
-		if (failure === undefined) {
-			logMessage(`Typst preview: the compiler reported:\n${compiled.stderr}`, "debug");
-		}
-		// The last good image of this block stays behind the error, because a parse
-		// error is the normal state of a block halfway through an edit and clearing
-		// the image would make the surface flash empty on almost every keystroke.
-		// The image of another block is not kept: an error of one block over the
-		// image of another says nothing true about either of them.
-		const same =
-			this.result !== undefined &&
-			this.result.uri.toString() === document.uri.toString() &&
-			this.result.blockIndex === request.blockIndex;
+		// A failure keeps the last good image of this same block behind it, because
+		// a parse error is the normal state of a block halfway through an edit and
+		// clearing the image would make the surface flash empty on almost every
+		// keystroke. The image of another block is not kept: an error of one block
+		// over the image of another says nothing true about either of them.
+		const sameBlock =
+			this.result?.uri.toString() === document.uri.toString() && this.result?.blockIndex === request.blockIndex;
 		this.result = {
 			uri: document.uri,
 			block: request.block,
 			blockIndex: request.blockIndex,
-			svg: same ? this.result?.svg : undefined,
-			header,
-			error: failure ?? errorText(compiled.stderr, request),
-			asked,
+			svg: compiled.svg ?? (sameBlock ? this.result?.svg : undefined),
+			header: headerText(document, request),
+			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
-		this.resultEmitter.fire(this.result);
+		this.watchFiles();
+		this.resultEmitter.fire({ result: this.result, asked });
 	}
 
-	/** Remember one compile, and forget the one used longest ago. */
+	/** Remember one compile, and forget those used longest ago to make room. */
 	private remember(key: string, compiled: TypstCompileResult): void {
 		this.cache.set(key, compiled);
-		if (this.cache.size <= CACHE_LIMIT) {
-			return;
-		}
+		this.cacheBytes += compiled.svg?.length ?? 0;
 		// A `Map` iterates in insertion order and every hit is re-inserted, so the
-		// first key is the one used longest ago.
-		const oldest = this.cache.keys().next();
-		if (!oldest.done) {
+		// first key is the one used longest ago. Both bounds matter: the count keeps
+		// a session of small blocks from growing without end, and the byte total
+		// keeps a handful of dense pages from holding the extension host.
+		while (this.cache.size > CACHE_LIMIT || (this.cacheBytes > CACHE_LIMIT_BYTES && this.cache.size > 1)) {
+			const oldest = this.cache.keys().next();
+			if (oldest.done) {
+				return;
+			}
+			this.cacheBytes -= this.cache.get(oldest.value)?.svg?.length ?? 0;
 			this.cache.delete(oldest.value);
 		}
+	}
+
+	/** Forget every compiled image, so the next request compiles again. */
+	private forgetImages(): void {
+		this.cache.clear();
+		this.cacheBytes = 0;
 	}
 
 	private resolveBinary(): Promise<string | undefined> {
@@ -570,11 +613,11 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * compile supersedes whatever is running anyway.
 	 */
 	private useCompiler(binary: string, timeoutMs: number): TypstCompilerLike {
-		if (this.compiler === undefined || this.compilerBinary !== binary || this.compilerTimeoutMs !== timeoutMs) {
+		const key = `${binary} ${timeoutMs}`;
+		if (this.compiler === undefined || this.compilerKey !== key) {
 			this.compiler?.dispose();
 			this.compiler = this.options.createCompiler?.(binary, timeoutMs) ?? new TypstCompiler(binary, { timeoutMs });
-			this.compilerBinary = binary;
-			this.compilerTimeoutMs = timeoutMs;
+			this.compilerKey = key;
 		}
 		return this.compiler;
 	}
@@ -596,36 +639,46 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.options.show(message);
 	}
 
-	/** Forget the compiler, so the next request builds one from a fresh probe. */
+	/**
+	 * Forget the compiler and where its binary was, so the next request probes.
+	 *
+	 * The probe memoises its answer for the session, so forgetting the compiler
+	 * alone would rebuild it around the path Quarto had before it was installed,
+	 * removed or moved.
+	 */
 	private forgetCompiler(): void {
+		invalidateTypstBinary();
 		this.compiler?.dispose();
 		this.compiler = undefined;
-		this.compilerBinary = undefined;
-		this.compilerTimeoutMs = undefined;
+		this.compilerKey = undefined;
 		this.reportedUnavailable = false;
 	}
 
 	/** Rebuild the preview after an edit, at the delay the settings ask for. */
 	private scheduleDocument(document: vscode.TextDocument): void {
-		const delayMs = previewSettings(document).debounceMs;
-		// The delay is fixed when a debouncer is built and the setting is resource
-		// scoped, so the debouncer is rebuilt when the value it holds no longer
-		// applies. A pending rebuild is not lost: it is asked for again below.
-		if (this.documentDebounce === undefined || this.documentDelayMs !== delayMs) {
-			this.documentDebounce?.cancel();
-			this.documentDelayMs = delayMs;
-			this.documentDebounce = debounce(() => this.refresh(), delayMs);
+		// The delay is fixed when a debouncer is built, so it is read once and kept
+		// rather than on every keystroke. A configuration change forgets it, which
+		// is the only event that can move it.
+		if (this.documentDebounce === undefined) {
+			this.documentDebounce = debounce(() => this.refresh(), documentDelayOf(document));
 		}
 		this.documentDebounce();
 	}
 
+	/** Drop the debouncer, so the next edit reads the delay again. */
+	private forgetDocumentDelay(): void {
+		this.documentDebounce?.cancel();
+		this.documentDebounce = undefined;
+	}
+
 	private wireEvents(): void {
 		this.disposables.push(
-			// The cursor moving is what says which block is being looked at, and it
-			// moves on every keystroke as well, so this is what keeps the block under
-			// an edit current.
+			// The cursor moving is what says which block is being looked at. A cursor
+			// still inside the block on screen has nothing to say: it moves on every
+			// keystroke as well, and typing is what the document delay is for, so
+			// following it here would make that setting mean nothing below 250 ms.
 			vscode.window.onDidChangeTextEditorSelection((event) => {
-				if (isRelevantDocument(event.textEditor.document)) {
+				if (this.options.hasSurface() && isRelevantDocument(event.textEditor.document) && this.movedBlock(event)) {
 					this.selectionDebounce();
 				}
 			}),
@@ -658,7 +711,7 @@ export class TypstPreviewController implements vscode.Disposable {
 				this.contexts.forget(document.uri);
 				if (this.result?.uri.toString() === document.uri.toString()) {
 					this.result = undefined;
-					this.resultEmitter.fire(undefined);
+					this.resultEmitter.fire({ asked: false });
 				}
 			}),
 		);
@@ -675,6 +728,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.disposables.push(
 			vscode.workspace.onDidChangeConfiguration((event) => {
 				if (event.affectsConfiguration("quartoWizard.typstPreview")) {
+					this.forgetDocumentDelay();
 					this.recompile();
 				}
 			}),
@@ -685,14 +739,29 @@ export class TypstPreviewController implements vscode.Disposable {
 			// or whether there is one at all.
 			vscode.extensions.onDidChange(() => this.forgetCompiler()),
 		);
+	}
 
-		this.watch("**/_{quarto,metadata,brand}.{yml,yaml}");
-		this.watch("**/_brand/_brand.{yml,yaml}");
-		this.watch("**/*.typ");
+	/**
+	 * Watch the files a preview reads beside the block.
+	 *
+	 * Raised by the first published result rather than at registration. These are
+	 * workspace-wide watchers, and until something is being previewed every event
+	 * they deliver reaches a `recompile` that has nothing to recompile, so a
+	 * session that never opens the preview should not pay for them.
+	 */
+	private watchFiles(): void {
+		if (this.watching) {
+			return;
+		}
+		this.watching = true;
+		// One glob covers `_brand/_brand.yml` as well, because a leading `**/`
+		// matches the directory as readily as any other.
+		this.watch(CONTEXT_FILE_GLOB);
+		this.watch(TYPST_FILE_GLOB);
 		// The gate answer is held with the rest of the context, so a project that
 		// installs the extension while the preview is open stops reporting a cell as
 		// unpreviewable without waiting for a cache to expire.
-		this.watch("**/_extensions/**/_extension.{yml,yaml}");
+		this.watch(EXTENSION_MANIFEST_GLOB);
 	}
 
 	/** Rebuild the preview when a file it reads beside the block changes. */
@@ -705,7 +774,29 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.disposables.push(watcher);
 	}
 
+	/**
+	 * Whether a selection change asks a question the result does not answer.
+	 *
+	 * The cursor is compared against the block on screen. Its offsets are those
+	 * of the version it was read from, which is enough here: an edit inside the
+	 * block moves its end by what was typed, and the cursor moves with it.
+	 */
+	private movedBlock(event: vscode.TextEditorSelectionChangeEvent): boolean {
+		const shown = this.result;
+		if (shown === undefined || shown.uri.toString() !== event.textEditor.document.uri.toString()) {
+			return true;
+		}
+		const offset = event.textEditor.document.offsetAt(event.selections[0].active);
+		return offset < shown.block.fenceStart || offset > shown.block.bodyEnd;
+	}
+
 	private handleDocumentChange(event: vscode.TextDocumentChangeEvent): void {
+		if (!this.options.hasSurface()) {
+			// Nothing is showing a preview, so nothing would render the result. The
+			// document change events of a whole session arrive here, so this is the
+			// one place where the cost of a keystroke is worth naming.
+			return;
+		}
 		if (isContextDocument(event.document)) {
 			// The chain prefers the copy open in the editor, so an unsaved edit to one
 			// of these files is what the next request would read.

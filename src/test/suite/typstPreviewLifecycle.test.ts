@@ -82,12 +82,19 @@ function nextResult(controller: TypstPreviewController, timeoutMs = 2000): Promi
 			subscription.dispose();
 			reject(new Error("no result was published"));
 		}, timeoutMs);
-		const subscription = controller.onDidChangeResult((result) => {
+		const subscription = controller.onDidChangeResult((update) => {
 			clearTimeout(timer);
 			subscription.dispose();
-			resolve(result);
+			resolve(update.result);
 		});
 	});
+}
+
+/** Edit the one block of a document, so the next request cannot answer from the cache. */
+async function editBlock(document: vscode.TextDocument, text = "#"): Promise<void> {
+	const edit = new vscode.WorkspaceEdit();
+	edit.insert(document.uri, new vscode.Position(3, 0), text);
+	assert.ok(await vscode.workspace.applyEdit(edit));
 }
 
 /** Let every pending microtask and timer of the current pass run. */
@@ -153,9 +160,9 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 		// The superseded compile answers last, and its result is stale.
 		const later: TypstPreviewResult[] = [];
-		const subscription = controller.onDidChangeResult((value) => {
-			if (value) {
-				later.push(value);
+		const subscription = controller.onDidChangeResult((update) => {
+			if (update.result) {
+				later.push(update.result);
 			}
 		});
 		compiler.answer(0, { svg: "<svg id='stale'/>", stderr: "" });
@@ -177,9 +184,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		await good;
 
 		// The block is edited, or the second request would answer from the cache.
-		const edit = new vscode.WorkspaceEdit();
-		edit.insert(document.uri, new vscode.Position(3, 0), "#");
-		assert.ok(await vscode.workspace.applyEdit(edit));
+		await editBlock(document);
 
 		const failed = nextResult(controller);
 		controller.request(document, INSIDE_BLOCK);
@@ -294,27 +299,34 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		const document = await plainDocument();
 
 		await nextResultFor(controller, document);
-		controller.clearCache();
+		// Edited, so the block on screen has a source the cache cannot answer, and
+		// there is no active editor at all for `refresh` to have followed.
+		await editBlock(document);
 		const again = nextResult(controller);
 		controller.recompile();
 		const result = await again;
 
 		assert.strictEqual(result?.blockIndex, 0);
-		assert.strictEqual(result?.asked, false);
 		assert.strictEqual(compiler.sources.length, 2);
+		assert.ok(compiler.sources[1].includes("##circle()"), `unexpected source: ${compiler.sources[1]}`);
 		controller.dispose();
 	});
 
-	test("Should compile again for a source the cache no longer holds", async () => {
+	test("Should say nothing is previewed when the document closes", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller } = makeController(compiler);
 		const document = await plainDocument();
 
 		await nextResultFor(controller, document);
-		controller.clearCache();
-		await nextResultFor(controller, document);
+		assert.ok(controller.current());
 
-		assert.strictEqual(compiler.sources.length, 2);
+		const cleared = nextResult(controller);
+		// Closing a document is what the editor reports; the test asks for it by
+		// showing the document and then closing its editor.
+		await vscode.window.showTextDocument(document, { preview: true });
+		await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+		assert.strictEqual(await cleared, undefined);
+		assert.strictEqual(controller.current(), undefined);
 		controller.dispose();
 	});
 });

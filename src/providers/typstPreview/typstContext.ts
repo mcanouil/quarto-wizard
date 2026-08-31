@@ -11,6 +11,7 @@ import {
 import { TYPST_RENDER, documentBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
 import { EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
 import { getInstalledExtensionsCached } from "../../utils/installedExtensionsCache";
+import { getYamlFrontMatterRange } from "../../utils/yamlPosition";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
 import { logMessage } from "../../utils/log";
 import { readBrand, readMetadataChain, readSourceText, resolveQuartoPath, type MetadataChain } from "./typstMetadata";
@@ -165,16 +166,28 @@ export async function readCellContext(document: vscode.TextDocument, text: strin
 }
 
 /**
+ * The front matter of a document, which is all the metadata chain reads of it.
+ *
+ * Everything else in the text reaches the chain through nothing at all, so two
+ * versions of a document that share this share their whole metadata.
+ */
+function frontMatterText(text: string): string {
+	const range = getYamlFrontMatterRange(text);
+	return range === undefined ? "" : text.slice(range.start, range.end);
+}
+
+/**
  * What a request would otherwise read again on every keystroke.
  *
- * The blocks of a document are a function of its text alone, so its version is
- * the whole key. What a cell reads from disk is not a function of the document
- * at all: the version says when the document moved, and a watcher says when the
- * disk did, so the two halves are forgotten by different events.
+ * The two halves are keyed differently because they depend on different things.
+ * The blocks are a function of the whole text, so the document version is the
+ * whole key. The metadata chain reads the front matter and then the disk, so it
+ * survives every edit that leaves the front matter alone, and a watcher is what
+ * forgets it when the disk moves.
  */
 export class TypstContextCache {
 	private readonly blocks = new Map<string, { version: number; blocks: TypstBlock[] }>();
-	private readonly cells = new Map<string, { version: number; context: Promise<CellContext> }>();
+	private readonly cells = new Map<string, { frontMatter: string; context: Promise<CellContext> }>();
 
 	/** The blocks of one document version. */
 	blocksOf(document: vscode.TextDocument, text: string): TypstBlock[] {
@@ -188,11 +201,12 @@ export class TypstContextCache {
 		return blocks;
 	}
 
-	/** What one document version's cells read from disk. */
+	/** What one document's cells read from disk. */
 	cellContext(document: vscode.TextDocument, text: string): Promise<CellContext> {
 		const key = document.uri.toString();
+		const frontMatter = frontMatterText(text);
 		const held = this.cells.get(key);
-		if (held?.version === document.version) {
+		if (held?.frontMatter === frontMatter) {
 			return held.context;
 		}
 		// The promise is held and not its value, so two requests arriving inside one
@@ -204,7 +218,7 @@ export class TypstContextCache {
 			}
 			throw error;
 		});
-		this.cells.set(key, { version: document.version, context });
+		this.cells.set(key, { frontMatter, context });
 		return context;
 	}
 
@@ -242,21 +256,20 @@ export class TypstContextCache {
  * force, and a second set of directives above them would show an image the
  * render does not produce.
  *
- * @param cache - What a caller repeating the request remembers. A caller with
- *   no cache reads the document and the disk again, which is what a one-off
- *   request wants.
+ * @param cache - What a caller repeating the request remembers. A caller that
+ *   asks once builds an empty one, which reads the document and the disk.
  */
 export async function buildCompileRequest(
 	document: vscode.TextDocument,
 	position: vscode.Position,
 	header: string,
-	cache?: TypstContextCache,
+	cache: TypstContextCache,
 ): Promise<CompileRequest | Unavailable> {
 	const text = document.getText();
 	// The whole list is kept, because a raw block compiles with the raw blocks
 	// above it and scanning the document a second time would say the same thing
 	// twice.
-	const blocks = cache === undefined ? findTypstBlocks(text) : cache.blocksOf(document, text);
+	const blocks = cache.blocksOf(document, text);
 	const block = blockAtOffset(blocks, document.offsetAt(position));
 	if (block === undefined) {
 		return { unavailable: "Put the cursor inside a Typst block to preview it." };
@@ -272,8 +285,7 @@ export async function buildCompileRequest(
 		return { block, blockIndex, ...assembled, notes, bodyLineOffset: 0 };
 	}
 
-	const { installed, chain, brand } =
-		cache === undefined ? await readCellContext(document, text) : await cache.cellContext(document, text);
+	const { installed, chain, brand } = await cache.cellContext(document, text);
 	if (installed === undefined) {
 		// Never previewed with guessed options. A cell compiled without the
 		// extension's own defaults would show an image the render does not

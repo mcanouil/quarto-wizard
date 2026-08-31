@@ -11,6 +11,7 @@ import {
 	buildCompileRequest,
 	isNewerThanPinned,
 	PINNED_TYPST_RENDER_VERSION,
+	TypstContextCache,
 } from "../../providers/typstPreview/typstContext";
 import { readBrand, readMetadataChain, resolveQuartoPath } from "../../providers/typstPreview/typstMetadata";
 import { invalidateProjectRoots, setProjectRoots } from "../../utils/projectRootsRegistry";
@@ -285,7 +286,7 @@ suite("Typst Preview Context Test Suite", () => {
 			try {
 				fs.writeFileSync(path.join(directory, "doc.qmd"), CELL);
 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
-				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER);
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, new TypstContextCache());
 				assert.ok(!isUnavailable(request));
 				// The filter's own contract, and not the preview's theme header: the
 				// bindings and the page directive come from the options in force.
@@ -306,7 +307,7 @@ suite("Typst Preview Context Test Suite", () => {
 			try {
 				fs.writeFileSync(path.join(directory, "doc.qmd"), CELL);
 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
-				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER);
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, new TypstContextCache());
 				assert.ok(!isUnavailable(request));
 			} finally {
 				fs.rmSync(directory, { recursive: true, force: true });
@@ -320,7 +321,7 @@ suite("Typst Preview Context Test Suite", () => {
 			try {
 				fs.writeFileSync(path.join(directory, "doc.qmd"), CELL);
 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
-				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER);
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, new TypstContextCache());
 				assert.ok(isUnavailable(request));
 				assert.ok(request.unavailable.includes("typst-render"));
 			} finally {
@@ -335,7 +336,7 @@ suite("Typst Preview Context Test Suite", () => {
 			try {
 				fs.writeFileSync(path.join(directory, "doc.qmd"), "```typst\n#circle()\n```\n");
 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
-				const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER);
+				const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
 				assert.ok(!isUnavailable(request));
 				assert.strictEqual(request.source, `${HEADER}\n#circle()\n`);
 			} finally {
@@ -345,14 +346,14 @@ suite("Typst Preview Context Test Suite", () => {
 
 		test("Should say so when the cursor is in no block", async () => {
 			const document = await documentOf("Prose only.\n");
-			const request = await buildCompileRequest(document, new vscode.Position(0, 0), HEADER);
+			const request = await buildCompileRequest(document, new vscode.Position(0, 0), HEADER, new TypstContextCache());
 			assert.ok(isUnavailable(request));
 			assert.ok(request.unavailable.includes("cursor"));
 		});
 
 		test("Should assemble a plain block under the preview's own header", async () => {
 			const document = await documentOf("```typst\n#circle()\n```\n");
-			const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER);
+			const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
 			assert.ok(!isUnavailable(request));
 			assert.strictEqual(request.source, `${HEADER}\n#circle()\n`);
 			assert.strictEqual(request.block.kind, "plain");
@@ -365,7 +366,7 @@ suite("Typst Preview Context Test Suite", () => {
 		test("Should assemble a raw block under the raw blocks above it", async () => {
 			const text = "```{=typst}\n#let a = red\n```\n\n```{=typst}\n#text(fill: a)[Hi]\n```\n";
 			const document = await documentOf(text);
-			const request = await buildCompileRequest(document, new vscode.Position(5, 0), HEADER);
+			const request = await buildCompileRequest(document, new vscode.Position(5, 0), HEADER, new TypstContextCache());
 			assert.ok(!isUnavailable(request));
 			assert.strictEqual(request.source, `${HEADER}\n#let a = red\n#text(fill: a)[Hi]\n`);
 			assert.strictEqual(request.injectedLines, 2);

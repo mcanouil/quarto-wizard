@@ -41,6 +41,9 @@ export class TypstPreviewPanel {
 	 */
 	private pendingImage: PreviewMessage | undefined;
 	private pendingError: PreviewMessage | undefined;
+	/** What the page is already showing, so an unchanged image is not sent again. */
+	private shownSvg: string | undefined;
+	private shownHeader: string | undefined;
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly onDidDisposeEmitter = new vscode.EventEmitter<void>();
 	private closed = false;
@@ -96,6 +99,14 @@ export class TypstPreviewPanel {
 
 	/** Show a compiled image, and describe where it came from. */
 	show(svg: string, header: string): void {
+		// The same image is shown again whenever a failure is reported over it, and
+		// encoding it costs a copy a third larger than the image and a message
+		// across the webview boundary. Neither buys anything when nothing moved.
+		if (svg === this.shownSvg && header === this.shownHeader) {
+			return;
+		}
+		this.shownSvg = svg;
+		this.shownHeader = header;
 		this.post({ type: "image", uri: svgDataUri(svg), header });
 	}
 
@@ -107,6 +118,8 @@ export class TypstPreviewPanel {
 	 * of them.
 	 */
 	clear(): void {
+		this.shownSvg = undefined;
+		this.shownHeader = undefined;
 		this.post({ type: "clear" });
 	}
 
