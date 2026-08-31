@@ -301,6 +301,9 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 			assert.ok(messages[0].includes("surface"), `the message does not name the setting: ${messages[0]}`);
 
 			// An edit is not a question, so it is refused without saying anything.
+			// `refresh` follows the active editor, so without showing the document it
+			// would return before it ever reached the gate this is about.
+			await vscode.window.showTextDocument(document);
 			controller.refresh();
 			await settle();
 			assert.strictEqual(messages.length, 1);

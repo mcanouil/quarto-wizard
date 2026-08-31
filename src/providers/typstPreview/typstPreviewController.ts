@@ -511,6 +511,11 @@ export class TypstPreviewController implements vscode.Disposable {
 			settings.foreground,
 			settings.background,
 		);
+		// Read where the text is read, and carried through the compile. Taken at
+		// publish time it would describe the document as it is when Typst finishes,
+		// so an edit landing during a compile would stamp the new version onto the
+		// old image, and a surface trusting the stamp would serve it as current.
+		const compiledVersion = document.version;
 		const request = await buildCompileRequest(document, position, header, this.contexts);
 		if (stale()) {
 			return undefined;
@@ -549,7 +554,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// what the eviction below removes.
 			this.cache.delete(key);
 			this.cache.set(key, held);
-			return this.publish(document, request, held, reason);
+			return this.publish(document, request, held, reason, compiledVersion);
 		}
 
 		try {
@@ -562,14 +567,14 @@ export class TypstPreviewController implements vscode.Disposable {
 				return undefined;
 			}
 			this.remember(key, compiled);
-			return this.publish(document, request, compiled, reason);
+			return this.publish(document, request, compiled, reason, compiledVersion);
 		} catch (error) {
 			if (stale() || error instanceof vscode.CancellationError) {
 				return undefined;
 			}
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
-			return this.publish(document, request, { stderr: "" }, reason, message);
+			return this.publish(document, request, { stderr: "" }, reason, compiledVersion, message);
 		}
 	}
 
@@ -584,6 +589,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		request: CompileRequest,
 		compiled: TypstCompileResult,
 		reason: PreviewReason,
+		compiledVersion: number,
 		failure?: string,
 	): TypstPreviewResult | undefined {
 		if (reason === "background" && !this.options.hasSurface()) {
@@ -612,7 +618,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			uri: document.uri,
 			block: request.block,
 			blockIndex: request.blockIndex,
-			version: document.version,
+			version: compiledVersion,
 			svg: compiled.svg ?? (sameBlock ? this.result?.svg : undefined),
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,

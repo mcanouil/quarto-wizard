@@ -46,7 +46,13 @@ export class TypstPreviewCodeLens implements vscode.CodeLensProvider, vscode.Dis
 			// fence below it, so the lenses are asked for again either way. The delay
 			// is what keeps that off the keystroke path.
 			vscode.workspace.onDidChangeTextDocument((event) => {
-				if (event.contentChanges.length === 0 || !this.wanted(event.document)) {
+				// The language first, and before reading any setting: every changed
+				// document in the workspace arrives here, and a lens hangs on a Quarto
+				// document alone.
+				if (event.document.languageId !== "quarto" || event.contentChanges.length === 0) {
+					return;
+				}
+				if (!this.wanted(event.document)) {
 					return;
 				}
 				// Only a document someone is looking at. An edit to a background one,

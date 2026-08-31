@@ -98,6 +98,11 @@ function fixedSettings(surface: TypstPreviewSurface, maxHeight = 200, codeLens =
 
 const NO_CANCEL = new vscode.CancellationTokenSource().token;
 
+/** Let every pending microtask and timer of the current pass run. */
+function settle(delayMs = 50): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 /** The markdown of a hover, which every assertion here reads. */
 function hoverText(hover: vscode.Hover | undefined): string {
 	assert.ok(hover, "expected a hover");
@@ -254,6 +259,54 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 		assert.strictEqual(compiler.sources.length, 2, "the edited block is compiled again");
 		assert.ok(compiler.sources[1].includes("##circle()"), `unexpected source: ${compiler.sources[1]}`);
+		controller.dispose();
+	});
+
+	test("Should stamp a result with the version of the text it compiled", async () => {
+		// The version has to be read where the text is read. Taken at publish time
+		// it describes the document as it is when Typst finishes, so an edit landing
+		// during a compile stamped the new version onto the old image, and the check
+		// above then validated that image for every later hover on the block. The
+		// window is the whole compile, up to the timeout.
+		const sources: string[] = [];
+		let answer: ((result: TypstCompileResult) => void) | undefined;
+		const compiler: TypstCompilerLike = {
+			compile: (source: string) => {
+				sources.push(source);
+				return new Promise<TypstCompileResult>((resolve) => {
+					answer = resolve;
+				});
+			},
+			dispose: () => {
+				/* Nothing is spawned. */
+			},
+		};
+		const controller = new TypstPreviewController({
+			hasSurface: () => false,
+			show: () => {
+				/* Nothing here asks a question. */
+			},
+			resolveBinary: () => Promise.resolve("/typst"),
+			createCompiler: () => compiler,
+		});
+		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const pending = hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		await settle();
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(document.uri, new vscode.Position(3, 0), "#");
+		assert.ok(await vscode.workspace.applyEdit(edit));
+		answer?.({ svg: SVG, stderr: "" });
+		await pending;
+		assert.strictEqual(sources.length, 1);
+
+		// Started and not awaited: the point is that it asks Typst at all, and this
+		// stub answers only when the test tells it to.
+		void hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		await settle();
+
+		assert.strictEqual(sources.length, 2, "the held image is of text that has since changed");
 		controller.dispose();
 	});
 
