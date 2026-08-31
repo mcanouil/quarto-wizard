@@ -93,19 +93,20 @@ const written: string[] = [];
 /** The position inside the one block of `plainDocument`. */
 const INSIDE_BLOCK = new vscode.Position(3, 1);
 
-/** A controller wired to a stub, with no surface unless the test says otherwise. */
+/** A controller wired to a stub, with a surface showing unless the test says otherwise. */
 function makeController(
 	compiler: TypstCompilerLike,
-	overrides: { hasSurface?: () => boolean; binary?: string | undefined } = {},
-): { controller: TypstPreviewController; messages: string[] } {
+	overrides: { surface?: boolean; binary?: string | undefined } = {},
+): { controller: TypstPreviewController; messages: string[]; showing: { value: boolean } } {
 	const messages: string[] = [];
+	const showing = { value: overrides.surface !== false };
 	const controller = new TypstPreviewController({
-		hasSurface: overrides.hasSurface ?? (() => true),
+		hasSurface: () => showing.value,
 		show: (message) => messages.push(message),
 		resolveBinary: () => Promise.resolve("binary" in overrides ? overrides.binary : "/typst"),
 		createCompiler: () => compiler,
 	});
-	return { controller, messages };
+	return { controller, messages, showing };
 }
 
 /** The next result the controller publishes, or a rejection when none arrives. */
@@ -266,7 +267,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 	test("Should not compile for a background change when no surface is showing", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
-		const { controller } = makeController(compiler, { hasSurface: () => false });
+		const { controller } = makeController(compiler, { surface: false });
 		const document = await plainDocument();
 
 		controller.refresh();
@@ -279,6 +280,60 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		await published;
 		assert.strictEqual(compiler.sources.length, 1);
 		controller.dispose();
+	});
+
+	test("Should compile nothing for a document whose surface is off", async () => {
+		// The gate is here and not in each surface, because this is what spawns the
+		// process. With the gate in the surfaces alone, an open panel went on
+		// compiling every edit in a folder that had turned the feature off.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller, messages } = makeController(compiler);
+		const document = await plainDocument();
+		const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview");
+		await config.update("surface", "off", vscode.ConfigurationTarget.Global);
+
+		try {
+			controller.request(document, INSIDE_BLOCK);
+			await settle();
+
+			assert.strictEqual(compiler.sources.length, 0);
+			assert.strictEqual(messages.length, 1, `unexpected messages: ${messages.join(" | ")}`);
+			assert.ok(messages[0].includes("surface"), `the message does not name the setting: ${messages[0]}`);
+
+			// An edit is not a question, so it is refused without saying anything.
+			// `refresh` follows the active editor, so without showing the document it
+			// would return before it ever reached the gate this is about.
+			await vscode.window.showTextDocument(document);
+			controller.refresh();
+			await settle();
+			assert.strictEqual(messages.length, 1);
+		} finally {
+			await config.update("surface", undefined, vscode.ConfigurationTarget.Global);
+			controller.dispose();
+		}
+	});
+
+	test("Should take the preview away when the surface is turned off", async () => {
+		// The gate stops the compiles, which is what it is for, but a panel that is
+		// already open would otherwise keep an image that has silently stopped
+		// tracking the document: live-looking and frozen, with nothing said.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument();
+		const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview");
+
+		await nextResultFor(controller, document);
+		assert.ok(controller.current(), "there is a preview to take away");
+
+		const cleared = nextResult(controller);
+		await config.update("surface", "off", vscode.ConfigurationTarget.Global);
+		try {
+			assert.strictEqual(await cleared, undefined);
+			assert.strictEqual(controller.current(), undefined);
+		} finally {
+			await config.update("surface", undefined, vscode.ConfigurationTarget.Global);
+			controller.dispose();
+		}
 	});
 
 	test("Should say once that there is no Typst binary", async () => {
@@ -357,8 +412,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		// meanwhile. Publishing anyway would have the surface build itself again,
 		// which reopens a panel the reader just closed.
 		const compiler = new StubCompiler();
-		let showing = true;
-		const { controller } = makeController(compiler, { hasSurface: () => showing });
+		const { controller, showing } = makeController(compiler);
 		const document = await plainFile();
 
 		// Driven through the cursor, which is what a background request follows.
@@ -372,7 +426,7 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 		const published: TypstPreviewUpdate[] = [];
 		const subscription = controller.onDidChangeResult((update) => published.push(update));
-		showing = false;
+		showing.value = false;
 		compiler.answerAll({ svg: SVG, stderr: "" });
 		await settle();
 

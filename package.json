@@ -103,7 +103,7 @@
 		"@types/mocha": "^10.0.10",
 		"@types/node": "^26.1.1",
 		"@types/semver": "^7.7.1",
-		"@types/vscode": "^1.96.0",
+		"@types/vscode": "1.96.0",
 		"@vscode/test-cli": "^0.0.15",
 		"@vscode/test-electron": "^3.1.0",
 		"@vscode/vsce": "^3.9.2",
@@ -779,6 +779,41 @@
 					"markdownDescription": "How long the Typst block preview waits after an edit before it compiles again, in milliseconds. Raise it when a block is slow to compile and the preview gets in the way of typing. `0` compiles on every keystroke. Moving the cursor to another block is not an edit and always updates after 250 milliseconds, and saving the document compiles at once.",
 					"title": "Preview Debounce Delay",
 					"description": "Delay between an edit and the next preview compile."
+				},
+				"quartoWizard.typstPreview.maxHeight": {
+					"order": 24,
+					"scope": "resource",
+					"type": "number",
+					"minimum": 20,
+					"maximum": 4000,
+					"default": 200,
+					"markdownDescription": "The greatest height of the image a hover shows, in the points Typst writes into the image. A taller image is scaled down proportionally, and a shorter one is shown at its own size. The `panel` surface scrolls instead, so it is never clamped.",
+					"title": "Preview Maximum Height",
+					"description": "Greatest image height for a hover."
+				},
+				"quartoWizard.typstPreview.surface": {
+					"order": 25,
+					"scope": "resource",
+					"type": "string",
+					"enum": ["panel", "hover", "off"],
+					"enumDescriptions": [
+						"Show the image in a panel beside the editor, which follows the cursor while it is open.",
+						"Show the image when the pointer rests on a block.",
+						"Show no image, and offer no code lens."
+					],
+					"default": "panel",
+					"markdownDescription": "Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off. There is no surface that draws the image inside the document, because the editor does not let an extension change the height of a line.",
+					"title": "Preview Surface",
+					"description": "Where a previewed block is shown."
+				},
+				"quartoWizard.typstPreview.codeLens": {
+					"order": 26,
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Show a code lens above every Typst block, offering to preview it. Turn it off to keep the editor clear: a document of many examples carries one lens per block. The lens is never shown when `#quartoWizard.typstPreview.surface#` is `off`.",
+					"title": "Preview Code Lens",
+					"description": "Offer a preview above every Typst block."
 				}
 			}
 		}

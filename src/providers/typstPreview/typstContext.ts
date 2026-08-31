@@ -195,14 +195,21 @@ export class TypstContextCache {
 	private readonly blocks = new Map<string, { version: number; blocks: TypstBlock[] }>();
 	private readonly cells = new Map<string, { frontMatter: string; context: Promise<CellContext> }>();
 
-	/** The blocks of one document version. */
-	blocksOf(document: vscode.TextDocument, text: string): TypstBlock[] {
+	/**
+	 * The blocks of one document version.
+	 *
+	 * The text is taken as a thunk, because a hit needs none of it. Every surface
+	 * asks on its hot path, and `getText()` copies the whole document, so passing
+	 * the text itself spent one copy of a large file per hover and per code lens
+	 * refresh to return a list that was already built.
+	 */
+	blocksOf(document: vscode.TextDocument, readText: () => string): TypstBlock[] {
 		const key = document.uri.toString();
 		const held = this.blocks.get(key);
 		if (held?.version === document.version) {
 			return held.blocks;
 		}
-		const blocks = findTypstBlocks(text);
+		const blocks = findTypstBlocks(readText());
 		this.blocks.set(key, { version: document.version, blocks });
 		return blocks;
 	}
@@ -275,7 +282,7 @@ export async function buildCompileRequest(
 	// The whole list is kept, because a raw block compiles with the raw blocks
 	// above it and scanning the document a second time would say the same thing
 	// twice.
-	const blocks = cache.blocksOf(document, text);
+	const blocks = cache.blocksOf(document, () => text);
 	const block = blockAtOffset(blocks, document.offsetAt(position));
 	if (block === undefined) {
 		return { unavailable: "Put the cursor inside a Typst block to preview it." };
