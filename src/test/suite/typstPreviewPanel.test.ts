@@ -9,7 +9,66 @@ function extensionUri(): vscode.Uri {
 	return extension.extensionUri;
 }
 
+/** A panel whose posted messages the test can read. */
+function fakePanel(): { panel: TypstPreviewPanel; posted: { type: string }[]; ready: () => void } {
+	const posted: { type: string }[] = [];
+	const received = new vscode.EventEmitter<{ type?: string }>();
+	const disposed = new vscode.EventEmitter<void>();
+	const host = {
+		webview: {
+			options: {},
+			html: "",
+			cspSource: "vscode-webview:",
+			asWebviewUri: (uri: vscode.Uri) => uri,
+			onDidReceiveMessage: received.event,
+			postMessage: (message: { type: string }) => {
+				posted.push(message);
+				return Promise.resolve(true);
+			},
+		},
+		onDidDispose: disposed.event,
+		reveal: () => undefined,
+		dispose: () => disposed.fire(),
+	} as unknown as vscode.WebviewPanel;
+	return {
+		panel: new TypstPreviewPanel(host, extensionUri()),
+		posted,
+		ready: () => received.fire({ type: "initialized" }),
+	};
+}
+
 suite("Typst Preview Panel Test Suite", () => {
+	test("Should take the error away when the same image compiles again", () => {
+		// Typing breaks a block and undoing it restores the source, so the image is
+		// the one already on screen and is not sent again. The page hides its error
+		// when an image arrives, so skipping that message would leave a failure
+		// reported over a block that compiles.
+		const { panel, posted, ready } = fakePanel();
+		ready();
+		panel.show("<svg id='a'/>", "doc.qmd · line 3");
+		panel.showError("error at line 1, column 1 of the block: expected expression");
+		panel.show("<svg id='a'/>", "doc.qmd · line 3");
+
+		assert.deepStrictEqual(
+			posted.map((message) => message.type),
+			["image", "error", "image"],
+		);
+		panel.dispose();
+	});
+
+	test("Should not send an image the page is already showing", () => {
+		const { panel, posted, ready } = fakePanel();
+		ready();
+		panel.show("<svg id='a'/>", "doc.qmd · line 3");
+		panel.show("<svg id='a'/>", "doc.qmd · line 3");
+
+		assert.deepStrictEqual(
+			posted.map((message) => message.type),
+			["image"],
+		);
+		panel.dispose();
+	});
+
 	test("Should report that it was closed, once", () => {
 		const panel = TypstPreviewPanel.create(extensionUri());
 		let closed = 0;

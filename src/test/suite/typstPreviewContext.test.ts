@@ -589,4 +589,45 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.strictEqual(brandColourReader(brand)("light", "background"), undefined);
 		});
 	});
+
+	suite("TypstContextCache", () => {
+		/** One document, as the cache sees it: a URI, a version and its text. */
+		function document(version: number): vscode.TextDocument {
+			return { uri: vscode.Uri.file("/doc.qmd"), version } as vscode.TextDocument;
+		}
+
+		const FRONT_MATTER = "---\ntitle: One\n---\n\n";
+
+		test("Should read the disk again only when the front matter moves", async () => {
+			// The metadata chain reads the front matter and then the disk, so an edit
+			// to a block leaves every answer it gave unchanged. Keying on the document
+			// version instead would walk the whole project on every keystroke.
+			const cache = new TypstContextCache();
+			const first = cache.cellContext(document(1), `${FRONT_MATTER}Body\n`);
+			const again = cache.cellContext(document(2), `${FRONT_MATTER}Body and more\n`);
+			assert.strictEqual(await again, await first, "a body edit reads nothing again");
+
+			const moved = cache.cellContext(document(3), "---\ntitle: Two\n---\n\nBody\n");
+			assert.notStrictEqual(await moved, await first, "a front matter edit reads again");
+		});
+
+		test("Should read the document again when its version moves", async () => {
+			// The blocks are a function of the whole text, so the version is the whole
+			// key, which is the half of the cache the front matter does not decide.
+			const cache = new TypstContextCache();
+			const first = cache.blocksOf(document(1), "```typst\n#circle()\n```\n");
+			assert.strictEqual(cache.blocksOf(document(1), "```typst\n#circle()\n```\n"), first);
+			assert.notStrictEqual(cache.blocksOf(document(2), "```typst\n#square()\n```\n"), first);
+		});
+
+		test("Should forget what a file changing can move, and keep the rest", async () => {
+			const cache = new TypstContextCache();
+			const blocks = cache.blocksOf(document(1), "```typst\n#circle()\n```\n");
+			const context = await cache.cellContext(document(1), `${FRONT_MATTER}Body\n`);
+
+			cache.forgetFiles();
+			assert.strictEqual(cache.blocksOf(document(1), "```typst\n#circle()\n```\n"), blocks);
+			assert.notStrictEqual(await cache.cellContext(document(1), `${FRONT_MATTER}Body\n`), context);
+		});
+	});
 });

@@ -44,6 +44,7 @@ export class TypstPreviewPanel {
 	/** What the page is already showing, so an unchanged image is not sent again. */
 	private shownSvg: string | undefined;
 	private shownHeader: string | undefined;
+	private showingError = false;
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly onDidDisposeEmitter = new vscode.EventEmitter<void>();
 	private closed = false;
@@ -102,11 +103,17 @@ export class TypstPreviewPanel {
 		// The same image is shown again whenever a failure is reported over it, and
 		// encoding it costs a copy a third larger than the image and a message
 		// across the webview boundary. Neither buys anything when nothing moved.
-		if (svg === this.shownSvg && header === this.shownHeader) {
+		//
+		// An error on screen is the exception. The page takes its error away when
+		// an image arrives, so a block that is broken and then restored compiles to
+		// the image already shown, and skipping that message would leave a failure
+		// reported over a block that compiles.
+		if (svg === this.shownSvg && header === this.shownHeader && !this.showingError) {
 			return;
 		}
 		this.shownSvg = svg;
 		this.shownHeader = header;
+		this.showingError = false;
 		this.post({ type: "image", uri: svgDataUri(svg), header });
 	}
 
@@ -120,6 +127,7 @@ export class TypstPreviewPanel {
 	clear(): void {
 		this.shownSvg = undefined;
 		this.shownHeader = undefined;
+		this.showingError = false;
 		this.post({ type: "clear" });
 	}
 
@@ -131,6 +139,7 @@ export class TypstPreviewPanel {
 	 * keystroke.
 	 */
 	showError(message: string): void {
+		this.showingError = true;
 		this.post({ type: "error", message });
 	}
 

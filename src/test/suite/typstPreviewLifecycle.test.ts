@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
+	CACHE_LIMIT,
 	TypstPreviewController,
 	type TypstCompilerLike,
 	type TypstPreviewResult,
@@ -378,6 +379,30 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 		assert.deepStrictEqual(messages, ["the probe failed"]);
 		assert.strictEqual(compiler.sources.length, 0);
+		controller.dispose();
+	});
+
+	test("Should forget the result used longest ago once the cache is full", async () => {
+		// The cache is what makes an undone keystroke free, and it is bounded, so a
+		// long session cannot grow it without end. The first source compiled is the
+		// first one forgotten.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const documents = [];
+		for (let index = 0; index <= CACHE_LIMIT; index++) {
+			documents.push(await plainDocument(`#circle(radius: ${index}pt)`));
+		}
+
+		for (const document of documents) {
+			await nextResultFor(controller, document);
+		}
+		assert.strictEqual(compiler.sources.length, CACHE_LIMIT + 1);
+
+		// The last one asked for is still held, and the first one is not.
+		await nextResultFor(controller, documents[CACHE_LIMIT]);
+		assert.strictEqual(compiler.sources.length, CACHE_LIMIT + 1);
+		await nextResultFor(controller, documents[0]);
+		assert.strictEqual(compiler.sources.length, CACHE_LIMIT + 2);
 		controller.dispose();
 	});
 

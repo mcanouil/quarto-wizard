@@ -47,7 +47,7 @@ const CONTEXT_DEBOUNCE_MS = 300;
  * and small enough that a session of many documents does not grow without
  * bound.
  */
-const CACHE_LIMIT = 32;
+export const CACHE_LIMIT = 32;
 
 /**
  * How many bytes of image the remembered results may hold together.
@@ -828,16 +828,19 @@ export class TypstPreviewController implements vscode.Disposable {
 	}
 
 	private handleDocumentChange(event: vscode.TextDocumentChangeEvent): void {
+		if (isContextDocument(event.document)) {
+			// The chain prefers the copy open in the editor, so an unsaved edit to one
+			// of these files is what the next request would read. This is asked ahead
+			// of the surface, because what it forgets outlives the surface: an edit
+			// made while the panel is closed is still what the next request reads, and
+			// the recompile behind it does nothing until there is something to show.
+			this.contextDebounce();
+			return;
+		}
 		if (!this.options.hasSurface()) {
 			// Nothing is showing a preview, so nothing would render the result. The
 			// document change events of a whole session arrive here, so this is the
 			// one place where the cost of a keystroke is worth naming.
-			return;
-		}
-		if (isContextDocument(event.document)) {
-			// The chain prefers the copy open in the editor, so an unsaved edit to one
-			// of these files is what the next request would read.
-			this.contextDebounce();
 			return;
 		}
 		if (!isRelevantDocument(event.document) || event.contentChanges.length === 0) {
