@@ -328,6 +328,24 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should not retarget an open panel from a pointer rest", async () => {
+		// The panel follows the cursor. A hover compiles through the same controller,
+		// so without saying why it was compiled the panel would jump to whatever
+		// block the pointer touched, which is not a cursor move.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const document = await quartoDocument(THREE_KINDS);
+		const updates: string[] = [];
+		const subscription = controller.onDidChangeResult((update) => updates.push(update.reason));
+
+		await hover.provideHover(document, INSIDE_RAW, NO_CANCEL);
+
+		assert.deepStrictEqual(updates, ["surface"], "a hover says it is the one that asked");
+		subscription.dispose();
+		controller.dispose();
+	});
+
 	test("Should answer from the preview on screen without compiling again", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);

@@ -313,6 +313,29 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		}
 	});
 
+	test("Should take the preview away when the surface is turned off", async () => {
+		// The gate stops the compiles, which is what it is for, but a panel that is
+		// already open would otherwise keep an image that has silently stopped
+		// tracking the document: live-looking and frozen, with nothing said.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument();
+		const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview");
+
+		await nextResultFor(controller, document);
+		assert.ok(controller.current(), "there is a preview to take away");
+
+		const cleared = nextResult(controller);
+		await config.update("surface", "off", vscode.ConfigurationTarget.Global);
+		try {
+			assert.strictEqual(await cleared, undefined);
+			assert.strictEqual(controller.current(), undefined);
+		} finally {
+			await config.update("surface", undefined, vscode.ConfigurationTarget.Global);
+			controller.dispose();
+		}
+	});
+
 	test("Should say once that there is no Typst binary", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller, messages } = makeController(compiler, { binary: undefined });

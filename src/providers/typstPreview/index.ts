@@ -56,12 +56,20 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	const usePanel = (): TypstPreviewPanel => panel ?? holdPanel(TypstPreviewPanel.create(context.extensionUri));
 
 	/** Render one update, opening the panel when there is none yet. */
-	const render = ({ result, asked }: TypstPreviewUpdate): void => {
+	const render = ({ result, reason }: TypstPreviewUpdate): void => {
 		if (result === undefined) {
-			// The document went away, so there is no block left to describe.
+			// The document went away, or the feature was turned off for it, so there
+			// is no block left to describe.
 			panel?.clear();
 			return;
 		}
+		if (reason === "surface") {
+			// A hover compiled this for itself and is already showing it. The panel
+			// follows the cursor, and a pointer rest is not a cursor move, so taking
+			// this would move the panel to a block the reader never asked it to show.
+			return;
+		}
+		const asked = reason === "asked";
 		// Only a request the user made opens a panel. An edit renders into the one
 		// already there, and never builds one, so a result that outlived the panel
 		// it was compiled for does not reopen it.

@@ -66,15 +66,21 @@ export interface ErrorPlace {
 /**
  * One change of the preview, as the surfaces hear about it.
  *
- * `asked` describes the request and not the block, so it is not part of the
+ * The reason describes the request and not the block, so it is not part of the
  * result: a surface reading `current()` later would find it describing a
  * request that is long over.
  */
 export interface TypstPreviewUpdate {
 	/** What is being previewed, absent when there is nothing any more. */
 	result?: TypstPreviewResult;
-	/** Whether the user asked for this, rather than an edit driving it. */
-	asked: boolean;
+	/**
+	 * Why this was compiled, which decides who should render it.
+	 *
+	 * A surface that compiled for itself is already showing the answer, so
+	 * another surface rendering it too would follow the pointer to a block the
+	 * reader never asked it to show.
+	 */
+	reason: PreviewReason;
 }
 
 /** What a surface needs to render the current preview. */
@@ -480,6 +486,13 @@ export class TypstPreviewController implements vscode.Disposable {
 			// asked hears it: an edit in such a folder is not a question.
 			const message = "The Typst preview is off. Set `quartoWizard.typstPreview.surface` to show a preview.";
 			logMessage(`Typst preview: ${message}`, "debug");
+			// A surface open when the setting changed would otherwise hold the last
+			// image for good: nothing recompiles it, and nothing said it had stopped
+			// tracking the document, so it looks live and is frozen.
+			if (this.result?.uri.toString() === document.uri.toString()) {
+				this.result = undefined;
+				this.resultEmitter.fire({ reason: "background" });
+			}
 			if (reason === "asked") {
 				this.options.show(message);
 			}
@@ -623,7 +636,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
-		this.resultEmitter.fire({ result: this.result, asked: reason === "asked" });
+		this.resultEmitter.fire({ result: this.result, reason });
 		return this.result;
 	}
 
@@ -768,7 +781,7 @@ export class TypstPreviewController implements vscode.Disposable {
 				this.contexts.forget(document.uri);
 				if (this.result?.uri.toString() === document.uri.toString()) {
 					this.result = undefined;
-					this.resultEmitter.fire({ asked: false });
+					this.resultEmitter.fire({ reason: "background" });
 				}
 			}),
 		);
