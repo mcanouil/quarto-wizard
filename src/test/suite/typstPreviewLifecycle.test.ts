@@ -373,6 +373,33 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		}
 	});
 
+	test("Should take away a tracked preview a hover has moved off", async () => {
+		// The tracked preview and the last compile can be two documents, because a
+		// hover compiles a block the panel does not follow. Asking only about the
+		// last compile would leave the panel holding an image of a document that
+		// stopped being previewed: live-looking and frozen, with nothing said.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument("#circle()");
+		const hovered = await plainDocument("#square()");
+		const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview");
+
+		await nextResultFor(controller, document);
+		await controller.preview(hovered, INSIDE_BLOCK);
+		assert.strictEqual(controller.current()?.uri.toString(), hovered.uri.toString());
+		assert.strictEqual(controller.shown()?.uri.toString(), document.uri.toString());
+
+		const cleared = nextResult(controller);
+		await config.update("surface", "off", vscode.ConfigurationTarget.Global);
+		try {
+			await cleared;
+			assert.notStrictEqual(controller.shown()?.uri.toString(), document.uri.toString());
+		} finally {
+			await config.update("surface", undefined, vscode.ConfigurationTarget.Global);
+			controller.dispose();
+		}
+	});
+
 	test("Should say once that there is no Typst binary", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller, messages } = makeController(compiler, { binary: undefined });
@@ -497,6 +524,67 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 
 		await nextResultFor(controller, first);
 		assert.strictEqual(compiler.sources.length, 3, "the other block answered from the cache");
+		controller.dispose();
+	});
+
+	test("Should not answer from an image a reload asked it to stop trusting", async () => {
+		// A reload compiles again, and another request can supersede that compile
+		// before it is remembered. The entry the reader distrusted would otherwise
+		// still be there for the next request that assembles the same source.
+		const compiler = new StubCompiler();
+		const { controller } = makeController(compiler);
+		const document = await plainDocument("#circle()");
+		const other = await plainDocument("#square()");
+
+		const first = nextResult(controller);
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(0, { svg: SVG, stderr: "" });
+		await first;
+
+		controller.reload();
+		await settle();
+		controller.request(other, INSIDE_BLOCK);
+		await settle();
+		assert.strictEqual(compiler.sources.length, 3);
+		compiler.answerAll({ svg: SVG, stderr: "" });
+		await settle();
+
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		assert.strictEqual(compiler.sources.length, 4, "the superseded entry was not left behind");
+		controller.dispose();
+	});
+
+	test("Should keep the image of the tracked block when a hover compiled another", async () => {
+		// A hover moves the last compile without moving what the panel shows. A
+		// failure of the block on screen has to keep that block's own last image,
+		// or the panel flashes empty on almost every keystroke after a pointer rest.
+		const compiler = new StubCompiler();
+		const { controller } = makeController(compiler);
+		const document = await plainDocument("#circle()");
+		const other = await plainDocument("#square()");
+
+		const shown = nextResult(controller);
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(0, { svg: SVG, stderr: "" });
+		await shown;
+
+		const hovered = controller.preview(other, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(1, { svg: '<svg width="20pt" height="20pt"></svg>', stderr: "" });
+		await hovered;
+
+		await editBlock(document);
+		const failed = nextResult(controller);
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(2, { stderr: "error: <stdin>:2:0: unexpected" });
+		const result = await failed;
+
+		assert.strictEqual(result?.svg, SVG);
+		assert.ok(result?.error);
 		controller.dispose();
 	});
 

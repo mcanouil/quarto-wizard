@@ -627,11 +627,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// A surface open when the setting changed would otherwise hold the last
 			// image for good: nothing recompiles it, and nothing said it had stopped
 			// tracking the document, so it looks live and is frozen.
-			if (this.result?.uri.toString() === document.uri.toString()) {
-				this.result = undefined;
-				this.tracked = undefined;
-				this.resultEmitter.fire({ reason: "background" });
-			}
+			this.forgetDocument(document.uri);
 			if (reason === "asked") {
 				this.options.show(message);
 			}
@@ -700,7 +696,14 @@ export class TypstPreviewController implements vscode.Disposable {
 		// Joined on a character no argument and no Typst source carries, so two
 		// different triples cannot be spelled the same way.
 		const key = generateHashKey([binary, ...ARGV, request.source].join("\u0000"));
-		const held = fresh ? undefined : this.cache.get(key);
+		if (fresh) {
+			// Dropped now and not merely stepped over. A compile that another request
+			// supersedes never reaches `remember`, so an entry left here would be the
+			// image the reader asked to stop trusting, served again by the next
+			// request that assembles the same source.
+			this.forget(key);
+		}
+		const held = this.cache.get(key);
 		if (held !== undefined) {
 			// Re-inserted so the least recently used entry is the first one, which is
 			// what the eviction below removes.
@@ -764,8 +767,14 @@ export class TypstPreviewController implements vscode.Disposable {
 		// clearing the image would make the surface flash empty on almost every
 		// keystroke. The image of another block is not kept: an error of one block
 		// over the image of another says nothing true about either of them.
+		//
+		// The image kept is the one the reader can see, which is the tracked preview
+		// for everything but a hover. Comparing against the last compile instead
+		// would lose the image of the block on screen as soon as a pointer had
+		// rested on another one.
+		const previous = reason === "surface" ? this.result : this.shown();
 		const sameBlock =
-			this.result?.uri.toString() === document.uri.toString() && this.result?.blockIndex === request.blockIndex;
+			previous?.uri.toString() === document.uri.toString() && previous?.blockIndex === request.blockIndex;
 		this.result = {
 			uri: document.uri,
 			block: request.block,
@@ -773,7 +782,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			version: compiledVersion,
 			source: request.source,
 			brandMode: request.brandMode,
-			svg: compiled.svg ?? (sameBlock ? this.result?.svg : undefined),
+			svg: compiled.svg ?? (sameBlock ? previous?.svg : undefined),
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
@@ -786,14 +795,19 @@ export class TypstPreviewController implements vscode.Disposable {
 		return this.result;
 	}
 
-	/** Remember one compile, and forget those used longest ago to make room. */
-	private remember(key: string, compiled: TypstCompileResult): void {
-		// A refresh compiles a source that is held already, so the entry it replaces
-		// is dropped first. Without this the budget would count the same image
-		// twice, and the replacement would keep the insertion place of the entry it
-		// replaced rather than becoming the most recently used one.
+	/** Forget one compiled image, and the bytes it was counted for. */
+	private forget(key: string): void {
 		this.cacheBytes -= this.cache.get(key)?.svg?.length ?? 0;
 		this.cache.delete(key);
+	}
+
+	/** Remember one compile, and forget those used longest ago to make room. */
+	private remember(key: string, compiled: TypstCompileResult): void {
+		// Anything held for this source is dropped first. Without this the budget
+		// would count the same image twice, and the replacement would keep the
+		// insertion place of the entry it replaced rather than becoming the most
+		// recently used one.
+		this.forget(key);
 		this.cache.set(key, compiled);
 		this.cacheBytes += compiled.svg?.length ?? 0;
 		// A `Map` iterates in insertion order and every hit is re-inserted, so the
@@ -809,6 +823,29 @@ export class TypstPreviewController implements vscode.Disposable {
 			this.cacheBytes -= this.cache.get(oldest.value)?.svg?.length ?? 0;
 			this.cache.delete(oldest.value);
 		}
+	}
+
+	/**
+	 * Stop describing one document, and say so when something changed.
+	 *
+	 * The two held previews are asked separately. A hover moves the last compile
+	 * without moving the tracked one, so a document can be the subject of one and
+	 * not of the other, and testing only one of them would leave a surface showing
+	 * a document that is gone while looking live.
+	 */
+	private forgetDocument(uri: vscode.Uri): void {
+		const key = uri.toString();
+		const forgotten = this.result?.uri.toString() === key || this.tracked?.uri.toString() === key;
+		if (!forgotten) {
+			return;
+		}
+		if (this.result?.uri.toString() === key) {
+			this.result = undefined;
+		}
+		if (this.tracked?.uri.toString() === key) {
+			this.tracked = undefined;
+		}
+		this.resultEmitter.fire({ result: this.shown(), reason: "background" });
 	}
 
 	/** Forget every compiled image, so the next request compiles again. */
@@ -931,11 +968,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
 				this.contexts.forget(document.uri);
-				if (this.result?.uri.toString() === document.uri.toString()) {
-					this.result = undefined;
-					this.tracked = undefined;
-					this.resultEmitter.fire({ reason: "background" });
-				}
+				this.forgetDocument(document.uri);
 			}),
 		);
 
