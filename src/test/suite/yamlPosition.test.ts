@@ -64,6 +64,13 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
 		});
 
+		test("Should return false when the second line is blank", () => {
+			// The two `---` lines are thematic breaks, so the blank line between
+			// them is body text and not front matter.
+			const lines = ["---", "", "---", "Body text"];
+			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
+		});
+
 		test("Should return false when no delimiters exist at all", () => {
 			const lines = ["Some text", "More text"];
 			assert.strictEqual(isInYamlRegion(lines, 0, "quarto"), false);
