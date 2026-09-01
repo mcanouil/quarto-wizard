@@ -120,7 +120,7 @@ Compile the Typst block under the cursor and show it in a panel.
 
 **Command**: `Quarto Wizard: Refresh Typst Preview`
 
-Compile the Typst preview again, ignoring every remembered image and metadata file.
+Compile the Typst preview again, ignoring the image it holds, the metadata files it read and the brand mode you selected.
 
 ### Switch Typst Preview Brand Mode
 

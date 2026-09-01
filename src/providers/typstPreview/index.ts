@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
-import { TypstPreviewController, type TypstPreviewUpdate } from "./typstPreviewController";
+import { TypstPreviewController, type PreviewTarget, type TypstPreviewUpdate } from "./typstPreviewController";
 import { TypstPreviewPanel } from "./typstPreviewPanel";
 import { TypstPreviewCodeLens } from "./typstPreviewCodeLens";
 import { TypstPreviewHover } from "./typstPreviewHover";
@@ -101,10 +101,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	 * A code lens names the block it sits above, which is not the block the
 	 * cursor is in, so it passes both. Every other caller means the cursor.
 	 */
-	const resolveTarget = (
-		uri?: vscode.Uri,
-		at?: vscode.Position,
-	): { document: vscode.TextDocument; position: vscode.Position } | undefined => {
+	const resolveTarget = (uri?: vscode.Uri, at?: vscode.Position): PreviewTarget | undefined => {
 		if (uri !== undefined && at !== undefined) {
 			const named = vscode.workspace.textDocuments.find((open) => open.uri.toString() === uri.toString());
 			return named === undefined ? undefined : { document: named, position: at };

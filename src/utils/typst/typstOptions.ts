@@ -18,6 +18,17 @@ import type { TypstBlock } from "./typstBlocks";
 export type TypstBrandMode = "light" | "dark";
 
 /**
+ * The other side of a light and dark pair.
+ *
+ * A pair has two sides, so falling back and switching are the same question,
+ * and the answer lives beside the type rather than being spelled out at each
+ * place that asks it.
+ */
+export function otherBrandMode(mode: TypstBrandMode): TypstBrandMode {
+	return mode === "light" ? "dark" : "light";
+}
+
+/**
  * A colour option after the global pass.
  *
  * A string is one colour for both modes. The pair form comes from a `light:`
@@ -177,8 +188,7 @@ export function resolveColourValue(config: TypstColour | undefined, mode: TypstB
 	if (config === undefined) {
 		return undefined;
 	}
-	const other = mode === "light" ? "dark" : "light";
-	return config[mode] ?? config[other];
+	return config[mode] ?? config[otherBrandMode(mode)];
 }
 
 /**

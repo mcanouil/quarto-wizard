@@ -61,17 +61,20 @@ A `{typst}` cell keeps the colour contract of `typst-render` instead, so the ima
 A cell that resolves a colour from a brand needs a side of the brand, and the preview follows the editor theme.
 The filter itself always takes the light side, so this is a deliberate difference.
 A `brand-mode` in the document wins over the theme.
-**Quarto Wizard: Switch Typst Preview Brand Mode** wins over both, and it holds until you switch back.
+**Quarto Wizard: Switch Typst Preview Brand Mode** wins over both.
+The side you select holds until you select the other one, or until you refresh the preview.
 The panel header always names the side in force.
 
 ## Commands
 
-| Command                             | What it does                                                                      |
-| ----------------------------------- | --------------------------------------------------------------------------------- |
-| **Preview Typst Block**             | Compiles the block under the cursor and shows it in the panel.                    |
-| **Refresh Typst Preview**           | Compiles the preview again, and forgets every remembered image and metadata file. |
-| **Switch Typst Preview Brand Mode** | Shows the other side of the brand of a `{typst}` cell.                            |
-| **Copy Typst Preview Source**       | Copies the exact source the preview compiled to the clipboard.                    |
+| Command                             | What it does                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Preview Typst Block**             | Compiles the block under the cursor and shows it in the panel.                                         |
+| **Refresh Typst Preview**           | Compiles the preview again, and forgets the image, the metadata files and the brand mode you selected. |
+| **Switch Typst Preview Brand Mode** | Shows the other side of the brand of a `{typst}` cell.                                                 |
+| **Copy Typst Preview Source**       | Copies the exact source the preview compiled to the clipboard.                                         |
+
+The [commands reference](../reference/commands.qmd) lists the identifier of each one.
 
 **Copy Typst Preview Source** is what makes a failure reportable.
 Paste the source into a file, run `typst compile` on it, and the failure is reproduced outside Visual Studio Code.

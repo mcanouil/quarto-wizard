@@ -441,6 +441,28 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should keep every other remembered image when the preview is reloaded", async () => {
+		// The reader asked for one block. Emptying the cache would make every other
+		// block previewed in the session spawn Typst again on the next hover.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const first = await plainDocument("#circle()");
+		const second = await plainDocument("#square()");
+
+		await nextResultFor(controller, first);
+		await nextResultFor(controller, second);
+		assert.strictEqual(compiler.sources.length, 2);
+
+		const reloaded = nextResult(controller);
+		controller.reload();
+		await reloaded;
+		assert.strictEqual(compiler.sources.length, 3, "the block on screen compiled again");
+
+		await nextResultFor(controller, first);
+		assert.strictEqual(compiler.sources.length, 3, "the other block answered from the cache");
+		controller.dispose();
+	});
+
 	test("Should say what to do when a reload has nothing to compile", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller, messages } = makeController(compiler);

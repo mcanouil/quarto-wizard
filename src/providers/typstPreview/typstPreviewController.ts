@@ -8,9 +8,9 @@ import { debounce, type DebouncedFunction } from "../../utils/debounce";
 import { generateHashKey } from "../../utils/hash";
 import { logMessage } from "../../utils/log";
 import { isQmdFile } from "../../utils/metadataFilesRegistry";
-import type { TypstBrandMode } from "../../utils/typst/typstOptions";
+import { otherBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
 import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
-import { buildCompileRequest, TypstContextCache, type CompileRequest } from "./typstContext";
+import { buildCompileRequest, NO_BLOCK_MESSAGE, TypstContextCache, type CompileRequest } from "./typstContext";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
 import { compileSettings, documentDelayOf, surfaceOf } from "./typstPreviewSettings";
 
@@ -259,7 +259,7 @@ function isRelevantDocument(document: vscode.TextDocument): boolean {
 }
 
 /** One place a preview can be compiled from. */
-interface PreviewTarget {
+export interface PreviewTarget {
 	document: vscode.TextDocument;
 	position: vscode.Position;
 }
@@ -414,11 +414,7 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Preview the block under the cursor again, because something changed. */
 	refresh(): void {
-		const target = cursorTarget();
-		if (target === undefined) {
-			return;
-		}
-		void this.attempt(target.document, target.position, "background");
+		this.compile(cursorTarget(), "background");
 	}
 
 	/**
@@ -428,57 +424,73 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * for. Those change the image of the block being looked at, and the cursor
 	 * may have moved on to a document with no block in it at all, so following the
 	 * cursor here would leave the panel showing an image nothing recompiled.
-	 *
-	 * The block is found again by its place in the document rather than by the
-	 * offsets it carried, which move under every edit above it.
 	 */
 	recompile(): void {
-		const target = this.shownTarget();
-		if (target === undefined) {
-			return;
-		}
-		void this.attempt(target.document, target.position, "background");
+		this.compile(this.shownTarget(), "background");
 	}
 
 	/**
 	 * Compile the preview again, forgetting everything remembered about it.
 	 *
 	 * This is the command a reader runs when the image and the document disagree,
-	 * so it outranks both caches: the images, which would answer an unchanged
-	 * source without compiling, and the metadata files, which are read from disk
-	 * and can be changed by something the watchers do not see, such as a checkout
-	 * or a build step.
+	 * so it outranks everything that would answer without compiling: the image
+	 * held for this source, the metadata files, which are read from disk and can
+	 * be changed by something the watchers do not see, such as a checkout or a
+	 * build step, and the brand mode the reader switched to by hand. It is
+	 * therefore also the way back to a preview that follows the theme again.
+	 *
+	 * Nothing is forgotten until there is something to compile, so a command run
+	 * with the cursor outside every block costs nothing.
 	 */
 	reload(): void {
-		this.contexts.forgetFiles();
-		this.forgetImages();
 		const target = this.shownTarget() ?? cursorTarget();
 		if (target === undefined) {
-			this.options.show("Put the cursor inside a Typst block to preview it.");
+			this.options.show(NO_BLOCK_MESSAGE);
 			return;
 		}
-		void this.attempt(target.document, target.position, "asked");
+		this.brandModeOverride = undefined;
+		this.contexts.forgetFiles();
+		this.compile(target, "asked", true);
 	}
 
 	/**
 	 * Show the other side of the brand of the cell being previewed.
 	 *
-	 * Only a cell has one. A plain block and a raw block carry the preview's own
-	 * theme header, so there is no second image to show and saying so is better
-	 * than a command that silently does nothing.
+	 * Only a cell resolves a colour from a brand. A plain block and a raw block
+	 * carry the preview's own theme header, so there is no second image to show
+	 * and saying so is better than a command that silently does nothing.
+	 *
+	 * The kind is what is asked, and not the presence of a mode: a result carries
+	 * a mode because it is a cell, and reading the answer off the optional field
+	 * would make this quietly wrong the day another kind gains one.
 	 */
 	toggleBrandMode(): void {
 		const shown = this.result;
-		if (shown?.brandMode === undefined) {
+		if (shown?.block.kind !== "cell" || shown.brandMode === undefined) {
 			this.options.show("The brand mode applies to a `{typst}` cell. Preview one to switch the side it resolves.");
 			return;
 		}
-		this.brandModeOverride = shown.brandMode === "dark" ? "light" : "dark";
 		const target = this.shownTarget();
 		if (target === undefined) {
 			return;
 		}
-		void this.attempt(target.document, target.position, "asked");
+		// Written only once the block to recompile is known, or the stored side
+		// would disagree with the image on screen until something else compiled.
+		this.brandModeOverride = otherBrandMode(shown.brandMode);
+		this.compile(target, "asked");
+	}
+
+	/**
+	 * Compile one target, when there is one.
+	 *
+	 * Every entry point differs in which block it means and why, and in nothing
+	 * else, so the tail they share lives here.
+	 */
+	private compile(target: PreviewTarget | undefined, reason: PreviewReason, fresh = false): void {
+		if (target === undefined) {
+			return;
+		}
+		void this.attempt(target.document, target.position, reason, fresh);
 	}
 
 	/**
@@ -513,8 +525,9 @@ export class TypstPreviewController implements vscode.Disposable {
 		document: vscode.TextDocument,
 		position: vscode.Position,
 		reason: PreviewReason,
+		fresh = false,
 	): Promise<TypstPreviewResult | undefined> {
-		return this.run(document, position, reason).catch((error: unknown) => {
+		return this.run(document, position, reason, fresh).catch((error: unknown) => {
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
 			if (reason === "asked") {
@@ -554,11 +567,16 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * render it directly. Nothing published means nothing to render: a newer
 	 * request took over, the block cannot be previewed, or the machine cannot
 	 * compile at all.
+	 *
+	 * @param fresh - Compile even when this source has an image already. Only a
+	 *   reader asking for a refresh does, and it costs one process rather than
+	 *   the whole cache.
 	 */
 	private async run(
 		document: vscode.TextDocument,
 		position: vscode.Position,
 		reason: PreviewReason,
+		fresh: boolean,
 	): Promise<TypstPreviewResult | undefined> {
 		if (this.disposed || (reason === "background" && !this.options.hasSurface())) {
 			return undefined;
@@ -649,7 +667,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		// Joined on a character no argument and no Typst source carries, so two
 		// different triples cannot be spelled the same way.
 		const key = generateHashKey([binary, ...ARGV, request.source].join("\u0000"));
-		const held = this.cache.get(key);
+		const held = fresh ? undefined : this.cache.get(key);
 		if (held !== undefined) {
 			// Re-inserted so the least recently used entry is the first one, which is
 			// what the eviction below removes.
@@ -732,6 +750,12 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Remember one compile, and forget those used longest ago to make room. */
 	private remember(key: string, compiled: TypstCompileResult): void {
+		// A refresh compiles a source that is held already, so the entry it replaces
+		// is dropped first. Without this the budget would count the same image
+		// twice, and the replacement would keep the insertion place of the entry it
+		// replaced rather than becoming the most recently used one.
+		this.cacheBytes -= this.cache.get(key)?.svg?.length ?? 0;
+		this.cache.delete(key);
 		this.cache.set(key, compiled);
 		this.cacheBytes += compiled.svg?.length ?? 0;
 		// A `Map` iterates in insertion order and every hit is re-inserted, so the

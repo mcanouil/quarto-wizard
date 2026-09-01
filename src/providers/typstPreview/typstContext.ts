@@ -39,6 +39,15 @@ export const PINNED_TYPST_RENDER_VERSION = "0.21.0";
 /** The owner the extension is published under, beside its bare name. */
 const TYPST_RENDER_OWNER = "mcanouil";
 
+/**
+ * What a reader is told when there is no block to preview.
+ *
+ * Said from here when the cursor is in a document with no block under it, and
+ * from the controller when a command has no block to work on at all. One
+ * sentence for one situation, so a reword cannot leave half of it behind.
+ */
+export const NO_BLOCK_MESSAGE = "Put the cursor inside a Typst block to preview it.";
+
 /** Everything the compiler and the panel need for one block. */
 export interface CompileRequest {
 	/** The block under the cursor. */
@@ -288,7 +297,7 @@ export async function buildCompileRequest(
 	const blocks = cache.blocksOf(document, () => text);
 	const block = blockAtOffset(blocks, document.offsetAt(position));
 	if (block === undefined) {
-		return { unavailable: "Put the cursor inside a Typst block to preview it." };
+		return { unavailable: NO_BLOCK_MESSAGE };
 	}
 	const blockIndex = blocks.indexOf(block);
 

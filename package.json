@@ -125,7 +125,7 @@
 	"capabilities": {
 		"untrustedWorkspaces": {
 			"supported": "limited",
-			"description": "The Typst preview is off in an untrusted workspace, because it runs the Typst compiler over the content of the workspace. Every other feature works.",
+			"description": "The Typst preview is off in an untrusted workspace, because it runs the Typst compiler over the content of the workspace. The registry address and the two install confirmation settings are read from your own settings rather than from the workspace. Every other feature works.",
 			"restrictedConfigurations": [
 				"quartoWizard.registry.url",
 				"quartoWizard.ask.trustAuthors",
@@ -352,7 +352,7 @@
 				"shortTitle": "Refresh Typst",
 				"icon": "$(refresh)",
 				"category": "Quarto Wizard",
-				"description": "Compile the Typst preview again, ignoring every remembered image and metadata file."
+				"description": "Compile the Typst preview again, ignoring the image it holds, the metadata files it read and the brand mode you selected."
 			},
 			{
 				"command": "quartoWizard.toggleTypstBrandMode",

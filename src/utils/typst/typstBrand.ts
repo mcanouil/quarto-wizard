@@ -14,7 +14,7 @@
  * defaults are not read, because no colour option needs them.
  */
 
-import { mapping } from "./typstOptions";
+import { mapping, otherBrandMode } from "./typstOptions";
 import type { BrandColourReader, TypstBrandMode } from "./typstOptions";
 
 /**
@@ -362,7 +362,7 @@ export function brandDictionary(brand: Brand, mode: TypstBrandMode): string {
 		const value = read(side, role);
 		return value === undefined || value === "" ? undefined : hexOnly(value);
 	};
-	const other = mode === "light" ? "dark" : "light";
+	const other = otherBrandMode(mode);
 	const colours: Record<string, string> = {};
 	for (const role of BRAND_COLOUR_ROLES) {
 		const hex = hexAt(mode, role) ?? hexAt(other, role);
