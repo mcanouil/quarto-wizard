@@ -686,10 +686,6 @@ export class TypstPreviewController implements vscode.Disposable {
 			);
 			return undefined;
 		}
-		if (stale()) {
-			return undefined;
-		}
-
 		// The image is decided by the source, the arguments and the binary, and by
 		// nothing else. Two documents that assemble to the same source share the
 		// entry, which is what makes an undone keystroke free.
@@ -697,12 +693,17 @@ export class TypstPreviewController implements vscode.Disposable {
 		// different triples cannot be spelled the same way.
 		const key = generateHashKey([binary, ...ARGV, request.source].join("\u0000"));
 		if (fresh) {
-			// Dropped now and not merely stepped over. A compile that another request
+			// Dropped now and not merely stepped over, and before this request is
+			// asked whether it is still wanted. A compile that another request
 			// supersedes never reaches `remember`, so an entry left here would be the
-			// image the reader asked to stop trusting, served again by the next
-			// request that assembles the same source.
+			// image the reader asked to stop trusting, served back to them by the
+			// request that superseded the refresh.
 			this.forget(key);
 		}
+		if (stale()) {
+			return undefined;
+		}
+
 		const held = this.cache.get(key);
 		if (held !== undefined) {
 			// Re-inserted so the least recently used entry is the first one, which is
@@ -845,7 +846,10 @@ export class TypstPreviewController implements vscode.Disposable {
 		if (this.tracked?.uri.toString() === key) {
 			this.tracked = undefined;
 		}
-		this.resultEmitter.fire({ result: this.shown(), reason: "background" });
+		// The tracked preview and nothing else. Falling back to the last compile
+		// here would hand a surface the block a pointer rested on, which is how the
+		// panel would move to a document the reader never asked it to show.
+		this.resultEmitter.fire({ result: this.tracked, reason: "background" });
 	}
 
 	/** Forget every compiled image, so the next request compiles again. */
@@ -1042,7 +1046,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * block moves its end by what was typed, and the cursor moves with it.
 	 */
 	private movedBlock(event: vscode.TextEditorSelectionChangeEvent): boolean {
-		const shown = this.result;
+		const shown = this.shown();
 		if (shown === undefined || shown.uri.toString() !== event.textEditor.document.uri.toString()) {
 			return true;
 		}
@@ -1069,7 +1073,10 @@ export class TypstPreviewController implements vscode.Disposable {
 		if (!isRelevantDocument(event.document) || event.contentChanges.length === 0) {
 			return;
 		}
-		const shown = this.result;
+		// The block on screen, and not the last compile: a hover moves the last
+		// compile to another block, and asking about that one would read an edit
+		// inside the block the reader is looking at as an edit that changes nothing.
+		const shown = this.shown();
 		if (shown !== undefined && shown.uri.toString() === event.document.uri.toString()) {
 			// A raw block compiles under every raw block above it, so it is sensitive
 			// to a change at any lower offset and not only to one inside it. An edit

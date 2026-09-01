@@ -122,6 +122,23 @@ const INSIDE_BLOCK = new vscode.Position(3, 1);
 /** The position inside the one cell of `cellDocument`. */
 const INSIDE_CELL = new vscode.Position(2, 0);
 
+/** The position inside the second block of `twoBlockFile`. */
+const SECOND_BLOCK = new vscode.Position(7, 1);
+
+/**
+ * A `.qmd` on disk holding two plain blocks.
+ *
+ * Written to disk and not left untitled, because the cursor-driven path only
+ * follows a document the editor calls a Quarto one.
+ */
+async function twoBlockFile(): Promise<vscode.TextDocument> {
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-two-"));
+	written.push(directory);
+	const file = path.join(directory, "doc.qmd");
+	fs.writeFileSync(file, "# Title\n\n```typst\n#circle()\n```\n\n```typst\n#square()\n```\n");
+	return vscode.workspace.openTextDocument(vscode.Uri.file(file));
+}
+
 /** A controller wired to a stub, with a surface showing unless the test says otherwise. */
 function makeController(
 	compiler: TypstCompilerLike,
@@ -166,12 +183,15 @@ function settle(delayMs = 50): Promise<void> {
 }
 
 suite("Typst Preview Lifecycle Test Suite", () => {
-	teardown(() => {
+	teardown(async () => {
 		// `cellDocument` names a project root and reads the extensions installed in
 		// it, and both are held for the session, so a later test would read the
 		// project of an earlier one.
 		invalidateProjectRoots();
 		invalidateInstalledExtensionsCache();
+		// An editor left open is a cursor the next test did not put anywhere, and
+		// the cursor is what several of these paths follow.
+		await vscode.commands.executeCommand("workbench.action.closeAllEditors");
 	});
 
 	suiteTeardown(() => {
@@ -392,12 +412,35 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		const cleared = nextResult(controller);
 		await config.update("surface", "off", vscode.ConfigurationTarget.Global);
 		try {
-			await cleared;
+			// Nothing, and not the block the pointer rested on: a surface given that
+			// would move to a document the reader never asked it to show.
+			assert.strictEqual(await cleared, undefined);
 			assert.notStrictEqual(controller.shown()?.uri.toString(), document.uri.toString());
 		} finally {
 			await config.update("surface", undefined, vscode.ConfigurationTarget.Global);
 			controller.dispose();
 		}
+	});
+
+	test("Should follow an edit of the block on screen after a hover over another", async () => {
+		// The edit gate asks whether the change reaches the block being previewed.
+		// Asking about the last compile instead reads an edit inside the block on
+		// screen as an edit of a block that is nowhere, and leaves the panel stale.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await twoBlockFile();
+
+		await vscode.window.showTextDocument(document, { selection: new vscode.Range(INSIDE_BLOCK, INSIDE_BLOCK) });
+		await settle(500);
+		// A pointer rest on the second block, which the panel does not follow.
+		await controller.preview(document, SECOND_BLOCK);
+		const before = compiler.sources.length;
+
+		await editBlock(document);
+		await settle(700);
+
+		assert.ok(compiler.sources.length > before, "the edited block compiled again");
+		controller.dispose();
 	});
 
 	test("Should say once that there is no Typst binary", async () => {
