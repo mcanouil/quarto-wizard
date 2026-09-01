@@ -487,6 +487,11 @@ export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean
  * delimiter line (the trailing newline is excluded), so that any `{...}`
  * content within is fully enclosed.
  *
+ * A document of fewer than three lines has no front matter, and neither has one
+ * whose second line is blank or is itself a delimiter.  Pandoc reads the two
+ * `---` lines of `---\n\n---` as thematic breaks, so a range there would hide
+ * every block a reader writes between them.
+ *
  * @param text - The full document text.
  * @returns The front-matter range, or `undefined` when no closed front
  *   matter is present.
@@ -499,6 +504,18 @@ export function getYamlFrontMatterRange(text: string): TextRange | undefined {
 
 	const firstLineEnd = firstNewline > 0 && text[firstNewline - 1] === "\r" ? firstNewline - 1 : firstNewline;
 	if (text.slice(0, firstLineEnd).trim() !== "---") {
+		return undefined;
+	}
+
+	const secondLineStart = firstNewline + 1;
+	const secondNewline = text.indexOf("\n", secondLineStart);
+	if (secondNewline === -1) {
+		return undefined;
+	}
+	const secondLineEnd =
+		secondNewline > secondLineStart && text[secondNewline - 1] === "\r" ? secondNewline - 1 : secondNewline;
+	const secondLine = text.slice(secondLineStart, secondLineEnd).trim();
+	if (secondLine.length === 0 || secondLine === "---") {
 		return undefined;
 	}
 

@@ -145,6 +145,17 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(found[0].body, "#a\n");
 		});
 
+		test("Should find a block above a delimiter that opens no front matter", () => {
+			// A blank second line means the document has no front matter, so the two
+			// `---` lines are thematic breaks. Reading them as delimiters started the
+			// scan below the second one and hid the block between them.
+			const text = "---\n\n```typst\n#a\n```\n\n---\n";
+			const found = findTypstBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].kind, "plain");
+			assert.strictEqual(found[0].body, "#a\n");
+		});
+
 		test("Should report offsets and line numbers past the front matter", () => {
 			const text = "---\ntitle: t\n---\n\n```typst\n#a\n```\n";
 			const found = findTypstBlocks(text);

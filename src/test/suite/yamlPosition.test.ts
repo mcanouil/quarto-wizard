@@ -756,11 +756,19 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
 		});
 
-		test("should handle empty front matter", () => {
+		test("should return undefined when the second line closes the block", () => {
 			const text = "---\n---\nbody\n";
-			const range = getYamlFrontMatterRange(text);
-			assert.ok(range);
-			assert.strictEqual(text.slice(range!.start, range!.end), "---\n---");
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined when the second line is blank", () => {
+			const text = "---\n\n---\nbody\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined for a two line document", () => {
+			const text = "---\ntitle: Test";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
 		});
 
 		test("should return undefined for empty text", () => {
