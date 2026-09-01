@@ -1,15 +1,16 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { invalidatesPreview, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { blockAtOffset, invalidatesPreview, type TypstBlock } from "../../utils/typst/typstBlocks";
 import { isUnavailable, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { debounce, type DebouncedFunction } from "../../utils/debounce";
 import { generateHashKey } from "../../utils/hash";
 import { logMessage } from "../../utils/log";
 import { isQmdFile } from "../../utils/metadataFilesRegistry";
+import { otherBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
 import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
-import { buildCompileRequest, TypstContextCache, type CompileRequest } from "./typstContext";
+import { buildCompileRequest, NO_BLOCK_MESSAGE, TypstContextCache, type CompileRequest } from "./typstContext";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
 import { compileSettings, documentDelayOf, surfaceOf } from "./typstPreviewSettings";
 
@@ -100,6 +101,16 @@ export interface TypstPreviewResult {
 	 * and the place of the block alone cannot say that.
 	 */
 	version: number;
+	/**
+	 * The whole source that was sent to the compiler.
+	 *
+	 * Carried so that the copy command can hand a reader the exact text Typst
+	 * read, which is what turns a preview failure into something reproducible
+	 * outside the editor.
+	 */
+	source: string;
+	/** The side of the brand a cell resolved with, absent for the other two kinds. */
+	brandMode?: TypstBrandMode;
 	/** The image on screen, which is the last one this block compiled to. */
 	svg?: string;
 	/** What the surface says about the block beside the image. */
@@ -247,6 +258,21 @@ function isRelevantDocument(document: vscode.TextDocument): boolean {
 	return document.languageId === "quarto" || isQmdFile(document.fileName);
 }
 
+/** One place a preview can be compiled from. */
+export interface PreviewTarget {
+	document: vscode.TextDocument;
+	position: vscode.Position;
+}
+
+/** Where the cursor is, when it is in a document this feature previews. */
+function cursorTarget(): PreviewTarget | undefined {
+	const editor = vscode.window.activeTextEditor;
+	if (editor === undefined || !isRelevantDocument(editor.document)) {
+		return undefined;
+	}
+	return { document: editor.document, position: editor.selection.active };
+}
+
 /**
  * The metadata files a preview reads beside the block.
  *
@@ -320,6 +346,30 @@ export class TypstPreviewController implements vscode.Disposable {
 	/** Rises with every request, so a result that arrives out of order is dropped. */
 	private requestVersion = 0;
 	private result: TypstPreviewResult | undefined;
+	/**
+	 * The preview the reader is following, which is not always the last compile.
+	 *
+	 * A hover compiles the block under the pointer and publishes it, and the panel
+	 * deliberately ignores that: a pointer rest is not a request to move the panel.
+	 * The panel therefore goes on showing the block it was given, and a command
+	 * that acted on the last compile would act on the block the pointer passed
+	 * over instead of the one on screen.
+	 *
+	 * It is absent until something other than a surface publishes, which is the
+	 * state of a session where the hover is the only surface. `shown()` falls back
+	 * to the last compile there, because that hover is the image the reader saw.
+	 */
+	private tracked: TypstPreviewResult | undefined;
+	/**
+	 * The side of the brand the reader asked to see, when they asked for one.
+	 *
+	 * It outranks both the document and the theme, and it holds until the reader
+	 * asks for the other side, so moving between the cells of a document keeps
+	 * showing the side they are reading. Nothing else writes it, and the header
+	 * names the side in force, so the preview never differs from the render
+	 * without saying so.
+	 */
+	private brandModeOverride: TypstBrandMode | undefined;
 	/** Said once per session, because an unavailable machine stays unavailable. */
 	private reportedUnavailable = false;
 	private disposed = false;
@@ -336,9 +386,20 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.wireEvents();
 	}
 
-	/** What is being previewed, which is what a surface renders. */
+	/** The last compile, which is what a surface that asked for one renders. */
 	current(): TypstPreviewResult | undefined {
 		return this.result;
+	}
+
+	/**
+	 * The preview the reader is looking at, which is what a command acts on.
+	 *
+	 * Not the same question as `current()`. A hover over another block is the last
+	 * compile without being what is on screen, and the three preview commands mean
+	 * the image the reader can see.
+	 */
+	shown(): TypstPreviewResult | undefined {
+		return this.tracked ?? this.result;
 	}
 
 	/**
@@ -378,11 +439,7 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Preview the block under the cursor again, because something changed. */
 	refresh(): void {
-		const editor = vscode.window.activeTextEditor;
-		if (editor === undefined || !isRelevantDocument(editor.document)) {
-			return;
-		}
-		void this.attempt(editor.document, editor.selection.active, "background");
+		this.compile(cursorTarget(), "background");
 	}
 
 	/**
@@ -392,24 +449,98 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * for. Those change the image of the block being looked at, and the cursor
 	 * may have moved on to a document with no block in it at all, so following the
 	 * cursor here would leave the panel showing an image nothing recompiled.
+	 */
+	recompile(): void {
+		this.compile(this.shownTarget(), "background");
+	}
+
+	/**
+	 * Compile the preview again, forgetting everything remembered about it.
+	 *
+	 * This is the command a reader runs when the image and the document disagree,
+	 * so it outranks everything that would answer without compiling: the image
+	 * held for this source, the metadata files, which are read from disk and can
+	 * be changed by something the watchers do not see, such as a checkout or a
+	 * build step, and the brand mode the reader switched to by hand. It is
+	 * therefore also the way back to a preview that follows the theme again.
+	 *
+	 * Nothing is forgotten until there is something to compile, so a command run
+	 * with the cursor outside every block costs nothing.
+	 */
+	reload(): void {
+		const target = this.shownTarget() ?? cursorTarget();
+		// The block is what makes the command mean something, and the cursor can sit
+		// in a document that has none. Asking here rather than leaving it to the
+		// compile is what keeps the promise above true.
+		if (
+			target === undefined ||
+			blockAtOffset(this.blocksOf(target.document), target.document.offsetAt(target.position)) === undefined
+		) {
+			this.options.show(NO_BLOCK_MESSAGE);
+			return;
+		}
+		this.brandModeOverride = undefined;
+		this.contexts.forgetFiles();
+		this.compile(target, "asked", true);
+	}
+
+	/**
+	 * Show the other side of the brand of the cell being previewed.
+	 *
+	 * Only a cell resolves a colour from a brand. A plain block and a raw block
+	 * carry the preview's own theme header, so there is no second image to show
+	 * and saying so is better than a command that silently does nothing.
+	 *
+	 * The kind is what is asked, and not the presence of a mode: a result carries
+	 * a mode because it is a cell, and reading the answer off the optional field
+	 * would make this quietly wrong the day another kind gains one.
+	 */
+	toggleBrandMode(): void {
+		const shown = this.shown();
+		if (shown?.block.kind !== "cell" || shown.brandMode === undefined) {
+			this.options.show("The brand mode applies to a `{typst}` cell. Preview one to switch the side it resolves.");
+			return;
+		}
+		const target = this.shownTarget();
+		if (target === undefined) {
+			return;
+		}
+		// Written only once the block to recompile is known, or the stored side
+		// would disagree with the image on screen until something else compiled.
+		this.brandModeOverride = otherBrandMode(shown.brandMode);
+		this.compile(target, "asked");
+	}
+
+	/**
+	 * Compile one target, when there is one.
+	 *
+	 * Every entry point differs in which block it means and why, and in nothing
+	 * else, so the tail they share lives here.
+	 */
+	private compile(target: PreviewTarget | undefined, reason: PreviewReason, fresh = false): void {
+		if (target === undefined) {
+			return;
+		}
+		void this.attempt(target.document, target.position, reason, fresh);
+	}
+
+	/**
+	 * The block on screen, as a position in the document holding it.
 	 *
 	 * The block is found again by its place in the document rather than by the
 	 * offsets it carried, which move under every edit above it.
 	 */
-	recompile(): void {
-		const shown = this.result;
+	private shownTarget(): PreviewTarget | undefined {
+		const shown = this.shown();
 		if (shown === undefined) {
-			return;
+			return undefined;
 		}
 		const document = vscode.workspace.textDocuments.find((open) => open.uri.toString() === shown.uri.toString());
 		if (document === undefined) {
-			return;
+			return undefined;
 		}
 		const block = this.blocksOf(document)[shown.blockIndex];
-		if (block === undefined) {
-			return;
-		}
-		void this.attempt(document, document.positionAt(block.fenceStart), "background");
+		return block === undefined ? undefined : { document, position: document.positionAt(block.fenceStart) };
 	}
 
 	/**
@@ -425,8 +556,9 @@ export class TypstPreviewController implements vscode.Disposable {
 		document: vscode.TextDocument,
 		position: vscode.Position,
 		reason: PreviewReason,
+		fresh = false,
 	): Promise<TypstPreviewResult | undefined> {
-		return this.run(document, position, reason).catch((error: unknown) => {
+		return this.run(document, position, reason, fresh).catch((error: unknown) => {
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
 			if (reason === "asked") {
@@ -457,6 +589,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.forgetImages();
 		this.contexts.clear();
 		this.result = undefined;
+		this.tracked = undefined;
 	}
 
 	/**
@@ -466,11 +599,16 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * render it directly. Nothing published means nothing to render: a newer
 	 * request took over, the block cannot be previewed, or the machine cannot
 	 * compile at all.
+	 *
+	 * @param fresh - Compile even when this source has an image already. Only a
+	 *   reader asking for a refresh does, and it costs one process rather than
+	 *   the whole cache.
 	 */
 	private async run(
 		document: vscode.TextDocument,
 		position: vscode.Position,
 		reason: PreviewReason,
+		fresh: boolean,
 	): Promise<TypstPreviewResult | undefined> {
 		if (this.disposed || (reason === "background" && !this.options.hasSurface())) {
 			return undefined;
@@ -489,10 +627,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// A surface open when the setting changed would otherwise hold the last
 			// image for good: nothing recompiles it, and nothing said it had stopped
 			// tracking the document, so it looks live and is frozen.
-			if (this.result?.uri.toString() === document.uri.toString()) {
-				this.result = undefined;
-				this.resultEmitter.fire({ reason: "background" });
-			}
+			this.forgetDocument(document.uri);
 			if (reason === "asked") {
 				this.options.show(message);
 			}
@@ -529,7 +664,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		// so an edit landing during a compile would stamp the new version onto the
 		// old image, and a surface trusting the stamp would serve it as current.
 		const compiledVersion = document.version;
-		const request = await buildCompileRequest(document, position, header, this.contexts);
+		const request = await buildCompileRequest(document, position, header, this.contexts, this.brandModeOverride);
 		if (stale()) {
 			return undefined;
 		}
@@ -551,16 +686,24 @@ export class TypstPreviewController implements vscode.Disposable {
 			);
 			return undefined;
 		}
-		if (stale()) {
-			return undefined;
-		}
-
 		// The image is decided by the source, the arguments and the binary, and by
 		// nothing else. Two documents that assemble to the same source share the
 		// entry, which is what makes an undone keystroke free.
 		// Joined on a character no argument and no Typst source carries, so two
 		// different triples cannot be spelled the same way.
 		const key = generateHashKey([binary, ...ARGV, request.source].join("\u0000"));
+		if (fresh) {
+			// Dropped now and not merely stepped over, and before this request is
+			// asked whether it is still wanted. A compile that another request
+			// supersedes never reaches `remember`, so an entry left here would be the
+			// image the reader asked to stop trusting, served back to them by the
+			// request that superseded the refresh.
+			this.forget(key);
+		}
+		if (stale()) {
+			return undefined;
+		}
+
 		const held = this.cache.get(key);
 		if (held !== undefined) {
 			// Re-inserted so the least recently used entry is the first one, which is
@@ -625,23 +768,47 @@ export class TypstPreviewController implements vscode.Disposable {
 		// clearing the image would make the surface flash empty on almost every
 		// keystroke. The image of another block is not kept: an error of one block
 		// over the image of another says nothing true about either of them.
+		//
+		// The image kept is the one the reader can see, which is the tracked preview
+		// for everything but a hover. Comparing against the last compile instead
+		// would lose the image of the block on screen as soon as a pointer had
+		// rested on another one.
+		const previous = reason === "surface" ? this.result : this.shown();
 		const sameBlock =
-			this.result?.uri.toString() === document.uri.toString() && this.result?.blockIndex === request.blockIndex;
+			previous?.uri.toString() === document.uri.toString() && previous?.blockIndex === request.blockIndex;
 		this.result = {
 			uri: document.uri,
 			block: request.block,
 			blockIndex: request.blockIndex,
 			version: compiledVersion,
-			svg: compiled.svg ?? (sameBlock ? this.result?.svg : undefined),
+			source: request.source,
+			brandMode: request.brandMode,
+			svg: compiled.svg ?? (sameBlock ? previous?.svg : undefined),
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
+		if (reason !== "surface") {
+			// Every other reason is a block a surface will render, so it is what the
+			// reader ends up looking at.
+			this.tracked = this.result;
+		}
 		this.resultEmitter.fire({ result: this.result, reason });
 		return this.result;
 	}
 
+	/** Forget one compiled image, and the bytes it was counted for. */
+	private forget(key: string): void {
+		this.cacheBytes -= this.cache.get(key)?.svg?.length ?? 0;
+		this.cache.delete(key);
+	}
+
 	/** Remember one compile, and forget those used longest ago to make room. */
 	private remember(key: string, compiled: TypstCompileResult): void {
+		// Anything held for this source is dropped first. Without this the budget
+		// would count the same image twice, and the replacement would keep the
+		// insertion place of the entry it replaced rather than becoming the most
+		// recently used one.
+		this.forget(key);
 		this.cache.set(key, compiled);
 		this.cacheBytes += compiled.svg?.length ?? 0;
 		// A `Map` iterates in insertion order and every hit is re-inserted, so the
@@ -657,6 +824,32 @@ export class TypstPreviewController implements vscode.Disposable {
 			this.cacheBytes -= this.cache.get(oldest.value)?.svg?.length ?? 0;
 			this.cache.delete(oldest.value);
 		}
+	}
+
+	/**
+	 * Stop describing one document, and say so when something changed.
+	 *
+	 * The two held previews are asked separately. A hover moves the last compile
+	 * without moving the tracked one, so a document can be the subject of one and
+	 * not of the other, and testing only one of them would leave a surface showing
+	 * a document that is gone while looking live.
+	 */
+	private forgetDocument(uri: vscode.Uri): void {
+		const key = uri.toString();
+		const forgotten = this.result?.uri.toString() === key || this.tracked?.uri.toString() === key;
+		if (!forgotten) {
+			return;
+		}
+		if (this.result?.uri.toString() === key) {
+			this.result = undefined;
+		}
+		if (this.tracked?.uri.toString() === key) {
+			this.tracked = undefined;
+		}
+		// The tracked preview and nothing else. Falling back to the last compile
+		// here would hand a surface the block a pointer rested on, which is how the
+		// panel would move to a document the reader never asked it to show.
+		this.resultEmitter.fire({ result: this.tracked, reason: "background" });
 	}
 
 	/** Forget every compiled image, so the next request compiles again. */
@@ -779,10 +972,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.disposables.push(
 			vscode.workspace.onDidCloseTextDocument((document) => {
 				this.contexts.forget(document.uri);
-				if (this.result?.uri.toString() === document.uri.toString()) {
-					this.result = undefined;
-					this.resultEmitter.fire({ reason: "background" });
-				}
+				this.forgetDocument(document.uri);
 			}),
 		);
 
@@ -856,7 +1046,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * block moves its end by what was typed, and the cursor moves with it.
 	 */
 	private movedBlock(event: vscode.TextEditorSelectionChangeEvent): boolean {
-		const shown = this.result;
+		const shown = this.shown();
 		if (shown === undefined || shown.uri.toString() !== event.textEditor.document.uri.toString()) {
 			return true;
 		}
@@ -883,7 +1073,10 @@ export class TypstPreviewController implements vscode.Disposable {
 		if (!isRelevantDocument(event.document) || event.contentChanges.length === 0) {
 			return;
 		}
-		const shown = this.result;
+		// The block on screen, and not the last compile: a hover moves the last
+		// compile to another block, and asking about that one would read an edit
+		// inside the block the reader is looking at as an edit that changes nothing.
+		const shown = this.shown();
 		if (shown !== undefined && shown.uri.toString() === event.document.uri.toString()) {
 			// A raw block compiles under every raw block above it, so it is sensitive
 			// to a change at any lower offset and not only to one inside it. An edit

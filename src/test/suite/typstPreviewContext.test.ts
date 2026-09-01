@@ -302,6 +302,45 @@ suite("Typst Preview Context Test Suite", () => {
 			}
 		});
 
+		test("Should resolve a cell against the brand mode the caller names", async () => {
+			// The toggle command is how a reader sees the other side of a brand, so the
+			// mode it names wins over the theme the preview would follow by itself.
+			const directory = project(true);
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), CELL);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const cache = new TypstContextCache();
+				const light = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, cache, "light");
+				const dark = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, cache, "dark");
+				assert.ok(!isUnavailable(light));
+				assert.ok(!isUnavailable(dark));
+				assert.strictEqual(light.brandMode, "light");
+				assert.strictEqual(dark.brandMode, "dark");
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should let the named brand mode win over the one the document sets", async () => {
+			// A document that names a mode still gets the other side on request. The
+			// toggle would otherwise do nothing at all in exactly the documents whose
+			// author thought about the brand.
+			const directory = project(true);
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), `---\nbrand-mode: light\n---\n\n${CELL}`);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const cache = new TypstContextCache();
+				const followed = await buildCompileRequest(document, new vscode.Position(6, 0), HEADER, cache);
+				const named = await buildCompileRequest(document, new vscode.Position(6, 0), HEADER, cache, "dark");
+				assert.ok(!isUnavailable(followed));
+				assert.ok(!isUnavailable(named));
+				assert.strictEqual(followed.brandMode, "light");
+				assert.strictEqual(named.brandMode, "dark");
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
 		test("Should assemble a cell when typst-render is installed with no owner", async () => {
 			const directory = project("ownerless");
 			try {

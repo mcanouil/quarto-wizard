@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { logMessage, showMessageWithLogs } from "../../utils/log";
-import { TypstPreviewController, type TypstPreviewUpdate } from "./typstPreviewController";
+import { TypstPreviewController, type PreviewTarget, type TypstPreviewUpdate } from "./typstPreviewController";
 import { TypstPreviewPanel } from "./typstPreviewPanel";
 import { TypstPreviewCodeLens } from "./typstPreviewCodeLens";
 import { TypstPreviewHover } from "./typstPreviewHover";
@@ -101,10 +101,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 	 * A code lens names the block it sits above, which is not the block the
 	 * cursor is in, so it passes both. Every other caller means the cursor.
 	 */
-	const resolveTarget = (
-		uri?: vscode.Uri,
-		at?: vscode.Position,
-	): { document: vscode.TextDocument; position: vscode.Position } | undefined => {
+	const resolveTarget = (uri?: vscode.Uri, at?: vscode.Position): PreviewTarget | undefined => {
 		if (uri !== undefined && at !== undefined) {
 			const named = vscode.workspace.textDocuments.find((open) => open.uri.toString() === uri.toString());
 			return named === undefined ? undefined : { document: named, position: at };
@@ -123,6 +120,34 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			// Whether the document wants a preview at all is the controller's to
 			// answer, because it is what spawns the process, and it says so itself.
 			controller.request(target.document, target.position);
+		}),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.refreshTypstPreview", () => {
+			controller.reload();
+		}),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.toggleTypstBrandMode", () => {
+			controller.toggleBrandMode();
+		}),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.copyTypstPreviewSource", async () => {
+			// The source of what is on screen, and never a freshly assembled one. A
+			// reader runs this to report the image they are looking at, so a second
+			// assembly of a document that has moved on would answer a question they
+			// did not ask.
+			const shown = controller.shown();
+			if (shown === undefined) {
+				show("Preview a Typst block before copying the source it compiled.");
+				return;
+			}
+			await vscode.env.clipboard.writeText(shown.source);
+			void showMessageWithLogs("The Typst preview source is on the clipboard.", "info");
 		}),
 	);
 

@@ -11,6 +11,9 @@ import {
 	type TypstPreviewUpdate,
 } from "../../providers/typstPreview/typstPreviewController";
 import type { TypstCompileResult } from "../../providers/typstPreview/typstCompiler";
+import { invalidateProjectRoots, setProjectRoots } from "../../utils/projectRootsRegistry";
+import { invalidateInstalledExtensionsCache } from "../../utils/installedExtensionsCache";
+import { makeFolder, makeRoot } from "./projectFixtures";
 
 /** An image that is never compiled, so nothing here spawns Typst. */
 const SVG = '<svg width="10pt" height="10pt"></svg>';
@@ -90,8 +93,51 @@ async function plainFile(body = "#circle()"): Promise<vscode.TextDocument> {
 /** The directories `plainFile` made, removed when the suite is over. */
 const written: string[] = [];
 
+/**
+ * A document holding one `{typst}` cell, in a project that has `typst-render`.
+ *
+ * A cell is the only kind that resolves a colour from a brand, so it is the only
+ * kind the brand mode command works on, and the install gate refuses a cell in a
+ * project without the extension.
+ */
+async function cellDocument(): Promise<vscode.TextDocument> {
+	const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-cell-")));
+	written.push(directory);
+	fs.writeFileSync(path.join(directory, "_quarto.yml"), "project:\n  type: default\n");
+	const manifest = path.join(directory, "_extensions", "mcanouil", "typst-render");
+	fs.mkdirSync(manifest, { recursive: true });
+	fs.writeFileSync(
+		path.join(manifest, "_extension.yml"),
+		"title: Typst Render\nauthor: Mickael Canouil\nversion: 0.21.0\ncontributes:\n  filters:\n    - typst-render.lua\n",
+	);
+	const file = path.join(directory, "doc.qmd");
+	fs.writeFileSync(file, "```{typst}\n//| margin: 2mm\n#circle()\n```\n");
+	setProjectRoots([makeRoot(makeFolder("typst-preview-cell", directory))]);
+	return vscode.workspace.openTextDocument(vscode.Uri.file(file));
+}
+
 /** The position inside the one block of `plainDocument`. */
 const INSIDE_BLOCK = new vscode.Position(3, 1);
+
+/** The position inside the one cell of `cellDocument`. */
+const INSIDE_CELL = new vscode.Position(2, 0);
+
+/** The position inside the second block of `twoBlockFile`. */
+const SECOND_BLOCK = new vscode.Position(7, 1);
+
+/**
+ * A `.qmd` on disk holding two plain blocks.
+ *
+ * Written to disk and not left untitled, because the cursor-driven path only
+ * follows a document the editor calls a Quarto one.
+ */
+async function twoBlockFile(): Promise<vscode.TextDocument> {
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-two-"));
+	written.push(directory);
+	const file = path.join(directory, "doc.qmd");
+	fs.writeFileSync(file, "# Title\n\n```typst\n#circle()\n```\n\n```typst\n#square()\n```\n");
+	return vscode.workspace.openTextDocument(vscode.Uri.file(file));
+}
 
 /** A controller wired to a stub, with a surface showing unless the test says otherwise. */
 function makeController(
@@ -137,6 +183,17 @@ function settle(delayMs = 50): Promise<void> {
 }
 
 suite("Typst Preview Lifecycle Test Suite", () => {
+	teardown(async () => {
+		// `cellDocument` names a project root and reads the extensions installed in
+		// it, and both are held for the session, so a later test would read the
+		// project of an earlier one.
+		invalidateProjectRoots();
+		invalidateInstalledExtensionsCache();
+		// An editor left open is a cursor the next test did not put anywhere, and
+		// the cursor is what several of these paths follow.
+		await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+	});
+
 	suiteTeardown(() => {
 		for (const directory of written) {
 			fs.rmSync(directory, { recursive: true, force: true });
@@ -336,6 +393,56 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		}
 	});
 
+	test("Should take away a tracked preview a hover has moved off", async () => {
+		// The tracked preview and the last compile can be two documents, because a
+		// hover compiles a block the panel does not follow. Asking only about the
+		// last compile would leave the panel holding an image of a document that
+		// stopped being previewed: live-looking and frozen, with nothing said.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument("#circle()");
+		const hovered = await plainDocument("#square()");
+		const config = vscode.workspace.getConfiguration("quartoWizard.typstPreview");
+
+		await nextResultFor(controller, document);
+		await controller.preview(hovered, INSIDE_BLOCK);
+		assert.strictEqual(controller.current()?.uri.toString(), hovered.uri.toString());
+		assert.strictEqual(controller.shown()?.uri.toString(), document.uri.toString());
+
+		const cleared = nextResult(controller);
+		await config.update("surface", "off", vscode.ConfigurationTarget.Global);
+		try {
+			// Nothing, and not the block the pointer rested on: a surface given that
+			// would move to a document the reader never asked it to show.
+			assert.strictEqual(await cleared, undefined);
+			assert.notStrictEqual(controller.shown()?.uri.toString(), document.uri.toString());
+		} finally {
+			await config.update("surface", undefined, vscode.ConfigurationTarget.Global);
+			controller.dispose();
+		}
+	});
+
+	test("Should follow an edit of the block on screen after a hover over another", async () => {
+		// The edit gate asks whether the change reaches the block being previewed.
+		// Asking about the last compile instead reads an edit inside the block on
+		// screen as an edit of a block that is nowhere, and leaves the panel stale.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await twoBlockFile();
+
+		await vscode.window.showTextDocument(document, { selection: new vscode.Range(INSIDE_BLOCK, INSIDE_BLOCK) });
+		await settle(500);
+		// A pointer rest on the second block, which the panel does not follow.
+		await controller.preview(document, SECOND_BLOCK);
+		const before = compiler.sources.length;
+
+		await editBlock(document);
+		await settle(700);
+
+		assert.ok(compiler.sources.length > before, "the edited block compiled again");
+		controller.dispose();
+	});
+
 	test("Should say once that there is no Typst binary", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller, messages } = makeController(compiler, { binary: undefined });
@@ -404,6 +511,175 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		assert.strictEqual(result?.blockIndex, 0);
 		assert.strictEqual(compiler.sources.length, 2);
 		assert.ok(compiler.sources[1].includes("##circle()"), `unexpected source: ${compiler.sources[1]}`);
+		controller.dispose();
+	});
+
+	test("Should carry the source it compiled, so a reader can reproduce it", async () => {
+		// This is what makes the feature supportable: the exact source pasted into
+		// `typst compile` reproduces the failure outside the editor.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument();
+
+		const result = await nextResultFor(controller, document);
+
+		assert.strictEqual(result?.source, compiler.sources[0]);
+		assert.ok(result?.source.includes("#circle()"));
+		controller.dispose();
+	});
+
+	test("Should compile again from nothing when the preview is reloaded", async () => {
+		// A reload is what a reader runs when the image and the document disagree,
+		// so it has to outrank the cache. Answering the same block from the cache
+		// would make the command look as though it did nothing.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument();
+
+		await nextResultFor(controller, document);
+		assert.strictEqual(compiler.sources.length, 1);
+
+		const again = nextResult(controller);
+		controller.reload();
+		const result = await again;
+
+		assert.strictEqual(result?.blockIndex, 0);
+		assert.strictEqual(compiler.sources.length, 2);
+		controller.dispose();
+	});
+
+	test("Should keep every other remembered image when the preview is reloaded", async () => {
+		// The reader asked for one block. Emptying the cache would make every other
+		// block previewed in the session spawn Typst again on the next hover.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const first = await plainDocument("#circle()");
+		const second = await plainDocument("#square()");
+
+		await nextResultFor(controller, first);
+		await nextResultFor(controller, second);
+		assert.strictEqual(compiler.sources.length, 2);
+
+		const reloaded = nextResult(controller);
+		controller.reload();
+		await reloaded;
+		assert.strictEqual(compiler.sources.length, 3, "the block on screen compiled again");
+
+		await nextResultFor(controller, first);
+		assert.strictEqual(compiler.sources.length, 3, "the other block answered from the cache");
+		controller.dispose();
+	});
+
+	test("Should not answer from an image a reload asked it to stop trusting", async () => {
+		// A reload compiles again, and another request can supersede that compile
+		// before it is remembered. The entry the reader distrusted would otherwise
+		// still be there for the next request that assembles the same source.
+		const compiler = new StubCompiler();
+		const { controller } = makeController(compiler);
+		const document = await plainDocument("#circle()");
+		const other = await plainDocument("#square()");
+
+		const first = nextResult(controller);
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(0, { svg: SVG, stderr: "" });
+		await first;
+
+		controller.reload();
+		await settle();
+		controller.request(other, INSIDE_BLOCK);
+		await settle();
+		assert.strictEqual(compiler.sources.length, 3);
+		compiler.answerAll({ svg: SVG, stderr: "" });
+		await settle();
+
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		assert.strictEqual(compiler.sources.length, 4, "the superseded entry was not left behind");
+		controller.dispose();
+	});
+
+	test("Should keep the image of the tracked block when a hover compiled another", async () => {
+		// A hover moves the last compile without moving what the panel shows. A
+		// failure of the block on screen has to keep that block's own last image,
+		// or the panel flashes empty on almost every keystroke after a pointer rest.
+		const compiler = new StubCompiler();
+		const { controller } = makeController(compiler);
+		const document = await plainDocument("#circle()");
+		const other = await plainDocument("#square()");
+
+		const shown = nextResult(controller);
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(0, { svg: SVG, stderr: "" });
+		await shown;
+
+		const hovered = controller.preview(other, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(1, { svg: '<svg width="20pt" height="20pt"></svg>', stderr: "" });
+		await hovered;
+
+		await editBlock(document);
+		const failed = nextResult(controller);
+		controller.request(document, INSIDE_BLOCK);
+		await settle();
+		compiler.answer(2, { stderr: "error: <stdin>:2:0: unexpected" });
+		const result = await failed;
+
+		assert.strictEqual(result?.svg, SVG);
+		assert.ok(result?.error);
+		controller.dispose();
+	});
+
+	test("Should say what to do when a reload has nothing to compile", async () => {
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller, messages } = makeController(compiler);
+
+		controller.reload();
+		await settle();
+
+		assert.strictEqual(compiler.sources.length, 0);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("Typst block"), `unexpected message: ${messages[0]}`);
+		controller.dispose();
+	});
+
+	test("Should switch a cell to the other side of the brand, and back on a reload", async () => {
+		// The command exists so that a reader can see the side the editor theme is
+		// not showing. The side has to reach the compiled source, and a refresh has
+		// to be the way back to following the theme.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const mode = first?.brandMode;
+		assert.ok(mode === "light" || mode === "dark", `unexpected mode: ${String(mode)}`);
+
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		assert.strictEqual((await switched)?.brandMode, mode === "dark" ? "light" : "dark");
+
+		const reloaded = nextResult(controller);
+		controller.reload();
+		assert.strictEqual((await reloaded)?.brandMode, mode, "a reload follows the theme again");
+		controller.dispose();
+	});
+
+	test("Should refuse to switch the brand mode of a block that has none", async () => {
+		// Only a cell resolves colours against a brand. A plain block carries the
+		// preview's own header, so there is no other side to show.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller, messages } = makeController(compiler);
+		const document = await plainDocument();
+
+		await nextResultFor(controller, document);
+		controller.toggleBrandMode();
+		await settle();
+
+		assert.strictEqual(compiler.sources.length, 1);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("cell"), `unexpected message: ${messages[0]}`);
 		controller.dispose();
 	});
 
@@ -534,8 +810,9 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 async function nextResultFor(
 	controller: TypstPreviewController,
 	document: vscode.TextDocument,
+	position: vscode.Position = INSIDE_BLOCK,
 ): Promise<TypstPreviewResult | undefined> {
 	const published = nextResult(controller);
-	controller.request(document, INSIDE_BLOCK);
+	controller.request(document, position);
 	return published;
 }

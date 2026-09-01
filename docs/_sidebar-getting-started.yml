@@ -12,4 +12,5 @@ website:
             - getting-started/explorer-view.qmd
             - getting-started/using-templates.qmd
             - getting-started/reproducible-docs.qmd
+            - getting-started/typst-preview.qmd
             - getting-started/troubleshooting.qmd

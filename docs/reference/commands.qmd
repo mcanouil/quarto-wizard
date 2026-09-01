@@ -106,6 +106,34 @@ Authorise Quarto Wizard to use your VSCode GitHub session for private repositori
 
 Remove the manually set GitHub token and revoke Quarto Wizard's use of the VSCode GitHub session.
 
+## Typst Preview Commands
+
+Commands for the Typst block preview, available when a Quarto document is open.
+
+### Preview Typst Block
+
+**Command**: `Quarto Wizard: Preview Typst Block`
+
+Compile the Typst block under the cursor and show it in a panel.
+
+### Refresh Typst Preview
+
+**Command**: `Quarto Wizard: Refresh Typst Preview`
+
+Compile the Typst preview again, ignoring the image it holds, the metadata files it read and the brand mode you selected.
+
+### Switch Typst Preview Brand Mode
+
+**Command**: `Quarto Wizard: Switch Typst Preview Brand Mode`
+
+Show the other side of the brand in the Typst preview of a {typst} cell.
+
+### Copy Typst Preview Source
+
+**Command**: `Quarto Wizard: Copy Typst Preview Source`
+
+Copy the exact source the Typst preview compiled to the clipboard.
+
 ## Explorer View Commands
 
 These commands are available from the Explorer View context menu or toolbar.
@@ -199,6 +227,15 @@ For scripting or keybinding purposes, here are the internal command identifiers:
 | Set GitHub Token (Manual)   | `quartoWizard.setGitHubToken`          |
 | Sign In with GitHub Session | `quartoWizard.signInWithGitHubSession` |
 | Clear GitHub Authentication | `quartoWizard.clearGitHubAuth`         |
+
+### Typst Preview Commands
+
+| Display Name                    | Command ID                            |
+| ------------------------------- | ------------------------------------- |
+| Preview Typst Block             | `quartoWizard.previewTypstBlock`      |
+| Refresh Typst Preview           | `quartoWizard.refreshTypstPreview`    |
+| Switch Typst Preview Brand Mode | `quartoWizard.toggleTypstBrandMode`   |
+| Copy Typst Preview Source       | `quartoWizard.copyTypstPreviewSource` |
 
 ### Explorer View Commands
 

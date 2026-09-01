@@ -39,6 +39,15 @@ export const PINNED_TYPST_RENDER_VERSION = "0.21.0";
 /** The owner the extension is published under, beside its bare name. */
 const TYPST_RENDER_OWNER = "mcanouil";
 
+/**
+ * What a reader is told when there is no block to preview.
+ *
+ * Said from here when the cursor is in a document with no block under it, and
+ * from the controller when a command has no block to work on at all. One
+ * sentence for one situation, so a reword cannot leave half of it behind.
+ */
+export const NO_BLOCK_MESSAGE = "Put the cursor inside a Typst block to preview it.";
+
 /** Everything the compiler and the panel need for one block. */
 export interface CompileRequest {
 	/** The block under the cursor. */
@@ -271,12 +280,15 @@ export class TypstContextCache {
  *
  * @param cache - What a caller repeating the request remembers. A caller that
  *   asks once builds an empty one, which reads the document and the disk.
+ * @param brandMode - The side of the brand to resolve a cell against. Named by
+ *   the reader through the toggle command, and absent for every other caller.
  */
 export async function buildCompileRequest(
 	document: vscode.TextDocument,
 	position: vscode.Position,
 	header: string,
 	cache: TypstContextCache,
+	brandMode?: TypstBrandMode,
 ): Promise<CompileRequest | Unavailable> {
 	const text = document.getText();
 	// The whole list is kept, because a raw block compiles with the raw blocks
@@ -285,7 +297,7 @@ export async function buildCompileRequest(
 	const blocks = cache.blocksOf(document, () => text);
 	const block = blockAtOffset(blocks, document.offsetAt(position));
 	if (block === undefined) {
-		return { unavailable: "Put the cursor inside a Typst block to preview it." };
+		return { unavailable: NO_BLOCK_MESSAGE };
 	}
 	const blockIndex = blocks.indexOf(block);
 
@@ -311,20 +323,22 @@ export async function buildCompileRequest(
 
 	// The one deliberate deviation from the filter. It always defaults to light,
 	// and the preview follows the editor theme instead, so a dark editor shows a
-	// dark image. An explicit `brand-mode:` still wins.
-	const brandMode = documentBrandMode(chain.metadata) ?? themeBrandMode();
+	// dark image. An explicit `brand-mode:` still wins, and a mode the reader
+	// named through the toggle command wins over both: it is a question about
+	// this preview, asked while looking at it.
+	const mode = brandMode ?? documentBrandMode(chain.metadata) ?? themeBrandMode();
 
 	const built = await buildCell(block, {
 		levels: chain.levels,
 		brand,
-		mode: brandMode,
+		mode,
 		readFile: (documentPath) => readTypstFile(documentPath, chain),
 	});
 	if (isUnavailable(built)) {
 		return built;
 	}
 
-	return { block, blockIndex, ...built, brandMode };
+	return { block, blockIndex, ...built, brandMode: mode };
 }
 
 /**

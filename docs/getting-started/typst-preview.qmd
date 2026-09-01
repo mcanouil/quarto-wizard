@@ -1,0 +1,112 @@
+---
+title: "Typst Preview"
+---
+
+Quarto Wizard compiles the Typst block under the cursor and shows the image beside the editor.
+The preview uses the Typst binary that ships inside Quarto, so it needs no other program.
+
+## Where the Preview Appears
+
+`quartoWizard.typstPreview.surface` selects the surface.
+
+- `panel` shows the image in a panel beside the editor.
+  The panel follows the cursor while it is open, and it scrolls, so a tall image is never cut.
+- `hover` shows the image when the pointer rests on a block.
+  A hover cannot scroll, so the image is scaled down to `quartoWizard.typstPreview.maxHeight`.
+- `off` shows no image, and offers no code lens.
+
+There is no preview inside the text of the document.
+The editor gives an extension no way to make a line taller.
+An image drawn after a block covers the lines below it.
+
+**Quarto Wizard: Preview Typst Block** opens the panel whatever the surface is.
+The one exception is `off`, where the command names the setting instead of opening anything.
+
+## The Authoring Loop
+
+1. Put the cursor inside a Typst block.
+2. Run **Quarto Wizard: Preview Typst Block**, or select the code lens above the block.
+3. Edit the block.
+   The preview follows the cursor, and it compiles again after each edit.
+
+`quartoWizard.typstPreview.debounceMs` sets how long an edit waits before the preview follows it.
+A failure is written inside the surface, over the last good image of the same block.
+The preview therefore does not go empty in the middle of an edit.
+The full compiler output goes to the Quarto Wizard log, which **Quarto Wizard: Show Quarto Wizard Log Output** opens.
+
+## The Three Kinds of Block
+
+Three fences are spelled almost the same way and behave differently.
+The code lens above each block says which kind it is.
+
+| Fence           | What Quarto does with it                                                                           | What the preview compiles                                      |
+| --------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| ` ```typst `    | Highlights it, and never executes it.                                                              | The body, under the preview's own page setup and colours.      |
+| ` ```{=typst} ` | Passes it to the Typst output untouched.                                                           | The body, under every raw block above it in the document.      |
+| ` ```{typst} `  | Executes it through the [typst-render](https://github.com/mcanouil/quarto-typst-render) extension. | The body, under the options and the colours of that extension. |
+
+A `{typst}` cell needs `typst-render` installed in the project.
+Without it the preview says so and shows nothing.
+A cell compiled with guessed options shows an image the render does not produce, which is worse than no image at all.
+
+The other two kinds need no extension.
+
+## Colours
+
+A plain block and a raw block take their colours from `quartoWizard.typstPreview.foreground` and `quartoWizard.typstPreview.background`.
+Both accept three forms.
+`auto` follows the editor theme, `none` writes no colour, and a Typst colour expression is written as it stands.
+
+A `{typst}` cell keeps the colour contract of `typst-render` instead, so the image matches the render rather than the editor.
+A cell that resolves a colour from a brand needs a side of the brand, and the preview follows the editor theme.
+The filter itself always takes the light side, so this is a deliberate difference.
+A `brand-mode` in the document wins over the theme.
+**Quarto Wizard: Switch Typst Preview Brand Mode** wins over both.
+The side you select holds until you select the other one, or until you refresh the preview.
+The panel header always names the side in force.
+
+## Commands
+
+| Command                             | What it does                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Preview Typst Block**             | Compiles the block under the cursor and shows it in the panel.                                         |
+| **Refresh Typst Preview**           | Compiles the preview again, and forgets the image, the metadata files and the brand mode you selected. |
+| **Switch Typst Preview Brand Mode** | Shows the other side of the brand of a `{typst}` cell.                                                 |
+| **Copy Typst Preview Source**       | Copies the exact source the preview compiled to the clipboard.                                         |
+
+The [commands reference](../reference/commands.qmd) lists the identifier of each one.
+
+**Copy Typst Preview Source** is what makes a failure reportable.
+Paste the source into a file, run `typst compile` on it, and the failure is reproduced outside Visual Studio Code.
+
+## Settings
+
+The [configuration reference](../reference/configuration.qmd) describes every setting.
+All of them are read for each folder, so a multi-root workspace can hold a different answer per folder.
+
+## What the Preview Does Not Do
+
+The preview is an authoring aid, and it is not a render.
+Two differences are known and are stated beside the image when they apply.
+
+- A raw block reaches Typst through the document template during a render.
+  The template contributes imports, show rules and set directives that the preview cannot apply, so a block that depends on them looks different.
+- The preview compiles one block on its own.
+  An import that a render resolves can therefore fail under the narrower root of the preview.
+
+These are out of scope for this version.
+
+- The `typst_define()` payload of the R and Python helpers.
+  It lives in metadata that a Quarto engine produces during a render, which the preview cannot see.
+- `output: asis`, whose cell inherits the page of the document being rendered.
+- `pages`, and any output of more than one page.
+  The preview shows the first page.
+- Native `format: html`.
+  The preview always compiles to SVG, whatever `format` says, and the panel header says so when the format is something else.
+
+## When the Preview Is Not Offered
+
+The preview runs a compiler over the content of the workspace, so it is off in an untrusted workspace.
+It is also off when Quarto is absent, or when the Quarto installation ships no Typst binary.
+In each case the extension says so once and offers no surface.
+The Quarto Wizard log records the path of every attempt.
