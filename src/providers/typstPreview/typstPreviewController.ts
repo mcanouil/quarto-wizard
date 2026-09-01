@@ -8,6 +8,7 @@ import { debounce, type DebouncedFunction } from "../../utils/debounce";
 import { generateHashKey } from "../../utils/hash";
 import { logMessage } from "../../utils/log";
 import { isQmdFile } from "../../utils/metadataFilesRegistry";
+import type { TypstBrandMode } from "../../utils/typst/typstOptions";
 import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
 import { buildCompileRequest, TypstContextCache, type CompileRequest } from "./typstContext";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
@@ -100,6 +101,16 @@ export interface TypstPreviewResult {
 	 * and the place of the block alone cannot say that.
 	 */
 	version: number;
+	/**
+	 * The whole source that was sent to the compiler.
+	 *
+	 * Carried so that the copy command can hand a reader the exact text Typst
+	 * read, which is what turns a preview failure into something reproducible
+	 * outside the editor.
+	 */
+	source: string;
+	/** The side of the brand a cell resolved with, absent for the other two kinds. */
+	brandMode?: TypstBrandMode;
 	/** The image on screen, which is the last one this block compiled to. */
 	svg?: string;
 	/** What the surface says about the block beside the image. */
@@ -247,6 +258,21 @@ function isRelevantDocument(document: vscode.TextDocument): boolean {
 	return document.languageId === "quarto" || isQmdFile(document.fileName);
 }
 
+/** One place a preview can be compiled from. */
+interface PreviewTarget {
+	document: vscode.TextDocument;
+	position: vscode.Position;
+}
+
+/** Where the cursor is, when it is in a document this feature previews. */
+function cursorTarget(): PreviewTarget | undefined {
+	const editor = vscode.window.activeTextEditor;
+	if (editor === undefined || !isRelevantDocument(editor.document)) {
+		return undefined;
+	}
+	return { document: editor.document, position: editor.selection.active };
+}
+
 /**
  * The metadata files a preview reads beside the block.
  *
@@ -320,6 +346,16 @@ export class TypstPreviewController implements vscode.Disposable {
 	/** Rises with every request, so a result that arrives out of order is dropped. */
 	private requestVersion = 0;
 	private result: TypstPreviewResult | undefined;
+	/**
+	 * The side of the brand the reader asked to see, when they asked for one.
+	 *
+	 * It outranks both the document and the theme, and it holds until the reader
+	 * asks for the other side, so moving between the cells of a document keeps
+	 * showing the side they are reading. Nothing else writes it, and the header
+	 * names the side in force, so the preview never differs from the render
+	 * without saying so.
+	 */
+	private brandModeOverride: TypstBrandMode | undefined;
 	/** Said once per session, because an unavailable machine stays unavailable. */
 	private reportedUnavailable = false;
 	private disposed = false;
@@ -378,11 +414,11 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Preview the block under the cursor again, because something changed. */
 	refresh(): void {
-		const editor = vscode.window.activeTextEditor;
-		if (editor === undefined || !isRelevantDocument(editor.document)) {
+		const target = cursorTarget();
+		if (target === undefined) {
 			return;
 		}
-		void this.attempt(editor.document, editor.selection.active, "background");
+		void this.attempt(target.document, target.position, "background");
 	}
 
 	/**
@@ -397,19 +433,71 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * offsets it carried, which move under every edit above it.
 	 */
 	recompile(): void {
+		const target = this.shownTarget();
+		if (target === undefined) {
+			return;
+		}
+		void this.attempt(target.document, target.position, "background");
+	}
+
+	/**
+	 * Compile the preview again, forgetting everything remembered about it.
+	 *
+	 * This is the command a reader runs when the image and the document disagree,
+	 * so it outranks both caches: the images, which would answer an unchanged
+	 * source without compiling, and the metadata files, which are read from disk
+	 * and can be changed by something the watchers do not see, such as a checkout
+	 * or a build step.
+	 */
+	reload(): void {
+		this.contexts.forgetFiles();
+		this.forgetImages();
+		const target = this.shownTarget() ?? cursorTarget();
+		if (target === undefined) {
+			this.options.show("Put the cursor inside a Typst block to preview it.");
+			return;
+		}
+		void this.attempt(target.document, target.position, "asked");
+	}
+
+	/**
+	 * Show the other side of the brand of the cell being previewed.
+	 *
+	 * Only a cell has one. A plain block and a raw block carry the preview's own
+	 * theme header, so there is no second image to show and saying so is better
+	 * than a command that silently does nothing.
+	 */
+	toggleBrandMode(): void {
+		const shown = this.result;
+		if (shown?.brandMode === undefined) {
+			this.options.show("The brand mode applies to a `{typst}` cell. Preview one to switch the side it resolves.");
+			return;
+		}
+		this.brandModeOverride = shown.brandMode === "dark" ? "light" : "dark";
+		const target = this.shownTarget();
+		if (target === undefined) {
+			return;
+		}
+		void this.attempt(target.document, target.position, "asked");
+	}
+
+	/**
+	 * The block on screen, as a position in the document holding it.
+	 *
+	 * The block is found again by its place in the document rather than by the
+	 * offsets it carried, which move under every edit above it.
+	 */
+	private shownTarget(): PreviewTarget | undefined {
 		const shown = this.result;
 		if (shown === undefined) {
-			return;
+			return undefined;
 		}
 		const document = vscode.workspace.textDocuments.find((open) => open.uri.toString() === shown.uri.toString());
 		if (document === undefined) {
-			return;
+			return undefined;
 		}
 		const block = this.blocksOf(document)[shown.blockIndex];
-		if (block === undefined) {
-			return;
-		}
-		void this.attempt(document, document.positionAt(block.fenceStart), "background");
+		return block === undefined ? undefined : { document, position: document.positionAt(block.fenceStart) };
 	}
 
 	/**
@@ -529,7 +617,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		// so an edit landing during a compile would stamp the new version onto the
 		// old image, and a surface trusting the stamp would serve it as current.
 		const compiledVersion = document.version;
-		const request = await buildCompileRequest(document, position, header, this.contexts);
+		const request = await buildCompileRequest(document, position, header, this.contexts, this.brandModeOverride);
 		if (stale()) {
 			return undefined;
 		}
@@ -632,6 +720,8 @@ export class TypstPreviewController implements vscode.Disposable {
 			block: request.block,
 			blockIndex: request.blockIndex,
 			version: compiledVersion,
+			source: request.source,
+			brandMode: request.brandMode,
 			svg: compiled.svg ?? (sameBlock ? this.result?.svg : undefined),
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,

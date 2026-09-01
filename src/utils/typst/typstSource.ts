@@ -222,8 +222,8 @@ function cellBody(body: string): string {
  * One part is deliberately not emitted. `build_define_preamble` at `:946-949`
  * writes the `typst_define()` payload of the R and Python helpers, which the
  * preview cannot see: it lives in metadata Quarto's engine produces during a
- * render. A cell that reads it is out of scope for the first version and the
- * panel says so.
+ * render. A cell that reads it is out of scope for the first version, which
+ * `docs/getting-started/typst-preview.qmd` states.
  */
 function buildCellSource(block: TypstBlock, options: CellSourceOptions): AssembledSource {
 	const above = [

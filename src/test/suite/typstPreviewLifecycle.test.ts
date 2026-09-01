@@ -407,6 +407,70 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should carry the source it compiled, so a reader can reproduce it", async () => {
+		// This is what makes the feature supportable: the exact source pasted into
+		// `typst compile` reproduces the failure outside the editor.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument();
+
+		const result = await nextResultFor(controller, document);
+
+		assert.strictEqual(result?.source, compiler.sources[0]);
+		assert.ok(result?.source.includes("#circle()"));
+		controller.dispose();
+	});
+
+	test("Should compile again from nothing when the preview is reloaded", async () => {
+		// A reload is what a reader runs when the image and the document disagree,
+		// so it has to outrank the cache. Answering the same block from the cache
+		// would make the command look as though it did nothing.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await plainDocument();
+
+		await nextResultFor(controller, document);
+		assert.strictEqual(compiler.sources.length, 1);
+
+		const again = nextResult(controller);
+		controller.reload();
+		const result = await again;
+
+		assert.strictEqual(result?.blockIndex, 0);
+		assert.strictEqual(compiler.sources.length, 2);
+		controller.dispose();
+	});
+
+	test("Should say what to do when a reload has nothing to compile", async () => {
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller, messages } = makeController(compiler);
+
+		controller.reload();
+		await settle();
+
+		assert.strictEqual(compiler.sources.length, 0);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("Typst block"), `unexpected message: ${messages[0]}`);
+		controller.dispose();
+	});
+
+	test("Should refuse to switch the brand mode of a block that has none", async () => {
+		// Only a cell resolves colours against a brand. A plain block carries the
+		// preview's own header, so there is no other side to show.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller, messages } = makeController(compiler);
+		const document = await plainDocument();
+
+		await nextResultFor(controller, document);
+		controller.toggleBrandMode();
+		await settle();
+
+		assert.strictEqual(compiler.sources.length, 1);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("cell"), `unexpected message: ${messages[0]}`);
+		controller.dispose();
+	});
+
 	test("Should drop a background result whose surface closed while it compiled", async () => {
 		// A compile runs for up to the timeout and the reader can close the panel
 		// meanwhile. Publishing anyway would have the surface build itself again,

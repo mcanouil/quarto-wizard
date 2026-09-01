@@ -126,6 +126,34 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 		}),
 	);
 
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.refreshTypstPreview", () => {
+			controller.reload();
+		}),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.toggleTypstBrandMode", () => {
+			controller.toggleBrandMode();
+		}),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("quartoWizard.copyTypstPreviewSource", async () => {
+			// The source of what is on screen, and never a freshly assembled one. A
+			// reader runs this to report the image they are looking at, so a second
+			// assembly of a document that has moved on would answer a question they
+			// did not ask.
+			const shown = controller.current();
+			if (shown === undefined) {
+				show("Preview a Typst block before copying the source it compiled.");
+				return;
+			}
+			await vscode.env.clipboard.writeText(shown.source);
+			void showMessageWithLogs("The Typst preview source is on the clipboard.", "info");
+		}),
+	);
+
 	const codeLens = new TypstPreviewCodeLens(controller);
 	context.subscriptions.push(codeLens);
 	context.subscriptions.push(vscode.languages.registerCodeLensProvider(SELECTOR, codeLens));

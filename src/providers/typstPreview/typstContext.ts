@@ -271,12 +271,15 @@ export class TypstContextCache {
  *
  * @param cache - What a caller repeating the request remembers. A caller that
  *   asks once builds an empty one, which reads the document and the disk.
+ * @param brandMode - The side of the brand to resolve a cell against. Named by
+ *   the reader through the toggle command, and absent for every other caller.
  */
 export async function buildCompileRequest(
 	document: vscode.TextDocument,
 	position: vscode.Position,
 	header: string,
 	cache: TypstContextCache,
+	brandMode?: TypstBrandMode,
 ): Promise<CompileRequest | Unavailable> {
 	const text = document.getText();
 	// The whole list is kept, because a raw block compiles with the raw blocks
@@ -311,20 +314,22 @@ export async function buildCompileRequest(
 
 	// The one deliberate deviation from the filter. It always defaults to light,
 	// and the preview follows the editor theme instead, so a dark editor shows a
-	// dark image. An explicit `brand-mode:` still wins.
-	const brandMode = documentBrandMode(chain.metadata) ?? themeBrandMode();
+	// dark image. An explicit `brand-mode:` still wins, and a mode the reader
+	// named through the toggle command wins over both: it is a question about
+	// this preview, asked while looking at it.
+	const mode = brandMode ?? documentBrandMode(chain.metadata) ?? themeBrandMode();
 
 	const built = await buildCell(block, {
 		levels: chain.levels,
 		brand,
-		mode: brandMode,
+		mode,
 		readFile: (documentPath) => readTypstFile(documentPath, chain),
 	});
 	if (isUnavailable(built)) {
 		return built;
 	}
 
-	return { block, blockIndex, ...built, brandMode };
+	return { block, blockIndex, ...built, brandMode: mode };
 }
 
 /**
