@@ -87,6 +87,17 @@
 			]
 		},
 		{
+			"id": "typst-preview",
+			"title": "Typst Preview Commands",
+			"description": "Commands for the Typst block preview, available when a Quarto document is open.",
+			"commands": [
+				"quartoWizard.previewTypstBlock",
+				"quartoWizard.refreshTypstPreview",
+				"quartoWizard.toggleTypstBrandMode",
+				"quartoWizard.copyTypstPreviewSource"
+			]
+		},
+		{
 			"id": "explorer",
 			"title": "Explorer View Commands",
 			"description": "These commands are available from the Explorer View context menu or toolbar.",
