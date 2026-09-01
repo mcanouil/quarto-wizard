@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { invalidatesPreview, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { blockAtOffset, invalidatesPreview, type TypstBlock } from "../../utils/typst/typstBlocks";
 import { isUnavailable, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { debounce, type DebouncedFunction } from "../../utils/debounce";
@@ -347,6 +347,20 @@ export class TypstPreviewController implements vscode.Disposable {
 	private requestVersion = 0;
 	private result: TypstPreviewResult | undefined;
 	/**
+	 * The preview the reader is following, which is not always the last compile.
+	 *
+	 * A hover compiles the block under the pointer and publishes it, and the panel
+	 * deliberately ignores that: a pointer rest is not a request to move the panel.
+	 * The panel therefore goes on showing the block it was given, and a command
+	 * that acted on the last compile would act on the block the pointer passed
+	 * over instead of the one on screen.
+	 *
+	 * It is absent until something other than a surface publishes, which is the
+	 * state of a session where the hover is the only surface. `shown()` falls back
+	 * to the last compile there, because that hover is the image the reader saw.
+	 */
+	private tracked: TypstPreviewResult | undefined;
+	/**
 	 * The side of the brand the reader asked to see, when they asked for one.
 	 *
 	 * It outranks both the document and the theme, and it holds until the reader
@@ -372,9 +386,20 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.wireEvents();
 	}
 
-	/** What is being previewed, which is what a surface renders. */
+	/** The last compile, which is what a surface that asked for one renders. */
 	current(): TypstPreviewResult | undefined {
 		return this.result;
+	}
+
+	/**
+	 * The preview the reader is looking at, which is what a command acts on.
+	 *
+	 * Not the same question as `current()`. A hover over another block is the last
+	 * compile without being what is on screen, and the three preview commands mean
+	 * the image the reader can see.
+	 */
+	shown(): TypstPreviewResult | undefined {
+		return this.tracked ?? this.result;
 	}
 
 	/**
@@ -444,7 +469,13 @@ export class TypstPreviewController implements vscode.Disposable {
 	 */
 	reload(): void {
 		const target = this.shownTarget() ?? cursorTarget();
-		if (target === undefined) {
+		// The block is what makes the command mean something, and the cursor can sit
+		// in a document that has none. Asking here rather than leaving it to the
+		// compile is what keeps the promise above true.
+		if (
+			target === undefined ||
+			blockAtOffset(this.blocksOf(target.document), target.document.offsetAt(target.position)) === undefined
+		) {
 			this.options.show(NO_BLOCK_MESSAGE);
 			return;
 		}
@@ -465,7 +496,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * would make this quietly wrong the day another kind gains one.
 	 */
 	toggleBrandMode(): void {
-		const shown = this.result;
+		const shown = this.shown();
 		if (shown?.block.kind !== "cell" || shown.brandMode === undefined) {
 			this.options.show("The brand mode applies to a `{typst}` cell. Preview one to switch the side it resolves.");
 			return;
@@ -500,7 +531,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * offsets it carried, which move under every edit above it.
 	 */
 	private shownTarget(): PreviewTarget | undefined {
-		const shown = this.result;
+		const shown = this.shown();
 		if (shown === undefined) {
 			return undefined;
 		}
@@ -558,6 +589,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.forgetImages();
 		this.contexts.clear();
 		this.result = undefined;
+		this.tracked = undefined;
 	}
 
 	/**
@@ -597,6 +629,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			// tracking the document, so it looks live and is frozen.
 			if (this.result?.uri.toString() === document.uri.toString()) {
 				this.result = undefined;
+				this.tracked = undefined;
 				this.resultEmitter.fire({ reason: "background" });
 			}
 			if (reason === "asked") {
@@ -744,6 +777,11 @@ export class TypstPreviewController implements vscode.Disposable {
 			header: headerText(document, request),
 			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
+		if (reason !== "surface") {
+			// Every other reason is a block a surface will render, so it is what the
+			// reader ends up looking at.
+			this.tracked = this.result;
+		}
 		this.resultEmitter.fire({ result: this.result, reason });
 		return this.result;
 	}
@@ -895,6 +933,7 @@ export class TypstPreviewController implements vscode.Disposable {
 				this.contexts.forget(document.uri);
 				if (this.result?.uri.toString() === document.uri.toString()) {
 					this.result = undefined;
+					this.tracked = undefined;
 					this.resultEmitter.fire({ reason: "background" });
 				}
 			}),

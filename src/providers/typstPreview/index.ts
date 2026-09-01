@@ -141,7 +141,7 @@ export function registerTypstPreview(context: vscode.ExtensionContext): void {
 			// reader runs this to report the image they are looking at, so a second
 			// assembly of a document that has moved on would answer a question they
 			// did not ask.
-			const shown = controller.current();
+			const shown = controller.shown();
 			if (shown === undefined) {
 				show("Preview a Typst block before copying the source it compiled.");
 				return;

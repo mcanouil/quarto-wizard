@@ -51,4 +51,5 @@ fig-alt='{{< meta alt-text.quick-start >}}'
 - [Explorer View](explorer-view.qmd) - Manage installed extensions from the sidebar.
 - [Using Templates](using-templates.qmd) - Quick-start documents with templates.
 - [Reproducible Documents](reproducible-docs.qmd) - Create reproducible examples for R, Python, or Julia.
+- [Typst Preview](typst-preview.qmd) - Compile the Typst block under the cursor and see the image beside the editor.
 - [Troubleshooting](troubleshooting.qmd) - Common issues and solutions.

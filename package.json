@@ -536,18 +536,6 @@
 					"when": "editorLangId == quarto"
 				},
 				{
-					"command": "quartoWizard.refreshTypstPreview",
-					"when": "editorLangId == quarto"
-				},
-				{
-					"command": "quartoWizard.toggleTypstBrandMode",
-					"when": "editorLangId == quarto"
-				},
-				{
-					"command": "quartoWizard.copyTypstPreviewSource",
-					"when": "editorLangId == quarto"
-				},
-				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
 					"when": "false"
 				},

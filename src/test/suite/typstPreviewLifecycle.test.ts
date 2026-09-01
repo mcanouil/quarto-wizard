@@ -11,6 +11,9 @@ import {
 	type TypstPreviewUpdate,
 } from "../../providers/typstPreview/typstPreviewController";
 import type { TypstCompileResult } from "../../providers/typstPreview/typstCompiler";
+import { invalidateProjectRoots, setProjectRoots } from "../../utils/projectRootsRegistry";
+import { invalidateInstalledExtensionsCache } from "../../utils/installedExtensionsCache";
+import { makeFolder, makeRoot } from "./projectFixtures";
 
 /** An image that is never compiled, so nothing here spawns Typst. */
 const SVG = '<svg width="10pt" height="10pt"></svg>';
@@ -90,8 +93,34 @@ async function plainFile(body = "#circle()"): Promise<vscode.TextDocument> {
 /** The directories `plainFile` made, removed when the suite is over. */
 const written: string[] = [];
 
+/**
+ * A document holding one `{typst}` cell, in a project that has `typst-render`.
+ *
+ * A cell is the only kind that resolves a colour from a brand, so it is the only
+ * kind the brand mode command works on, and the install gate refuses a cell in a
+ * project without the extension.
+ */
+async function cellDocument(): Promise<vscode.TextDocument> {
+	const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-cell-")));
+	written.push(directory);
+	fs.writeFileSync(path.join(directory, "_quarto.yml"), "project:\n  type: default\n");
+	const manifest = path.join(directory, "_extensions", "mcanouil", "typst-render");
+	fs.mkdirSync(manifest, { recursive: true });
+	fs.writeFileSync(
+		path.join(manifest, "_extension.yml"),
+		"title: Typst Render\nauthor: Mickael Canouil\nversion: 0.21.0\ncontributes:\n  filters:\n    - typst-render.lua\n",
+	);
+	const file = path.join(directory, "doc.qmd");
+	fs.writeFileSync(file, "```{typst}\n//| margin: 2mm\n#circle()\n```\n");
+	setProjectRoots([makeRoot(makeFolder("typst-preview-cell", directory))]);
+	return vscode.workspace.openTextDocument(vscode.Uri.file(file));
+}
+
 /** The position inside the one block of `plainDocument`. */
 const INSIDE_BLOCK = new vscode.Position(3, 1);
+
+/** The position inside the one cell of `cellDocument`. */
+const INSIDE_CELL = new vscode.Position(2, 0);
 
 /** A controller wired to a stub, with a surface showing unless the test says otherwise. */
 function makeController(
@@ -137,6 +166,14 @@ function settle(delayMs = 50): Promise<void> {
 }
 
 suite("Typst Preview Lifecycle Test Suite", () => {
+	teardown(() => {
+		// `cellDocument` names a project root and reads the extensions installed in
+		// it, and both are held for the session, so a later test would read the
+		// project of an earlier one.
+		invalidateProjectRoots();
+		invalidateInstalledExtensionsCache();
+	});
+
 	suiteTeardown(() => {
 		for (const directory of written) {
 			fs.rmSync(directory, { recursive: true, force: true });
@@ -476,6 +513,28 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should switch a cell to the other side of the brand, and back on a reload", async () => {
+		// The command exists so that a reader can see the side the editor theme is
+		// not showing. The side has to reach the compiled source, and a refresh has
+		// to be the way back to following the theme.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const mode = first?.brandMode;
+		assert.ok(mode === "light" || mode === "dark", `unexpected mode: ${String(mode)}`);
+
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		assert.strictEqual((await switched)?.brandMode, mode === "dark" ? "light" : "dark");
+
+		const reloaded = nextResult(controller);
+		controller.reload();
+		assert.strictEqual((await reloaded)?.brandMode, mode, "a reload follows the theme again");
+		controller.dispose();
+	});
+
 	test("Should refuse to switch the brand mode of a block that has none", async () => {
 		// Only a cell resolves colours against a brand. A plain block carries the
 		// preview's own header, so there is no other side to show.
@@ -620,8 +679,9 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 async function nextResultFor(
 	controller: TypstPreviewController,
 	document: vscode.TextDocument,
+	position: vscode.Position = INSIDE_BLOCK,
 ): Promise<TypstPreviewResult | undefined> {
 	const published = nextResult(controller);
-	controller.request(document, INSIDE_BLOCK);
+	controller.request(document, position);
 	return published;
 }
