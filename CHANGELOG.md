@@ -6,20 +6,11 @@
 
 - feat: preview a Typst block from a Quarto document. The block under the cursor compiles with the Typst binary that ships inside Quarto, and the image is shown in a panel beside the editor or in a hover. (#395)
 - feat: publish the Lua reference validator of the v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/schema.lua`. The vocabulary and the validator carry the same version, and extensions can now resolve the module by URL. (#374)
-- feat: accept `uniqueItems` in a field descriptor. The Lua reference validator already enforced the keyword, and the meta-schema now allows it, so a schema that uses it passes both.
+- feat: accept `uniqueItems` in a field descriptor. The Lua reference validator already enforced the keyword, and the meta-schema now allows it, so a schema that uses it passes both. (#378)
 - docs: add a reference page that describes how an extension loads and calls the Lua reference validator. The page separates the meta-schema, which validates a schema file while you write it, from the module, which validates document metadata during a render. (#383)
 
 ### Bug Fixes
 
-- fix: report an error for every value of a field whose `pattern` the Lua reference validator cannot compile, instead of compiling that pattern to one that matches the wrong values. The refusal now covers an anchored alternation such as `^a|b$`, and the escapes `\b`, `\B`, `\c`, `\u`, `\x`, `\p` and `\k`.
-- fix: treat an empty string as a value in the Lua reference validator. A key set to `""` keeps that value and is tested against `type`, `minLength`, `const` and `enum`.
-- fix: stop an empty string from taking a field's `default` in the Lua reference validator. `count: ""` on a field declared `type: number` is now an error that reads `must be of type "number", got "string"`, where it used to take the default.
-- fix: drop a `null` element from a document metadata sequence in the Lua reference validator, where it used to become an empty string. `tags: [a, ~]` now holds one element rather than two, so a field declared `minItems: 2` no longer passes.
-- fix: warn when a deprecated option is set to an empty string in the Lua reference validator. The deprecation warning used to be skipped for `""` in the same way as for an absent key.
-- fix: validate a surplus key matched by `additionalProperties`, and an array element matched by `items`, when the value is an empty string in the Lua reference validator. Both used to skip `""` instead of testing it.
-- fix: let the name a schema declares win over an alias in the Lua reference validator. The conflict warning now names the two keys the author wrote, rather than a name that only the schema uses.
-- fix: accept a document that supplies both a field's declared name and one of its aliases in the Lua reference validator. Under `additionalProperties: false` the leftover alias key made the document invalid, and it now produces a warning.
-- fix: apply `dependentRequired` after aliases resolve in the Lua reference validator, so a dependent supplied under an alias is found. A trigger key whose value came from its own `default` no longer requires its dependents.
 - fix: show every keyword of the vocabulary in the published example schemas. The v2 examples gained `uniqueItems`, the v1 examples gained `minimum` and `maximum`, every example gained the two content keywords, and a test now holds each example to the vocabulary of its version. (#381)
 - fix: teach the canonical v2 vocabulary in the schema generation prompt. The prompt named 15 v1 spellings that the declared v2 meta-schema rejects, and a test now holds the prompt to that vocabulary. (#382)
 - fix: read the default branch from GitHub for a repository that has no release, no tag and no registry entry. The branch was assumed to be `main`, so an extension in a repository whose default branch is `master` failed to install unless the user wrote `@master`. (#385)
