@@ -23,6 +23,7 @@
 - fix: show every keyword of the vocabulary in the published example schemas. The v2 examples gained `uniqueItems`, the v1 examples gained `minimum` and `maximum`, every example gained the two content keywords, and a test now holds each example to the vocabulary of its version. (#381)
 - fix: teach the canonical v2 vocabulary in the schema generation prompt. The prompt named 15 v1 spellings that the declared v2 meta-schema rejects, and a test now holds the prompt to that vocabulary. (#382)
 - fix: read the default branch from GitHub for a repository that has no release, no tag and no registry entry. The branch was assumed to be `main`, so an extension in a repository whose default branch is `master` failed to install unless the user wrote `@master`. (#385)
+- fix: find a Typst block written between two `---` lines that open no front matter. A document whose second line is blank or is itself `---` has no front matter, which is the rule Pandoc applies. (#397)
 
 ## 3.2.0 (2026-08-02)
 

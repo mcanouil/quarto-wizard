@@ -479,6 +479,23 @@ export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean
 }
 
 /**
+ * Whether the second line of a document lets front matter open.
+ *
+ * Pandoc reads `---` followed by a blank line, or by a second delimiter, as two
+ * thematic breaks rather than as front matter.  `getYamlFrontMatterRange` and
+ * `isInYamlRegion` both apply this rule, so one document never gets two answers
+ * about where its front matter is.
+ *
+ * @param secondLine - The second line of the document, with or without its
+ *   carriage return.
+ * @returns True when front matter can open on the line above.
+ */
+function opensFrontMatter(secondLine: string): boolean {
+	const content = secondLine.trim();
+	return content.length > 0 && content !== "---";
+}
+
+/**
  * Find the YAML front-matter range in a Quarto document.
  *
  * The front matter must open with `---` on line 0 and close with another
@@ -486,6 +503,11 @@ export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean
  * range starts at offset 0 and ends at the last character of the closing
  * delimiter line (the trailing newline is excluded), so that any `{...}`
  * content within is fully enclosed.
+ *
+ * A document of fewer than three lines has no front matter, and neither has one
+ * whose second line is blank or is itself a delimiter.  Pandoc reads the two
+ * `---` lines of `---\n\n---` as thematic breaks, so a range there would hide
+ * every block a reader writes between them.
  *
  * @param text - The full document text.
  * @returns The front-matter range, or `undefined` when no closed front
@@ -497,17 +519,27 @@ export function getYamlFrontMatterRange(text: string): TextRange | undefined {
 		return undefined;
 	}
 
-	const firstLineEnd = firstNewline > 0 && text[firstNewline - 1] === "\r" ? firstNewline - 1 : firstNewline;
-	if (text.slice(0, firstLineEnd).trim() !== "---") {
+	// `trim` removes a trailing carriage return, so a CRLF document needs no
+	// line ending of its own here or in the closing scan below.
+	if (text.slice(0, firstNewline).trim() !== "---") {
 		return undefined;
 	}
 
-	let lineStart = firstNewline + 1;
+	const secondNewline = text.indexOf("\n", firstNewline + 1);
+	if (secondNewline === -1) {
+		return undefined;
+	}
+	if (!opensFrontMatter(text.slice(firstNewline + 1, secondNewline))) {
+		return undefined;
+	}
+
+	// The second line is neither blank nor a delimiter, so the closing scan
+	// starts below it rather than reading that line a second time.
+	let lineStart = secondNewline + 1;
 	while (lineStart <= text.length) {
 		const nextNewline = text.indexOf("\n", lineStart);
 		const lineEnd = nextNewline === -1 ? text.length : nextNewline;
-		const trimmedEnd = lineEnd > lineStart && text[lineEnd - 1] === "\r" ? lineEnd - 1 : lineEnd;
-		if (text.slice(lineStart, trimmedEnd).trim() === "---") {
+		if (text.slice(lineStart, lineEnd).trim() === "---") {
 			return { start: 0, end: lineEnd };
 		}
 		if (nextNewline === -1) {
@@ -577,7 +609,11 @@ export function isInYamlRegion(lines: string[], lineIndex: number, languageId: s
 	}
 
 	// For quarto / qmd files the YAML front matter must start with --- on line 0.
-	if (lines.length === 0 || lines[0].trim() !== "---") {
+	if (lines.length < 3 || lines[0].trim() !== "---") {
+		return false;
+	}
+
+	if (!opensFrontMatter(lines[1])) {
 		return false;
 	}
 

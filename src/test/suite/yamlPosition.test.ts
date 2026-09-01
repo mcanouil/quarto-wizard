@@ -64,6 +64,19 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
 		});
 
+		test("Should return false when the second line is blank", () => {
+			// The two `---` lines are thematic breaks, so the blank line between
+			// them is body text and not front matter.
+			const lines = ["---", "", "---", "Body text"];
+			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
+		});
+
+		test("Should return false when a CRLF second line is blank", () => {
+			// Lines split on "\n" keep their carriage return, which `trim` removes.
+			const lines = ["---\r", "\r", "---\r", "Body text\r"];
+			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
+		});
+
 		test("Should return false when no delimiters exist at all", () => {
 			const lines = ["Some text", "More text"];
 			assert.strictEqual(isInYamlRegion(lines, 0, "quarto"), false);
@@ -756,11 +769,31 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
 		});
 
-		test("should handle empty front matter", () => {
+		test("should return undefined when the second line closes the block", () => {
 			const text = "---\n---\nbody\n";
-			const range = getYamlFrontMatterRange(text);
-			assert.ok(range);
-			assert.strictEqual(text.slice(range!.start, range!.end), "---\n---");
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined when the second line is blank", () => {
+			const text = "---\n\n---\nbody\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined for a two line document", () => {
+			const text = "---\ntitle: Test";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined when a CRLF second line is blank", () => {
+			// The guard reads the second line through `trim`, which removes the
+			// carriage return, so a CRLF document follows the same rule.
+			const text = "---\r\n\r\n---\r\nbody\r\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
+		});
+
+		test("should return undefined when a CRLF second line closes the block", () => {
+			const text = "---\r\n---\r\nbody\r\n";
+			assert.strictEqual(getYamlFrontMatterRange(text), undefined);
 		});
 
 		test("should return undefined for empty text", () => {
