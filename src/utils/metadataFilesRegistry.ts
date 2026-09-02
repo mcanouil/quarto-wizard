@@ -209,6 +209,10 @@ async function buildForRoot(projectRoot: string): Promise<void> {
 			MAX_SCAN_RESULTS,
 		);
 
+		if (uris.length >= MAX_SCAN_RESULTS) {
+			logMessage(`Scan of ${projectRoot} reached the ${MAX_SCAN_RESULTS} match limit; some files are missing.`, "warn");
+		}
+
 		const sources = new Set<string>();
 		for (const uri of uris) {
 			if (uri.scheme !== "file") {
