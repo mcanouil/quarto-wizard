@@ -17,7 +17,7 @@
 - fix: read the default branch from GitHub for a repository that has no release, no tag and no registry entry. An extension in a repository whose default branch is `master` failed to install. (#385)
 - fix: find a Typst block written between two `---` lines that open no front matter. (#397)
 - fix: compile a Typst preview under the root a render uses, so a block that reads a file beside its own document no longer fails. (#401)
-- fix: stop the search for Quarto projects from collecting search processes. The search now applies the `files.exclude` and `search.exclude` settings, and it stops when a newer search replaces it.
+- fix: stop the search for Quarto projects from collecting search processes. The search now applies the `files.exclude` and `search.exclude` settings, and it stops when a newer search replaces it. (#404)
 
 ## 3.2.0 (2026-08-02)
 
