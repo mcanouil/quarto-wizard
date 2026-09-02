@@ -173,14 +173,18 @@ export function buildTypstCommand(request: TypstCommandRequest): TypstCommand {
  * What makes two compiles the same compile.
  *
  * Beside the builder, so that what identifies an invocation cannot drift from
- * what one is. The parts are joined on a NUL, which every path and every option
- * this builds from a YAML document is free of. It is a cache key and not a
- * signature: a caller that hand-built an argument holding a NUL could spell two
- * commands the same way, and Typst would refuse to start on either of them.
+ * what one is.
  *
- * An absent directory is written as an empty one, which `compileCwd` never
- * answers: it returns a directory or nothing at all, so the two cannot collide.
+ * Each part carries its own length rather than a separator between parts. An
+ * `input:` value is a YAML string and can hold any character at all, a NUL
+ * included, so there is no character a separator could rely on. A command whose
+ * argument holds one never spawns, and giving it the key of a command that does
+ * spawn would serve that command's image for the wrong document.
+ *
+ * An absent directory is marked apart from an empty one, so the two cannot be
+ * read as one command.
  */
 export function commandKey(command: TypstCommand): string {
-	return [command.cwd ?? "", ...command.argv].join("\u0000");
+	const parts = command.cwd === undefined ? command.argv : [command.cwd, ...command.argv];
+	return parts.reduce((key, part) => `${key}${part.length}:${part}`, command.cwd === undefined ? "-" : "+");
 }

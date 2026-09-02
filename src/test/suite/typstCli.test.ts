@@ -149,5 +149,18 @@ suite("Typst CLI Test Suite", () => {
 			const command = buildTypstCommand({ paths: PATHS });
 			assert.strictEqual(commandKey(command), commandKey(buildTypstCommand({ paths: PATHS })));
 		});
+
+		test("Should tell a directory that is absent from one that is empty", () => {
+			assert.notStrictEqual(commandKey({ argv: [] }), commandKey({ argv: [], cwd: "" }));
+		});
+
+		test("Should let no character of an argument spell a boundary", () => {
+			// A YAML double-quoted `input:` value can hold any character, the NUL of a
+			// `"\0"` escape included, so no separator is safe to rely on. Such a
+			// command never spawns, and aliasing one onto a command that does spawn
+			// would serve its image for the wrong document.
+			const nul = String.fromCharCode(0);
+			assert.notStrictEqual(commandKey({ argv: [`a${nul}b`] }), commandKey({ argv: ["a", "b"] }));
+		});
 	});
 });
