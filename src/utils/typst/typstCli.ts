@@ -173,8 +173,10 @@ export function buildTypstCommand(request: TypstCommandRequest): TypstCommand {
  * What makes two compiles the same compile.
  *
  * Beside the builder, so that what identifies an invocation cannot drift from
- * what one is. Joined on a character no argument carries, so two different
- * commands cannot be spelled the same way.
+ * what one is. The parts are joined on a NUL, which every path and every option
+ * this builds from a YAML document is free of. It is a cache key and not a
+ * signature: a caller that hand-built an argument holding a NUL could spell two
+ * commands the same way, and Typst would refuse to start on either of them.
  */
 export function commandKey(command: TypstCommand): string {
 	return [command.cwd ?? "", ...command.argv].join("\u0000");

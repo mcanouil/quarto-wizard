@@ -137,11 +137,27 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.ok(built.source.includes("#set page(width: 6cm, height: auto, margin: 1cm, fill: none)"));
 		});
 
-		test("Should ignore a block-level root, which is a global-only option", async () => {
-			// `root` never reaches the source, so a block writing it changes nothing.
-			const plain = await buildCell(cell([]), context);
-			const rooted = await buildCell(cell(["root: ../assets"]), context);
-			assert.ok(!isUnavailable(plain) && !isUnavailable(rooted));
+		test("Should ignore a block-level root and font path, which are global-only", async () => {
+			// `typst-render.lua:1284-1293` reads these from the global configuration
+			// alone, so a block writing one changes neither the source nor the command.
+			// The document sits somewhere on disk here, or every command would carry
+			// no root and the comparison would hold for the wrong reason.
+			const placed = { ...context, paths: { projectRoot: "/p", documentDirectory: path.join("/p", "posts") } };
+			const plain = await buildCell(cell([]), placed);
+			const rooted = await buildCell(cell(["root: ../assets"]), placed);
+			const fonted = await buildCell(cell(["font-path: /other"]), placed);
+			assert.ok(!isUnavailable(plain) && !isUnavailable(rooted) && !isUnavailable(fonted));
+			assert.deepStrictEqual(plain.command.argv, [
+				"compile",
+				"--format",
+				"svg",
+				"--root",
+				path.join("/p", "posts"),
+				"-",
+				"-",
+			]);
+			assert.deepStrictEqual(rooted.command, plain.command);
+			assert.deepStrictEqual(fonted.command, plain.command);
 			assert.strictEqual(rooted.source, plain.source);
 		});
 	});
