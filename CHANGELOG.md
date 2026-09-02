@@ -4,20 +4,20 @@
 
 ### New Features
 
-- feat: preview a Typst block from a Quarto document. The block under the cursor compiles with the Typst binary that ships inside Quarto, and the image is shown in a panel beside the editor or in a hover. (#395)
-- feat: open the file that a `file:` or a `preamble:` option names. The value is a link in a `{typst}` cell, in the front matter of a document, and in a configuration file, and a path that leads to no file carries a warning. (#402)
-- feat: publish the Lua reference validator of the v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/schema.lua`. The vocabulary and the validator carry the same version, and extensions can now resolve the module by URL. (#374)
-- feat: accept `uniqueItems` in a field descriptor. The Lua reference validator already enforced the keyword, and the meta-schema now allows it, so a schema that uses it passes both. (#378)
-- docs: add a reference page that describes how an extension loads and calls the Lua reference validator. The page separates the meta-schema, which validates a schema file while you write it, from the module, which validates document metadata during a render. (#383)
+- feat: preview a Typst block from a Quarto document. The block under the cursor is shown in a panel beside the editor or in a hover. (#395)
+- feat: open the file that a `file:` or a `preamble:` option names. A path that leads to no file carries a warning. (#402)
+- feat: publish the Lua reference validator of the v2 extension schema vocabulary, so an extension can resolve the module by URL. (#374)
+- feat: accept `uniqueItems` in a field descriptor, which the Lua reference validator already enforced. (#378)
+- docs: add a reference page on how an extension loads and calls the Lua reference validator. (#383)
 
 ### Bug Fixes
 
-- fix: show every keyword of the vocabulary in the published example schemas. The v2 examples gained `uniqueItems`, the v1 examples gained `minimum` and `maximum`, every example gained the two content keywords, and a test now holds each example to the vocabulary of its version. (#381)
-- fix: teach the canonical v2 vocabulary in the schema generation prompt. The prompt named 15 v1 spellings that the declared v2 meta-schema rejects, and a test now holds the prompt to that vocabulary. (#382)
-- fix: read the default branch from GitHub for a repository that has no release, no tag and no registry entry. The branch was assumed to be `main`, so an extension in a repository whose default branch is `master` failed to install unless the user wrote `@master`. (#385)
-- fix: find a Typst block written between two `---` lines that open no front matter. A document whose second line is blank or is itself `---` has no front matter, which is the rule Pandoc applies. (#397)
-- fix: compile a Typst preview under the root a render uses, so a block that reads a file beside its own document no longer fails. A `{typst}` cell also compiles with the `root`, `font-path`, `package-path` and `input` values of the `typst-render` extension. (#401)
-- fix: stop the search for Quarto projects from collecting search processes. The search ignored the exclude settings of the editor, it could not be stopped, and it ran again each time a document opened, so the processes stayed alive until they used all of the CPU.
+- fix: show every keyword of the vocabulary in the published example schemas. (#381)
+- fix: teach the canonical v2 vocabulary in the schema generation prompt, which named 15 spellings the v2 meta-schema rejects. (#382)
+- fix: read the default branch from GitHub for a repository that has no release, no tag and no registry entry. An extension in a repository whose default branch is `master` failed to install. (#385)
+- fix: find a Typst block written between two `---` lines that open no front matter. (#397)
+- fix: compile a Typst preview under the root a render uses, so a block that reads a file beside its own document no longer fails. (#401)
+- fix: stop the search for Quarto projects from collecting search processes. The search now applies the `files.exclude` and `search.exclude` settings, and it stops when a newer search replaces it.
 
 ## 3.2.0 (2026-08-02)
 

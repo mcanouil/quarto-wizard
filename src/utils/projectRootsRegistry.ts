@@ -8,6 +8,12 @@ import { discoverQuartoProjectRoots, isInside, type QuartoProjectRoot } from "./
  * snippets).
  */
 
+/**
+ * How many times a waiting caller follows a superseded discovery to the one that
+ * replaced it. A trigger storm cannot hold the caller for ever.
+ */
+const MAX_DISCOVERY_ATTEMPTS = 5;
+
 let currentRoots: readonly QuartoProjectRoot[] = [];
 let initialised = false;
 let inFlight: Promise<readonly QuartoProjectRoot[] | undefined> | undefined;
@@ -26,8 +32,25 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
 	}
 	// Join the discovery that is already running. A second one would cancel it,
 	// and both callers would then hold an empty snapshot.
-	const roots = await (inFlight ?? refreshProjectRoots());
-	return roots ?? currentRoots;
+	let pending = inFlight ?? refreshProjectRoots();
+	for (let attempt = 0; attempt < MAX_DISCOVERY_ATTEMPTS; attempt += 1) {
+		const roots = await pending;
+		if (roots) {
+			return roots;
+		}
+		if (initialised) {
+			return currentRoots;
+		}
+		// A superseded discovery reports nothing, so follow the discovery that
+		// replaced it. When nothing replaced it the snapshot is the answer, and
+		// starting another scan here would fight the refresh that comes next.
+		const successor = inFlight;
+		if (!successor) {
+			break;
+		}
+		pending = successor;
+	}
+	return currentRoots;
 }
 
 /**
@@ -78,6 +101,9 @@ function cancelInFlightDiscovery(): void {
 /**
  * Overwrites the cached snapshot and cancels any in-flight discovery so
  * a concurrent `ensureProjectRoots` cannot race-overwrite this snapshot.
+ *
+ * Seeds the registry for a test. Production code reaches the snapshot through
+ * {@link ensureProjectRoots} and {@link refreshProjectRoots}.
  */
 export function setProjectRoots(roots: readonly QuartoProjectRoot[]): void {
 	cancelInFlightDiscovery();

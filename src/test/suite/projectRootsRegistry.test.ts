@@ -144,6 +144,46 @@ suite("Project Roots Registry Test Suite", () => {
 		);
 	});
 
+	test("ensureProjectRoots waits for the discovery that superseded the one it joined", async () => {
+		invalidateProjectRoots();
+
+		Object.defineProperty(vscode.workspace, "workspaceFolders", {
+			get: () => [workspace],
+			configurable: true,
+		});
+
+		let scans = 0;
+		const gates: (() => void)[] = [];
+		vscode.workspace.findFiles = (() => {
+			scans += 1;
+			return new Promise<vscode.Uri[]>((resolve) => {
+				gates.push(() => resolve([]));
+			});
+		}) as typeof vscode.workspace.findFiles;
+
+		// A provider asks for the roots, then a watcher event supersedes that scan.
+		const ensured = ensureProjectRoots();
+		await waitFor(() => scans >= 2);
+		const refreshed = refreshProjectRoots();
+		await waitFor(() => scans >= 4);
+
+		// The superseded scans answer first, while the snapshot is still empty.
+		gates[0]();
+		gates[1]();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		gates[2]();
+		gates[3]();
+
+		const [ensuredRoots, refreshedRoots] = await Promise.all([ensured, refreshed]);
+
+		// The empty snapshot would make `selectWorkspaceFolder` report no workspace.
+		assert.deepStrictEqual(
+			ensuredRoots.map((root) => root.fsPath),
+			[workspaceFsPath],
+		);
+		assert.deepStrictEqual(ensuredRoots, refreshedRoots);
+	});
+
 	test("a superseded discovery leaves the in-flight promise of the newer one alone", async () => {
 		invalidateProjectRoots();
 
@@ -167,15 +207,16 @@ suite("Project Roots Registry Test Suite", () => {
 		const second = ensureProjectRoots();
 		await waitFor(() => scans >= 4);
 
-		// The superseded discovery settles last, after the newer one is in flight.
+		// The superseded discovery settles while the newer one is still in flight.
 		gates[0]();
 		gates[1]();
-		await first;
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
+		// Its `finally` must leave the newer discovery in place for this caller to join.
 		const third = ensureProjectRoots();
 		gates[2]();
 		gates[3]();
-		await Promise.all([second, third]);
+		await Promise.all([first, second, third]);
 
 		assert.strictEqual(scans, 4);
 	});

@@ -53,6 +53,32 @@ export const QUARTO_PROJECT_FILENAMES = ["_quarto.yml", "_quarto.yaml"] as const
 export const MAX_SCAN_RESULTS = 5000;
 
 /**
+ * Builds the exclude pattern for a file scan from the exclude settings of the editor.
+ *
+ * `findFiles` applies no exclude at all for a `null` argument, and applies `files.exclude`
+ * alone for an `undefined` one. Neither holds `node_modules` or build output, which live
+ * in `search.exclude`, so the pattern joins the two settings.
+ *
+ * @param scope - The resource the settings are read for.
+ * @returns A brace pattern of the enabled excludes, or `undefined` when there are none.
+ */
+export function buildExcludeGlob(scope: vscode.Uri): string | undefined {
+	const patterns = new Set<string>();
+	for (const section of ["files", "search"]) {
+		const excludes = vscode.workspace.getConfiguration(section, scope).get<Record<string, unknown>>("exclude");
+		for (const [pattern, enabled] of Object.entries(excludes ?? {})) {
+			if (enabled === true) {
+				patterns.add(pattern);
+			}
+		}
+	}
+	if (patterns.size === 0) {
+		return undefined;
+	}
+	return `{${[...patterns].join(",")}}`;
+}
+
+/**
  * A discovered Quarto project root.
  */
 export interface QuartoProjectRoot {
@@ -169,13 +195,11 @@ async function findSubFolderProjectDirs(
 		// In direct-only mode the workspace root cannot be matched by the depth-1 glob,
 		// so probe it explicitly: the smart-merge in `discoverQuartoProjectRoots` collapses
 		// to the workspace folder when it is among the candidates.
-		// An `undefined` exclude applies the user's `files.exclude` and `search.exclude`,
-		// which keep the walk out of `node_modules`, `.git` and build output. A `null`
-		// exclude does the opposite: it turns every exclude off.
+		const exclude = buildExcludeGlob(folder.uri);
 		const [hasRootMarker, quartoUris, manifestUris] = await Promise.all([
 			recursive ? Promise.resolve(false) : directoryHasProjectMarker(folderPath),
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, quartoGlob), undefined, MAX_SCAN_RESULTS, token),
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, manifestGlob), undefined, MAX_SCAN_RESULTS, token),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, quartoGlob), exclude, MAX_SCAN_RESULTS, token),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, manifestGlob), exclude, MAX_SCAN_RESULTS, token),
 		]);
 		if (quartoUris.length >= MAX_SCAN_RESULTS || manifestUris.length >= MAX_SCAN_RESULTS) {
 			logMessage(
