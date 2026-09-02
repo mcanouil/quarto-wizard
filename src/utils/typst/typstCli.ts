@@ -177,6 +177,9 @@ export function buildTypstCommand(request: TypstCommandRequest): TypstCommand {
  * this builds from a YAML document is free of. It is a cache key and not a
  * signature: a caller that hand-built an argument holding a NUL could spell two
  * commands the same way, and Typst would refuse to start on either of them.
+ *
+ * An absent directory is written as an empty one, which `compileCwd` never
+ * answers: it returns a directory or nothing at all, so the two cannot collide.
  */
 export function commandKey(command: TypstCommand): string {
 	return [command.cwd ?? "", ...command.argv].join("\u0000");

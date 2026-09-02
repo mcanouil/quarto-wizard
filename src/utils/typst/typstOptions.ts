@@ -123,8 +123,10 @@ export const TYPST_DEFAULTS: ResolvedTypstOptions = Object.freeze({
  *
  * `root`, `font-path` and `package-path` run the other way: they are read from
  * the global configuration alone (`typst-render.lua:1284-1293` and `:1332`) and
- * never from the merged table, so a block writing `root:` has no effect. Nothing
- * here has to enforce that, because none of the three reaches the source.
+ * never from the merged table, so a block writing `root:` has no effect. None of
+ * the three reaches the source, and all three reach the command line, so the
+ * rule is enforced where the command is built: `buildCell` hands
+ * `buildTypstCommand` the global configuration and not the merged options.
  */
 const GLOBAL_KEYS: readonly string[] = [
 	"format",
