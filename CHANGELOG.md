@@ -17,6 +17,7 @@
 - fix: read the default branch from GitHub for a repository that has no release, no tag and no registry entry. The branch was assumed to be `main`, so an extension in a repository whose default branch is `master` failed to install unless the user wrote `@master`. (#385)
 - fix: find a Typst block written between two `---` lines that open no front matter. A document whose second line is blank or is itself `---` has no front matter, which is the rule Pandoc applies. (#397)
 - fix: compile a Typst preview under the root a render uses, so a block that reads a file beside its own document no longer fails. A `{typst}` cell also compiles with the `root`, `font-path`, `package-path` and `input` values of the `typst-render` extension. (#401)
+- fix: stop the search for Quarto projects from collecting search processes. The search ignored the exclude settings of the editor, it could not be stopped, and it ran again each time a document opened, so the processes stayed alive until they used all of the CPU.
 
 ## 3.2.0 (2026-08-02)
 

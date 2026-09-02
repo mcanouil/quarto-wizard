@@ -465,6 +465,42 @@ suite("Quarto Project Discovery Test Suite", () => {
 		});
 	}
 
+	test("scans with the default excludes, a result cap, and the caller's cancellation token", async () => {
+		writeQuartoYml(path.join(tempDir, "site-a"));
+
+		interface ScanCall {
+			exclude: vscode.GlobPattern | null | undefined;
+			maxResults: number | undefined;
+			token: vscode.CancellationToken | undefined;
+		}
+		const calls: ScanCall[] = [];
+		vscode.workspace.findFiles = ((
+			_include: vscode.GlobPattern,
+			exclude?: vscode.GlobPattern | null,
+			maxResults?: number,
+			token?: vscode.CancellationToken,
+		) => {
+			calls.push({ exclude, maxResults, token });
+			return Promise.resolve([]);
+		}) as typeof vscode.workspace.findFiles;
+
+		const source = new vscode.CancellationTokenSource();
+		try {
+			await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)], source.token);
+		} finally {
+			source.dispose();
+		}
+
+		assert.strictEqual(calls.length, 2);
+		for (const call of calls) {
+			// A `null` exclude turns every exclude off, which sends the scan through
+			// `node_modules`, `.git` and build output.
+			assert.strictEqual(call.exclude, undefined);
+			assert.strictEqual(typeof call.maxResults, "number");
+			assert.strictEqual(call.token, source.token);
+		}
+	});
+
 	test("populated root _extensions/ short-circuits before any scan", async () => {
 		writeExtensionRepoFixture();
 		let findFilesCalled = false;

@@ -11,6 +11,9 @@ import { discoverQuartoProjectRoots, isInside, type QuartoProjectRoot } from "./
 let currentRoots: readonly QuartoProjectRoot[] = [];
 let initialised = false;
 let inFlight: Promise<readonly QuartoProjectRoot[]> | undefined;
+// Cancels the file scans of the in-flight discovery. Dropping the promise alone
+// leaves the scan running, and repeated triggers collect scan processes.
+let inFlightCancellation: vscode.CancellationTokenSource | undefined;
 // Bumped by `setProjectRoots` and `invalidateProjectRoots` so a queued
 // `ensureProjectRoots` continuation from an earlier generation cannot
 // overwrite state written after it started.
@@ -29,9 +32,13 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
 	}
 	const folders = vscode.workspace.workspaceFolders ?? [];
 	const startedAt = generation;
-	inFlight = discoverQuartoProjectRoots(folders)
+	const cancellation = new vscode.CancellationTokenSource();
+	inFlightCancellation = cancellation;
+	inFlight = discoverQuartoProjectRoots(folders, cancellation.token)
 		.then((roots) => {
-			if (generation === startedAt) {
+			// A cancelled scan returns a partial result, so only an uncancelled
+			// discovery of the current generation may write the snapshot.
+			if (generation === startedAt && !cancellation.token.isCancellationRequested) {
 				currentRoots = roots;
 				initialised = true;
 			}
@@ -39,8 +46,18 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
 		})
 		.finally(() => {
 			inFlight = undefined;
+			if (inFlightCancellation === cancellation) {
+				inFlightCancellation = undefined;
+			}
+			cancellation.dispose();
 		});
 	return inFlight;
+}
+
+/** Cancels the in-flight discovery so its file scans stop. */
+function cancelInFlightDiscovery(): void {
+	inFlightCancellation?.cancel();
+	inFlightCancellation = undefined;
 }
 
 /**
@@ -48,6 +65,7 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
  * a concurrent `ensureProjectRoots` cannot race-overwrite this snapshot.
  */
 export function setProjectRoots(roots: readonly QuartoProjectRoot[]): void {
+	cancelInFlightDiscovery();
 	currentRoots = roots;
 	initialised = true;
 	inFlight = undefined;
@@ -59,6 +77,7 @@ export function setProjectRoots(roots: readonly QuartoProjectRoot[]): void {
  * discovery.
  */
 export function invalidateProjectRoots(): void {
+	cancelInFlightDiscovery();
 	currentRoots = [];
 	initialised = false;
 	inFlight = undefined;

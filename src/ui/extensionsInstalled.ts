@@ -8,6 +8,7 @@ import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension }
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
+import { getAutoProjectDetection } from "../utils/extensionDetails";
 import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
@@ -65,15 +66,38 @@ export class ExtensionsInstalled {
 			return vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
 		};
 
+		// Cancels the scans of the discovery a newer trigger supersedes. Without it every
+		// trigger leaves its scan running, and the scan processes collect.
+		let discoveryCancellation: vscode.CancellationTokenSource | undefined;
+		context.subscriptions.push({
+			dispose: () => {
+				discoveryCancellation?.cancel();
+				discoveryCancellation = undefined;
+			},
+		});
+
 		const updateProjectRoots = async (): Promise<boolean> => {
 			const folders = vscode.workspace.workspaceFolders ?? [];
+			discoveryCancellation?.cancel();
+			const cancellation = new vscode.CancellationTokenSource();
+			discoveryCancellation = cancellation;
 			try {
-				const roots = await discoverQuartoProjectRoots(folders);
+				const roots = await discoverQuartoProjectRoots(folders, cancellation.token);
+				// A cancelled scan returns a partial result, so a superseded discovery
+				// must not write it over the roots the newer discovery finds.
+				if (cancellation.token.isCancellationRequested) {
+					return false;
+				}
 				setProjectRoots(roots);
 				return this.treeDataProvider.setProjectRoots(roots);
 			} catch (error) {
 				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
 				return false;
+			} finally {
+				if (discoveryCancellation === cancellation) {
+					discoveryCancellation = undefined;
+				}
+				cancellation.dispose();
 			}
 		};
 
@@ -131,7 +155,12 @@ export class ExtensionsInstalled {
 
 		// `openEditors` mode walks parents of open documents; refresh when the doc set changes.
 		// Filter to real files so output channels and untitled buffers don't queue work.
+		// The other modes do not read the open documents, and a recursive scan on every
+		// editor event is expensive, so the trigger is confined to `openEditors`.
 		const onEditorChanged = (document: vscode.TextDocument) => {
+			if (getAutoProjectDetection() !== "openEditors") {
+				return;
+			}
 			if (document.uri.scheme === "file" && !document.isUntitled) {
 				refreshProjectRoots();
 			}

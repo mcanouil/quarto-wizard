@@ -46,6 +46,13 @@ export const EXTENSION_MANIFEST_DIRECT_GLOB = `*/${EXTENSIONS_DIR}/**/_extension
 export const QUARTO_PROJECT_FILENAMES = ["_quarto.yml", "_quarto.yaml"] as const;
 
 /**
+ * Upper bound on the matches one scan returns.
+ * A workspace folder that holds more project markers than this is far outside the
+ * shape the tree view serves, so the cap stops a runaway walk instead of the scan.
+ */
+export const MAX_SCAN_RESULTS = 5000;
+
+/**
  * A discovered Quarto project root.
  */
 export interface QuartoProjectRoot {
@@ -77,9 +84,15 @@ export interface QuartoProjectRoot {
  *  - else, all detected sub-roots are returned;
  *  - if nothing is detected, the folder root is returned as a fallback so the tree view
  *    keeps its empty-state messaging.
+ *
+ * `token` cancels the file scans. Without it a superseded scan keeps its `ripgrep`
+ * process alive, and repeated triggers collect processes until they exhaust the CPU.
+ * A cancelled scan returns whatever it had, so the caller must discard the result when
+ * its token was cancelled.
  */
 export async function discoverQuartoProjectRoots(
 	workspaceFolders: readonly vscode.WorkspaceFolder[],
+	token?: vscode.CancellationToken,
 ): Promise<QuartoProjectRoot[]> {
 	if (workspaceFolders.length === 0) {
 		return [];
@@ -110,7 +123,7 @@ export async function discoverQuartoProjectRoots(
 		const discovered =
 			setting === "openEditors"
 				? await findOpenEditorProjectDirs(folder)
-				: await findSubFolderProjectDirs(folder, setting === true);
+				: await findSubFolderProjectDirs(folder, setting === true, token);
 
 		const candidates = new Set<string>();
 		for (const dir of discovered) {
@@ -144,7 +157,11 @@ function buildRoot(folder: vscode.WorkspaceFolder, fsPath: string): QuartoProjec
 	return { fsPath, workspaceFolder: folder, label: `${folder.name}/${toRelativePosixPath(folder.uri.fsPath, fsPath)}` };
 }
 
-async function findSubFolderProjectDirs(folder: vscode.WorkspaceFolder, recursive: boolean): Promise<string[]> {
+async function findSubFolderProjectDirs(
+	folder: vscode.WorkspaceFolder,
+	recursive: boolean,
+	token?: vscode.CancellationToken,
+): Promise<string[]> {
 	const folderPath = folder.uri.fsPath;
 	const quartoGlob = recursive ? QUARTO_PROJECT_GLOB : QUARTO_PROJECT_DIRECT_GLOB;
 	const manifestGlob = recursive ? EXTENSION_MANIFEST_GLOB : EXTENSION_MANIFEST_DIRECT_GLOB;
@@ -152,13 +169,20 @@ async function findSubFolderProjectDirs(folder: vscode.WorkspaceFolder, recursiv
 		// In direct-only mode the workspace root cannot be matched by the depth-1 glob,
 		// so probe it explicitly: the smart-merge in `discoverQuartoProjectRoots` collapses
 		// to the workspace folder when it is among the candidates.
-		// `null` exclude lets VSCode honour the user's `files.exclude` and `search.exclude`,
-		// matching how the Git extension scopes its repository scans.
+		// An `undefined` exclude applies the user's `files.exclude` and `search.exclude`,
+		// which keep the walk out of `node_modules`, `.git` and build output. A `null`
+		// exclude does the opposite: it turns every exclude off.
 		const [hasRootMarker, quartoUris, manifestUris] = await Promise.all([
 			recursive ? Promise.resolve(false) : directoryHasProjectMarker(folderPath),
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, quartoGlob), null),
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, manifestGlob), null),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, quartoGlob), undefined, MAX_SCAN_RESULTS, token),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, manifestGlob), undefined, MAX_SCAN_RESULTS, token),
 		]);
+		if (quartoUris.length >= MAX_SCAN_RESULTS || manifestUris.length >= MAX_SCAN_RESULTS) {
+			logMessage(
+				`Scan of ${folderPath} reached the ${MAX_SCAN_RESULTS} match limit; some projects are missing.`,
+				"warn",
+			);
+		}
 		const dirs: string[] = [];
 		if (hasRootMarker) dirs.push(folderPath);
 		for (const uri of quartoUris) {

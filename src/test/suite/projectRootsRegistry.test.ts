@@ -97,6 +97,44 @@ suite("Project Roots Registry Test Suite", () => {
 		assert.strictEqual(findOwningProjectRootSync(path.join(nestedA.fsPath, "doc.qmd")), undefined);
 	});
 
+	test("invalidateProjectRoots cancels the scan an in-flight discovery started", async () => {
+		invalidateProjectRoots();
+
+		Object.defineProperty(vscode.workspace, "workspaceFolders", {
+			get: () => [workspace],
+			configurable: true,
+		});
+
+		let capturedToken: vscode.CancellationToken | undefined;
+		let signalCalled: () => void = () => undefined;
+		const findFilesCalled = new Promise<void>((resolve) => {
+			signalCalled = resolve;
+		});
+		let releaseFindFiles: () => void = () => undefined;
+		const blockUntil = new Promise<void>((resolve) => {
+			releaseFindFiles = resolve;
+		});
+		vscode.workspace.findFiles = ((
+			_include: vscode.GlobPattern,
+			_exclude?: vscode.GlobPattern | null,
+			_maxResults?: number,
+			token?: vscode.CancellationToken,
+		) => {
+			capturedToken = token;
+			signalCalled();
+			return blockUntil.then(() => [] as vscode.Uri[]);
+		}) as typeof vscode.workspace.findFiles;
+
+		const pending = ensureProjectRoots();
+		await findFilesCalled;
+		invalidateProjectRoots();
+		releaseFindFiles();
+		await pending;
+
+		assert.ok(capturedToken, "discovery must pass a cancellation token to findFiles");
+		assert.strictEqual(capturedToken?.isCancellationRequested, true);
+	});
+
 	test("setProjectRoots wins over an older in-flight ensureProjectRoots discovery", async () => {
 		// Force `ensureProjectRoots` down the discovery branch by leaving state uninitialised.
 		invalidateProjectRoots();
