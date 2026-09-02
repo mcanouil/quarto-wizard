@@ -300,6 +300,13 @@ jobs:
       - name: Generate consolidated summary
         shell: bash
         run: |
+          # `download-artifact` creates no directory when it matches nothing,
+          # and this step runs under `-e -o pipefail`, so a `find` over a
+          # missing directory ends the step before it prints anything. A
+          # pull request that changes no build input uploads no artifact,
+          # which is the case this job exists to report on.
+          mkdir -p job-summaries
+
           echo "# 🚀 Quarto Wizard Build & Test Results" >> ${GITHUB_STEP_SUMMARY}
           echo "" >> ${GITHUB_STEP_SUMMARY}
 
