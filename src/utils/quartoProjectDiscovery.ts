@@ -122,7 +122,7 @@ export async function discoverQuartoProjectRoots(
 		const ignorePatterns = readQuartoIgnore(folderPath);
 		const discovered =
 			setting === "openEditors"
-				? await findOpenEditorProjectDirs(folder)
+				? await findOpenEditorProjectDirs(folder, token)
 				: await findSubFolderProjectDirs(folder, setting === true, token);
 
 		const candidates = new Set<string>();
@@ -215,10 +215,19 @@ function projectRootFromManifestPath(manifestPath: string): string | undefined {
 	return segments.slice(0, idx).join(path.sep);
 }
 
-async function findOpenEditorProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+async function findOpenEditorProjectDirs(
+	folder: vscode.WorkspaceFolder,
+	token?: vscode.CancellationToken,
+): Promise<string[]> {
 	const folderPath = folder.uri.fsPath;
 	const dirs = new Set<string>();
+	// Open documents share their ancestors, and probing one directory reads it from
+	// disk, so the answers are held for the whole pass.
+	const markers = new Map<string, boolean>();
 	for (const document of vscode.workspace.textDocuments) {
+		if (token?.isCancellationRequested) {
+			break;
+		}
 		if (document.uri.scheme !== "file" || document.isUntitled) {
 			continue;
 		}
@@ -226,7 +235,7 @@ async function findOpenEditorProjectDirs(folder: vscode.WorkspaceFolder): Promis
 		if (!isInside(folderPath, documentPath)) {
 			continue;
 		}
-		const projectDir = await ascendForProjectFile(folderPath, path.dirname(documentPath));
+		const projectDir = await ascendForProjectFile(folderPath, path.dirname(documentPath), markers);
 		if (projectDir) {
 			dirs.add(projectDir);
 		}
@@ -237,11 +246,21 @@ async function findOpenEditorProjectDirs(folder: vscode.WorkspaceFolder): Promis
 /**
  * Walks `start` upward (inclusive) until a Quarto project marker is found or the workspace
  * folder boundary is reached. Returns the deepest directory containing a marker.
+ * `markers` holds the answer for each directory the pass already probed.
  */
-async function ascendForProjectFile(folderPath: string, start: string): Promise<string | undefined> {
+async function ascendForProjectFile(
+	folderPath: string,
+	start: string,
+	markers: Map<string, boolean>,
+): Promise<string | undefined> {
 	let current = start;
 	while (isInside(folderPath, current)) {
-		if (await directoryHasProjectMarker(current)) {
+		let hasMarker = markers.get(current);
+		if (hasMarker === undefined) {
+			hasMarker = await directoryHasProjectMarker(current);
+			markers.set(current, hasMarker);
+		}
+		if (hasMarker) {
 			return current;
 		}
 		const parent = path.dirname(current);

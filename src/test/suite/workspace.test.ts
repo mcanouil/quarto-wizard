@@ -1,6 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { selectWorkspaceFolder } from "../../utils/workspace";
+import { invalidateProjectRoots } from "../../utils/projectRootsRegistry";
 
 interface MockQuickPickResult {
 	root: { fsPath: string };
@@ -29,6 +30,10 @@ suite("Workspace Utils Test Suite", () => {
 		quickPickResult = undefined;
 		lastQuickPickItems = undefined;
 		lastQuickPickOptions = undefined;
+
+		// `selectWorkspaceFolder` reads the shared registry, and each test installs
+		// its own workspace folders without the events that refresh the snapshot.
+		invalidateProjectRoots();
 
 		Object.defineProperty(vscode.workspace, "workspaceFolders", {
 			get: () => mockWorkspaceFolders,
@@ -79,6 +84,7 @@ suite("Workspace Utils Test Suite", () => {
 			value: originalWorkspaceFolders,
 			configurable: true,
 		});
+		invalidateProjectRoots();
 		vscode.window.showQuickPick = originalShowQuickPick;
 		vscode.workspace.findFiles = originalFindFiles;
 		vscode.workspace.getConfiguration = originalGetConfiguration;

@@ -2,7 +2,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { isInside } from "./quartoProjectDiscovery";
+import { isInside, MAX_SCAN_RESULTS } from "./quartoProjectDiscovery";
 import { logMessage } from "./log";
 
 /**
@@ -200,9 +200,13 @@ async function parseAndUpdateSource(projectRoot: string, sourceFsPath: string): 
 async function buildForRoot(projectRoot: string): Promise<void> {
 	const folderUri = vscode.Uri.file(projectRoot);
 	try {
+		// An `undefined` exclude applies the user's `files.exclude` and `search.exclude`.
+		// A `null` exclude turns every exclude off, which sends the scan through
+		// `node_modules`, `.git` and build output.
 		const uris = await vscode.workspace.findFiles(
 			new vscode.RelativePattern(folderUri, QUARTO_AND_METADATA_PATTERN),
-			null,
+			undefined,
+			MAX_SCAN_RESULTS,
 		);
 
 		const sources = new Set<string>();

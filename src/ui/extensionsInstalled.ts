@@ -12,12 +12,12 @@ import { getAutoProjectDetection } from "../utils/extensionDetails";
 import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import { QUARTO_PROJECT_GLOB, EXTENSION_MANIFEST_GLOB } from "../utils/quartoProjectDiscovery";
 import {
-	discoverQuartoProjectRoots,
-	QUARTO_PROJECT_GLOB,
-	EXTENSION_MANIFEST_GLOB,
-} from "../utils/quartoProjectDiscovery";
-import { findOwningProjectRootSync, invalidateProjectRoots, setProjectRoots } from "../utils/projectRootsRegistry";
+	findOwningProjectRootSync,
+	invalidateProjectRoots,
+	refreshProjectRoots as rediscoverProjectRoots,
+} from "../utils/projectRootsRegistry";
 import { debounce } from "../utils/debounce";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
@@ -66,38 +66,19 @@ export class ExtensionsInstalled {
 			return vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
 		};
 
-		// Cancels the scans of the discovery a newer trigger supersedes. Without it every
-		// trigger leaves its scan running, and the scan processes collect.
-		let discoveryCancellation: vscode.CancellationTokenSource | undefined;
-		context.subscriptions.push({
-			dispose: () => {
-				discoveryCancellation?.cancel();
-				discoveryCancellation = undefined;
-			},
-		});
-
 		const updateProjectRoots = async (): Promise<boolean> => {
-			const folders = vscode.workspace.workspaceFolders ?? [];
-			discoveryCancellation?.cancel();
-			const cancellation = new vscode.CancellationTokenSource();
-			discoveryCancellation = cancellation;
 			try {
-				const roots = await discoverQuartoProjectRoots(folders, cancellation.token);
-				// A cancelled scan returns a partial result, so a superseded discovery
-				// must not write it over the roots the newer discovery finds.
-				if (cancellation.token.isCancellationRequested) {
+				// The registry owns the scans and cancels the ones a newer trigger
+				// supersedes. A superseded discovery reports nothing, and the newer
+				// one updates the view.
+				const roots = await rediscoverProjectRoots();
+				if (!roots) {
 					return false;
 				}
-				setProjectRoots(roots);
 				return this.treeDataProvider.setProjectRoots(roots);
 			} catch (error) {
 				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
 				return false;
-			} finally {
-				if (discoveryCancellation === cancellation) {
-					discoveryCancellation = undefined;
-				}
-				cancellation.dispose();
 			}
 		};
 
@@ -158,12 +139,13 @@ export class ExtensionsInstalled {
 		// The other modes do not read the open documents, and a recursive scan on every
 		// editor event is expensive, so the trigger is confined to `openEditors`.
 		const onEditorChanged = (document: vscode.TextDocument) => {
+			if (document.uri.scheme !== "file" || document.isUntitled) {
+				return;
+			}
 			if (getAutoProjectDetection() !== "openEditors") {
 				return;
 			}
-			if (document.uri.scheme === "file" && !document.isUntitled) {
-				refreshProjectRoots();
-			}
+			refreshProjectRoots();
 		};
 		context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(onEditorChanged));
 		context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(onEditorChanged));

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { discoverQuartoProjectRoots, type QuartoProjectRoot } from "./quartoProjectDiscovery";
+import type { QuartoProjectRoot } from "./quartoProjectDiscovery";
+import { ensureProjectRoots } from "./projectRootsRegistry";
 
 /**
  * Quick pick item used when prompting the user to choose between detected Quarto project roots.
@@ -11,9 +12,10 @@ interface ProjectRootQuickPickItem extends vscode.QuickPickItem {
 /**
  * Resolves the Quarto project root the user wants to act on.
  *
- * The candidate list comes from {@link discoverQuartoProjectRoots}, so the returned path is
+ * The candidate list comes from {@link ensureProjectRoots}, so the returned path is
  * either a workspace folder root or a detected sub-folder containing `_quarto.{yml,yaml}`,
- * depending on the `quartoWizard.autoProjectDetection` setting.
+ * depending on the `quartoWizard.autoProjectDetection` setting. The registry keeps the
+ * snapshot current, so a command does not start a scan of its own.
  *
  * @returns The selected project root path, or `undefined` if no workspace folder is open or the
  *          user dismissed the picker.
@@ -24,7 +26,7 @@ export async function selectWorkspaceFolder(): Promise<string | undefined> {
 		return undefined;
 	}
 
-	const roots = await discoverQuartoProjectRoots(workspaceFolders);
+	const roots = await ensureProjectRoots();
 	if (roots.length === 0) {
 		return undefined;
 	}
