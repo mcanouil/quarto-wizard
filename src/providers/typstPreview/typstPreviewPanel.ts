@@ -33,8 +33,8 @@ export class TypstPreviewPanel {
 	/** What the page is already showing, so an unchanged image is not sent again. */
 	private shownSvg: string | undefined;
 	private shownHeader: string | undefined;
+	/** The failure reported over the image, which is also whether one is showing. */
 	private shownError: string | undefined;
-	private showingError = false;
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly onDidDisposeEmitter = new vscode.EventEmitter<void>();
 	private closed = false;
@@ -90,13 +90,12 @@ export class TypstPreviewPanel {
 		// an image arrives, so a block that is broken and then restored compiles to
 		// the image already shown, and skipping that message would leave a failure
 		// reported over a block that compiles.
-		if (svg === this.shownSvg && header === this.shownHeader && !this.showingError) {
+		if (svg === this.shownSvg && header === this.shownHeader && this.shownError === undefined) {
 			return;
 		}
 		this.shownSvg = svg;
 		this.shownHeader = header;
 		this.shownError = undefined;
-		this.showingError = false;
 		this.post({ type: "image", uri: svgDataUri(svg), header });
 	}
 
@@ -111,7 +110,6 @@ export class TypstPreviewPanel {
 		this.shownSvg = undefined;
 		this.shownHeader = undefined;
 		this.shownError = undefined;
-		this.showingError = false;
 		this.post({ type: "clear" });
 	}
 
@@ -123,7 +121,6 @@ export class TypstPreviewPanel {
 	 * keystroke.
 	 */
 	showError(message: string): void {
-		this.showingError = true;
 		this.shownError = message;
 		this.post({ type: "error", message });
 	}
@@ -172,14 +169,10 @@ export class TypstPreviewPanel {
 	 */
 	private paint(): void {
 		if (this.shownSvg !== undefined) {
-			void this.panel.webview.postMessage({
-				type: "image",
-				uri: svgDataUri(this.shownSvg),
-				header: this.shownHeader ?? "",
-			});
+			this.post({ type: "image", uri: svgDataUri(this.shownSvg), header: this.shownHeader ?? "" });
 		}
-		if (this.showingError && this.shownError !== undefined) {
-			void this.panel.webview.postMessage({ type: "error", message: this.shownError });
+		if (this.shownError !== undefined) {
+			this.post({ type: "error", message: this.shownError });
 		}
 	}
 

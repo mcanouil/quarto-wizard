@@ -965,9 +965,13 @@ export class TypstPreviewController implements vscode.Disposable {
 					// of them was waiting, and it answers a save that neither was.
 					// Cancelling the cursor delay and flushing the edit delay dropped
 					// the case where the cursor had just moved and no edit was pending,
-					// which left the panel on the block the cursor had left. An
-					// unchanged source is a cache hit, so a save that changed nothing
-					// spawns nothing.
+					// which left the panel on the block the cursor had left.
+					//
+					// This does cost a request on every save of a document with a
+					// block, which is the document text and the files a cell reads.
+					// Only the compile itself is spared, because an unchanged source
+					// is a cache hit, and a save is rare enough and deliberate enough
+					// to be worth reading the document for.
 					this.selectionDebounce.cancel();
 					this.documentDebounce?.cancel();
 					this.refresh();
