@@ -961,20 +961,18 @@ export class TypstPreviewController implements vscode.Disposable {
 					return;
 				}
 				if (isRelevantDocument(document)) {
-					// Both delays run the same rebuild, so the save answers whichever
-					// of them was waiting, and it answers a save that neither was.
-					// Cancelling the cursor delay and flushing the edit delay dropped
-					// the case where the cursor had just moved and no edit was pending,
+					// Both delays run the same rebuild, so whichever of them is waiting
+					// is answered now. Cancelling the cursor delay instead dropped the
+					// case where the cursor had just moved and no edit was pending,
 					// which left the panel on the block the cursor had left.
 					//
-					// This does cost a request on every save of a document with a
-					// block, which is the document text and the files a cell reads.
-					// Only the compile itself is spared, because an unchanged source
-					// is a cache hit, and a save is rare enough and deliberate enough
-					// to be worth reading the document for.
-					this.selectionDebounce.cancel();
-					this.documentDebounce?.cancel();
-					this.refresh();
+					// A flush with nothing pending does nothing, which is what keeps a
+					// save cheap. Rebuilding unconditionally would read the document
+					// and the files a cell names on every save, and under
+					// `files.autoSave` a save follows every pause in typing, so that
+					// would be steady-state work rather than an occasional one.
+					this.documentDebounce?.flush();
+					this.selectionDebounce.flush();
 				}
 			}),
 		);
