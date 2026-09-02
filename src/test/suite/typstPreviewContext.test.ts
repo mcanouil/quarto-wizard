@@ -319,7 +319,11 @@ suite("Typst Preview Context Test Suite", () => {
 
 		/** A temporary project, with `typst-render` installed when asked. */
 		function project(withExtension: boolean | "ownerless"): string {
-			const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-gate-")));
+			// Spelled as the editor spells it. The root and the working directory
+			// under test both reach the assertion through a `Uri`, and on Windows
+			// that lower-cases the drive letter, so a raw temporary directory
+			// differs from them by that letter alone.
+			const directory = vscode.Uri.file(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-gate-")))).fsPath;
 			fs.writeFileSync(path.join(directory, "_quarto.yml"), "project:\n  type: default\n");
 			if (withExtension) {
 				// An extension installed from a repository sits under its owner, and a
