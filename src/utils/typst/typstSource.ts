@@ -1,4 +1,4 @@
-import { precedingRawBlocks, type TypstBlock } from "./typstBlocks";
+import { hasLateOptionLine, precedingRawBlocks, type TypstBlock } from "./typstBlocks";
 import { brandColourReader, brandDictionary, type Brand } from "./typstBrand";
 import { buildTypstCommand, type TypstCommand } from "./typstCli";
 import type { TypstPaths } from "./typstPaths";
@@ -385,17 +385,26 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	const global = mergeGlobalConfigs(context.levels, brand);
 	const options = resolveTypstOptions(block, global, brand);
 
+	// `true` and `false` parse as booleans, and these two options are written and
+	// read as text. A boolean is ignored rather than carried on, because the
+	// assembler would raise a `TypeError` inside a compile that has no reason to
+	// fail and the reader would be shown that in place of the block. `input:` is
+	// guarded the same way below.
+	const preambleOption =
+		typeof options.preamble === "string" || Array.isArray(options.preamble) ? options.preamble : undefined;
+	const fileOption = typeof options.file === "string" && options.file !== "" ? options.file : undefined;
+
 	// The preamble and the `file:` are independent reads, so they run together.
 	const [preamble, code] = await Promise.all([
-		resolvePreamble(options.preamble, context.readFile),
-		options.file === undefined || options.file === "" ? undefined : context.readFile(options.file),
+		resolvePreamble(preambleOption, context.readFile),
+		fileOption === undefined ? undefined : context.readFile(fileOption),
 	]);
 
 	// A `file:` replaces the cell body entirely. The filter logs and renders
 	// nothing when the read fails, which in a preview would be a blank image with
 	// no reason beside it.
-	if (options.file !== undefined && options.file !== "" && code === undefined) {
-		return { unavailable: `The file option names \`${options.file}\`, and it could not be read.` };
+	if (fileOption !== undefined && code === undefined) {
+		return { unavailable: `The file option names \`${fileOption}\`, and it could not be read.` };
 	}
 
 	// The compiled code starts below the block's own option run, and a `file:`
@@ -423,7 +432,7 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	// Named only when the file actually replaced the body. An empty `file:` skips
 	// the read and compiles the body, and reporting it as the external file would
 	// print a position "of " with no name and drop the option run correction.
-	const externalFile = code === undefined ? undefined : options.file;
+	const externalFile = code === undefined ? undefined : fileOption;
 	// The global configuration and not the merged options, because the filter
 	// reads `root`, `font-path` and `package-path` from it alone. The block's own
 	// `input:` is read from the block, because the merge drops it: it is a string
@@ -435,5 +444,12 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 		foreground,
 		paths: context.paths,
 	});
-	return { ...assembled, command, notes: cellNotes(options), bodyLineOffset, externalFile };
+	const notes = cellNotes(options);
+	// The upstream warning at `code-cell.lua:110-118`. An option line below the
+	// leading run is left as code, and the two spellings look the same in the
+	// block, so the reader is told which one this is.
+	if (hasLateOptionLine(block)) {
+		notes.push("an option line below the first run is compiled as code, not read as an option");
+	}
+	return { ...assembled, command, notes, bodyLineOffset, externalFile };
 }

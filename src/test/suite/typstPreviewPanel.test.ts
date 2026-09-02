@@ -80,6 +80,55 @@ suite("Typst Preview Panel Test Suite", () => {
 		assert.strictEqual(closed, 1);
 	});
 
+	test("Should paint the page again when it reloads", () => {
+		// Moving the panel to another editor group reloads the page, which comes
+		// back with an empty document and posts `initialized` a second time. The
+		// image and the header are unchanged, so nothing else would repaint it and
+		// the panel would stay blank until the block itself changed.
+		const { panel, posted, ready } = fakePanel();
+		ready();
+		panel.show("<svg id='a'/>", "doc.qmd · line 3");
+		posted.length = 0;
+
+		ready();
+
+		assert.deepStrictEqual(
+			posted.map((message) => message.type),
+			["image"],
+		);
+		panel.dispose();
+	});
+
+	test("Should paint the error again when the page reloads under one", () => {
+		// The error sits over the last good image, so a reload has to restore both
+		// and in that order, or the page comes back showing an image that a failure
+		// has already replaced.
+		const { panel, posted, ready } = fakePanel();
+		ready();
+		panel.show("<svg id='a'/>", "doc.qmd · line 3");
+		panel.showError("error at line 1, column 1 of the block: expected expression");
+		posted.length = 0;
+
+		ready();
+
+		assert.deepStrictEqual(
+			posted.map((message) => message.type),
+			["image", "error"],
+		);
+		panel.dispose();
+	});
+
+	test("Should send nothing when a page with no image reloads", () => {
+		const { panel, posted, ready } = fakePanel();
+		ready();
+		posted.length = 0;
+
+		ready();
+
+		assert.deepStrictEqual(posted, []);
+		panel.dispose();
+	});
+
 	test("Should ignore an update that arrives after it was closed", () => {
 		// A compile runs for up to the timeout and the user can close the tab
 		// meanwhile. Posting to a disposed webview throws, and the throw would

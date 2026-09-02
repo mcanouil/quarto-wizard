@@ -961,8 +961,16 @@ export class TypstPreviewController implements vscode.Disposable {
 					return;
 				}
 				if (isRelevantDocument(document)) {
+					// Both delays run the same rebuild, so the save answers whichever
+					// of them was waiting, and it answers a save that neither was.
+					// Cancelling the cursor delay and flushing the edit delay dropped
+					// the case where the cursor had just moved and no edit was pending,
+					// which left the panel on the block the cursor had left. An
+					// unchanged source is a cache hit, so a save that changed nothing
+					// spawns nothing.
 					this.selectionDebounce.cancel();
-					this.documentDebounce?.flush();
+					this.documentDebounce?.cancel();
+					this.refresh();
 				}
 			}),
 		);

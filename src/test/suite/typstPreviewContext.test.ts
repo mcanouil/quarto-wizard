@@ -114,12 +114,37 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.ok(built.source.endsWith("#circle()"));
 		});
 
+		test("Should ignore a boolean where a string option is expected", async () => {
+			// `true` and `false` become booleans, which `preamble:` and `file:` are
+			// never written with. Passing one through raised a `TypeError` from
+			// inside the assembler, so the reader was shown a JavaScript message in
+			// place of the block.
+			const preamble = await buildCell(cell(["preamble: false"]), context);
+			assert.ok(!isUnavailable(preamble));
+			assert.ok(preamble.source.endsWith("\n#circle()"));
+
+			const file = await buildCell(cell(["file: true"]), context);
+			assert.ok(!isUnavailable(file));
+			assert.strictEqual(file.externalFile, undefined);
+			assert.ok(file.source.endsWith("\n#circle()"));
+		});
+
 		test("Should say so when a file option cannot be read", async () => {
 			// The filter renders nothing here. A blank image with no reason beside
 			// it would look like the block itself was empty.
 			const built = await buildCell(cell(["file: missing.typ"]), context);
 			assert.ok(isUnavailable(built));
 			assert.ok(built.unavailable.includes("missing.typ"));
+		});
+
+		test("Should note an option line the run below it does not read", async () => {
+			// `code-cell.lua:110-118` warns and leaves the line as code. The two
+			// spellings look the same in the block, so the note is what says which
+			// one this is.
+			const block = cell(["margin: 2mm"], "#circle()\n//| width: 3cm");
+			const built = await buildCell(block, context);
+			assert.ok(!isUnavailable(built));
+			assert.ok(built.notes.some((note) => note.includes("compiled as code")));
 		});
 
 		test("Should read the colours of the mode in force", async () => {

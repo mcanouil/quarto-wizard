@@ -443,6 +443,32 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should follow the cursor when a save lands just after it moved", async () => {
+		// A save answered the edit delay and cancelled the cursor delay, so a save
+		// arriving in the 250 ms after the cursor moved, with no edit waiting,
+		// threw the cursor away and rebuilt nothing. The panel then held the block
+		// the cursor had left until some later event moved it.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await twoBlockFile();
+
+		const editor = await vscode.window.showTextDocument(document, {
+			selection: new vscode.Range(INSIDE_BLOCK, INSIDE_BLOCK),
+		});
+		await settle(500);
+		// An edit of the first block, left long enough for its own delay to pass,
+		// so the edit delay has fired and holds nothing.
+		await editBlock(document);
+		await settle(700);
+
+		editor.selection = new vscode.Selection(SECOND_BLOCK, SECOND_BLOCK);
+		await document.save();
+		await settle(400);
+
+		assert.ok(compiler.sources.at(-1)?.includes("#square()"), "the block under the cursor is what compiled last");
+		controller.dispose();
+	});
+
 	test("Should say once that there is no Typst binary", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const { controller, messages } = makeController(compiler, { binary: undefined });
