@@ -147,6 +147,15 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.ok(built.notes.some((note) => note.includes("compiled as code")));
 		});
 
+		test("Should not note a late option line the file option threw away", async () => {
+			// A `file:` replaces the body outright, so the line below the run is not
+			// compiled at all and a note saying that it is would be wrong.
+			const block = cell(["file: diagram.typ"], "#circle()\n//| width: 3cm");
+			const built = await buildCell(block, { ...context, readFile: reader({ "diagram.typ": "#rect()\n" }) });
+			assert.ok(!isUnavailable(built));
+			assert.ok(!built.notes.some((note) => note.includes("compiled as code")));
+		});
+
 		test("Should read the colours of the mode in force", async () => {
 			const brand = splitBrand({
 				color: { background: { light: "#fdf6e3", dark: "#101418" } },

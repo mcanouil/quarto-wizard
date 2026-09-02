@@ -447,8 +447,9 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	const notes = cellNotes(options);
 	// The upstream warning at `code-cell.lua:110-118`. An option line below the
 	// leading run is left as code, and the two spellings look the same in the
-	// block, so the reader is told which one this is.
-	if (hasLateOptionLine(block)) {
+	// block, so the reader is told which one this is. A `file:` replaces the body
+	// outright, so that line is not compiled at all and the note would be wrong.
+	if (code === undefined && hasLateOptionLine(block)) {
 		notes.push("an option line below the first run is compiled as code, not read as an option");
 	}
 	return { ...assembled, command, notes, bodyLineOffset, externalFile };
