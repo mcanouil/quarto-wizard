@@ -23,6 +23,7 @@ import { registerElementAttributeProviders } from "./providers/elementAttributeC
 import { registerInlineAttributeDiagnostics } from "./providers/inlineAttributeDiagnosticsProvider";
 import { registerSnippetCompletionProvider } from "./providers/snippetCompletionProvider";
 import { registerTypstPreview } from "./providers/typstPreview";
+import { registerTypstPathLinks } from "./providers/typstPathLinks";
 
 /**
  * This method is called when the extension is activated.
@@ -167,6 +168,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register the Typst block preview for Quarto documents
 	registerTypstPreview(context);
+
+	// Register the links the `file:` and `preamble:` options of a document carry
+	registerTypstPathLinks(context);
 
 	// Register URI handler for browser-based extension installation (e.g., vscode://mcanouil.quarto-wizard/install?repo=owner/repo)
 	context.subscriptions.push(

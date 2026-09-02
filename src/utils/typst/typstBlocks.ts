@@ -132,8 +132,12 @@ function blockBody(
  * nothing after its colon does not match either, while the same line with one
  * trailing space does: the pattern backtracks, the value becomes that space,
  * and the trim which follows leaves an empty string.
+ *
+ * Exported so that a reader which needs the position of a value, and not only
+ * the value, matches the run exactly as the parser below does. Two copies of
+ * the rule drift apart in silence.
  */
-const OPTION_LINE = /^\s*\/\/\|\s*([A-Za-z0-9-]+):\s*(.+)$/;
+export const OPTION_LINE = /^\s*\/\/\|\s*([A-Za-z0-9-]+):\s*(.+)$/;
 
 /**
  * The Lua guard at `_modules/code-cell.lua:110`, which warns about an option

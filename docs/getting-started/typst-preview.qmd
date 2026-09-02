@@ -80,6 +80,24 @@ A `{typst}` cell also compiles with the `font-path`, the `package-path` and the 
 A font path or a package path that starts with `/` resolves from the project root.
 Every other value stays relative, and the compile runs from the project root.
 
+## Opening a File an Option Names
+
+A `file:` option and a `preamble:` option name a file.
+Hold Ctrl, or Cmd on macOS, and select the value to open that file in the editor.
+The link appears only when the file is there.
+
+The two options accept the same paths as the preview.
+A value that starts with `/` resolves from the project root.
+Every other value resolves from the directory of the document.
+A `preamble:` entry that does not end with `.typ` is inline Typst code, so it is not a link.
+
+`file:` is a cell option alone.
+`preamble:` also works in the front matter of a document, and in `_quarto.yml` or `_metadata.yml` under `typst-render`.
+
+When a path in a document leads to no file, the editor shows a warning on the value.
+A relative path in a configuration file gets no warning.
+Every document that reads the file resolves the path from its own directory, so the file itself cannot say where the path leads.
+
 ## Commands
 
 | Command                             | What it does                                                                                           |
