@@ -132,8 +132,12 @@ function blockBody(
  * nothing after its colon does not match either, while the same line with one
  * trailing space does: the pattern backtracks, the value becomes that space,
  * and the trim which follows leaves an empty string.
+ *
+ * Exported so that a reader which needs the position of a value, and not only
+ * the value, matches the run exactly as the parser below does. Two copies of
+ * the rule drift apart in silence.
  */
-const OPTION_LINE = /^\s*\/\/\|\s*([A-Za-z0-9-]+):\s*(.+)$/;
+export const OPTION_LINE = /^\s*\/\/\|\s*([A-Za-z0-9-]+):\s*(.+)$/;
 
 /**
  * The Lua guard at `_modules/code-cell.lua:110`, which warns about an option
@@ -148,6 +152,18 @@ const OPTION_LINE = /^\s*\/\/\|\s*([A-Za-z0-9-]+):\s*(.+)$/;
  */
 const LATE_OPTION_LINE = /^\s*\/\/\|\s*[A-Za-z0-9-]+:\s/;
 
+/**
+ * The inside of a quoted value, or undefined when the value is not quoted,
+ * `code-cell.lua:99-101`.
+ *
+ * Exported for the reader which needs the position of a value as well as the
+ * value, because the quotes decide where it starts.
+ */
+export function quotedValue(raw: string): string | undefined {
+	const quoted = /^"(.*)"$/.exec(raw) ?? /^'(.*)'$/.exec(raw);
+	return quoted === null ? undefined : quoted[1];
+}
+
 /** One parsed value, following `code-cell.lua:95-102`. */
 function optionValue(raw: string): string | boolean {
 	if (raw === "true") {
@@ -156,8 +172,7 @@ function optionValue(raw: string): string | boolean {
 	if (raw === "false") {
 		return false;
 	}
-	const quoted = /^"(.*)"$/.exec(raw) ?? /^'(.*)'$/.exec(raw);
-	return quoted === null ? raw : quoted[1];
+	return quotedValue(raw) ?? raw;
 }
 
 /**

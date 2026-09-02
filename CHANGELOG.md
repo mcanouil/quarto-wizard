@@ -5,6 +5,7 @@
 ### New Features
 
 - feat: preview a Typst block from a Quarto document. The block under the cursor compiles with the Typst binary that ships inside Quarto, and the image is shown in a panel beside the editor or in a hover. (#395)
+- feat: open the file that a `file:` or a `preamble:` option names. The value is a link in a `{typst}` cell, in the front matter of a document, and in a configuration file, and a path that leads to no file carries a warning. (#402)
 - feat: publish the Lua reference validator of the v2 extension schema vocabulary at `https://m.canouil.dev/quarto-wizard/assets/schema/v2/schema.lua`. The vocabulary and the validator carry the same version, and extensions can now resolve the module by URL. (#374)
 - feat: accept `uniqueItems` in a field descriptor. The Lua reference validator already enforced the keyword, and the meta-schema now allows it, so a schema that uses it passes both. (#378)
 - docs: add a reference page that describes how an extension loads and calls the Lua reference validator. The page separates the meta-schema, which validates a schema file while you write it, from the module, which validates document metadata during a render. (#383)
