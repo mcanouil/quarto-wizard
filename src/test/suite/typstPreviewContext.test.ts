@@ -13,7 +13,8 @@ import {
 	PINNED_TYPST_RENDER_VERSION,
 	TypstContextCache,
 } from "../../providers/typstPreview/typstContext";
-import { readBrand, readMetadataChain, resolveQuartoPath } from "../../providers/typstPreview/typstMetadata";
+import { readBrand, readMetadataChain } from "../../providers/typstPreview/typstMetadata";
+import { resolveQuartoPath } from "../../utils/typst/typstPaths";
 import { invalidateProjectRoots, setProjectRoots } from "../../utils/projectRootsRegistry";
 import { invalidateInstalledExtensionsCache } from "../../utils/installedExtensionsCache";
 import { parseFrontMatter } from "../../utils/yamlPosition";
@@ -63,6 +64,9 @@ suite("Typst Preview Context Test Suite", () => {
 			levels: [],
 			brand: EMPTY_BRAND,
 			mode: "light" as const,
+			// A fixture drives the assembly from strings alone, so it names no place
+			// on disk, and the command it builds carries no root.
+			paths: {},
 			readFile: reader({}),
 		};
 
@@ -133,11 +137,27 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.ok(built.source.includes("#set page(width: 6cm, height: auto, margin: 1cm, fill: none)"));
 		});
 
-		test("Should ignore a block-level root, which is a global-only option", async () => {
-			// `root` never reaches the source, so a block writing it changes nothing.
-			const plain = await buildCell(cell([]), context);
-			const rooted = await buildCell(cell(["root: ../assets"]), context);
-			assert.ok(!isUnavailable(plain) && !isUnavailable(rooted));
+		test("Should ignore a block-level root and font path, which are global-only", async () => {
+			// `typst-render.lua:1284-1293` reads these from the global configuration
+			// alone, so a block writing one changes neither the source nor the command.
+			// The document sits somewhere on disk here, or every command would carry
+			// no root and the comparison would hold for the wrong reason.
+			const placed = { ...context, paths: { projectRoot: "/p", documentDirectory: path.join("/p", "posts") } };
+			const plain = await buildCell(cell([]), placed);
+			const rooted = await buildCell(cell(["root: ../assets"]), placed);
+			const fonted = await buildCell(cell(["font-path: /other"]), placed);
+			assert.ok(!isUnavailable(plain) && !isUnavailable(rooted) && !isUnavailable(fonted));
+			assert.deepStrictEqual(plain.command.argv, [
+				"compile",
+				"--format",
+				"svg",
+				"--root",
+				path.join("/p", "posts"),
+				"-",
+				"-",
+			]);
+			assert.deepStrictEqual(rooted.command, plain.command);
+			assert.deepStrictEqual(fonted.command, plain.command);
 			assert.strictEqual(rooted.source, plain.source);
 		});
 	});
@@ -381,6 +401,83 @@ suite("Typst Preview Context Test Suite", () => {
 			} finally {
 				fs.rmSync(directory, { recursive: true, force: true });
 			}
+		});
+
+		test("Should root a cell at its own directory and run from the project", async () => {
+			// The source reaches Typst on stdin, so the root is what every relative
+			// path the cell reads resolves against. Without it a cell reading a file
+			// beside its document searches the working directory of the extension
+			// host, which is where this whole slice went wrong.
+			const directory = project(true);
+			try {
+				const posts = path.join(directory, "posts");
+				fs.mkdirSync(posts);
+				fs.writeFileSync(path.join(posts, "doc.qmd"), CELL);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(posts, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, new TypstContextCache());
+				assert.ok(!isUnavailable(request));
+				assert.deepStrictEqual(request.command.argv, ["compile", "--format", "svg", "--root", posts, "-", "-"]);
+				assert.strictEqual(request.command.cwd, directory);
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should carry the root and the font path the configuration names", async () => {
+			const directory = project(true);
+			try {
+				const text = [
+					"---",
+					"extensions:",
+					"  typst-render:",
+					"    root: /",
+					"    font-path: /assets/fonts",
+					"---",
+					"",
+					CELL,
+				].join("\n");
+				fs.writeFileSync(path.join(directory, "doc.qmd"), text);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(9, 0), HEADER, new TypstContextCache());
+				assert.ok(!isUnavailable(request));
+				assert.deepStrictEqual(request.command.argv, [
+					"compile",
+					"--format",
+					"svg",
+					"--root",
+					directory,
+					"--font-path",
+					path.join(directory, "assets", "fonts"),
+					"-",
+					"-",
+				]);
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should root a plain block at the directory of its document", async () => {
+			// A plain block never reaches the filter, so it reads no option of it. The
+			// directory of the document is the whole answer, and it costs no read.
+			const directory = project(false);
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), "```typst\n#circle()\n```\n");
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
+				assert.ok(!isUnavailable(request));
+				assert.deepStrictEqual(request.command.argv, ["compile", "--format", "svg", "--root", directory, "-", "-"]);
+				assert.strictEqual(request.command.cwd, directory);
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should carry no root for a document that is not a file on disk", async () => {
+			const document = await documentOf("```typst\n#circle()\n```\n");
+			const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
+			assert.ok(!isUnavailable(request));
+			assert.deepStrictEqual(request.command.argv, ["compile", "--format", "svg", "-", "-"]);
+			assert.strictEqual(request.command.cwd, undefined);
 		});
 
 		test("Should say so when the cursor is in no block", async () => {

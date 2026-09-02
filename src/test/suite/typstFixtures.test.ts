@@ -113,6 +113,9 @@ suite("Typst Fixtures Test Suite", () => {
 				// document whose colours differ between the two is rendered twice, and
 				// each side is one fixture.
 				mode: meta.brandMode,
+				// A fixture compares the source and not the command line, and it names
+				// no place on disk to resolve one against.
+				paths: {},
 				readFile: async (documentPath) => {
 					const file = path.join(directory, documentPath);
 					return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;

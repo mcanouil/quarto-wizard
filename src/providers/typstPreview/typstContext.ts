@@ -9,12 +9,14 @@ import {
 	type Unavailable,
 } from "../../utils/typst/typstSource";
 import { TYPST_RENDER, documentBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
+import { buildTypstCommand, type TypstCommand } from "../../utils/typst/typstCli";
 import { EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
 import { getInstalledExtensionsCached } from "../../utils/installedExtensionsCache";
 import { getYamlFrontMatterRange } from "../../utils/yamlPosition";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
 import { logMessage } from "../../utils/log";
-import { readBrand, readMetadataChain, readSourceText, resolveQuartoPath, type MetadataChain } from "./typstMetadata";
+import { documentDirectoryOf, readBrand, readMetadataChain, readSourceText, type MetadataChain } from "./typstMetadata";
+import { resolveQuartoPath } from "../../utils/typst/typstPaths";
 
 /**
  * One document and one position turned into a compile.
@@ -68,6 +70,14 @@ export interface CompileRequest {
 	blockIndex: number;
 	/** The whole source to send to the compiler. */
 	source: string;
+	/**
+	 * The command the block compiles under.
+	 *
+	 * Per document rather than one constant, because the compile root is what
+	 * every relative path the block reads resolves against, and it is a property
+	 * of where the document sits.
+	 */
+	command: TypstCommand;
 	/** How many lines sit above the block body, for mapping a diagnostic back. */
 	injectedLines: number;
 	/** The brand mode a cell resolved with, absent for the other two kinds. */
@@ -307,7 +317,11 @@ export async function buildCompileRequest(
 		// imports, show rules and set directives the preview cannot apply. Saying so
 		// beside the image is what stops a divergence being read as a defect.
 		const notes = block.kind === "raw" ? ["the document template is not applied to a raw passthrough"] : [];
-		return { block, blockIndex, ...assembled, notes, bodyLineOffset: 0 };
+		// Neither kind reaches the filter, so neither carries an option of it. The
+		// directory of the document is the whole answer, and finding it costs no
+		// read, which is what keeps these two off the disk entirely.
+		const command = buildTypstCommand({ paths: { documentDirectory: documentDirectoryOf(document) } });
+		return { block, blockIndex, ...assembled, command, notes, bodyLineOffset: 0 };
 	}
 
 	const { installed, chain, brand } = await cache.cellContext(document, text);
@@ -332,6 +346,9 @@ export async function buildCompileRequest(
 		levels: chain.levels,
 		brand,
 		mode,
+		// The chain is itself where the document sits, so the two halves of one
+		// document cannot be paired with the halves of another.
+		paths: chain,
 		readFile: (documentPath) => readTypstFile(documentPath, chain),
 	});
 	if (isUnavailable(built)) {

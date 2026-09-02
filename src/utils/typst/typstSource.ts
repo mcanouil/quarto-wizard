@@ -1,5 +1,7 @@
 import { precedingRawBlocks, type TypstBlock } from "./typstBlocks";
 import { brandColourReader, brandDictionary, type Brand } from "./typstBrand";
+import { buildTypstCommand, type TypstCommand } from "./typstCli";
+import type { TypstPaths } from "./typstPaths";
 import {
 	TYPST_DEFAULTS,
 	mergeGlobalConfigs,
@@ -296,6 +298,14 @@ export interface CellContext {
 	brand: Brand;
 	/** Which side of the brand the compile reads. */
 	mode: TypstBrandMode;
+	/**
+	 * Where the document sits, which is what the command resolves against.
+	 *
+	 * Two plain strings, so this module still imports no `vscode` and a fixture
+	 * still drives the whole pipeline without a workspace. A document with
+	 * neither passes an empty pair, and the compile then carries no root.
+	 */
+	paths: TypstPaths;
 	readFile: ReadFile;
 }
 
@@ -311,6 +321,8 @@ export function isUnavailable<T extends object>(result: T | Unavailable): result
 
 /** One cell assembled, with what the preview does not reproduce about it. */
 export interface AssembledCell extends AssembledSource {
+	/** The command the cell compiles under. */
+	command: TypstCommand;
 	/** What the panel should say about the block beside the image. */
 	notes: string[];
 	/**
@@ -392,12 +404,15 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	const bodyLineOffset =
 		code === undefined ? block.body.slice(0, block.body.length - block.code.length).split("\n").length - 1 : 0;
 
+	// The fallback is `DEFAULTS.background`, which `resolve_opts_colours` applies
+	// at `typst-render.lua:884`. Only the background has one: a cell with no
+	// foreground writes no text fill line at all.
+	const background = resolveColourValue(options.background, context.mode) ?? String(TYPST_DEFAULTS.background);
+	const foreground = resolveColourValue(options.foreground, context.mode);
+
 	const assembled = buildCellSource(block, {
-		// The fallback is `DEFAULTS.background`, which `resolve_opts_colours` applies
-		// at `typst-render.lua:884`. Only the background has one: a cell with no
-		// foreground writes no text fill line at all.
-		background: resolveColourValue(options.background, context.mode) ?? String(TYPST_DEFAULTS.background),
-		foreground: resolveColourValue(options.foreground, context.mode),
+		background,
+		foreground,
 		width: String(options.width),
 		height: String(options.height),
 		margin: String(options.margin),
@@ -409,5 +424,16 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	// the read and compiles the body, and reporting it as the external file would
 	// print a position "of " with no name and drop the option run correction.
 	const externalFile = code === undefined ? undefined : options.file;
-	return { ...assembled, notes: cellNotes(options), bodyLineOffset, externalFile };
+	// The global configuration and not the merged options, because the filter
+	// reads `root`, `font-path` and `package-path` from it alone. The block's own
+	// `input:` is read from the block, because the merge drops it: it is a string
+	// per block and a mapping globally, and the two cannot live under one key.
+	const command = buildTypstCommand({
+		global,
+		blockInput: typeof block.options.input === "string" ? block.options.input : undefined,
+		background,
+		foreground,
+		paths: context.paths,
+	});
+	return { ...assembled, command, notes: cellNotes(options), bodyLineOffset, externalFile };
 }

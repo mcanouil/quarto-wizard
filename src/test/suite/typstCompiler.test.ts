@@ -1,5 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import {
 	typstBinaryCandidate,
@@ -8,6 +10,7 @@ import {
 	TypstCompileFailure,
 	type TypstProbe,
 } from "../../providers/typstPreview/typstCompiler";
+import type { TypstCommand } from "../../utils/typst/typstCli";
 
 const BIN = path.join("/opt", "quarto", "bin");
 
@@ -21,9 +24,9 @@ const BIN = path.join("/opt", "quarto", "bin");
  */
 const RUNTIME = process.execPath;
 
-/** Arguments that run one expression in a child process. */
-function run(source: string): string[] {
-	return ["-e", source];
+/** A command that runs one expression in a child process. */
+function run(source: string): TypstCommand {
+	return { argv: ["-e", source] };
 }
 
 /** A token that is already cancelled. */
@@ -137,6 +140,21 @@ suite("Typst Compiler Test Suite", () => {
 			}
 		});
 
+		test("Should run from the directory the caller names", async () => {
+			// A relative `--font-path` is left relative by the filter, so it resolves
+			// against the directory the compile runs from. The preview has to run from
+			// the same place a render does, or it reads the fonts of nowhere.
+			const directory = fs.realpathSync(os.tmpdir());
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				const command = { ...run("process.stdout.write(process.cwd())"), cwd: directory };
+				const result = await compiler.compile("", command, never);
+				assert.strictEqual(result.svg, directory);
+			} finally {
+				compiler.dispose();
+			}
+		});
+
 		test("Should keep a multi-byte character split across two chunks", async () => {
 			// Typst writes its position line starting with `┌─`. Decoding each chunk
 			// as it arrives would cut that character in half and lose the position.
@@ -229,7 +247,7 @@ suite("Typst Compiler Test Suite", () => {
 			const compiler = new TypstCompiler(path.join(BIN, "tools", "aarch64", "typst"));
 			try {
 				await assert.rejects(
-					compiler.compile("", [], never),
+					compiler.compile("", { argv: [] }, never),
 					(error: unknown) => error instanceof TypstCompileFailure && /Failed to start Typst/.test(String(error)),
 				);
 			} finally {
