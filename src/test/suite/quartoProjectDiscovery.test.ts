@@ -5,6 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { EXTENSIONS_DIR, MANIFEST_FILENAMES } from "@quarto-wizard/core";
 import {
+	buildExcludeGlob,
 	discoverQuartoProjectRoots,
 	EXTENSION_MANIFEST_DIRECT_GLOB,
 	EXTENSION_MANIFEST_GLOB,
@@ -519,6 +520,16 @@ suite("Quarto Project Discovery Test Suite", () => {
 			assert.strictEqual(typeof call.maxResults, "number");
 			assert.strictEqual(call.token, source.token);
 		}
+	});
+
+	test("drops an exclude pattern that holds a comma, which would split the brace group", async () => {
+		mockedFilesExclude = { "**/data, raw": true, "**/.git": true };
+		mockedSearchExclude = { "**/{node_modules,dist}": true };
+
+		const exclude = buildExcludeGlob(vscode.Uri.file(tempDir));
+
+		// `**/data` alone would hide every `data` directory, and the projects under it.
+		assert.strictEqual(exclude, "{**/.git,**/{node_modules,dist}}");
 	});
 
 	test("populated root _extensions/ short-circuits before any scan", async () => {

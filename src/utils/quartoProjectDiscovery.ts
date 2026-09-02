@@ -67,15 +67,33 @@ export function buildExcludeGlob(scope: vscode.Uri): string | undefined {
 	for (const section of ["files", "search"]) {
 		const excludes = vscode.workspace.getConfiguration(section, scope).get<Record<string, unknown>>("exclude");
 		for (const [pattern, enabled] of Object.entries(excludes ?? {})) {
-			if (enabled === true) {
-				patterns.add(pattern);
+			if (enabled !== true) {
+				continue;
 			}
+			// A comma outside a brace group would split the pattern in two, and each
+			// half would exclude more than the pattern names.
+			if (hasBareComma(pattern)) {
+				logMessage(`Skipping the exclude pattern ${pattern}: a comma outside a brace group.`, "warn");
+				continue;
+			}
+			patterns.add(pattern);
 		}
 	}
 	if (patterns.size === 0) {
 		return undefined;
 	}
 	return `{${[...patterns].join(",")}}`;
+}
+
+/** True when `pattern` holds a comma that no brace group encloses. */
+function hasBareComma(pattern: string): boolean {
+	let depth = 0;
+	for (const character of pattern) {
+		if (character === "{") depth += 1;
+		else if (character === "}") depth -= 1;
+		else if (character === "," && depth <= 0) return true;
+	}
+	return false;
 }
 
 /**

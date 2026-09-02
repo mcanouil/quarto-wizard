@@ -42,13 +42,9 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
 			return currentRoots;
 		}
 		// A superseded discovery reports nothing, so follow the discovery that
-		// replaced it. When nothing replaced it the snapshot is the answer, and
-		// starting another scan here would fight the refresh that comes next.
-		const successor = inFlight;
-		if (!successor) {
-			break;
-		}
-		pending = successor;
+		// replaced it. When nothing replaced it, run one here: the refresh of the
+		// tree view is debounced, and the empty snapshot would report no project.
+		pending = inFlight ?? refreshProjectRoots();
 	}
 	return currentRoots;
 }

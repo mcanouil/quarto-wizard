@@ -12,6 +12,7 @@ import { getAutoProjectDetection } from "../utils/extensionDetails";
 import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import { invalidateMetadataFiles } from "../utils/metadataFilesRegistry";
 import { QUARTO_PROJECT_GLOB, EXTENSION_MANIFEST_GLOB } from "../utils/quartoProjectDiscovery";
 import {
 	findOwningProjectRootSync,
@@ -112,6 +113,14 @@ export class ExtensionsInstalled {
 
 		context.subscriptions.push(
 			vscode.workspace.onDidChangeConfiguration((event) => {
+				// The scans read the exclude settings, so a change to either one changes
+				// which projects and which metadata files the scans can reach.
+				if (event.affectsConfiguration("files.exclude") || event.affectsConfiguration("search.exclude")) {
+					invalidateMetadataFiles();
+					invalidateProjectRoots();
+					refreshProjectRoots();
+					return;
+				}
 				if (event.affectsConfiguration("quartoWizard.autoProjectDetection")) {
 					refreshProjectRoots();
 				}

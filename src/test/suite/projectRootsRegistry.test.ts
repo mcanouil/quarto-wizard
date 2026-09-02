@@ -229,11 +229,7 @@ suite("Project Roots Registry Test Suite", () => {
 			configurable: true,
 		});
 
-		let capturedToken: vscode.CancellationToken | undefined;
-		let signalCalled: () => void = () => undefined;
-		const findFilesCalled = new Promise<void>((resolve) => {
-			signalCalled = resolve;
-		});
+		const tokens: (vscode.CancellationToken | undefined)[] = [];
 		let releaseFindFiles: () => void = () => undefined;
 		const blockUntil = new Promise<void>((resolve) => {
 			releaseFindFiles = resolve;
@@ -244,19 +240,24 @@ suite("Project Roots Registry Test Suite", () => {
 			_maxResults?: number,
 			token?: vscode.CancellationToken,
 		) => {
-			capturedToken = token;
-			signalCalled();
+			tokens.push(token);
 			return blockUntil.then(() => [] as vscode.Uri[]);
 		}) as typeof vscode.workspace.findFiles;
 
 		const pending = ensureProjectRoots();
-		await findFilesCalled;
+		await waitFor(() => tokens.length >= 2);
 		invalidateProjectRoots();
 		releaseFindFiles();
-		await pending;
+		const roots = await pending;
 
-		assert.ok(capturedToken, "discovery must pass a cancellation token to findFiles");
-		assert.strictEqual(capturedToken?.isCancellationRequested, true);
+		assert.ok(tokens[0], "discovery must pass a cancellation token to findFiles");
+		assert.strictEqual(tokens[0]?.isCancellationRequested, true);
+		// Nothing replaced the cancelled discovery, and the debounced refresh of the
+		// tree view is 500 ms away, so the caller must run one of its own.
+		assert.deepStrictEqual(
+			roots.map((root) => root.fsPath),
+			[workspaceFsPath],
+		);
 	});
 
 	test("setProjectRoots wins over an older in-flight ensureProjectRoots discovery", async () => {
