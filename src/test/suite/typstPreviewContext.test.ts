@@ -129,6 +129,18 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.ok(file.source.endsWith("\n#circle()"));
 		});
 
+		test("Should say that it ignored an option that is not text", async () => {
+			// The render reads the option whatever it holds, so an image built
+			// without it is not the image the render produces. Dropping it in
+			// silence would leave the reader with no way to see that.
+			const built = await buildCell(cell(["file: true", "preamble: false"]), context);
+			assert.ok(!isUnavailable(built));
+			assert.deepStrictEqual(
+				built.notes.filter((note) => note.includes("was ignored")),
+				["the `preamble` option is not text and was ignored", "the `file` option is not text and was ignored"],
+			);
+		});
+
 		test("Should say so when a file option cannot be read", async () => {
 			// The filter renders nothing here. A blank image with no reason beside
 			// it would look like the block itself was empty.

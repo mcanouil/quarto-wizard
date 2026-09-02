@@ -380,6 +380,21 @@ export function cellNotes(options: ResolvedTypstOptions): string[] {
  * are resolved and merged, the block options are merged over them, the colours
  * of the mode in force are picked out, and the parts are assembled.
  */
+/**
+ * One option that has to be text, and a record of it when it is not.
+ *
+ * The name is collected rather than dropped in silence. The render reads the
+ * option whatever it holds, so a preview that ignores it and says nothing shows
+ * an image the render does not produce.
+ */
+function textOption(value: unknown, name: string, dropped: string[]): string | readonly string[] | undefined {
+	if (value === undefined || typeof value === "string" || Array.isArray(value)) {
+		return value as string | readonly string[] | undefined;
+	}
+	dropped.push(name);
+	return undefined;
+}
+
 export async function buildCell(block: TypstBlock, context: CellContext): Promise<AssembledCell | Unavailable> {
 	const brand = brandColourReader(context.brand);
 	const global = mergeGlobalConfigs(context.levels, brand);
@@ -390,9 +405,10 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	// assembler would raise a `TypeError` inside a compile that has no reason to
 	// fail and the reader would be shown that in place of the block. `input:` is
 	// guarded the same way below.
-	const preambleOption =
-		typeof options.preamble === "string" || Array.isArray(options.preamble) ? options.preamble : undefined;
-	const fileOption = typeof options.file === "string" && options.file !== "" ? options.file : undefined;
+	const droppedOptions: string[] = [];
+	const preambleOption = textOption(options.preamble, "preamble", droppedOptions);
+	const fileText = textOption(options.file, "file", droppedOptions);
+	const fileOption = typeof fileText === "string" && fileText !== "" ? fileText : undefined;
 
 	// The preamble and the `file:` are independent reads, so they run together.
 	const [preamble, code] = await Promise.all([
@@ -451,6 +467,9 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	// outright, so that line is not compiled at all and the note would be wrong.
 	if (code === undefined && hasLateOptionLine(block)) {
 		notes.push("an option line below the first run is compiled as code, not read as an option");
+	}
+	for (const name of droppedOptions) {
+		notes.push(`the \`${name}\` option is not text and was ignored`);
 	}
 	return { ...assembled, command, notes, bodyLineOffset, externalFile };
 }
