@@ -4,6 +4,8 @@
 export type DebouncedFunction<T extends (...args: never[]) => void> = T & {
 	cancel: () => void;
 	flush: () => void;
+	/** Whether a call is waiting for its delay to pass. */
+	pending: () => boolean;
 };
 
 /**
@@ -43,6 +45,8 @@ export function debounce<T extends (...args: any[]) => void>(fn: T, delay: numbe
 		}
 		pendingArgs = undefined;
 	};
+
+	debounced.pending = () => pendingArgs !== undefined;
 
 	debounced.flush = () => {
 		if (timeoutId !== undefined) {

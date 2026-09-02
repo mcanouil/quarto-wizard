@@ -17,7 +17,10 @@ suite("Typst Path Links Test Suite", () => {
 	let provider: TypstPathLinks;
 
 	setup(() => {
-		directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-links-")));
+		// Spelled as the editor spells it. Every path under test reaches the
+		// assertion through a `Uri`, and on Windows that lower-cases the drive
+		// letter, so a raw temporary directory differs from it by that letter alone.
+		directory = vscode.Uri.file(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "typst-links-")))).fsPath;
 		provider = new TypstPathLinks();
 	});
 

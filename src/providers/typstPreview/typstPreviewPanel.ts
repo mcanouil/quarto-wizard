@@ -30,21 +30,11 @@ export class TypstPreviewPanel {
 
 	/** Whether the page has reported that it is listening. */
 	private ready = false;
-	/**
-	 * The updates that arrived before the page was listening.
-	 *
-	 * The page is loaded asynchronously, and the first compile usually finishes
-	 * first, so without this queue the first image is posted into nothing. The
-	 * two kinds are held apart, because an image and the error over it are not
-	 * alternatives: a single slot would drop the image and show a panel that is
-	 * empty behind its error.
-	 */
-	private pendingImage: PreviewMessage | undefined;
-	private pendingError: PreviewMessage | undefined;
 	/** What the page is already showing, so an unchanged image is not sent again. */
 	private shownSvg: string | undefined;
 	private shownHeader: string | undefined;
-	private showingError = false;
+	/** The failure reported over the image, which is also whether one is showing. */
+	private shownError: string | undefined;
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly onDidDisposeEmitter = new vscode.EventEmitter<void>();
 	private closed = false;
@@ -83,15 +73,7 @@ export class TypstPreviewPanel {
 					return;
 				}
 				this.ready = true;
-				// The image goes first, so the error lands on top of it and not
-				// underneath.
-				for (const queued of [this.pendingImage, this.pendingError]) {
-					if (queued) {
-						void panel.webview.postMessage(queued);
-					}
-				}
-				this.pendingImage = undefined;
-				this.pendingError = undefined;
+				this.paint();
 			}),
 		);
 
@@ -108,12 +90,12 @@ export class TypstPreviewPanel {
 		// an image arrives, so a block that is broken and then restored compiles to
 		// the image already shown, and skipping that message would leave a failure
 		// reported over a block that compiles.
-		if (svg === this.shownSvg && header === this.shownHeader && !this.showingError) {
+		if (svg === this.shownSvg && header === this.shownHeader && this.shownError === undefined) {
 			return;
 		}
 		this.shownSvg = svg;
 		this.shownHeader = header;
-		this.showingError = false;
+		this.shownError = undefined;
 		this.post({ type: "image", uri: svgDataUri(svg), header });
 	}
 
@@ -127,7 +109,7 @@ export class TypstPreviewPanel {
 	clear(): void {
 		this.shownSvg = undefined;
 		this.shownHeader = undefined;
-		this.showingError = false;
+		this.shownError = undefined;
 		this.post({ type: "clear" });
 	}
 
@@ -139,7 +121,7 @@ export class TypstPreviewPanel {
 	 * keystroke.
 	 */
 	showError(message: string): void {
-		this.showingError = true;
+		this.shownError = message;
 		this.post({ type: "error", message });
 	}
 
@@ -171,6 +153,29 @@ export class TypstPreviewPanel {
 		this.disposables.length = 0;
 	}
 
+	/**
+	 * Send the page what it should be showing.
+	 *
+	 * The page is loaded asynchronously and the first compile usually finishes
+	 * first, so the first image would otherwise be posted into nothing. A page
+	 * that reloads after it has gone live has the same problem and no update to
+	 * follow: moving the panel to another editor group rebuilds the document, and
+	 * the image and the header are unchanged, so `show` would send nothing and the
+	 * panel would stay blank until the block itself changed.
+	 *
+	 * Both are answered by sending what is on screen rather than by queueing what
+	 * arrived early. The image goes first, so the error lands on top of it and not
+	 * underneath.
+	 */
+	private paint(): void {
+		if (this.shownSvg !== undefined) {
+			this.post({ type: "image", uri: svgDataUri(this.shownSvg), header: this.shownHeader ?? "" });
+		}
+		if (this.shownError !== undefined) {
+			this.post({ type: "error", message: this.shownError });
+		}
+	}
+
 	private post(message: PreviewMessage): void {
 		if (this.closed) {
 			// A compile can outlive the panel: it runs for up to the timeout, and
@@ -180,15 +185,8 @@ export class TypstPreviewPanel {
 			return;
 		}
 		if (!this.ready) {
-			if (message.type === "error") {
-				this.pendingError = message;
-			} else {
-				// A compile that succeeded answers the failure before it, and so does
-				// moving to another block, so the queued error is stale and must not
-				// replay over what replaced it.
-				this.pendingImage = message;
-				this.pendingError = undefined;
-			}
+			// Every caller records what it is showing before it posts, so the page
+			// is painted from that state once it reports in.
 			return;
 		}
 		void this.panel.webview.postMessage(message);
