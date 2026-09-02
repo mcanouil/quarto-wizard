@@ -164,8 +164,38 @@ function yamlScalar(raw: string, start: number): Scalar {
 /** A `preamble:` key, with everything written after the colon. */
 const PREAMBLE_KEY = /^(\s*)preamble:\s*(.*)$/;
 
-/** One entry of a block sequence. */
-const SEQUENCE_ENTRY = /^(\s*)- (.+)$/;
+/**
+ * One entry of a block sequence.
+ *
+ * The dash is followed by whitespace of any width, which is one space in most
+ * documents and more in a document whose entries are aligned. The value capture
+ * runs to the end of the line, so its offset follows from its length whatever
+ * that width is.
+ */
+const SEQUENCE_ENTRY = /^(\s*)-\s+(.+)$/;
+
+/**
+ * The entries of a flow sequence, `preamble: [_one.typ, _two.typ]`, or
+ * undefined when the value is not one.
+ *
+ * A flow sequence is a list the same way a block sequence is, and a reader that
+ * takes it for one value finds no path in it and says nothing at all.
+ */
+function flowEntries(scalar: Scalar): Scalar[] | undefined {
+	const flow = /^\[(.*)\]$/.exec(scalar.value);
+	if (flow === null) {
+		return undefined;
+	}
+	const entries: Scalar[] = [];
+	// Past the opening bracket, then past each entry and the comma after it.
+	let start = scalar.start + 1;
+	for (const part of flow[1].split(",")) {
+		const lead = part.length - part.trimStart().length;
+		entries.push(unquote(part.trimStart(), start + lead));
+		start += part.length + 1;
+	}
+	return entries;
+}
 
 /**
  * The `preamble:` of every `typst-render` mapping in the YAML of a document.
@@ -222,13 +252,15 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
 			scalar = yamlScalar(entry[2], line.length - entry[2].length);
 		}
 
-		if (scalar !== undefined && namesFile("preamble", scalar.value)) {
-			found.push({
-				key: "preamble",
-				value: scalar.value,
-				start: lineStart + scalar.start,
-				end: lineStart + scalar.start + scalar.value.length,
-			});
+		for (const value of scalar === undefined ? [] : (flowEntries(scalar) ?? [scalar])) {
+			if (namesFile("preamble", value.value)) {
+				found.push({
+					key: "preamble",
+					value: value.value,
+					start: lineStart + value.start,
+					end: lineStart + value.start + value.value.length,
+				});
+			}
 		}
 
 		lineStart += lines[index].length + 1;

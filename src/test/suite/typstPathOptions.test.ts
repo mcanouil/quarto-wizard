@@ -141,6 +141,23 @@ suite("Typst Path Options Test Suite", () => {
 			assert.deepStrictEqual(covered(text), ["_one.typ"]);
 		});
 
+		test("Should read an entry written with more than one space after the dash", () => {
+			const text = "---\ntypst-render:\n  preamble:\n    -   _one.typ\n---\n";
+			const option = only(text);
+			assert.strictEqual(option.value, "_one.typ");
+			assert.strictEqual(text.slice(option.start, option.end), "_one.typ");
+		});
+
+		test("Should find every entry of a flow sequence", () => {
+			const text = "---\ntypst-render:\n  preamble: [_one.typ, _two.typ]\n---\n";
+			assert.deepStrictEqual(covered(text), ["_one.typ", "_two.typ"]);
+		});
+
+		test("Should read a quoted entry of a flow sequence", () => {
+			const text = "---\ntypst-render:\n  preamble: [\"_one.typ\", '#set page(fill: none)']\n---\n";
+			assert.deepStrictEqual(covered(text), ["_one.typ"]);
+		});
+
 		test("Should skip a list entry that is inline Typst code", () => {
 			const text = "---\ntypst-render:\n  preamble:\n    - _one.typ\n    - '#set page(fill: none)'\n---\n";
 			assert.deepStrictEqual(covered(text), ["_one.typ"]);
