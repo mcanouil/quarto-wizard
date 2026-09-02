@@ -1,5 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import {
 	typstBinaryCandidate,
@@ -132,6 +134,20 @@ suite("Typst Compiler Test Suite", () => {
 					never,
 				);
 				assert.strictEqual(result.svg, "the source");
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should run from the directory the caller names", async () => {
+			// A relative `--font-path` is left relative by the filter, so it resolves
+			// against the directory the compile runs from. The preview has to run from
+			// the same place a render does, or it reads the fonts of nowhere.
+			const directory = fs.realpathSync(os.tmpdir());
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				const result = await compiler.compile("", run("process.stdout.write(process.cwd())"), never, directory);
+				assert.strictEqual(result.svg, directory);
 			} finally {
 				compiler.dispose();
 			}

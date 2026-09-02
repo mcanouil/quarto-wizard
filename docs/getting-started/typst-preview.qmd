@@ -65,6 +65,21 @@ A `brand-mode` in the document wins over the theme.
 The side you select holds until you select the other one, or until you refresh the preview.
 The panel header always names the side in force.
 
+## Paths
+
+The preview sends the block to Typst through standard input.
+A path inside the block therefore resolves against the compile root, and not against the file that holds the block.
+
+The preview uses the root that a render uses.
+For a `{typst}` cell, the root is the `root` value under `extensions.typst-render`.
+Its default is the directory of the document.
+A value that starts with `/` resolves from the project root.
+A plain block and a raw block always use the directory of the document.
+
+A `{typst}` cell also compiles with the `font-path`, the `package-path` and the `input` values of the extension.
+A font path or a package path that starts with `/` resolves from the project root.
+Every other value stays relative, and the compile runs from the project root.
+
 ## Commands
 
 | Command                             | What it does                                                                                           |
@@ -92,7 +107,7 @@ Two differences are known and are stated beside the image when they apply.
 - A raw block reaches Typst through the document template during a render.
   The template contributes imports, show rules and set directives that the preview cannot apply, so a block that depends on them looks different.
 - The preview compiles one block on its own.
-  An import that a render resolves can therefore fail under the narrower root of the preview.
+  A plain block that uses a value from another block therefore fails.
 
 These are out of scope for this version.
 

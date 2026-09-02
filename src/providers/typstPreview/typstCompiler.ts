@@ -185,8 +185,12 @@ export class TypstCompiler {
 	 * Resolves for any run Typst finished, whether or not it produced an image,
 	 * because a failed compile is a result the caller renders. Rejects when the
 	 * run was cancelled, superseded, timed out, oversized, or never started.
+	 *
+	 * @param cwd - The directory to run from. It is what a relative `--font-path`
+	 *   resolves against, the way one under a render resolves against the
+	 *   directory Quarto runs Typst from.
 	 */
-	compile(source: string, argv: string[], token: vscode.CancellationToken): Promise<TypstCompileResult> {
+	compile(source: string, argv: string[], token: vscode.CancellationToken, cwd?: string): Promise<TypstCompileResult> {
 		if (this.disposed) {
 			return Promise.reject(new TypstCompileFailure("The Typst compiler is disposed."));
 		}
@@ -196,7 +200,7 @@ export class TypstCompiler {
 		const maxOutputBytes = this.options.maxOutputBytes ?? MAX_OUTPUT_BYTES;
 
 		return new Promise<TypstCompileResult>((resolve, reject) => {
-			const child = spawn(this.binary, argv, { shell: false, windowsHide: true });
+			const child = spawn(this.binary, argv, { shell: false, windowsHide: true, cwd });
 
 			const output: Buffer[] = [];
 			let outputBytes = 0;

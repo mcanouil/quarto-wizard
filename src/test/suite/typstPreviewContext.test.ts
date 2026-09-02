@@ -383,6 +383,83 @@ suite("Typst Preview Context Test Suite", () => {
 			}
 		});
 
+		test("Should root a cell at its own directory and run from the project", async () => {
+			// The source reaches Typst on stdin, so the root is what every relative
+			// path the cell reads resolves against. Without it a cell reading a file
+			// beside its document searches the working directory of the extension
+			// host, which is where this whole slice went wrong.
+			const directory = project(true);
+			try {
+				const posts = path.join(directory, "posts");
+				fs.mkdirSync(posts);
+				fs.writeFileSync(path.join(posts, "doc.qmd"), CELL);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(posts, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, new TypstContextCache());
+				assert.ok(!isUnavailable(request));
+				assert.deepStrictEqual(request.argv, ["compile", "--format", "svg", "--root", posts, "-", "-"]);
+				assert.strictEqual(request.cwd, directory);
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should carry the root and the font path the configuration names", async () => {
+			const directory = project(true);
+			try {
+				const text = [
+					"---",
+					"extensions:",
+					"  typst-render:",
+					"    root: /",
+					"    font-path: /assets/fonts",
+					"---",
+					"",
+					CELL,
+				].join("\n");
+				fs.writeFileSync(path.join(directory, "doc.qmd"), text);
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(9, 0), HEADER, new TypstContextCache());
+				assert.ok(!isUnavailable(request));
+				assert.deepStrictEqual(request.argv, [
+					"compile",
+					"--format",
+					"svg",
+					"--root",
+					directory,
+					"--font-path",
+					path.join(directory, "assets", "fonts"),
+					"-",
+					"-",
+				]);
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should root a plain block at the directory of its document", async () => {
+			// A plain block never reaches the filter, so it reads no option of it. The
+			// directory of the document is the whole answer, and it costs no read.
+			const directory = project(false);
+			try {
+				fs.writeFileSync(path.join(directory, "doc.qmd"), "```typst\n#circle()\n```\n");
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
+				const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
+				assert.ok(!isUnavailable(request));
+				assert.deepStrictEqual(request.argv, ["compile", "--format", "svg", "--root", directory, "-", "-"]);
+				assert.strictEqual(request.cwd, directory);
+			} finally {
+				fs.rmSync(directory, { recursive: true, force: true });
+			}
+		});
+
+		test("Should carry no root for a document that is not a file on disk", async () => {
+			const document = await documentOf("```typst\n#circle()\n```\n");
+			const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
+			assert.ok(!isUnavailable(request));
+			assert.deepStrictEqual(request.argv, ["compile", "--format", "svg", "-", "-"]);
+			assert.strictEqual(request.cwd, undefined);
+		});
+
 		test("Should say so when the cursor is in no block", async () => {
 			const document = await documentOf("Prose only.\n");
 			const request = await buildCompileRequest(document, new vscode.Position(0, 0), HEADER, new TypstContextCache());

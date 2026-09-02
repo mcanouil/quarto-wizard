@@ -22,9 +22,6 @@ import { compileSettings, documentDelayOf, surfaceOf } from "./typstPreviewSetti
  * that decides when a compile is worth running.
  */
 
-/** Read the source from stdin, write the image to stdout. */
-const ARGV = ["compile", "--format", "svg", "-", "-"];
-
 /**
  * How long after the cursor moves the preview follows it.
  *
@@ -121,7 +118,7 @@ export interface TypstPreviewResult {
 
 /** What the controller needs of a compiler, which is what makes it stubbable. */
 export interface TypstCompilerLike {
-	compile(source: string, argv: string[], token: vscode.CancellationToken): Promise<TypstCompileResult>;
+	compile(source: string, argv: string[], token: vscode.CancellationToken, cwd?: string): Promise<TypstCompileResult>;
 	dispose(): void;
 }
 
@@ -686,12 +683,13 @@ export class TypstPreviewController implements vscode.Disposable {
 			);
 			return undefined;
 		}
-		// The image is decided by the source, the arguments and the binary, and by
-		// nothing else. Two documents that assemble to the same source share the
-		// entry, which is what makes an undone keystroke free.
+		// The image is decided by the source, the command line, the directory the
+		// compile runs from and the binary, and by nothing else. Two documents that
+		// assemble to the same source under the same command line share the entry,
+		// which is what makes an undone keystroke free.
 		// Joined on a character no argument and no Typst source carries, so two
-		// different triples cannot be spelled the same way.
-		const key = generateHashKey([binary, ...ARGV, request.source].join("\u0000"));
+		// different requests cannot be spelled the same way.
+		const key = generateHashKey([binary, request.cwd ?? "", ...request.argv, request.source].join("\u0000"));
 		if (fresh) {
 			// Dropped now and not merely stepped over, and before this request is
 			// asked whether it is still wanted. A compile that another request
@@ -716,8 +714,9 @@ export class TypstPreviewController implements vscode.Disposable {
 		try {
 			const compiled = await this.useCompiler(binary, settings.timeoutMs).compile(
 				request.source,
-				ARGV,
+				request.argv,
 				this.uncancelled.token,
+				request.cwd,
 			);
 			if (stale()) {
 				return undefined;
