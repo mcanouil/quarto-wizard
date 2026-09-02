@@ -1,6 +1,7 @@
 import { precedingRawBlocks, type TypstBlock } from "./typstBlocks";
 import { brandColourReader, brandDictionary, type Brand } from "./typstBrand";
-import { buildCellArgv, type TypstPaths } from "./typstCli";
+import { buildTypstCommand, type TypstCommand } from "./typstCli";
+import type { TypstPaths } from "./typstPaths";
 import {
 	TYPST_DEFAULTS,
 	mergeGlobalConfigs,
@@ -298,13 +299,13 @@ export interface CellContext {
 	/** Which side of the brand the compile reads. */
 	mode: TypstBrandMode;
 	/**
-	 * Where the document sits, which is what the command line resolves against.
+	 * Where the document sits, which is what the command resolves against.
 	 *
 	 * Two plain strings, so this module still imports no `vscode` and a fixture
-	 * still drives the whole pipeline without a workspace. A caller with neither
-	 * passes neither, and the compile then carries no root.
+	 * still drives the whole pipeline without a workspace. A document with
+	 * neither passes an empty pair, and the compile then carries no root.
 	 */
-	paths?: TypstPaths;
+	paths: TypstPaths;
 	readFile: ReadFile;
 }
 
@@ -320,8 +321,8 @@ export function isUnavailable<T extends object>(result: T | Unavailable): result
 
 /** One cell assembled, with what the preview does not reproduce about it. */
 export interface AssembledCell extends AssembledSource {
-	/** The command line the cell compiles under. */
-	argv: string[];
+	/** The command the cell compiles under. */
+	command: TypstCommand;
 	/** What the panel should say about the block beside the image. */
 	notes: string[];
 	/**
@@ -423,15 +424,16 @@ export async function buildCell(block: TypstBlock, context: CellContext): Promis
 	// the read and compiles the body, and reporting it as the external file would
 	// print a position "of " with no name and drop the option run correction.
 	const externalFile = code === undefined ? undefined : options.file;
-	// The block's own `input:` is read from the block and not from the merged
-	// options, because the merge drops it: it is a string per block and a mapping
-	// globally, and the two cannot live under one key.
-	const argv = buildCellArgv({
-		options,
+	// The global configuration and not the merged options, because the filter
+	// reads `root`, `font-path` and `package-path` from it alone. The block's own
+	// `input:` is read from the block, because the merge drops it: it is a string
+	// per block and a mapping globally, and the two cannot live under one key.
+	const command = buildTypstCommand({
+		global,
 		blockInput: typeof block.options.input === "string" ? block.options.input : undefined,
 		background,
 		foreground,
-		paths: context.paths ?? {},
+		paths: context.paths,
 	});
-	return { ...assembled, argv, notes: cellNotes(options), bodyLineOffset, externalFile };
+	return { ...assembled, command, notes: cellNotes(options), bodyLineOffset, externalFile };
 }

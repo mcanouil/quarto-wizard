@@ -12,6 +12,7 @@ import {
 	type Brand,
 } from "../../utils/typst/typstBrand";
 import { extensionLevel, mapping, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
+import { resolveQuartoPath, type TypstPaths } from "../../utils/typst/typstPaths";
 
 /**
  * The Quarto metadata chain of one document, read from disk.
@@ -21,16 +22,18 @@ import { extensionLevel, mapping, type TypstGlobalLevel } from "../../utils/typs
  * a workspace.
  */
 
-/** The metadata one document compiles under. */
-export interface MetadataChain {
+/**
+ * The metadata one document compiles under.
+ *
+ * It extends `TypstPaths`, so a chain is itself the answer to where the document
+ * sits and a caller resolving a path against it cannot pair the two halves of
+ * one document with the halves of another.
+ */
+export interface MetadataChain extends TypstPaths {
 	/** The `typst-render` mapping of each level, lowest first. */
 	levels: TypstGlobalLevel[];
 	/** Every level's own metadata, merged shallowly, lowest first. */
 	metadata: Record<string, unknown>;
-	/** The project root that owns the document, when one does. */
-	projectRoot?: string;
-	/** The directory holding the document, when it is a file on disk. */
-	documentDirectory?: string;
 	/**
 	 * The directory a relative `brand:` path resolves from.
 	 *
@@ -89,22 +92,9 @@ async function readFirst(directory: string, names: readonly string[]): Promise<u
 	return documents.find((document) => document !== undefined);
 }
 
-/**
- * A path Quarto resolves against a document or a project,
- * `_modules/paths.lua:34-48` and `src/project/project-shared.ts:574-584`.
- *
- * A leading `/` means the project root, and every other path is relative to the
- * directory passed in. Undefined when there is no directory to resolve against,
- * which is a document that lives outside every project root.
- */
-export function resolveQuartoPath(
-	quartoPath: string,
-	from: string | undefined,
-	projectRoot: string | undefined,
-): string | undefined {
-	const fromProjectRoot = quartoPath.startsWith("/");
-	const base = fromProjectRoot ? projectRoot : from;
-	return base === undefined ? undefined : path.join(base, fromProjectRoot ? quartoPath.slice(1) : quartoPath);
+/** The directory holding a document, or undefined when it is not a file on disk. */
+export function documentDirectoryOf(document: vscode.TextDocument): string | undefined {
+	return document.uri.scheme === "file" ? path.dirname(document.uri.fsPath) : undefined;
 }
 
 /**
@@ -192,7 +182,7 @@ export async function readMetadataChain(
 	projectRoot?: string,
 ): Promise<MetadataChain> {
 	const owningRoot = projectRoot ?? (await findOwningProjectRoot(document.uri));
-	const documentDirectory = document.uri.scheme === "file" ? path.dirname(document.uri.fsPath) : undefined;
+	const documentDirectory = documentDirectoryOf(document);
 
 	// The project configuration is its own case for `brand:`, so each level says
 	// which directory a relative path it names would resolve from. Every level

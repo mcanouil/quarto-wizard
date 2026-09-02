@@ -13,7 +13,8 @@ import {
 	PINNED_TYPST_RENDER_VERSION,
 	TypstContextCache,
 } from "../../providers/typstPreview/typstContext";
-import { readBrand, readMetadataChain, resolveQuartoPath } from "../../providers/typstPreview/typstMetadata";
+import { readBrand, readMetadataChain } from "../../providers/typstPreview/typstMetadata";
+import { resolveQuartoPath } from "../../utils/typst/typstPaths";
 import { invalidateProjectRoots, setProjectRoots } from "../../utils/projectRootsRegistry";
 import { invalidateInstalledExtensionsCache } from "../../utils/installedExtensionsCache";
 import { parseFrontMatter } from "../../utils/yamlPosition";
@@ -63,6 +64,9 @@ suite("Typst Preview Context Test Suite", () => {
 			levels: [],
 			brand: EMPTY_BRAND,
 			mode: "light" as const,
+			// A fixture drives the assembly from strings alone, so it names no place
+			// on disk, and the command it builds carries no root.
+			paths: {},
 			readFile: reader({}),
 		};
 
@@ -396,8 +400,8 @@ suite("Typst Preview Context Test Suite", () => {
 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(posts, "doc.qmd")));
 				const request = await buildCompileRequest(document, new vscode.Position(2, 0), HEADER, new TypstContextCache());
 				assert.ok(!isUnavailable(request));
-				assert.deepStrictEqual(request.argv, ["compile", "--format", "svg", "--root", posts, "-", "-"]);
-				assert.strictEqual(request.cwd, directory);
+				assert.deepStrictEqual(request.command.argv, ["compile", "--format", "svg", "--root", posts, "-", "-"]);
+				assert.strictEqual(request.command.cwd, directory);
 			} finally {
 				fs.rmSync(directory, { recursive: true, force: true });
 			}
@@ -420,7 +424,7 @@ suite("Typst Preview Context Test Suite", () => {
 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
 				const request = await buildCompileRequest(document, new vscode.Position(9, 0), HEADER, new TypstContextCache());
 				assert.ok(!isUnavailable(request));
-				assert.deepStrictEqual(request.argv, [
+				assert.deepStrictEqual(request.command.argv, [
 					"compile",
 					"--format",
 					"svg",
@@ -445,8 +449,8 @@ suite("Typst Preview Context Test Suite", () => {
 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(directory, "doc.qmd")));
 				const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
 				assert.ok(!isUnavailable(request));
-				assert.deepStrictEqual(request.argv, ["compile", "--format", "svg", "--root", directory, "-", "-"]);
-				assert.strictEqual(request.cwd, directory);
+				assert.deepStrictEqual(request.command.argv, ["compile", "--format", "svg", "--root", directory, "-", "-"]);
+				assert.strictEqual(request.command.cwd, directory);
 			} finally {
 				fs.rmSync(directory, { recursive: true, force: true });
 			}
@@ -456,8 +460,8 @@ suite("Typst Preview Context Test Suite", () => {
 			const document = await documentOf("```typst\n#circle()\n```\n");
 			const request = await buildCompileRequest(document, new vscode.Position(1, 0), HEADER, new TypstContextCache());
 			assert.ok(!isUnavailable(request));
-			assert.deepStrictEqual(request.argv, ["compile", "--format", "svg", "-", "-"]);
-			assert.strictEqual(request.cwd, undefined);
+			assert.deepStrictEqual(request.command.argv, ["compile", "--format", "svg", "-", "-"]);
+			assert.strictEqual(request.command.cwd, undefined);
 		});
 
 		test("Should say so when the cursor is in no block", async () => {

@@ -10,6 +10,7 @@ import {
 	TypstCompileFailure,
 	type TypstProbe,
 } from "../../providers/typstPreview/typstCompiler";
+import type { TypstCommand } from "../../utils/typst/typstCli";
 
 const BIN = path.join("/opt", "quarto", "bin");
 
@@ -23,9 +24,9 @@ const BIN = path.join("/opt", "quarto", "bin");
  */
 const RUNTIME = process.execPath;
 
-/** Arguments that run one expression in a child process. */
-function run(source: string): string[] {
-	return ["-e", source];
+/** A command that runs one expression in a child process. */
+function run(source: string): TypstCommand {
+	return { argv: ["-e", source] };
 }
 
 /** A token that is already cancelled. */
@@ -146,7 +147,8 @@ suite("Typst Compiler Test Suite", () => {
 			const directory = fs.realpathSync(os.tmpdir());
 			const compiler = new TypstCompiler(RUNTIME);
 			try {
-				const result = await compiler.compile("", run("process.stdout.write(process.cwd())"), never, directory);
+				const command = { ...run("process.stdout.write(process.cwd())"), cwd: directory };
+				const result = await compiler.compile("", command, never);
 				assert.strictEqual(result.svg, directory);
 			} finally {
 				compiler.dispose();
@@ -245,7 +247,7 @@ suite("Typst Compiler Test Suite", () => {
 			const compiler = new TypstCompiler(path.join(BIN, "tools", "aarch64", "typst"));
 			try {
 				await assert.rejects(
-					compiler.compile("", [], never),
+					compiler.compile("", { argv: [] }, never),
 					(error: unknown) => error instanceof TypstCompileFailure && /Failed to start Typst/.test(String(error)),
 				);
 			} finally {

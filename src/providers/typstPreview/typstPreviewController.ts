@@ -9,6 +9,7 @@ import { generateHashKey } from "../../utils/hash";
 import { logMessage } from "../../utils/log";
 import { isQmdFile } from "../../utils/metadataFilesRegistry";
 import { otherBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
+import { commandKey, type TypstCommand } from "../../utils/typst/typstCli";
 import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
 import { buildCompileRequest, NO_BLOCK_MESSAGE, TypstContextCache, type CompileRequest } from "./typstContext";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
@@ -118,7 +119,7 @@ export interface TypstPreviewResult {
 
 /** What the controller needs of a compiler, which is what makes it stubbable. */
 export interface TypstCompilerLike {
-	compile(source: string, argv: string[], token: vscode.CancellationToken, cwd?: string): Promise<TypstCompileResult>;
+	compile(source: string, command: TypstCommand, token: vscode.CancellationToken): Promise<TypstCompileResult>;
 	dispose(): void;
 }
 
@@ -683,13 +684,12 @@ export class TypstPreviewController implements vscode.Disposable {
 			);
 			return undefined;
 		}
-		// The image is decided by the source, the command line, the directory the
-		// compile runs from and the binary, and by nothing else. Two documents that
-		// assemble to the same source under the same command line share the entry,
-		// which is what makes an undone keystroke free.
-		// Joined on a character no argument and no Typst source carries, so two
-		// different requests cannot be spelled the same way.
-		const key = generateHashKey([binary, request.cwd ?? "", ...request.argv, request.source].join("\u0000"));
+		// The image is decided by the source, the command and the binary, and by
+		// nothing else. Two documents that assemble to the same source under the
+		// same command share the entry, which is what makes an undone keystroke
+		// free. Joined on a character no Typst source carries, so two different
+		// requests cannot be spelled the same way.
+		const key = generateHashKey([binary, commandKey(request.command), request.source].join("\u0000"));
 		if (fresh) {
 			// Dropped now and not merely stepped over, and before this request is
 			// asked whether it is still wanted. A compile that another request
@@ -714,9 +714,8 @@ export class TypstPreviewController implements vscode.Disposable {
 		try {
 			const compiled = await this.useCompiler(binary, settings.timeoutMs).compile(
 				request.source,
-				request.argv,
+				request.command,
 				this.uncancelled.token,
-				request.cwd,
 			);
 			if (stale()) {
 				return undefined;

@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getQuartoVersionInfo } from "../../services/quartoVersion";
+import type { TypstCommand } from "../../utils/typst/typstCli";
 import { logMessage } from "../../utils/log";
 
 /**
@@ -186,11 +187,11 @@ export class TypstCompiler {
 	 * because a failed compile is a result the caller renders. Rejects when the
 	 * run was cancelled, superseded, timed out, oversized, or never started.
 	 *
-	 * @param cwd - The directory to run from. It is what a relative `--font-path`
-	 *   resolves against, the way one under a render resolves against the
-	 *   directory Quarto runs Typst from.
+	 * The command carries the directory to run from beside its arguments. That is
+	 * what a relative `--font-path` resolves against, the way one under a render
+	 * resolves against the directory Quarto runs Typst from.
 	 */
-	compile(source: string, argv: string[], token: vscode.CancellationToken, cwd?: string): Promise<TypstCompileResult> {
+	compile(source: string, command: TypstCommand, token: vscode.CancellationToken): Promise<TypstCompileResult> {
 		if (this.disposed) {
 			return Promise.reject(new TypstCompileFailure("The Typst compiler is disposed."));
 		}
@@ -200,7 +201,7 @@ export class TypstCompiler {
 		const maxOutputBytes = this.options.maxOutputBytes ?? MAX_OUTPUT_BYTES;
 
 		return new Promise<TypstCompileResult>((resolve, reject) => {
-			const child = spawn(this.binary, argv, { shell: false, windowsHide: true, cwd });
+			const child = spawn(this.binary, command.argv, { shell: false, windowsHide: true, cwd: command.cwd });
 
 			const output: Buffer[] = [];
 			let outputBytes = 0;

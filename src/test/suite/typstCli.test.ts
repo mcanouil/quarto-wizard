@@ -1,16 +1,13 @@
 import * as assert from "assert";
 import * as path from "node:path";
 import {
-	buildBlockArgv,
-	buildCellArgv,
-	compileCwd,
+	buildTypstCommand,
+	commandKey,
 	mergeInputs,
 	parseInputString,
-	resolveCompileRoot,
-	resolveProjectPath,
 	typstColourHex,
-	type TypstPaths,
 } from "../../utils/typst/typstCli";
+import type { TypstPaths } from "../../utils/typst/typstPaths";
 
 const PROJECT = path.join("/home", "site");
 const DOCUMENT = path.join(PROJECT, "posts", "2026");
@@ -30,58 +27,6 @@ function flags(argv: readonly string[], name: string): string[] {
 }
 
 suite("Typst CLI Test Suite", () => {
-	suite("resolveProjectPath", () => {
-		test("Should resolve a leading slash against the project root", () => {
-			assert.strictEqual(resolveProjectPath("/assets/fonts", PROJECT), path.join(PROJECT, "assets", "fonts"));
-		});
-
-		test("Should leave a relative path alone, which the filter does as well", () => {
-			// `paths.lua:44` returns the path unchanged, so it resolves against the
-			// working directory of the compile and not against the project.
-			assert.strictEqual(resolveProjectPath("fonts", PROJECT), "fonts");
-		});
-
-		test("Should strip the leading slash when there is no project root", () => {
-			assert.strictEqual(resolveProjectPath("/assets/fonts", undefined), path.join("assets", "fonts"));
-		});
-
-		test("Should leave an empty path alone", () => {
-			assert.strictEqual(resolveProjectPath("", PROJECT), "");
-		});
-	});
-
-	suite("resolveCompileRoot", () => {
-		test("Should default to the document directory", () => {
-			assert.strictEqual(resolveCompileRoot(undefined, PATHS), DOCUMENT);
-		});
-
-		test("Should resolve a relative root against the document directory", () => {
-			assert.strictEqual(resolveCompileRoot("..", PATHS), path.join(PROJECT, "posts"));
-		});
-
-		test("Should resolve a leading slash against the project root", () => {
-			assert.strictEqual(resolveCompileRoot("/assets", PATHS), path.join(PROJECT, "assets"));
-		});
-
-		test("Should read a bare slash as the project root itself", () => {
-			assert.strictEqual(resolveCompileRoot("/", PATHS), PROJECT);
-		});
-
-		test("Should fall back to the project root for a document with no directory", () => {
-			assert.strictEqual(resolveCompileRoot(undefined, { projectRoot: PROJECT }), PROJECT);
-		});
-
-		test("Should resolve nothing when there is no directory and no project", () => {
-			assert.strictEqual(resolveCompileRoot("..", {}), undefined);
-		});
-
-		test("Should resolve a leading slash to nothing when there is no project", () => {
-			// The root is what confines every read, so a guess would either widen it
-			// past the document or point it somewhere the document never names.
-			assert.strictEqual(resolveCompileRoot("/assets", { documentDirectory: DOCUMENT }), undefined);
-		});
-	});
-
 	suite("parseInputString", () => {
 		test("Should read comma-separated pairs and trim around them", () => {
 			assert.deepStrictEqual(parseInputString(" a = 1 , b=2 "), { a: "1", b: "2" });
@@ -105,11 +50,11 @@ suite("Typst CLI Test Suite", () => {
 			assert.deepStrictEqual(mergeInputs({ a: "1", b: "2" }, "b=3"), { a: "1", b: "3" });
 		});
 
-		test("Should carry the global map alone when the block writes none", () => {
+		test("Should carry the global mapping alone when the block writes none", () => {
 			assert.deepStrictEqual(mergeInputs({ a: "1" }, undefined), { a: "1" });
 		});
 
-		test("Should carry the block string alone when there is no global map", () => {
+		test("Should carry the block string alone when there is no global mapping", () => {
 			assert.deepStrictEqual(mergeInputs(undefined, "a=1"), { a: "1" });
 		});
 	});
@@ -129,89 +74,80 @@ suite("Typst CLI Test Suite", () => {
 		});
 	});
 
-	suite("compileCwd", () => {
-		test("Should run from the project root, which a relative font path needs", () => {
-			assert.strictEqual(compileCwd(PATHS), PROJECT);
-		});
-
-		test("Should fall back to the document directory outside every project", () => {
-			assert.strictEqual(compileCwd({ documentDirectory: DOCUMENT }), DOCUMENT);
-		});
-
-		test("Should run from nowhere in particular for a document with neither", () => {
-			assert.strictEqual(compileCwd({}), undefined);
-		});
-	});
-
-	suite("buildBlockArgv", () => {
-		test("Should compile from stdin to stdout as SVG, rooted at the document", () => {
-			assert.deepStrictEqual(buildBlockArgv(DOCUMENT), ["compile", "--format", "svg", "--root", DOCUMENT, "-", "-"]);
+	suite("buildTypstCommand", () => {
+		test("Should root a block at its document directory by default", () => {
+			const command = buildTypstCommand({ paths: PATHS });
+			assert.deepStrictEqual(command.argv, ["compile", "--format", "svg", "--root", DOCUMENT, "-", "-"]);
+			assert.strictEqual(command.cwd, PROJECT);
 		});
 
 		test("Should carry no root for a document that is not a file on disk", () => {
-			assert.deepStrictEqual(buildBlockArgv(undefined), ["compile", "--format", "svg", "-", "-"]);
-		});
-	});
-
-	suite("buildCellArgv", () => {
-		test("Should root a cell at its document directory by default", () => {
-			const argv = buildCellArgv({ options: {}, paths: PATHS });
-			assert.deepStrictEqual(argv, ["compile", "--format", "svg", "--root", DOCUMENT, "-", "-"]);
+			const command = buildTypstCommand({ paths: {} });
+			assert.deepStrictEqual(command.argv, ["compile", "--format", "svg", "-", "-"]);
+			assert.strictEqual(command.cwd, undefined);
 		});
 
-		test("Should root a cell at the root the configuration names", () => {
-			const argv = buildCellArgv({ options: { root: "/" }, paths: PATHS });
-			assert.strictEqual(flag(argv, "--root"), PROJECT);
+		test("Should root a block at the root the configuration names", () => {
+			const command = buildTypstCommand({ global: { root: "/" }, paths: PATHS });
+			assert.strictEqual(flag(command.argv, "--root"), PROJECT);
 		});
 
 		test("Should pass one font path per entry", () => {
-			const argv = buildCellArgv({
-				options: { "font-path": ["/assets/fonts", "fonts"] },
-				paths: PATHS,
-			});
-			assert.deepStrictEqual(flags(argv, "--font-path"), [path.join(PROJECT, "assets", "fonts"), "fonts"]);
+			const command = buildTypstCommand({ global: { "font-path": ["/assets/fonts", "fonts"] }, paths: PATHS });
+			assert.deepStrictEqual(flags(command.argv, "--font-path"), [path.join(PROJECT, "assets", "fonts"), "fonts"]);
 		});
 
 		test("Should pass the package path the configuration names", () => {
-			const argv = buildCellArgv({ options: { "package-path": "/packages" }, paths: PATHS });
-			assert.strictEqual(flag(argv, "--package-path"), path.join(PROJECT, "packages"));
+			const command = buildTypstCommand({ global: { "package-path": "/packages" }, paths: PATHS });
+			assert.strictEqual(flag(command.argv, "--package-path"), path.join(PROJECT, "packages"));
 		});
 
-		test("Should pass every input, sorted, with the block string over the map", () => {
-			const argv = buildCellArgv({
-				options: { input: { theme: "light", scale: "1" } },
+		test("Should pass every input, sorted, with the block string over the mapping", () => {
+			const command = buildTypstCommand({
+				global: { input: { theme: "light", scale: "1" } },
 				blockInput: "theme=dark",
 				paths: PATHS,
 			});
-			assert.deepStrictEqual(flags(argv, "--input"), ["scale=1", "theme=dark"]);
+			assert.deepStrictEqual(flags(command.argv, "--input"), ["scale=1", "theme=dark"]);
 		});
 
 		test("Should pass the resolved colours as the inputs the filter passes", () => {
-			const argv = buildCellArgv({
-				options: {},
+			const command = buildTypstCommand({
 				background: 'rgb("#0d1626")',
 				foreground: 'rgb("#e7ecf4")',
 				paths: PATHS,
 			});
-			assert.deepStrictEqual(flags(argv, "--input"), [
+			assert.deepStrictEqual(flags(command.argv, "--input"), [
 				"typst-render-foreground=#e7ecf4",
 				"typst-render-background=#0d1626",
 			]);
 		});
 
 		test("Should pass no colour input for a colour no flag can carry", () => {
-			const argv = buildCellArgv({ options: {}, background: "none", paths: PATHS });
-			assert.deepStrictEqual(flags(argv, "--input"), []);
+			const command = buildTypstCommand({ background: "none", paths: PATHS });
+			assert.deepStrictEqual(flags(command.argv, "--input"), []);
 		});
 
 		test("Should end with the two arguments that read stdin and write stdout", () => {
-			const argv = buildCellArgv({
-				options: { "font-path": ["fonts"], input: { a: "1" } },
+			const command = buildTypstCommand({
+				global: { "font-path": ["fonts"], input: { a: "1" } },
 				background: 'rgb("#ffffff")',
 				paths: PATHS,
 			});
-			assert.deepStrictEqual(argv.slice(-2), ["-", "-"]);
-			assert.deepStrictEqual(argv.slice(0, 3), ["compile", "--format", "svg"]);
+			assert.deepStrictEqual(command.argv.slice(-2), ["-", "-"]);
+			assert.deepStrictEqual(command.argv.slice(0, 3), ["compile", "--format", "svg"]);
+		});
+	});
+
+	suite("commandKey", () => {
+		test("Should tell two commands apart by their directory alone", () => {
+			const argv = ["compile", "-", "-"];
+			assert.notStrictEqual(commandKey({ argv, cwd: "/a" }), commandKey({ argv, cwd: "/b" }));
+		});
+
+		test("Should give one command one key", () => {
+			const command = buildTypstCommand({ paths: PATHS });
+			assert.strictEqual(commandKey(command), commandKey(buildTypstCommand({ paths: PATHS })));
 		});
 	});
 });
