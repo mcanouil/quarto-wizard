@@ -50,17 +50,27 @@ interface ResolvedPathOption {
 export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Disposable {
 	private readonly diagnostics = vscode.languages.createDiagnosticCollection("quarto-typst-paths");
 	private readonly disposables: vscode.Disposable[] = [];
-	private readonly validateLater: ReturnType<typeof debounce>;
+	/**
+	 * The pending reading of each document, one per document.
+	 *
+	 * A single debounced function holds the arguments of its last call alone, so
+	 * two documents edited inside one window would leave the first of them with
+	 * the warnings of the text it no longer holds.
+	 */
+	private readonly pending = new Map<string, ReturnType<typeof debounce>>();
+	/**
+	 * How many readings of each document have started.
+	 *
+	 * A watcher and an edit can read the same text at the same time, and the
+	 * slower of the two would write its result over the newer one.
+	 */
+	private readonly readings = new Map<string, number>();
 
 	constructor() {
-		this.validateLater = debounce((document: vscode.TextDocument) => {
-			void this.refresh(document);
-		}, DEBOUNCE_MS);
-
 		this.disposables.push(
 			vscode.workspace.onDidOpenTextDocument((document) => void this.refresh(document)),
-			vscode.workspace.onDidChangeTextDocument((event) => this.validateLater(event.document)),
-			vscode.workspace.onDidCloseTextDocument((document) => this.diagnostics.delete(document.uri)),
+			vscode.workspace.onDidChangeTextDocument((event) => this.refreshLater(event.document)),
+			vscode.workspace.onDidCloseTextDocument((document) => this.forget(document)),
 		);
 
 		// A path that led nowhere leads somewhere once the file is written, and
@@ -76,7 +86,11 @@ export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Dispo
 	}
 
 	dispose(): void {
-		this.validateLater.cancel();
+		for (const later of this.pending.values()) {
+			later.cancel();
+		}
+		this.pending.clear();
+		this.readings.clear();
 		this.diagnostics.dispose();
 		for (const disposable of this.disposables) {
 			disposable.dispose();
@@ -101,6 +115,28 @@ export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Dispo
 		return links;
 	}
 
+	/** Read one document again once its edits settle. */
+	private refreshLater(document: vscode.TextDocument): void {
+		const key = document.uri.toString();
+		let later = this.pending.get(key);
+		if (later === undefined) {
+			// The editor holds one document object per open URI, so the one captured
+			// here is the one the key names for as long as it is open.
+			later = debounce(() => void this.refresh(document), DEBOUNCE_MS);
+			this.pending.set(key, later);
+		}
+		later();
+	}
+
+	/** Drop everything held for a document that is closed. */
+	private forget(document: vscode.TextDocument): void {
+		const key = document.uri.toString();
+		this.pending.get(key)?.cancel();
+		this.pending.delete(key);
+		this.readings.delete(key);
+		this.diagnostics.delete(document.uri);
+	}
+
 	/** Read every open document again, after something outside them changed. */
 	private validateOpen(): void {
 		for (const document of vscode.workspace.textDocuments) {
@@ -121,9 +157,15 @@ export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Dispo
 	 * that finishes last would undo a newer one.
 	 */
 	async refresh(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
+		const key = document.uri.toString();
+		const reading = (this.readings.get(key) ?? 0) + 1;
+		this.readings.set(key, reading);
 		const version = document.version;
+
 		const resolved = await this.resolve(document);
-		if (document.isClosed || document.version !== version) {
+		// The text moved on, or another reading of the same text started after
+		// this one and has already written what it found.
+		if (document.isClosed || document.version !== version || this.readings.get(key) !== reading) {
 			return [];
 		}
 
