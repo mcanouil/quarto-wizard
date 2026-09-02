@@ -14,7 +14,7 @@
  */
 
 import { getYamlIndentLevel, getYamlKeyPath, stripBlockquoteMarkers, stripCarriageReturn } from "../yamlPosition";
-import { findTypstBlocks, OPTION_LINE } from "./typstBlocks";
+import { findTypstBlocks, OPTION_LINE, quotedValue } from "./typstBlocks";
 import { TYPST_RENDER } from "./typstOptions";
 import { resolveQuartoPath } from "./typstPaths";
 
@@ -44,8 +44,8 @@ interface Scalar {
  */
 function unquote(raw: string, start: number): Scalar {
 	const value = raw.replace(/\s+$/, "");
-	const quoted = /^"(.*)"$/.exec(value) ?? /^'(.*)'$/.exec(value);
-	return quoted === null ? { value, start } : { value: quoted[1], start: start + 1 };
+	const inside = quotedValue(value);
+	return inside === undefined ? { value, start } : { value: inside, start: start + 1 };
 }
 
 /**
@@ -148,12 +148,11 @@ function isPreamblePath(path: readonly string[]): boolean {
  * rule, and never inside a quoted value.
  */
 function yamlScalar(raw: string, start: number): Scalar {
-	const trimmed = raw.replace(/\s+$/, "");
-	const quoted = /^"(.*)"$/.exec(trimmed) ?? /^'(.*)'$/.exec(trimmed);
-	if (quoted !== null) {
-		return { value: quoted[1], start: start + 1 };
-	}
-	return unquote(trimmed.replace(/\s+#.*$/, ""), start);
+	const quoted = unquote(raw, start);
+	// The quotes matched, so the whole value is inside them and a `#` is part of
+	// it. They did not match either when there are none and when a comment
+	// follows the closing one, and taking the comment off answers both.
+	return quoted.start === start ? unquote(quoted.value.replace(/\s+#.*$/, ""), start) : quoted;
 }
 
 /** A `preamble:` key, with everything written after the colon. */
@@ -197,33 +196,31 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
 			sequenceOf = undefined;
 		}
 
+		// The value this line writes, which is the one on a `preamble:` line and
+		// the one an entry below it carries.
+		let scalar: Scalar | undefined;
 		const key = PREAMBLE_KEY.exec(line);
 		if (key !== null && isPreamblePath(getYamlKeyPath(lines, index, languageId))) {
-			const scalar = yamlScalar(key[2], line.length - key[2].length);
+			scalar = yamlScalar(key[2], line.length - key[2].length);
 			if (scalar.value === "") {
 				// Nothing on the line, so the entries are written below it.
 				sequenceOf = indent;
-			} else if (namesFile("preamble", scalar.value)) {
-				found.push({
-					key: "preamble",
-					value: scalar.value,
-					start: lineStart + scalar.start,
-					end: lineStart + scalar.start + scalar.value.length,
-				});
+				scalar = undefined;
 			}
 		} else if (sequenceOf !== undefined) {
 			const entry = SEQUENCE_ENTRY.exec(line);
 			if (entry !== null && entry[1].length > sequenceOf) {
-				const scalar = yamlScalar(entry[2], line.length - entry[2].length);
-				if (namesFile("preamble", scalar.value)) {
-					found.push({
-						key: "preamble",
-						value: scalar.value,
-						start: lineStart + scalar.start,
-						end: lineStart + scalar.start + scalar.value.length,
-					});
-				}
+				scalar = yamlScalar(entry[2], line.length - entry[2].length);
 			}
+		}
+
+		if (scalar !== undefined && namesFile("preamble", scalar.value)) {
+			found.push({
+				key: "preamble",
+				value: scalar.value,
+				start: lineStart + scalar.start,
+				end: lineStart + scalar.start + scalar.value.length,
+			});
 		}
 
 		lineStart += lines[index].length + 1;

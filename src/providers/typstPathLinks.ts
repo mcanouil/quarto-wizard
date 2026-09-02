@@ -4,6 +4,7 @@ import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { isRelevantYaml } from "../utils/metadataFilesRegistry";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
+import { isFile } from "../utils/quartoProjectDiscovery";
 import {
 	findTypstPathOptions,
 	resolveTypstPathOption,
@@ -36,16 +37,6 @@ interface ResolvedPathOption {
 	target: TypstPathTarget;
 	/** Whether a file is there to open. */
 	present: boolean;
-}
-
-/** Whether a path names a file that is there. */
-async function isFile(fsPath: string): Promise<boolean> {
-	try {
-		const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath));
-		return (stat.type & vscode.FileType.File) !== 0;
-	} catch {
-		return false;
-	}
 }
 
 /**
@@ -168,7 +159,8 @@ export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Dispo
 		return Promise.all(
 			options.map(async (option) => {
 				const target = resolveTypstPathOption(option.value, context);
-				return { option, target, present: target.path !== undefined && (await isFile(target.path)) };
+				const present = target.path !== undefined && (await isFile(vscode.Uri.file(target.path)));
+				return { option, target, present };
 			}),
 		);
 	}

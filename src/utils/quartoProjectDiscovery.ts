@@ -243,7 +243,8 @@ async function directoryHasProjectMarker(dir: string): Promise<boolean> {
 	return await directoryHasInstalledExtension(vscode.Uri.file(path.join(dir, EXTENSIONS_DIR)));
 }
 
-async function isFile(uri: vscode.Uri): Promise<boolean> {
+/** Whether a URI names a file that is there. */
+export async function isFile(uri: vscode.Uri): Promise<boolean> {
 	try {
 		const stat = await vscode.workspace.fs.stat(uri);
 		return (stat.type & vscode.FileType.File) !== 0;
