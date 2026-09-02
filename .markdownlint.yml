@@ -2,5 +2,9 @@ default: true
 
 MD013: false
 
+# A changelog repeats the same section heading under every release heading.
+MD024:
+  siblings_only: true
+
 MD033:
-  allowed_elements: ["img", "p", "video"]
+  allowed_elements: ["img", "kbd", "p", "video"]
