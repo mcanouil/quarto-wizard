@@ -124,6 +124,23 @@ suite("Typst Path Options Test Suite", () => {
 			assert.deepStrictEqual(covered(text), ["_one.typ", "_two.typ"]);
 		});
 
+		test("Should find an entry written at the indent of its key", () => {
+			// A block sequence sits at the indent of its key or deeper, and both are
+			// the same document to YAML.
+			const text = "---\ntypst-render:\n  preamble:\n  - _one.typ\n  - _two.typ\n---\n";
+			assert.deepStrictEqual(covered(text), ["_one.typ", "_two.typ"]);
+		});
+
+		test("Should end a sequence at the next key of the same level", () => {
+			const text = "---\ntypst-render:\n  preamble:\n  - _one.typ\n  dpi: 300\n---\n";
+			assert.deepStrictEqual(covered(text), ["_one.typ"]);
+		});
+
+		test("Should find the entries below a key that carries a comment", () => {
+			const text = "---\ntypst-render:\n  preamble: # the preamble\n    - _one.typ\n---\n";
+			assert.deepStrictEqual(covered(text), ["_one.typ"]);
+		});
+
 		test("Should skip a list entry that is inline Typst code", () => {
 			const text = "---\ntypst-render:\n  preamble:\n    - _one.typ\n    - '#set page(fill: none)'\n---\n";
 			assert.deepStrictEqual(covered(text), ["_one.typ"]);

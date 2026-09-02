@@ -12,11 +12,6 @@ async function open(directory: string, name: string, content: string): Promise<v
 	return vscode.workspace.openTextDocument(vscode.Uri.file(file));
 }
 
-/** The warnings this provider wrote, and none of the ones other providers did. */
-function missingPaths(uri: vscode.Uri): vscode.Diagnostic[] {
-	return vscode.languages.getDiagnostics(uri).filter((diagnostic) => diagnostic.code === "typst-missing-path");
-}
-
 suite("Typst Path Links Test Suite", () => {
 	let directory: string;
 	let provider: TypstPathLinks;
@@ -61,10 +56,10 @@ suite("Typst Path Links Test Suite", () => {
 	test("Should warn about a path in a document that leads to no file", async () => {
 		const document = await open(directory, "post.qmd", "```{typst}\n//| file: _absent.typ\n```\n");
 
-		await provider.refresh(document);
+		const found = await provider.refresh(document);
 
-		const found = missingPaths(document.uri);
 		assert.strictEqual(found.length, 1);
+		assert.strictEqual(found[0].code, "typst-missing-path");
 		assert.strictEqual(found[0].severity, vscode.DiagnosticSeverity.Warning);
 		assert.strictEqual(document.getText(found[0].range), "_absent.typ");
 	});
@@ -74,16 +69,12 @@ suite("Typst Path Links Test Suite", () => {
 		// directory, so the file itself cannot say the path leads nowhere.
 		const document = await open(directory, "_quarto.yml", "typst-render:\n  preamble: _absent.typ\n");
 
-		await provider.refresh(document);
-
-		assert.deepStrictEqual(missingPaths(document.uri), []);
+		assert.deepStrictEqual(await provider.refresh(document), []);
 	});
 
 	test("Should write no warning for a document that names no path", async () => {
 		const document = await open(directory, "post.qmd", "```{typst}\n#circle()\n```\n");
 
-		await provider.refresh(document);
-
-		assert.deepStrictEqual(missingPaths(document.uri), []);
+		assert.deepStrictEqual(await provider.refresh(document), []);
 	});
 });

@@ -111,13 +111,20 @@ export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Dispo
 	/**
 	 * Read one document again, and set the warnings it carries.
 	 *
-	 * Public so that a test can wait for the reading it starts. Every caller
+	 * Public, and it answers with what it wrote, so that a test can wait for the
+	 * reading it starts and read the result of that reading alone. Every caller
 	 * inside the class starts it and does not wait.
+	 *
+	 * The answer is empty when the document moved on while the paths were read.
+	 * The offsets were taken in the older text, so writing them now would put a
+	 * warning on characters that no longer carry the path, and an older reading
+	 * that finishes last would undo a newer one.
 	 */
-	async refresh(document: vscode.TextDocument): Promise<void> {
+	async refresh(document: vscode.TextDocument): Promise<vscode.Diagnostic[]> {
+		const version = document.version;
 		const resolved = await this.resolve(document);
-		if (document.isClosed) {
-			return;
+		if (document.isClosed || document.version !== version) {
+			return [];
 		}
 
 		const diagnostics: vscode.Diagnostic[] = [];
@@ -135,6 +142,7 @@ export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Dispo
 			diagnostics.push(diagnostic);
 		}
 		this.diagnostics.set(document.uri, diagnostics);
+		return diagnostics;
 	}
 
 	/** Every path option of a document, with the file each one leads to. */

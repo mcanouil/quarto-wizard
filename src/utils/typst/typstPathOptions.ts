@@ -152,7 +152,13 @@ function yamlScalar(raw: string, start: number): Scalar {
 	// The quotes matched, so the whole value is inside them and a `#` is part of
 	// it. They did not match either when there are none and when a comment
 	// follows the closing one, and taking the comment off answers both.
-	return quoted.start === start ? unquote(quoted.value.replace(/\s+#.*$/, ""), start) : quoted;
+	if (quoted.start !== start) {
+		return quoted;
+	}
+	const value = quoted.value.replace(/\s+#.*$/, "");
+	// A line that carries a comment and nothing else writes no value, which is
+	// what a key followed by a block sequence looks like.
+	return unquote(value.startsWith("#") ? "" : value, start);
 }
 
 /** A `preamble:` key, with everything written after the colon. */
@@ -192,7 +198,12 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
 		}
 
 		const indent = getYamlIndentLevel(line);
-		if (sequenceOf !== undefined && indent <= sequenceOf) {
+		const entry = SEQUENCE_ENTRY.exec(line);
+		// A block sequence is written at the indent of its key or deeper, so the
+		// indent alone does not say where it ends. The first line that is not an
+		// entry of it does, and a sibling key is such a line.
+		const inSequence = sequenceOf !== undefined && entry !== null && indent >= sequenceOf;
+		if (!inSequence) {
 			sequenceOf = undefined;
 		}
 
@@ -207,11 +218,8 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
 				sequenceOf = indent;
 				scalar = undefined;
 			}
-		} else if (sequenceOf !== undefined) {
-			const entry = SEQUENCE_ENTRY.exec(line);
-			if (entry !== null && entry[1].length > sequenceOf) {
-				scalar = yamlScalar(entry[2], line.length - entry[2].length);
-			}
+		} else if (inSequence && entry !== null) {
+			scalar = yamlScalar(entry[2], line.length - entry[2].length);
 		}
 
 		if (scalar !== undefined && namesFile("preamble", scalar.value)) {
