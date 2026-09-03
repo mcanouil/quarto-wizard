@@ -31,6 +31,10 @@ export interface YamlCursor {
 	 * there is the keys of that mapping.
 	 */
 	path: YamlPathSegment[];
+	/** The keys already written beside the cursor, for a surface that deduplicates. */
+	keys: Set<string>;
+	/** The column the key of the path is written at, which a child is indented past. */
+	keyColumn: number;
 	/** Where the colon of the line is, which is where a value completion replaces from. */
 	colon: number;
 	/** Whether the cursor is after the colon of a key on its own line. */
@@ -43,7 +47,9 @@ export interface YamlCursor {
  * @param document - The document being completed.
  * @param position - Where the cursor is.
  * @param text - The full text of the document, which every caller already holds.
- * @param annotated - The parse of the YAML of that document.
+ * @param annotated - The parse of the YAML of that document, which is undefined
+ *   for a document that does not parse. A key being typed usually leaves one
+ *   that does not, so the key branch below does not need it.
  * @returns The cursor, or undefined when the document holds no YAML there and
  *   nothing can be offered.
  */
@@ -51,21 +57,42 @@ export function yamlCursorAt(
 	document: vscode.TextDocument,
 	position: vscode.Position,
 	text: string,
-	annotated: AnnotatedYaml,
+	annotated: AnnotatedYaml | undefined,
 ): YamlCursor | undefined {
 	const line = document.lineAt(position.line).text;
 	const colon = line.indexOf(":");
-	const isValuePosition = KEY_LINE.test(line) && position.character > colon;
 	const offset = document.offsetAt(position);
+	const under = annotated?.pathAt(offset);
+	// The character before the cursor as well as the one under it, because a
+	// quoted scalar is reported without its quotes, so a cursor sitting just past
+	// the closing quote of a key is still on that key.
+	const before = offset > 0 ? annotated?.pathAt(offset - 1) : undefined;
+	// The line says whether the cursor is past a colon, because a half-typed key
+	// is written where a value would be and the parse cannot tell the two apart.
+	// The parse overrules it when the cursor is on a key it already knows, which
+	// is what a colon written inside a quoted key looks like.
+	const onKnownKey = under?.on === "key" || before?.on === "key";
+	const isValuePosition = KEY_LINE.test(line) && position.character > colon && !onKnownKey;
 
 	if (isValuePosition) {
-		// The key of this line is written, so the parse says where it is. The value
-		// under the cursor answers first, and the key answers when the value has
-		// not been written yet.
-		const onValue = annotated.pathAt(offset);
-		const onKey = annotated.pathAt(document.offsetAt(position.with(undefined, colon)) - 1);
-		const found = onValue ?? onKey;
-		return found === undefined ? undefined : { path: found.path, colon, isValuePosition };
+		// The key of this line is written, so the document parses and the parse
+		// says where the key is. The value under the cursor answers first, and the
+		// key answers when the value has not been written yet.
+		const onKey = annotated?.pathAt(document.offsetAt(position.with(undefined, colon)) - 1);
+		const found = under ?? onKey;
+		if (annotated === undefined || found === undefined) {
+			return undefined;
+		}
+		const keyRange = annotated.nodeAt(found.path)?.keyRange;
+		return {
+			path: found.path,
+			keys: annotated.keysAt(found.path),
+			// The column of the key and not the count of its leading spaces, so that
+			// a line indented with a tab still nests its children correctly.
+			keyColumn: keyRange === undefined ? 0 : document.positionAt(keyRange.start).character,
+			colon,
+			isValuePosition,
+		};
 	}
 
 	// Nothing at the cursor is written yet, so a key is written there and the
@@ -76,6 +103,6 @@ export function yamlCursorAt(
 	if (region === undefined) {
 		return undefined;
 	}
-	const path = sentinelPath(region.text, offset - region.base, position.character);
-	return path === undefined ? undefined : { path, colon, isValuePosition };
+	const found = sentinelPath(region.text, offset - region.base, position.character);
+	return found === undefined ? undefined : { ...found, keyColumn: 0, colon, isValuePosition };
 }

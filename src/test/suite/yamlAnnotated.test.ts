@@ -237,22 +237,38 @@ suite("Annotated YAML Test Suite", () => {
 	suite("sentinelPath", () => {
 		test("Should give the parent path of a blank child line", () => {
 			const text = "extensions:\n  ";
-			assert.deepStrictEqual(sentinelPath(text, text.length, 2), ["extensions"]);
+			assert.deepStrictEqual(sentinelPath(text, text.length, 2)?.path, ["extensions"]);
 		});
 
 		test("Should give the parent path of a blank line at the root", () => {
 			const text = "extensions:\n  iconify:\n";
-			assert.deepStrictEqual(sentinelPath(text + "", text.length, 0), []);
+			assert.deepStrictEqual(sentinelPath(text + "", text.length, 0)?.path, []);
 		});
 
 		test("Should give the parent path when a sibling follows the blank line", () => {
 			const text = "extensions:\n  \nformat: html\n";
-			assert.deepStrictEqual(sentinelPath(text, text.indexOf("\n") + 3, 2), ["extensions"]);
+			assert.deepStrictEqual(sentinelPath(text, text.indexOf("\n") + 3, 2)?.path, ["extensions"]);
 		});
 
 		test("Should give the parent path of a partly typed key", () => {
+			// The column is the cursor, which sits after the characters already
+			// typed, so the key is placed at the indent of the line and not there.
 			const text = "extensions:\n  mod";
-			assert.deepStrictEqual(sentinelPath(text, text.length, 2), ["extensions"]);
+			assert.deepStrictEqual(sentinelPath(text, text.length, 5)?.path, ["extensions"]);
+		});
+
+		test("Should give the parent path when the sibling above has children", () => {
+			// Placing the key at the cursor column would put it at the indent of
+			// `type`, making it a child of `size` rather than a sibling of it.
+			const text = "options:\n  size:\n    type: string\n  co";
+			assert.deepStrictEqual(sentinelPath(text, text.length, 4)?.path, ["options"]);
+		});
+
+		test("Should give the parent path when the sibling above has a value", () => {
+			// Placing the key at the cursor column here indents past a scalar, which
+			// is not valid YAML, so the parse would fail and offer nothing.
+			const text = "extensions:\n  iconify: x\n  mo";
+			assert.deepStrictEqual(sentinelPath(text, text.length, 4)?.path, ["extensions"]);
 		});
 
 		test("Should report nothing when the rest of the document does not parse", () => {
@@ -276,6 +292,19 @@ suite("Annotated YAML Test Suite", () => {
 
 		test("Should report nothing for a Quarto document with no front matter", () => {
 			assert.strictEqual(yamlRegionOf("Body only.\n", "quarto"), undefined);
+		});
+
+		test("Should take the whole document for JSON", () => {
+			const text = '{"name": "x"}\n';
+			assert.deepStrictEqual(yamlRegionOf(text, "json"), { text, base: 0 });
+		});
+
+		test("Should take the front matter of a document opened as Markdown", () => {
+			// A `.qmd` is read as Markdown when the Quarto language extension is not
+			// installed, and its body is prose rather than YAML.
+			const text = "---\ntitle: A\n---\n\nBody\n";
+			assert.deepStrictEqual(yamlRegionOf(text, "markdown"), { text: "title: A\n", base: 4 });
+			assert.strictEqual(yamlRegionHolds(text, "markdown", text.indexOf("Body")), false);
 		});
 
 		test("Should report nothing when the two delimiters are thematic breaks", () => {

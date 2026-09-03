@@ -202,9 +202,10 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 			}
 
 			const text = document.getText();
-			const annotated = getDocumentYaml(document, text);
-			const cursor = annotated === undefined ? undefined : yamlCursorAt(document, position, text, annotated);
-			if (!annotated || !cursor) {
+			// The parse may be absent, because a key half typed into a document
+			// leaves it unparsable, and that is the common case while completing one.
+			const cursor = yamlCursorAt(document, position, text, getDocumentYaml(document, text));
+			if (!cursor) {
 				return undefined;
 			}
 
@@ -214,8 +215,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				return undefined;
 			}
 
-			const existingKeys = annotated.keysAt(cursor.path);
-			const items = this.buildCompletions(context, existingKeys);
+			const items = this.buildCompletions(context, cursor.keys);
 
 			if (!items || items.length === 0) {
 				return undefined;

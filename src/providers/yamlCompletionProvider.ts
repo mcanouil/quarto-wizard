@@ -36,9 +36,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return undefined;
 			}
 
-			const annotated = getDocumentYaml(document, text);
-			const cursor = annotated === undefined ? undefined : yamlCursorAt(document, position, text, annotated);
-			if (!annotated || !cursor) {
+			// The parse may be absent, because a key half typed into a document
+			// leaves it unparsable, and that is the common case while completing one.
+			const cursor = yamlCursorAt(document, position, text, getDocumentYaml(document, text));
+			if (!cursor) {
 				return undefined;
 			}
 			const keyPath = keyPathOf(cursor.path);
@@ -57,7 +58,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			const isValuePosition = cursor.isValuePosition;
 
 			// Compute existing sibling keys at the current path for deduplication.
-			const existingKeys = annotated.keysAt(cursor.path);
+			const existingKeys = cursor.keys;
 
 			// At root level, suggest "extensions" as a top-level key.
 			if (keyPath.length === 0 && !isValuePosition) {
@@ -73,11 +74,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			// inserted on the next line with proper indentation so that the
 			// resulting YAML is valid.
 			if (isValuePosition) {
-				// The column of the key and not the count of its leading spaces, so
-				// that a line indented with a tab still nests its children correctly.
-				const keyRange = annotated.nodeAt(cursor.path)?.keyRange;
-				const keyColumn = keyRange === undefined ? 0 : document.positionAt(keyRange.start).character;
-				this.adjustForValuePosition(items, position, cursor.colon, keyColumn);
+				this.adjustForValuePosition(items, position, cursor.colon, cursor.keyColumn);
 			}
 
 			return items;

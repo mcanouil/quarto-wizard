@@ -470,31 +470,63 @@ const CURSOR_KEY = "qwCursorKey";
  * second rule about indentation. This replaces it with one transformation: write
  * a key where the cursor is, parse that, and read the path of what was written.
  *
- * The column and not the offset places the key, because the indent is what says
+ * A column and not the offset places the key, because the indent is what says
  * which mapping the cursor is inside.
  *
  * @param text - The text of the region alone.
  * @param offset - The offset of the cursor within that text.
- * @param column - The column of the cursor on its line.
- * @returns The path of the mapping the cursor sits in, or undefined when the
- *   patched text does not parse. The position of a sequence entry is kept, so
- *   that the path still reads on the parse of the unpatched document.
+ * @param column - The column of the cursor on its line, used only when that line
+ *   holds nothing else. A line that holds anything places the key at its own
+ *   indent instead.
+ * @returns The path of the mapping the cursor sits in and the keys already
+ *   written in it, or undefined when even the patched text does not parse.
+ *
+ *   The keys come from here rather than from the parse of the document, because
+ *   a document with a key half typed into it usually does not parse at all:
+ *   `a:\n  b: x\n  c` is rejected for the missing colon. Only the names of the
+ *   patched parse are given out, never its offsets, which count from the start
+ *   of a text that is not the document.
  */
-export function sentinelPath(text: string, offset: number, column: number): YamlPathSegment[] | undefined {
+export function sentinelPath(
+	text: string,
+	offset: number,
+	column: number,
+): { path: YamlPathSegment[]; keys: Set<string> } | undefined {
 	const lineStart = text.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
 	const lineEnd = text.indexOf("\n", lineStart);
-	const patchedLine = " ".repeat(column) + CURSOR_KEY + ":";
+	const line = text.slice(lineStart, lineEnd === NOT_WRITTEN ? text.length : lineEnd);
+	// The indent of the line, and the cursor only when the line holds nothing
+	// else. A half-typed key puts the cursor past the indent it is written at,
+	// and a key placed at the cursor is read as a child of the entry above
+	// rather than as a sibling of it, or indents past a scalar and does not
+	// parse at all.
+	const written = line.search(/\S/);
+	const at = written === NOT_WRITTEN ? column : written;
+	const patchedLine = " ".repeat(at) + CURSOR_KEY + ":";
 	const patched = text.slice(0, lineStart) + patchedLine + (lineEnd === NOT_WRITTEN ? "" : text.slice(lineEnd));
 
 	// Positions only. The value of a document with a key written into it is not
 	// the value of the document, and no reader here asks for one.
 	const annotated = annotate(patched, 0, false);
-	const found = annotated?.pathAt(lineStart + column + 1);
-	if (found === undefined || found.path[found.path.length - 1] !== CURSOR_KEY) {
+	const found = annotated?.pathAt(lineStart + at + 1);
+	if (annotated === undefined || found === undefined || found.path[found.path.length - 1] !== CURSOR_KEY) {
 		return undefined;
 	}
-	return found.path.slice(0, -1);
+	const path = found.path.slice(0, -1);
+	const keys = annotated.keysAt(path);
+	keys.delete(CURSOR_KEY);
+	return { path, keys };
 }
+
+/**
+ * The languages whose documents are YAML from the first character to the last.
+ *
+ * Everything else carries its YAML in front matter, which is the safe way round.
+ * A `.qmd` reaches these readers by its file name as well as by its language, so
+ * it is read as Markdown when the Quarto language extension is not installed,
+ * and the body of a document read as a whole is prose rather than YAML.
+ */
+const WHOLE_DOCUMENT = new Set(["yaml", "json"]);
 
 /**
  * The YAML of a document, and where it starts.
@@ -512,7 +544,7 @@ export function sentinelPath(text: string, offset: number, column: number): Yaml
  *   document holds none.
  */
 export function yamlRegionOf(text: string, languageId: string): { text: string; base: number } | undefined {
-	if (languageId !== "quarto") {
+	if (WHOLE_DOCUMENT.has(languageId)) {
 		return { text, base: 0 };
 	}
 	const body = frontMatterBody(text);
@@ -532,7 +564,7 @@ export function yamlRegionOf(text: string, languageId: string): { text: string; 
  * @param offset - The offset to test.
  */
 export function yamlRegionHolds(text: string, languageId: string, offset: number): boolean {
-	if (languageId !== "quarto") {
+	if (WHOLE_DOCUMENT.has(languageId)) {
 		return true;
 	}
 	const body = frontMatterBody(text);
