@@ -2,7 +2,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { isInside } from "./quartoProjectDiscovery";
+import { buildExcludeGlob, isInside, MAX_SCAN_RESULTS } from "./quartoProjectDiscovery";
 import { logMessage } from "./log";
 
 /**
@@ -202,8 +202,13 @@ async function buildForRoot(projectRoot: string): Promise<void> {
 	try {
 		const uris = await vscode.workspace.findFiles(
 			new vscode.RelativePattern(folderUri, QUARTO_AND_METADATA_PATTERN),
-			null,
+			buildExcludeGlob(folderUri),
+			MAX_SCAN_RESULTS,
 		);
+
+		if (uris.length >= MAX_SCAN_RESULTS) {
+			logMessage(`Scan of ${projectRoot} reached the ${MAX_SCAN_RESULTS} match limit; some files are missing.`, "warn");
+		}
 
 		const sources = new Set<string>();
 		for (const uri of uris) {

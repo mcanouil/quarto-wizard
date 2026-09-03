@@ -8,13 +8,19 @@ import { discoverQuartoProjectRoots, isInside, type QuartoProjectRoot } from "./
  * snippets).
  */
 
+/**
+ * How many times a waiting caller follows a superseded discovery to the one that
+ * replaced it. A trigger storm cannot hold the caller for ever.
+ */
+const MAX_DISCOVERY_ATTEMPTS = 5;
+
 let currentRoots: readonly QuartoProjectRoot[] = [];
 let initialised = false;
-let inFlight: Promise<readonly QuartoProjectRoot[]> | undefined;
-// Bumped by `setProjectRoots` and `invalidateProjectRoots` so a queued
-// `ensureProjectRoots` continuation from an earlier generation cannot
-// overwrite state written after it started.
-let generation = 0;
+let inFlight: Promise<readonly QuartoProjectRoot[] | undefined> | undefined;
+// Cancels the file scans of the in-flight discovery, so a superseded discovery
+// cannot write the snapshot and cannot leave its scan running. Dropping the
+// promise alone leaves the scan alive, and repeated triggers collect scans.
+let inFlightCancellation: vscode.CancellationTokenSource | undefined;
 
 /**
  * Returns the cached snapshot, running discovery once if needed.
@@ -24,34 +30,82 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
 	if (initialised) {
 		return currentRoots;
 	}
-	if (inFlight) {
-		return inFlight;
-	}
-	const folders = vscode.workspace.workspaceFolders ?? [];
-	const startedAt = generation;
-	inFlight = discoverQuartoProjectRoots(folders)
-		.then((roots) => {
-			if (generation === startedAt) {
-				currentRoots = roots;
-				initialised = true;
-			}
+	// Join the discovery that is already running. A second one would cancel it,
+	// and both callers would then hold an empty snapshot.
+	let pending = inFlight ?? refreshProjectRoots();
+	for (let attempt = 0; attempt < MAX_DISCOVERY_ATTEMPTS; attempt += 1) {
+		const roots = await pending;
+		if (roots) {
+			return roots;
+		}
+		if (initialised) {
 			return currentRoots;
-		})
-		.finally(() => {
+		}
+		// A superseded discovery reports nothing, so follow the discovery that
+		// replaced it. When nothing replaced it, run one here: the refresh of the
+		// tree view is debounced, and the empty snapshot would report no project.
+		pending = inFlight ?? refreshProjectRoots();
+	}
+	return currentRoots;
+}
+
+/**
+ * Runs discovery and writes the snapshot. Cancels the discovery this call
+ * supersedes, so only one set of file scans is ever running.
+ *
+ * @returns The discovered roots, or `undefined` when a newer call superseded
+ *          this one, which leaves the snapshot to that newer call.
+ */
+export function refreshProjectRoots(): Promise<readonly QuartoProjectRoot[] | undefined> {
+	cancelInFlightDiscovery();
+	const cancellation = new vscode.CancellationTokenSource();
+	inFlightCancellation = cancellation;
+	const discovery = runDiscovery(cancellation).finally(() => {
+		// A superseded discovery settles after the newer one started, so it clears
+		// only the state that is still its own.
+		if (inFlight === discovery) {
 			inFlight = undefined;
-		});
-	return inFlight;
+		}
+		if (inFlightCancellation === cancellation) {
+			inFlightCancellation = undefined;
+		}
+		cancellation.dispose();
+	});
+	inFlight = discovery;
+	return discovery;
+}
+
+async function runDiscovery(
+	cancellation: vscode.CancellationTokenSource,
+): Promise<readonly QuartoProjectRoot[] | undefined> {
+	const folders = vscode.workspace.workspaceFolders ?? [];
+	const roots = await discoverQuartoProjectRoots(folders, cancellation.token);
+	if (cancellation.token.isCancellationRequested) {
+		return undefined;
+	}
+	currentRoots = roots;
+	initialised = true;
+	return roots;
+}
+
+/** Cancels the in-flight discovery so its file scans stop. */
+function cancelInFlightDiscovery(): void {
+	inFlightCancellation?.cancel();
+	inFlightCancellation = undefined;
 }
 
 /**
  * Overwrites the cached snapshot and cancels any in-flight discovery so
  * a concurrent `ensureProjectRoots` cannot race-overwrite this snapshot.
+ *
+ * Seeds the registry for a test. Production code reaches the snapshot through
+ * {@link ensureProjectRoots} and {@link refreshProjectRoots}.
  */
 export function setProjectRoots(roots: readonly QuartoProjectRoot[]): void {
+	cancelInFlightDiscovery();
 	currentRoots = roots;
 	initialised = true;
 	inFlight = undefined;
-	generation += 1;
 }
 
 /**
@@ -59,10 +113,10 @@ export function setProjectRoots(roots: readonly QuartoProjectRoot[]): void {
  * discovery.
  */
 export function invalidateProjectRoots(): void {
+	cancelInFlightDiscovery();
 	currentRoots = [];
 	initialised = false;
 	inFlight = undefined;
-	generation += 1;
 }
 
 /**

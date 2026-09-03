@@ -8,15 +8,17 @@ import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension }
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
+import { getAutoProjectDetection } from "../utils/extensionDetails";
 import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
+import { invalidateMetadataFiles } from "../utils/metadataFilesRegistry";
+import { QUARTO_PROJECT_GLOB, EXTENSION_MANIFEST_GLOB } from "../utils/quartoProjectDiscovery";
 import {
-	discoverQuartoProjectRoots,
-	QUARTO_PROJECT_GLOB,
-	EXTENSION_MANIFEST_GLOB,
-} from "../utils/quartoProjectDiscovery";
-import { findOwningProjectRootSync, invalidateProjectRoots, setProjectRoots } from "../utils/projectRootsRegistry";
+	findOwningProjectRootSync,
+	invalidateProjectRoots,
+	refreshProjectRoots as rediscoverProjectRoots,
+} from "../utils/projectRootsRegistry";
 import { debounce } from "../utils/debounce";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
@@ -66,10 +68,14 @@ export class ExtensionsInstalled {
 		};
 
 		const updateProjectRoots = async (): Promise<boolean> => {
-			const folders = vscode.workspace.workspaceFolders ?? [];
 			try {
-				const roots = await discoverQuartoProjectRoots(folders);
-				setProjectRoots(roots);
+				// The registry owns the scans and cancels the ones a newer trigger
+				// supersedes. A superseded discovery reports nothing, and the newer
+				// one updates the view.
+				const roots = await rediscoverProjectRoots();
+				if (!roots) {
+					return false;
+				}
 				return this.treeDataProvider.setProjectRoots(roots);
 			} catch (error) {
 				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
@@ -107,6 +113,14 @@ export class ExtensionsInstalled {
 
 		context.subscriptions.push(
 			vscode.workspace.onDidChangeConfiguration((event) => {
+				// The scans read the exclude settings, so a change to either one changes
+				// which projects and which metadata files the scans can reach.
+				if (event.affectsConfiguration("files.exclude") || event.affectsConfiguration("search.exclude")) {
+					invalidateMetadataFiles();
+					invalidateProjectRoots();
+					refreshProjectRoots();
+					return;
+				}
 				if (event.affectsConfiguration("quartoWizard.autoProjectDetection")) {
 					refreshProjectRoots();
 				}
@@ -131,10 +145,16 @@ export class ExtensionsInstalled {
 
 		// `openEditors` mode walks parents of open documents; refresh when the doc set changes.
 		// Filter to real files so output channels and untitled buffers don't queue work.
+		// The other modes do not read the open documents, and a recursive scan on every
+		// editor event is expensive, so the trigger is confined to `openEditors`.
 		const onEditorChanged = (document: vscode.TextDocument) => {
-			if (document.uri.scheme === "file" && !document.isUntitled) {
-				refreshProjectRoots();
+			if (document.uri.scheme !== "file" || document.isUntitled) {
+				return;
 			}
+			if (getAutoProjectDetection() !== "openEditors") {
+				return;
+			}
+			refreshProjectRoots();
 		};
 		context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(onEditorChanged));
 		context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(onEditorChanged));

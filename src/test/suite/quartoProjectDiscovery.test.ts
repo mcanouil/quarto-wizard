@@ -5,6 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { EXTENSIONS_DIR, MANIFEST_FILENAMES } from "@quarto-wizard/core";
 import {
+	buildExcludeGlob,
 	discoverQuartoProjectRoots,
 	EXTENSION_MANIFEST_DIRECT_GLOB,
 	EXTENSION_MANIFEST_GLOB,
@@ -34,6 +35,8 @@ suite("Quarto Project Discovery Test Suite", () => {
 
 	let mockedTextDocuments: readonly vscode.TextDocument[];
 	let mockedConfig: MockedConfig;
+	let mockedFilesExclude: Record<string, boolean> | undefined;
+	let mockedSearchExclude: Record<string, boolean> | undefined;
 
 	setup(() => {
 		// Normalise via Uri.file so Windows drive-letter casing matches what `findFiles`
@@ -42,6 +45,8 @@ suite("Quarto Project Discovery Test Suite", () => {
 
 		mockedTextDocuments = [];
 		mockedConfig = { autoProjectDetection: "subFolders" };
+		mockedFilesExclude = undefined;
+		mockedSearchExclude = undefined;
 
 		originalFindFiles = vscode.workspace.findFiles;
 		// Default: scan the temp tree on disk and dispatch by glob to mirror the real findFiles.
@@ -70,6 +75,19 @@ suite("Quarto Project Discovery Test Suite", () => {
 
 		originalGetConfiguration = vscode.workspace.getConfiguration;
 		vscode.workspace.getConfiguration = ((section?: string) => {
+			const mockedExclude =
+				section === "files" ? mockedFilesExclude : section === "search" ? mockedSearchExclude : undefined;
+			if (mockedExclude) {
+				return {
+					get: <T>(key: string, defaultValue?: T): T =>
+						key === "exclude" ? (mockedExclude as T) : (defaultValue as T),
+					has: () => true,
+					inspect: () => undefined,
+					update: async () => {
+						/* no-op */
+					},
+				} as unknown as vscode.WorkspaceConfiguration;
+			}
 			if (section === "quartoWizard") {
 				return {
 					get: <T>(key: string, defaultValue?: T): T => {
@@ -464,6 +482,55 @@ suite("Quarto Project Discovery Test Suite", () => {
 			assert.strictEqual(roots[0].label, "workspace");
 		});
 	}
+
+	test("scans with the exclude settings of the editor, a result cap, and the caller's token", async () => {
+		writeQuartoYml(path.join(tempDir, "site-a"));
+		mockedFilesExclude = { "**/.git": true, "**/.hg": false };
+		mockedSearchExclude = { "**/node_modules": true };
+
+		interface ScanCall {
+			exclude: vscode.GlobPattern | null | undefined;
+			maxResults: number | undefined;
+			token: vscode.CancellationToken | undefined;
+		}
+		const calls: ScanCall[] = [];
+		vscode.workspace.findFiles = ((
+			_include: vscode.GlobPattern,
+			exclude?: vscode.GlobPattern | null,
+			maxResults?: number,
+			token?: vscode.CancellationToken,
+		) => {
+			calls.push({ exclude, maxResults, token });
+			return Promise.resolve([]);
+		}) as typeof vscode.workspace.findFiles;
+
+		const source = new vscode.CancellationTokenSource();
+		try {
+			await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)], source.token);
+		} finally {
+			source.dispose();
+		}
+
+		assert.strictEqual(calls.length, 2);
+		for (const call of calls) {
+			// A `null` exclude turns every exclude off, and an `undefined` exclude
+			// applies `files.exclude` alone, which holds neither `node_modules` nor
+			// build output. Both send the scan through the whole tree.
+			assert.strictEqual(call.exclude, "{**/.git,**/node_modules}");
+			assert.strictEqual(typeof call.maxResults, "number");
+			assert.strictEqual(call.token, source.token);
+		}
+	});
+
+	test("drops an exclude pattern that holds a comma, which would split the brace group", async () => {
+		mockedFilesExclude = { "**/data, raw": true, "**/.git": true };
+		mockedSearchExclude = { "**/{node_modules,dist}": true };
+
+		const exclude = buildExcludeGlob(vscode.Uri.file(tempDir));
+
+		// `**/data` alone would hide every `data` directory, and the projects under it.
+		assert.strictEqual(exclude, "{**/.git,**/{node_modules,dist}}");
+	});
 
 	test("populated root _extensions/ short-circuits before any scan", async () => {
 		writeExtensionRepoFixture();

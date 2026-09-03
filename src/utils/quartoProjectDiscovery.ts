@@ -46,6 +46,57 @@ export const EXTENSION_MANIFEST_DIRECT_GLOB = `*/${EXTENSIONS_DIR}/**/_extension
 export const QUARTO_PROJECT_FILENAMES = ["_quarto.yml", "_quarto.yaml"] as const;
 
 /**
+ * Upper bound on the matches one scan returns.
+ * A workspace folder that holds more project markers than this is far outside the
+ * shape the tree view serves, so the cap stops a runaway walk instead of the scan.
+ */
+export const MAX_SCAN_RESULTS = 5000;
+
+/**
+ * Builds the exclude pattern for a file scan from the exclude settings of the editor.
+ *
+ * `findFiles` applies no exclude at all for a `null` argument, and applies `files.exclude`
+ * alone for an `undefined` one. Neither holds `node_modules` or build output, which live
+ * in `search.exclude`, so the pattern joins the two settings.
+ *
+ * @param scope - The resource the settings are read for.
+ * @returns A brace pattern of the enabled excludes, or `undefined` when there are none.
+ */
+export function buildExcludeGlob(scope: vscode.Uri): string | undefined {
+	const patterns = new Set<string>();
+	for (const section of ["files", "search"]) {
+		const excludes = vscode.workspace.getConfiguration(section, scope).get<Record<string, unknown>>("exclude");
+		for (const [pattern, enabled] of Object.entries(excludes ?? {})) {
+			if (enabled !== true) {
+				continue;
+			}
+			// A comma outside a brace group would split the pattern in two, and each
+			// half would exclude more than the pattern names.
+			if (hasBareComma(pattern)) {
+				logMessage(`Skipping the exclude pattern ${pattern}: a comma outside a brace group.`, "warn");
+				continue;
+			}
+			patterns.add(pattern);
+		}
+	}
+	if (patterns.size === 0) {
+		return undefined;
+	}
+	return `{${[...patterns].join(",")}}`;
+}
+
+/** True when `pattern` holds a comma that no brace group encloses. */
+function hasBareComma(pattern: string): boolean {
+	let depth = 0;
+	for (const character of pattern) {
+		if (character === "{") depth += 1;
+		else if (character === "}") depth -= 1;
+		else if (character === "," && depth <= 0) return true;
+	}
+	return false;
+}
+
+/**
  * A discovered Quarto project root.
  */
 export interface QuartoProjectRoot {
@@ -77,9 +128,15 @@ export interface QuartoProjectRoot {
  *  - else, all detected sub-roots are returned;
  *  - if nothing is detected, the folder root is returned as a fallback so the tree view
  *    keeps its empty-state messaging.
+ *
+ * `token` cancels the file scans. Without it a superseded scan keeps its `ripgrep`
+ * process alive, and repeated triggers collect processes until they exhaust the CPU.
+ * A cancelled scan returns whatever it had, so the caller must discard the result when
+ * its token was cancelled.
  */
 export async function discoverQuartoProjectRoots(
 	workspaceFolders: readonly vscode.WorkspaceFolder[],
+	token?: vscode.CancellationToken,
 ): Promise<QuartoProjectRoot[]> {
 	if (workspaceFolders.length === 0) {
 		return [];
@@ -109,8 +166,8 @@ export async function discoverQuartoProjectRoots(
 		const ignorePatterns = readQuartoIgnore(folderPath);
 		const discovered =
 			setting === "openEditors"
-				? await findOpenEditorProjectDirs(folder)
-				: await findSubFolderProjectDirs(folder, setting === true);
+				? await findOpenEditorProjectDirs(folder, token)
+				: await findSubFolderProjectDirs(folder, setting === true, token);
 
 		const candidates = new Set<string>();
 		for (const dir of discovered) {
@@ -144,7 +201,11 @@ function buildRoot(folder: vscode.WorkspaceFolder, fsPath: string): QuartoProjec
 	return { fsPath, workspaceFolder: folder, label: `${folder.name}/${toRelativePosixPath(folder.uri.fsPath, fsPath)}` };
 }
 
-async function findSubFolderProjectDirs(folder: vscode.WorkspaceFolder, recursive: boolean): Promise<string[]> {
+async function findSubFolderProjectDirs(
+	folder: vscode.WorkspaceFolder,
+	recursive: boolean,
+	token?: vscode.CancellationToken,
+): Promise<string[]> {
 	const folderPath = folder.uri.fsPath;
 	const quartoGlob = recursive ? QUARTO_PROJECT_GLOB : QUARTO_PROJECT_DIRECT_GLOB;
 	const manifestGlob = recursive ? EXTENSION_MANIFEST_GLOB : EXTENSION_MANIFEST_DIRECT_GLOB;
@@ -152,13 +213,18 @@ async function findSubFolderProjectDirs(folder: vscode.WorkspaceFolder, recursiv
 		// In direct-only mode the workspace root cannot be matched by the depth-1 glob,
 		// so probe it explicitly: the smart-merge in `discoverQuartoProjectRoots` collapses
 		// to the workspace folder when it is among the candidates.
-		// `null` exclude lets VSCode honour the user's `files.exclude` and `search.exclude`,
-		// matching how the Git extension scopes its repository scans.
+		const exclude = buildExcludeGlob(folder.uri);
 		const [hasRootMarker, quartoUris, manifestUris] = await Promise.all([
 			recursive ? Promise.resolve(false) : directoryHasProjectMarker(folderPath),
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, quartoGlob), null),
-			vscode.workspace.findFiles(new vscode.RelativePattern(folder, manifestGlob), null),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, quartoGlob), exclude, MAX_SCAN_RESULTS, token),
+			vscode.workspace.findFiles(new vscode.RelativePattern(folder, manifestGlob), exclude, MAX_SCAN_RESULTS, token),
 		]);
+		if (quartoUris.length >= MAX_SCAN_RESULTS || manifestUris.length >= MAX_SCAN_RESULTS) {
+			logMessage(
+				`Scan of ${folderPath} reached the ${MAX_SCAN_RESULTS} match limit; some projects are missing.`,
+				"warn",
+			);
+		}
 		const dirs: string[] = [];
 		if (hasRootMarker) dirs.push(folderPath);
 		for (const uri of quartoUris) {
@@ -191,10 +257,19 @@ function projectRootFromManifestPath(manifestPath: string): string | undefined {
 	return segments.slice(0, idx).join(path.sep);
 }
 
-async function findOpenEditorProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+async function findOpenEditorProjectDirs(
+	folder: vscode.WorkspaceFolder,
+	token?: vscode.CancellationToken,
+): Promise<string[]> {
 	const folderPath = folder.uri.fsPath;
 	const dirs = new Set<string>();
+	// Open documents share their ancestors, and probing one directory reads it from
+	// disk, so the answers are held for the whole pass.
+	const markers = new Map<string, boolean>();
 	for (const document of vscode.workspace.textDocuments) {
+		if (token?.isCancellationRequested) {
+			break;
+		}
 		if (document.uri.scheme !== "file" || document.isUntitled) {
 			continue;
 		}
@@ -202,7 +277,7 @@ async function findOpenEditorProjectDirs(folder: vscode.WorkspaceFolder): Promis
 		if (!isInside(folderPath, documentPath)) {
 			continue;
 		}
-		const projectDir = await ascendForProjectFile(folderPath, path.dirname(documentPath));
+		const projectDir = await ascendForProjectFile(folderPath, path.dirname(documentPath), markers);
 		if (projectDir) {
 			dirs.add(projectDir);
 		}
@@ -213,11 +288,21 @@ async function findOpenEditorProjectDirs(folder: vscode.WorkspaceFolder): Promis
 /**
  * Walks `start` upward (inclusive) until a Quarto project marker is found or the workspace
  * folder boundary is reached. Returns the deepest directory containing a marker.
+ * `markers` holds the answer for each directory the pass already probed.
  */
-async function ascendForProjectFile(folderPath: string, start: string): Promise<string | undefined> {
+async function ascendForProjectFile(
+	folderPath: string,
+	start: string,
+	markers: Map<string, boolean>,
+): Promise<string | undefined> {
 	let current = start;
 	while (isInside(folderPath, current)) {
-		if (await directoryHasProjectMarker(current)) {
+		let hasMarker = markers.get(current);
+		if (hasMarker === undefined) {
+			hasMarker = await directoryHasProjectMarker(current);
+			markers.set(current, hasMarker);
+		}
+		if (hasMarker) {
 			return current;
 		}
 		const parent = path.dirname(current);
