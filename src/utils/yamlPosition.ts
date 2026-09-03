@@ -214,7 +214,7 @@ export function stripBlockquoteMarkers(line: string, limit = Number.POSITIVE_INF
 }
 
 /** An opening fence, as read from one line. */
-export interface OpeningFence {
+interface OpeningFence {
 	/** The indent of the fence, measured after any blockquote markers. */
 	indent: number;
 	/** The run of the fence, which a closing fence must match or exceed. */
@@ -226,16 +226,12 @@ export interface OpeningFence {
 /**
  * Read an opening fence from a line, or report that the line is not one.
  *
- * Exported so that a reader which derives the info string of a block, such as
- * the Typst block scanner, matches the fence exactly as this module does. Two
- * copies of the rule drift apart in silence.
- *
  * The indent limit is not applied here, because it depends on the container the
  * line sits in, which only a reader walking the whole document knows.
  *
  * @param content - One line, with its blockquote markers already removed.
  */
-export function parseOpeningFence(content: string): OpeningFence | undefined {
+function parseOpeningFence(content: string): OpeningFence | undefined {
 	const found = OPENING_FENCE.exec(content);
 	if (found === null) {
 		return undefined;
@@ -263,26 +259,54 @@ export function closingFenceRegExp(fence: string): RegExp {
 }
 
 /**
- * Find all fenced code block body regions in the document text.
+ * One fenced code block, with everything the scan read on the way past it.
+ *
+ * The body range is the `TextRange` the offset readers consume, and the rest is
+ * what a reader would otherwise have to recover by matching the fence line a
+ * second time.
+ */
+export interface FencedBlock extends TextRange {
+	/** The indent of the opening fence, in columns, after any blockquote markers. */
+	indent: number;
+	/** The run of the opening fence, which a closing fence must match or exceed. */
+	fence: string;
+	/** The info string that follows the run, untrimmed. */
+	info: string;
+	/** How many blockquote markers the opening fence line carries. */
+	quoteDepth: number;
+	/** Offset of the first character of the opening fence line. */
+	fenceStart: number;
+	/** Zero-based line number of the opening fence. */
+	fenceLine: number;
+}
+
+/**
+ * Find all fenced code blocks in the document text.
  *
  * Recognises both backtick (`` ``` ``) and tilde (`~~~`) fences, with
  * any info string (including executable cells like `{r}`, `{python}`).
  *
- * Each range starts _after_ the opening fence line (so the fence header
+ * Each body range starts _after_ the opening fence line (so the fence header
  * with its `{r}` or `{python}` attributes remains outside the range and
  * is still eligible for attribute completion/hover) and extends through
  * the end of the closing fence line (or end of text for unclosed blocks).
  *
+ * The indent, the fence run, the info string and the blockquote depth are
+ * reported because the scan reads all four to decide where the block ends. A
+ * reader that needs them and is given only offsets has to match the fence line
+ * again, and a second copy of the fence rules drifts apart in silence.
+ *
  * @param text - The full document text.
- * @returns An array of ranges sorted by start offset.
+ * @returns An array of blocks sorted by body start offset.
  */
-export function getCodeBlockRanges(text: string): TextRange[] {
-	const ranges: TextRange[] = [];
+export function findFencedBlocks(text: string): FencedBlock[] {
+	const blocks: FencedBlock[] = [];
 	const lines = text.split("\n");
 	let offset = 0;
-	let inBlock = false;
-	let blockStart = 0;
-	let blockDepth = 0;
+	// The block whose closing fence the scan is looking for. At most one is open
+	// at a time, because a fence inside a block is content, so each is pushed in
+	// the order it opened.
+	let open: FencedBlock | undefined;
 	let closingFenceRe: RegExp | undefined;
 	// The content column of the innermost open container, as far as one scan can
 	// tell. A fence is measured against this and not against the document,
@@ -311,21 +335,22 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 
 		const { content, depth } = stripBlockquoteMarkers(line);
 
-		if (inBlock) {
-			if (depth > blockDepth) {
+		if (open) {
+			if (depth > open.quoteDepth) {
 				// A line quoted more deeply than the block is content. Inside a fenced
 				// block the container parsing stops, so the extra marker is text the
 				// author wrote, and testing the stripped line for a closing fence
 				// would close the block on its own body.
 				continue;
 			}
-			if (depth === blockDepth) {
+			if (depth === open.quoteDepth) {
 				// Check for closing fence: same character, at least as many
 				// repetitions, optionally followed by whitespace, at the start of the
 				// line.
 				if (closingFenceRe?.test(content)) {
-					ranges.push({ start: blockStart, end: lineEnd });
-					inBlock = false;
+					open.end = lineEnd;
+					blocks.push(open);
+					open = undefined;
 				}
 				continue;
 			}
@@ -334,8 +359,9 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 			// of a code block. The line itself is not part of the block, so it falls
 			// through and can open the next one. The block ends at the end of the
 			// line above, which is one character back from the start of this one.
-			ranges.push({ start: blockStart, end: Math.max(blockStart, lineStart - 1) });
-			inBlock = false;
+			open.end = Math.max(open.start, lineStart - 1);
+			blocks.push(open);
+			open = undefined;
 		}
 
 		const contentStart = firstNonWhitespace(content);
@@ -362,22 +388,45 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 
 		const opening = parseOpeningFence(content);
 		if (opening && opening.indent <= containerIndent + MAX_FENCE_INDENT) {
-			inBlock = true;
-			blockDepth = depth;
-			// Start the range after the opening fence line so that
-			// attributes in the header (e.g. {r}, {python}) stay outside.
-			blockStart = offset;
+			open = {
+				indent: opening.indent,
+				fence: opening.fence,
+				info: opening.info,
+				quoteDepth: depth,
+				fenceStart: lineStart,
+				fenceLine: i,
+				// Start the range after the opening fence line so that
+				// attributes in the header (e.g. {r}, {python}) stay outside.
+				start: offset,
+				// Replaced when the block closes, and left here for the unclosed
+				// block that ends the text with nothing in it.
+				end: offset,
+			};
 			// Compile the closing fence regex once per block.
 			closingFenceRe = closingFenceRegExp(opening.fence);
 		}
 	}
 
 	// Unclosed block extends to end of text.
-	if (inBlock) {
-		ranges.push({ start: blockStart, end: text.length });
+	if (open) {
+		open.end = text.length;
+		blocks.push(open);
 	}
 
-	return ranges;
+	return blocks;
+}
+
+/**
+ * Find all fenced code block body regions in the document text.
+ *
+ * A projection of `findFencedBlocks` for the readers that need only the
+ * offsets, which is every reader that skips over code rather than reading it.
+ *
+ * @param text - The full document text.
+ * @returns An array of ranges sorted by start offset.
+ */
+export function getCodeBlockRanges(text: string): TextRange[] {
+	return findFencedBlocks(text).map((block) => ({ start: block.start, end: block.end }));
 }
 
 /**

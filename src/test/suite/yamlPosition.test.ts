@@ -5,6 +5,7 @@ import {
 	getYamlIndentLevel,
 	getExistingKeysAtPath,
 	getCodeBlockRanges,
+	findFencedBlocks,
 	getInlineCodeSpanRanges,
 	getYamlFrontMatterRange,
 	isInCodeBlockRange,
@@ -595,6 +596,80 @@ suite("YAML Position Utils Test Suite", () => {
 			const ranges = getCodeBlockRanges(text);
 			assert.strictEqual(ranges.length, 1);
 			assert.strictEqual(text.slice(ranges[0].start, ranges[0].end), "> code");
+		});
+	});
+
+	suite("findFencedBlocks", () => {
+		test("should report the indent, the fence run and the info string of a plain fence", () => {
+			const text = "before\n```{r}\nx <- 1\n```\nafter";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].indent, 0);
+			assert.strictEqual(found[0].fence, "```");
+			assert.strictEqual(found[0].info, "{r}");
+			assert.strictEqual(found[0].quoteDepth, 0);
+			assert.strictEqual(found[0].fenceLine, 1);
+			assert.strictEqual(text.slice(found[0].fenceStart, found[0].start), "```{r}\n");
+			assert.strictEqual(text.slice(found[0].start, found[0].end), "x <- 1\n```");
+		});
+
+		test("should report the whole run of a tilde fence", () => {
+			// The run decides which lines close the block, so a reader that keeps it
+			// does not have to match the fence a second time.
+			const text = "~~~~{=typst}\n#x\n~~~~\n";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].fence, "~~~~");
+			assert.strictEqual(found[0].info, "{=typst}");
+			assert.strictEqual(found[0].fenceLine, 0);
+			assert.strictEqual(found[0].fenceStart, 0);
+		});
+
+		test("should report the indent of a fence inside a list item", () => {
+			const text = "1. Step\n\n   ```python\n   x = 1\n   ```\n";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].indent, 3);
+			assert.strictEqual(found[0].info, "python");
+			assert.strictEqual(found[0].fenceLine, 2);
+		});
+
+		test("should report the indent of a tab-indented fence in columns", () => {
+			// A tab advances to the next multiple of four, so the fence owns four
+			// columns and not one character.
+			const text = "1. Step one\n\n\t```{r}\n\tx = 1\n\t```\n";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].indent, 4);
+		});
+
+		test("should report how many blockquote markers the fence line carries", () => {
+			// A reader that de-indents the body needs the marker count as well as the
+			// indent, because both are structure rather than content.
+			const text = "> > ~~~python\n> > x = 1\n> > ~~~\n";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].quoteDepth, 2);
+			assert.strictEqual(found[0].indent, 0);
+			assert.strictEqual(found[0].info, "python");
+		});
+
+		test("should report the fence line of an unclosed block that ends the text", () => {
+			const text = "before\n```typst";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].fenceStart, text.indexOf("```typst"));
+			assert.strictEqual(found[0].fenceLine, 1);
+			assert.strictEqual(found[0].start, text.length);
+			assert.strictEqual(found[0].end, text.length);
+		});
+
+		test("should give getCodeBlockRanges the same offsets it reports itself", () => {
+			const text = "```\na\n```\nbetween\n\n> ```{r}\n> b\n> ```\n";
+			assert.deepStrictEqual(
+				getCodeBlockRanges(text),
+				findFencedBlocks(text).map((block) => ({ start: block.start, end: block.end })),
+			);
 		});
 	});
 

@@ -1,7 +1,6 @@
 import {
-	getCodeBlockRanges,
+	findFencedBlocks,
 	getYamlFrontMatterRange,
-	parseOpeningFence,
 	closingFenceRegExp,
 	stripBlockquoteMarkers,
 	stripCarriageReturn,
@@ -48,19 +47,6 @@ export interface TypstBlock {
 	fenceLine: number;
 	/** Indent of the opening fence, measured after any blockquote markers. */
 	indent: number;
-}
-
-/**
- * The opening fence line that precedes a code block body.
- *
- * `getCodeBlockRanges` starts each range after the opening fence line, so the
- * info string has to be recovered by walking back. When the opening fence is
- * the last line and the document has no trailing newline, the range is empty
- * and starts at the end of the text, which is why the newline test comes first.
- */
-function fenceLineRange(text: string, bodyStart: number): { start: number; end: number } {
-	const end = bodyStart > 0 && text[bodyStart - 1] === "\n" ? bodyStart - 1 : bodyStart;
-	return { start: text.lastIndexOf("\n", end - 1) + 1, end };
 }
 
 /** The kind an info string declares, or undefined when it is not Typst. */
@@ -224,14 +210,14 @@ export function hasLateOptionLine(block: TypstBlock): boolean {
 /**
  * Every Typst block in a document, in document order.
  *
- * Block scanning reuses `getCodeBlockRanges`, which already handles CRLF, an
- * indented fence, an unclosed block, and the CommonMark rule that a backtick
- * info string carries no bare backtick. It also means a fence nested inside a
- * longer fence, as in a Markdown demonstration block, is part of that outer
- * block and is never reported here.
+ * A filter over `findFencedBlocks`, which already handles CRLF, an indented
+ * fence, a fence inside a blockquote, an unclosed block, and the CommonMark rule
+ * that a backtick info string carries no bare backtick. It also means a fence
+ * nested inside a longer fence, as in a Markdown demonstration block, is part of
+ * that outer block and is never reported here.
  */
 export function findTypstBlocks(text: string): TypstBlock[] {
-	// Scan below the front matter rather than dropping its ranges afterwards. A
+	// Scan below the front matter rather than dropping its blocks afterwards. A
 	// block scalar can hold a line that looks like a fence, and that opens a
 	// block which only closes on a bare fence line, so it swallows the opening
 	// fence of the first real block and takes it out of the results entirely.
@@ -239,39 +225,23 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 	const from = frontMatter?.end ?? 0;
 	const source = from === 0 ? text : text.slice(from);
 
-	const blocks: TypstBlock[] = [];
-	// The ranges come back sorted, so the line number of each fence continues
-	// from the last one. Counting from the start of the document for every block
-	// would walk the whole prefix again each time, and a page of examples can
-	// carry ninety fences.
-	let counted = 0;
-	let line = 0;
+	// The scan reports a line number against the slice, so the lines above the
+	// slice are counted once here rather than per block.
+	let firstLine = 0;
 	for (let index = 0; index < from; index++) {
 		if (text[index] === "\n") {
-			line++;
+			firstLine++;
 		}
 	}
 
-	for (const range of getCodeBlockRanges(source)) {
-		const fence = fenceLineRange(source, range.start);
-		const fenceLineText = stripBlockquoteMarkers(stripCarriageReturn(source.slice(fence.start, fence.end)));
-		const opening = parseOpeningFence(fenceLineText.content);
-		if (opening === undefined) {
-			continue;
-		}
-
-		const kind = classifyInfoString(opening.info);
+	const blocks: TypstBlock[] = [];
+	for (const found of findFencedBlocks(source)) {
+		const kind = classifyInfoString(found.info);
 		if (kind === undefined) {
 			continue;
 		}
 
-		for (; counted < fence.start; counted++) {
-			if (source[counted] === "\n") {
-				line++;
-			}
-		}
-
-		const body = blockBody(source, range.start, range.end, opening.fence, opening.indent, fenceLineText.depth);
+		const body = blockBody(source, found.start, found.end, found.fence, found.indent, found.quoteDepth);
 		// Only a cell carries options. For the other two kinds a `//|` line is an
 		// ordinary Typst comment, so the body passes through untouched.
 		const parsed = kind === "cell" ? parseOptions(body) : { options: {}, code: body };
@@ -282,11 +252,11 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			code: parsed.code,
 			options: parsed.options,
 			// Offsets are reported against the document, not against the slice.
-			bodyStart: range.start + from,
-			bodyEnd: range.end + from,
-			fenceStart: fence.start + from,
-			fenceLine: line,
-			indent: opening.indent,
+			bodyStart: found.start + from,
+			bodyEnd: found.end + from,
+			fenceStart: found.fenceStart + from,
+			fenceLine: found.fenceLine + firstLine,
+			indent: found.indent,
 		});
 	}
 
