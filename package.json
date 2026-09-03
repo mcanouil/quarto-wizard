@@ -2,7 +2,7 @@
 	"name": "quarto-wizard",
 	"displayName": "Quarto Wizard",
 	"description": "A Visual Studio Code extension that helps you manage Quarto projects.",
-	"version": "3.2.0",
+	"version": "3.3.0",
 	"private": true,
 	"workspaces": [
 		"packages/*"
@@ -835,7 +835,11 @@
 					"order": 25,
 					"scope": "resource",
 					"type": "string",
-					"enum": ["panel", "hover", "off"],
+					"enum": [
+						"panel",
+						"hover",
+						"off"
+					],
 					"enumDescriptions": [
 						"Show the image in a panel beside the editor, which follows the cursor while it is open.",
 						"Show the image when the pointer rests on a block.",
