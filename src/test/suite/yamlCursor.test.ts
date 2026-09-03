@@ -110,6 +110,14 @@ suite("YAML Cursor Test Suite", () => {
 		assert.deepStrictEqual(await cursorAt('"a: b"|: x\n'), { path: [], isValuePosition: false, colon: 2 });
 	});
 
+	test("Should offer nothing in value position when the document does not parse", async () => {
+		// A key completion is patched into the document so that it parses, and a
+		// value completion cannot be: the break is on another line, and the value
+		// the cursor is writing has to be read where it is written. A document that
+		// does not parse is one Quarto would refuse, so nothing is offered.
+		assert.strictEqual(await cursorAt("broken\nsize: lar|"), undefined);
+	});
+
 	test("Should read the front matter of a Quarto document", async () => {
 		assert.deepStrictEqual(await cursorAt("---\nformat:\n  htm|\n---\n\nBody\n", "quarto"), {
 			path: ["format"],

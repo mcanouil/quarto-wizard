@@ -79,9 +79,15 @@ export function yamlCursorAt(
 	const isValuePosition = KEY_LINE.test(line) && position.character > colon && !onKnownKey;
 
 	if (isValuePosition) {
-		// The key of this line is written, so the document parses and the parse
-		// says where the key is. The value under the cursor answers first, and the
-		// key answers when the value has not been written yet.
+		// The parse says where the key of this line is. The value under the cursor
+		// answers first, and the key answers when the value has not been written
+		// yet.
+		//
+		// This needs the document to parse, where the key branch below does not. A
+		// key is patched into the document to make it parse, and a value cannot be:
+		// the break is on another line, and the value being written has to be read
+		// where it is written. A document that does not parse is one Quarto would
+		// refuse, so nothing is offered.
 		const onKey = annotated?.pathAt(document.offsetAt(position.with(undefined, colon)) - 1);
 		const found = under ?? onKey;
 		if (annotated === undefined || found === undefined) {

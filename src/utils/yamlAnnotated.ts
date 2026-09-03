@@ -492,7 +492,9 @@ export function sentinelPath(
 	offset: number,
 	column: number,
 ): { path: YamlPathSegment[]; keys: Set<string> } | undefined {
-	const lineStart = text.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
+	// Not clamped into the newline itself: a search back from zero over a text
+	// that opens with one finds that newline, and takes the line below it.
+	const lineStart = offset === 0 ? 0 : text.lastIndexOf("\n", offset - 1) + 1;
 	const lineEnd = text.indexOf("\n", lineStart);
 	const line = text.slice(lineStart, lineEnd === NOT_WRITTEN ? text.length : lineEnd);
 	// The indent of the line, and the cursor only when the line holds nothing

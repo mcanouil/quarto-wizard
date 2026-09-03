@@ -271,6 +271,15 @@ suite("Annotated YAML Test Suite", () => {
 			assert.deepStrictEqual(sentinelPath(text, text.length, 4)?.path, ["extensions"]);
 		});
 
+		test("Should patch the first line when the cursor is at the start of the text", () => {
+			// A search back from an offset of zero finds the newline at that offset
+			// when the text opens with one, which takes the line below instead.
+			const text = "\nformat: html\n";
+			const found = sentinelPath(text, 0, 0);
+			assert.deepStrictEqual(found?.path, []);
+			assert.deepStrictEqual(found?.keys, new Set(["format"]));
+		});
+
 		test("Should report nothing when the rest of the document does not parse", () => {
 			// The patch replaces the line the cursor is on, so the break has to be
 			// somewhere else for the parse to fail.
