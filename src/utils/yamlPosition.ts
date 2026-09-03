@@ -419,14 +419,16 @@ export function findFencedBlocks(text: string): FencedBlock[] {
 /**
  * Find all fenced code block body regions in the document text.
  *
- * A projection of `findFencedBlocks` for the readers that need only the
- * offsets, which is every reader that skips over code rather than reading it.
+ * A narrowing of `findFencedBlocks` for the readers that need only the offsets,
+ * which is every reader that skips over code rather than reading it. The blocks
+ * themselves are returned, because a `FencedBlock` is a `TextRange`, so nothing
+ * is copied on a path that runs on every keystroke. No reader writes to a range.
  *
  * @param text - The full document text.
  * @returns An array of ranges sorted by start offset.
  */
 export function getCodeBlockRanges(text: string): TextRange[] {
-	return findFencedBlocks(text).map((block) => ({ start: block.start, end: block.end }));
+	return findFencedBlocks(text);
 }
 
 /**

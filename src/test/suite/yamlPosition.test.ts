@@ -667,8 +667,8 @@ suite("YAML Position Utils Test Suite", () => {
 		test("should give getCodeBlockRanges the same offsets it reports itself", () => {
 			const text = "```\na\n```\nbetween\n\n> ```{r}\n> b\n> ```\n";
 			assert.deepStrictEqual(
-				getCodeBlockRanges(text),
-				findFencedBlocks(text).map((block) => ({ start: block.start, end: block.end })),
+				getCodeBlockRanges(text).map((range) => [range.start, range.end]),
+				findFencedBlocks(text).map((block) => [block.start, block.end]),
 			);
 		});
 	});

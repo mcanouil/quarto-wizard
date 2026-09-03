@@ -5,6 +5,7 @@ import {
 	stripBlockquoteMarkers,
 	stripCarriageReturn,
 	removeIndentColumns,
+	type FencedBlock,
 } from "../yamlPosition";
 
 /**
@@ -71,29 +72,22 @@ function classifyInfoString(info: string): TypstBlockKind | undefined {
  * Typst is whitespace sensitive and knows nothing about Markdown, so neither an
  * indent nor a quote marker may survive into the compiled source.
  */
-function blockBody(
-	text: string,
-	bodyStart: number,
-	bodyEnd: number,
-	fence: string,
-	indent: number,
-	quoteDepth: number,
-): string {
+function blockBody(text: string, block: FencedBlock): string {
 	// Chosen once. How deep the block sits is a property of the fence, not of
 	// each line, so testing it per line says the same thing many times and
 	// invites the two uses below to drift apart.
 	//
 	// At most the depth of the fence is removed. A marker beyond that is content:
 	// one quote deep, the line `> > #x` reaches Typst as the text `> #x`.
-	const unquote =
-		quoteDepth > 0 ? (line: string) => stripBlockquoteMarkers(line, quoteDepth).content : (line: string) => line;
+	const depth = block.quoteDepth;
+	const unquote = depth > 0 ? (line: string) => stripBlockquoteMarkers(line, depth).content : (line: string) => line;
 
 	// Cut at the start of the closing fence line rather than dropping that line
 	// after a split, which would take the newline of the line above with it and
 	// glue the last body line to whatever follows it.
-	const slice = text.slice(bodyStart, bodyEnd);
+	const slice = text.slice(block.start, block.end);
 	const lastNewline = slice.lastIndexOf("\n");
-	const closing = closingFenceRegExp(fence);
+	const closing = closingFenceRegExp(block.fence);
 	const lastLine = stripCarriageReturn(slice.slice(lastNewline + 1));
 	const body = closing.test(unquote(lastLine)) ? slice.slice(0, lastNewline + 1) : slice;
 
@@ -102,7 +96,7 @@ function blockBody(
 	// ending on a CRLF document, and is left alone.
 	return body
 		.split("\n")
-		.map((line) => removeIndentColumns(unquote(line), indent))
+		.map((line) => removeIndentColumns(unquote(line), block.indent))
 		.join("\n");
 }
 
@@ -241,7 +235,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			continue;
 		}
 
-		const body = blockBody(source, found.start, found.end, found.fence, found.indent, found.quoteDepth);
+		const body = blockBody(source, found);
 		// Only a cell carries options. For the other two kinds a `//|` line is an
 		// ordinary Typst comment, so the body passes through untouched.
 		const parsed = kind === "cell" ? parseOptions(body) : { options: {}, code: body };
