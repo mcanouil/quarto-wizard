@@ -502,20 +502,28 @@ export function sentinelPath(
 	// parse at all.
 	const written = line.search(/\S/);
 	const at = written === NOT_WRITTEN ? column : written;
-	const patchedLine = " ".repeat(at) + CURSOR_KEY + ":";
-	const patched = text.slice(0, lineStart) + patchedLine + (lineEnd === NOT_WRITTEN ? "" : text.slice(lineEnd));
+	const rest = lineEnd === NOT_WRITTEN ? "" : text.slice(lineEnd);
 
-	// Positions only. The value of a document with a key written into it is not
-	// the value of the document, and no reader here asks for one.
-	const annotated = annotate(patched, 0, false);
-	const found = annotated?.pathAt(lineStart + at + 1);
-	if (annotated === undefined || found === undefined || found.path[found.path.length - 1] !== CURSOR_KEY) {
-		return undefined;
+	// A key first, and a sequence entry when that does not parse. A blank line
+	// beside the entries of a block sequence takes an entry and not a key, and
+	// the two are told apart by which one the document accepts.
+	for (const marker of ["", "- "]) {
+		const patched = text.slice(0, lineStart) + " ".repeat(at) + marker + CURSOR_KEY + ":" + rest;
+		// Positions only. The value of a document with a key written into it is not
+		// the value of the document, and no reader here asks for one.
+		const annotated = annotate(patched, 0, false);
+		const found = annotated?.pathAt(lineStart + at + marker.length + 1);
+		if (annotated === undefined || found === undefined || found.path[found.path.length - 1] !== CURSOR_KEY) {
+			continue;
+		}
+		// The entry the sequence marker opened names nothing a reader completes
+		// against, so the mapping the cursor sits in is what is left of the path.
+		const path = found.path.slice(0, marker === "" ? -1 : -2);
+		const keys = annotated.keysAt(found.path.slice(0, -1));
+		keys.delete(CURSOR_KEY);
+		return { path, keys };
 	}
-	const path = found.path.slice(0, -1);
-	const keys = annotated.keysAt(path);
-	keys.delete(CURSOR_KEY);
-	return { path, keys };
+	return undefined;
 }
 
 /**
@@ -526,7 +534,7 @@ export function sentinelPath(
  * it is read as Markdown when the Quarto language extension is not installed,
  * and the body of a document read as a whole is prose rather than YAML.
  */
-const WHOLE_DOCUMENT = new Set(["yaml", "json"]);
+const WHOLE_DOCUMENT = new Set(["yaml", "json", "jsonc"]);
 
 /**
  * The YAML of a document, and where it starts.

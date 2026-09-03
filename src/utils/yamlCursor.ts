@@ -65,8 +65,12 @@ export function yamlCursorAt(
 	const under = annotated?.pathAt(offset);
 	// The character before the cursor as well as the one under it, because a
 	// quoted scalar is reported without its quotes, so a cursor sitting just past
-	// the closing quote of a key is still on that key.
-	const before = offset > 0 ? annotated?.pathAt(offset - 1) : undefined;
+	// the closing quote of a key is still on that key. A separator colon is never
+	// read this way: it is the last character a key range covers, so a cursor
+	// typed straight onto it would read as being on the key, and the colon is a
+	// completion trigger, which makes that the position a value is asked for at.
+	const previous = line[position.character - 1];
+	const before = offset > 0 && previous !== ":" ? annotated?.pathAt(offset - 1) : undefined;
 	// The line says whether the cursor is past a colon, because a half-typed key
 	// is written where a value would be and the parse cannot tell the two apart.
 	// The parse overrules it when the cursor is on a key it already knows, which
@@ -84,13 +88,18 @@ export function yamlCursorAt(
 			return undefined;
 		}
 		const keyRange = annotated.nodeAt(found.path)?.keyRange;
+		// The column of the key and not the count of its leading spaces, so that a
+		// line indented with a tab still nests its children correctly.
+		const keyStart = keyRange === undefined ? undefined : document.positionAt(keyRange.start).character;
+		const keyEnd = keyRange === undefined ? undefined : document.positionAt(keyRange.end).character;
+		// The separator is the first colon after the key and not the first colon of
+		// the line, which a quoted key holding one otherwise takes.
+		const separator = keyEnd === undefined ? colon : line.indexOf(":", keyEnd);
 		return {
 			path: found.path,
 			keys: annotated.keysAt(found.path),
-			// The column of the key and not the count of its leading spaces, so that
-			// a line indented with a tab still nests its children correctly.
-			keyColumn: keyRange === undefined ? 0 : document.positionAt(keyRange.start).character,
-			colon,
+			keyColumn: keyStart ?? 0,
+			colon: separator === -1 ? colon : separator,
 			isValuePosition,
 		};
 	}

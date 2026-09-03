@@ -14,7 +14,9 @@ async function cursorAt(marked: string, language = "yaml") {
 	// leaves it unparsable, which is the state a completion is asked for in.
 	const annotated = getDocumentYaml(document, content);
 	const cursor = yamlCursorAt(document, document.positionAt(offset), content, annotated);
-	return cursor === undefined ? undefined : { path: keyPathOf(cursor.path), isValuePosition: cursor.isValuePosition };
+	return cursor === undefined
+		? undefined
+		: { path: keyPathOf(cursor.path), isValuePosition: cursor.isValuePosition, colon: cursor.colon };
 }
 
 suite("YAML Cursor Test Suite", () => {
@@ -22,23 +24,25 @@ suite("YAML Cursor Test Suite", () => {
 		assert.deepStrictEqual(await cursorAt("extensions:\n  mod|"), {
 			path: ["extensions"],
 			isValuePosition: false,
+			colon: -1,
 		});
 	});
 
 	test("Should stay in the parent when the sibling above has children", async () => {
 		const marked = "options:\n  size:\n    type: string\n  co|";
-		assert.deepStrictEqual(await cursorAt(marked), { path: ["options"], isValuePosition: false });
+		assert.deepStrictEqual(await cursorAt(marked), { path: ["options"], isValuePosition: false, colon: -1 });
 	});
 
 	test("Should stay in the parent when the sibling above has a value", async () => {
 		const marked = "extensions:\n  iconify: x\n  mo|";
-		assert.deepStrictEqual(await cursorAt(marked), { path: ["extensions"], isValuePosition: false });
+		assert.deepStrictEqual(await cursorAt(marked), { path: ["extensions"], isValuePosition: false, colon: -1 });
 	});
 
 	test("Should offer the children of a key on a blank line below it", async () => {
 		assert.deepStrictEqual(await cursorAt("extensions:\n  iconify:\n    |"), {
 			path: ["extensions", "iconify"],
 			isValuePosition: false,
+			colon: -1,
 		});
 	});
 
@@ -46,24 +50,55 @@ suite("YAML Cursor Test Suite", () => {
 		assert.deepStrictEqual(await cursorAt("extensions:\n  iconify:\n  |"), {
 			path: ["extensions"],
 			isValuePosition: false,
+			colon: -1,
 		});
 	});
 
 	test("Should offer the root keys on a blank line at the margin", async () => {
-		assert.deepStrictEqual(await cursorAt("extensions:\n  iconify:\n|"), { path: [], isValuePosition: false });
+		assert.deepStrictEqual(await cursorAt("extensions:\n  iconify:\n|"), {
+			path: [],
+			isValuePosition: false,
+			colon: -1,
+		});
 	});
 
 	test("Should read a cursor after the colon as a value position", async () => {
 		assert.deepStrictEqual(await cursorAt("extensions:\n  modal:\n    size: lar|"), {
 			path: ["extensions", "modal", "size"],
 			isValuePosition: true,
+			colon: 8,
 		});
+	});
+
+	test("Should read a cursor typed straight onto the colon as a value position", async () => {
+		// The colon is a trigger character, so this is the position a completion is
+		// asked for at the moment a key is finished.
+		assert.deepStrictEqual(await cursorAt("extensions:\n  modal:\n    size:|"), {
+			path: ["extensions", "modal", "size"],
+			isValuePosition: true,
+			colon: 8,
+		});
+	});
+
+	test("Should offer the keys of a mapping on a blank line inside a sequence", async () => {
+		assert.deepStrictEqual(await cursorAt("items:\n  - name: a\n  |"), {
+			path: ["items"],
+			isValuePosition: false,
+			colon: -1,
+		});
+	});
+
+	test("Should take the separator after a quoted key holding a colon", async () => {
+		// The first colon of the line sits inside the key, so a value completion
+		// keyed on it would replace from inside the key.
+		assert.deepStrictEqual(await cursorAt('"a: b": va|l\n'), { path: ["a: b"], isValuePosition: true, colon: 6 });
 	});
 
 	test("Should read a cursor after the colon with no value written yet", async () => {
 		assert.deepStrictEqual(await cursorAt("extensions:\n  modal:\n    size: |"), {
 			path: ["extensions", "modal", "size"],
 			isValuePosition: true,
+			colon: 8,
 		});
 	});
 
@@ -72,13 +107,14 @@ suite("YAML Cursor Test Suite", () => {
 		// the cursor against it reads a cursor on the key as a value position and
 		// offers the values of that key. The cursor is writing a key, so the keys
 		// of the mapping holding it are what belong there.
-		assert.deepStrictEqual(await cursorAt('"a: b"|: x\n'), { path: [], isValuePosition: false });
+		assert.deepStrictEqual(await cursorAt('"a: b"|: x\n'), { path: [], isValuePosition: false, colon: 2 });
 	});
 
 	test("Should read the front matter of a Quarto document", async () => {
 		assert.deepStrictEqual(await cursorAt("---\nformat:\n  htm|\n---\n\nBody\n", "quarto"), {
 			path: ["format"],
 			isValuePosition: false,
+			colon: -1,
 		});
 	});
 });
