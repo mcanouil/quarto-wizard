@@ -7,7 +7,7 @@ import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
-import { getCodeBlockRanges } from "../utils/yamlPosition";
+import { getDocumentCodeBlockRanges } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 
 /**
@@ -40,7 +40,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				return null;
 			}
 
-			const codeBlockRanges = getCodeBlockRanges(text);
+			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
 			const parsed = parseShortcodeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
@@ -497,7 +497,7 @@ export class ShortcodeHoverProvider implements vscode.HoverProvider {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
-			const codeBlockRanges = getCodeBlockRanges(text);
+			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
 			const parsed = parseShortcodeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;

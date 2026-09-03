@@ -73,7 +73,7 @@ export function buildPlainSource(block: TypstBlock, header: string): AssembledSo
  * directives that the preview has no way to apply, so a block relying on
  * template state diverges.
  */
-export function buildRawSource(blocks: TypstBlock[], target: TypstBlock, header: string): AssembledSource {
+export function buildRawSource(blocks: readonly TypstBlock[], target: TypstBlock, header: string): AssembledSource {
 	const context = precedingRawBlocks(blocks, target).map((block) => block.body);
 	return assemble([header, ...context], target.body);
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- fix: Read a document again when it takes the name of an untitled document that closed. The new document was shown the Typst blocks of the one before it. (#407)
+
 ## 3.3.0 (2026-09-03)
 
 ### New Features

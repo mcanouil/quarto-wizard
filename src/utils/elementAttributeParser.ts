@@ -72,7 +72,7 @@ export interface AttributeBounds {
 export function getAttributeBounds(
 	text: string,
 	offset: number,
-	codeBlockRanges?: TextRange[],
+	codeBlockRanges?: readonly TextRange[],
 ): AttributeBounds | null {
 	// Search backwards for `{` that is not inside a string
 	let openBrace = -1;
@@ -254,7 +254,7 @@ function findClosingBrace(text: string, openBrace: number): number {
 export function parseAttributeAtPosition(
 	text: string,
 	offset: number,
-	codeBlockRanges?: TextRange[],
+	codeBlockRanges?: readonly TextRange[],
 ): ElementAttributeParseResult | null {
 	const bounds = getAttributeBounds(text, offset, codeBlockRanges);
 	if (!bounds) {
