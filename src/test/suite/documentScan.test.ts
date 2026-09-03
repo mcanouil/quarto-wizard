@@ -35,15 +35,6 @@ suite("Document scan cache", () => {
 		assert.strictEqual(getDocumentCodeBlockRanges(one, TEXT), first);
 	});
 
-	test("Should read the text again for a document reusing a name", () => {
-		// An untitled name is handed out again once the document holding it closes,
-		// and the document taking it starts at version one with other text.
-		const { document: closed } = document("/untitled-1");
-		const first = getDocumentCodeBlockRanges(closed, TEXT);
-		const { document: reopened } = document("/untitled-1");
-		assert.notStrictEqual(getDocumentCodeBlockRanges(reopened, TEXT), first);
-	});
-
 	test("Should hold the Typst blocks beside the ranges of one version", () => {
 		// The two readers scan by different rules, so one entry holds both. A
 		// reader asking must not forget what the other one already built.

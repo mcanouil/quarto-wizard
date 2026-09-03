@@ -402,7 +402,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	}
 
 	/** The Typst blocks of a document, which is the list a compile was built from. */
-	blocksOf(document: vscode.TextDocument): TypstBlock[] {
+	blocksOf(document: vscode.TextDocument): readonly TypstBlock[] {
 		return getDocumentTypstBlocks(document, () => document.getText());
 	}
 

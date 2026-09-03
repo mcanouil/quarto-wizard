@@ -268,8 +268,8 @@ interface BlockMatch {
  * contains quoted backticks that look like an inline code span.
  */
 function overlapsExclusionRanges(
-	fencedRanges: TextRange[],
-	inlineRanges: TextRange[],
+	fencedRanges: readonly TextRange[],
+	inlineRanges: readonly TextRange[],
 	matchStart: number,
 	matchEnd: number,
 ): boolean {
@@ -288,7 +288,7 @@ function overlapsExclusionRanges(
  * excluding matches that fall inside fenced code blocks, the YAML front
  * matter, or inline code spans.
  */
-export function extractBlocks(text: string, codeBlockRanges?: TextRange[]): BlockMatch[] {
+export function extractBlocks(text: string, codeBlockRanges?: readonly TextRange[]): BlockMatch[] {
 	const codeRanges = codeBlockRanges ?? getCodeBlockRanges(text);
 	const yamlRange = getYamlFrontMatterRange(text);
 	const fencedRanges = yamlRange ? [yamlRange, ...codeRanges] : codeRanges;
@@ -1050,7 +1050,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		schemas: ElementAttributeSchemas,
 		document: vscode.TextDocument,
 		diagnostics: vscode.Diagnostic[],
-		codeBlockRanges: TextRange[],
+		codeBlockRanges: readonly TextRange[],
 		reportUnknown: boolean,
 	): void {
 		// Use the parser as a context filter: the offset just inside the closing `}`.
@@ -1151,7 +1151,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		schemas: Map<string, ShortcodeSchema>,
 		document: vscode.TextDocument,
 		diagnostics: vscode.Diagnostic[],
-		codeBlockRanges: TextRange[],
+		codeBlockRanges: readonly TextRange[],
 	): void {
 		// Use the parser as a context filter.
 		const blockEndOffset = block.contentOffset + block.content.length;

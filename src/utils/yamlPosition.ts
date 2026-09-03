@@ -451,7 +451,7 @@ export function getCodeBlockRanges(text: string): TextRange[] {
  * @param fencedRanges - Pre-computed fenced code block ranges to skip.
  * @returns An array of ranges sorted by start offset.
  */
-export function getInlineCodeSpanRanges(text: string, fencedRanges: TextRange[]): TextRange[] {
+export function getInlineCodeSpanRanges(text: string, fencedRanges: readonly TextRange[]): TextRange[] {
 	const ranges: TextRange[] = [];
 	const len = text.length;
 	let i = 0;
@@ -506,7 +506,7 @@ export function getInlineCodeSpanRanges(text: string, fencedRanges: TextRange[])
 /**
  * Find the first range that contains the given offset, or undefined.
  */
-function findContainingRange(ranges: TextRange[], offset: number): TextRange | undefined {
+function findContainingRange(ranges: readonly TextRange[], offset: number): TextRange | undefined {
 	for (const range of ranges) {
 		if (offset >= range.start && offset < range.end) {
 			return range;
@@ -525,7 +525,7 @@ function findContainingRange(ranges: TextRange[], offset: number): TextRange | u
  * @param offset - The offset to test.
  * @returns True if the offset is inside a code block.
  */
-export function isInCodeBlockRange(ranges: TextRange[], offset: number): boolean {
+export function isInCodeBlockRange(ranges: readonly TextRange[], offset: number): boolean {
 	return findContainingRange(ranges, offset) !== undefined;
 }
 

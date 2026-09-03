@@ -22,10 +22,9 @@
  * different rules, so neither is derived from the other, and a reader asking
  * for one must not forget what another reader already built.
  *
- * **The arrays are shared, so no reader may write to one.** `findFencedBlocks`
- * is narrowed to `TextRange[]` rather than copied, so the same objects reach the
- * offset readers and the Typst reader. A reader that needs a list of its own
- * builds one.
+ * The arrays are shared and are handed out `readonly`, because `findFencedBlocks`
+ * is narrowed rather than copied and the same objects reach the offset readers
+ * and the Typst reader. A reader that needs a list of its own builds one.
  */
 
 import type * as vscode from "vscode";
@@ -35,8 +34,8 @@ import { findFencedBlocks, type FencedBlock, type TextRange } from "./yamlPositi
 /** The scans of one document version, each built when it is first asked for. */
 interface DocumentScan {
 	version: number;
-	fenced?: FencedBlock[];
-	typst?: TypstBlock[];
+	fenced?: readonly FencedBlock[];
+	typst?: readonly TypstBlock[];
 }
 
 const held = new WeakMap<vscode.TextDocument, DocumentScan>();
@@ -61,9 +60,9 @@ function scanOf(document: vscode.TextDocument): DocumentScan {
  *
  * @param document - The document being read.
  * @param text - The full text of that document.
- * @returns The ranges of `getCodeBlockRanges`, which the caller must not write to.
+ * @returns The ranges of `getCodeBlockRanges`.
  */
-export function getDocumentCodeBlockRanges(document: vscode.TextDocument, text: string): TextRange[] {
+export function getDocumentCodeBlockRanges(document: vscode.TextDocument, text: string): readonly TextRange[] {
 	const scan = scanOf(document);
 	scan.fenced ??= findFencedBlocks(text);
 	return scan.fenced;
@@ -78,9 +77,9 @@ export function getDocumentCodeBlockRanges(document: vscode.TextDocument, text: 
  *
  * @param document - The document being read.
  * @param readText - The full text of that document.
- * @returns The blocks of `findTypstBlocks`, which the caller must not write to.
+ * @returns The blocks of `findTypstBlocks`.
  */
-export function getDocumentTypstBlocks(document: vscode.TextDocument, readText: () => string): TypstBlock[] {
+export function getDocumentTypstBlocks(document: vscode.TextDocument, readText: () => string): readonly TypstBlock[] {
 	const scan = scanOf(document);
 	scan.typst ??= findTypstBlocks(readText());
 	return scan.typst;

@@ -267,7 +267,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
  * the blocks around the one under the cursor: a raw block compiles with the raw
  * blocks above it. Taking the text would scan the document a second time.
  */
-export function blockAtOffset(blocks: TypstBlock[], offset: number): TypstBlock | undefined {
+export function blockAtOffset(blocks: readonly TypstBlock[], offset: number): TypstBlock | undefined {
 	return blocks.find((block) => offset >= block.fenceStart && offset <= block.bodyEnd);
 }
 
@@ -279,7 +279,7 @@ export function blockAtOffset(blocks: TypstBlock[], offset: number): TypstBlock 
  * compiled to an image by the filter, and a plain block is never executed, so
  * neither can put a binding in scope.
  */
-export function precedingRawBlocks(blocks: TypstBlock[], target: TypstBlock): TypstBlock[] {
+export function precedingRawBlocks(blocks: readonly TypstBlock[], target: TypstBlock): TypstBlock[] {
 	return blocks.filter((block) => block.kind === "raw" && block.bodyStart < target.bodyStart);
 }
 

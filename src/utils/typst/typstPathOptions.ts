@@ -82,7 +82,7 @@ function quoteDepth(text: string, fenceStart: number): number {
  * @param blocks - The blocks of that text, which a caller holding them already
  *   passes rather than paying for the scan a second time.
  */
-function cellPathOptions(text: string, blocks: TypstBlock[]): TypstPathOption[] {
+function cellPathOptions(text: string, blocks: readonly TypstBlock[]): TypstPathOption[] {
 	const found: TypstPathOption[] = [];
 
 	for (const block of blocks) {
@@ -285,7 +285,7 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
 export function findTypstPathOptions(
 	text: string,
 	languageId: string,
-	readBlocks: () => TypstBlock[],
+	readBlocks: () => readonly TypstBlock[],
 ): TypstPathOption[] {
 	const cells = languageId === "yaml" ? [] : cellPathOptions(text, readBlocks());
 	const yamlOptions = yamlPathOptions(text, languageId);

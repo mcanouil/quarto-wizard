@@ -53,7 +53,7 @@ export interface ShortcodeBounds {
 export function getShortcodeBounds(
 	text: string,
 	offset: number,
-	codeBlockRanges?: TextRange[],
+	codeBlockRanges?: readonly TextRange[],
 ): ShortcodeBounds | null {
 	// Search backwards for {{< from the cursor position.
 	// We need to find the nearest {{< that is not already closed before the offset.
@@ -152,7 +152,7 @@ export function isInsideShortcode(text: string, offset: number): boolean {
 export function parseShortcodeAtPosition(
 	text: string,
 	offset: number,
-	codeBlockRanges?: TextRange[],
+	codeBlockRanges?: readonly TextRange[],
 ): ShortcodeParseResult | null {
 	const bounds = getShortcodeBounds(text, offset, codeBlockRanges);
 	if (!bounds) {
