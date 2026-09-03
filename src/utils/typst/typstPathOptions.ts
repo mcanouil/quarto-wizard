@@ -13,7 +13,8 @@
  * No `vscode` here, the way nothing under `src/utils/typst/` imports it.
  */
 
-import { getYamlIndentLevel, getYamlKeyPath, stripBlockquoteMarkers, stripCarriageReturn } from "../yamlPosition";
+import type { AnnotatedNode, AnnotatedYaml, YamlPathSegment } from "../yamlAnnotated";
+import { stripBlockquoteMarkers, stripCarriageReturn } from "../yamlPosition";
 import { OPTION_LINE, quotedValue, type TypstBlock } from "./typstBlocks";
 import { TYPST_RENDER } from "./typstOptions";
 import { resolveQuartoPath } from "./typstPaths";
@@ -131,142 +132,64 @@ function cellPathOptions(text: string, blocks: readonly TypstBlock[]): TypstPath
 	return found;
 }
 
-/** Whether a key path names the `typst-render` mapping of a level. */
-function isExtensionPath(path: readonly string[]): boolean {
-	if (path.length === 1) {
-		return path[0] === TYPST_RENDER;
-	}
-	return path.length === 2 && path[0] === "extensions" && path[1] === TYPST_RENDER;
-}
-
-/** Whether a key path names the `preamble:` of a level. */
-function isPreamblePath(path: readonly string[]): boolean {
-	return path.length > 1 && path[path.length - 1] === "preamble" && isExtensionPath(path.slice(0, -1));
-}
-
 /**
- * A YAML value with its trailing comment taken off.
+ * The paths a `preamble:` is written at, in the order a reader meets them.
  *
- * A `#` is a comment only when whitespace comes before it, which is the YAML
- * rule, and never inside a quoted value.
+ * `typst-render.lua:1642` reads the mapping under `extensions:` and falls back
+ * to a bare top-level key, and no other level exists, so these two are the whole
+ * list rather than a pattern to search for.
  */
-function yamlScalar(raw: string, start: number): Scalar {
-	const quoted = unquote(raw, start);
-	// The quotes matched, so the whole value is inside them and a `#` is part of
-	// it. They did not match either when there are none and when a comment
-	// follows the closing one, and taking the comment off answers both.
-	if (quoted.start !== start) {
-		return quoted;
-	}
-	const value = quoted.value.replace(/\s+#.*$/, "");
-	// A line that carries a comment and nothing else writes no value, which is
-	// what a key followed by a block sequence looks like.
-	return unquote(value.startsWith("#") ? "" : value, start);
-}
-
-/** A `preamble:` key, with everything written after the colon. */
-const PREAMBLE_KEY = /^(\s*)preamble:\s*(.*)$/;
-
-/**
- * One entry of a block sequence.
- *
- * The dash is followed by whitespace of any width, which is one space in most
- * documents and more in a document whose entries are aligned. The value capture
- * runs to the end of the line, so its offset follows from its length whatever
- * that width is.
- */
-const SEQUENCE_ENTRY = /^(\s*)-\s+(.+)$/;
-
-/**
- * The entries of a flow sequence, `preamble: [_one.typ, _two.typ]`, or
- * undefined when the value is not one.
- *
- * A flow sequence is a list the same way a block sequence is, and a reader that
- * takes it for one value finds no path in it and says nothing at all.
- */
-function flowEntries(scalar: Scalar): Scalar[] | undefined {
-	const flow = /^\[(.*)\]$/.exec(scalar.value);
-	if (flow === null) {
-		return undefined;
-	}
-	const entries: Scalar[] = [];
-	// Past the opening bracket, then past each entry and the comma after it.
-	let start = scalar.start + 1;
-	for (const part of flow[1].split(",")) {
-		const lead = part.length - part.trimStart().length;
-		entries.push(unquote(part.trimStart(), start + lead));
-		start += part.length + 1;
-	}
-	return entries;
-}
+const PREAMBLE_PATHS: readonly YamlPathSegment[][] = [
+	[TYPST_RENDER, "preamble"],
+	["extensions", TYPST_RENDER, "preamble"],
+];
 
 /**
  * The `preamble:` of every `typst-render` mapping in the YAML of a document.
  *
- * The whole document for a configuration file, and the front matter alone for a
- * Quarto document: `getYamlKeyPath` answers with an empty path below the front
- * matter, so a `preamble:` written in prose is never read as one.
+ * Read from the annotated parse, which already knows where each value is
+ * written. The reader this replaces walked the lines itself and had to re-earn
+ * quoting, a block sequence, a flow sequence and a trailing comment, each of
+ * which the parse answers on its own.
  *
- * The key path is resolved for a `preamble:` line and for nothing else. The
- * entries below one are recognised by their indent instead, because resolving
- * the path of every sequence entry walks the document again for each of them,
- * and a website configuration carries hundreds.
+ * The value is taken from the document text and not from the built value,
+ * because it is the path as it is written that a link is drawn over, and because
+ * a document whose keys are duplicated still has positions to draw on.
+ *
+ * @param text - The document text.
+ * @param annotated - The parse of the YAML of that document.
  */
-function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
+function yamlPathOptions(text: string, annotated: AnnotatedYaml): TypstPathOption[] {
 	const found: TypstPathOption[] = [];
-	const lines = text.split("\n");
-	// The indent of a `preamble:` whose entries are written below it, and
-	// undefined when the reader is not inside one.
-	let sequenceOf: number | undefined;
-	let lineStart = 0;
 
-	for (let index = 0; index < lines.length; index++) {
-		const line = stripCarriageReturn(lines[index]);
-		const trimmed = line.trim();
-		// A blank line and a comment line sit inside the block they interrupt, so
-		// neither ends a sequence.
-		if (trimmed === "" || trimmed.startsWith("#")) {
-			lineStart += lines[index].length + 1;
+	const take = (node: AnnotatedNode | undefined): void => {
+		if (node?.range === undefined) {
+			return;
+		}
+		const value = text.slice(node.range.start, node.range.end);
+		if (namesFile("preamble", value)) {
+			found.push({ key: "preamble", value, start: node.range.start, end: node.range.end });
+		}
+	};
+
+	for (const base of PREAMBLE_PATHS) {
+		const node = annotated.nodeAt(base);
+		if (node === undefined) {
 			continue;
 		}
-
-		const indent = getYamlIndentLevel(line);
-		const entry = SEQUENCE_ENTRY.exec(line);
-		// A block sequence is written at the indent of its key or deeper, so the
-		// indent alone does not say where it ends. The first line that is not an
-		// entry of it does, and a sibling key is such a line.
-		const inSequence = sequenceOf !== undefined && entry !== null && indent >= sequenceOf;
-		if (!inSequence) {
-			sequenceOf = undefined;
+		if (node.kind !== "sequence") {
+			take(node);
+			continue;
 		}
-
-		// The value this line writes, which is the one on a `preamble:` line and
-		// the one an entry below it carries.
-		let scalar: Scalar | undefined;
-		const key = PREAMBLE_KEY.exec(line);
-		if (key !== null && isPreamblePath(getYamlKeyPath(lines, index, languageId))) {
-			scalar = yamlScalar(key[2], line.length - key[2].length);
-			if (scalar.value === "") {
-				// Nothing on the line, so the entries are written below it.
-				sequenceOf = indent;
-				scalar = undefined;
+		// A sequence is read by position until it runs out, which is what tells a
+		// block sequence and a flow sequence apart: nothing.
+		for (let index = 0; ; index++) {
+			const entry = annotated.nodeAt([...base, index]);
+			if (entry === undefined) {
+				break;
 			}
-		} else if (inSequence && entry !== null) {
-			scalar = yamlScalar(entry[2], line.length - entry[2].length);
+			take(entry);
 		}
-
-		for (const value of scalar === undefined ? [] : (flowEntries(scalar) ?? [scalar])) {
-			if (namesFile("preamble", value.value)) {
-				found.push({
-					key: "preamble",
-					value: value.value,
-					start: lineStart + value.start,
-					end: lineStart + value.start + value.value.length,
-				});
-			}
-		}
-
-		lineStart += lines[index].length + 1;
 	}
 
 	return found;
@@ -281,14 +204,18 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
  * @param readBlocks - The blocks of that text. Taken as a thunk, because a YAML
  *   file holds no cell and asks for none, and this module cannot read the cache
  *   that a caller holding a document reads.
+ * @param readYaml - The annotated parse of the YAML of that text, taken as a
+ *   thunk for the same reason.
  */
 export function findTypstPathOptions(
 	text: string,
 	languageId: string,
 	readBlocks: () => readonly TypstBlock[],
+	readYaml: () => AnnotatedYaml | undefined,
 ): TypstPathOption[] {
 	const cells = languageId === "yaml" ? [] : cellPathOptions(text, readBlocks());
-	const yamlOptions = yamlPathOptions(text, languageId);
+	const annotated = readYaml();
+	const yamlOptions = annotated === undefined ? [] : yamlPathOptions(text, annotated);
 	return [...yamlOptions, ...cells].sort((left, right) => left.start - right.start);
 }
 

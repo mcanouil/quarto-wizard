@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
-import * as yaml from "js-yaml";
 import { formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { getYamlIndentLevel } from "../utils/yamlPosition";
+import { getDocumentYaml } from "../utils/documentScan";
+import type { AnnotatedYaml, YamlPathSegment } from "../utils/yamlAnnotated";
+import type { TextRange } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
@@ -111,6 +112,53 @@ function validateSingleValue(value: unknown, descriptor: FieldDescriptor): strin
 }
 
 /**
+ * Where a diagnostic goes, read from the annotated parse.
+ *
+ * A finding about a key points at the key, and a finding about a value points at
+ * the value. The line walk this replaces pointed at the whole line for both, and
+ * could not point at either inside a flow style mapping.
+ *
+ * Exported for its own tests. Choosing where a diagnostic goes is what changed
+ * for the user here, and it is not reachable through the provider without a
+ * workspace, a project root and an installed extension schema.
+ */
+export class DiagnosticRanges {
+	constructor(
+		private readonly document: vscode.TextDocument,
+		private readonly annotated: AnnotatedYaml,
+	) {}
+
+	/**
+	 * The range of the key at a path.
+	 *
+	 * @param path - The path of the option.
+	 */
+	key(path: readonly YamlPathSegment[]): vscode.Range | undefined {
+		const node = this.annotated.nodeAt(path);
+		return this.toRange(node?.keyRange ?? node?.range);
+	}
+
+	/**
+	 * The range of the value at a path.
+	 *
+	 * A key written with no value has nowhere else to point, so it falls back to
+	 * the key.
+	 *
+	 * @param path - The path of the option.
+	 */
+	value(path: readonly YamlPathSegment[]): vscode.Range | undefined {
+		const node = this.annotated.nodeAt(path);
+		return this.toRange(node?.range ?? node?.keyRange);
+	}
+
+	private toRange(range: TextRange | undefined): vscode.Range | undefined {
+		return range === undefined
+			? undefined
+			: new vscode.Range(this.document.positionAt(range.start), this.document.positionAt(range.end));
+	}
+}
+
+/**
  * Provides diagnostics for Quarto YAML configuration files
  * by validating values against extension schema definitions.
  */
@@ -196,30 +244,15 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 
-		const text = document.getText();
-		const lines = text.split("\n");
-		const languageId = document.languageId;
-
-		// Extract the YAML portion.
-		const yamlText = this.extractYamlText(lines, languageId);
-		if (!yamlText) {
+		const annotated = getDocumentYaml(document, document.getText());
+		// A document with no YAML, one that does not parse, and one whose keys are
+		// duplicated all report nothing. A syntax error belongs to whichever
+		// extension owns the language, not here.
+		if (!annotated || !annotated.value || typeof annotated.value !== "object") {
 			this.setDiagnostics(document, []);
 			return;
 		}
-
-		let parsed: Record<string, unknown>;
-		try {
-			const result = yaml.load(yamlText);
-			if (!result || typeof result !== "object") {
-				this.setDiagnostics(document, []);
-				return;
-			}
-			parsed = result as Record<string, unknown>;
-		} catch {
-			// YAML parse errors are handled by other extensions; skip.
-			this.setDiagnostics(document, []);
-			return;
-		}
+		const parsed = annotated.value as Record<string, unknown>;
 
 		let schemaMap;
 		try {
@@ -240,7 +273,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		const diagnostics: vscode.Diagnostic[] = [];
-		const yamlStartLine = this.getYamlStartLine(lines, languageId);
+		const where = new DiagnosticRanges(document, annotated);
 
 		// Validate extension options under "extensions:".
 		const extensionsBlock = parsed["extensions"];
@@ -256,16 +289,14 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 						extConfig as Record<string, unknown>,
 						schema.options,
 						["extensions", extName],
-						lines,
-						yamlStartLine,
+						where,
 						diagnostics,
 					);
 				}
 			}
 		} else if (Array.isArray(extensionsBlock)) {
-			const line = this.findKeyLine(["extensions"], lines, yamlStartLine);
-			if (line >= 0) {
-				const range = new vscode.Range(line, 0, line, lines[line].length);
+			const range = where.key(["extensions"]);
+			if (range) {
 				diagnostics.push(
 					new vscode.Diagnostic(
 						range,
@@ -301,8 +332,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 						formatConfig as Record<string, unknown>,
 						formatFields,
 						["format", formatName],
-						lines,
-						yamlStartLine,
+						where,
 						diagnostics,
 					);
 				}
@@ -324,18 +354,18 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		values: Record<string, unknown>,
 		fields: Record<string, FieldDescriptor>,
 		parentPath: string[],
-		lines: string[],
-		yamlStartLine: number,
+		where: DiagnosticRanges,
 		diagnostics: vscode.Diagnostic[],
 	): void {
 		// Check for required fields that are missing.
 		for (const [key, descriptor] of Object.entries(fields)) {
 			if (descriptor.required && !(key in values)) {
-				const parentLine = this.findKeyLine(parentPath, lines, yamlStartLine);
-				if (parentLine >= 0) {
-					const range = new vscode.Range(parentLine, 0, parentLine, lines[parentLine].length);
+				// The option is not written, so the parent that should hold it is the
+				// only place to point at.
+				const parentRange = where.key(parentPath);
+				if (parentRange) {
 					diagnostics.push(
-						new vscode.Diagnostic(range, `Required option "${key}" is missing.`, vscode.DiagnosticSeverity.Error),
+						new vscode.Diagnostic(parentRange, `Required option "${key}" is missing.`, vscode.DiagnosticSeverity.Error),
 					);
 				}
 			}
@@ -346,23 +376,24 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			const currentPath = [...parentPath, key];
 			const descriptor = this.findDescriptor(key, fields);
 
+			// A finding about the key points at the key, and one about the value
+			// points at the value.
+			const keyRange = where.key(currentPath);
+
 			if (!descriptor) {
 				// Unknown option.
-				const line = this.findKeyLine(currentPath, lines, yamlStartLine);
-				if (line >= 0) {
-					const range = new vscode.Range(line, 0, line, lines[line].length);
+				if (keyRange) {
 					diagnostics.push(
-						new vscode.Diagnostic(range, `Unknown option "${key}".`, vscode.DiagnosticSeverity.Information),
+						new vscode.Diagnostic(keyRange, `Unknown option "${key}".`, vscode.DiagnosticSeverity.Information),
 					);
 				}
 				continue;
 			}
 
-			const line = this.findKeyLine(currentPath, lines, yamlStartLine);
-			if (line < 0) {
+			const range = where.value(currentPath);
+			if (!keyRange || !range) {
 				continue;
 			}
-			const range = new vscode.Range(line, 0, line, lines[line].length);
 
 			// Deprecated check.
 			if (descriptor.deprecated) {
@@ -384,7 +415,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				} else {
 					message = `Option "${key}" is deprecated.`;
 				}
-				diagnostics.push(new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Warning));
+				diagnostics.push(new vscode.Diagnostic(keyRange, message, vscode.DiagnosticSeverity.Warning));
 			}
 
 			// Type check.
@@ -433,9 +464,12 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				if (descriptor.items) {
 					for (let i = 0; i < value.length; i++) {
 						const itemErrors = validateSingleValue(value[i], descriptor.items);
+						// The entry itself is written, so a finding about it points there
+						// rather than at the whole sequence.
+						const itemRange = where.value([...currentPath, i]) ?? range;
 						for (const msg of itemErrors) {
 							diagnostics.push(
-								new vscode.Diagnostic(range, `Item ${i + 1} of "${key}": ${msg}`, vscode.DiagnosticSeverity.Error),
+								new vscode.Diagnostic(itemRange, `Item ${i + 1} of "${key}": ${msg}`, vscode.DiagnosticSeverity.Error),
 							);
 						}
 					}
@@ -444,14 +478,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 			// Recurse into nested objects.
 			if (descriptor.properties && value && typeof value === "object" && !Array.isArray(value)) {
-				this.validateFields(
-					value as Record<string, unknown>,
-					descriptor.properties,
-					currentPath,
-					lines,
-					yamlStartLine,
-					diagnostics,
-				);
+				this.validateFields(value as Record<string, unknown>, descriptor.properties, currentPath, where, diagnostics);
 			}
 		}
 	}
@@ -527,91 +554,5 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				break;
 		}
 		return undefined;
-	}
-
-	/**
-	 * Find the document line number for a given YAML key path.
-	 *
-	 * Walks through the lines looking for each key in the path at
-	 * increasing indentation levels.
-	 */
-	private findKeyLine(keyPath: string[], lines: string[], yamlStartLine: number): number {
-		let searchStart = yamlStartLine;
-		let expectedMinIndent = 0;
-
-		for (let pathIdx = 0; pathIdx < keyPath.length; pathIdx++) {
-			const targetKey = keyPath[pathIdx];
-			let found = false;
-
-			for (let i = searchStart; i < lines.length; i++) {
-				const line = lines[i];
-				const trimmed = line.trim();
-				if (trimmed === "" || trimmed.startsWith("#") || trimmed === "---") {
-					continue;
-				}
-
-				const indent = getYamlIndentLevel(line);
-
-				// If we drop back to a lower indentation, stop looking.
-				if (pathIdx > 0 && indent < expectedMinIndent) {
-					break;
-				}
-
-				const keyMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(line);
-				if (keyMatch && keyMatch[1] === targetKey && indent >= expectedMinIndent) {
-					if (pathIdx === keyPath.length - 1) {
-						return i;
-					}
-					searchStart = i + 1;
-					expectedMinIndent = indent + 1;
-					found = true;
-					break;
-				}
-			}
-
-			if (!found) {
-				return -1;
-			}
-		}
-
-		return -1;
-	}
-
-	private extractYamlText(lines: string[], languageId: string): string | null {
-		if (languageId === "yaml") {
-			return lines.join("\n");
-		}
-
-		// For .qmd files the front matter must start with --- on line 0.
-		if (lines.length === 0 || lines[0].trim() !== "---") {
-			return null;
-		}
-
-		let end = -1;
-		for (let i = 1; i < lines.length; i++) {
-			if (lines[i].trim() === "---") {
-				end = i;
-				break;
-			}
-		}
-
-		if (end === -1) {
-			return null;
-		}
-
-		return lines.slice(1, end).join("\n");
-	}
-
-	private getYamlStartLine(lines: string[], languageId: string): number {
-		if (languageId === "yaml") {
-			return 0;
-		}
-
-		// Front matter must start with --- on line 0.
-		if (lines.length > 0 && lines[0].trim() === "---") {
-			return 1;
-		}
-
-		return 0;
 	}
 }

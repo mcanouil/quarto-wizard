@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { debounce } from "../utils/debounce";
-import { getDocumentTypstBlocks } from "../utils/documentScan";
+import { getDocumentTypstBlocks, getDocumentYaml } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 import { isRelevantYaml } from "../utils/metadataFilesRegistry";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
@@ -197,7 +197,12 @@ export class TypstPathLinks implements vscode.DocumentLinkProvider, vscode.Dispo
 		}
 
 		const text = document.getText();
-		const options = findTypstPathOptions(text, document.languageId, () => getDocumentTypstBlocks(document, () => text));
+		const options = findTypstPathOptions(
+			text,
+			document.languageId,
+			() => getDocumentTypstBlocks(document, () => text),
+			() => getDocumentYaml(document, text),
+		);
 		if (options.length === 0) {
 			return [];
 		}

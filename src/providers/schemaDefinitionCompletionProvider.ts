@@ -13,7 +13,9 @@ import {
 	rootKeyMetadata,
 } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { getYamlKeyPath, getExistingKeysAtPath } from "../utils/yamlPosition";
+import { getDocumentYaml } from "../utils/documentScan";
+import { keyPathOf } from "../utils/yamlAnnotated";
+import { yamlCursorAt } from "../utils/yamlCursor";
 import { logMessage } from "../utils/log";
 
 /**
@@ -199,23 +201,21 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				return undefined;
 			}
 
-			const lines = document.getText().split("\n");
-			const languageId = document.languageId;
-			const currentLineText = lines[position.line];
-			const isBlankLine = currentLineText.trim() === "";
-			const keyPath = getYamlKeyPath(lines, position.line, languageId, isBlankLine ? position.character : undefined);
+			const text = document.getText();
+			const annotated = getDocumentYaml(document, text);
+			const cursor = annotated === undefined ? undefined : yamlCursorAt(document, position, annotated);
+			if (!annotated || !cursor) {
+				return undefined;
+			}
 
-			// Detect value position.
-			const keyColonMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(currentLineText);
-			const colonIndex = currentLineText.indexOf(":");
-			const isValuePosition = keyColonMatch !== null && position.character > colonIndex;
-
-			const context = getSchemaContext(keyPath, isValuePosition);
+			const isValuePosition = cursor.isValuePosition;
+			const context = getSchemaContext(keyPathOf(cursor.path), isValuePosition);
 			if (!context) {
 				return undefined;
 			}
 
-			const existingKeys = getExistingKeysAtPath(lines, keyPath, languageId);
+			const colonIndex = document.lineAt(position.line).text.indexOf(":");
+			const existingKeys = annotated.keysAt(cursor.path);
 			const items = this.buildCompletions(context, existingKeys);
 
 			if (!items || items.length === 0) {
