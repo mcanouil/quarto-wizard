@@ -18,6 +18,7 @@ import {
 	isInCodeBlockRange,
 	type TextRange,
 } from "../utils/yamlPosition";
+import { getDocumentCodeBlockRanges } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
@@ -958,7 +959,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 
 		const version = ++this.validationVersion;
 		const text = document.getText();
-		const codeBlockRanges = getCodeBlockRanges(text);
+		const codeBlockRanges = getDocumentCodeBlockRanges(document, () => text);
 		const blocks = extractBlocks(text, codeBlockRanges);
 		const diagnostics: vscode.Diagnostic[] = [];
 

@@ -14,7 +14,7 @@
  */
 
 import { getYamlIndentLevel, getYamlKeyPath, stripBlockquoteMarkers, stripCarriageReturn } from "../yamlPosition";
-import { findTypstBlocks, OPTION_LINE, quotedValue } from "./typstBlocks";
+import { findTypstBlocks, OPTION_LINE, quotedValue, type TypstBlock } from "./typstBlocks";
 import { TYPST_RENDER } from "./typstOptions";
 import { resolveQuartoPath } from "./typstPaths";
 
@@ -78,11 +78,14 @@ function quoteDepth(text: string, fenceStart: number): number {
  * The run is read from the document text rather than from `block.body`, which
  * is de-indented and stripped of its blockquote markers: an offset taken in
  * that body does not map back to a position in the document.
+ *
+ * @param blocks - The blocks of that text, which a caller holding them already
+ *   passes rather than paying for the scan a second time.
  */
-function cellPathOptions(text: string): TypstPathOption[] {
+function cellPathOptions(text: string, blocks: TypstBlock[]): TypstPathOption[] {
 	const found: TypstPathOption[] = [];
 
-	for (const block of findTypstBlocks(text)) {
+	for (const block of blocks) {
 		// Only a cell carries options. In the other two kinds a `//|` line is an
 		// ordinary Typst comment.
 		if (block.kind !== "cell") {
@@ -275,9 +278,16 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
  * @param text - The document text.
  * @param languageId - The VS Code language identifier, which decides where the
  *   YAML of the document is and whether it holds cells at all.
+ * @param readBlocks - The blocks of that text. Taken as a thunk, because a YAML
+ *   file holds no cell and asks for none. Absent for a caller holding no scan,
+ *   which reads the text again.
  */
-export function findTypstPathOptions(text: string, languageId: string): TypstPathOption[] {
-	const cells = languageId === "yaml" ? [] : cellPathOptions(text);
+export function findTypstPathOptions(
+	text: string,
+	languageId: string,
+	readBlocks: () => TypstBlock[] = () => findTypstBlocks(text),
+): TypstPathOption[] {
+	const cells = languageId === "yaml" ? [] : cellPathOptions(text, readBlocks());
 	const yamlOptions = yamlPathOptions(text, languageId);
 	return [...yamlOptions, ...cells].sort((left, right) => left.start - right.start);
 }

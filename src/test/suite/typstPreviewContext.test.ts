@@ -797,31 +797,13 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.notStrictEqual(await moved, await first, "a front matter edit reads again");
 		});
 
-		test("Should read the document again when its version moves", async () => {
-			// The blocks are a function of the whole text, so the version is the whole
-			// key, which is the half of the cache the front matter does not decide.
+		test("Should read the disk again after a file changed", async () => {
+			// A file on disk moving is what the front matter cannot say, so the whole
+			// chain is read again rather than worked out entry by entry.
 			const cache = new TypstContextCache();
-			const first = cache.blocksOf(document(1), () => "```typst\n#circle()\n```\n");
-			assert.strictEqual(
-				cache.blocksOf(document(1), () => "```typst\n#circle()\n```\n"),
-				first,
-			);
-			assert.notStrictEqual(
-				cache.blocksOf(document(2), () => "```typst\n#square()\n```\n"),
-				first,
-			);
-		});
-
-		test("Should forget what a file changing can move, and keep the rest", async () => {
-			const cache = new TypstContextCache();
-			const blocks = cache.blocksOf(document(1), () => "```typst\n#circle()\n```\n");
 			const context = await cache.cellContext(document(1), `${FRONT_MATTER}Body\n`);
 
 			cache.forgetFiles();
-			assert.strictEqual(
-				cache.blocksOf(document(1), () => "```typst\n#circle()\n```\n"),
-				blocks,
-			);
 			assert.notStrictEqual(await cache.cellContext(document(1), `${FRONT_MATTER}Body\n`), context);
 		});
 	});

@@ -5,6 +5,7 @@ import { blockAtOffset, invalidatesPreview, type TypstBlock } from "../../utils/
 import { isUnavailable, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { debounce, type DebouncedFunction } from "../../utils/debounce";
+import { getDocumentTypstBlocks } from "../../utils/documentScan";
 import { generateHashKey } from "../../utils/hash";
 import { logMessage } from "../../utils/log";
 import { isQmdFile } from "../../utils/metadataFilesRegistry";
@@ -408,7 +409,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	 * however many surfaces ask.
 	 */
 	blocksOf(document: vscode.TextDocument): TypstBlock[] {
-		return this.contexts.blocksOf(document, () => document.getText());
+		return getDocumentTypstBlocks(document, () => document.getText());
 	}
 
 	/** Preview the block under a position, because the user asked for it. */
@@ -585,7 +586,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.uncancelled.dispose();
 		this.resultEmitter.dispose();
 		this.forgetImages();
-		this.contexts.clear();
+		this.contexts.forgetFiles();
 		this.result = undefined;
 		this.tracked = undefined;
 	}

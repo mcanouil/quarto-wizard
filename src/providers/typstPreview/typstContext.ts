@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as semver from "semver";
-import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { blockAtOffset, type TypstBlock } from "../../utils/typst/typstBlocks";
 import {
 	buildPlainSource,
 	buildRawSource,
@@ -11,6 +11,7 @@ import {
 import { TYPST_RENDER, documentBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
 import { buildTypstCommand, type TypstCommand } from "../../utils/typst/typstCli";
 import { EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
+import { getDocumentTypstBlocks } from "../../utils/documentScan";
 import { getInstalledExtensionsCached } from "../../utils/installedExtensionsCache";
 import { getYamlFrontMatterRange } from "../../utils/yamlPosition";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
@@ -202,36 +203,16 @@ function frontMatterText(text: string): string {
 }
 
 /**
- * What a request would otherwise read again on every keystroke.
+ * What a request would otherwise read from disk on every keystroke.
  *
- * The two halves are keyed differently because they depend on different things.
- * The blocks are a function of the whole text, so the document version is the
- * whole key. The metadata chain reads the front matter and then the disk, so it
- * survives every edit that leaves the front matter alone, and a watcher is what
- * forgets it when the disk moves.
+ * The metadata chain reads the front matter and then the disk, so it survives
+ * every edit that leaves the front matter alone, and a watcher is what forgets
+ * it when the disk moves. The blocks of the document are keyed on the document
+ * version instead, so they are held by `getDocumentTypstBlocks` beside the scans
+ * of the other readers rather than here.
  */
 export class TypstContextCache {
-	private readonly blocks = new Map<string, { version: number; blocks: TypstBlock[] }>();
 	private readonly cells = new Map<string, { frontMatter: string; context: Promise<CellContext> }>();
-
-	/**
-	 * The blocks of one document version.
-	 *
-	 * The text is taken as a thunk, because a hit needs none of it. Every surface
-	 * asks on its hot path, and `getText()` copies the whole document, so passing
-	 * the text itself spent one copy of a large file per hover and per code lens
-	 * refresh to return a list that was already built.
-	 */
-	blocksOf(document: vscode.TextDocument, readText: () => string): TypstBlock[] {
-		const key = document.uri.toString();
-		const held = this.blocks.get(key);
-		if (held?.version === document.version) {
-			return held.blocks;
-		}
-		const blocks = findTypstBlocks(readText());
-		this.blocks.set(key, { version: document.version, blocks });
-		return blocks;
-	}
 
 	/** What one document's cells read from disk. */
 	cellContext(document: vscode.TextDocument, text: string): Promise<CellContext> {
@@ -256,9 +237,7 @@ export class TypstContextCache {
 
 	/** Forget one document, which a closed document no longer needs. */
 	forget(uri: vscode.Uri): void {
-		const key = uri.toString();
-		this.blocks.delete(key);
-		this.cells.delete(key);
+		this.cells.delete(uri.toString());
 	}
 
 	/**
@@ -272,11 +251,6 @@ export class TypstContextCache {
 	forgetFiles(): void {
 		this.cells.clear();
 	}
-
-	clear(): void {
-		this.blocks.clear();
-		this.cells.clear();
-	}
 }
 
 /**
@@ -288,8 +262,8 @@ export class TypstContextCache {
  * force, and a second set of directives above them would show an image the
  * render does not produce.
  *
- * @param cache - What a caller repeating the request remembers. A caller that
- *   asks once builds an empty one, which reads the document and the disk.
+ * @param cache - What a caller repeating the request remembers of the disk. A
+ *   caller that asks once builds an empty one, which reads every file again.
  * @param brandMode - The side of the brand to resolve a cell against. Named by
  *   the reader through the toggle command, and absent for every other caller.
  */
@@ -304,7 +278,7 @@ export async function buildCompileRequest(
 	// The whole list is kept, because a raw block compiles with the raw blocks
 	// above it and scanning the document a second time would say the same thing
 	// twice.
-	const blocks = cache.blocksOf(document, () => text);
+	const blocks = getDocumentTypstBlocks(document, () => text);
 	const block = blockAtOffset(blocks, document.offsetAt(position));
 	if (block === undefined) {
 		return { unavailable: NO_BLOCK_MESSAGE };
