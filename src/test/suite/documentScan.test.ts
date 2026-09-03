@@ -2,68 +2,76 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import { getDocumentCodeBlockRanges, getDocumentTypstBlocks } from "../../utils/documentScan";
 
-/** One document, as the cache sees it: a URI and a version. */
-function document(uri: string, version: number): vscode.TextDocument {
-	return { uri: vscode.Uri.file(uri), version } as vscode.TextDocument;
+/** One document, as the cache sees it: an identity, a URI and a version. */
+function document(uri: string, version = 1): { document: vscode.TextDocument; edit: () => void } {
+	const held = { uri: vscode.Uri.file(uri), version };
+	return { document: held as vscode.TextDocument, edit: () => held.version++ };
 }
 
 const TEXT = "```typst\n#circle()\n```\n\n```python\n1\n```\n";
 
 suite("Document scan cache", () => {
 	test("Should return the same ranges again at the same document version", () => {
-		const held = document("/same-version.qmd", 1);
-		const first = getDocumentCodeBlockRanges(held, () => TEXT);
-		assert.strictEqual(
-			getDocumentCodeBlockRanges(held, () => TEXT),
-			first,
-		);
+		const { document: held } = document("/same-version.qmd");
+		const first = getDocumentCodeBlockRanges(held, TEXT);
+		assert.strictEqual(getDocumentCodeBlockRanges(held, TEXT), first);
 		assert.strictEqual(first.length, 2);
 	});
 
 	test("Should read the text again when the document version moves", () => {
-		const first = getDocumentCodeBlockRanges(document("/moved-version.qmd", 1), () => TEXT);
-		const again = getDocumentCodeBlockRanges(document("/moved-version.qmd", 2), () => TEXT);
-		assert.notStrictEqual(again, first);
+		const { document: held, edit } = document("/moved-version.qmd");
+		const first = getDocumentCodeBlockRanges(held, TEXT);
+		edit();
+		assert.notStrictEqual(getDocumentCodeBlockRanges(held, TEXT), first);
 	});
 
-	test("Should read the text again when another document asks", () => {
-		const first = getDocumentCodeBlockRanges(document("/one.qmd", 1), () => TEXT);
-		getDocumentCodeBlockRanges(document("/two.qmd", 1), () => TEXT);
-		assert.notStrictEqual(
-			getDocumentCodeBlockRanges(document("/one.qmd", 1), () => TEXT),
-			first,
-		);
+	test("Should keep what one document holds while another is read", () => {
+		// Two sweeps read every open document in turn, and two editors side by side
+		// alternate, so a single entry would be rebuilt on every other call.
+		const { document: one } = document("/one.qmd");
+		const { document: two } = document("/two.qmd");
+		const first = getDocumentCodeBlockRanges(one, TEXT);
+		getDocumentCodeBlockRanges(two, TEXT);
+		assert.strictEqual(getDocumentCodeBlockRanges(one, TEXT), first);
 	});
 
-	test("Should read nothing on a hit", () => {
-		const held = document("/no-read.qmd", 1);
-		getDocumentCodeBlockRanges(held, () => TEXT);
-		getDocumentCodeBlockRanges(held, () => {
-			assert.fail("a hit read the document text");
-		});
+	test("Should read the text again for a document reusing a name", () => {
+		// An untitled name is handed out again once the document holding it closes,
+		// and the document taking it starts at version one with other text.
+		const { document: closed } = document("/untitled-1");
+		const first = getDocumentCodeBlockRanges(closed, TEXT);
+		const { document: reopened } = document("/untitled-1");
+		assert.notStrictEqual(getDocumentCodeBlockRanges(reopened, TEXT), first);
 	});
 
 	test("Should hold the Typst blocks beside the ranges of one version", () => {
 		// The two readers scan by different rules, so one entry holds both. A
 		// reader asking must not forget what the other one already built.
-		const held = document("/both.qmd", 1);
-		const ranges = getDocumentCodeBlockRanges(held, () => TEXT);
+		const { document: held } = document("/both.qmd");
+		const ranges = getDocumentCodeBlockRanges(held, TEXT);
 		const blocks = getDocumentTypstBlocks(held, () => TEXT);
 		assert.strictEqual(blocks.length, 1);
-		assert.strictEqual(
-			getDocumentCodeBlockRanges(held, () => TEXT),
-			ranges,
-		);
+		assert.strictEqual(getDocumentCodeBlockRanges(held, TEXT), ranges);
 		assert.strictEqual(
 			getDocumentTypstBlocks(held, () => TEXT),
 			blocks,
 		);
 	});
 
+	test("Should read nothing on a Typst block hit", () => {
+		const { document: held } = document("/no-read.qmd");
+		getDocumentTypstBlocks(held, () => TEXT);
+		getDocumentTypstBlocks(held, () => {
+			assert.fail("a hit read the document text");
+		});
+	});
+
 	test("Should read the Typst blocks again when the document version moves", () => {
-		const first = getDocumentTypstBlocks(document("/moved-blocks.qmd", 1), () => TEXT);
+		const { document: held, edit } = document("/moved-blocks.qmd");
+		const first = getDocumentTypstBlocks(held, () => TEXT);
+		edit();
 		assert.notStrictEqual(
-			getDocumentTypstBlocks(document("/moved-blocks.qmd", 2), () => TEXT),
+			getDocumentTypstBlocks(held, () => TEXT),
 			first,
 		);
 	});

@@ -14,7 +14,7 @@
  */
 
 import { getYamlIndentLevel, getYamlKeyPath, stripBlockquoteMarkers, stripCarriageReturn } from "../yamlPosition";
-import { findTypstBlocks, OPTION_LINE, quotedValue, type TypstBlock } from "./typstBlocks";
+import { OPTION_LINE, quotedValue, type TypstBlock } from "./typstBlocks";
 import { TYPST_RENDER } from "./typstOptions";
 import { resolveQuartoPath } from "./typstPaths";
 
@@ -279,13 +279,13 @@ function yamlPathOptions(text: string, languageId: string): TypstPathOption[] {
  * @param languageId - The VS Code language identifier, which decides where the
  *   YAML of the document is and whether it holds cells at all.
  * @param readBlocks - The blocks of that text. Taken as a thunk, because a YAML
- *   file holds no cell and asks for none. Absent for a caller holding no scan,
- *   which reads the text again.
+ *   file holds no cell and asks for none, and this module cannot read the cache
+ *   that a caller holding a document reads.
  */
 export function findTypstPathOptions(
 	text: string,
 	languageId: string,
-	readBlocks: () => TypstBlock[] = () => findTypstBlocks(text),
+	readBlocks: () => TypstBlock[],
 ): TypstPathOption[] {
 	const cells = languageId === "yaml" ? [] : cellPathOptions(text, readBlocks());
 	const yamlOptions = yamlPathOptions(text, languageId);

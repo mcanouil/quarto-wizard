@@ -401,13 +401,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		return this.tracked ?? this.result;
 	}
 
-	/**
-	 * The Typst blocks of a document, as the preview reads them.
-	 *
-	 * The surfaces need the same list the compile was built from, and the cache
-	 * is keyed on the document version, so asking here costs one scan per edit
-	 * however many surfaces ask.
-	 */
+	/** The Typst blocks of a document, which is the list a compile was built from. */
 	blocksOf(document: vscode.TextDocument): TypstBlock[] {
 		return getDocumentTypstBlocks(document, () => document.getText());
 	}

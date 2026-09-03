@@ -296,7 +296,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				return null;
 			}
 
-			const codeBlockRanges = getDocumentCodeBlockRanges(document, () => text);
+			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
 			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
@@ -528,7 +528,7 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
-			const codeBlockRanges = getDocumentCodeBlockRanges(document, () => text);
+			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
 			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;

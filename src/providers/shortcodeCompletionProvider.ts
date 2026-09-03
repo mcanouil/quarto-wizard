@@ -40,7 +40,7 @@ export class ShortcodeCompletionProvider implements vscode.CompletionItemProvide
 				return null;
 			}
 
-			const codeBlockRanges = getDocumentCodeBlockRanges(document, () => text);
+			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
 			const parsed = parseShortcodeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
@@ -497,7 +497,7 @@ export class ShortcodeHoverProvider implements vscode.HoverProvider {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
-			const codeBlockRanges = getDocumentCodeBlockRanges(document, () => text);
+			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
 			const parsed = parseShortcodeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;

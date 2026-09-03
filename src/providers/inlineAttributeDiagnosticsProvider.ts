@@ -959,7 +959,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 
 		const version = ++this.validationVersion;
 		const text = document.getText();
-		const codeBlockRanges = getDocumentCodeBlockRanges(document, () => text);
+		const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
 		const blocks = extractBlocks(text, codeBlockRanges);
 		const diagnostics: vscode.Diagnostic[] = [];
 
@@ -1290,7 +1290,7 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 		}
 
 		const text = document.getText();
-		const blocks = extractBlocks(text);
+		const blocks = extractBlocks(text, getDocumentCodeBlockRanges(document, text));
 
 		for (const diagnostic of relevant) {
 			for (const block of blocks) {
