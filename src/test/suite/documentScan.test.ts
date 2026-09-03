@@ -35,6 +35,17 @@ suite("Document scan cache", () => {
 		assert.strictEqual(getDocumentCodeBlockRanges(one, TEXT), first);
 	});
 
+	test("Should read the text again for the document that took a reused name", () => {
+		// The key is the document and not its URI. An untitled name is handed out
+		// again once the document holding it closes, and the document taking it
+		// starts at version one with other text, so a URI and a version together
+		// name two documents. This is what a preview answered from the image of
+		// the document before it, and the whole suite passes without this case.
+		const first = getDocumentCodeBlockRanges(document("/untitled-1").document, TEXT);
+		const again = getDocumentCodeBlockRanges(document("/untitled-1").document, TEXT);
+		assert.notStrictEqual(again, first);
+	});
+
 	test("Should hold the Typst blocks beside the ranges of one version", () => {
 		// The two readers scan by different rules, so one entry holds both. A
 		// reader asking must not forget what the other one already built.
