@@ -2,9 +2,8 @@ import * as vscode from "vscode";
 import { formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/schema";
 import { formatExtensionId, getExtensionTypes, type InstalledExtension, getErrorMessage } from "@quarto-wizard/core";
-import { isInYamlRegion } from "../utils/yamlPosition";
 import { getDocumentYaml } from "../utils/documentScan";
-import { keyPathOf } from "../utils/yamlAnnotated";
+import { keyPathOf, yamlRegionHolds } from "../utils/yamlAnnotated";
 import { logMessage } from "../utils/log";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
@@ -24,16 +23,16 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 			}
 
 			const text = document.getText();
-			const lines = text.split("\n");
+			const offset = document.offsetAt(position);
 
-			if (!isInYamlRegion(lines, position.line, document.languageId)) {
+			if (!yamlRegionHolds(text, document.languageId, offset)) {
 				return null;
 			}
 
 			// The parse says which half of the pair the cursor is on. The rule this
 			// replaces compared the cursor against the first colon of the line, which
 			// reads the colon inside a value such as `title: "a: b"` as the separator.
-			const found = getDocumentYaml(document, text)?.pathAt(document.offsetAt(position));
+			const found = getDocumentYaml(document, text)?.pathAt(offset);
 			if (found === undefined) {
 				return null;
 			}

@@ -1,6 +1,5 @@
 import * as assert from "assert";
 import {
-	isInYamlRegion,
 	getCodeBlockRanges,
 	findFencedBlocks,
 	getInlineCodeSpanRanges,
@@ -10,55 +9,6 @@ import {
 } from "../../utils/yamlPosition";
 
 suite("YAML Position Utils Test Suite", () => {
-	suite("isInYamlRegion", () => {
-		test("Should return true for any line in a YAML document", () => {
-			const lines = ["key: value", "other: stuff"];
-			assert.strictEqual(isInYamlRegion(lines, 0, "yaml"), true);
-			assert.strictEqual(isInYamlRegion(lines, 1, "yaml"), true);
-		});
-
-		test("Should return true inside QMD front-matter", () => {
-			const lines = ["---", "title: Test", "format: html", "---", "Body text"];
-			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), true);
-			assert.strictEqual(isInYamlRegion(lines, 2, "quarto"), true);
-		});
-
-		test("Should return false outside QMD front-matter", () => {
-			const lines = ["---", "title: Test", "---", "Body text"];
-			assert.strictEqual(isInYamlRegion(lines, 0, "quarto"), false);
-			assert.strictEqual(isInYamlRegion(lines, 3, "quarto"), false);
-		});
-
-		test("Should return false on the delimiter lines themselves", () => {
-			const lines = ["---", "title: Test", "---", "Body text"];
-			assert.strictEqual(isInYamlRegion(lines, 0, "quarto"), false);
-			assert.strictEqual(isInYamlRegion(lines, 2, "quarto"), false);
-		});
-
-		test("Should return false when no closing delimiter exists", () => {
-			const lines = ["---", "title: Test", "Body text"];
-			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
-		});
-
-		test("Should return false when the second line is blank", () => {
-			// The two `---` lines are thematic breaks, so the blank line between
-			// them is body text and not front matter.
-			const lines = ["---", "", "---", "Body text"];
-			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
-		});
-
-		test("Should return false when a CRLF second line is blank", () => {
-			// Lines split on "\n" keep their carriage return, which `trim` removes.
-			const lines = ["---\r", "\r", "---\r", "Body text\r"];
-			assert.strictEqual(isInYamlRegion(lines, 1, "quarto"), false);
-		});
-
-		test("Should return false when no delimiters exist at all", () => {
-			const lines = ["Some text", "More text"];
-			assert.strictEqual(isInYamlRegion(lines, 0, "quarto"), false);
-		});
-	});
-
 	suite("getCodeBlockRanges", () => {
 		test("should detect a backtick-fenced code block body", () => {
 			const text = "before\n```\ncode\n```\nafter";

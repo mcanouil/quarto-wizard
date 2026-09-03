@@ -28,7 +28,7 @@
  */
 
 import * as yaml from "js-yaml";
-import { getYamlFrontMatterRange, type TextRange } from "./yamlPosition";
+import { frontMatterBody, type TextRange } from "./yamlPosition";
 
 /**
  * One step of a path: a key of a mapping, or the position of a sequence entry.
@@ -111,9 +111,14 @@ export function keyPathOf(path: readonly YamlPathSegment[]): string[] {
 
 /** A node while it is still being built, before its children are known. */
 interface BuildingNode extends AnnotatedNode {
-	/** The children by segment, holding the last of a duplicated key. */
-	byKey: Map<YamlPathSegment, BuildingNode>;
-	/** Every child in the order it was written, including a duplicate. */
+	/**
+	 * Every child in the order it was written, a duplicated key included.
+	 *
+	 * One list and no lookup map beside it. A map would hold exactly the last
+	 * entry of this list for each segment, so the two would have to be kept in
+	 * step by hand, and a document here carries tens of keys rather than
+	 * thousands.
+	 */
 	items: { segment: YamlPathSegment; node: BuildingNode }[];
 }
 
@@ -156,7 +161,7 @@ function rangeOf(start: number, end: number, base: number): TextRange | undefine
  * @param keyRange - Where the key that names it is written.
  */
 function node(kind: AnnotatedNode["kind"], range: TextRange | undefined, keyRange?: TextRange): BuildingNode {
-	return { kind, range, keyRange, byKey: new Map(), items: [] };
+	return { kind, range, keyRange, items: [] };
 }
 
 /**
@@ -201,7 +206,6 @@ function attach(frame: Frame | undefined, built: BuildingNode): void {
 	} else {
 		segment = frame.index++;
 	}
-	frame.node.byKey.set(segment, built);
 	frame.node.items.push({ segment, node: built });
 }
 
@@ -337,6 +341,24 @@ function locate(from: BuildingNode, offset: number, path: YamlPathSegment[]): An
 }
 
 /**
+ * The child written at a segment, or undefined when none is.
+ *
+ * Read from the end, so a duplicated key resolves to its last occurrence, which
+ * is the one whose value a loader keeps.
+ *
+ * @param parent - The node to look inside.
+ * @param segment - The key or the position to look for.
+ */
+function childAt(parent: BuildingNode, segment: YamlPathSegment): BuildingNode | undefined {
+	for (let index = parent.items.length - 1; index >= 0; index--) {
+		if (parent.items[index].segment === segment) {
+			return parent.items[index].node;
+		}
+	}
+	return undefined;
+}
+
+/**
  * Read a path down the tree.
  *
  * @param root - The root of the parse.
@@ -345,7 +367,7 @@ function locate(from: BuildingNode, offset: number, path: YamlPathSegment[]): An
 function follow(root: BuildingNode, path: readonly YamlPathSegment[]): BuildingNode | undefined {
 	let found: BuildingNode | undefined = root;
 	for (const segment of path) {
-		found = found.byKey.get(segment);
+		found = childAt(found, segment);
 		if (found === undefined) {
 			return undefined;
 		}
@@ -363,6 +385,21 @@ function follow(root: BuildingNode, path: readonly YamlPathSegment[]): BuildingN
  * @returns The parse, or undefined when the text is not YAML at all.
  */
 export function annotateYaml(text: string, base = 0): AnnotatedYaml | undefined {
+	return annotate(text, base, true);
+}
+
+/**
+ * Parse a region, optionally without building its value.
+ *
+ * Positions and values come from the same event stream, and building the value
+ * is the more expensive half. A reader that only asks where something is skips
+ * it, which is what the cursor patch does on every completion keystroke.
+ *
+ * @param text - The text of the region alone.
+ * @param base - Where that text starts in the document.
+ * @param withValue - Whether to build the value as well as the positions.
+ */
+function annotate(text: string, base: number, withValue: boolean): AnnotatedYaml | undefined {
 	let events: yaml.Event[];
 	try {
 		events = yaml.parseEvents(text, {});
@@ -375,13 +412,15 @@ export function annotateYaml(text: string, base = 0): AnnotatedYaml | undefined 
 	const root = buildTree(events, text, base);
 
 	let value: unknown;
-	try {
-		const documents = yaml.constructFromEvents(events, { source: text });
-		value = documents.length === 1 ? documents[0] : undefined;
-	} catch {
-		// A duplicated key, which `yaml.load` rejected as well. The positions
-		// above are still good, so a reader that only needs a place still has one.
-		value = undefined;
+	if (withValue) {
+		try {
+			const documents = yaml.constructFromEvents(events, { source: text });
+			value = documents.length === 1 ? documents[0] : undefined;
+		} catch {
+			// A duplicated key, which `yaml.load` rejected as well. The positions
+			// above are still good, so a reader that only needs a place still has one.
+			value = undefined;
+		}
 	}
 
 	return {
@@ -447,7 +486,9 @@ export function sentinelPath(text: string, offset: number, column: number): Yaml
 	const patchedLine = " ".repeat(column) + CURSOR_KEY + ":";
 	const patched = text.slice(0, lineStart) + patchedLine + (lineEnd === NOT_WRITTEN ? "" : text.slice(lineEnd));
 
-	const annotated = annotateYaml(patched);
+	// Positions only. The value of a document with a key written into it is not
+	// the value of the document, and no reader here asks for one.
+	const annotated = annotate(patched, 0, false);
 	const found = annotated?.pathAt(lineStart + column + 1);
 	if (found === undefined || found.path[found.path.length - 1] !== CURSOR_KEY) {
 		return undefined;
@@ -474,15 +515,26 @@ export function yamlRegionOf(text: string, languageId: string): { text: string; 
 	if (languageId !== "quarto") {
 		return { text, base: 0 };
 	}
+	const body = frontMatterBody(text);
+	return body === undefined ? undefined : { text: text.slice(body.start, body.end), base: body.start };
+}
 
-	const range = getYamlFrontMatterRange(text);
-	if (range === undefined) {
-		return undefined;
+/**
+ * Whether an offset falls in the YAML of a document.
+ *
+ * The gate a surface applies before it reads the cursor, and the same rule as
+ * `yamlRegionOf` rather than a second one: a document has one answer about where
+ * its front matter is. A Quarto document holds YAML between its delimiters and
+ * nowhere else, and neither delimiter line is part of it.
+ *
+ * @param text - The full document text.
+ * @param languageId - The language of the document.
+ * @param offset - The offset to test.
+ */
+export function yamlRegionHolds(text: string, languageId: string, offset: number): boolean {
+	if (languageId !== "quarto") {
+		return true;
 	}
-	const bodyStart = text.indexOf("\n") + 1;
-	const bodyEnd = text.lastIndexOf("\n", range.end - 1) + 1;
-	if (bodyEnd <= bodyStart) {
-		return undefined;
-	}
-	return { text: text.slice(bodyStart, bodyEnd), base: bodyStart };
+	const body = frontMatterBody(text);
+	return body !== undefined && offset >= body.start && offset < body.end;
 }

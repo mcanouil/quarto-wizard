@@ -31,6 +31,8 @@ export interface YamlCursor {
 	 * there is the keys of that mapping.
 	 */
 	path: YamlPathSegment[];
+	/** Where the colon of the line is, which is where a value completion replaces from. */
+	colon: number;
 	/** Whether the cursor is after the colon of a key on its own line. */
 	isValuePosition: boolean;
 }
@@ -40,6 +42,7 @@ export interface YamlCursor {
  *
  * @param document - The document being completed.
  * @param position - Where the cursor is.
+ * @param text - The full text of the document, which every caller already holds.
  * @param annotated - The parse of the YAML of that document.
  * @returns The cursor, or undefined when the document holds no YAML there and
  *   nothing can be offered.
@@ -47,13 +50,9 @@ export interface YamlCursor {
 export function yamlCursorAt(
 	document: vscode.TextDocument,
 	position: vscode.Position,
+	text: string,
 	annotated: AnnotatedYaml,
 ): YamlCursor | undefined {
-	const region = yamlRegionOf(document.getText(), document.languageId);
-	if (region === undefined) {
-		return undefined;
-	}
-
 	const line = document.lineAt(position.line).text;
 	const colon = line.indexOf(":");
 	const isValuePosition = KEY_LINE.test(line) && position.character > colon;
@@ -66,12 +65,17 @@ export function yamlCursorAt(
 		const onValue = annotated.pathAt(offset);
 		const onKey = annotated.pathAt(document.offsetAt(position.with(undefined, colon)) - 1);
 		const found = onValue ?? onKey;
-		return found === undefined ? undefined : { path: found.path, isValuePosition };
+		return found === undefined ? undefined : { path: found.path, colon, isValuePosition };
 	}
 
 	// Nothing at the cursor is written yet, so a key is written there and the
 	// document is parsed with it. The path of that key, without the key itself,
-	// is the mapping the cursor sits in.
+	// is the mapping the cursor sits in. The region is only read here, because
+	// the patched text has to be the text the parse was built from.
+	const region = yamlRegionOf(text, document.languageId);
+	if (region === undefined) {
+		return undefined;
+	}
 	const path = sentinelPath(region.text, offset - region.base, position.character);
-	return path === undefined ? undefined : { path, isValuePosition };
+	return path === undefined ? undefined : { path, colon, isValuePosition };
 }

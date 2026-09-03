@@ -533,9 +533,9 @@ export function isInCodeBlockRange(ranges: readonly TextRange[], offset: number)
  * Whether the second line of a document lets front matter open.
  *
  * Pandoc reads `---` followed by a blank line, or by a second delimiter, as two
- * thematic breaks rather than as front matter.  `getYamlFrontMatterRange` and
- * `isInYamlRegion` both apply this rule, so one document never gets two answers
- * about where its front matter is.
+ * thematic breaks rather than as front matter.  `getYamlFrontMatterRange` applies this
+ * rule, and every reader of the front matter is built on it, so one document
+ * never gets two answers about where its front matter is.
  *
  * @param secondLine - The second line of the document, with or without its
  *   carriage return.
@@ -550,7 +550,7 @@ function opensFrontMatter(secondLine: string): boolean {
  * Find the YAML front-matter range in a Quarto document.
  *
  * The front matter must open with `---` on line 0 and close with another
- * `---` on a subsequent line (mirroring `isInYamlRegion`).  The returned
+ * `---` on a subsequent line.  The returned
  * range starts at offset 0 and ends at the last character of the closing
  * delimiter line (the trailing newline is excluded), so that any `{...}`
  * content within is fully enclosed.
@@ -616,58 +616,35 @@ export function getYamlFrontMatterRange(text: string): TextRange | undefined {
  *   front matter, when it is empty, or when it does not parse.
  */
 export function parseFrontMatter(text: string): unknown {
-	const range = getYamlFrontMatterRange(text);
-	if (range === undefined) {
-		return undefined;
-	}
-	const bodyStart = text.indexOf("\n") + 1;
-	const bodyEnd = text.lastIndexOf("\n", range.end - 1) + 1;
-	if (bodyEnd <= bodyStart) {
+	const body = frontMatterBody(text);
+	if (body === undefined) {
 		return undefined;
 	}
 	try {
-		return yaml.load(text.slice(bodyStart, bodyEnd));
+		return yaml.load(text.slice(body.start, body.end));
 	} catch {
 		return undefined;
 	}
 }
 
 /**
- * Determine whether a position falls inside a YAML region.
+ * The YAML of the front matter, without either delimiter line.
  *
- * For .qmd files the YAML front-matter is delimited by `---` at the very
- * start and end.  For .yml / .yaml files the entire document is YAML.
+ * Built on `getYamlFrontMatterRange` so that the metadata a reader sees and the
+ * blocks a scanner finds agree on where the front matter ends.  Every reader
+ * that needs the YAML itself rather than the whole delimited region takes it
+ * from here, so no second reading of the two delimiters exists.
  *
- * @param lines - All lines of the document.
- * @param lineIndex - Zero-based line number of the cursor.
- * @param languageId - The VS Code language ID (e.g. "yaml", "quarto").
- * @returns True when the cursor is inside a YAML region.
+ * @param text - The full document text.
+ * @returns The range of the body, or `undefined` when the document has no closed
+ *   front matter or the front matter is empty.
  */
-export function isInYamlRegion(lines: string[], lineIndex: number, languageId: string): boolean {
-	if (languageId === "yaml") {
-		return true;
+export function frontMatterBody(text: string): TextRange | undefined {
+	const range = getYamlFrontMatterRange(text);
+	if (range === undefined) {
+		return undefined;
 	}
-
-	// For quarto / qmd files the YAML front matter must start with --- on line 0.
-	if (lines.length < 3 || lines[0].trim() !== "---") {
-		return false;
-	}
-
-	if (!opensFrontMatter(lines[1])) {
-		return false;
-	}
-
-	let yamlEnd = -1;
-	for (let i = 1; i < lines.length; i++) {
-		if (lines[i].trim() === "---") {
-			yamlEnd = i;
-			break;
-		}
-	}
-
-	if (yamlEnd === -1) {
-		return false;
-	}
-
-	return lineIndex > 0 && lineIndex < yamlEnd;
+	const start = text.indexOf("\n") + 1;
+	const end = text.lastIndexOf("\n", range.end - 1) + 1;
+	return end <= start ? undefined : { start, end };
 }

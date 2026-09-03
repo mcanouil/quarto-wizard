@@ -2,9 +2,8 @@ import * as vscode from "vscode";
 import { typeIncludes, formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
 import { getExtensionTypes, getErrorMessage, type InstalledExtension } from "@quarto-wizard/core";
-import { isInYamlRegion } from "../utils/yamlPosition";
 import { getDocumentYaml } from "../utils/documentScan";
-import { keyPathOf } from "../utils/yamlAnnotated";
+import { keyPathOf, yamlRegionHolds } from "../utils/yamlAnnotated";
 import { yamlCursorAt } from "../utils/yamlCursor";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { hasCompletableValues } from "../utils/schemaDocumentation";
@@ -30,16 +29,15 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			}
 
 			const text = document.getText();
-			const lines = text.split("\n");
 
 			// The region test comes first, so that a cursor in the body of a Quarto
 			// document is never read against the front matter above it.
-			if (!isInYamlRegion(lines, position.line, document.languageId)) {
+			if (!yamlRegionHolds(text, document.languageId, document.offsetAt(position))) {
 				return undefined;
 			}
 
 			const annotated = getDocumentYaml(document, text);
-			const cursor = annotated === undefined ? undefined : yamlCursorAt(document, position, annotated);
+			const cursor = annotated === undefined ? undefined : yamlCursorAt(document, position, text, annotated);
 			if (!annotated || !cursor) {
 				return undefined;
 			}
@@ -79,7 +77,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				// that a line indented with a tab still nests its children correctly.
 				const keyRange = annotated.nodeAt(cursor.path)?.keyRange;
 				const keyColumn = keyRange === undefined ? 0 : document.positionAt(keyRange.start).character;
-				this.adjustForValuePosition(items, position, lines[position.line], keyColumn);
+				this.adjustForValuePosition(items, position, cursor.colon, keyColumn);
 			}
 
 			return items;
@@ -98,10 +96,9 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	private adjustForValuePosition(
 		items: vscode.CompletionItem[],
 		position: vscode.Position,
-		currentLine: string,
+		colonIndex: number,
 		keyColumn: number,
 	): void {
-		const colonIndex = currentLine.indexOf(":");
 		const replaceRange = new vscode.Range(position.line, colonIndex + 1, position.line, position.character);
 		const childIndent = " ".repeat(keyColumn + 2);
 

@@ -203,7 +203,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 
 			const text = document.getText();
 			const annotated = getDocumentYaml(document, text);
-			const cursor = annotated === undefined ? undefined : yamlCursorAt(document, position, annotated);
+			const cursor = annotated === undefined ? undefined : yamlCursorAt(document, position, text, annotated);
 			if (!annotated || !cursor) {
 				return undefined;
 			}
@@ -214,7 +214,6 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				return undefined;
 			}
 
-			const colonIndex = document.lineAt(position.line).text.indexOf(":");
 			const existingKeys = annotated.keysAt(cursor.path);
 			const items = this.buildCompletions(context, existingKeys);
 
@@ -225,7 +224,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 			// When in value position, set replacement range from after the
 			// colon to the cursor so leading whitespace is not doubled.
 			if (isValuePosition) {
-				const replaceRange = new vscode.Range(position.line, colonIndex + 1, position.line, position.character);
+				const replaceRange = new vscode.Range(position.line, cursor.colon + 1, position.line, position.character);
 				for (const item of items) {
 					item.range = replaceRange;
 				}

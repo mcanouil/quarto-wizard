@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { annotateYaml, keyPathOf, sentinelPath, yamlRegionOf } from "../../utils/yamlAnnotated";
+import { annotateYaml, keyPathOf, sentinelPath, yamlRegionHolds, yamlRegionOf } from "../../utils/yamlAnnotated";
 
 /** The text a range covers, which is what every position assertion is about. */
 function at(text: string, range: { start: number; end: number } | undefined): string | undefined {
@@ -119,6 +119,16 @@ suite("Annotated YAML Test Suite", () => {
 
 		test("Should report nothing for YAML that does not parse", () => {
 			assert.strictEqual(annotateYaml("a:\n\tb: 1\n"), undefined);
+		});
+
+		test("Should keep reading the keys below a mapping used as a key", () => {
+			// An explicit complex key is legal YAML and names nothing a reader can
+			// address. It is read so that the pairs after it still line up: without
+			// that, every key below one would take the position of its neighbour.
+			const text = "? [a, b]\n: first\nsize: large\n";
+			const annotated = annotateYaml(text);
+			assert.strictEqual(at(text, annotated?.nodeAt(["size"])?.keyRange), "size");
+			assert.strictEqual(at(text, annotated?.nodeAt(["size"])?.range), "large");
 		});
 
 		test("Should read JSON, because JSON is flow style YAML", () => {
@@ -271,6 +281,53 @@ suite("Annotated YAML Test Suite", () => {
 		test("Should report nothing when the two delimiters are thematic breaks", () => {
 			// `extractYamlText` read this as front matter while the scanner did not.
 			assert.strictEqual(yamlRegionOf("---\n\n---\nBody\n", "quarto"), undefined);
+		});
+	});
+
+	suite("yamlRegionHolds", () => {
+		test("Should hold every offset of a YAML document", () => {
+			const text = "key: value\nother: stuff\n";
+			assert.strictEqual(yamlRegionHolds(text, "yaml", 0), true);
+			assert.strictEqual(yamlRegionHolds(text, "yaml", text.length - 1), true);
+		});
+
+		test("Should hold the front matter of a Quarto document", () => {
+			const text = "---\ntitle: Test\nformat: html\n---\nBody text\n";
+			assert.strictEqual(yamlRegionHolds(text, "quarto", text.indexOf("title")), true);
+			assert.strictEqual(yamlRegionHolds(text, "quarto", text.indexOf("format")), true);
+		});
+
+		test("Should not hold the body of a Quarto document", () => {
+			const text = "---\ntitle: Test\n---\nBody text\n";
+			assert.strictEqual(yamlRegionHolds(text, "quarto", text.indexOf("Body")), false);
+		});
+
+		test("Should not hold either delimiter line", () => {
+			const text = "---\ntitle: Test\n---\nBody text\n";
+			assert.strictEqual(yamlRegionHolds(text, "quarto", 0), false);
+			assert.strictEqual(yamlRegionHolds(text, "quarto", text.lastIndexOf("---")), false);
+		});
+
+		test("Should hold nothing when no closing delimiter exists", () => {
+			const text = "---\ntitle: Test\nBody text\n";
+			assert.strictEqual(yamlRegionHolds(text, "quarto", text.indexOf("title")), false);
+		});
+
+		test("Should hold nothing when the second line is blank", () => {
+			// The two `---` lines are thematic breaks, so what sits between them is
+			// body text and not front matter.
+			const text = "---\n\n---\nBody text\n";
+			assert.strictEqual(yamlRegionHolds(text, "quarto", 4), false);
+		});
+
+		test("Should hold nothing when a CRLF second line is blank", () => {
+			const text = "---\r\n\r\n---\r\nBody text\r\n";
+			assert.strictEqual(yamlRegionHolds(text, "quarto", 5), false);
+		});
+
+		test("Should hold nothing when the document has no delimiters at all", () => {
+			const text = "Some text\nMore text\n";
+			assert.strictEqual(yamlRegionHolds(text, "quarto", 0), false);
 		});
 	});
 });

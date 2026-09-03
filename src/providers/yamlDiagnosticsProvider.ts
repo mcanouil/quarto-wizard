@@ -129,26 +129,35 @@ export class DiagnosticRanges {
 	) {}
 
 	/**
+	 * Both halves of an option, read in one walk of the tree.
+	 *
+	 * A key written with no value has nowhere else to point, so the value falls
+	 * back to the key, and a value written with no key of its own, which is an
+	 * entry of a sequence, does the reverse.
+	 *
+	 * @param path - The path of the option.
+	 */
+	at(path: readonly YamlPathSegment[]): { key?: vscode.Range; value?: vscode.Range } {
+		const node = this.annotated.nodeAt(path);
+		return { key: this.toRange(node?.keyRange ?? node?.range), value: this.toRange(node?.range ?? node?.keyRange) };
+	}
+
+	/**
 	 * The range of the key at a path.
 	 *
 	 * @param path - The path of the option.
 	 */
 	key(path: readonly YamlPathSegment[]): vscode.Range | undefined {
-		const node = this.annotated.nodeAt(path);
-		return this.toRange(node?.keyRange ?? node?.range);
+		return this.at(path).key;
 	}
 
 	/**
 	 * The range of the value at a path.
 	 *
-	 * A key written with no value has nowhere else to point, so it falls back to
-	 * the key.
-	 *
 	 * @param path - The path of the option.
 	 */
 	value(path: readonly YamlPathSegment[]): vscode.Range | undefined {
-		const node = this.annotated.nodeAt(path);
-		return this.toRange(node?.range ?? node?.keyRange);
+		return this.at(path).value;
 	}
 
 	private toRange(range: TextRange | undefined): vscode.Range | undefined {
@@ -377,8 +386,8 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			const descriptor = this.findDescriptor(key, fields);
 
 			// A finding about the key points at the key, and one about the value
-			// points at the value.
-			const keyRange = where.key(currentPath);
+			// points at the value. Both come from one walk of the tree.
+			const { key: keyRange, value: range } = where.at(currentPath);
 
 			if (!descriptor) {
 				// Unknown option.
@@ -390,7 +399,6 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				continue;
 			}
 
-			const range = where.value(currentPath);
 			if (!keyRange || !range) {
 				continue;
 			}
@@ -464,6 +472,9 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				if (descriptor.items) {
 					for (let i = 0; i < value.length; i++) {
 						const itemErrors = validateSingleValue(value[i], descriptor.items);
+						if (itemErrors.length === 0) {
+							continue;
+						}
 						// The entry itself is written, so a finding about it points there
 						// rather than at the whole sequence.
 						const itemRange = where.value([...currentPath, i]) ?? range;
