@@ -4,6 +4,27 @@ title: "Changelog"
 
 ## 3 {#version-3}
 
+### 3.3 {#version-3-3}
+
+#### 3.3.0 (2026-09-03) {#version-3-3-0}
+
+##### New Features
+
+- feat: preview a Typst block from a Quarto document. The block under the cursor is shown in a panel beside the editor or in a hover. (#395)
+- feat: open the file that a `file:` or a `preamble:` option names. A path that leads to no file carries a warning. (#402)
+- feat: publish the Lua reference validator of the v2 extension schema vocabulary, so an extension can resolve the module by URL. (#374)
+- feat: accept `uniqueItems` in a field descriptor, which the Lua reference validator already enforced. (#378)
+- docs: add a reference page on how an extension loads and calls the Lua reference validator. (#383)
+
+##### Bug Fixes
+
+- fix: show every keyword of the vocabulary in the published example schemas. (#381)
+- fix: teach the canonical v2 vocabulary in the schema generation prompt, which named 15 spellings the v2 meta-schema rejects. (#382)
+- fix: read the default branch from GitHub for a repository that has no release, no tag and no registry entry. An extension in a repository whose default branch is `master` failed to install. (#385)
+- fix: find a Typst block written between two `---` lines that open no front matter. (#397)
+- fix: compile a Typst preview under the root a render uses, so a block that reads a file beside its own document no longer fails. (#401)
+- fix: stop the search for Quarto projects from collecting search processes. The search now applies the `files.exclude` and `search.exclude` settings, and it stops when a newer search replaces it. (#404)
+
 ### 3.2 {#version-3-2}
 
 #### 3.2.0 (2026-08-02) {#version-3-2-0}
