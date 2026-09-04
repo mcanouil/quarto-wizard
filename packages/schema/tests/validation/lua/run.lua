@@ -624,6 +624,26 @@ options:
   assert_contains(errors, 'password')
 end)
 
+test('a dependent filled only by its own default does not satisfy the requirement', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+        default: letmein
+]])
+  local valid, errors = schema.validate({ auth = { user = 'me' } }, loaded.options)
+  assert_false(valid, 'a dependent that holds only a default is not present')
+  assert_contains(errors, 'password')
+end)
+
 test('nested properties contribute defaults and coercion to merged', function()
   local loaded = load_schema([[
 options:
@@ -924,6 +944,30 @@ shortcodes:
   local valid, errors = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
   assert_false(valid, 'a missing required attribute should be reported')
   assert_contains(errors, 'icon')
+end)
+
+test('shortcode required reads the merged attributes when the entry declares them', function()
+  -- `replaceWith` forwards the value and clears the old key, so the old
+  -- spelling is genuinely absent once the attributes are merged. Reading the
+  -- caller's raw arguments instead let it satisfy the requirement.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      old-name:
+        type: string
+        deprecated:
+          since: "1.2.0"
+          replaceWith: new-name
+      new-name:
+        type: string
+    required:
+      - old-name
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { ['old-name'] = 'carried' }, loaded.shortcodes.demo)
+  assert_false(valid, 'a key cleared by replaceWith no longer satisfies required')
+  assert_contains(errors, 'old-name')
 end)
 
 test('S7: validate_attributes checks declared keys and ignores the rest', function()

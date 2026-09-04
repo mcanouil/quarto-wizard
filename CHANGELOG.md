@@ -7,6 +7,7 @@
 - fix: Read a document again when it takes the name of an untitled document that closed. The new document was shown the Typst blocks of the one before it. (#407)
 - fix: Point a YAML diagnostic at the key or the value it is about, instead of at the whole line. An option written in flow style, such as `format: {html: {toc: 3}}`, is now checked as well. (#408)
 - fix: Read a fenced block that a tab indents inside a blockquote. A tab is now measured from the start of the line, so the block is found and a body line keeps the indent the author wrote. (#409)
+- fix: Correct two checks in the Lua reference validator. A dependent that holds only a default no longer satisfies `dependentRequired`, and a shortcode `required` name is now read from the merged attributes when the entry declares an `attributes` block. (#\<pull request\>)
 
 ## 3.3.0 (2026-09-03)
 

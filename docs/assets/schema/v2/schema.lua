@@ -1824,13 +1824,15 @@ local function _check_object(value, spec, path, context)
   -- Runs after the properties block, which writes the resolved members back
   -- into `value`. Before that, a dependent supplied under an alias is not yet
   -- there to be found. A `default` is an annotation and does not change the
-  -- instance, so a key that only holds one never triggers a requirement.
+  -- instance, so a key that only holds one neither triggers a requirement nor
+  -- satisfies it.
   if type(spec.dependentRequired) == 'table' then
     for key, dependents in pairs(spec.dependentRequired) do
       local trigger, trigger_key = _lookup(value, key)
       if trigger ~= nil and not defaulted[trigger_key] and type(dependents) == 'table' then
         for _, dependent in ipairs(dependents) do
-          if _lookup(value, dependent) == nil then
+          local supplied, dependent_key = _lookup(value, dependent)
+          if supplied == nil or defaulted[dependent_key] then
             _report(context, 'error', path, 'dependentRequired', string.format(
               'requires "%s" when "%s" is present.', dependent, key
             ))
@@ -2260,10 +2262,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
   end
 
   if type(entry.required) == 'table' then
-    -- `merged.attributes` is filled only when the entry declares `attributes`.
-    -- The vocabulary allows `required` on its own, so fall back to what the
-    -- caller supplied rather than reporting every name as missing.
-    local supplied = kwargs or {}
+    -- `merged.attributes` is filled only when the entry declares `attributes`,
+    -- and it is authoritative when it is: it keeps every unclaimed key and it
+    -- drops a key that a deprecation cleared. The vocabulary allows `required`
+    -- on its own, so fall back to what the caller supplied only in that case,
+    -- rather than reporting every name as missing.
+    local declared = type(entry.attributes) == 'table'
+    local supplied = declared and {} or (kwargs or {})
     for _, required in ipairs(entry.required) do
       if _lookup(merged.attributes, required) == nil
         and _lookup(supplied, required) == nil then
