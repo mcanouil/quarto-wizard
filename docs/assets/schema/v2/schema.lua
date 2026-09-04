@@ -1953,6 +1953,10 @@ end
 --- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor}
 --- @return table merged Values with aliases, coercion and defaults applied
 --- @return table defaulted Set of field names whose value came from `default`
+--- @return table sources Map of every spelling the schema accepts to the
+---   declared name it resolves to. A reader that has to answer a question
+---   about a name the caller wrote asks this rather than walking the
+---   descriptors again, because the merge has already decided the answer.
 _validate_map = function(values, descriptors, base_path, context, options)
   options = options or {}
   local unknown_policy = options.unknown or 'ignore'
@@ -1964,6 +1968,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
   local claimed = {}
   local defaulted = {}
+  local sources = {}
   local fields = {}
 
   -- Three passes, because `pairs` yields descriptors in no particular order.
@@ -1977,6 +1982,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
       path = base_path and (base_path .. '.' .. field) or field,
     }
     claimed[field] = true
+    sources[field] = field
 
     -- A value found under an alias, or under the other spelling, moves to the
     -- name the schema declares. The key it came from is removed, so `merged`
@@ -1996,6 +2002,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
     if type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
         claimed[alias] = true
+        sources[alias] = field
         local aliased, alias_key = _lookup(merged, alias)
         if aliased ~= nil then
           claimed[alias_key] = true
@@ -2074,7 +2081,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
     end
   end
 
-  return merged, defaulted
+  return merged, defaulted, sources
 end
 
 --- Start a validation run.
@@ -2256,10 +2263,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
   end
 
   local declared = type(entry.attributes) == 'table'
+  local spellings
   if declared then
-    merged.attributes = _validate_map(kwargs or {}, entry.attributes, name, context, {
+    local attributes, _, resolved = _validate_map(kwargs or {}, entry.attributes, name, context, {
       unknown = options.unknown or 'warn',
     })
+    merged.attributes = attributes
+    spellings = resolved
   end
 
   if type(entry.required) == 'table' then
@@ -2271,9 +2281,11 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- missing either: `_validate_map` moves its value to the field that
     -- declares the alias and clears the alias spelling, the same way it
     -- clears a deprecated key, so look for the value under that field. The
-    -- match goes through `_lookup`, the same as every other name comparison
-    -- in this module, so a hyphen in one spelling and an underscore in the
-    -- other still match.
+    -- merge reports which declared name each spelling resolves to, so that
+    -- is one lookup rather than a second walk over the descriptors. It goes
+    -- through `_lookup`, the same as every other name comparison in this
+    -- module, so a hyphen in one spelling and an underscore in the other
+    -- still match.
     --
     -- This asks what the shortcode receives, not what the author wrote, so
     -- a `default` present in `merged.attributes` satisfies a name here.
@@ -2282,22 +2294,18 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- supplied. Neither reading is a bug: they answer different questions
     -- about the same instance.
     local function _required_satisfied(required)
-      if _lookup(merged.attributes, required) ~= nil then
+      local field = required
+      if spellings then
+        local declared_name = _lookup(spellings, required)
+        if declared_name ~= nil then
+          field = declared_name
+        end
+      end
+      if _lookup(merged.attributes, field) ~= nil then
         return true
       end
       if not declared then
         return _lookup(kwargs or {}, required) ~= nil
-      end
-      for field, spec in pairs(entry.attributes) do
-        if type(spec) == 'table' and type(spec.aliases) == 'table' then
-          local spellings = {}
-          for _, alias in ipairs(spec.aliases) do
-            spellings[alias] = true
-          end
-          if _lookup(spellings, required) ~= nil and _lookup(merged.attributes, field) ~= nil then
-            return true
-          end
-        end
       end
       return false
     end
