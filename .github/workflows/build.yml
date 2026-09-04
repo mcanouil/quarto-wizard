@@ -279,7 +279,10 @@ jobs:
           retention-days: 1
 
   summary:
-    if: always() && github.event.pull_request.draft == false
+    # No draft condition, unlike the jobs above. This is the single required
+    # check, and a skipped required check does not block, so skipping here let
+    # a draft reach a mergeable state with nothing built.
+    if: always()
     needs:
       - changes
       - build
@@ -287,6 +290,23 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
+      - name: Report that a draft defers the build
+        # `changes`, `build` and `lua` are each guarded on the draft state, so a
+        # run on a draft skips all of them and there is nothing to report. A
+        # failure here states that, where a skip stated nothing and counted as
+        # satisfied. The guards above are what keep a draft off the runners; the
+        # cost of this step is one job that ends in seconds.
+        if: github.event.pull_request.draft == true
+        shell: bash
+        run: |
+          {
+            echo "# 🚧 Build deferred"
+            echo ""
+            echo "This pull request is a draft, so the build matrix did not run."
+            echo "Mark it ready for review to build it."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
+
       - name: Download all job summaries
         # The summary now runs even when a needed job fails, so there may be no
         # artifact at all. The consolidated summary below falls back to the job
