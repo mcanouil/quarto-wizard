@@ -1,6 +1,16 @@
 import * as assert from "assert";
 import { checkInternetConnection } from "../../utils/network";
 
+/**
+ * How far below the timeout an elapsed reading may sit and still count.
+ *
+ * `Date.now()` has millisecond granularity and a timer can be measured firing
+ * a fraction early against it, so a 1000 ms timeout is reported as 999 ms often
+ * enough to fail a run. The tolerance is one millisecond, which covers the
+ * rounding and nothing else: a request that returned at once still fails.
+ */
+const CLOCK_TOLERANCE_MS = 1;
+
 suite("Timeout Handling Test Suite", () => {
 	test("checkInternetConnection should timeout with unreachable URL", async function () {
 		this.timeout(10000); // Allow up to 10 seconds for the test
@@ -12,7 +22,10 @@ suite("Timeout Handling Test Suite", () => {
 
 		// Should return false and complete within reasonable time of the timeout
 		assert.strictEqual(result, false);
-		assert.ok(elapsed >= 1000 && elapsed < 2000, `Expected timeout around 1000ms, got ${elapsed}ms`);
+		assert.ok(
+			elapsed >= 1000 - CLOCK_TOLERANCE_MS && elapsed < 2000,
+			`Expected timeout around 1000ms, got ${elapsed}ms`,
+		);
 	});
 
 	test("checkInternetConnection should succeed with valid URL and sufficient timeout", async function () {
@@ -39,7 +52,7 @@ suite("Timeout Handling Test Suite", () => {
 		// Should return false and respect the timeout
 		assert.strictEqual(result, false);
 		assert.ok(
-			elapsed >= shortTimeout && elapsed < shortTimeout * 2,
+			elapsed >= shortTimeout - CLOCK_TOLERANCE_MS && elapsed < shortTimeout * 2,
 			`Expected timeout around ${shortTimeout}ms, got ${elapsed}ms`,
 		);
 	});
