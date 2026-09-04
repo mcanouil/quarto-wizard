@@ -2266,12 +2266,33 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- and it is authoritative when it is: it keeps every unclaimed key and it
     -- drops a key that a deprecation cleared. The vocabulary allows `required`
     -- on its own, so fall back to what the caller supplied only in that case,
-    -- rather than reporting every name as missing.
+    -- rather than reporting every name as missing. A name that names an alias
+    -- is not missing either: `_validate_map` moves its value to the field
+    -- that declares the alias and clears the alias spelling, the same way it
+    -- clears a deprecated key, so look for the value under that field.
     local declared = type(entry.attributes) == 'table'
     local supplied = declared and {} or (kwargs or {})
+
+    local function _satisfied_by_alias(required)
+      if not declared then
+        return false
+      end
+      for field, spec in pairs(entry.attributes) do
+        if type(spec) == 'table' and type(spec.aliases) == 'table' then
+          for _, alias in ipairs(spec.aliases) do
+            if alias == required then
+              return _lookup(merged.attributes, field) ~= nil
+            end
+          end
+        end
+      end
+      return false
+    end
+
     for _, required in ipairs(entry.required) do
       if _lookup(merged.attributes, required) == nil
-        and _lookup(supplied, required) == nil then
+        and _lookup(supplied, required) == nil
+        and not _satisfied_by_alias(required) then
         _report(context, 'error', name .. '.' .. required, 'required',
           'is required but was not provided.')
       end

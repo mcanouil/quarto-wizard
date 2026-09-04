@@ -970,6 +970,27 @@ shortcodes:
   assert_contains(errors, 'old-name')
 end)
 
+test('shortcode required accepts a value supplied under a declared alias', function()
+  -- An alias resolves to its canonical field and the alias spelling is
+  -- cleared from the merged attributes, the way `_validate_map` clears a
+  -- deprecated key. Unlike `replaceWith`, the value is still present, under
+  -- the canonical name, so `required` must find it there.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      new-name:
+        type: string
+        aliases:
+          - legacy-name
+    required:
+      - legacy-name
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { ['legacy-name'] = 'carried' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+end)
+
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
   local loaded = load_schema([[
 attributes:
