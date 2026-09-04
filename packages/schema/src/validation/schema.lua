@@ -1945,6 +1945,33 @@ local function _apply_deprecation(field, spec, value, merged)
   return message, cleared
 end
 
+--- Record that a descriptor accepts a spelling, and report a contested one.
+---
+--- Two descriptors can name the same spelling, when one declares as an alias
+--- what another declares as its own name, or when two of them declare the same
+--- alias. `pairs` yields descriptors in no particular order, so which field a
+--- contested spelling resolves to is not decidable from the schema. It is
+--- reported rather than resolved in silence, because the schema is what is
+--- wrong and only its author can settle it.
+---
+--- @param sources table Map of spelling to declared name
+--- @param spelling string The spelling being declared
+--- @param field string The declared name that accepts it
+--- @param base_path string|nil Path prefix for findings
+--- @param context table Validation context
+local function _declare_spelling(sources, spelling, field, base_path, context)
+  local owner = sources[spelling]
+  if owner == nil then
+    sources[spelling] = field
+  elseif owner ~= field then
+    _report(context, 'warning', base_path and (base_path .. '.' .. spelling) or spelling,
+      'aliases', string.format(
+        'is declared by both "%s" and "%s"; which one accepts it is not defined.',
+        owner, field))
+  end
+end
+
+
 --- Validate a map of values against a map of field descriptors.
 --- @param values table Values to validate
 --- @param descriptors table Field descriptor map
@@ -1984,13 +2011,10 @@ _validate_map = function(values, descriptors, base_path, context, options)
     }
     -- Two writes with different weight. Declaring a spelling fills an empty
     -- slot only, while claiming the value under one overwrites whatever was
-    -- there. Two descriptors can name the same spelling, when one declares as
-    -- an alias what another declares as its own name, and `pairs` yields them
-    -- in no particular order. The value itself lands under whichever
-    -- descriptor claimed it, so the claim is what the map has to follow: a
-    -- declaration that outranked it would send a reader to a field the merge
-    -- has already emptied.
-    sources[field] = sources[field] or field
+    -- there. The value lands under whichever descriptor claimed it, so the
+    -- claim is what the map has to follow: a declaration that outranked it
+    -- would send a reader to a field the merge has already emptied.
+    _declare_spelling(sources, field, field, base_path, context)
 
     -- A value found under an alias, or under the other spelling, moves to the
     -- name the schema declares. The key it came from is removed, so `merged`
@@ -2009,7 +2033,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
     if type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
-        sources[alias] = sources[alias] or field
+        _declare_spelling(sources, alias, field, base_path, context)
         local aliased, alias_key = _lookup(merged, alias)
         if aliased ~= nil then
           sources[alias_key] = field

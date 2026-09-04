@@ -1088,9 +1088,32 @@ shortcodes:
     required:
       - colour
 ]])
-  local valid, errors = schema.validate_shortcode(
+  local valid, errors, warnings = schema.validate_shortcode(
     'demo', {}, { colour = 'red' }, loaded.shortcodes.demo)
   assert_valid(valid, errors)
+  -- The schema is what is wrong here, so the author is told. Which of the two
+  -- accepts the spelling is not decidable from the schema, and resolving it in
+  -- silence would hide that.
+  assert_contains(warnings, 'is declared by both')
+  assert_contains(warnings, 'colour')
+end)
+
+test('a spelling declared by two attributes with no value is reported', function()
+  -- The same contested schema with nothing supplied. The warning does not
+  -- depend on a value arriving, because the schema is ambiguous either way.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      colour:
+        type: string
+      shade:
+        type: string
+        aliases:
+          - colour
+]])
+  local _, _, warnings = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_contains(warnings, 'is declared by both')
 end)
 
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
