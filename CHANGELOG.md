@@ -4,7 +4,7 @@
 
 ### New Features
 
-- feat: Report a spelling that two attributes both declare in the Lua reference validator. One declaring it as its own name and the other as an alias leaves no way to say which accepts it, so the schema author is told instead of the validator choosing one and the choice changing between runs. (#\<pull request\>)
+- feat: Report a spelling that two attributes both declare in the Lua reference validator. One declaring it as its own name and the other as an alias leaves no way to say which accepts it, so the schema author is told instead of the validator choosing one and the choice changing between runs. (#415)
 
 ### Bug Fixes
 
