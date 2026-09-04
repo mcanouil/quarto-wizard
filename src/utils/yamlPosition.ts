@@ -227,15 +227,10 @@ export function stripBlockquoteMarkers(line: string, limit = Number.POSITIVE_INF
 		content = content.slice(found[0].length);
 		column += found[0].length;
 		depth++;
-		// The marker takes one column of the whitespace after it. A tab advances to
-		// the next tab stop, and the marker owns one column of that, so the rest
-		// comes back as the spaces the tab stood for.
-		if (content.startsWith(" ")) {
-			content = content.slice(1);
-			column++;
-		} else if (content.startsWith("\t")) {
-			const advance = TAB_WIDTH - (column % TAB_WIDTH);
-			content = " ".repeat(advance - 1) + content.slice(1);
+		// The marker takes one column of the whitespace after it. A straddling tab
+		// comes back as the spaces it stood for.
+		if (content.startsWith(" ") || content.startsWith("\t")) {
+			content = removeIndentColumns(content, 1, column);
 			column++;
 		}
 	}
