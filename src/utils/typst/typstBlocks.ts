@@ -80,7 +80,10 @@ function blockBody(text: string, block: FencedBlock): string {
 	// At most the depth of the fence is removed. A marker beyond that is content:
 	// one quote deep, the line `> > #x` reaches Typst as the text `> #x`.
 	const depth = block.quoteDepth;
-	const unquote = depth > 0 ? (line: string) => stripBlockquoteMarkers(line, depth).content : (line: string) => line;
+	const unquote =
+		depth > 0
+			? (line: string) => stripBlockquoteMarkers(line, depth)
+			: (line: string) => ({ content: line, column: 0 });
 
 	// Cut at the start of the closing fence line rather than dropping that line
 	// after a split, which would take the newline of the line above with it and
@@ -89,14 +92,17 @@ function blockBody(text: string, block: FencedBlock): string {
 	const lastNewline = slice.lastIndexOf("\n");
 	const closing = closingFenceRegExp(block.fence);
 	const lastLine = stripCarriageReturn(slice.slice(lastNewline + 1));
-	const body = closing.test(unquote(lastLine)) ? slice.slice(0, lastNewline + 1) : slice;
+	const body = closing.test(unquote(lastLine).content) ? slice.slice(0, lastNewline + 1) : slice;
 
 	// The indent comes off by column, because the fence owns a number of columns
 	// and not a number of characters. A carriage return is part of the line
 	// ending on a CRLF document, and is left alone.
 	return body
 		.split("\n")
-		.map((line) => removeIndentColumns(unquote(line), block.indent))
+		.map((line) => {
+			const { content, column } = unquote(line);
+			return removeIndentColumns(content, block.indent, column);
+		})
 		.join("\n");
 }
 

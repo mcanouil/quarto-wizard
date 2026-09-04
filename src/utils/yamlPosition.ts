@@ -53,12 +53,15 @@ export function hasUnquotedBacktick(infoString: string): boolean {
 const MAX_FENCE_INDENT = 3;
 
 /**
- * One blockquote marker: up to three spaces, a `>`, and one optional space.
+ * One blockquote marker: up to three spaces and a `>`.
  *
- * Matched one at a time rather than as a run, because a reader sometimes has to
- * remove a fixed number of them and leave the rest as content.
+ * The whitespace that follows is handled by the reader rather than by the
+ * pattern, because CommonMark grants the marker one column of it and a tab is
+ * worth up to four. Matched one at a time rather than as a run, because a
+ * reader sometimes has to remove a fixed number of them and leave the rest as
+ * content.
  */
-const BLOCKQUOTE_MARKER = /^ {0,3}>[ \t]?/;
+const BLOCKQUOTE_MARKER = /^ {0,3}>/;
 
 /**
  * A list item marker, which opens a container whose content is indented.
@@ -126,18 +129,24 @@ function firstNonWhitespace(content: string): number {
  *
  * A tab that straddles the boundary is replaced by the spaces it contributes
  * past it, which is how CommonMark splits one.
+ *
+ * @param startColumn - The column of the original line that `line` starts at.
+ *   A tab expands against the whole line, so a quoted body line de-indented
+ *   from column zero would lose columns of real indent that the tab already
+ *   spent on the markers above it.
  */
-export function removeIndentColumns(line: string, indent: number): string {
-	let column = 0;
+export function removeIndentColumns(line: string, indent: number, startColumn = 0): string {
+	const limit = startColumn + indent;
+	let column = startColumn;
 	let index = 0;
-	while (index < line.length && column < indent) {
+	while (index < line.length && column < limit) {
 		const code = line.charCodeAt(index);
 		if (code === SPACE) {
 			column++;
 		} else if (code === TAB) {
 			const advance = TAB_WIDTH - (column % TAB_WIDTH);
-			if (column + advance > indent) {
-				return " ".repeat(column + advance - indent) + line.slice(index + 1);
+			if (column + advance > limit) {
+				return " ".repeat(column + advance - limit) + line.slice(index + 1);
 			}
 			column += advance;
 		} else {
@@ -153,13 +162,18 @@ export function removeIndentColumns(line: string, indent: number): string {
  *
  * Indentation is compared in columns rather than characters, because one tab
  * and four spaces put the following text in the same place.
+ *
+ * @param startColumn - The column of the original line that `content` starts
+ *   at. A tab expands against the whole line, so quoted content read from
+ *   column zero charges a tab more columns than it takes. The result stays
+ *   relative to the start of `content`, which is what every caller compares.
  */
-function columnAt(content: string, index: number): number {
-	let column = 0;
+function columnAt(content: string, index: number, startColumn = 0): number {
+	let column = startColumn;
 	for (let i = 0; i < index; i++) {
 		column += content.charCodeAt(i) === TAB ? TAB_WIDTH - (column % TAB_WIDTH) : 1;
 	}
-	return column;
+	return column - startColumn;
 }
 
 /** Drop a trailing carriage return left by a CRLF document. */
@@ -183,6 +197,8 @@ export interface QuotedLine {
 	content: string;
 	/** How many markers were removed. */
 	depth: number;
+	/** The column of the original line that `content` starts at. */
+	column: number;
 }
 
 /**
@@ -198,19 +214,32 @@ export interface QuotedLine {
  */
 export function stripBlockquoteMarkers(line: string, limit = Number.POSITIVE_INFINITY): QuotedLine {
 	if (limit <= 0 || !mayBeQuoted(line)) {
-		return { content: line, depth: 0 };
+		return { content: line, depth: 0, column: 0 };
 	}
 	let content = line;
 	let depth = 0;
+	let column = 0;
 	while (depth < limit) {
 		const found = BLOCKQUOTE_MARKER.exec(content);
 		if (found === null) {
 			break;
 		}
 		content = content.slice(found[0].length);
+		column += found[0].length;
 		depth++;
+		// The marker takes one column of the whitespace after it. A tab advances to
+		// the next tab stop, and the marker owns one column of that, so the rest
+		// comes back as the spaces the tab stood for.
+		if (content.startsWith(" ")) {
+			content = content.slice(1);
+			column++;
+		} else if (content.startsWith("\t")) {
+			const advance = TAB_WIDTH - (column % TAB_WIDTH);
+			content = " ".repeat(advance - 1) + content.slice(1);
+			column++;
+		}
 	}
-	return { content, depth };
+	return { content, depth, column };
 }
 
 /** An opening fence, as read from one line. */
@@ -230,8 +259,11 @@ interface OpeningFence {
  * line sits in, which only a reader walking the whole document knows.
  *
  * @param content - One line, with its blockquote markers already removed.
+ * @param startColumn - The column of the original line that `content` starts
+ *   at, so a tab in the indent is measured from the line rather than from the
+ *   quoted content.
  */
-function parseOpeningFence(content: string): OpeningFence | undefined {
+function parseOpeningFence(content: string, startColumn: number): OpeningFence | undefined {
 	const found = OPENING_FENCE.exec(content);
 	if (found === null) {
 		return undefined;
@@ -242,7 +274,7 @@ function parseOpeningFence(content: string): OpeningFence | undefined {
 	if (found[2][0] === "`" && hasUnquotedBacktick(found[3])) {
 		return undefined;
 	}
-	return { indent: columnAt(found[1], found[1].length), fence: found[2], info: found[3] };
+	return { indent: columnAt(found[1], found[1].length, startColumn), fence: found[2], info: found[3] };
 }
 
 /**
@@ -315,11 +347,7 @@ export function findFencedBlocks(text: string): FencedBlock[] {
 	//
 	// This is an approximation of container parsing and not the real thing. It
 	// is lowered only by a line that both starts a block and dedents past it, so
-	// it errs towards accepting a fence rather than losing one. The known gap
-	// runs the other way: a tab stop is counted from the start of the quoted
-	// content rather than from the start of the line, so a tab-indented fence
-	// inside a blockquote is charged four columns instead of the two it takes,
-	// and is not read as a fence.
+	// it errs towards accepting a fence rather than losing one.
 	let containerIndent = 0;
 	// Whether the line above was blank, which is what makes the line below it
 	// the start of a block rather than a continuation of the one above.
@@ -333,7 +361,7 @@ export function findFencedBlocks(text: string): FencedBlock[] {
 		// Advance offset past the newline for the next iteration.
 		offset = lineEnd + (i < lines.length - 1 ? 1 : 0);
 
-		const { content, depth } = stripBlockquoteMarkers(line);
+		const { content, depth, column } = stripBlockquoteMarkers(line);
 
 		if (open) {
 			if (depth > open.quoteDepth) {
@@ -375,18 +403,18 @@ export function findFencedBlocks(text: string): FencedBlock[] {
 				// than after the whitespace that follows it.
 				const empty = item[0].length === content.length;
 				const markerEnd = item[1].length + item[2].length;
-				containerIndent = empty ? columnAt(content, markerEnd) + 1 : columnAt(content, item[0].length);
+				containerIndent = empty ? columnAt(content, markerEnd, column) + 1 : columnAt(content, item[0].length, column);
 			} else if (previousBlank) {
 				// Only a line that starts a block can close a container. A line that
 				// continues the paragraph of an open item is written at the margin as
 				// often as not, and lowering the allowance for it would lose a fence
 				// the item still holds open.
-				containerIndent = Math.min(containerIndent, columnAt(content, contentStart));
+				containerIndent = Math.min(containerIndent, columnAt(content, contentStart, column));
 			}
 		}
 		previousBlank = contentStart === content.length;
 
-		const opening = parseOpeningFence(content);
+		const opening = parseOpeningFence(content, column);
 		if (opening && opening.indent <= containerIndent + MAX_FENCE_INDENT) {
 			open = {
 				indent: opening.indent,
