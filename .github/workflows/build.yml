@@ -299,6 +299,10 @@ jobs:
 
       - name: Generate consolidated summary
         shell: bash
+        env:
+          # A pull request title is attacker controlled. Read through the
+          # environment so the shell never parses it as code.
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           # `download-artifact` creates no directory when it matches nothing,
           # and this step runs under `-e -o pipefail`, so a `find` over a
@@ -312,7 +316,7 @@ jobs:
 
           # Add Pull Request link if triggered by PR event
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "**🔗 Pull Request**: [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${{ github.event.pull_request.title }}" >> ${GITHUB_STEP_SUMMARY}
+            echo "**🔗 Pull Request**: [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${PR_TITLE}" >> ${GITHUB_STEP_SUMMARY}
             echo "" >> ${GITHUB_STEP_SUMMARY}
           fi
 
