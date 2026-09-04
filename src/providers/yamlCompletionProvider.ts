@@ -2,7 +2,9 @@ import * as vscode from "vscode";
 import { typeIncludes, formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
 import { getExtensionTypes, getErrorMessage, type InstalledExtension } from "@quarto-wizard/core";
-import { getYamlKeyPath, getYamlIndentLevel, isInYamlRegion, getExistingKeysAtPath } from "../utils/yamlPosition";
+import { getDocumentYaml } from "../utils/documentScan";
+import { keyPathOf, yamlRegionHolds } from "../utils/yamlAnnotated";
+import { yamlCursorAt } from "../utils/yamlCursor";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { hasCompletableValues } from "../utils/schemaDocumentation";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
@@ -26,16 +28,21 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return undefined;
 			}
 
-			const lines = document.getText().split("\n");
-			const languageId = document.languageId;
+			const text = document.getText();
 
-			if (!isInYamlRegion(lines, position.line, languageId)) {
+			// The region test comes first, so that a cursor in the body of a Quarto
+			// document is never read against the front matter above it.
+			if (!yamlRegionHolds(text, document.languageId, document.offsetAt(position))) {
 				return undefined;
 			}
 
-			const currentLineText = lines[position.line];
-			const isBlankLine = currentLineText.trim() === "";
-			const keyPath = getYamlKeyPath(lines, position.line, languageId, isBlankLine ? position.character : undefined);
+			// The parse may be absent, because a key half typed into a document
+			// leaves it unparsable, and that is the common case while completing one.
+			const cursor = yamlCursorAt(document, position, text, getDocumentYaml(document, text));
+			if (!cursor) {
+				return undefined;
+			}
+			const keyPath = keyPathOf(cursor.path);
 
 			const projectDir = await findOwningProjectRoot(document.uri);
 			if (!projectDir) {
@@ -48,13 +55,10 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 				return undefined;
 			}
 
-			// Check whether the cursor sits after the colon on a key line.
-			const currentLine = lines[position.line];
-			const keyColonMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(currentLine);
-			const isValuePosition = keyColonMatch !== null && position.character > currentLine.indexOf(":");
+			const isValuePosition = cursor.isValuePosition;
 
 			// Compute existing sibling keys at the current path for deduplication.
-			const existingKeys = getExistingKeysAtPath(lines, keyPath, languageId);
+			const existingKeys = cursor.keys;
 
 			// At root level, suggest "extensions" as a top-level key.
 			if (keyPath.length === 0 && !isValuePosition) {
@@ -70,7 +74,7 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 			// inserted on the next line with proper indentation so that the
 			// resulting YAML is valid.
 			if (isValuePosition) {
-				this.adjustForValuePosition(items, position, currentLine);
+				this.adjustForValuePosition(items, position, cursor.colon, cursor.keyColumn);
 			}
 
 			return items;
@@ -86,11 +90,14 @@ export class YamlCompletionProvider implements vscode.CompletionItemProvider {
 	 * indentation.  Value completions get a replacement range covering
 	 * everything after the colon so the leading space is not doubled.
 	 */
-	private adjustForValuePosition(items: vscode.CompletionItem[], position: vscode.Position, currentLine: string): void {
-		const colonIndex = currentLine.indexOf(":");
+	private adjustForValuePosition(
+		items: vscode.CompletionItem[],
+		position: vscode.Position,
+		colonIndex: number,
+		keyColumn: number,
+	): void {
 		const replaceRange = new vscode.Range(position.line, colonIndex + 1, position.line, position.character);
-		const currentIndent = getYamlIndentLevel(currentLine);
-		const childIndent = " ".repeat(currentIndent + 2);
+		const childIndent = " ".repeat(keyColumn + 2);
 
 		for (const item of items) {
 			const isKey = item.kind === vscode.CompletionItemKind.Module || item.kind === vscode.CompletionItemKind.Property;

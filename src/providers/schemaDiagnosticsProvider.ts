@@ -3,7 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { validateSchemaDefinition } from "@quarto-wizard/schema";
 import type { SchemaDefinitionFinding, SchemaDefinitionSeverity } from "@quarto-wizard/schema";
-import { getYamlIndentLevel } from "../utils/yamlPosition";
+import { getDocumentYaml } from "../utils/documentScan";
+import type { AnnotatedYaml, YamlPathSegment } from "../utils/yamlAnnotated";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 
@@ -124,7 +125,9 @@ export class SchemaDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		const lines = content.split("\n");
-		const diagnostics = findings.map((finding) => this.findingToDiagnostic(finding, lines, format));
+		// One parse serves both formats, because JSON is flow style YAML.
+		const annotated = getDocumentYaml(document, content);
+		const diagnostics = findings.map((finding) => this.findingToDiagnostic(finding, document, lines, annotated));
 
 		this.diagnosticCollection.set(document.uri, diagnostics);
 		logMessage(`Schema definition diagnostics: ${diagnostics.length} issue(s) in ${baseName}.`, "debug");
@@ -132,27 +135,20 @@ export class SchemaDiagnosticsProvider implements vscode.Disposable {
 
 	private findingToDiagnostic(
 		finding: SchemaDefinitionFinding,
+		document: vscode.TextDocument,
 		lines: string[],
-		format: "yaml" | "json",
+		annotated: AnnotatedYaml | undefined,
 	): vscode.Diagnostic {
-		let range: vscode.Range;
+		const firstLine = new vscode.Range(0, 0, 0, lines[0]?.length ?? 0);
+		let range = firstLine;
 
 		if (finding.line !== undefined) {
-			// Syntax errors with explicit line/column.
+			// A syntax error, which already carries its own place.
 			const line = Math.min(finding.line, lines.length - 1);
 			const col = finding.column ?? 0;
 			range = new vscode.Range(line, col, line, lines[line]?.length ?? col);
-		} else if (finding.keyPath) {
-			// Structural/semantic findings with a key path.
-			const lineNum =
-				format === "json" ? this.findKeyLineJson(finding.keyPath, lines) : this.findKeyLineYaml(finding.keyPath, lines);
-			if (lineNum >= 0) {
-				range = new vscode.Range(lineNum, 0, lineNum, lines[lineNum].length);
-			} else {
-				range = new vscode.Range(0, 0, 0, lines[0]?.length ?? 0);
-			}
-		} else {
-			range = new vscode.Range(0, 0, 0, lines[0]?.length ?? 0);
+		} else if (finding.keyPath && annotated) {
+			range = locateKeyPath(document, annotated, finding.keyPath) ?? firstLine;
 		}
 
 		const severity = severityToVscode(finding.severity);
@@ -161,114 +157,59 @@ export class SchemaDiagnosticsProvider implements vscode.Disposable {
 		diagnostic.code = finding.code;
 		return diagnostic;
 	}
-
-	/**
-	 * Find the line number for a dot-separated key path in YAML content.
-	 * Uses indentation-walking, mirroring the approach in YamlDiagnosticsProvider.
-	 */
-	private findKeyLineYaml(keyPath: string, lines: string[]): number {
-		const keys = splitKeyPath(keyPath);
-		let searchStart = 0;
-		let expectedMinIndent = 0;
-
-		for (let pathIdx = 0; pathIdx < keys.length; pathIdx++) {
-			const targetKey = keys[pathIdx];
-			let found = false;
-
-			for (let i = searchStart; i < lines.length; i++) {
-				const line = lines[i];
-				const trimmed = line.trim();
-				if (trimmed === "" || trimmed.startsWith("#")) {
-					continue;
-				}
-
-				const indent = getYamlIndentLevel(line);
-
-				if (pathIdx > 0 && indent < expectedMinIndent) {
-					break;
-				}
-
-				const keyMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(line);
-				if (keyMatch && keyMatch[1] === targetKey && indent >= expectedMinIndent) {
-					if (pathIdx === keys.length - 1) {
-						return i;
-					}
-					searchStart = i + 1;
-					expectedMinIndent = indent + 1;
-					found = true;
-					break;
-				}
-			}
-
-			if (!found) {
-				return -1;
-			}
-		}
-
-		return -1;
-	}
-
-	/**
-	 * Find the line number for a dot-separated key path in JSON content.
-	 * Tracks brace depth to match nested keys. Depth is measured at the
-	 * start of each line so that opening braces on the same line as a key
-	 * do not inflate the depth used for matching.
-	 */
-	private findKeyLineJson(keyPath: string, lines: string[]): number {
-		const keys = splitKeyPath(keyPath);
-		let targetDepth = 0;
-		let currentDepth = 0;
-		let keyIdx = 0;
-
-		for (let i = 0; i < lines.length; i++) {
-			const line = lines[i];
-			const depthAtLineStart = currentDepth;
-
-			for (const ch of line) {
-				if (ch === "{" || ch === "[") {
-					currentDepth++;
-				} else if (ch === "}" || ch === "]") {
-					currentDepth--;
-				}
-			}
-
-			if (keyIdx >= keys.length) {
-				break;
-			}
-
-			// Match against depth at start of line so that opening braces
-			// belonging to the matched key's value do not affect the check.
-			const pattern = new RegExp(`"${escapeRegExp(keys[keyIdx])}"\\s*:`);
-			if (pattern.test(line) && depthAtLineStart >= targetDepth + 1) {
-				if (keyIdx === keys.length - 1) {
-					return i;
-				}
-				keyIdx++;
-				targetDepth = depthAtLineStart;
-			}
-		}
-
-		return -1;
-	}
 }
 
 /**
- * Split a key path that may contain array index notation.
- * "shortcodes.mysc.arguments[0]" becomes ["shortcodes", "mysc", "arguments"].
- * Array indices are stripped because we point to the parent key line.
+ * Split a key path that may carry the position of a sequence entry.
+ *
+ * `shortcodes.mysc.arguments[0]` becomes `["shortcodes", "mysc", "arguments", 0]`.
+ * The position is kept, because the annotated parse knows where the entry itself
+ * is written. The line walk this replaces stripped it and pointed at the key of
+ * the sequence instead.
+ *
+ * @param keyPath - The dotted path a finding carries.
  */
-function splitKeyPath(keyPath: string): string[] {
-	return keyPath
-		.replace(/\[\d+\]/g, "")
-		.split(".")
-		.filter((s) => s.length > 0);
+function splitKeyPath(keyPath: string): YamlPathSegment[] {
+	const segments: YamlPathSegment[] = [];
+	for (const part of keyPath.split(".")) {
+		const name = part.replace(/\[\d+\]/g, "");
+		if (name.length > 0) {
+			segments.push(name);
+		}
+		for (const index of part.matchAll(/\[(\d+)\]/g)) {
+			segments.push(Number(index[1]));
+		}
+	}
+	return segments;
 }
 
 /**
- * Escape a string for use in a regular expression.
+ * Where a finding goes, given the path it names.
+ *
+ * The whole path is tried first, then one segment shorter, and so on. A finding
+ * about something that is not written, such as a required key that is missing,
+ * names a path the document does not hold, and the nearest parent that is
+ * written is the closest place to put it.
+ *
+ * @param document - The document the finding belongs to.
+ * @param annotated - The parse of that document.
+ * @param keyPath - The dotted path the finding carries.
+ * @returns The range, or undefined when not even the root is written.
  */
-function escapeRegExp(str: string): string {
-	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function locateKeyPath(
+	document: vscode.TextDocument,
+	annotated: AnnotatedYaml,
+	keyPath: string,
+): vscode.Range | undefined {
+	const segments = splitKeyPath(keyPath);
+	for (let length = segments.length; length > 0; length--) {
+		const node = annotated.nodeAt(segments.slice(0, length));
+		const range = node?.keyRange ?? node?.range;
+		if (range !== undefined) {
+			return new vscode.Range(document.positionAt(range.start), document.positionAt(range.end));
+		}
+	}
+	return undefined;
 }
 
 /**

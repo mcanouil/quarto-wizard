@@ -2,17 +2,32 @@ import * as assert from "assert";
 import * as path from "node:path";
 import { findTypstBlocks } from "../../utils/typst/typstBlocks";
 import { findTypstPathOptions, resolveTypstPathOption, type TypstPathOption } from "../../utils/typst/typstPathOptions";
+import { annotateYaml, yamlRegionOf } from "../../utils/yamlAnnotated";
+
+/** The parse a document holds, the way the document scan hands one to a provider. */
+function readYaml(text: string, languageId: string) {
+	const region = yamlRegionOf(text, languageId);
+	return region === undefined ? undefined : annotateYaml(region.text, region.base);
+}
 
 /** Every occurrence as the text it covers, which is what a link is drawn over. */
 function covered(text: string, languageId = "quarto"): string[] {
-	return findTypstPathOptions(text, languageId, () => findTypstBlocks(text)).map((option) =>
-		text.slice(option.start, option.end),
-	);
+	return findTypstPathOptions(
+		text,
+		languageId,
+		() => findTypstBlocks(text),
+		() => readYaml(text, languageId),
+	).map((option) => text.slice(option.start, option.end));
 }
 
 /** The one occurrence a document holds, which most cases below have. */
 function only(text: string, languageId = "quarto"): TypstPathOption {
-	const found = findTypstPathOptions(text, languageId, () => findTypstBlocks(text));
+	const found = findTypstPathOptions(
+		text,
+		languageId,
+		() => findTypstBlocks(text),
+		() => readYaml(text, languageId),
+	);
 	assert.strictEqual(found.length, 1, `expected one occurrence, found ${found.length}`);
 	return found[0];
 }

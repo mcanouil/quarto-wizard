@@ -29,6 +29,7 @@
 
 import type * as vscode from "vscode";
 import { findTypstBlocks, type TypstBlock } from "./typst/typstBlocks";
+import { annotateYaml, yamlRegionOf, type AnnotatedYaml } from "./yamlAnnotated";
 import { findFencedBlocks, type FencedBlock, type TextRange } from "./yamlPosition";
 
 /** The scans of one document version, each built when it is first asked for. */
@@ -36,6 +37,16 @@ interface DocumentScan {
 	version: number;
 	fenced?: readonly FencedBlock[];
 	typst?: readonly TypstBlock[];
+	/**
+	 * The annotated parse, which is undefined for a document that is not YAML and
+	 * for one that does not parse.
+	 *
+	 * It carries a flag of its own rather than being read through `??=`, because
+	 * undefined is a real answer here and would otherwise be recomputed on every
+	 * call, which is the opposite of what this module is for.
+	 */
+	yaml?: AnnotatedYaml;
+	yamlRead?: boolean;
 }
 
 const held = new WeakMap<vscode.TextDocument, DocumentScan>();
@@ -83,4 +94,26 @@ export function getDocumentTypstBlocks(document: vscode.TextDocument, readText: 
 	const scan = scanOf(document);
 	scan.typst ??= findTypstBlocks(readText());
 	return scan.typst;
+}
+
+/**
+ * The annotated parse of the YAML of a document.
+ *
+ * The region comes from the language of the document, so a Quarto document is
+ * read through its front matter alone while a configuration file is read whole.
+ * Every range is a document range either way.
+ *
+ * @param document - The document being read.
+ * @param text - The full text of that document.
+ * @returns The parse, or undefined when the document holds no YAML or holds YAML
+ *   that does not parse.
+ */
+export function getDocumentYaml(document: vscode.TextDocument, text: string): AnnotatedYaml | undefined {
+	const scan = scanOf(document);
+	if (!scan.yamlRead) {
+		const region = yamlRegionOf(text, document.languageId);
+		scan.yaml = region === undefined ? undefined : annotateYaml(region.text, region.base);
+		scan.yamlRead = true;
+	}
+	return scan.yaml;
 }

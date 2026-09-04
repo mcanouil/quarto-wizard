@@ -13,7 +13,9 @@ import {
 	rootKeyMetadata,
 } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { getYamlKeyPath, getExistingKeysAtPath } from "../utils/yamlPosition";
+import { getDocumentYaml } from "../utils/documentScan";
+import { keyPathOf } from "../utils/yamlAnnotated";
+import { yamlCursorAt } from "../utils/yamlCursor";
 import { logMessage } from "../utils/log";
 
 /**
@@ -199,24 +201,21 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				return undefined;
 			}
 
-			const lines = document.getText().split("\n");
-			const languageId = document.languageId;
-			const currentLineText = lines[position.line];
-			const isBlankLine = currentLineText.trim() === "";
-			const keyPath = getYamlKeyPath(lines, position.line, languageId, isBlankLine ? position.character : undefined);
+			const text = document.getText();
+			// The parse may be absent, because a key half typed into a document
+			// leaves it unparsable, and that is the common case while completing one.
+			const cursor = yamlCursorAt(document, position, text, getDocumentYaml(document, text));
+			if (!cursor) {
+				return undefined;
+			}
 
-			// Detect value position.
-			const keyColonMatch = /^\s*(?:- )?([^\s:][^:]*?)\s*:/.exec(currentLineText);
-			const colonIndex = currentLineText.indexOf(":");
-			const isValuePosition = keyColonMatch !== null && position.character > colonIndex;
-
-			const context = getSchemaContext(keyPath, isValuePosition);
+			const isValuePosition = cursor.isValuePosition;
+			const context = getSchemaContext(keyPathOf(cursor.path), isValuePosition);
 			if (!context) {
 				return undefined;
 			}
 
-			const existingKeys = getExistingKeysAtPath(lines, keyPath, languageId);
-			const items = this.buildCompletions(context, existingKeys);
+			const items = this.buildCompletions(context, cursor.keys);
 
 			if (!items || items.length === 0) {
 				return undefined;
@@ -225,7 +224,7 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 			// When in value position, set replacement range from after the
 			// colon to the cursor so leading whitespace is not doubled.
 			if (isValuePosition) {
-				const replaceRange = new vscode.Range(position.line, colonIndex + 1, position.line, position.character);
+				const replaceRange = new vscode.Range(position.line, cursor.colon + 1, position.line, position.character);
 				for (const item of items) {
 					item.range = replaceRange;
 				}

@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import { formatType } from "@quarto-wizard/schema";
 import type { SchemaCache, ExtensionSchema, FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/schema";
 import { formatExtensionId, getExtensionTypes, type InstalledExtension, getErrorMessage } from "@quarto-wizard/core";
-import { getYamlKeyPath, isInYamlRegion } from "../utils/yamlPosition";
+import { getDocumentYaml } from "../utils/documentScan";
+import { keyPathOf, yamlRegionHolds } from "../utils/yamlAnnotated";
 import { logMessage } from "../utils/log";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
@@ -21,27 +22,29 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 				return null;
 			}
 
-			const lines = document.getText().split("\n");
-			const languageId = document.languageId;
+			const text = document.getText();
+			const offset = document.offsetAt(position);
 
-			if (!isInYamlRegion(lines, position.line, languageId)) {
+			if (!yamlRegionHolds(text, document.languageId, offset)) {
 				return null;
 			}
 
-			const keyPath = getYamlKeyPath(lines, position.line, languageId);
+			// The parse says which half of the pair the cursor is on. The rule this
+			// replaces compared the cursor against the first colon of the line, which
+			// reads the colon inside a value such as `title: "a: b"` as the separator.
+			const found = getDocumentYaml(document, text)?.pathAt(offset);
+			if (found === undefined) {
+				return null;
+			}
+			const keyPath = keyPathOf(found.path);
+			const isOnValue = found.on === "value";
 			if (keyPath.length === 0) {
 				return null;
 			}
 
-			const line = lines[position.line];
-			if (this.isCursorOnValue(line, position.character)) {
-				// Structural hovers only apply to keys, not values.
-				// Fall through to schema-based hover below.
-			} else {
-				// Hover on the "extensions" key itself.
-				if (keyPath.length === 1 && keyPath[0] === "extensions") {
-					return new vscode.Hover(new vscode.MarkdownString("Configure options for installed Quarto extensions."));
-				}
+			// Hover on the "extensions" key itself.
+			if (!isOnValue && keyPath.length === 1 && keyPath[0] === "extensions") {
+				return new vscode.Hover(new vscode.MarkdownString("Configure options for installed Quarto extensions."));
 			}
 
 			const projectDir = await findOwningProjectRoot(document.uri);
@@ -53,7 +56,7 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 			const installedExtensions = Array.from(new Set(extMap.values()));
 
 			// Hover on an extension name under "extensions:".
-			if (keyPath.length === 2 && keyPath[0] === "extensions" && !this.isCursorOnValue(line, position.character)) {
+			if (keyPath.length === 2 && keyPath[0] === "extensions" && !isOnValue) {
 				const extName = keyPath[1];
 				const ext = this.findExtension(installedExtensions, extName);
 				if (ext) {
@@ -71,8 +74,6 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 			}
 
 			const leafKey = keyPath[keyPath.length - 1];
-			const isOnValue = this.isCursorOnValue(line, position.character);
-
 			const markdown = this.buildHoverContent(leafKey, descriptor, isOnValue);
 			return new vscode.Hover(markdown);
 		} catch (error) {
@@ -215,19 +216,6 @@ export class YamlHoverProvider implements vscode.HoverProvider {
 		}
 
 		return found ? merged : undefined;
-	}
-
-	/**
-	 * Whether the cursor sits in the value portion (after the colon) of a YAML key line.
-	 * Only meaningful on lines that contain a key-colon pair; colon-less lines
-	 * (e.g. bare list items `- value`) return false.
-	 */
-	private isCursorOnValue(line: string, column: number): boolean {
-		const colonIndex = line.indexOf(":");
-		if (colonIndex === -1) {
-			return false;
-		}
-		return column > colonIndex;
 	}
 
 	private buildHoverContent(key: string, descriptor: FieldDescriptor, isOnValue: boolean): vscode.MarkdownString {

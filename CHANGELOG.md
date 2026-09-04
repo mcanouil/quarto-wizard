@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - fix: Read a document again when it takes the name of an untitled document that closed. The new document was shown the Typst blocks of the one before it. (#407)
+- fix: Point a YAML diagnostic at the key or the value it is about, instead of at the whole line. An option written in flow style, such as `format: {html: {toc: 3}}`, is now checked as well. (#408)
 
 ## 3.3.0 (2026-09-03)
 
