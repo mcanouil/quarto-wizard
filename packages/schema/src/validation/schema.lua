@@ -1957,6 +1957,8 @@ end
 ---   declared name it resolves to. A reader that has to answer a question
 ---   about a name the caller wrote asks this rather than walking the
 ---   descriptors again, because the merge has already decided the answer.
+---   It doubles as the set of keys a descriptor claimed, which is what the
+---   unknown key pass below reads.
 _validate_map = function(values, descriptors, base_path, context, options)
   options = options or {}
   local unknown_policy = options.unknown or 'ignore'
@@ -1966,7 +1968,6 @@ _validate_map = function(values, descriptors, base_path, context, options)
     merged[key] = value
   end
 
-  local claimed = {}
   local defaulted = {}
   local sources = {}
   local fields = {}
@@ -1981,7 +1982,6 @@ _validate_map = function(values, descriptors, base_path, context, options)
       spec = spec,
       path = base_path and (base_path .. '.' .. field) or field,
     }
-    claimed[field] = true
     sources[field] = field
 
     -- A value found under an alias, or under the other spelling, moves to the
@@ -1992,7 +1992,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
     local found, found_key = _lookup(merged, field)
     if found ~= nil then
       merged[field] = found
-      claimed[found_key] = true
+      sources[found_key] = field
       supplied_key = found_key
       if found_key ~= field then
         merged[found_key] = nil
@@ -2001,11 +2001,10 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
     if type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
-        claimed[alias] = true
         sources[alias] = field
         local aliased, alias_key = _lookup(merged, alias)
         if aliased ~= nil then
-          claimed[alias_key] = true
+          sources[alias_key] = field
           if merged[field] == nil then
             merged[field] = aliased
             supplied_key = alias_key
@@ -2064,7 +2063,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
   if unknown_policy ~= 'ignore' or options.additional then
     for key, value in pairs(values) do
-      if not claimed[key] then
+      if sources[key] == nil then
         local path = base_path and (base_path .. '.' .. tostring(key)) or tostring(key)
         if options.additional then
           local coerced = _coerce(value, options.additional.type)
@@ -2294,13 +2293,7 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- supplied. Neither reading is a bug: they answer different questions
     -- about the same instance.
     local function _required_satisfied(required)
-      local field = required
-      if spellings then
-        local declared_name = _lookup(spellings, required)
-        if declared_name ~= nil then
-          field = declared_name
-        end
-      end
+      local field = (spellings and _lookup(spellings, required)) or required
       if _lookup(merged.attributes, field) ~= nil then
         return true
       end
