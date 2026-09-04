@@ -690,6 +690,22 @@ options:
   assert_eq(merged['typst_cache_max_age'], nil, 'the variant spelling is not left behind')
 end)
 
+test('a value given under the hyphen spelling of an underscore-declared name still merges', function()
+  -- `_lookup` only parses its underscore-to-hyphen replacement string once a
+  -- match is found, which only happens when the key it is given contains an
+  -- underscore. Before the fix that replacement string was invalid, so this
+  -- direction raised instead of returning nil.
+  local loaded = load_schema([[
+options:
+  typst_cache_max_age:
+    type: number
+]])
+  local valid, errors, _, merged = schema.validate({ ['typst-cache-max-age'] = '30' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.typst_cache_max_age, 30, 'canonical key holds the value')
+  assert_eq(merged['typst-cache-max-age'], nil, 'the variant spelling is not left behind')
+end)
+
 test('a leading YAML document marker is accepted', function()
   local loaded = load_schema([[
 ---
