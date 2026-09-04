@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New Features
+
+- feat: Report a spelling that two attributes both declare in the Lua reference validator. One declaring it as its own name and the other as an alias leaves no way to say which accepts it, so the schema author is told instead of the validator choosing one and the choice changing between runs. (#\<pull request\>)
+
 ### Bug Fixes
 
 - fix: Read a document again when it takes the name of an untitled document that closed. The new document was shown the Typst blocks of the one before it. (#407)
