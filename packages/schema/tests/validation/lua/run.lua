@@ -624,6 +624,46 @@ options:
   assert_contains(errors, 'password')
 end)
 
+test('a dependent filled only by its own default does not satisfy the requirement', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+        default: letmein
+]])
+  local valid, errors = schema.validate({ auth = { user = 'me' } }, loaded.options)
+  assert_false(valid, 'a dependent that holds only a default is not present')
+  assert_contains(errors, 'password')
+end)
+
+test('a dependent the author supplied satisfies the requirement', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+        default: letmein
+]])
+  local valid, errors = schema.validate(
+    { auth = { user = 'me', password = 'secret' } }, loaded.options)
+  assert_valid(valid, errors)
+end)
+
 test('nested properties contribute defaults and coercion to merged', function()
   local loaded = load_schema([[
 options:
@@ -668,6 +708,22 @@ options:
   local _, _, _, merged = schema.validate({ ['typst_cache_max_age'] = '30' }, loaded.options)
   assert_eq(merged['typst-cache-max-age'], 30, 'canonical key holds the value')
   assert_eq(merged['typst_cache_max_age'], nil, 'the variant spelling is not left behind')
+end)
+
+test('a value given under the hyphen spelling of an underscore-declared name still merges', function()
+  -- `_lookup` only parses its underscore-to-hyphen replacement string once a
+  -- match is found, which only happens when the key it is given contains an
+  -- underscore. Before the fix that replacement string was invalid, so this
+  -- direction raised instead of returning nil.
+  local loaded = load_schema([[
+options:
+  typst_cache_max_age:
+    type: number
+]])
+  local valid, errors, _, merged = schema.validate({ ['typst-cache-max-age'] = '30' }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.typst_cache_max_age, 30, 'canonical key holds the value')
+  assert_eq(merged['typst-cache-max-age'], nil, 'the variant spelling is not left behind')
 end)
 
 test('a leading YAML document marker is accepted', function()
@@ -924,6 +980,92 @@ shortcodes:
   local valid, errors = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
   assert_false(valid, 'a missing required attribute should be reported')
   assert_contains(errors, 'icon')
+end)
+
+test('shortcode required reads the merged attributes when the entry declares them', function()
+  -- `replaceWith` forwards the value and clears the old key, so the old
+  -- spelling is genuinely absent once the attributes are merged. Reading the
+  -- caller's raw arguments instead let it satisfy the requirement.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      old-name:
+        type: string
+        deprecated:
+          since: "1.2.0"
+          replaceWith: new-name
+      new-name:
+        type: string
+    required:
+      - old-name
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { ['old-name'] = 'carried' }, loaded.shortcodes.demo)
+  assert_false(valid, 'a key cleared by replaceWith no longer satisfies required')
+  assert_contains(errors, 'old-name')
+end)
+
+test('shortcode required accepts a value supplied under a declared alias', function()
+  -- An alias resolves to its canonical field and the alias spelling is
+  -- cleared from the merged attributes, the way `_validate_map` clears a
+  -- deprecated key. Unlike `replaceWith`, the value is still present, under
+  -- the canonical name, so `required` must find it there.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      new-name:
+        type: string
+        aliases:
+          - legacy-name
+    required:
+      - legacy-name
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { ['legacy-name'] = 'carried' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+end)
+
+test('shortcode required matches an alias under its other spelling too', function()
+  -- `required` is read from the schema author, and a caller's raw argument
+  -- carries its own spelling. The match between them has to go through
+  -- `_lookup`, the same way every other name comparison in this module does,
+  -- so a hyphen in one and an underscore in the other still match.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      new-name:
+        type: string
+        aliases:
+          - legacy-name
+    required:
+      - legacy_name
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { ['legacy-name'] = 'carried' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+end)
+
+test('shortcode required still reports a missing alias name', function()
+  -- Matching the spelling is not enough: `_required_satisfied` also has to
+  -- confirm the canonical field actually holds a value, not merely that the
+  -- required name is one of its declared aliases.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      new-name:
+        type: string
+        aliases:
+          - legacy-name
+    required:
+      - legacy-name
+]])
+  local valid, errors = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_false(valid, 'an alias name with no supplied value is still missing')
+  assert_contains(errors, 'legacy-name')
 end)
 
 test('S7: validate_attributes checks declared keys and ignores the rest', function()

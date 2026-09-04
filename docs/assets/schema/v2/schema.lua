@@ -153,7 +153,7 @@ local function _lookup(map, key)
   if underscored ~= key and map[underscored] ~= nil then
     return map[underscored], underscored
   end
-  local hyphenated = (key:gsub('_', '%-'))
+  local hyphenated = (key:gsub('_', '-'))
   if hyphenated ~= key and map[hyphenated] ~= nil then
     return map[hyphenated], hyphenated
   end
@@ -1824,13 +1824,15 @@ local function _check_object(value, spec, path, context)
   -- Runs after the properties block, which writes the resolved members back
   -- into `value`. Before that, a dependent supplied under an alias is not yet
   -- there to be found. A `default` is an annotation and does not change the
-  -- instance, so a key that only holds one never triggers a requirement.
+  -- instance, so a key that only holds one neither triggers a requirement nor
+  -- satisfies it.
   if type(spec.dependentRequired) == 'table' then
     for key, dependents in pairs(spec.dependentRequired) do
       local trigger, trigger_key = _lookup(value, key)
       if trigger ~= nil and not defaulted[trigger_key] and type(dependents) == 'table' then
         for _, dependent in ipairs(dependents) do
-          if _lookup(value, dependent) == nil then
+          local supplied, dependent_key = _lookup(value, dependent)
+          if supplied == nil or defaulted[dependent_key] then
             _report(context, 'error', path, 'dependentRequired', string.format(
               'requires "%s" when "%s" is present.', dependent, key
             ))
@@ -2253,20 +2255,55 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     end
   end
 
-  if type(entry.attributes) == 'table' then
+  local declared = type(entry.attributes) == 'table'
+  if declared then
     merged.attributes = _validate_map(kwargs or {}, entry.attributes, name, context, {
       unknown = options.unknown or 'warn',
     })
   end
 
   if type(entry.required) == 'table' then
-    -- `merged.attributes` is filled only when the entry declares `attributes`.
-    -- The vocabulary allows `required` on its own, so fall back to what the
-    -- caller supplied rather than reporting every name as missing.
-    local supplied = kwargs or {}
+    -- `merged.attributes` is filled only when the entry declares `attributes`,
+    -- and it is authoritative when it is: it keeps every unclaimed key and it
+    -- drops a key that a deprecation cleared. The vocabulary allows `required`
+    -- on its own, so fall back to what the caller supplied only when the
+    -- entry declares no `attributes`. A name that names an alias is not
+    -- missing either: `_validate_map` moves its value to the field that
+    -- declares the alias and clears the alias spelling, the same way it
+    -- clears a deprecated key, so look for the value under that field. The
+    -- match goes through `_lookup`, the same as every other name comparison
+    -- in this module, so a hyphen in one spelling and an underscore in the
+    -- other still match.
+    --
+    -- This asks what the shortcode receives, not what the author wrote, so
+    -- a `default` present in `merged.attributes` satisfies a name here.
+    -- That is the opposite of `dependentRequired` above, which asks what
+    -- the author wrote and treats a default as an annotation nobody
+    -- supplied. Neither reading is a bug: they answer different questions
+    -- about the same instance.
+    local function _required_satisfied(required)
+      if _lookup(merged.attributes, required) ~= nil then
+        return true
+      end
+      if not declared then
+        return _lookup(kwargs or {}, required) ~= nil
+      end
+      for field, spec in pairs(entry.attributes) do
+        if type(spec) == 'table' and type(spec.aliases) == 'table' then
+          local spellings = {}
+          for _, alias in ipairs(spec.aliases) do
+            spellings[alias] = true
+          end
+          if _lookup(spellings, required) ~= nil and _lookup(merged.attributes, field) ~= nil then
+            return true
+          end
+        end
+      end
+      return false
+    end
+
     for _, required in ipairs(entry.required) do
-      if _lookup(merged.attributes, required) == nil
-        and _lookup(supplied, required) == nil then
+      if not _required_satisfied(required) then
         _report(context, 'error', name .. '.' .. required, 'required',
           'is required but was not provided.')
       end
