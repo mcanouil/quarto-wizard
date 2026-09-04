@@ -1068,6 +1068,74 @@ shortcodes:
   assert_contains(errors, 'legacy-name')
 end)
 
+test('a required name follows the value when another attribute claims it', function()
+  -- Two attributes name the same spelling: `colour` is declared, and `shade`
+  -- lists `colour` among its aliases. Whichever order `pairs` yields them in,
+  -- `shade` claims the supplied value and the merge empties `colour`, so a
+  -- required `colour` has to resolve to `shade` to find it. A spelling map
+  -- that let the declaration outrank the claim would send the check to the
+  -- field the merge had just emptied and report a supplied value as missing.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      colour:
+        type: string
+      shade:
+        type: string
+        aliases:
+          - colour
+    required:
+      - colour
+]])
+  local valid, errors, warnings = schema.validate_shortcode(
+    'demo', {}, { colour = 'red' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+  -- The schema is what is wrong here, so the author is told. Which of the two
+  -- accepts the spelling is not decidable from the schema, and resolving it in
+  -- silence would hide that.
+  assert_contains(warnings, 'is declared by both')
+  assert_contains(warnings, 'colour')
+end)
+
+test('a spelling declared by two attributes with no value is reported', function()
+  -- The same contested schema with nothing supplied. The warning does not
+  -- depend on a value arriving, because the schema is ambiguous either way.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      colour:
+        type: string
+      shade:
+        type: string
+        aliases:
+          - colour
+]])
+  local _, _, warnings = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_contains(warnings, 'is declared by both')
+end)
+
+test('a contest between the two spellings of one name is reported', function()
+  -- `line_width` and `line-width` sit under different keys, so a raw index
+  -- would see no contest. They reach the same document key at merge time,
+  -- because every name in this module resolves through both spellings, so
+  -- they contest as directly as an exact match does.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      line_width:
+        type: string
+      stroke:
+        type: string
+        aliases:
+          - line-width
+]])
+  local _, _, warnings = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_contains(warnings, 'is declared by both')
+end)
+
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
   local loaded = load_schema([[
 attributes:
