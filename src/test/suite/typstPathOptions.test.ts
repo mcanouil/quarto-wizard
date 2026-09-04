@@ -110,6 +110,18 @@ suite("Typst Path Options Test Suite", () => {
 			assert.strictEqual(text.slice(option.start, option.end), "_plot.typ");
 		});
 
+		test("Should report the offset of a path option in a tab-quoted cell", () => {
+			// Passes as soon as it is written: a straddling tab pads `content` with
+			// synthetic spaces, so `prefix` in `cellPathOptions` can be negative, but
+			// the offset expression still collapses to `line.length -
+			// match[2].length`, which stays correct. This guards that invariant.
+			const text = ">\t```{typst}\n>\t//| file: x.typ\n>\t```\n";
+			const option = only(text);
+			const valueOffset = text.indexOf("x.typ");
+			assert.strictEqual(option.start, valueOffset);
+			assert.strictEqual(option.end, valueOffset + "x.typ".length);
+		});
+
 		test("Should report the offset of a cell below front matter", () => {
 			const text = "---\ntitle: One\n---\n\n```{typst}\n//| file: _plot.typ\n```\n";
 			const option = only(text);

@@ -101,6 +101,15 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(found[0].body, "> #x\n");
 		});
 
+		test("Should keep the indent of a tab-indented body line in a quote", () => {
+			// The fence carries two columns of indent, so two columns come off each
+			// body line. The body tab runs from column two to column four, and the
+			// four spaces of Typst indent that follow it survive whole.
+			const found = findTypstBlocks("> \t```typst\n> \t    #x\n> \t```\n");
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].body, "    #x\n");
+		});
+
 		test("Should read an unclosed block to the end of the text", () => {
 			const found = findTypstBlocks("```typst\n#let a = 1\n");
 			assert.strictEqual(found.length, 1);

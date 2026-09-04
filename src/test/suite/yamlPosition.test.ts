@@ -416,6 +416,30 @@ suite("YAML Position Utils Test Suite", () => {
 			assert.strictEqual(found[0].info, "python");
 		});
 
+		test("should read a tab-indented fence inside a blockquote", () => {
+			// The marker `> ` takes two columns, so the tab advances from column two
+			// to column four and gives the fence two columns of indent. Counting the
+			// tab from the start of the quoted content charges it four, which is one
+			// past the limit, and the block is lost.
+			const text = "> \t```{r}\n> \tx <- 1\n> \t```\n";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].indent, 2);
+			assert.strictEqual(found[0].info, "{r}");
+			assert.strictEqual(found[0].quoteDepth, 1);
+		});
+
+		test("should give the marker one column of a tab that follows it", () => {
+			// CommonMark grants the blockquote marker one column of the tab after
+			// `>`. The rest is content, so the fence carries two columns of indent
+			// here as well.
+			const text = ">\t```{r}\n>\tx <- 1\n>\t```\n";
+			const found = findFencedBlocks(text);
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(found[0].indent, 2);
+			assert.strictEqual(found[0].info, "{r}");
+		});
+
 		test("should report the fence line of an unclosed block that ends the text", () => {
 			const text = "before\n```typst";
 			const found = findFencedBlocks(text);
