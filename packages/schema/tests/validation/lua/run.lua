@@ -991,6 +991,27 @@ shortcodes:
   assert_valid(valid, errors)
 end)
 
+test('shortcode required matches an alias under its other spelling too', function()
+  -- `required` is read from the schema author, and a caller's raw argument
+  -- carries its own spelling. The match between them has to go through
+  -- `_lookup`, the same way every other name comparison in this module does,
+  -- so a hyphen in one and an underscore in the other still match.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      new-name:
+        type: string
+        aliases:
+          - legacy-name
+    required:
+      - legacy_name
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { ['legacy-name'] = 'carried' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+end)
+
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
   local loaded = load_schema([[
 attributes:

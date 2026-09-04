@@ -153,7 +153,7 @@ local function _lookup(map, key)
   if underscored ~= key and map[underscored] ~= nil then
     return map[underscored], underscored
   end
-  local hyphenated = (key:gsub('_', '%-'))
+  local hyphenated = (key:gsub('_', '-'))
   if hyphenated ~= key and map[hyphenated] ~= nil then
     return map[hyphenated], hyphenated
   end
@@ -2255,7 +2255,8 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     end
   end
 
-  if type(entry.attributes) == 'table' then
+  local declared = type(entry.attributes) == 'table'
+  if declared then
     merged.attributes = _validate_map(kwargs or {}, entry.attributes, name, context, {
       unknown = options.unknown or 'warn',
     })
@@ -2265,24 +2266,29 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- `merged.attributes` is filled only when the entry declares `attributes`,
     -- and it is authoritative when it is: it keeps every unclaimed key and it
     -- drops a key that a deprecation cleared. The vocabulary allows `required`
-    -- on its own, so fall back to what the caller supplied only in that case,
-    -- rather than reporting every name as missing. A name that names an alias
-    -- is not missing either: `_validate_map` moves its value to the field
-    -- that declares the alias and clears the alias spelling, the same way it
-    -- clears a deprecated key, so look for the value under that field.
-    local declared = type(entry.attributes) == 'table'
-    local supplied = declared and {} or (kwargs or {})
-
-    local function _satisfied_by_alias(required)
+    -- on its own, so fall back to what the caller supplied only when the
+    -- entry declares no `attributes`. A name that names an alias is not
+    -- missing either: `_validate_map` moves its value to the field that
+    -- declares the alias and clears the alias spelling, the same way it
+    -- clears a deprecated key, so look for the value under that field. The
+    -- match goes through `_lookup`, the same as every other name comparison
+    -- in this module, so a hyphen in one spelling and an underscore in the
+    -- other still match.
+    local function _required_satisfied(required)
+      if _lookup(merged.attributes, required) ~= nil then
+        return true
+      end
       if not declared then
-        return false
+        return _lookup(kwargs or {}, required) ~= nil
       end
       for field, spec in pairs(entry.attributes) do
         if type(spec) == 'table' and type(spec.aliases) == 'table' then
+          local spellings = {}
           for _, alias in ipairs(spec.aliases) do
-            if alias == required then
-              return _lookup(merged.attributes, field) ~= nil
-            end
+            spellings[alias] = true
+          end
+          if _lookup(spellings, required) ~= nil and _lookup(merged.attributes, field) ~= nil then
+            return true
           end
         end
       end
@@ -2290,9 +2296,7 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     end
 
     for _, required in ipairs(entry.required) do
-      if _lookup(merged.attributes, required) == nil
-        and _lookup(supplied, required) == nil
-        and not _satisfied_by_alias(required) then
+      if not _required_satisfied(required) then
         _report(context, 'error', name .. '.' .. required, 'required',
           'is required but was not provided.')
       end
