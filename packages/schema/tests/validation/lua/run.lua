@@ -1068,6 +1068,31 @@ shortcodes:
   assert_contains(errors, 'legacy-name')
 end)
 
+test('a required name follows the value when another attribute claims it', function()
+  -- Two attributes name the same spelling: `colour` is declared, and `shade`
+  -- lists `colour` among its aliases. Whichever order `pairs` yields them in,
+  -- `shade` claims the supplied value and the merge empties `colour`, so a
+  -- required `colour` has to resolve to `shade` to find it. A spelling map
+  -- that let the declaration outrank the claim would send the check to the
+  -- field the merge had just emptied and report a supplied value as missing.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      colour:
+        type: string
+      shade:
+        type: string
+        aliases:
+          - colour
+    required:
+      - colour
+]])
+  local valid, errors = schema.validate_shortcode(
+    'demo', {}, { colour = 'red' }, loaded.shortcodes.demo)
+  assert_valid(valid, errors)
+end)
+
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
   local loaded = load_schema([[
 attributes:

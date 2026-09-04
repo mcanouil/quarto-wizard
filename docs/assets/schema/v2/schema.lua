@@ -1982,7 +1982,15 @@ _validate_map = function(values, descriptors, base_path, context, options)
       spec = spec,
       path = base_path and (base_path .. '.' .. field) or field,
     }
-    sources[field] = field
+    -- Two writes with different weight. Declaring a spelling fills an empty
+    -- slot only, while claiming the value under one overwrites whatever was
+    -- there. Two descriptors can name the same spelling, when one declares as
+    -- an alias what another declares as its own name, and `pairs` yields them
+    -- in no particular order. The value itself lands under whichever
+    -- descriptor claimed it, so the claim is what the map has to follow: a
+    -- declaration that outranked it would send a reader to a field the merge
+    -- has already emptied.
+    sources[field] = sources[field] or field
 
     -- A value found under an alias, or under the other spelling, moves to the
     -- name the schema declares. The key it came from is removed, so `merged`
@@ -2001,7 +2009,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
     if type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
-        sources[alias] = field
+        sources[alias] = sources[alias] or field
         local aliased, alias_key = _lookup(merged, alias)
         if aliased ~= nil then
           sources[alias_key] = field
