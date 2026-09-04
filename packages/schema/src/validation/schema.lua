@@ -1960,15 +1960,22 @@ end
 --- @param base_path string|nil Path prefix for findings
 --- @param context table Validation context
 local function _declare_spelling(sources, spelling, field, base_path, context)
-  local owner = sources[spelling]
-  if owner == nil then
-    sources[spelling] = field
-  elseif owner ~= field then
+  -- The owner is read through `_lookup`, like every other name comparison in
+  -- this module, so a contest between the hyphen and the underscore spelling
+  -- of one name is found as well. Those sit under different keys but reach the
+  -- same document key at merge time, so they contest just as directly.
+  local owner = _lookup(sources, spelling)
+  if owner ~= nil and owner ~= field then
     _report(context, 'warning', base_path and (base_path .. '.' .. spelling) or spelling,
       'aliases', string.format(
         'is declared by both "%s" and "%s"; which one accepts it is not defined.',
         owner, field))
   end
+  -- Stored under the literal spelling either way. The map is also the set of
+  -- keys a descriptor claimed, and a contested spelling is still claimed: the
+  -- schema is ambiguous, which the warning says, and treating the key as
+  -- undeclared on top of that would report it as unknown as well.
+  sources[spelling] = sources[spelling] or field
 end
 
 

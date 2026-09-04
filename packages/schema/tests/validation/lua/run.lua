@@ -1116,6 +1116,26 @@ shortcodes:
   assert_contains(warnings, 'is declared by both')
 end)
 
+test('a contest between the two spellings of one name is reported', function()
+  -- `line_width` and `line-width` sit under different keys, so a raw index
+  -- would see no contest. They reach the same document key at merge time,
+  -- because every name in this module resolves through both spellings, so
+  -- they contest as directly as an exact match does.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      line_width:
+        type: string
+      stroke:
+        type: string
+        aliases:
+          - line-width
+]])
+  local _, _, warnings = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_contains(warnings, 'is declared by both')
+end)
+
 test('S7: validate_attributes checks declared keys and ignores the rest', function()
   local loaded = load_schema([[
 attributes:
