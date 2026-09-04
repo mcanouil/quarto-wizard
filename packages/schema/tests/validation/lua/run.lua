@@ -644,6 +644,26 @@ options:
   assert_contains(errors, 'password')
 end)
 
+test('a dependent the author supplied satisfies the requirement', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    dependentRequired:
+      user:
+        - password
+    properties:
+      user:
+        type: string
+      password:
+        type: string
+        default: letmein
+]])
+  local valid, errors = schema.validate(
+    { auth = { user = 'me', password = 'secret' } }, loaded.options)
+  assert_valid(valid, errors)
+end)
+
 test('nested properties contribute defaults and coercion to merged', function()
   local loaded = load_schema([[
 options:
@@ -1026,6 +1046,26 @@ shortcodes:
   local valid, errors = schema.validate_shortcode(
     'demo', {}, { ['legacy-name'] = 'carried' }, loaded.shortcodes.demo)
   assert_valid(valid, errors)
+end)
+
+test('shortcode required still reports a missing alias name', function()
+  -- Matching the spelling is not enough: `_required_satisfied` also has to
+  -- confirm the canonical field actually holds a value, not merely that the
+  -- required name is one of its declared aliases.
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    attributes:
+      new-name:
+        type: string
+        aliases:
+          - legacy-name
+    required:
+      - legacy-name
+]])
+  local valid, errors = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_false(valid, 'an alias name with no supplied value is still missing')
+  assert_contains(errors, 'legacy-name')
 end)
 
 test('S7: validate_attributes checks declared keys and ignores the rest', function()

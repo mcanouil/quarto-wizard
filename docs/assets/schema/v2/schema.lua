@@ -2274,6 +2274,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- match goes through `_lookup`, the same as every other name comparison
     -- in this module, so a hyphen in one spelling and an underscore in the
     -- other still match.
+    --
+    -- This asks what the shortcode receives, not what the author wrote, so
+    -- a `default` present in `merged.attributes` satisfies a name here.
+    -- That is the opposite of `dependentRequired` above, which asks what
+    -- the author wrote and treats a default as an annotation nobody
+    -- supplied. Neither reading is a bug: they answer different questions
+    -- about the same instance.
     local function _required_satisfied(required)
       if _lookup(merged.attributes, required) ~= nil then
         return true
