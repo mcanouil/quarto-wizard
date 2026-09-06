@@ -250,6 +250,10 @@ jobs:
           npm pack
           mv quarto-wizard-schema-*.tgz "${GITHUB_WORKSPACE}/"
 
+      - name: Copy schema validator asset
+        shell: bash
+        run: cp packages/schema/src/validation/schema.lua "${GITHUB_WORKSPACE}/schema.lua"
+
       - name: Package snippets library
         shell: bash
         run: |
@@ -265,6 +269,7 @@ jobs:
             ${{ github.workspace }}/quarto-wizard-core-${{ env.VERSION }}.tgz
             ${{ github.workspace }}/quarto-wizard-schema-${{ env.VERSION }}.tgz
             ${{ github.workspace }}/quarto-wizard-snippets-${{ env.VERSION }}.tgz
+            ${{ github.workspace }}/schema.lua
 
       - name: Upload release bundle
         uses: actions/upload-artifact@v7
@@ -275,6 +280,7 @@ jobs:
             quarto-wizard-core-${{ env.VERSION }}.tgz
             quarto-wizard-schema-${{ env.VERSION }}.tgz
             quarto-wizard-snippets-${{ env.VERSION }}.tgz
+            schema.lua
             CHANGELOG-${{ env.VERSION }}.md
           if-no-files-found: error
           retention-days: 30
@@ -316,6 +322,7 @@ jobs:
             "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)"
             "./quarto-wizard-schema-${VERSION}.tgz#Quarto Wizard Schema (tgz)"
             "./quarto-wizard-snippets-${VERSION}.tgz#Quarto Wizard Snippets (tgz)"
+            "./schema.lua#Quarto Wizard Schema Validator (lua)"
           )
 
           if gh release view "${VERSION}" >/dev/null 2>&1; then
