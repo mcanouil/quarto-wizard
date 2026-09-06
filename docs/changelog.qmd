@@ -4,6 +4,14 @@ title: "Changelog"
 
 ## 3 {#version-3}
 
+### 3.5 {#version-3-5}
+
+#### 3.5.0 (2026-09-06) {#version-3-5-0}
+
+##### New Features
+
+- feat: Attach the Lua reference validator to each release as a plain asset. An extension can now pin it to a release rather than to a repository path that a refactor can move. (#418)
+
 ### 3.4 {#version-3-4}
 
 #### 3.4.0 (2026-09-04) {#version-3-4-0}
