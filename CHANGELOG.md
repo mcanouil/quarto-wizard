@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- feat: Attach the Lua reference validator to each release as a plain asset. An extension can now pin it to a release rather than to a repository path that a refactor can move. (#418)
+
 ## 3.4.0 (2026-09-04)
 
 ### New Features
