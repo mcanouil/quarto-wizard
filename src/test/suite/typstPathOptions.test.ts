@@ -98,6 +98,14 @@ suite("Typst Path Options Test Suite", () => {
 			assert.deepStrictEqual(covered(text), []);
 		});
 
+		test("Should ignore an inline cell, which has no option run at all", () => {
+			// An inline cell carries no `//|` run, so a line that looks like one
+			// inside it is code, and `cellPathOptions` skips a unit whose scope is
+			// not `block` before it ever reads a line.
+			const text = "Value: `{typst} //| file: a.typ`.\n";
+			assert.deepStrictEqual(covered(text), []);
+		});
+
 		test("Should report the offset of an indented cell", () => {
 			const text = "- item\n\n  ```{typst}\n  //| file: _plot.typ\n  ```\n";
 			const option = only(text);

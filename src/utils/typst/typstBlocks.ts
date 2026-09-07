@@ -7,6 +7,7 @@ import {
 	removeIndentColumns,
 	type FencedBlock,
 } from "../yamlPosition";
+import { findTypstInlines } from "./typstInline";
 
 /**
  * The three fence kinds that carry Typst source in a Quarto document.
@@ -215,7 +216,12 @@ function parseOptions(body: string): { options: Record<string, string | boolean>
 
 /** Whether a body carries an option line after its code, which Lua warns about. */
 export function hasLateOptionLine(block: TypstUnit): boolean {
-	return block.kind === "cell" && block.code.split(/\r?\n/).some((line) => LATE_OPTION_LINE.test(line));
+	// A span has no option run at all, so a `//|` line inside one is code.
+	return (
+		block.scope === "block" &&
+		block.kind === "cell" &&
+		block.code.split(/\r?\n/).some((line) => LATE_OPTION_LINE.test(line))
+	);
 }
 
 /**
@@ -273,7 +279,11 @@ export function findTypstUnits(text: string): TypstUnit[] {
 		});
 	}
 
-	return blocks;
+	// One list, in document order. A raw span and a raw fence both reach the Typst
+	// output through Pandoc in the order they are written, so the accumulation
+	// chain of `precedingRawBlocks` reads them together and needs no rule of its
+	// own.
+	return [...blocks, ...findTypstInlines(text)].sort((left, right) => left.fenceStart - right.fenceStart);
 }
 
 /**
