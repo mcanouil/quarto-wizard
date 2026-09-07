@@ -126,12 +126,10 @@ jobs:
           DATE: ${{ github.event.inputs.date }}
         shell: bash
         run: |
-          if git show-ref --quiet refs/heads/${BRANCH}; then
-            echo "Branch ${BRANCH} already exists."
-            git branch -D "${BRANCH}"
-            git push origin --delete "${BRANCH}"
-          fi
-          git checkout -b "${BRANCH}"
+          # `-B` and not `-b`. The checkout above fetches the triggering ref
+          # alone, so this branch is normally absent, but a re-run must not end
+          # here if it is present.
+          git checkout -B "${BRANCH}"
           if [ "${DATE}" = "today" ]; then
             DATE=$(date +%Y-%m-%d)
           else
@@ -179,6 +177,18 @@ jobs:
           fi
           echo "number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
 
+      # The token minted at the top of the job lasts an hour. The bump renders
+      # the documentation, and the gate below then waits for the matrix, so
+      # that hour can run out part way through the wait or before the merge.
+      # Both steps take a token minted here instead.
+      - name: Create GitHub App token for the gate
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        uses: actions/create-github-app-token@v3
+        id: gate-token
+        with:
+          client-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
       # `gh pr merge --auto` does not hold the pull request here. The token that
       # opens it can bypass the ruleset, so the automatic merge flag merges at
       # once instead of queueing behind the required check. The release then
@@ -187,7 +197,7 @@ jobs:
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         timeout-minutes: 30
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gate-token.outputs.token }}
           PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
           APPEARANCE_TIMEOUT_SECONDS: "300"
           POLL_INTERVAL_SECONDS: "30"
@@ -221,22 +231,10 @@ jobs:
 
           gh pr checks "${PR_NUMBER}" --required --watch --fail-fast --interval "${POLL_INTERVAL_SECONDS}"
 
-      # The token minted at the top of the job lasts an hour. The bump renders
-      # the documentation and the gate then waits for the matrix, so that hour
-      # can run out here, after the checks have passed and with the merge left
-      # undone. Mint a fresh one for the merge itself.
-      - name: Create GitHub App token for the merge
-        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
-        uses: actions/create-github-app-token@v3
-        id: merge-token
-        with:
-          client-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_KEY }}
-
       - name: Merge the version bump pull request
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
-          GH_TOKEN: ${{ steps.merge-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gate-token.outputs.token }}
           PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
         shell: bash
         run: |
