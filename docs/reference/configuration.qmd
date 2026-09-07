@@ -232,17 +232,16 @@ The greatest height of the image a hover shows, in the points Typst writes into 
 
 **Setting**: `quartoWizard.typstPreview.surface`
 
-Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off. There is no surface that draws the image inside the document, because the editor does not let an extension change the height of a line.
+Where the Typst block preview is shown. Name both surfaces to have both. An empty list turns the whole feature off. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the list holds, unless it is empty. There is no surface that draws the image inside the document, because the editor does not let an extension change the height of a line.
 
 | Value   | Description                                                                                       |
 | ------- | ------------------------------------------------------------------------------------------------- |
 | `panel` | Show the image in a panel beside the editor, which follows the cursor while it is open (default). |
 | `hover` | Show the image when the pointer rests on a block.                                                 |
-| `off`   | Show no image, and offer no code lens.                                                            |
 
 ```json
 {
-  "quartoWizard.typstPreview.surface": "panel"
+  "quartoWizard.typstPreview.surface": ["panel"]
 }
 ```
 
@@ -250,7 +249,7 @@ Where the Typst block preview is shown. All three block kinds compile to an imag
 
 **Setting**: `quartoWizard.typstPreview.codeLens`
 
-Show a code lens above every Typst block, offering to preview it. Turn it off to keep the editor clear: a document of many examples carries one lens per block. The lens is never shown when `#quartoWizard.typstPreview.surface#` is `off`.
+Show a code lens above every Typst block, offering to preview it. Turn it off to keep the editor clear: a document of many examples carries one lens per block. The lens is never shown when `#quartoWizard.typstPreview.surface#` is empty.
 
 | Property | Value   |
 | -------- | ------- |
@@ -291,7 +290,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.typstPreview.timeoutMs": 20000,
   "quartoWizard.typstPreview.debounceMs": 300,
   "quartoWizard.typstPreview.maxHeight": 200,
-  "quartoWizard.typstPreview.surface": "panel",
+  "quartoWizard.typstPreview.surface": ["panel"],
   "quartoWizard.typstPreview.codeLens": true
 }
 ```
