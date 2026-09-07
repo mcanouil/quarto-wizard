@@ -19,22 +19,24 @@ const SECTION = "quartoWizard.typstPreview";
 /**
  * Where a preview is shown.
  *
- * There is no surface that draws inside the document. An image after the block
+ * A list and not one value, because the panel and the hover answer different
+ * questions: the panel follows the cursor and stays, and the hover costs
+ * nothing until the pointer rests. A reader can want both at once.
+ *
+ * There is no surface that draws inside the document. An image after a fence
  * would have to grow the height of its line, and the editor takes line height
  * from `IModelDecorationOptions.lineHeight`, which the extension API does not
- * expose at any version. A decoration attachment is laid out inside a line of
- * fixed height, so a tall one paints over the lines below it rather than moving
- * them. The API that would do it is `createWebviewTextEditorInset`, proposed in
- * microsoft/vscode#85682, on the backlog since 2019 and refused to a published
- * extension at run time.
+ * expose at any version.
  */
-const SURFACES = ["panel", "hover", "off"] as const;
+const SURFACES = ["panel", "hover"] as const;
 
 /** Derived from the list, so the two cannot drift apart in silence. */
 export type TypstPreviewSurface = (typeof SURFACES)[number];
 
+/** The list `package.json` declares as its default. */
+const DEFAULT_SURFACES: readonly TypstPreviewSurface[] = ["panel"];
+
 /** The defaults and bounds `package.json` declares, which it cannot enforce. */
-const DEFAULT_SURFACE: TypstPreviewSurface = "panel";
 const DEFAULT_MAX_HEIGHT = 200;
 const MIN_MAX_HEIGHT = 20;
 const MAX_MAX_HEIGHT = 4000;
@@ -59,14 +61,36 @@ function boundedNumber(value: unknown, fallback: number, lowest: number, highest
 }
 
 /**
- * A usable surface, whatever the setting holds.
+ * A usable set of surfaces, whatever the setting holds.
  *
- * Exported for its tests. `package.json` declares the enum, a hand-edited
- * `settings.json` ignores it, and a settings file written against an older
- * version can still name a surface that no longer exists.
+ * Exported for its tests. An empty set is the value that turns the feature off,
+ * so it is a real answer and never a fallback.
+ *
+ * A string is read as well as a list. `package.json` declares an array, a
+ * hand-edited `settings.json` ignores that, and a settings file written against
+ * an older version of this extension holds one of the strings the setting used
+ * to take. `off` is the one that still means something, and it means the empty
+ * set.
  */
-export function previewSurface(value: unknown): TypstPreviewSurface {
-	return SURFACES.includes(value as TypstPreviewSurface) ? (value as TypstPreviewSurface) : DEFAULT_SURFACE;
+export function previewSurfaces(value: unknown): ReadonlySet<TypstPreviewSurface> {
+	if (typeof value === "string") {
+		return value === "off" ? new Set() : new Set(known([value]));
+	}
+	if (!Array.isArray(value)) {
+		return new Set(DEFAULT_SURFACES);
+	}
+	return new Set(known(value));
+}
+
+/** The members of a list this version knows, or the default when it knows none. */
+function known(value: readonly unknown[]): readonly TypstPreviewSurface[] {
+	const members = value.filter((entry): entry is TypstPreviewSurface =>
+		SURFACES.includes(entry as TypstPreviewSurface),
+	);
+	// An empty input is off, and an input of members this version does not know
+	// is a settings file from another version, which falls back rather than
+	// turning the feature off in silence.
+	return members.length === 0 && value.length > 0 ? DEFAULT_SURFACES : members;
 }
 
 /**
@@ -125,7 +149,7 @@ export function previewCodeLens(value: unknown): boolean {
 
 /** What a surface asks about the document it is rendering. */
 export interface TypstSurfaceSettings {
-	surface: TypstPreviewSurface;
+	surfaces: ReadonlySet<TypstPreviewSurface>;
 	maxHeight: number;
 	codeLens: boolean;
 }
@@ -140,20 +164,20 @@ export interface TypstSurfaceSettings {
 export function surfaceSettings(document: vscode.TextDocument): TypstSurfaceSettings {
 	const config = section(document);
 	return {
-		surface: previewSurface(config.get("surface")),
+		surfaces: previewSurfaces(config.get("surface")),
 		maxHeight: previewMaxHeight(config.get<number>("maxHeight", DEFAULT_MAX_HEIGHT)),
 		codeLens: previewCodeLens(config.get("codeLens")),
 	};
 }
 
 /**
- * The surface one document asks for.
+ * The surfaces one document asks for.
  *
  * Takes an optional document because the active editor is what decides whether
  * a hover is offered at all, and there may not be one.
  */
-export function surfaceOf(document: vscode.TextDocument | undefined): TypstPreviewSurface {
-	return previewSurface(section(document).get("surface"));
+export function surfacesOf(document: vscode.TextDocument | undefined): ReadonlySet<TypstPreviewSurface> {
+	return previewSurfaces(section(document).get("surface"));
 }
 
 /** What compiling one document needs. */

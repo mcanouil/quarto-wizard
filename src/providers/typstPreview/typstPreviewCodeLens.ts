@@ -83,7 +83,7 @@ export class TypstPreviewCodeLens implements vscode.CodeLensProvider, vscode.Dis
 	/** Whether this document asks for a lens above each of its Typst blocks. */
 	private wanted(document: vscode.TextDocument): boolean {
 		const settings = this.settingsOf(document);
-		return settings.surface !== "off" && settings.codeLens;
+		return settings.surfaces.size > 0 && settings.codeLens;
 	}
 
 	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] {

@@ -709,12 +709,12 @@ function generateSettingQuickDesc(prop) {
 /**
  * Generate a description for an enum value.
  * @param {string|boolean} value - Enum value.
- * @param {string|boolean} defaultValue - Default value.
+ * @param {string|boolean|Array<string>} defaultValue - Default value, an array for an array-typed property.
  * @param {string} description - Description from enumDescriptions.
  * @returns {string} Description.
  */
 function generateEnumDescription(value, defaultValue, description) {
-	const isDefault = value === defaultValue;
+	const isDefault = Array.isArray(defaultValue) ? defaultValue.includes(value) : value === defaultValue;
 	const defaultSuffix = isDefault ? " (default)." : ".";
 	const text = description ? description.replace(/\.$/, "") : capitalise(String(value));
 	return text + defaultSuffix;
@@ -809,6 +809,14 @@ function generateConfigurationPage(pkg) {
 					sectionLines.push(`| \`${value}\` | ${valueDesc} |`);
 				}
 				sectionLines.push("");
+			} else if (prop.type === "array" && prop.items?.enum) {
+				sectionLines.push("| Value | Description |", "|-------|-------------|");
+				for (let i = 0; i < prop.items.enum.length; i++) {
+					const value = prop.items.enum[i];
+					const valueDesc = generateEnumDescription(value, prop.default, prop.items.enumDescriptions?.[i]);
+					sectionLines.push(`| \`${value}\` | ${valueDesc} |`);
+				}
+				sectionLines.push("");
 			} else if (prop.type === "number") {
 				sectionLines.push("| Property | Value |", "|----------|-------|");
 				sectionLines.push(`| Type | Number |`);
@@ -881,8 +889,12 @@ function generateReferenceIndex(pkg) {
 	const configLines = ["| Setting | Default | Description |", "|---------|---------|-------------|"];
 	const sortedProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	for (const [key, prop] of sortedProps) {
+		// An array default is rendered as JSON, so `["panel"]` reads as the list it
+		// is rather than as the bare word a template literal would flatten it to.
 		const defaultVal =
-			key === "quartoWizard.registry.url" ? "[see docs](configuration.qmd#registry-url)" : `\`${prop.default}\``;
+			key === "quartoWizard.registry.url"
+				? "[see docs](configuration.qmd#registry-url)"
+				: `\`${Array.isArray(prop.default) ? JSON.stringify(prop.default) : prop.default}\``;
 		configLines.push(`| \`${key}\` | ${defaultVal} | ${generateSettingQuickDesc(prop)} |`);
 	}
 

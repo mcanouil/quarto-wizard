@@ -7,7 +7,7 @@ import { TypstPreviewHover } from "../../providers/typstPreview/typstPreviewHove
 import {
 	previewCodeLens,
 	previewMaxHeight,
-	previewSurface,
+	previewSurfaces,
 	type TypstPreviewSurface,
 	type TypstSurfaceSettings,
 } from "../../providers/typstPreview/typstPreviewSettings";
@@ -92,8 +92,12 @@ function nextResultFor(
 }
 
 /** Settings that answer the same way for every document. */
-function fixedSettings(surface: TypstPreviewSurface, maxHeight = 200, codeLens = true): () => TypstSurfaceSettings {
-	return () => ({ surface, maxHeight, codeLens });
+function fixedSettings(
+	surfaces: readonly TypstPreviewSurface[],
+	maxHeight = 200,
+	codeLens = true,
+): () => TypstSurfaceSettings {
+	return () => ({ surfaces: new Set(surfaces), maxHeight, codeLens });
 }
 
 const NO_CANCEL = new vscode.CancellationTokenSource().token;
@@ -111,13 +115,25 @@ function hoverText(hover: vscode.Hover | undefined): string {
 
 suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should hold a surface setting inside the values it declares", () => {
-		assert.strictEqual(previewSurface("hover"), "hover");
-		assert.strictEqual(previewSurface("off"), "off");
-		// `inline` was a value once and cannot render without an editor API that
-		// VS Code does not expose, so a settings file still holding it falls back.
-		assert.strictEqual(previewSurface("inline"), "panel");
-		assert.strictEqual(previewSurface("everywhere"), "panel");
-		assert.strictEqual(previewSurface(undefined), "panel");
+		assert.deepStrictEqual([...previewSurfaces(["panel", "hover"])], ["panel", "hover"]);
+		assert.deepStrictEqual([...previewSurfaces(["hover"])], ["hover"]);
+		// An empty list is the value that turns the feature off, and it replaces the
+		// enum value `off` that the setting held before.
+		assert.deepStrictEqual([...previewSurfaces([])], []);
+		// A member the extension does not know is dropped, and the rest is kept.
+		assert.deepStrictEqual([...previewSurfaces(["hover", "everywhere"])], ["hover"]);
+		// A settings file written against an older version holds a string.
+		assert.deepStrictEqual([...previewSurfaces("hover")], ["hover"]);
+		assert.deepStrictEqual([...previewSurfaces("off")], []);
+		// `inline` was a value once and never rendered anything, so it falls back.
+		assert.deepStrictEqual([...previewSurfaces("inline")], ["panel"]);
+		assert.deepStrictEqual([...previewSurfaces(undefined)], ["panel"]);
+		assert.deepStrictEqual([...previewSurfaces(7)], ["panel"]);
+		// A non-string member is filtered out the same way an unknown one is, and
+		// the fallback applies once that leaves nothing, because the input itself
+		// was not empty.
+		assert.deepStrictEqual([...previewSurfaces([7])], ["panel"]);
+		assert.deepStrictEqual([...previewSurfaces([null])], ["panel"]);
 		assert.strictEqual(previewMaxHeight(0), 20);
 		assert.strictEqual(previewMaxHeight("tall"), 200);
 		assert.strictEqual(previewMaxHeight(500), 500);
@@ -130,7 +146,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 	test("Should offer one code lens per block, on its opening fence line", async () => {
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
-		const lens = new TypstPreviewCodeLens(controller, fixedSettings("panel"));
+		const lens = new TypstPreviewCodeLens(controller, fixedSettings(["panel"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const lenses = lens.provideCodeLenses(document, NO_CANCEL);
@@ -148,7 +164,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// The three fences look nearly identical and behave differently, so a title
 		// that reads the same on all of them would hide the difference that matters.
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
-		const lens = new TypstPreviewCodeLens(controller, fixedSettings("panel"));
+		const lens = new TypstPreviewCodeLens(controller, fixedSettings(["panel"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const titles = lens.provideCodeLenses(document, NO_CANCEL).map((one) => one.command?.title);
@@ -161,7 +177,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should carry the block it means in the command arguments", async () => {
 		// A lens previews its own block and not the one the cursor happens to be in.
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
-		const lens = new TypstPreviewCodeLens(controller, fixedSettings("panel"));
+		const lens = new TypstPreviewCodeLens(controller, fixedSettings(["panel"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const [, raw] = lens.provideCodeLenses(document, NO_CANCEL);
@@ -176,8 +192,8 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 	test("Should offer no code lens when the setting turns it off", async () => {
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
-		const off = new TypstPreviewCodeLens(controller, fixedSettings("panel", 200, false));
-		const surfaceOff = new TypstPreviewCodeLens(controller, fixedSettings("off"));
+		const off = new TypstPreviewCodeLens(controller, fixedSettings(["panel"], 200, false));
+		const surfaceOff = new TypstPreviewCodeLens(controller, fixedSettings([]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		assert.deepStrictEqual(off.provideCodeLenses(document, NO_CANCEL), []);
@@ -194,7 +210,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// when a late result arrives, so the compile is awaited instead.
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const shown = await hover.provideHover(document, INSIDE_RAW, NO_CANCEL);
@@ -220,7 +236,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 			resolveBinary: () => Promise.resolve("/typst"),
 			createCompiler: () => compiler,
 		});
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
@@ -245,7 +261,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 			resolveBinary: () => Promise.resolve("/typst"),
 			createCompiler: () => compiler,
 		});
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
@@ -289,7 +305,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 			resolveBinary: () => Promise.resolve("/typst"),
 			createCompiler: () => compiler,
 		});
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const pending = hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
@@ -315,7 +331,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// written as text: rendering it as markdown would change what it says.
 		const stderr = "error: unknown variable: _x_\n  ┌─ <stdin>:3:1\n  │\n";
 		const controller = makeController(new StubCompiler({ stderr }));
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
@@ -334,7 +350,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// block the pointer touched, which is not a cursor move.
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 		const updates: string[] = [];
 		const subscription = controller.onDidChangeResult((update) => updates.push(update.reason));
@@ -349,7 +365,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should answer from the preview on screen without compiling again", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		await nextResultFor(controller, document, INSIDE_PLAIN);
@@ -363,7 +379,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should give up a hover the pointer has already left", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 		const cancelled = new vscode.CancellationTokenSource();
 		cancelled.cancel();
@@ -378,7 +394,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should point at the panel for an image too large to hover", async () => {
 		const huge = `<svg width="10pt" height="10pt">${"x".repeat(400_000)}</svg>`;
 		const controller = makeController(new StubCompiler({ svg: huge, stderr: "" }));
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
@@ -391,7 +407,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should offer no hover when the document asks for another surface", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
-		const hover = new TypstPreviewHover(controller, fixedSettings("panel"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["panel"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		await nextResultFor(controller, document, INSIDE_PLAIN);
@@ -402,10 +418,29 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 	test("Should offer no hover outside a Typst block", async () => {
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
-		const hover = new TypstPreviewHover(controller, fixedSettings("hover"));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		assert.strictEqual(await hover.provideHover(document, new vscode.Position(0, 0), NO_CANCEL), undefined);
+		controller.dispose();
+	});
+
+	test("Should keep the panel off the pointer while both surfaces are on", async () => {
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
+		const document = await quartoDocument(THREE_KINDS);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["panel", "hover"]));
+
+		// The panel is following the plain block, which is what a cursor move does.
+		await nextResultFor(controller, document, INSIDE_PLAIN);
+		const followed = controller.shown();
+
+		// A pointer resting on another block compiles for the hover alone.
+		assert.ok(await hover.provideHover(document, INSIDE_RAW, NO_CANCEL));
+		await settle();
+
+		// `shown()` is what the panel renders, and it has not moved to the raw block.
+		assert.strictEqual(controller.shown()?.blockIndex, followed?.blockIndex);
 		controller.dispose();
 	});
 });
