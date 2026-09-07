@@ -190,6 +190,22 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should offer no code lens above an inline span", async () => {
+		// A lens sits above a line of its own, and an inline span shares its line
+		// with prose, so there is no line a lens could take. The document holds the
+		// three fences the lens already covers, plus one inline cell, and the lens
+		// list must not grow past the three.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const lens = new TypstPreviewCodeLens(controller, fixedSettings(["panel"]));
+		const document = await quartoDocument(THREE_KINDS + "\nValue: `{typst} #calc.pi`.\n");
+
+		const lenses = lens.provideCodeLenses(document, NO_CANCEL);
+
+		assert.strictEqual(lenses.length, 3);
+		lens.dispose();
+		controller.dispose();
+	});
+
 	test("Should offer no code lens when the setting turns it off", async () => {
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
 		const off = new TypstPreviewCodeLens(controller, fixedSettings(["panel"], 200, false));

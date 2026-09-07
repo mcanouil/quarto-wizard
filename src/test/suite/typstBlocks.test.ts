@@ -311,6 +311,15 @@ suite("Typst Blocks Test Suite", () => {
 			const block = findTypstUnits("```{typst}\n#a\n//| dpi:300\n```\n")[0];
 			assert.strictEqual(hasLateOptionLine(block), false);
 		});
+
+		test("Should not report an inline unit, which has no option run at all", () => {
+			// An inline unit carries no `//|` run, so a line that looks like one is
+			// code. The guard is `block.scope === "block"` and nothing else, so this
+			// holds even when the code itself reads like a late option line.
+			const [unit] = findTypstUnits("Value: `{typst} //| dpi: 300`.\n");
+			assert.strictEqual(unit.scope, "inline");
+			assert.strictEqual(hasLateOptionLine(unit), false);
+		});
 	});
 
 	suite("blockAtOffset", () => {
