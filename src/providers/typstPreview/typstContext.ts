@@ -38,7 +38,7 @@ import { resolveQuartoPath } from "../../utils/typst/typstPaths";
  * due a refresh, and a log line is what turns silent drift into something a bug
  * report can name.
  */
-export const PINNED_TYPST_RENDER_VERSION = "0.21.0";
+export const PINNED_TYPST_RENDER_VERSION = "0.22.1";
 
 /** The owner the extension is published under, beside its bare name. */
 const TYPST_RENDER_OWNER = "mcanouil";

@@ -10,8 +10,14 @@ An expectation written by hand would only ever agree with the port.
 
 ## Pinned version
 
-The fixtures were recorded from `mcanouil/quarto-typst-render` version `0.21.0`.
+The fixtures were recorded from `mcanouil/quarto-typst-render` version `0.22.1`.
 Every `meta.json` repeats that version beside the brand mode of its recording.
+
+The pin has moved once already.
+The fixtures were first recorded on 2026-08-31, and pinned to `0.21.0`, the latest release at that time.
+`_extension.yml` of the `0.21.0` release reports its own version as `0.21.0`, but the manifest already carries the document brand feature that shipped in `0.22.0`.
+That mismatch is an upstream defect in the extension's own version bookkeeping, not a recording mistake here, and this repository's pin inherited it.
+The pin now names `0.22.1`, the version every existing fixture reproduced byte for byte when re-recorded, so `meta.json` states a version that is actually true of what it holds.
 
 `src/providers/typstPreview/typstContext.ts` reads the installed version from the extension's own `_extension.yml` manifest and logs a warning when it is above the pinned one.
 That turns silent drift into a log line between refreshes.
@@ -33,6 +39,7 @@ The fixture suite checks the same constant against every `meta.json`, so a fixtu
 | `brand-dual-light` | The light side of a brand whose two modes differ. |
 | `brand-dual-dark` | The dark side of the same brand. |
 | `crlf` | The same block written with CRLF line endings. |
+| `inline-bare` | An inline cell, whose page geometry the filter fixes and no option changes. |
 
 ## Refresh procedure
 
@@ -44,6 +51,7 @@ Run this whenever the pinned version moves.
    The front matter already sets `engine: markdown`, `output-source: true` and an `output-directory` of `./recorded`.
 4. Copy the emitted `recorded/block/typst-block-1.typ` over `expected.typ`.
    A document whose colours differ between the two modes emits `typst-block-1-light.typ` and `typst-block-1-dark.typ` instead, one per fixture.
+   An inline cell is written as `typst-inline-1.typ` instead, with no hash and no `block` prefix, so find it with `ls recorded/*/typst-inline-*.typ` rather than by the block naming above.
 5. Update `extensionVersion` in every `meta.json`.
 6. Run `npm run test` and read every difference before accepting it.
    A difference is a change in what the filter compiles, and the port has to follow it.

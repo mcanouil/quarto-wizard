@@ -3,10 +3,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { blockAtOffset, findTypstUnits, type TypstUnit } from "../../utils/typst/typstBlocks";
+import { findTypstInlines } from "../../utils/typst/typstInline";
 import { BRAND_CANDIDATES, splitBrand, EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
 import { extensionLevel, type TypstBrandMode, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
 import { parseFrontMatter } from "../../utils/yamlPosition";
-import { buildCell, isUnavailable } from "../../utils/typst/typstSource";
+import { buildCell, buildInlineCell, isUnavailable } from "../../utils/typst/typstSource";
 import { PINNED_TYPST_RENDER_VERSION } from "../../providers/typstPreview/typstContext";
 
 /**
@@ -65,12 +66,20 @@ function brandOf(directory: string): Brand {
 	return EMPTY_BRAND;
 }
 
-/** The one cell of a fixture document. */
+/** The one fenced cell of a fixture document. */
 function cellOf(text: string): TypstUnit {
 	const blocks = findTypstUnits(text);
 	const block = blockAtOffset(blocks, blocks[0].bodyStart);
 	assert.ok(block !== undefined && block.kind === "cell", "the fixture must hold one executable cell");
 	return block;
+}
+
+/** The one inline cell of a fixture document. */
+function inlineCellOf(text: string): TypstUnit {
+	const inlines = findTypstInlines(text);
+	const inline = inlines[0];
+	assert.ok(inline !== undefined && inline.kind === "cell", "the fixture must hold one executable inline cell");
+	return inline;
 }
 
 suite("Typst Fixtures Test Suite", () => {
@@ -105,7 +114,7 @@ suite("Typst Fixtures Test Suite", () => {
 			const text = fs.readFileSync(path.join(directory, "block.qmd"), "utf8");
 			const metadata = parseFrontMatter(text);
 
-			const built = await buildCell(cellOf(text), {
+			const context = {
 				levels: levelsOf(directory, metadata),
 				brand: brandOf(directory),
 				// `meta.json` pins the side of the recording, which is what the fixture
@@ -116,11 +125,19 @@ suite("Typst Fixtures Test Suite", () => {
 				// A fixture compares the source and not the command line, and it names
 				// no place on disk to resolve one against.
 				paths: {},
-				readFile: async (documentPath) => {
+				readFile: async (documentPath: string) => {
 					const file = path.join(directory, documentPath);
 					return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
 				},
-			});
+			};
+
+			// The branch is the presence of an inline unit in the document, and not
+			// the fixture's directory name, so a later inline fixture needs no list
+			// to join.
+			const built =
+				findTypstInlines(text).length > 0
+					? await buildInlineCell(inlineCellOf(text), context)
+					: await buildCell(cellOf(text), context);
 
 			assert.ok(!isUnavailable(built), `the fixture did not assemble: ${JSON.stringify(built)}`);
 			// Line endings are normalised on both sides. The filter writes the source
