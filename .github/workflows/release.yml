@@ -149,11 +149,12 @@ jobs:
 
           sleep 5
           PR_URL=$(gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:" | tail -n 1)
-          if [ -z "${PR_URL}" ]; then
+          PR_NUMBER="${PR_URL##*/}"
+          if [ -z "${PR_NUMBER}" ]; then
             echo "::error::Failed to create the version bump pull request."
             exit 1
           fi
-          echo "number=${PR_URL##*/}" >> "${GITHUB_OUTPUT}"
+          echo "number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
 
       # `gh pr merge --auto` does not hold the pull request here. The token that
       # opens it can bypass the ruleset, so the automatic merge flag merges at
@@ -166,7 +167,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
           APPEARANCE_TIMEOUT_SECONDS: "300"
-          POLL_INTERVAL_SECONDS: "15"
+          POLL_INTERVAL_SECONDS: "30"
         shell: bash
         run: |
           set -euo pipefail
