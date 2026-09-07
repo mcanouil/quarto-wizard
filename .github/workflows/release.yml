@@ -41,6 +41,20 @@ jobs:
       BUMP_VERSION: ${{ inputs.version }}
 
     steps:
+      # The bump pull request targets the branch the release was dispatched
+      # from. `build.yml` runs on pull requests against `main` alone, so a
+      # dispatch from anywhere else opens a pull request that no required check
+      # ever reports on, and the gate below would then time out for a reason it
+      # cannot name. The `package` job checks out `main` as well.
+      - name: Check the release runs from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "::error::The release runs from main only. It was dispatched from ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
@@ -150,8 +164,8 @@ jobs:
           sleep 5
           PR_URL=$(gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:" | tail -n 1)
           PR_NUMBER="${PR_URL##*/}"
-          if [ -z "${PR_NUMBER}" ]; then
-            echo "::error::Failed to create the version bump pull request."
+          if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Failed to create the version bump pull request. Read a pull request number from: ${PR_URL}"
             exit 1
           fi
           echo "number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
@@ -178,7 +192,11 @@ jobs:
           deadline=$((SECONDS + APPEARANCE_TIMEOUT_SECONDS))
           until [ "$(gh pr checks "${PR_NUMBER}" --required --json state --jq 'length' 2>/dev/null || echo 0)" -gt 0 ]; do
             if [ "${SECONDS}" -ge "${deadline}" ]; then
-              echo "::error::No required check reported on pull request ${PR_NUMBER} after ${APPEARANCE_TIMEOUT_SECONDS} seconds."
+              # The loop hides every failure, so a bad token looks the same as a
+              # check that has not started. Run once more without the muzzle, so
+              # the log carries the real reason next to the timeout.
+              echo "::error::No required check reported on pull request ${PR_NUMBER} after ${APPEARANCE_TIMEOUT_SECONDS} seconds. The last attempt reported:"
+              gh pr checks "${PR_NUMBER}" --required --json state || true
               exit 1
             fi
             sleep "${POLL_INTERVAL_SECONDS}"
