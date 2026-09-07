@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { blockAtOffset, invalidatesPreview, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { blockAtOffset, invalidatesPreview, type TypstUnit } from "../../utils/typst/typstBlocks";
 import { isUnavailable, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 import { parseTypstStderr, typstMessages } from "../../utils/typst/typstDiagnostics";
 import { debounce, type DebouncedFunction } from "../../utils/debounce";
@@ -88,7 +88,7 @@ export interface TypstPreviewResult {
 	/** The document the block belongs to. */
 	uri: vscode.Uri;
 	/** The block that was previewed. */
-	block: TypstBlock;
+	block: TypstUnit;
 	/** Where that block sits in the document, which is its identity across an edit. */
 	blockIndex: number;
 	/**
@@ -402,7 +402,7 @@ export class TypstPreviewController implements vscode.Disposable {
 	}
 
 	/** The Typst blocks of a document, which is the list a compile was built from. */
-	blocksOf(document: vscode.TextDocument): readonly TypstBlock[] {
+	blocksOf(document: vscode.TextDocument): readonly TypstUnit[] {
 		return getDocumentTypstBlocks(document, () => document.getText());
 	}
 

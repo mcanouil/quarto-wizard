@@ -2,7 +2,7 @@ import * as assert from "assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
-import { blockAtOffset, findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { blockAtOffset, findTypstUnits, type TypstUnit } from "../../utils/typst/typstBlocks";
 import { BRAND_CANDIDATES, splitBrand, EMPTY_BRAND, type Brand } from "../../utils/typst/typstBrand";
 import { extensionLevel, type TypstBrandMode, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
 import { parseFrontMatter } from "../../utils/yamlPosition";
@@ -66,8 +66,8 @@ function brandOf(directory: string): Brand {
 }
 
 /** The one cell of a fixture document. */
-function cellOf(text: string): TypstBlock {
-	const blocks = findTypstBlocks(text);
+function cellOf(text: string): TypstUnit {
+	const blocks = findTypstUnits(text);
 	const block = blockAtOffset(blocks, blocks[0].bodyStart);
 	assert.ok(block !== undefined && block.kind === "cell", "the fixture must hold one executable cell");
 	return block;

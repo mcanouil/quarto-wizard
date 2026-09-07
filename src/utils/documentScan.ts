@@ -28,7 +28,7 @@
  */
 
 import type * as vscode from "vscode";
-import { findTypstBlocks, type TypstBlock } from "./typst/typstBlocks";
+import { findTypstUnits, type TypstUnit } from "./typst/typstBlocks";
 import { annotateYaml, yamlRegionOf, type AnnotatedYaml } from "./yamlAnnotated";
 import { findFencedBlocks, type FencedBlock, type TextRange } from "./yamlPosition";
 
@@ -36,7 +36,7 @@ import { findFencedBlocks, type FencedBlock, type TextRange } from "./yamlPositi
 interface DocumentScan {
 	version: number;
 	fenced?: readonly FencedBlock[];
-	typst?: readonly TypstBlock[];
+	typst?: readonly TypstUnit[];
 	/**
 	 * The annotated parse, which is undefined for a document that is not YAML and
 	 * for one that does not parse.
@@ -88,11 +88,11 @@ export function getDocumentCodeBlockRanges(document: vscode.TextDocument, text: 
  *
  * @param document - The document being read.
  * @param readText - The full text of that document.
- * @returns The blocks of `findTypstBlocks`.
+ * @returns The blocks of `findTypstUnits`.
  */
-export function getDocumentTypstBlocks(document: vscode.TextDocument, readText: () => string): readonly TypstBlock[] {
+export function getDocumentTypstBlocks(document: vscode.TextDocument, readText: () => string): readonly TypstUnit[] {
 	const scan = scanOf(document);
-	scan.typst ??= findTypstBlocks(readText());
+	scan.typst ??= findTypstUnits(readText());
 	return scan.typst;
 }
 

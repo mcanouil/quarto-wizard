@@ -21,12 +21,14 @@ import {
  * - `cell` is a ```` ```{typst} ```` block, an executable cell owned by the
  *   `typst-render` extension. Only this kind carries options.
  */
-export type TypstBlockKind = "plain" | "raw" | "cell";
+export type TypstUnitKind = "plain" | "raw" | "cell";
 
-/** One Typst block found in a document. */
-export interface TypstBlock {
+/** One Typst unit found in a document. */
+export interface TypstUnit {
 	/** Which of the three fence kinds this is. */
-	kind: TypstBlockKind;
+	kind: TypstUnitKind;
+	/** Whether this is a fenced block or an inline code span. */
+	scope: "block" | "inline";
 	/** The block body, without the fences, de-indented to column zero. */
 	body: string;
 	/**
@@ -42,6 +44,15 @@ export interface TypstBlock {
 	bodyStart: number;
 	/** Offset one past the last character of the body. */
 	bodyEnd: number;
+	/**
+	 * Offset one past the last character that belongs to this unit.
+	 *
+	 * The same place as `bodyEnd` for a fence. An inline body ends before the
+	 * closing backtick run, and the attribute that names the kind sits after that
+	 * run, so a reader that stopped at `bodyEnd` would find no unit under a cursor
+	 * resting on either.
+	 */
+	unitEnd: number;
 	/** Offset of the first character of the opening fence line. */
 	fenceStart: number;
 	/** Zero-based line number of the opening fence. */
@@ -51,7 +62,7 @@ export interface TypstBlock {
 }
 
 /** The kind an info string declares, or undefined when it is not Typst. */
-function classifyInfoString(info: string): TypstBlockKind | undefined {
+function classifyInfoString(info: string): TypstUnitKind | undefined {
 	const trimmed = info.trim();
 	if (trimmed === "{=typst}") {
 		return "raw";
@@ -203,7 +214,7 @@ function parseOptions(body: string): { options: Record<string, string | boolean>
 }
 
 /** Whether a body carries an option line after its code, which Lua warns about. */
-export function hasLateOptionLine(block: TypstBlock): boolean {
+export function hasLateOptionLine(block: TypstUnit): boolean {
 	return block.kind === "cell" && block.code.split(/\r?\n/).some((line) => LATE_OPTION_LINE.test(line));
 }
 
@@ -216,7 +227,7 @@ export function hasLateOptionLine(block: TypstBlock): boolean {
  * nested inside a longer fence, as in a Markdown demonstration block, is part of
  * that outer block and is never reported here.
  */
-export function findTypstBlocks(text: string): TypstBlock[] {
+export function findTypstUnits(text: string): TypstUnit[] {
 	// Scan below the front matter rather than dropping its blocks afterwards. A
 	// block scalar can hold a line that looks like a fence, and that opens a
 	// block which only closes on a bare fence line, so it swallows the opening
@@ -234,7 +245,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 		}
 	}
 
-	const blocks: TypstBlock[] = [];
+	const blocks: TypstUnit[] = [];
 	for (const found of findFencedBlocks(source)) {
 		const kind = classifyInfoString(found.info);
 		if (kind === undefined) {
@@ -247,6 +258,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 		const parsed = kind === "cell" ? parseOptions(body) : { options: {}, code: body };
 
 		blocks.push({
+			scope: "block",
 			kind,
 			body,
 			code: parsed.code,
@@ -254,6 +266,7 @@ export function findTypstBlocks(text: string): TypstBlock[] {
 			// Offsets are reported against the document, not against the slice.
 			bodyStart: found.start + from,
 			bodyEnd: found.end + from,
+			unitEnd: found.end + from,
 			fenceStart: found.fenceStart + from,
 			fenceLine: found.fenceLine + firstLine,
 			indent: found.indent,
@@ -273,8 +286,8 @@ export function findTypstBlocks(text: string): TypstBlock[] {
  * the blocks around the one under the cursor: a raw block compiles with the raw
  * blocks above it. Taking the text would scan the document a second time.
  */
-export function blockAtOffset(blocks: readonly TypstBlock[], offset: number): TypstBlock | undefined {
-	return blocks.find((block) => offset >= block.fenceStart && offset <= block.bodyEnd);
+export function blockAtOffset(blocks: readonly TypstUnit[], offset: number): TypstUnit | undefined {
+	return blocks.find((block) => offset >= block.fenceStart && offset <= block.unitEnd);
 }
 
 /**
@@ -285,7 +298,7 @@ export function blockAtOffset(blocks: readonly TypstBlock[], offset: number): Ty
  * compiled to an image by the filter, and a plain block is never executed, so
  * neither can put a binding in scope.
  */
-export function precedingRawBlocks(blocks: readonly TypstBlock[], target: TypstBlock): TypstBlock[] {
+export function precedingRawBlocks(blocks: readonly TypstUnit[], target: TypstUnit): TypstUnit[] {
 	return blocks.filter((block) => block.kind === "raw" && block.bodyStart < target.bodyStart);
 }
 
@@ -313,7 +326,7 @@ export interface DocumentChange {
  * kind, and so is the closing fence, because removing it changes where the body
  * ends.
  */
-export function invalidatesPreview(block: TypstBlock, change: DocumentChange): boolean {
+export function invalidatesPreview(block: TypstUnit, change: DocumentChange): boolean {
 	const from = block.kind === "raw" ? 0 : block.fenceStart;
 	return change.rangeOffset <= block.bodyEnd && change.rangeOffset + change.rangeLength >= from;
 }

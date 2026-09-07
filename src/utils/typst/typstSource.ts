@@ -1,4 +1,4 @@
-import { hasLateOptionLine, precedingRawBlocks, type TypstBlock } from "./typstBlocks";
+import { hasLateOptionLine, precedingRawBlocks, type TypstUnit } from "./typstBlocks";
 import { brandColourReader, brandDictionary, type Brand } from "./typstBrand";
 import { buildTypstCommand, type TypstCommand } from "./typstCli";
 import type { TypstPaths } from "./typstPaths";
@@ -56,7 +56,7 @@ function assemble(above: string[], body: string): AssembledSource {
  * A plain block is never executed by Quarto and reaches no Typst output, so it
  * carries no context and compiles on its own.
  */
-export function buildPlainSource(block: TypstBlock, header: string): AssembledSource {
+export function buildPlainSource(block: TypstUnit, header: string): AssembledSource {
 	return assemble([header], block.body);
 }
 
@@ -73,7 +73,7 @@ export function buildPlainSource(block: TypstBlock, header: string): AssembledSo
  * directives that the preview has no way to apply, so a block relying on
  * template state diverges.
  */
-export function buildRawSource(blocks: readonly TypstBlock[], target: TypstBlock, header: string): AssembledSource {
+export function buildRawSource(blocks: readonly TypstUnit[], target: TypstUnit, header: string): AssembledSource {
 	const context = precedingRawBlocks(blocks, target).map((block) => block.body);
 	return assemble([header, ...context], target.body);
 }
@@ -227,7 +227,7 @@ function cellBody(body: string): string {
  * render. A cell that reads it is out of scope for the first version, which
  * `docs/getting-started/typst-preview.qmd` states.
  */
-function buildCellSource(block: TypstBlock, options: CellSourceOptions): AssembledSource {
+function buildCellSource(block: TypstUnit, options: CellSourceOptions): AssembledSource {
 	const above = [
 		`#let _typst_render_background = ${options.background}`,
 		`#let _typst_render_foreground = ${options.foreground ?? "none"}`,
@@ -395,7 +395,7 @@ function textOption(value: unknown, name: string, dropped: string[]): string | r
 	return undefined;
 }
 
-export async function buildCell(block: TypstBlock, context: CellContext): Promise<AssembledCell | Unavailable> {
+export async function buildCell(block: TypstUnit, context: CellContext): Promise<AssembledCell | Unavailable> {
 	const brand = brandColourReader(context.brand);
 	const global = mergeGlobalConfigs(context.levels, brand);
 	const options = resolveTypstOptions(block, global, brand);

@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { findTypstUnits, type TypstUnit } from "../../utils/typst/typstBlocks";
 import { EMPTY_BRAND, brandColourReader } from "../../utils/typst/typstBrand";
 import {
 	TYPST_DEFAULTS,
@@ -16,9 +16,9 @@ import {
 } from "../../utils/typst/typstOptions";
 
 /** The one cell of a document written as an option run over one line of code. */
-function cell(options: string[]): TypstBlock {
+function cell(options: string[]): TypstUnit {
 	const body = [...options.map((option) => `//| ${option}`), "#circle()"].join("\n");
-	return findTypstBlocks(`\`\`\`{typst}\n${body}\n\`\`\`\n`)[0];
+	return findTypstUnits(`\`\`\`{typst}\n${body}\n\`\`\`\n`)[0];
 }
 
 /** A document with no brand at all, which is what every candidate path missing means. */

@@ -12,7 +12,7 @@
  * that corrects the filter shows an image the render does not produce.
  */
 
-import type { TypstBlock } from "./typstBlocks";
+import type { TypstUnit } from "./typstBlocks";
 
 /** Which side of a light and dark pair a colour is read from. */
 export type TypstBrandMode = "light" | "dark";
@@ -474,7 +474,7 @@ export function mergeGlobalConfigs(
  * Typst expression, and wrapping `rgb("#faf6ee")` a second time does not compile.
  */
 export function resolveTypstOptions(
-	block: TypstBlock,
+	block: TypstUnit,
 	global: ResolvedTypstOptions,
 	brand: BrandColourReader,
 ): ResolvedTypstOptions {

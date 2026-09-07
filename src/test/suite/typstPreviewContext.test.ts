@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { findTypstBlocks, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { findTypstUnits, type TypstUnit } from "../../utils/typst/typstBlocks";
 import { EMPTY_BRAND, brandColourReader, splitBrand } from "../../utils/typst/typstBrand";
 import { mergeGlobalConfigs, resolveTypstOptions, type TypstGlobalLevel } from "../../utils/typst/typstOptions";
 import { buildCell, cellNotes, isUnavailable, resolvePreamble } from "../../utils/typst/typstSource";
@@ -21,9 +21,9 @@ import { parseFrontMatter } from "../../utils/yamlPosition";
 import { makeFolder, makeRoot } from "./projectFixtures";
 
 /** The one cell of a document written as an option run over one line of code. */
-function cell(options: string[], code = "#circle()"): TypstBlock {
+function cell(options: string[], code = "#circle()"): TypstUnit {
 	const body = [...options.map((option) => `//| ${option}`), code].join("\n");
-	return findTypstBlocks(`\`\`\`{typst}\n${body}\n\`\`\`\n`)[0];
+	return findTypstUnits(`\`\`\`{typst}\n${body}\n\`\`\`\n`)[0];
 }
 
 /** A read that answers from a table rather than from disk. */

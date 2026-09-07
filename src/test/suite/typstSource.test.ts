@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { findTypstBlocks } from "../../utils/typst/typstBlocks";
+import { findTypstUnits } from "../../utils/typst/typstBlocks";
 import { buildPlainSource, buildRawSource, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
 
 /** The page setup a preview injects above every block. */
@@ -33,7 +33,7 @@ const CHAIN = [
 suite("Typst Source Test Suite", () => {
 	suite("buildPlainSource", () => {
 		test("Should put the header above the body", () => {
-			const blocks = findTypstBlocks("```typst\n#circle()\n```\n");
+			const blocks = findTypstUnits("```typst\n#circle()\n```\n");
 			assert.deepStrictEqual(buildPlainSource(blocks[0], HEADER), {
 				source: `${HEADER}\n#circle()\n`,
 				injectedLines: 1,
@@ -43,7 +43,7 @@ suite("Typst Source Test Suite", () => {
 		test("Should inject nothing when the header is empty", () => {
 			// An empty header must not push the body down by a line, or every
 			// diagnostic would point one line too far.
-			const blocks = findTypstBlocks("```typst\n#circle()\n```\n");
+			const blocks = findTypstUnits("```typst\n#circle()\n```\n");
 			assert.deepStrictEqual(buildPlainSource(blocks[0], ""), { source: "#circle()\n", injectedLines: 0 });
 		});
 	});
@@ -53,7 +53,7 @@ suite("Typst Source Test Suite", () => {
 			// A raw block is passed through into the document's Typst context, so a
 			// name bound by an earlier one is in scope for a later one. Compiled
 			// alone, the target below fails on an unknown variable.
-			const blocks = findTypstBlocks(CHAIN);
+			const blocks = findTypstUnits(CHAIN);
 			assert.strictEqual(
 				buildRawSource(blocks, blocks[2], HEADER).source,
 				`${HEADER}\n#let accent = red\n#text(fill: accent)[Hello]\n`,
@@ -63,19 +63,19 @@ suite("Typst Source Test Suite", () => {
 		test("Should leave a cell sitting between two raw blocks out of the source", () => {
 			// The filter compiles a cell to an image of its own, so nothing it
 			// contains reaches the Typst context of the raw blocks around it.
-			const blocks = findTypstBlocks(CHAIN);
+			const blocks = findTypstUnits(CHAIN);
 			assert.ok(!buildRawSource(blocks, blocks[2], HEADER).source.includes("#square()"));
 		});
 
 		test("Should count the header and every prepended body as injected lines", () => {
 			// A diagnostic reports a position in the assembled source, so the count
 			// is what maps it back to a line of the target block.
-			const blocks = findTypstBlocks(CHAIN);
+			const blocks = findTypstUnits(CHAIN);
 			assert.strictEqual(buildRawSource(blocks, blocks[2], HEADER).injectedLines, 2);
 		});
 
 		test("Should compile the first raw block of a document on its own", () => {
-			const blocks = findTypstBlocks(CHAIN);
+			const blocks = findTypstUnits(CHAIN);
 			assert.deepStrictEqual(buildRawSource(blocks, blocks[0], HEADER), {
 				source: `${HEADER}\n#let accent = red\n`,
 				injectedLines: 1,
@@ -86,7 +86,7 @@ suite("Typst Source Test Suite", () => {
 			// Only a cell carries options. In a raw block the same spelling is an
 			// ordinary Typst comment, and dropping it would change the source.
 			const text = "```{=typst}\n//| width: 10cm\n#circle()\n```\n";
-			const blocks = findTypstBlocks(text);
+			const blocks = findTypstUnits(text);
 			assert.strictEqual(buildRawSource(blocks, blocks[0], HEADER).source, `${HEADER}\n//| width: 10cm\n#circle()\n`);
 		});
 
@@ -94,7 +94,7 @@ suite("Typst Source Test Suite", () => {
 			// An empty body has no line to contribute, so counting it would push
 			// every diagnostic of the target down by one.
 			const text = "```{=typst}\n```\n\n```{=typst}\n#circle()\n```\n";
-			const blocks = findTypstBlocks(text);
+			const blocks = findTypstUnits(text);
 			assert.deepStrictEqual(buildRawSource(blocks, blocks[1], HEADER), {
 				source: `${HEADER}\n#circle()\n`,
 				injectedLines: 1,
@@ -106,7 +106,7 @@ suite("Typst Source Test Suite", () => {
 			// line has no line ending of its own and would otherwise be glued to the
 			// first line of the target.
 			const text = "```{=typst}\n#let a = 1\n```\n\n```{=typst}\n#a";
-			const blocks = findTypstBlocks(text);
+			const blocks = findTypstUnits(text);
 			assert.strictEqual(buildRawSource(blocks, blocks[1], "").source, "#let a = 1\n#a");
 		});
 	});
@@ -184,7 +184,7 @@ suite("Typst Source Test Suite", () => {
 		test("Should count both header lines as injected lines", () => {
 			// A diagnostic reports a position in the assembled source, so a header
 			// that grows by a line and does not say so moves every reported line.
-			const blocks = findTypstBlocks("```typst\n#circle()\n```\n");
+			const blocks = findTypstUnits("```typst\n#circle()\n```\n");
 			const { header } = themeHeader("dark", "auto", "auto");
 			assert.strictEqual(buildPlainSource(blocks[0], header).injectedLines, 2);
 		});

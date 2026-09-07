@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as path from "node:path";
-import { findTypstBlocks } from "../../utils/typst/typstBlocks";
+import { findTypstUnits } from "../../utils/typst/typstBlocks";
 import { findTypstPathOptions, resolveTypstPathOption, type TypstPathOption } from "../../utils/typst/typstPathOptions";
 import { annotateYaml, yamlRegionOf } from "../../utils/yamlAnnotated";
 
@@ -15,7 +15,7 @@ function covered(text: string, languageId = "quarto"): string[] {
 	return findTypstPathOptions(
 		text,
 		languageId,
-		() => findTypstBlocks(text),
+		() => findTypstUnits(text),
 		() => readYaml(text, languageId),
 	).map((option) => text.slice(option.start, option.end));
 }
@@ -25,7 +25,7 @@ function only(text: string, languageId = "quarto"): TypstPathOption {
 	const found = findTypstPathOptions(
 		text,
 		languageId,
-		() => findTypstBlocks(text),
+		() => findTypstUnits(text),
 		() => readYaml(text, languageId),
 	);
 	assert.strictEqual(found.length, 1, `expected one occurrence, found ${found.length}`);

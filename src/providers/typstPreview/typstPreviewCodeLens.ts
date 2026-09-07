@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { debounce, type DebouncedFunction } from "../../utils/debounce";
-import type { TypstBlockKind } from "../../utils/typst/typstBlocks";
+import type { TypstUnitKind } from "../../utils/typst/typstBlocks";
 import type { TypstPreviewController } from "./typstPreviewController";
 import { surfaceSettings, type TypstSurfaceSettings } from "./typstPreviewSettings";
 
@@ -22,7 +22,7 @@ const CHANGE_DEBOUNCE_MS = 300;
  * executable cell are spelled almost the same way and behave differently, and
  * one title on all three would hide the difference that matters most.
  */
-const TITLES: Record<TypstBlockKind, string> = {
+const TITLES: Record<TypstUnitKind, string> = {
 	plain: "Preview Typst block",
 	raw: "Preview raw Typst block",
 	cell: "Preview Typst cell",
