@@ -112,6 +112,28 @@ suite("Typst Inline Test Suite", () => {
 		assert.deepStrictEqual(findTypstInlines(text), []);
 	});
 
+	test("Should read no span whose attribute merely contains the class inside a quoted value", () => {
+		// A quoted attribute value can hold the text `.typst` bounded by whitespace
+		// or a brace, which would otherwise read as the class.
+		const text = 'Code: `#circle()`{alt="see .typst here"}.\n';
+		assert.deepStrictEqual(findTypstInlines(text), []);
+	});
+
+	test("Should read a real class beside another attribute", () => {
+		const text = 'A circle: `#circle()`{alt="see here" .typst}.\n';
+		assert.strictEqual(findTypstInlines(text)[0]?.kind, "cell");
+	});
+
+	test("Should read no phantom span between two fences of equal run length", () => {
+		// A body-only fenced range leaves the opening backtick run unguarded, and
+		// two fences of the same length let that run pair with the next fence's
+		// opening run, reading the prose between them as one span. `findTypstInlines`
+		// rebuilds the ranges from `fenceStart` to guard against exactly this.
+		const text = ["```typst", "#a", "```", "", "Prose in between.", "", "```{=typst}", "#b", "```", ""].join("\n");
+		assert.deepStrictEqual(findTypstInlines(text), []);
+		assert.ok(findTypstUnits(text).every((unit) => unit.scope === "block"));
+	});
+
 	test("Should merge spans and fences in document order", () => {
 		const text = ["Value: `{typst} #calc.pi`.", "", "```typst", "#circle()", "```", ""].join("\n");
 		const units = findTypstUnits(text);

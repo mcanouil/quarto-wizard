@@ -36,9 +36,17 @@ const PREFIX_RAW = /^\{typst\}(?:[ \t]|\r\n|\r|\n)?/;
 /** The raw-passthrough form, whitespace inside the braces aside. */
 const RAW_ATTRIBUTE = /^\{\s*=typst\s*\}$/;
 
-/** Whether an attribute carries the class the filter matches on. */
+/**
+ * Whether an attribute carries the class the filter matches on.
+ *
+ * A quoted value can hold the text `.typst` bounded by whitespace or a brace,
+ * for example `{alt="see .typst here"}`, which would otherwise read as the
+ * class. Quoted values are stripped before the scan, so only an actual class
+ * token can match.
+ */
 function hasTypstClass(attribute: string): boolean {
-	return /(^|[\s{])\.typst(?=[\s}])/.test(attribute);
+	const withoutQuotedValues = attribute.replace(/"[^"]*"|'[^']*'/g, "");
+	return /(^|[\s{])\.typst(?=[\s}])/.test(withoutQuotedValues);
 }
 
 /**
@@ -100,18 +108,22 @@ export function findTypstInlines(text: string): TypstUnit[] {
 	const fences = findFencedBlocks(source).map((block) => ({ start: block.fenceStart, end: block.end }));
 
 	const units: TypstUnit[] = [];
+	// The spans arrive sorted, so the line of each one is counted onward from the
+	// last one read rather than from the start of the source every time.
+	let lastIndex = 0;
+	let lastLine = firstLine;
 	for (const span of getInlineCodeSpanRanges(source, fences)) {
 		const run = /^`+/.exec(source.slice(span.start, span.end))?.[0].length ?? 0;
 		const raw = source.slice(span.start + run, span.end - run);
 		const attributeMatch = ATTRIBUTE.exec(source.slice(span.end));
 		const attribute = attributeMatch?.[0] ?? "";
 
-		const kind = classify(raw, attribute);
+		const content = spanContent(raw);
+		const kind = classify(content.text, attribute);
 		if (kind === undefined) {
 			continue;
 		}
 
-		const content = spanContent(raw);
 		const prefix = attribute === "" ? (PREFIX.exec(content.text)?.[0].length ?? 0) : 0;
 		const body = content.text.slice(prefix);
 
@@ -128,12 +140,13 @@ export function findTypstInlines(text: string): TypstUnit[] {
 		const bodyStart = span.start + run + content.leading + rawPrefix + from;
 		const bodyEnd = span.end - run - content.trailing + from;
 
-		let line = firstLine;
-		for (let index = 0; index < span.start; index++) {
+		for (let index = lastIndex; index < span.start; index++) {
 			if (source[index] === "\n") {
-				line++;
+				lastLine++;
 			}
 		}
+		lastIndex = span.start;
+		const line = lastLine;
 
 		units.push({
 			scope: "inline",
@@ -157,8 +170,23 @@ export function findTypstInlines(text: string): TypstUnit[] {
 	return units;
 }
 
-/** The kind a span declares, or undefined when it is not Typst. */
-function classify(raw: string, attribute: string): TypstUnitKind | undefined {
+/**
+ * The kind a span declares, or undefined when it is not Typst.
+ *
+ * Upstream, `cell.is_inline_code` tests the class first and reaches the text
+ * prefix only when that test fails, so `` `{typst} #x`{.python} `` is read as
+ * not an inline cell even though its text carries the prefix: the class test
+ * alone decides it, because it is reached first and an element carrying
+ * `.python` fails it. This module follows that order, an attribute before a
+ * prefix, so the same span is skipped here too. The reasoning is a reading of
+ * the filter and not a recorded render, and the direction it commits to on
+ * that uncertainty is the safe one: show nothing rather than an image the
+ * render does not produce.
+ *
+ * @param text - The span's content, converted the way `spanContent` reads it,
+ *   so a prefix that runs across a line ending is still found.
+ */
+function classify(text: string, attribute: string): TypstUnitKind | undefined {
 	if (attribute !== "") {
 		// Anchored on the whole attribute, the way the block classifier reads
 		// `{=typst}`. Pandoc's bracketed attribute syntax allows an unquoted
@@ -169,5 +197,5 @@ function classify(raw: string, attribute: string): TypstUnitKind | undefined {
 		}
 		return hasTypstClass(attribute) ? "cell" : undefined;
 	}
-	return PREFIX.test(spanContent(raw).text) ? "cell" : undefined;
+	return PREFIX.test(text) ? "cell" : undefined;
 }
