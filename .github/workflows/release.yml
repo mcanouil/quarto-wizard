@@ -40,11 +40,6 @@ jobs:
       COMMIT: "ci: bump version for release :rocket:"
       BUMP_VERSION: ${{ inputs.version }}
 
-    outputs:
-      version: ${{ steps.bump-version.outputs.version }}
-      release_title: ${{ steps.bump-version.outputs.release_title }}
-      summary: ${{ steps.bump-version.outputs.summary }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -109,6 +104,7 @@ jobs:
         run: npm install -g @vscode/vsce
 
       - name: Bump Version / Commit / Push CHANGELOG.md
+        id: bump-pull-request
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -152,10 +148,52 @@ jobs:
           git status
 
           sleep 5
-          gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:"
-          sleep 5
-          gh pr merge --auto --squash --delete-branch
-          sleep 5
+          PR_URL=$(gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:" | tail -n 1)
+          if [ -z "${PR_URL}" ]; then
+            echo "::error::Failed to create the version bump pull request."
+            exit 1
+          fi
+          echo "number=${PR_URL##*/}" >> "${GITHUB_OUTPUT}"
+
+      # `gh pr merge --auto` does not hold the pull request here. The token that
+      # opens it can bypass the ruleset, so the automatic merge flag merges at
+      # once instead of queueing behind the required check. The release then
+      # packages a commit that nothing built. This step is the gate instead.
+      - name: Wait for the required checks to pass
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        timeout-minutes: 30
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
+          APPEARANCE_TIMEOUT_SECONDS: "300"
+          POLL_INTERVAL_SECONDS: "15"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # `gh pr checks --watch` fails outright when no check has registered
+          # yet, and a pull request seconds old is exactly that state. Wait for
+          # a required context to appear before watching it.
+          deadline=$((SECONDS + APPEARANCE_TIMEOUT_SECONDS))
+          until [ "$(gh pr checks "${PR_NUMBER}" --required --json state --jq 'length' 2>/dev/null || echo 0)" -gt 0 ]; do
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              echo "::error::No required check reported on pull request ${PR_NUMBER} after ${APPEARANCE_TIMEOUT_SECONDS} seconds."
+              exit 1
+            fi
+            sleep "${POLL_INTERVAL_SECONDS}"
+          done
+
+          gh pr checks "${PR_NUMBER}" --required --watch --fail-fast --interval "${POLL_INTERVAL_SECONDS}"
+
+      - name: Merge the version bump pull request
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr merge "${PR_NUMBER}" --squash --delete-branch
 
   package:
     runs-on: ubuntu-latest
