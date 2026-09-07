@@ -22,24 +22,41 @@ const ATTRIBUTE = /^\{[^}\n]*\}/;
 /** The prefix form, whose info sits inside the span, `cell.inline_code_text`. */
 const PREFIX = /^\{typst\}[ \t]?/;
 
+/** The raw-passthrough form, whitespace inside the braces aside. */
+const RAW_ATTRIBUTE = /^\{\s*=typst\s*\}$/;
+
 /** Whether an attribute carries the class the filter matches on. */
 function hasTypstClass(attribute: string): boolean {
 	return /(^|[\s{])\.typst(?=[\s}])/.test(attribute);
 }
 
 /**
- * The content of a span, without the rule CommonMark applies to its ends.
+ * The content of a span, converted the way Pandoc hands it to the filter.
  *
- * One space comes off each end when both ends have one and the content is not
- * only spaces. The offset of the first kept character comes back beside the
- * text, because every offset this module reports is a document offset.
+ * CommonMark converts every line ending inside a code span to one space
+ * before the span's content exists at all, so a body written across two
+ * lines compiles as one line, and `code` has to match what actually renders.
+ * Only then does one leading and one trailing literal space come off, and
+ * only a space: a tab was never a line ending and survives, because the
+ * conversion above has already spent every line ending by the time this rule
+ * runs.
+ *
+ * The raw document length consumed at each end comes back beside the text,
+ * because a converted `\r\n` is one character shorter than the two document
+ * characters it replaced, and every offset this module reports has to stay a
+ * document offset regardless of what the conversion did to the text.
  */
-function spanContent(raw: string): { text: string; offset: number } {
-	const stripped = /^[ \t\r\n](.*)[ \t\r\n]$/s.exec(raw);
-	if (stripped === null || raw.trim() === "") {
-		return { text: raw, offset: 0 };
+function spanContent(raw: string): { text: string; leading: number; trailing: number } {
+	const normalised = raw.replace(/\r\n|\r|\n/g, " ");
+	const strip = normalised[0] === " " && normalised[normalised.length - 1] === " " && normalised.trim() !== "";
+	if (!strip) {
+		return { text: normalised, leading: 0, trailing: 0 };
 	}
-	return { text: stripped[1], offset: 1 };
+	return {
+		text: normalised.slice(1, -1),
+		leading: raw.startsWith("\r\n") ? 2 : 1,
+		trailing: raw.endsWith("\r\n") ? 2 : 1,
+	};
 }
 
 /**
@@ -86,7 +103,8 @@ export function findTypstInlines(text: string): TypstUnit[] {
 		const content = spanContent(raw);
 		const prefix = attribute === "" ? (PREFIX.exec(content.text)?.[0].length ?? 0) : 0;
 		const body = content.text.slice(prefix);
-		const bodyStart = span.start + run + content.offset + prefix + from;
+		const bodyStart = span.start + run + content.leading + prefix + from;
+		const bodyEnd = span.end - run - content.trailing + from;
 
 		let line = firstLine;
 		for (let index = 0; index < span.start; index++) {
@@ -103,7 +121,10 @@ export function findTypstInlines(text: string): TypstUnit[] {
 			code: body,
 			options: {},
 			bodyStart,
-			bodyEnd: bodyStart + body.length,
+			// Not `bodyStart + body.length`: an embedded CRLF converts to one space
+			// in `body` and so is one character shorter than the document text it
+			// replaced, and this offset has to stay a document offset regardless.
+			bodyEnd,
 			unitEnd: span.end + attribute.length + from,
 			fenceStart: span.start + from,
 			fenceLine: line,
@@ -117,7 +138,11 @@ export function findTypstInlines(text: string): TypstUnit[] {
 /** The kind a span declares, or undefined when it is not Typst. */
 function classify(raw: string, attribute: string): TypstUnitKind | undefined {
 	if (attribute !== "") {
-		if (attribute.includes("=typst")) {
+		// Anchored on the whole attribute, the way the block classifier reads
+		// `{=typst}`. Pandoc's bracketed attribute syntax allows an unquoted
+		// `key=value` pair, so a substring test would misread `{lang=typst-preview}`
+		// as the same raw-passthrough form.
+		if (RAW_ATTRIBUTE.test(attribute)) {
 			return "raw";
 		}
 		return hasTypstClass(attribute) ? "cell" : undefined;

@@ -62,13 +62,33 @@ suite("Typst Inline Test Suite", () => {
 	});
 
 	test("Should read a span that runs across a line ending", () => {
+		// CommonMark converts every line ending inside a span to one space before
+		// the span's content exists at all, so Pandoc hands the filter one line.
 		const text = "Value: `{typst} #calc\n.pi`.\n";
-		assert.strictEqual(findTypstInlines(text)[0]?.body, "#calc\n.pi");
+		assert.strictEqual(findTypstInlines(text)[0]?.body, "#calc .pi");
+	});
+
+	test("Should convert an embedded CRLF to one space and keep bodyEnd on the document", () => {
+		// A converted `\r\n` is one character shorter than the two document
+		// characters it replaced, so this pins `bodyEnd` against the raw text
+		// rather than against `body.length`.
+		const text = "Value: `{typst} #calc\r\n.pi`.\r\n";
+		const [unit] = findTypstInlines(text);
+		assert.strictEqual(unit.body, "#calc .pi");
+		assert.strictEqual(text.slice(unit.bodyStart, unit.bodyEnd), "#calc\r\n.pi");
 	});
 
 	test("Should read a span in a CRLF document", () => {
 		const text = "Value: `{typst} #calc.pi`.\r\nMore prose.\r\n";
 		assert.strictEqual(findTypstInlines(text)[0]?.body, "#calc.pi");
+	});
+
+	test("Should read no span whose attribute merely contains the raw text, unquoted key=value", () => {
+		// Pandoc's bracketed attribute syntax allows an unquoted `key=value` pair,
+		// so `{lang=typst-preview}` holds the substring `=typst` without being the
+		// raw-passthrough form `{=typst}`.
+		const text = "Code: `#circle()`{lang=typst-preview}.\n";
+		assert.deepStrictEqual(findTypstInlines(text), []);
 	});
 
 	test("Should merge spans and fences in document order", () => {
