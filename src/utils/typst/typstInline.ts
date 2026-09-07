@@ -22,6 +22,17 @@ const ATTRIBUTE = /^\{[^}\n]*\}/;
 /** The prefix form, whose info sits inside the span, `cell.inline_code_text`. */
 const PREFIX = /^\{typst\}[ \t]?/;
 
+/**
+ * The prefix form matched against raw document text rather than the
+ * line-ending-converted text `PREFIX` reads.
+ *
+ * The separator after `{typst}` is one document unit: a space, a tab, or one
+ * line ending, and a `\r\n` is two document characters read as that one unit.
+ * `\r\n` has to come before the lone `\r` alternative, or the alternation
+ * would take the `\r` on its own and leave the `\n` to be read as code.
+ */
+const PREFIX_RAW = /^\{typst\}(?:[ \t]|\r\n|\r|\n)?/;
+
 /** The raw-passthrough form, whitespace inside the braces aside. */
 const RAW_ATTRIBUTE = /^\{\s*=typst\s*\}$/;
 
@@ -103,7 +114,18 @@ export function findTypstInlines(text: string): TypstUnit[] {
 		const content = spanContent(raw);
 		const prefix = attribute === "" ? (PREFIX.exec(content.text)?.[0].length ?? 0) : 0;
 		const body = content.text.slice(prefix);
-		const bodyStart = span.start + run + content.leading + prefix + from;
+
+		// Every offset this module reports counts document characters, and `body`
+		// counts the characters the filter reads, so the two lengths differ by
+		// every line ending the conversion collapsed. `prefix` is in the second
+		// unit, right for slicing `body` out of `content.text`, wrong for adding to
+		// a document offset. Matched again here, against the raw text with the
+		// CommonMark ends already removed, so the length is in document units and
+		// needs no further correction.
+		const rawContent = raw.slice(content.leading, raw.length - content.trailing);
+		const rawPrefix = attribute === "" ? (PREFIX_RAW.exec(rawContent)?.[0].length ?? 0) : 0;
+
+		const bodyStart = span.start + run + content.leading + rawPrefix + from;
 		const bodyEnd = span.end - run - content.trailing + from;
 
 		let line = firstLine;

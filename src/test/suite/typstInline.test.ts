@@ -78,6 +78,27 @@ suite("Typst Inline Test Suite", () => {
 		assert.strictEqual(text.slice(unit.bodyStart, unit.bodyEnd), "#calc\r\n.pi");
 	});
 
+	test("Should measure the prefix separator in document units when it is a CRLF", () => {
+		// The `\r\n` between `{typst}` and the code is two document characters but
+		// one converted character, so a prefix length read from the converted text
+		// would land `bodyStart` one character early, inside the line ending
+		// rather than on the code that follows it.
+		const text = "Value: `{typst}\r\n#calc.pi`.\r\n";
+		const [unit] = findTypstInlines(text);
+		assert.strictEqual(unit.body, "#calc.pi");
+		assert.strictEqual(text.slice(unit.bodyStart, unit.bodyEnd), "#calc.pi");
+	});
+
+	test("Should measure the prefix separator in document units when it is a bare newline", () => {
+		// A bare `\n` is one document character and one converted character, so
+		// this was already correct before the CRLF fix above. Pinned here so the
+		// fix does not shift it.
+		const text = "Value: `{typst}\n#calc.pi`.\n";
+		const [unit] = findTypstInlines(text);
+		assert.strictEqual(unit.body, "#calc.pi");
+		assert.strictEqual(text.slice(unit.bodyStart, unit.bodyEnd), "#calc.pi");
+	});
+
 	test("Should read a span in a CRLF document", () => {
 		const text = "Value: `{typst} #calc.pi`.\r\nMore prose.\r\n";
 		assert.strictEqual(findTypstInlines(text)[0]?.body, "#calc.pi");
