@@ -40,6 +40,7 @@ The fixture suite checks the same constant against every `meta.json`, so a fixtu
 | `brand-dual-dark` | The dark side of the same brand. |
 | `crlf` | The same block written with CRLF line endings. |
 | `inline-bare` | An inline cell, whose page geometry the filter fixes and no option changes. |
+| `inline-globals` | An inline cell beside a global `width`, `margin`, `background` and `preamble`, which pins that the page geometry stays fixed while the colour and the preamble still reach the cell. |
 
 ## Refresh procedure
 
