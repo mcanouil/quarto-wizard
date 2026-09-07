@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- feat: Preview an inline Typst cell, written as `` `{typst} ...` `` or `` `...`{.typst} ``. (#423)
+- feat: Show the Typst preview in the panel and in a hover at the same time. (#420)
+
+### Bug Fixes
+
+- fix: Pin the golden Typst fixtures to `typst-render` 0.22.1, the version they actually reproduce. The old pin named `0.21.0`, but that release's own manifest already carries the document brand feature that shipped in `0.22.0`. (#424)
+
 ## 3.5.0 (2026-09-06)
 
 ### New Features

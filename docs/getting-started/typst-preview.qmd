@@ -53,6 +53,19 @@ A cell compiled with guessed options shows an image the render does not produce,
 
 The other two kinds need no extension.
 
+## Inline Forms
+
+An inline span compiles the same way a `{typst}` cell does.
+`` `{typst} #calc.pi` `` and `` `#calc.pi`{.typst} `` are the same executable inline cell, which is the rule of the `typst-render` extension.
+An inline cell reads the global options only.
+It carries no `//|` option line, because there is no line above it to hold one.
+
+`` `#a`{=typst} `` is a raw passthrough, the inline counterpart of a ` ```{=typst} ` block.
+It is passed to the Typst output untouched, and the prose around it is not compiled.
+
+An inline unit is shown in the panel and in a hover, the same surfaces a block uses.
+It carries no code lens, since a code lens needs a line of its own above a block, and an inline span has none.
+
 ## Colours
 
 A plain block and a raw block take their colours from `quartoWizard.typstPreview.foreground` and `quartoWizard.typstPreview.background`.

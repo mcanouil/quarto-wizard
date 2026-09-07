@@ -285,7 +285,7 @@ suite("Typst Preview Context Test Suite", () => {
 		});
 
 		test("Should pin the version the fixtures were recorded from", () => {
-			assert.strictEqual(PINNED_TYPST_RENDER_VERSION, "0.21.0");
+			assert.strictEqual(PINNED_TYPST_RENDER_VERSION, "0.22.1");
 		});
 	});
 
