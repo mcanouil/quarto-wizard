@@ -92,6 +92,11 @@ export class TypstPreviewCodeLens implements vscode.CodeLensProvider, vscode.Dis
 		}
 		const lenses: vscode.CodeLens[] = [];
 		for (const block of this.controller.blocksOf(document)) {
+			// A lens sits above a line of its own, and an inline span shares its line
+			// with prose, so there is no line a lens could take.
+			if (block.scope !== "block") {
+				continue;
+			}
 			if (token.isCancellationRequested) {
 				// A newer version of the document is being scanned already, and half a
 				// list is worse than none: it would take the lenses off the blocks it

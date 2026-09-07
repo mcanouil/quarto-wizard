@@ -87,9 +87,9 @@ function cellPathOptions(text: string, blocks: readonly TypstUnit[]): TypstPathO
 	const found: TypstPathOption[] = [];
 
 	for (const block of blocks) {
-		// Only a cell carries options. In the other two kinds a `//|` line is an
-		// ordinary Typst comment.
-		if (block.kind !== "cell") {
+		// Only a fenced cell carries options. In the other two kinds a `//|` line is
+		// an ordinary Typst comment, and an inline cell has no option run at all.
+		if (block.scope !== "block" || block.kind !== "cell") {
 			continue;
 		}
 

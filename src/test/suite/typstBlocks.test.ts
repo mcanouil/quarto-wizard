@@ -454,4 +454,23 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(invalidatesPreview(plain, insertion(plain.unitEnd + 1)), false);
 		});
 	});
+
+	suite("invalidatesPreview for an inline unit", () => {
+		// The attribute sits between `bodyEnd` and `unitEnd`, so a check pinned at
+		// `bodyEnd` again would miss an edit here, because the edit never touches
+		// the body.
+		const text = "A circle: `#circle()`{.typst}.\n";
+		const [unit] = findTypstUnits(text);
+
+		test("Should invalidate an inline unit when an edit rewrites its attribute", () => {
+			// Rewriting `{.typst}` to `{.python}` changes the kind, so the preview
+			// must be treated as out of date.
+			const start = text.indexOf(".typst");
+			assert.strictEqual(invalidatesPreview(unit, { rangeOffset: start, rangeLength: "typst".length }), true);
+		});
+
+		test("Should leave an inline unit alone when the edit sits past its end", () => {
+			assert.strictEqual(invalidatesPreview(unit, { rangeOffset: unit.unitEnd + 1, rangeLength: 0 }), false);
+		});
+	});
 });
