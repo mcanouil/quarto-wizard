@@ -14,7 +14,7 @@ import { commandKey, type TypstCommand } from "../../utils/typst/typstCli";
 import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
 import { buildCompileRequest, NO_BLOCK_MESSAGE, TypstContextCache, type CompileRequest } from "./typstContext";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
-import { compileSettings, documentDelayOf, surfaceOf } from "./typstPreviewSettings";
+import { compileSettings, documentDelayOf, surfacesOf } from "./typstPreviewSettings";
 
 /**
  * The one owner of the preview state.
@@ -607,7 +607,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			return undefined;
 		}
 
-		if (surfaceOf(document) === "off") {
+		if (surfacesOf(document).size === 0) {
 			// Asked here rather than in each surface, because a surface that renders
 			// nothing is not the same as a document that wants nothing compiled: with
 			// the gate in the surfaces alone, an open panel went on spawning Typst for
@@ -615,7 +615,8 @@ export class TypstPreviewController implements vscode.Disposable {
 			//
 			// Naming the setting is what makes it recoverable, and only a reader who
 			// asked hears it: an edit in such a folder is not a question.
-			const message = "The Typst preview is off. Set `quartoWizard.typstPreview.surface` to show a preview.";
+			const message =
+				"The Typst preview is off. Add a surface to `quartoWizard.typstPreview.surface` to show a preview.";
 			logMessage(`Typst preview: ${message}`, "debug");
 			// A surface open when the setting changed would otherwise hold the last
 			// image for good: nothing recompiles it, and nothing said it had stopped

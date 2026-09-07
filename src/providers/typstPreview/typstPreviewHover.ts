@@ -47,7 +47,7 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		token: vscode.CancellationToken,
 	): Promise<vscode.Hover | undefined> {
 		const settings = this.settingsOf(document);
-		if (settings.surface !== "hover" || token.isCancellationRequested) {
+		if (!settings.surfaces.has("hover") || token.isCancellationRequested) {
 			return undefined;
 		}
 		const blocks = this.controller.blocksOf(document);

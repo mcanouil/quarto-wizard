@@ -7,20 +7,22 @@ The preview uses the Typst binary that ships inside Quarto, so it needs no other
 
 ## Where the Preview Appears
 
-`quartoWizard.typstPreview.surface` selects the surface.
+`quartoWizard.typstPreview.surface` is a list of surfaces.
+Name one or both to show them at the same time.
 
 - `panel` shows the image in a panel beside the editor.
   The panel follows the cursor while it is open, and it scrolls, so a tall image is never cut.
 - `hover` shows the image when the pointer rests on a block.
   A hover cannot scroll, so the image is scaled down to `quartoWizard.typstPreview.maxHeight`.
-- `off` shows no image, and offers no code lens.
+
+An empty list shows no image, and offers no code lens.
 
 There is no preview inside the text of the document.
 The editor gives an extension no way to make a line taller.
 An image drawn after a block covers the lines below it.
 
-**Quarto Wizard: Preview Typst Block** opens the panel whatever the surface is.
-The one exception is `off`, where the command names the setting instead of opening anything.
+**Quarto Wizard: Preview Typst Block** opens the panel whatever the list holds.
+The one exception is an empty list, where the command names the setting instead of opening anything.
 
 ## The Authoring Loop
 

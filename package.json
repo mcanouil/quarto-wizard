@@ -834,19 +834,23 @@
 				"quartoWizard.typstPreview.surface": {
 					"order": 25,
 					"scope": "resource",
-					"type": "string",
-					"enum": [
-						"panel",
-						"hover",
-						"off"
+					"type": "array",
+					"uniqueItems": true,
+					"items": {
+						"type": "string",
+						"enum": [
+							"panel",
+							"hover"
+						],
+						"enumDescriptions": [
+							"Show the image in a panel beside the editor, which follows the cursor while it is open.",
+							"Show the image when the pointer rests on a block."
+						]
+					},
+					"default": [
+						"panel"
 					],
-					"enumDescriptions": [
-						"Show the image in a panel beside the editor, which follows the cursor while it is open.",
-						"Show the image when the pointer rests on a block.",
-						"Show no image, and offer no code lens."
-					],
-					"default": "panel",
-					"markdownDescription": "Where the Typst block preview is shown. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the value, except `off`, which turns the whole feature off. There is no surface that draws the image inside the document, because the editor does not let an extension change the height of a line.",
+					"markdownDescription": "Where the Typst block preview is shown. Name both surfaces to have both. An empty list turns the whole feature off. All three block kinds compile to an image, so every kind works on every surface. The **Quarto Wizard: Preview Typst Block** command opens the panel whatever the list holds, unless it is empty. There is no surface that draws the image inside the document, because the editor does not let an extension change the height of a line.",
 					"title": "Preview Surface",
 					"description": "Where a previewed block is shown."
 				},
@@ -855,7 +859,7 @@
 					"scope": "resource",
 					"type": "boolean",
 					"default": true,
-					"markdownDescription": "Show a code lens above every Typst block, offering to preview it. Turn it off to keep the editor clear: a document of many examples carries one lens per block. The lens is never shown when `#quartoWizard.typstPreview.surface#` is `off`.",
+					"markdownDescription": "Show a code lens above every Typst block, offering to preview it. Turn it off to keep the editor clear: a document of many examples carries one lens per block. The lens is never shown when `#quartoWizard.typstPreview.surface#` is empty.",
 					"title": "Preview Code Lens",
 					"description": "Offer a preview above every Typst block."
 				}
