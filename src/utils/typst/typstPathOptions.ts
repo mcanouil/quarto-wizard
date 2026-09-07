@@ -15,7 +15,7 @@
 
 import type { AnnotatedNode, AnnotatedYaml, YamlPathSegment } from "../yamlAnnotated";
 import { stripBlockquoteMarkers, stripCarriageReturn } from "../yamlPosition";
-import { OPTION_LINE, quotedValue, type TypstBlock } from "./typstBlocks";
+import { OPTION_LINE, quotedValue, type TypstUnit } from "./typstBlocks";
 import { TYPST_RENDER } from "./typstOptions";
 import { resolveQuartoPath } from "./typstPaths";
 
@@ -83,7 +83,7 @@ function quoteDepth(text: string, fenceStart: number): number {
  * @param blocks - The blocks of that text, which a caller holding them already
  *   passes rather than paying for the scan a second time.
  */
-function cellPathOptions(text: string, blocks: readonly TypstBlock[]): TypstPathOption[] {
+function cellPathOptions(text: string, blocks: readonly TypstUnit[]): TypstPathOption[] {
 	const found: TypstPathOption[] = [];
 
 	for (const block of blocks) {
@@ -210,7 +210,7 @@ function yamlPathOptions(text: string, annotated: AnnotatedYaml): TypstPathOptio
 export function findTypstPathOptions(
 	text: string,
 	languageId: string,
-	readBlocks: () => readonly TypstBlock[],
+	readBlocks: () => readonly TypstUnit[],
 	readYaml: () => AnnotatedYaml | undefined,
 ): TypstPathOption[] {
 	const cells = languageId === "yaml" ? [] : cellPathOptions(text, readBlocks());

@@ -56,7 +56,7 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 			return undefined;
 		}
 		// The whole block, so the hover stays up while the pointer moves inside it.
-		const range = new vscode.Range(document.positionAt(block.fenceStart), document.positionAt(block.bodyEnd));
+		const range = new vscode.Range(document.positionAt(block.fenceStart), document.positionAt(block.unitEnd));
 
 		const blockIndex = blocks.indexOf(block);
 		// The version is part of the identity, not decoration. Nothing recompiles in

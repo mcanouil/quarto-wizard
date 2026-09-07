@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import {
-	findTypstBlocks,
+	findTypstUnits,
 	blockAtOffset,
 	precedingRawBlocks,
 	hasLateOptionLine,
@@ -13,7 +13,7 @@ function fence(info: string): string {
 }
 
 suite("Typst Blocks Test Suite", () => {
-	suite("findTypstBlocks classification", () => {
+	suite("findTypstUnits classification", () => {
 		// The three kinds behave differently and must never be conflated, so
 		// every accepted spelling and every rejected one has its own case.
 		const cases: [string, string | undefined][] = [
@@ -29,7 +29,7 @@ suite("Typst Blocks Test Suite", () => {
 
 		for (const [info, kind] of cases) {
 			test(`Should classify \`${info}\` as ${kind ?? "excluded"}`, () => {
-				const found = findTypstBlocks(fence(info));
+				const found = findTypstUnits(fence(info));
 				assert.strictEqual(found[0]?.kind, kind);
 			});
 		}
@@ -37,15 +37,15 @@ suite("Typst Blocks Test Suite", () => {
 
 	// Each case below is one the module inherits from `getCodeBlockRanges`, and
 	// one a second fence scanner would have had to earn again.
-	suite("findTypstBlocks body derivation", () => {
+	suite("findTypstUnits body derivation", () => {
 		test("Should read a body written with CRLF line endings", () => {
-			const found = findTypstBlocks("```typst\r\n#let a = 1\r\n#a\r\n```\r\n");
+			const found = findTypstUnits("```typst\r\n#let a = 1\r\n#a\r\n```\r\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "#let a = 1\r\n#a\r\n");
 		});
 
 		test("Should remove the fence indent from every body line", () => {
-			const found = findTypstBlocks("- item\n\n  ```typst\n  #let a = 1\n  #a\n  ```\n");
+			const found = findTypstUnits("- item\n\n  ```typst\n  #let a = 1\n  #a\n  ```\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].indent, 2);
 			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
@@ -56,13 +56,13 @@ suite("Typst Blocks Test Suite", () => {
 			// documented example of a Typst block and not one. Compiling it would
 			// run source the author wrote to be read.
 			const text = "before\n\n    ```typst\n    #a\n    ```\n";
-			assert.deepStrictEqual(findTypstBlocks(text), []);
+			assert.deepStrictEqual(findTypstUnits(text), []);
 		});
 
 		test("Should remove the blockquote marker from every body line", () => {
 			// Typst is whitespace sensitive and knows nothing about Markdown, so a
 			// marker left on a body line is a syntax error in the compiled source.
-			const found = findTypstBlocks("> ```typst\n> #let a = 1\n> #a\n> ```\n");
+			const found = findTypstUnits("> ```typst\n> #let a = 1\n> #a\n> ```\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "#let a = 1\n#a\n");
 		});
@@ -72,7 +72,7 @@ suite("Typst Blocks Test Suite", () => {
 			// indented by a tab keeps whatever follows it, so four spaces of Typst
 			// indent survive. Counting characters instead would eat the tab and
 			// three of those spaces.
-			const found = findTypstBlocks("1. Step\n\n\t```typst\n\t    #x\n\t```\n");
+			const found = findTypstUnits("1. Step\n\n\t```typst\n\t    #x\n\t```\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "    #x\n");
 		});
@@ -80,14 +80,14 @@ suite("Typst Blocks Test Suite", () => {
 		test("Should read a blockquoted cell with its options", () => {
 			// The option reader sees the body after the markers are removed, which is
 			// the one path where the two rules meet.
-			const found = findTypstBlocks("> ```{typst}\n> //| width: 3\n> #x\n> ```\n");
+			const found = findTypstUnits("> ```{typst}\n> //| width: 3\n> #x\n> ```\n");
 			assert.strictEqual(found.length, 1);
 			assert.deepStrictEqual(found[0].options, { width: "3" });
 			assert.strictEqual(found[0].code, "#x\n");
 		});
 
 		test("Should keep CRLF line endings in a blockquoted block", () => {
-			const found = findTypstBlocks("> ```typst\r\n> #a\r\n> ```\r\n");
+			const found = findTypstUnits("> ```typst\r\n> #a\r\n> ```\r\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "#a\r\n");
 		});
@@ -96,7 +96,7 @@ suite("Typst Blocks Test Suite", () => {
 			// The fence sits one quote deep, so Pandoc hands Typst the body with one
 			// marker removed and the second one intact. Removing both would delete a
 			// character the author wrote.
-			const found = findTypstBlocks("> ```typst\n> > #x\n> ```\n");
+			const found = findTypstUnits("> ```typst\n> > #x\n> ```\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "> #x\n");
 		});
@@ -105,26 +105,26 @@ suite("Typst Blocks Test Suite", () => {
 			// The fence carries two columns of indent, so two columns come off each
 			// body line. The body tab runs from column two to column four, and the
 			// four spaces of Typst indent that follow it survive whole.
-			const found = findTypstBlocks("> \t```typst\n> \t    #x\n> \t```\n");
+			const found = findTypstUnits("> \t```typst\n> \t    #x\n> \t```\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "    #x\n");
 		});
 
 		test("Should read an unclosed block to the end of the text", () => {
-			const found = findTypstBlocks("```typst\n#let a = 1\n");
+			const found = findTypstUnits("```typst\n#let a = 1\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "#let a = 1\n");
 		});
 
 		test("Should read an unclosed block whose fence is the last line", () => {
-			const found = findTypstBlocks("text\n\n```typst");
+			const found = findTypstUnits("text\n\n```typst");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].kind, "plain");
 			assert.strictEqual(found[0].body, "");
 		});
 
 		test("Should read a fence that starts at offset zero", () => {
-			const found = findTypstBlocks("```typst\n#a\n```\n");
+			const found = findTypstUnits("```typst\n#a\n```\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].fenceLine, 0);
 			assert.strictEqual(found[0].body, "#a\n");
@@ -132,12 +132,12 @@ suite("Typst Blocks Test Suite", () => {
 
 		test("Should ignore a Typst fence nested in a demonstration block", () => {
 			const text = "````markdown\n```{typst}\n#a\n```\n````\n";
-			assert.deepStrictEqual(findTypstBlocks(text), []);
+			assert.deepStrictEqual(findTypstUnits(text), []);
 		});
 
 		test("Should ignore a fence inside the YAML front matter", () => {
 			const text = '---\ntitle: "```typst"\n---\n\n```typst\n#a\n```\n';
-			const found = findTypstBlocks(text);
+			const found = findTypstUnits(text);
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].body, "#a\n");
 		});
@@ -148,7 +148,7 @@ suite("Typst Blocks Test Suite", () => {
 			// only closes on a bare fence line it swallows the opening fence of the
 			// real block below, which then goes unreported.
 			const text = "---\ndescription: |\n  text\n```\n---\n\n```typst\n#a\n```\n";
-			const found = findTypstBlocks(text);
+			const found = findTypstUnits(text);
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].kind, "plain");
 			assert.strictEqual(found[0].body, "#a\n");
@@ -159,7 +159,7 @@ suite("Typst Blocks Test Suite", () => {
 			// `---` lines are thematic breaks. Reading them as delimiters started the
 			// scan below the second one and hid the block between them.
 			const text = "---\n\n```typst\n#a\n```\n\n---\n";
-			const found = findTypstBlocks(text);
+			const found = findTypstUnits(text);
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].kind, "plain");
 			assert.strictEqual(found[0].body, "#a\n");
@@ -167,7 +167,7 @@ suite("Typst Blocks Test Suite", () => {
 
 		test("Should report offsets and line numbers past the front matter", () => {
 			const text = "---\ntitle: t\n---\n\n```typst\n#a\n```\n";
-			const found = findTypstBlocks(text);
+			const found = findTypstUnits(text);
 			assert.strictEqual(found[0].fenceLine, 4);
 			assert.strictEqual(text.slice(found[0].fenceStart, found[0].fenceStart + 8), "```typst");
 			assert.strictEqual(text.slice(found[0].bodyStart, found[0].bodyEnd), "#a\n```");
@@ -176,7 +176,7 @@ suite("Typst Blocks Test Suite", () => {
 		test("Should read a tilde fence and keep a backtick line in its body", () => {
 			// A tilde block closes only on tildes, so a backtick line inside it is
 			// content. The bare-backtick rule does not apply to a tilde fence either.
-			const found = findTypstBlocks("~~~typst\n#a\n```\n#b\n~~~\n");
+			const found = findTypstUnits("~~~typst\n#a\n```\n#b\n~~~\n");
 			assert.strictEqual(found.length, 1);
 			assert.strictEqual(found[0].kind, "plain");
 			assert.strictEqual(found[0].body, "#a\n```\n#b\n");
@@ -185,12 +185,12 @@ suite("Typst Blocks Test Suite", () => {
 		test("Should keep the line endings of a CRLF cell in its code", () => {
 			// `body` and `code` describe the same text, so one must not be
 			// normalised while the other is not.
-			const block = findTypstBlocks("```{typst}\r\n//| a: 1\r\n#x\r\n#y\r\n```\r\n")[0];
+			const block = findTypstUnits("```{typst}\r\n//| a: 1\r\n#x\r\n#y\r\n```\r\n")[0];
 			assert.strictEqual(block.code, "#x\r\n#y\r\n");
 		});
 
 		test("Should report the fence line of each block", () => {
-			const found = findTypstBlocks("intro\n\n```typst\n#a\n```\n\n```{=typst}\n#b\n```\n");
+			const found = findTypstUnits("intro\n\n```typst\n#a\n```\n\n```{=typst}\n#b\n```\n");
 			assert.deepStrictEqual(
 				found.map((block) => [block.kind, block.fenceLine]),
 				[
@@ -204,59 +204,59 @@ suite("Typst Blocks Test Suite", () => {
 	// A bug-compatible port of `_modules/code-cell.lua:84-122`. Each quirk is a
 	// quirk of that pattern, so each test names the behaviour and cites the line
 	// it ports. An upstream fix to any of them is a breaking change here.
-	suite("findTypstBlocks comment-pipe options", () => {
+	suite("findTypstUnits comment-pipe options", () => {
 		/** One cell block wrapping the given body. */
 		function cell(body: string): string {
 			return "```{typst}\n" + body + "\n```\n";
 		}
 
 		test("Should read a hyphenated key, which the key pattern allows (:89)", () => {
-			assert.deepStrictEqual(findTypstBlocks(cell("//| fig-width: 3\n#a"))[0].options, { "fig-width": "3" });
+			assert.deepStrictEqual(findTypstUnits(cell("//| fig-width: 3\n#a"))[0].options, { "fig-width": "3" });
 		});
 
 		test("Should end the run at an underscore key, which the key pattern rejects (:89)", () => {
-			const block = findTypstBlocks(cell("//| my_key: v\n//| dpi: 300\n#a"))[0];
+			const block = findTypstUnits(cell("//| my_key: v\n//| dpi: 300\n#a"))[0];
 			assert.deepStrictEqual(block.options, {});
 			assert.strictEqual(block.code, "//| my_key: v\n//| dpi: 300\n#a\n");
 		});
 
 		test("Should end the run at an empty value, which needs one character (:89)", () => {
-			const block = findTypstBlocks(cell("//| dpi:\n//| width: 3\n#a"))[0];
+			const block = findTypstUnits(cell("//| dpi:\n//| width: 3\n#a"))[0];
 			assert.deepStrictEqual(block.options, {});
 		});
 
 		test("Should read an empty value when a space follows the colon (:89)", () => {
 			// The pattern backtracks, so the trailing space alone decides whether
 			// the line parses. Verified against the Lua pattern itself.
-			assert.deepStrictEqual(findTypstBlocks(cell("//| dpi: \n#a"))[0].options, { dpi: "" });
+			assert.deepStrictEqual(findTypstUnits(cell("//| dpi: \n#a"))[0].options, { dpi: "" });
 		});
 
 		test("Should count only the leading run and keep a later option as code (:105-118)", () => {
-			const block = findTypstBlocks(cell("//| dpi: 300\n#a\n//| width: 3"))[0];
+			const block = findTypstUnits(cell("//| dpi: 300\n#a\n//| width: 3"))[0];
 			assert.deepStrictEqual(block.options, { dpi: "300" });
 			assert.strictEqual(block.code, "#a\n//| width: 3\n");
 		});
 
 		test("Should read true and false as booleans (:95-98)", () => {
-			assert.deepStrictEqual(findTypstBlocks(cell("//| a: true\n//| b: false\n#a"))[0].options, {
+			assert.deepStrictEqual(findTypstUnits(cell("//| a: true\n//| b: false\n#a"))[0].options, {
 				a: true,
 				b: false,
 			});
 		});
 
 		test("Should strip one layer of matching quotes, either style (:100-101)", () => {
-			assert.deepStrictEqual(findTypstBlocks(cell("//| a: \"q\"\n//| b: 'q'\n#a"))[0].options, { a: "q", b: "q" });
+			assert.deepStrictEqual(findTypstUnits(cell("//| a: \"q\"\n//| b: 'q'\n#a"))[0].options, { a: "q", b: "q" });
 		});
 
 		test("Should keep every other value as a trimmed string (:102)", () => {
-			assert.deepStrictEqual(findTypstBlocks(cell("//| dpi: 300\n//| k:   spaced   \n#a"))[0].options, {
+			assert.deepStrictEqual(findTypstUnits(cell("//| dpi: 300\n//| k:   spaced   \n#a"))[0].options, {
 				dpi: "300",
 				k: "spaced",
 			});
 		});
 
 		test("Should allow whitespace around the prefix (:89)", () => {
-			assert.deepStrictEqual(findTypstBlocks(cell("  //| a: 1\n//|b: 2\n#a"))[0].options, { a: "1", b: "2" });
+			assert.deepStrictEqual(findTypstUnits(cell("  //| a: 1\n//|b: 2\n#a"))[0].options, { a: "1", b: "2" });
 		});
 
 		test("Should read every option of a block written with CRLF", () => {
@@ -265,20 +265,20 @@ suite("Typst Blocks Test Suite", () => {
 			// first option. That is unreachable in a render, because Pandoc does
 			// not recognise a fenced block in a CRLF document at all, so matching
 			// it here would only break the preview of a file an author can write.
-			assert.deepStrictEqual(findTypstBlocks("```{typst}\r\n//| a: 1\r\n//| b: 2\r\n#x\r\n```\r\n")[0].options, {
+			assert.deepStrictEqual(findTypstUnits("```{typst}\r\n//| a: 1\r\n//| b: 2\r\n#x\r\n```\r\n")[0].options, {
 				a: "1",
 				b: "2",
 			});
 		});
 
 		test("Should parse no options for a plain block and keep the lines verbatim", () => {
-			const block = findTypstBlocks("```typst\n//| dpi: 300\n#a\n```\n")[0];
+			const block = findTypstUnits("```typst\n//| dpi: 300\n#a\n```\n")[0];
 			assert.deepStrictEqual(block.options, {});
 			assert.strictEqual(block.code, "//| dpi: 300\n#a\n");
 		});
 
 		test("Should parse no options for a raw block and keep the lines verbatim", () => {
-			const block = findTypstBlocks("```{=typst}\n//| dpi: 300\n#a\n```\n")[0];
+			const block = findTypstUnits("```{=typst}\n//| dpi: 300\n#a\n```\n")[0];
 			assert.deepStrictEqual(block.options, {});
 			assert.strictEqual(block.code, "//| dpi: 300\n#a\n");
 		});
@@ -286,12 +286,12 @@ suite("Typst Blocks Test Suite", () => {
 
 	suite("hasLateOptionLine", () => {
 		test("Should report a cell whose option line comes after the code", () => {
-			const block = findTypstBlocks("```{typst}\n#a\n//| dpi: 300\n```\n")[0];
+			const block = findTypstUnits("```{typst}\n#a\n//| dpi: 300\n```\n")[0];
 			assert.strictEqual(hasLateOptionLine(block), true);
 		});
 
 		test("Should not report a cell whose options are all in the leading run", () => {
-			const block = findTypstBlocks("```{typst}\n//| dpi: 300\n#a\n```\n")[0];
+			const block = findTypstUnits("```{typst}\n//| dpi: 300\n#a\n```\n")[0];
 			assert.strictEqual(hasLateOptionLine(block), false);
 		});
 
@@ -299,7 +299,7 @@ suite("Typst Blocks Test Suite", () => {
 			// A comment-pipe line is an ordinary Typst comment in both, so there is
 			// nothing to warn about.
 			const text = "```typst\n#a\n//| dpi: 300\n```\n\n```{=typst}\n#b\n//| dpi: 300\n```\n";
-			for (const block of findTypstBlocks(text)) {
+			for (const block of findTypstUnits(text)) {
 				assert.strictEqual(hasLateOptionLine(block), false, block.kind);
 			}
 		});
@@ -308,14 +308,14 @@ suite("Typst Blocks Test Suite", () => {
 			// The Lua guard at `:110` ends with a colon and one whitespace, while
 			// the key pattern at `:89` does not, so upstream passes over this line
 			// in silence. The port keeps that difference.
-			const block = findTypstBlocks("```{typst}\n#a\n//| dpi:300\n```\n")[0];
+			const block = findTypstUnits("```{typst}\n#a\n//| dpi:300\n```\n")[0];
 			assert.strictEqual(hasLateOptionLine(block), false);
 		});
 	});
 
 	suite("blockAtOffset", () => {
 		const text = "intro\n\n```typst\n#a\n```\n\ntext\n\n```{=typst}\n#b\n```\n";
-		const blocks = findTypstBlocks(text);
+		const blocks = findTypstUnits(text);
 
 		test("Should find the block holding an offset inside a body", () => {
 			assert.strictEqual(blockAtOffset(blocks, text.indexOf("#a"))?.kind, "plain");
@@ -332,12 +332,22 @@ suite("Typst Blocks Test Suite", () => {
 			assert.strictEqual(blockAtOffset(blocks, 0), undefined);
 			assert.strictEqual(blockAtOffset(blocks, text.indexOf("text")), undefined);
 		});
+
+		test("Should end a fenced unit at its body", () => {
+			const text = ["```typst", "#circle()", "```", ""].join("\n");
+			const [unit] = findTypstUnits(text);
+			assert.strictEqual(unit.scope, "block");
+			// A fence carries no attribute, so the two ends are the same place, and
+			// `blockAtOffset` reads `unitEnd` alone from here on.
+			assert.strictEqual(unit.unitEnd, unit.bodyEnd);
+			assert.strictEqual(blockAtOffset([unit], unit.unitEnd), unit);
+		});
 	});
 
 	suite("precedingRawBlocks", () => {
 		test("Should return every earlier raw block in document order", () => {
 			const text = "```{=typst}\n#let a = 1\n```\n\n```{=typst}\n#let b = 2\n```\n\n```{=typst}\n#a\n```\n";
-			const blocks = findTypstBlocks(text);
+			const blocks = findTypstUnits(text);
 			assert.deepStrictEqual(
 				precedingRawBlocks(blocks, blocks[2]).map((block) => block.code),
 				["#let a = 1\n", "#let b = 2\n"],
@@ -348,7 +358,7 @@ suite("Typst Blocks Test Suite", () => {
 			// Only a raw block reaches the Typst output, so only a raw block can
 			// put a binding in scope for a later one.
 			const text = "```{=typst}\n#let a = 1\n```\n\n```{typst}\n#x\n```\n\n```typst\n#y\n```\n\n```{=typst}\n#a\n```\n";
-			const blocks = findTypstBlocks(text);
+			const blocks = findTypstUnits(text);
 			const target = blocks[blocks.length - 1];
 			assert.deepStrictEqual(
 				precedingRawBlocks(blocks, target).map((block) => block.code),
@@ -357,7 +367,7 @@ suite("Typst Blocks Test Suite", () => {
 		});
 
 		test("Should return nothing when the target is the first raw block", () => {
-			const blocks = findTypstBlocks("```{=typst}\n#a\n```\n");
+			const blocks = findTypstUnits("```{=typst}\n#a\n```\n");
 			assert.deepStrictEqual(precedingRawBlocks(blocks, blocks[0]), []);
 		});
 	});
@@ -381,7 +391,7 @@ suite("Typst Blocks Test Suite", () => {
 			"```",
 			"",
 		].join("\n");
-		const [firstRaw, plain, secondRaw] = findTypstBlocks(text);
+		const [firstRaw, plain, secondRaw] = findTypstUnits(text);
 
 		/** A one character insertion at an offset. */
 		function insertion(offset: number): { rangeOffset: number; rangeLength: number } {
@@ -434,6 +444,14 @@ suite("Typst Blocks Test Suite", () => {
 				invalidatesPreview(plain, { rangeOffset: start, rangeLength: text.indexOf("#circle") - start }),
 				true,
 			);
+		});
+
+		test("Should pin the region at the unit end, not only the body end", () => {
+			// A fence carries no attribute, so `unitEnd` is `bodyEnd` here, and this
+			// pins the exact offset the check reads against a regression that stops
+			// at `bodyEnd` again, which an inline unit would need past its body.
+			assert.strictEqual(invalidatesPreview(plain, insertion(plain.unitEnd)), true);
+			assert.strictEqual(invalidatesPreview(plain, insertion(plain.unitEnd + 1)), false);
 		});
 	});
 });

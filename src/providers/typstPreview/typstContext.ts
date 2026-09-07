@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as semver from "semver";
-import { blockAtOffset, type TypstBlock } from "../../utils/typst/typstBlocks";
+import { blockAtOffset, type TypstUnit } from "../../utils/typst/typstBlocks";
 import {
 	buildPlainSource,
 	buildRawSource,
@@ -54,7 +54,7 @@ export const NO_BLOCK_MESSAGE = "Put the cursor inside a Typst block to preview 
 /** Everything the compiler and the panel need for one block. */
 export interface CompileRequest {
 	/** The block under the cursor. */
-	block: TypstBlock;
+	block: TypstUnit;
 	/**
 	 * Where the block sits in the document, counted from the top.
 	 *
