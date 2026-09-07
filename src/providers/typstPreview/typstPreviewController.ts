@@ -1059,7 +1059,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			return true;
 		}
 		const offset = event.textEditor.document.offsetAt(event.selections[0].active);
-		return offset < shown.block.fenceStart || offset > shown.block.bodyEnd;
+		return offset < shown.block.fenceStart || offset > shown.block.unitEnd;
 	}
 
 	private handleDocumentChange(event: vscode.TextDocumentChangeEvent): void {
