@@ -473,3 +473,65 @@ export async function buildCell(block: TypstUnit, context: CellContext): Promise
 	}
 	return { ...assembled, command, notes, bodyLineOffset, externalFile };
 }
+
+/**
+ * The page settings `process_inline_code` applies, and which no option changes.
+ *
+ * The filter hardcodes all three for an inline cell, so a global `width:` or
+ * `margin:` reaches a fenced cell and never reaches a span. The image is meant
+ * to sit on a line of text, and these are what crop it to the glyphs.
+ */
+const INLINE_PAGE = Object.freeze({
+	width: "auto",
+	height: "auto",
+	margin: "(x: 0.5pt, top: 0.5pt, bottom: 0.25em)",
+});
+
+/**
+ * The source of one inline Typst cell.
+ *
+ * A port of `process_inline_code`, which shares `build_typst_source` with the
+ * fenced path and differs in three ways: the page geometry above is fixed, no
+ * `//|` option run is parsed, and no block-only option is available. The global
+ * options still apply, so the colours, the preamble and the brand are resolved
+ * exactly as a fenced cell resolves them.
+ */
+export async function buildInlineCell(unit: TypstUnit, context: CellContext): Promise<AssembledCell | Unavailable> {
+	const brand = brandColourReader(context.brand);
+	const global = mergeGlobalConfigs(context.levels, brand);
+	// The unit carries no options, so the merge is the global level alone. It is
+	// still run through the resolver, because that is what turns a brand alias
+	// into a colour and a global `background:` into a Typst expression.
+	const options = resolveTypstOptions(unit, global, brand);
+
+	const droppedOptions: string[] = [];
+	const preambleOption = textOption(options.preamble, "preamble", droppedOptions);
+	const preamble = await resolvePreamble(preambleOption, context.readFile);
+
+	const background = resolveColourValue(options.background, context.mode) ?? String(TYPST_DEFAULTS.background);
+	const foreground = resolveColourValue(options.foreground, context.mode);
+
+	const assembled = buildCellSource(unit, {
+		background,
+		foreground,
+		width: INLINE_PAGE.width,
+		height: INLINE_PAGE.height,
+		margin: INLINE_PAGE.margin,
+		brand: brandDictionary(context.brand, context.mode),
+		preamble,
+	});
+
+	const command = buildTypstCommand({
+		global,
+		background,
+		foreground,
+		paths: context.paths,
+	});
+	const notes = cellNotes(options);
+	for (const name of droppedOptions) {
+		notes.push(`the \`${name}\` option is not text and was ignored`);
+	}
+	// The whole span is the code, so nothing of it sits above the first compiled
+	// line, and there is no `file:` option to replace it.
+	return { ...assembled, command, notes, bodyLineOffset: 0 };
+}

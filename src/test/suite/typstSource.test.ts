@@ -1,6 +1,15 @@
 import * as assert from "assert";
 import { findTypstUnits } from "../../utils/typst/typstBlocks";
-import { buildPlainSource, buildRawSource, themeHeader, type TypstThemeKind } from "../../utils/typst/typstSource";
+import { EMPTY_BRAND } from "../../utils/typst/typstBrand";
+import { findTypstInlines } from "../../utils/typst/typstInline";
+import {
+	buildInlineCell,
+	buildPlainSource,
+	buildRawSource,
+	isUnavailable,
+	themeHeader,
+	type TypstThemeKind,
+} from "../../utils/typst/typstSource";
 
 /** The page setup a preview injects above every block. */
 const HEADER = "#set page(width: auto, height: auto, margin: 0.5em)";
@@ -187,6 +196,29 @@ suite("Typst Source Test Suite", () => {
 			const blocks = findTypstUnits("```typst\n#circle()\n```\n");
 			const { header } = themeHeader("dark", "auto", "auto");
 			assert.strictEqual(buildPlainSource(blocks[0], header).injectedLines, 2);
+		});
+	});
+
+	suite("buildInlineCell", () => {
+		test("Should build an inline cell with the page directive of the filter", async () => {
+			const [unit] = findTypstInlines("Value: `{typst} #calc.pi`.\n");
+			const built = await buildInlineCell(unit, {
+				levels: [],
+				brand: EMPTY_BRAND,
+				mode: "light",
+				// A fixture drives the assembly from strings alone, so it names no place
+				// on disk, and the command it builds carries no root.
+				paths: {},
+				readFile: () => Promise.resolve(undefined),
+			});
+			assert.ok(!isUnavailable(built));
+			assert.match(
+				built.source,
+				/#set page\(width: auto, height: auto, margin: \(x: 0\.5pt, top: 0\.5pt, bottom: 0\.25em\), fill: none\)/,
+			);
+			assert.ok(built.source.endsWith("#calc.pi"));
+			// A span carries no option run, so nothing of the body sits above the code.
+			assert.strictEqual(built.bodyLineOffset, 0);
 		});
 	});
 });

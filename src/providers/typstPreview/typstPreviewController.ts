@@ -241,6 +241,12 @@ export function errorText(stderr: string, place: ErrorPlace): string {
 /** What the surface says about the block it is displaying. */
 export function headerText(document: vscode.TextDocument, request: CompileRequest): string {
 	const parts = [`${path.basename(document.fileName)} · line ${request.block.fenceLine + 1}`];
+	if (request.block.scope === "inline") {
+		// An inline unit is cropped to its glyphs by a page directive the filter
+		// fixes, so its image is a different shape from every fenced one, and the
+		// reader is told which they are looking at.
+		parts.push(request.block.kind === "raw" ? "inline passthrough" : "inline cell");
+	}
 	if (request.brandMode !== undefined) {
 		// A cell resolves its `auto` colours against one side of the brand, and
 		// which side it took is not visible in the image when the two are close.

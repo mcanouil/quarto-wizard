@@ -557,6 +557,15 @@ suite("Typst Preview Context Test Suite", () => {
 			assert.strictEqual(request.source, `${HEADER}\n#let a = red\n#text(fill: a)[Hi]\n`);
 			assert.strictEqual(request.injectedLines, 2);
 		});
+
+		test("Should compile an inline passthrough with the raw blocks above it", async () => {
+			const text = ["```{=typst}", "#let a = 1", "```", "", "Value: `#a`{=typst}.", ""].join("\n");
+			const document = await documentOf(text);
+			const request = await buildCompileRequest(document, new vscode.Position(4, 8), HEADER, new TypstContextCache());
+			assert.ok(!isUnavailable(request));
+			assert.ok(request.source.includes("#let a = 1"));
+			assert.ok(request.notes.includes("the prose around an inline passthrough is not compiled"));
+		});
 	});
 
 	suite("readMetadataChain and readBrand", () => {

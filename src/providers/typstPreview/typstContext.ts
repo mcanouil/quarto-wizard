@@ -5,6 +5,7 @@ import {
 	buildPlainSource,
 	buildRawSource,
 	buildCell,
+	buildInlineCell,
 	isUnavailable,
 	type Unavailable,
 } from "../../utils/typst/typstSource";
@@ -289,8 +290,13 @@ export async function buildCompileRequest(
 		const assembled = block.kind === "raw" ? buildRawSource(blocks, block, header) : buildPlainSource(block, header);
 		// A raw block reaches Typst through the document template, which contributes
 		// imports, show rules and set directives the preview cannot apply. Saying so
-		// beside the image is what stops a divergence being read as a defect.
+		// beside the image is what stops a divergence being read as a defect. An
+		// inline passthrough sits inside a paragraph as well, whose prose reaches
+		// the output around it and is not compiled here.
 		const notes = block.kind === "raw" ? ["the document template is not applied to a raw passthrough"] : [];
+		if (block.kind === "raw" && block.scope === "inline") {
+			notes.push("the prose around an inline passthrough is not compiled");
+		}
 		// Neither kind reaches the filter, so neither carries an option of it. The
 		// directory of the document is the whole answer, and finding it costs no
 		// read, which is what keeps these two off the disk entirely.
@@ -316,7 +322,8 @@ export async function buildCompileRequest(
 	// this preview, asked while looking at it.
 	const mode = brandMode ?? documentBrandMode(chain.metadata) ?? themeBrandMode();
 
-	const built = await buildCell(block, {
+	const build = block.scope === "inline" ? buildInlineCell : buildCell;
+	const built = await build(block, {
 		levels: chain.levels,
 		brand,
 		mode,

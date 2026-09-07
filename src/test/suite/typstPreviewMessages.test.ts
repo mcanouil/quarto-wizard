@@ -1,6 +1,9 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { errorText, themeKindOf } from "../../providers/typstPreview/typstPreviewController";
+import { errorText, headerText, themeKindOf } from "../../providers/typstPreview/typstPreviewController";
+import type { CompileRequest } from "../../providers/typstPreview/typstContext";
+import { findTypstUnits, type TypstUnit } from "../../utils/typst/typstBlocks";
+import { findTypstInlines } from "../../utils/typst/typstInline";
 import {
 	DEFAULT_DEBOUNCE_MS,
 	previewColour,
@@ -91,6 +94,43 @@ suite("Typst Preview Messages Test Suite", () => {
 
 		test("Should say so when the compiler reported nothing at all", () => {
 			assert.strictEqual(errorText("", { injectedLines: 1 }), "Typst produced no image and reported nothing.");
+		});
+	});
+
+	suite("headerText", () => {
+		/** A document named only by its file name, which is all `headerText` reads of it. */
+		function document(fileName: string): vscode.TextDocument {
+			return { fileName } as vscode.TextDocument;
+		}
+
+		/** A request naming the given block, with every other field at its plainest. */
+		function requestOf(block: TypstUnit): CompileRequest {
+			return {
+				block,
+				blockIndex: 0,
+				source: "",
+				command: { argv: [] },
+				injectedLines: 0,
+				bodyLineOffset: 0,
+				notes: [],
+			};
+		}
+
+		test("Should say nothing about scope for a fenced cell", () => {
+			const [block] = findTypstUnits("```{typst}\n#circle()\n```\n");
+			assert.strictEqual(headerText(document("doc.qmd"), requestOf(block)), "doc.qmd · line 1");
+		});
+
+		test("Should name an inline cell", () => {
+			// The image is cropped to its glyphs, a different shape from every fenced
+			// one, so the reader is told which kind they are looking at.
+			const [block] = findTypstInlines("Value: `{typst} #calc.pi`.\n");
+			assert.strictEqual(headerText(document("doc.qmd"), requestOf(block)), "doc.qmd · line 1 · inline cell");
+		});
+
+		test("Should name an inline passthrough", () => {
+			const [block] = findTypstInlines("Value: `#a`{=typst}.\n");
+			assert.strictEqual(headerText(document("doc.qmd"), requestOf(block)), "doc.qmd · line 1 · inline passthrough");
 		});
 	});
 
