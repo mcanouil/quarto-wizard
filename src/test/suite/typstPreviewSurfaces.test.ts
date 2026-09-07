@@ -129,6 +129,11 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		assert.deepStrictEqual([...previewSurfaces("inline")], ["panel"]);
 		assert.deepStrictEqual([...previewSurfaces(undefined)], ["panel"]);
 		assert.deepStrictEqual([...previewSurfaces(7)], ["panel"]);
+		// A non-string member is filtered out the same way an unknown one is, and
+		// the fallback applies once that leaves nothing, because the input itself
+		// was not empty.
+		assert.deepStrictEqual([...previewSurfaces([7])], ["panel"]);
+		assert.deepStrictEqual([...previewSurfaces([null])], ["panel"]);
 		assert.strictEqual(previewMaxHeight(0), 20);
 		assert.strictEqual(previewMaxHeight("tall"), 200);
 		assert.strictEqual(previewMaxHeight(500), 500);
