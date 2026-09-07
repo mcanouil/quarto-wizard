@@ -445,5 +445,13 @@ suite("Typst Blocks Test Suite", () => {
 				true,
 			);
 		});
+
+		test("Should pin the region at the unit end, not only the body end", () => {
+			// A fence carries no attribute, so `unitEnd` is `bodyEnd` here, and this
+			// pins the exact offset the check reads against a regression that stops
+			// at `bodyEnd` again, which an inline unit would need past its body.
+			assert.strictEqual(invalidatesPreview(plain, insertion(plain.unitEnd)), true);
+			assert.strictEqual(invalidatesPreview(plain, insertion(plain.unitEnd + 1)), false);
+		});
 	});
 });

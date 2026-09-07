@@ -325,8 +325,13 @@ export interface DocumentChange {
  * The opening fence is inside that region, because the info string decides the
  * kind, and so is the closing fence, because removing it changes where the body
  * ends.
+ *
+ * The region reaches the end of the unit and not only the end of the body, for
+ * the same reason. An inline unit names its kind in the attribute that follows
+ * the closing backtick run, so an edit there changes what the unit compiles as
+ * without touching its body at all, and must invalidate the preview all the same.
  */
 export function invalidatesPreview(block: TypstUnit, change: DocumentChange): boolean {
 	const from = block.kind === "raw" ? 0 : block.fenceStart;
-	return change.rangeOffset <= block.bodyEnd && change.rangeOffset + change.rangeLength >= from;
+	return change.rangeOffset <= block.unitEnd && change.rangeOffset + change.rangeLength >= from;
 }
