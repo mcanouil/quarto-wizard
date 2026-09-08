@@ -40,12 +40,15 @@ jobs:
       COMMIT: "ci: bump version for release :rocket:"
       BUMP_VERSION: ${{ inputs.version }}
 
+    outputs:
+      sha: ${{ steps.merge-bump.outputs.sha }}
+
     steps:
       # The bump pull request targets the branch the release was dispatched
       # from. `build.yml` runs on pull requests against `main` alone, so a
       # dispatch from anywhere else opens a pull request that no required check
       # ever reports on, and the gate below would then time out for a reason it
-      # cannot name. The `package` job checks out `main` as well.
+      # cannot name.
       - name: Check the release runs from main
         shell: bash
         run: |
@@ -232,14 +235,40 @@ jobs:
           gh pr checks "${PR_NUMBER}" --required --watch --fail-fast --interval "${POLL_INTERVAL_SECONDS}"
 
       - name: Merge the version bump pull request
+        id: merge-bump
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
           GH_TOKEN: ${{ steps.gate-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
         shell: bash
         run: |
           set -euo pipefail
-          gh pr merge "${PR_NUMBER}" --squash --delete-branch
+
+          # The gate above proves that one commit was built. The merge response
+          # names the commit it creates, so take the SHA from the merge itself.
+          # Reading it back afterwards would race the write, which is the class
+          # of gap this whole gate exists to close.
+          # No retry. GitHub can refuse a merge it will accept a moment later,
+          # but it can also drop the response of a merge it performed, and a
+          # second attempt cannot tell those apart. Report and stop.
+          if ! SHA=$(gh api -X PUT "repos/${GH_REPO}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method=squash --jq '.sha'); then
+            echo "::error::The merge of pull request ${PR_NUMBER} was refused. Read the error above, and inspect the default branch before running the release again, because a plain re-run bumps the version a second time."
+            exit 1
+          fi
+          if ! [[ "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Pull request ${PR_NUMBER} merged, but the response named no merge commit. Read: ${SHA}"
+            echo "::error::The merge itself succeeded. Inspect the default branch before running the release again, because a plain re-run bumps the version a second time."
+            exit 1
+          fi
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+
+          # The merge is done and recorded. A branch left behind is untidy, not
+          # a reason to strand a release that has already landed its commit.
+          if ! gh api -X DELETE "repos/${GH_REPO}/git/refs/heads/${BRANCH}"; then
+            echo "::warning::Merged pull request ${PR_NUMBER}, but could not delete ${BRANCH}."
+          fi
 
   package:
     runs-on: ubuntu-latest
@@ -253,16 +282,20 @@ jobs:
 
     outputs:
       version: ${{ steps.set-version.outputs.version }}
+      # Carried on so the release tag lands on the commit these artefacts were
+      # built from.
+      sha: ${{ steps.set-version.outputs.sha }}
 
     steps:
-      - name: Checkout repository
+      # The commit the gate cleared, not the tip of the default branch. Any
+      # commit landing between the merge and this checkout would otherwise be
+      # the one that gets packaged and published. A release that skipped the
+      # bump has no such commit, and takes the commit the dispatch resolved.
+      # Both are pinned; a branch name here would reopen the same race.
+      - name: Checkout the commit the gate cleared
         uses: actions/checkout@v7
-
-      - name: Update branch
-        run: |
-          git fetch --all
-          git checkout main
-          git pull origin main
+        with:
+          ref: ${{ needs.bump-version.outputs.sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -284,6 +317,11 @@ jobs:
           echo "VERSION=${current_version}" >> ${GITHUB_ENV}
           echo "version=${current_version}" >> ${GITHUB_OUTPUT}
           echo "::notice file=package.json,line=${version_line}::${current_version}"
+
+          # Read from the tree that is checked out, and not by repeating the
+          # expression that chose it. The tag is meant to name the commit these
+          # assets were built from, so take it from the build.
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: Set changelog
         env:
@@ -379,6 +417,7 @@ jobs:
 
     env:
       VERSION: ${{ needs.package.outputs.version }}
+      SHA: ${{ needs.package.outputs.sha }}
       GH_REPO: ${{ github.repository }}
 
     steps:
@@ -410,6 +449,15 @@ jobs:
           )
 
           if gh release view "${VERSION}" >/dev/null 2>&1; then
+            # The tag of an existing release stays where it is. Refreshing it
+            # with assets built somewhere else would leave the tag and the
+            # assets naming different commits, which is what this release is
+            # careful not to do.
+            TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${VERSION}" --jq '.object.sha')
+            if [ "${TAGGED}" != "${SHA}" ]; then
+              echo "::error::Release ${VERSION} is tagged at ${TAGGED}, and this run built ${SHA}. Delete the release and its tag, or run the release from the tagged commit."
+              exit 1
+            fi
             echo "::notice::Release ${VERSION} already exists; refreshing assets and notes."
             FILES=()
             for asset in "${ASSETS[@]}"; do
@@ -424,9 +472,13 @@ jobs:
           if [ "${TYPE}" = "pre-release" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
+          # `--target`, so the tag records the commit these assets were built
+          # from. Without it the tag lands on the tip of the default branch at
+          # release time, which is not necessarily the same commit.
           gh release create "${VERSION}" \
             "${ASSETS[@]}" \
             ${PRERELEASE_FLAG} \
+            --target "${SHA}" \
             --title "${VERSION}" \
             --notes-file "${CHANGELOG}" \
             --generate-notes
