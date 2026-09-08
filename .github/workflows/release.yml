@@ -249,8 +249,14 @@ jobs:
           # names the commit it creates, so take the SHA from the merge itself.
           # Reading it back afterwards would race the write, which is the class
           # of gap this whole gate exists to close.
-          SHA=$(gh api -X PUT "repos/${GH_REPO}/pulls/${PR_NUMBER}/merge" \
-            -f merge_method=squash --jq '.sha')
+          # No retry. GitHub can refuse a merge it will accept a moment later,
+          # but it can also drop the response of a merge it performed, and a
+          # second attempt cannot tell those apart. Report and stop.
+          if ! SHA=$(gh api -X PUT "repos/${GH_REPO}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method=squash --jq '.sha'); then
+            echo "::error::The merge of pull request ${PR_NUMBER} was refused. Read the error above, and inspect the default branch before running the release again, because a plain re-run bumps the version a second time."
+            exit 1
+          fi
           if ! [[ "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::Pull request ${PR_NUMBER} merged, but the response named no merge commit. Read: ${SHA}"
             echo "::error::The merge itself succeeded. Inspect the default branch before running the release again, because a plain re-run bumps the version a second time."
@@ -278,7 +284,7 @@ jobs:
       version: ${{ steps.set-version.outputs.version }}
       # Carried on so the release tag lands on the commit these artefacts were
       # built from.
-      sha: ${{ needs.bump-version.outputs.sha || github.sha }}
+      sha: ${{ steps.set-version.outputs.sha }}
 
     steps:
       # The commit the gate cleared, not the tip of the default branch. Any
@@ -311,6 +317,11 @@ jobs:
           echo "VERSION=${current_version}" >> ${GITHUB_ENV}
           echo "version=${current_version}" >> ${GITHUB_OUTPUT}
           echo "::notice file=package.json,line=${version_line}::${current_version}"
+
+          # Read from the tree that is checked out, and not by repeating the
+          # expression that chose it. The tag is meant to name the commit these
+          # assets were built from, so take it from the build.
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: Set changelog
         env:
@@ -438,6 +449,15 @@ jobs:
           )
 
           if gh release view "${VERSION}" >/dev/null 2>&1; then
+            # The tag of an existing release stays where it is. Refreshing it
+            # with assets built somewhere else would leave the tag and the
+            # assets naming different commits, which is what this release is
+            # careful not to do.
+            TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${VERSION}" --jq '.object.sha')
+            if [ "${TAGGED}" != "${SHA}" ]; then
+              echo "::error::Release ${VERSION} is tagged at ${TAGGED}, and this run built ${SHA}. Delete the release and its tag, or run the release from the tagged commit."
+              exit 1
+            fi
             echo "::notice::Release ${VERSION} already exists; refreshing assets and notes."
             FILES=()
             for asset in "${ASSETS[@]}"; do
