@@ -40,12 +40,15 @@ jobs:
       COMMIT: "ci: bump version for release :rocket:"
       BUMP_VERSION: ${{ inputs.version }}
 
+    outputs:
+      sha: ${{ steps.merge-bump.outputs.sha }}
+
     steps:
       # The bump pull request targets the branch the release was dispatched
       # from. `build.yml` runs on pull requests against `main` alone, so a
       # dispatch from anywhere else opens a pull request that no required check
       # ever reports on, and the gate below would then time out for a reason it
-      # cannot name. The `package` job checks out `main` as well.
+      # cannot name.
       - name: Check the release runs from main
         shell: bash
         run: |
@@ -232,6 +235,7 @@ jobs:
           gh pr checks "${PR_NUMBER}" --required --watch --fail-fast --interval "${POLL_INTERVAL_SECONDS}"
 
       - name: Merge the version bump pull request
+        id: merge-bump
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
           GH_TOKEN: ${{ steps.gate-token.outputs.token }}
@@ -240,6 +244,24 @@ jobs:
         run: |
           set -euo pipefail
           gh pr merge "${PR_NUMBER}" --squash --delete-branch
+
+          # The gate above proves that one commit was built. Name it, so the
+          # job that packages builds that commit rather than whatever the
+          # default branch holds by the time it starts. The field takes a
+          # moment to populate after the merge.
+          SHA=""
+          for _ in $(seq 1 10); do
+            SHA=$(gh pr view "${PR_NUMBER}" --json mergeCommit --jq '.mergeCommit.oid // empty' || true)
+            if [ -n "${SHA}" ]; then
+              break
+            fi
+            sleep 3
+          done
+          if ! [[ "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Merged pull request ${PR_NUMBER}, but could not read its merge commit. Read: ${SHA}"
+            exit 1
+          fi
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
 
   package:
     runs-on: ubuntu-latest
@@ -255,14 +277,15 @@ jobs:
       version: ${{ steps.set-version.outputs.version }}
 
     steps:
-      - name: Checkout repository
+      # The commit the gate cleared, not the tip of the default branch. Any
+      # commit landing between the merge and this checkout would otherwise be
+      # the one that gets packaged and published. A release that skipped the
+      # bump has no such commit, and packages the branch it was dispatched
+      # from.
+      - name: Checkout the commit the gate cleared
         uses: actions/checkout@v7
-
-      - name: Update branch
-        run: |
-          git fetch --all
-          git checkout main
-          git pull origin main
+        with:
+          ref: ${{ needs.bump-version.outputs.sha || github.ref_name }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
