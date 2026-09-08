@@ -252,7 +252,8 @@ jobs:
           SHA=$(gh api -X PUT "repos/${GH_REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash --jq '.sha')
           if ! [[ "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Merged pull request ${PR_NUMBER}, but the response named no merge commit. Read: ${SHA}"
+            echo "::error::Pull request ${PR_NUMBER} merged, but the response named no merge commit. Read: ${SHA}"
+            echo "::error::The merge itself succeeded. Inspect the default branch before running the release again, because a plain re-run bumps the version a second time."
             exit 1
           fi
           echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
@@ -275,6 +276,9 @@ jobs:
 
     outputs:
       version: ${{ steps.set-version.outputs.version }}
+      # Carried on so the release tag lands on the commit these artefacts were
+      # built from.
+      sha: ${{ needs.bump-version.outputs.sha || github.sha }}
 
     steps:
       # The commit the gate cleared, not the tip of the default branch. Any
@@ -402,6 +406,7 @@ jobs:
 
     env:
       VERSION: ${{ needs.package.outputs.version }}
+      SHA: ${{ needs.package.outputs.sha }}
       GH_REPO: ${{ github.repository }}
 
     steps:
@@ -447,9 +452,13 @@ jobs:
           if [ "${TYPE}" = "pre-release" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
+          # `--target`, so the tag records the commit these assets were built
+          # from. Without it the tag lands on the tip of the default branch at
+          # release time, which is not necessarily the same commit.
           gh release create "${VERSION}" \
             "${ASSETS[@]}" \
             ${PRERELEASE_FLAG} \
+            --target "${SHA}" \
             --title "${VERSION}" \
             --notes-file "${CHANGELOG}" \
             --generate-notes
