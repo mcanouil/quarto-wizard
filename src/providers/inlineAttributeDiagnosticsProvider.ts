@@ -12,13 +12,15 @@ import {
 import { collectShortcodeSchemas, resolveShortcodeAttribute } from "./shortcodeCompletionProvider";
 import { getErrorMessage } from "@quarto-wizard/core";
 import {
-	getCodeBlockRanges,
+	findFencedBlocks,
+	getFenceGuardRanges,
 	getInlineCodeSpanRanges,
 	getYamlFrontMatterRange,
 	isInCodeBlockRange,
+	type FencedBlock,
 	type TextRange,
 } from "../utils/yamlPosition";
-import { getDocumentCodeBlockRanges } from "../utils/documentScan";
+import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
@@ -288,11 +290,16 @@ function overlapsExclusionRanges(
  * excluding matches that fall inside fenced code blocks, the YAML front
  * matter, or inline code spans.
  */
-export function extractBlocks(text: string, codeBlockRanges?: readonly TextRange[]): BlockMatch[] {
-	const codeRanges = codeBlockRanges ?? getCodeBlockRanges(text);
+export function extractBlocks(text: string, fencedBlocks?: readonly FencedBlock[]): BlockMatch[] {
+	const codeRanges = fencedBlocks ?? findFencedBlocks(text);
 	const yamlRange = getYamlFrontMatterRange(text);
-	const fencedRanges = yamlRange ? [yamlRange, ...codeRanges] : codeRanges;
-	const inlineRanges = getInlineCodeSpanRanges(text, fencedRanges);
+	const fencedRanges: readonly TextRange[] = yamlRange ? [yamlRange, ...codeRanges] : codeRanges;
+	// The body ranges above keep the `{r}` of a fence header outside the
+	// exclusion, so it is still read as an attribute. The backtick scan needs
+	// the opening run guarded instead, or the run of one fence pairs with the
+	// run of the next and the span swallows the prose between them.
+	const guardRanges = getFenceGuardRanges(codeRanges);
+	const inlineRanges = getInlineCodeSpanRanges(text, yamlRange ? [yamlRange, ...guardRanges] : guardRanges);
 	const blocks: BlockMatch[] = [];
 
 	for (const match of text.matchAll(ELEMENT_ATTRIBUTE_RE)) {
@@ -959,7 +966,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 
 		const version = ++this.validationVersion;
 		const text = document.getText();
-		const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
+		const codeBlockRanges = getDocumentFencedBlocks(document, text);
 		const blocks = extractBlocks(text, codeBlockRanges);
 		const diagnostics: vscode.Diagnostic[] = [];
 
@@ -1290,7 +1297,7 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 		}
 
 		const text = document.getText();
-		const blocks = extractBlocks(text, getDocumentCodeBlockRanges(document, text));
+		const blocks = extractBlocks(text, getDocumentFencedBlocks(document, text));
 
 		for (const diagnostic of relevant) {
 			for (const block of blocks) {

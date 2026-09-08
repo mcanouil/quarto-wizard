@@ -74,6 +74,20 @@ function scanOf(document: vscode.TextDocument): DocumentScan {
  * @returns The ranges of `getCodeBlockRanges`.
  */
 export function getDocumentCodeBlockRanges(document: vscode.TextDocument, text: string): readonly TextRange[] {
+	return getDocumentFencedBlocks(document, text);
+}
+
+/**
+ * The fenced code blocks of a document, with the fence details each carries.
+ *
+ * The same cached array as `getDocumentCodeBlockRanges`, widened rather than
+ * narrowed, for a reader that needs `fenceStart` as well as the body range.
+ *
+ * @param document - The document being read.
+ * @param text - The full text of that document.
+ * @returns The blocks of `findFencedBlocks`.
+ */
+export function getDocumentFencedBlocks(document: vscode.TextDocument, text: string): readonly FencedBlock[] {
 	const scan = scanOf(document);
 	scan.fenced ??= findFencedBlocks(text);
 	return scan.fenced;
