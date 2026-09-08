@@ -40,12 +40,21 @@ jobs:
       COMMIT: "ci: bump version for release :rocket:"
       BUMP_VERSION: ${{ inputs.version }}
 
-    outputs:
-      version: ${{ steps.bump-version.outputs.version }}
-      release_title: ${{ steps.bump-version.outputs.release_title }}
-      summary: ${{ steps.bump-version.outputs.summary }}
-
     steps:
+      # The bump pull request targets the branch the release was dispatched
+      # from. `build.yml` runs on pull requests against `main` alone, so a
+      # dispatch from anywhere else opens a pull request that no required check
+      # ever reports on, and the gate below would then time out for a reason it
+      # cannot name. The `package` job checks out `main` as well.
+      - name: Check the release runs from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "::error::The release runs from main only. It was dispatched from ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
@@ -109,6 +118,7 @@ jobs:
         run: npm install -g @vscode/vsce
 
       - name: Bump Version / Commit / Push CHANGELOG.md
+        id: bump-pull-request
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -116,12 +126,10 @@ jobs:
           DATE: ${{ github.event.inputs.date }}
         shell: bash
         run: |
-          if git show-ref --quiet refs/heads/${BRANCH}; then
-            echo "Branch ${BRANCH} already exists."
-            git branch -D "${BRANCH}"
-            git push origin --delete "${BRANCH}"
-          fi
-          git checkout -b "${BRANCH}"
+          # `-B` and not `-b`. The checkout above fetches the triggering ref
+          # alone, so this branch is normally absent, but a re-run must not end
+          # here if it is present.
+          git checkout -B "${BRANCH}"
           if [ "${DATE}" = "today" ]; then
             DATE=$(date +%Y-%m-%d)
           else
@@ -152,10 +160,86 @@ jobs:
           git status
 
           sleep 5
-          gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:"
-          sleep 5
-          gh pr merge --auto --squash --delete-branch
-          sleep 5
+          # A release that stops at the check gate leaves this branch and its
+          # pull request open. The force push above updates that pull request,
+          # so reuse it. `gh pr create` refuses a second one and would end the
+          # re-run here, before the gate it exists to reach.
+          PR_NUMBER=$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number // empty')
+          if [ -z "${PR_NUMBER}" ]; then
+            PR_URL=$(gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:" | tail -n 1)
+            PR_NUMBER="${PR_URL##*/}"
+          else
+            echo "::notice::Reusing the open version bump pull request ${PR_NUMBER}."
+          fi
+          if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Failed to open the version bump pull request. Read a pull request number from: ${PR_NUMBER}"
+            exit 1
+          fi
+          echo "number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+
+      # The token minted at the top of the job lasts an hour. The bump renders
+      # the documentation, and the gate below then waits for the matrix, so
+      # that hour can run out part way through the wait or before the merge.
+      # Both steps take a token minted here instead.
+      - name: Create GitHub App token for the gate
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        uses: actions/create-github-app-token@v3
+        id: gate-token
+        with:
+          client-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      # `gh pr merge --auto` does not hold the pull request here. The token that
+      # opens it can bypass the ruleset, so the automatic merge flag merges at
+      # once instead of queueing behind the required check. The release then
+      # packages a commit that nothing built. This step is the gate instead.
+      - name: Wait for the required checks to pass
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        timeout-minutes: 30
+        env:
+          GH_TOKEN: ${{ steps.gate-token.outputs.token }}
+          PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
+          APPEARANCE_TIMEOUT_SECONDS: "300"
+          POLL_INTERVAL_SECONDS: "30"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # `gh pr checks --watch` fails outright when no check has registered
+          # yet, and a pull request seconds old is exactly that state. Wait for
+          # a required context to appear before watching it.
+          deadline=$((SECONDS + APPEARANCE_TIMEOUT_SECONDS))
+          while true; do
+            # `gh pr checks` prints a count and still exits non-zero while the
+            # checks are pending, so read the count and judge it here rather
+            # than let the exit code stand for the answer.
+            count=$(gh pr checks "${PR_NUMBER}" --required --json state --jq 'length' 2>/dev/null || true)
+            count=${count##*$'\n'}
+            if [[ "${count}" =~ ^[1-9][0-9]*$ ]]; then
+              break
+            fi
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              # The loop hides every failure, so a bad token looks the same as a
+              # check that has not started. Run once more without the muzzle, so
+              # the log carries the real reason next to the timeout.
+              echo "::error::No required check reported on pull request ${PR_NUMBER} after ${APPEARANCE_TIMEOUT_SECONDS} seconds. The last attempt reported:"
+              gh pr checks "${PR_NUMBER}" --required --json state || true
+              exit 1
+            fi
+            sleep "${POLL_INTERVAL_SECONDS}"
+          done
+
+          gh pr checks "${PR_NUMBER}" --required --watch --fail-fast --interval "${POLL_INTERVAL_SECONDS}"
+
+      - name: Merge the version bump pull request
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.gate-token.outputs.token }}
+          PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr merge "${PR_NUMBER}" --squash --delete-branch
 
   package:
     runs-on: ubuntu-latest
