@@ -20,7 +20,15 @@ on:
     # expensive jobs have anything to do.
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
+  # The draft state and not the event name. Every activity type above reports
+  # `pull_request`, so a synchronize run and a ready_for_review run shared one
+  # group and cancelled each other. When the draft run won that race, the jobs
+  # below skipped on their draft guard, the required summary failed by design,
+  # and the pull request was left ready, red, and with no further event coming.
+  #
+  # `github.action` is the step identifier and is empty here, so it grouped
+  # nothing. `github.ref` already separates a pull request from a dispatch.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.draft }}
   cancel-in-progress: true
 
 permissions: read-all
