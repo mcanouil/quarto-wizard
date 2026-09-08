@@ -9,6 +9,7 @@
 
 ### Bug Fixes
 
+- fix: Show the diagnostics for a Pandoc attribute that is written between two code fences with the same number of backticks. (#428)
 - fix: Pin the golden Typst fixtures to `typst-render` 0.22.1, the version they actually reproduce. The old pin named `0.21.0`, but that release's own manifest already carries the document brand feature that shipped in `0.22.0`. (#424)
 
 ## 3.5.0 (2026-09-06)
