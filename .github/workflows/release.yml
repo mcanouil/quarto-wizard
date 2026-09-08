@@ -239,29 +239,29 @@ jobs:
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
           GH_TOKEN: ${{ steps.gate-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
         shell: bash
         run: |
           set -euo pipefail
-          gh pr merge "${PR_NUMBER}" --squash --delete-branch
 
-          # The gate above proves that one commit was built. Name it, so the
-          # job that packages builds that commit rather than whatever the
-          # default branch holds by the time it starts. The field takes a
-          # moment to populate after the merge.
-          SHA=""
-          for _ in $(seq 1 10); do
-            SHA=$(gh pr view "${PR_NUMBER}" --json mergeCommit --jq '.mergeCommit.oid // empty' || true)
-            if [ -n "${SHA}" ]; then
-              break
-            fi
-            sleep 3
-          done
+          # The gate above proves that one commit was built. The merge response
+          # names the commit it creates, so take the SHA from the merge itself.
+          # Reading it back afterwards would race the write, which is the class
+          # of gap this whole gate exists to close.
+          SHA=$(gh api -X PUT "repos/${GH_REPO}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method=squash --jq '.sha')
           if ! [[ "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Merged pull request ${PR_NUMBER}, but could not read its merge commit. Read: ${SHA}"
+            echo "::error::Merged pull request ${PR_NUMBER}, but the response named no merge commit. Read: ${SHA}"
             exit 1
           fi
           echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+
+          # The merge is done and recorded. A branch left behind is untidy, not
+          # a reason to strand a release that has already landed its commit.
+          if ! gh api -X DELETE "repos/${GH_REPO}/git/refs/heads/${BRANCH}"; then
+            echo "::warning::Merged pull request ${PR_NUMBER}, but could not delete ${BRANCH}."
+          fi
 
   package:
     runs-on: ubuntu-latest
@@ -280,12 +280,12 @@ jobs:
       # The commit the gate cleared, not the tip of the default branch. Any
       # commit landing between the merge and this checkout would otherwise be
       # the one that gets packaged and published. A release that skipped the
-      # bump has no such commit, and packages the branch it was dispatched
-      # from.
+      # bump has no such commit, and takes the commit the dispatch resolved.
+      # Both are pinned; a branch name here would reopen the same race.
       - name: Checkout the commit the gate cleared
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.bump-version.outputs.sha || github.ref_name }}
+          ref: ${{ needs.bump-version.outputs.sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
