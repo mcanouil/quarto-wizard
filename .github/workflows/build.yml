@@ -28,6 +28,11 @@ concurrency:
   #
   # `github.action` is the step identifier and is empty here, so it grouped
   # nothing. `github.ref` already separates a pull request from a dispatch.
+  #
+  # The two groups no longer cancel each other, so a pull request sent back to
+  # draft leaves its ready matrix running to an answer nobody needs. That costs
+  # runner minutes in a rare case, and it is the price of never cancelling the
+  # run that carries the verdict.
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.draft }}
   cancel-in-progress: true
 
@@ -329,27 +334,27 @@ jobs:
           IS_DRAFT=""
           for _ in 1 2 3; do
             IS_DRAFT=$(gh pr view "${PR_NUMBER}" --json isDraft --jq '.isDraft' || true)
-            if [ -n "${IS_DRAFT}" ]; then
+            if [[ -n "${IS_DRAFT}" ]]; then
               break
             fi
             sleep 5
           done
-          if [ -z "${IS_DRAFT}" ]; then
+          if [[ -z "${IS_DRAFT}" ]]; then
             echo "::warning::Could not read the draft state of pull request ${PR_NUMBER}. Reporting on the event payload instead."
             IS_DRAFT="${BUILT_AS_DRAFT}"
           fi
 
-          if [ "${BUILT_AS_DRAFT}" != "true" ] && [ "${IS_DRAFT}" != "true" ]; then
+          if [[ "${BUILT_AS_DRAFT}" != "true" && "${IS_DRAFT}" != "true" ]]; then
             exit 0
           fi
           {
             echo "# 🚧 Build deferred"
             echo ""
-            if [ "${BUILT_AS_DRAFT}" != "true" ]; then
+            if [[ "${BUILT_AS_DRAFT}" != "true" ]]; then
               echo "This pull request went back to being a draft after the run started."
               echo "The matrix ran, but on the state the pull request has left."
               echo "Mark it ready for review to get a verdict on the state it has now."
-            elif [ "${IS_DRAFT}" = "true" ]; then
+            elif [[ "${IS_DRAFT}" == "true" ]]; then
               echo "This pull request is a draft, so the build matrix did not run."
               echo "Mark it ready for review to build it."
             else
