@@ -304,14 +304,36 @@ jobs:
         # failure here states that, where a skip stated nothing and counted as
         # satisfied. The guards above are what keep a draft off the runners; the
         # cost of this step is one job that ends in seconds.
-        if: github.event.pull_request.draft == true
+        #
+        # Two questions, and a payload answers only the first. The payload is
+        # frozen at the moment its event fired, so it says what this run built,
+        # while the pull request may have changed since. Both have to hold for
+        # a pass: this run must have built the matrix, and the pull request must
+        # be ready now. Reporting on the payload alone made the verdict depend
+        # on which of two racing runs spoke last.
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BUILT_AS_DRAFT: ${{ github.event.pull_request.draft }}
         shell: bash
         run: |
+          set -euo pipefail
+          IS_DRAFT=$(gh pr view "${PR_NUMBER}" --json isDraft --jq '.isDraft')
+          if [ "${BUILT_AS_DRAFT}" != "true" ] && [ "${IS_DRAFT}" != "true" ]; then
+            exit 0
+          fi
           {
             echo "# 🚧 Build deferred"
             echo ""
-            echo "This pull request is a draft, so the build matrix did not run."
-            echo "Mark it ready for review to build it."
+            if [ "${IS_DRAFT}" = "true" ]; then
+              echo "This pull request is a draft, so the build matrix did not run."
+              echo "Mark it ready for review to build it."
+            else
+              echo "This run started while the pull request was a draft, so it built nothing."
+              echo "The run started by marking it ready for review carries the verdict."
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
           exit 1
 
