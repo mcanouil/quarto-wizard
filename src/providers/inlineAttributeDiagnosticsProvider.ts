@@ -265,9 +265,9 @@ interface BlockMatch {
  * not really an attribute.
  *
  * Inline code spans use a stricter rule: only exclude when the match start
- * lies inside an inline span.  This avoids false exclusion of fence-header
- * attribute blocks like `` ```{.r code-summary="see `fn()`"} `` whose body
- * contains quoted backticks that look like an inline code span.
+ * lies inside an inline span. An attribute that follows a closing run, as in
+ * `` `code`{=html} ``, starts outside the span and stays eligible, while the
+ * span itself is still skipped.
  */
 function overlapsExclusionRanges(
 	fencedRanges: readonly TextRange[],
@@ -293,13 +293,14 @@ function overlapsExclusionRanges(
 export function extractBlocks(text: string, fencedBlocks?: readonly FencedBlock[]): BlockMatch[] {
 	const codeRanges = fencedBlocks ?? findFencedBlocks(text);
 	const yamlRange = getYamlFrontMatterRange(text);
-	const fencedRanges: readonly TextRange[] = yamlRange ? [yamlRange, ...codeRanges] : codeRanges;
+	const withYaml = (ranges: readonly TextRange[]): readonly TextRange[] =>
+		yamlRange ? [yamlRange, ...ranges] : ranges;
+	const fencedRanges = withYaml(codeRanges);
 	// The body ranges above keep the `{r}` of a fence header outside the
 	// exclusion, so it is still read as an attribute. The backtick scan needs
 	// the opening run guarded instead, or the run of one fence pairs with the
 	// run of the next and the span swallows the prose between them.
-	const guardRanges = getFenceGuardRanges(codeRanges);
-	const inlineRanges = getInlineCodeSpanRanges(text, yamlRange ? [yamlRange, ...guardRanges] : guardRanges);
+	const inlineRanges = getInlineCodeSpanRanges(text, withYaml(getFenceGuardRanges(codeRanges)));
 	const blocks: BlockMatch[] = [];
 
 	for (const match of text.matchAll(ELEMENT_ATTRIBUTE_RE)) {

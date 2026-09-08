@@ -7,7 +7,7 @@ import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
 import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
-import { getDocumentCodeBlockRanges } from "../utils/documentScan";
+import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 
 /**
@@ -296,7 +296,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				return null;
 			}
 
-			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
+			const codeBlockRanges = getDocumentFencedBlocks(document, text);
 			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;
@@ -528,7 +528,7 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
-			const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
+			const codeBlockRanges = getDocumentFencedBlocks(document, text);
 			const parsed = parseAttributeAtPosition(text, offset, codeBlockRanges);
 			if (!parsed) {
 				return null;

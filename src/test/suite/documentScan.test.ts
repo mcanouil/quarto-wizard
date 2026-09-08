@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { getDocumentCodeBlockRanges, getDocumentTypstBlocks } from "../../utils/documentScan";
+import { getDocumentFencedBlocks, getDocumentTypstBlocks } from "../../utils/documentScan";
 
 /** One document, as the cache sees it: an identity, a URI and a version. */
 function document(uri: string, version = 1): { document: vscode.TextDocument; edit: () => void } {
@@ -13,16 +13,16 @@ const TEXT = "```typst\n#circle()\n```\n\n```python\n1\n```\n";
 suite("Document scan cache", () => {
 	test("Should return the same ranges again at the same document version", () => {
 		const { document: held } = document("/same-version.qmd");
-		const first = getDocumentCodeBlockRanges(held, TEXT);
-		assert.strictEqual(getDocumentCodeBlockRanges(held, TEXT), first);
+		const first = getDocumentFencedBlocks(held, TEXT);
+		assert.strictEqual(getDocumentFencedBlocks(held, TEXT), first);
 		assert.strictEqual(first.length, 2);
 	});
 
 	test("Should read the text again when the document version moves", () => {
 		const { document: held, edit } = document("/moved-version.qmd");
-		const first = getDocumentCodeBlockRanges(held, TEXT);
+		const first = getDocumentFencedBlocks(held, TEXT);
 		edit();
-		assert.notStrictEqual(getDocumentCodeBlockRanges(held, TEXT), first);
+		assert.notStrictEqual(getDocumentFencedBlocks(held, TEXT), first);
 	});
 
 	test("Should keep what one document holds while another is read", () => {
@@ -30,9 +30,9 @@ suite("Document scan cache", () => {
 		// alternate, so a single entry would be rebuilt on every other call.
 		const { document: one } = document("/one.qmd");
 		const { document: two } = document("/two.qmd");
-		const first = getDocumentCodeBlockRanges(one, TEXT);
-		getDocumentCodeBlockRanges(two, TEXT);
-		assert.strictEqual(getDocumentCodeBlockRanges(one, TEXT), first);
+		const first = getDocumentFencedBlocks(one, TEXT);
+		getDocumentFencedBlocks(two, TEXT);
+		assert.strictEqual(getDocumentFencedBlocks(one, TEXT), first);
 	});
 
 	test("Should read the text again for the document that took a reused name", () => {
@@ -41,8 +41,8 @@ suite("Document scan cache", () => {
 		// starts at version one with other text, so a URI and a version together
 		// name two documents. This is what a preview answered from the image of
 		// the document before it, and the whole suite passes without this case.
-		const first = getDocumentCodeBlockRanges(document("/untitled-1").document, TEXT);
-		const again = getDocumentCodeBlockRanges(document("/untitled-1").document, TEXT);
+		const first = getDocumentFencedBlocks(document("/untitled-1").document, TEXT);
+		const again = getDocumentFencedBlocks(document("/untitled-1").document, TEXT);
 		assert.notStrictEqual(again, first);
 	});
 
@@ -50,10 +50,10 @@ suite("Document scan cache", () => {
 		// The two readers scan by different rules, so one entry holds both. A
 		// reader asking must not forget what the other one already built.
 		const { document: held } = document("/both.qmd");
-		const ranges = getDocumentCodeBlockRanges(held, TEXT);
+		const ranges = getDocumentFencedBlocks(held, TEXT);
 		const blocks = getDocumentTypstBlocks(held, () => TEXT);
 		assert.strictEqual(blocks.length, 1);
-		assert.strictEqual(getDocumentCodeBlockRanges(held, TEXT), ranges);
+		assert.strictEqual(getDocumentFencedBlocks(held, TEXT), ranges);
 		assert.strictEqual(
 			getDocumentTypstBlocks(held, () => TEXT),
 			blocks,
