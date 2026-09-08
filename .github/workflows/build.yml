@@ -320,14 +320,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          IS_DRAFT=$(gh pr view "${PR_NUMBER}" --json isDraft --jq '.isDraft')
+
+          # This is the single required check, so an unanswered call must not
+          # be what fails it. No pull request event follows a failure here, and
+          # the check would stay red with nothing left to clear it. After three
+          # attempts the step falls back to the payload, which is what this
+          # check read before and is a state the workflow already handled.
+          IS_DRAFT=""
+          for _ in 1 2 3; do
+            IS_DRAFT=$(gh pr view "${PR_NUMBER}" --json isDraft --jq '.isDraft' || true)
+            if [ -n "${IS_DRAFT}" ]; then
+              break
+            fi
+            sleep 5
+          done
+          if [ -z "${IS_DRAFT}" ]; then
+            echo "::warning::Could not read the draft state of pull request ${PR_NUMBER}. Reporting on the event payload instead."
+            IS_DRAFT="${BUILT_AS_DRAFT}"
+          fi
+
           if [ "${BUILT_AS_DRAFT}" != "true" ] && [ "${IS_DRAFT}" != "true" ]; then
             exit 0
           fi
           {
             echo "# 🚧 Build deferred"
             echo ""
-            if [ "${IS_DRAFT}" = "true" ]; then
+            if [ "${BUILT_AS_DRAFT}" != "true" ]; then
+              echo "This pull request went back to being a draft after the run started."
+              echo "The matrix ran, but on the state the pull request has left."
+              echo "Mark it ready for review to get a verdict on the state it has now."
+            elif [ "${IS_DRAFT}" = "true" ]; then
               echo "This pull request is a draft, so the build matrix did not run."
               echo "Mark it ready for review to build it."
             else
