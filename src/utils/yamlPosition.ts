@@ -455,6 +455,26 @@ export function getCodeBlockRanges(text: string): TextRange[] {
 }
 
 /**
+ * The fence-inclusive ranges of blocks, for a reader that scans backtick runs.
+ *
+ * A body range starts after the opening fence line, so a reader of the info
+ * string finds it outside the range. That leaves the opening backtick run
+ * unguarded, and two fences of the same run length let the opening run of one
+ * pair with the opening run of the next. The span then covers both fences and
+ * everything between them.
+ *
+ * Only a reader of backtick runs needs this. A reader that skips over code
+ * wants the body range, so that the `{r}` of a fence header stays available to
+ * completion and to the attribute diagnostics.
+ *
+ * @param blocks - The blocks of `findFencedBlocks`.
+ * @returns An array of ranges sorted by start offset.
+ */
+export function getFenceGuardRanges(blocks: readonly FencedBlock[]): TextRange[] {
+	return blocks.map((block) => ({ start: block.fenceStart, end: block.end }));
+}
+
+/**
  * Find all inline code span regions in the document text.
  *
  * Inline code spans are delimited by matching backtick runs of equal length

@@ -30,7 +30,7 @@
 import type * as vscode from "vscode";
 import { findTypstUnits, type TypstUnit } from "./typst/typstBlocks";
 import { annotateYaml, yamlRegionOf, type AnnotatedYaml } from "./yamlAnnotated";
-import { findFencedBlocks, type FencedBlock, type TextRange } from "./yamlPosition";
+import { findFencedBlocks, type FencedBlock } from "./yamlPosition";
 
 /** The scans of one document version, each built when it is first asked for. */
 interface DocumentScan {
@@ -67,13 +67,17 @@ function scanOf(document: vscode.TextDocument): DocumentScan {
 }
 
 /**
- * The fenced code block bodies of a document.
+ * The fenced code blocks of a document.
+ *
+ * A `FencedBlock` is a `TextRange` over the block body, so a reader that only
+ * skips over code takes these as they are. A reader of backtick runs wants the
+ * opening fence line covered as well, and passes them to `getFenceGuardRanges`.
  *
  * @param document - The document being read.
  * @param text - The full text of that document.
- * @returns The ranges of `getCodeBlockRanges`.
+ * @returns The blocks of `findFencedBlocks`.
  */
-export function getDocumentCodeBlockRanges(document: vscode.TextDocument, text: string): readonly TextRange[] {
+export function getDocumentFencedBlocks(document: vscode.TextDocument, text: string): readonly FencedBlock[] {
 	const scan = scanOf(document);
 	scan.fenced ??= findFencedBlocks(text);
 	return scan.fenced;

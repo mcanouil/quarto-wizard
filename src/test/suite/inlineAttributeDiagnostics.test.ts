@@ -654,6 +654,27 @@ suite("Inline Attribute Diagnostics", () => {
 	});
 
 	suite("extractBlocks (inline code spans)", () => {
+		test("should extract an attribute between two fences of the same run length", () => {
+			// The opening run of the first fence must not pair with the opening
+			// run of the second. A span across both would swallow the prose
+			// between them, and the attribute in it would report nothing.
+			const text = [
+				"```{r}",
+				"x <- 1",
+				"```",
+				"",
+				"Prose with [text]{.note} in it.",
+				"",
+				"```{python}",
+				"y = 1",
+				"```",
+				"",
+			].join("\n");
+			const blocks = extractBlocks(text);
+			const contents = blocks.map((block) => block.content);
+			assert.ok(contents.includes(".note"), `Expected ".note" among ${JSON.stringify(contents)}`);
+		});
+
 		test("should not extract attribute block from inside a single-backtick span", () => {
 			const text = 'Pandoc syntax: `{key="value"}` produces an attribute.';
 			const blocks = extractBlocks(text);

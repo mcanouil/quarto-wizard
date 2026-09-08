@@ -12,13 +12,15 @@ import {
 import { collectShortcodeSchemas, resolveShortcodeAttribute } from "./shortcodeCompletionProvider";
 import { getErrorMessage } from "@quarto-wizard/core";
 import {
-	getCodeBlockRanges,
+	findFencedBlocks,
+	getFenceGuardRanges,
 	getInlineCodeSpanRanges,
 	getYamlFrontMatterRange,
 	isInCodeBlockRange,
+	type FencedBlock,
 	type TextRange,
 } from "../utils/yamlPosition";
-import { getDocumentCodeBlockRanges } from "../utils/documentScan";
+import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
 
@@ -263,9 +265,9 @@ interface BlockMatch {
  * not really an attribute.
  *
  * Inline code spans use a stricter rule: only exclude when the match start
- * lies inside an inline span.  This avoids false exclusion of fence-header
- * attribute blocks like `` ```{.r code-summary="see `fn()`"} `` whose body
- * contains quoted backticks that look like an inline code span.
+ * lies inside an inline span. An attribute that follows a closing run, as in
+ * `` `code`{=html} ``, starts outside the span and stays eligible, while the
+ * span itself is still skipped.
  */
 function overlapsExclusionRanges(
 	fencedRanges: readonly TextRange[],
@@ -288,11 +290,17 @@ function overlapsExclusionRanges(
  * excluding matches that fall inside fenced code blocks, the YAML front
  * matter, or inline code spans.
  */
-export function extractBlocks(text: string, codeBlockRanges?: readonly TextRange[]): BlockMatch[] {
-	const codeRanges = codeBlockRanges ?? getCodeBlockRanges(text);
+export function extractBlocks(text: string, fencedBlocks?: readonly FencedBlock[]): BlockMatch[] {
+	const codeRanges = fencedBlocks ?? findFencedBlocks(text);
 	const yamlRange = getYamlFrontMatterRange(text);
-	const fencedRanges = yamlRange ? [yamlRange, ...codeRanges] : codeRanges;
-	const inlineRanges = getInlineCodeSpanRanges(text, fencedRanges);
+	const withYaml = (ranges: readonly TextRange[]): readonly TextRange[] =>
+		yamlRange ? [yamlRange, ...ranges] : ranges;
+	const fencedRanges = withYaml(codeRanges);
+	// The body ranges above keep the `{r}` of a fence header outside the
+	// exclusion, so it is still read as an attribute. The backtick scan needs
+	// the opening run guarded instead, or the run of one fence pairs with the
+	// run of the next and the span swallows the prose between them.
+	const inlineRanges = getInlineCodeSpanRanges(text, withYaml(getFenceGuardRanges(codeRanges)));
 	const blocks: BlockMatch[] = [];
 
 	for (const match of text.matchAll(ELEMENT_ATTRIBUTE_RE)) {
@@ -959,7 +967,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 
 		const version = ++this.validationVersion;
 		const text = document.getText();
-		const codeBlockRanges = getDocumentCodeBlockRanges(document, text);
+		const codeBlockRanges = getDocumentFencedBlocks(document, text);
 		const blocks = extractBlocks(text, codeBlockRanges);
 		const diagnostics: vscode.Diagnostic[] = [];
 
@@ -1290,7 +1298,7 @@ export class InlineAttributeCodeActionProvider implements vscode.CodeActionProvi
 		}
 
 		const text = document.getText();
-		const blocks = extractBlocks(text, getDocumentCodeBlockRanges(document, text));
+		const blocks = extractBlocks(text, getDocumentFencedBlocks(document, text));
 
 		for (const diagnostic of relevant) {
 			for (const block of blocks) {

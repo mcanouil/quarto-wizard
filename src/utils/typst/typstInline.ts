@@ -1,4 +1,9 @@
-import { findFencedBlocks, getInlineCodeSpanRanges, getYamlFrontMatterRange } from "../yamlPosition";
+import {
+	findFencedBlocks,
+	getFenceGuardRanges,
+	getInlineCodeSpanRanges,
+	getYamlFrontMatterRange,
+} from "../yamlPosition";
 import type { TypstUnit, TypstUnitKind } from "./typstBlocks";
 
 /**
@@ -100,12 +105,7 @@ export function findTypstInlines(text: string): TypstUnit[] {
 		}
 	}
 
-	// `findFencedBlocks` reports the body range, which starts after the opening
-	// fence line so a reader of the info string finds it outside the range. That
-	// leaves the opening backtick run itself unguarded, and two fences of the
-	// same length let that run pair with the next fence's opening run, so the
-	// range given here has to reach back to `fenceStart` instead.
-	const fences = findFencedBlocks(source).map((block) => ({ start: block.fenceStart, end: block.end }));
+	const fences = getFenceGuardRanges(findFencedBlocks(source));
 
 	const units: TypstUnit[] = [];
 	// The spans arrive sorted, so the line of each one is counted onward from the
