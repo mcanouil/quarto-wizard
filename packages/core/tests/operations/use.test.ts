@@ -412,15 +412,35 @@ describe("use with a local directory source", () => {
 describe("use with a local archive source", () => {
 	let sourceDir: string;
 	let projectDir: string;
+	let tempRoot: string;
+	let heldTempEnv: Record<string, string | undefined>;
+
+	// The extraction directory is named after the whole temp directory, and any
+	// other test file extracting an archive at the same moment adds one to it.
+	// Vitest runs the files of a package in parallel, so a scan of the shared
+	// directory reads work that is not this test's. Each test here gets a temp
+	// directory of its own instead, which `os.tmpdir()` reads from these three.
+	const TEMP_VARS = ["TMPDIR", "TEMP", "TMP"] as const;
 
 	beforeEach(() => {
+		tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-archive-root-"));
+		heldTempEnv = Object.fromEntries(TEMP_VARS.map((name) => [name, process.env[name]]));
+		for (const name of TEMP_VARS) {
+			process.env[name] = tempRoot;
+		}
 		sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-archive-source-"));
 		projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-archive-project-"));
 	});
 
 	afterEach(() => {
-		fs.rmSync(sourceDir, { recursive: true, force: true });
-		fs.rmSync(projectDir, { recursive: true, force: true });
+		for (const name of TEMP_VARS) {
+			if (heldTempEnv[name] === undefined) {
+				delete process.env[name];
+			} else {
+				process.env[name] = heldTempEnv[name];
+			}
+		}
+		fs.rmSync(tempRoot, { recursive: true, force: true });
 	});
 
 	function listExtractionDirs(): string[] {
