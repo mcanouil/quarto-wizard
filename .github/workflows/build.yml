@@ -350,6 +350,17 @@ jobs:
           fi
 
           if [[ "${IS_DRAFT}" != "true" ]]; then
+            # Passing, and still worth saying. This run skipped every job above
+            # on its draft guard, so a reader who opens it finds a green check
+            # over an empty matrix and no reason for it.
+            if [[ "${BUILT_AS_DRAFT}" == "true" ]]; then
+              {
+                echo "# 🚧 Nothing to build"
+                echo ""
+                echo "This run started while the pull request was a draft, so it built nothing."
+                echo "The run started by marking it ready for review carries the verdict."
+              } >> "${GITHUB_STEP_SUMMARY}"
+            fi
             exit 0
           fi
           {
