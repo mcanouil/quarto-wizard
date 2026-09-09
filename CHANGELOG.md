@@ -9,6 +9,7 @@
 
 ### Bug Fixes
 
+- fix: Read the options of an output format from the top level of the metadata in the Lua reference validator. The format name is never a metadata key, so `validate_format` collected nothing and passed whatever the document wrote. (#439)
 - fix: Offer the panel when a compiled Typst image is too large for a hover. The hover measured the image and not the text it carries, so a large image printed as unreadable markup. (#436)
 - fix: Show the diagnostics for a Pandoc attribute that is written between two code fences with the same number of backticks. (#428)
 - fix: Pin the golden Typst fixtures to `typst-render` 0.22.1, the version they actually reproduce. The old pin named `0.21.0`, but that release's own manifest already carries the document brand feature that shipped in `0.22.0`. (#424)

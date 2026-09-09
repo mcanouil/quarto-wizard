@@ -110,20 +110,26 @@ It also enforces the parent-level `required` array of that entry.
 It is the one exception for `merged`, which holds `{arguments = ..., attributes = ...}`, because a shortcode call carries two sets of values.
 `validate_attributes` takes the attributes of an element, the group that they belong to, and the loaded schema.
 `validate_format` takes the metadata, a format name, and the loaded schema.
+Quarto merges the options of the selected format into the top level of the metadata, so the values are read from there.
+The format name is never a key in the metadata.
 
 Each also accepts an optional `{unknown = ...}` table as its last parameter.
 It says what to do with a key that the schema does not declare.
 
-| Function              | Accepts                     | Default  |
-| --------------------- | --------------------------- | -------- |
-| `validate`            | `warn`, `error` or `ignore` | `warn`   |
-| `validate_arguments`  | `warn` or `ignore`          | `warn`   |
-| `validate_shortcode`  | `warn`, `error` or `ignore` | `warn`   |
-| `validate_attributes` | `warn`, `error` or `ignore` | `ignore` |
-| `validate_format`     | `warn`, `error` or `ignore` | `ignore` |
+| Function              | Accepts                     | Default   |
+| --------------------- | --------------------------- | --------- |
+| `validate`            | `warn`, `error` or `ignore` | `warn`    |
+| `validate_arguments`  | `warn` or `ignore`          | `warn`    |
+| `validate_shortcode`  | `warn`, `error` or `ignore` | `warn`    |
+| `validate_attributes` | `warn`, `error` or `ignore` | `ignore`  |
+| `validate_format`     | `warn`, `error` or `ignore` | no effect |
 
 `validate_arguments` has no `error` value, because a surplus positional argument is never an error.
-`validate_attributes` and `validate_format` default to `ignore`, because a Pandoc element and a format block both carry keys from Quarto and from other filters.
+`validate_attributes` defaults to `ignore`, because a Pandoc element carries keys from Quarto and from other filters.
+`validate_format` reads a value only when a descriptor declares its name, under that name, its other spelling, or one of its aliases.
+No undeclared key ever reaches the check, so the setting has no effect.
+It is accepted so that the five entry points keep one signature.
+A name that the document wrote in two spellings is still reported as a warning, because the setting cannot report it.
 
 A group or a format that the schema does not declare is not an error.
 `validate_attributes` then returns the supplied attributes unchanged, and `validate_format` returns an empty table.

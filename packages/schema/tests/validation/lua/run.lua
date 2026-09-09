@@ -1178,15 +1178,137 @@ formats:
       type: string
       enum: [a4, letter]
 ]])
-  local meta = pandoc.read('---\ntypst:\n  paper: a4\n---\n', 'markdown').meta
+  -- Quarto merges the options of the selected format into the top level of
+  -- the metadata, so that is where the values are read from.
+  local meta = pandoc.read('---\npaper: a4\n---\n', 'markdown').meta
   local valid, errors, _, merged = schema.validate_format(meta, 'typst', loaded)
   assert_valid(valid, errors)
   assert_eq(merged.paper, 'a4')
 
-  local bad_meta = pandoc.read('---\ntypst:\n  paper: a3\n---\n', 'markdown').meta
+  local bad_meta = pandoc.read('---\npaper: a3\n---\n', 'markdown').meta
   local bad_valid, bad_errors = schema.validate_format(bad_meta, 'typst', loaded)
   assert_false(bad_valid)
   assert_contains(bad_errors, 'typst.paper')
+end)
+
+test('S7: validate_format ignores the format name as a metadata key', function()
+  local loaded = load_schema([[
+formats:
+  typst:
+    paper:
+      type: string
+      enum: [a4, letter]
+]])
+  local meta = pandoc.read('---\ntypst:\n  paper: a3\n---\n', 'markdown').meta
+  local valid, errors, _, merged = schema.validate_format(meta, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged.paper, nil, 'a value under the format name is not a format option')
+end)
+
+test('S7: validate_format reads an alias and the other spelling', function()
+  local loaded = load_schema([[
+formats:
+  typst:
+    page-width:
+      type: string
+      aliases:
+        - width
+    paper:
+      type: string
+]])
+  local aliased = pandoc.read('---\nwidth: 21cm\n---\n', 'markdown').meta
+  local valid, errors, _, merged = schema.validate_format(aliased, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged['page-width'], '21cm', 'an alias lands under the declared name')
+  assert_eq(merged.width, nil, 'the alias spelling is not kept as well')
+
+  local underscored = pandoc.read('---\npage_width: 21cm\n---\n', 'markdown').meta
+  local other_valid, other_errors, _, other_merged = schema.validate_format(underscored, 'typst', loaded)
+  assert_valid(other_valid, other_errors)
+  assert_eq(other_merged['page-width'], '21cm', 'the underscore spelling resolves to the declared name')
+end)
+
+test('S7: validate_format reports a name that a document wrote twice', function()
+  local loaded = load_schema([[
+formats:
+  typst:
+    page-width:
+      type: string
+      aliases:
+        - text-width
+]])
+  local both_spellings = pandoc.read('---\npage-width: 21cm\npage_width: 12cm\n---\n', 'markdown').meta
+  local valid, errors, warnings, merged = schema.validate_format(both_spellings, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged['page-width'], '21cm', 'the declared spelling wins')
+  assert_eq(merged['page_width'], nil, 'the losing spelling is not kept as well')
+  assert_contains(warnings, 'was given as both "page-width" and "page_width"')
+
+  local with_alias = pandoc.read('---\npage-width: 21cm\ntext-width: 12cm\n---\n', 'markdown').meta
+  local alias_valid, alias_errors, alias_warnings, alias_merged = schema.validate_format(with_alias, 'typst', loaded)
+  assert_valid(alias_valid, alias_errors)
+  assert_eq(alias_merged['page-width'], '21cm', 'the declared name wins over an alias')
+  assert_eq(alias_merged['text-width'], nil, 'the alias is not kept as well')
+  assert_contains(alias_warnings, 'was given as both "page-width" and "text-width"')
+
+  local alias_spellings = pandoc.read('---\ntext-width: 21cm\ntext_width: 12cm\n---\n', 'markdown').meta
+  local spelling_valid, spelling_errors, spelling_warnings, spelling_merged =
+    schema.validate_format(alias_spellings, 'typst', loaded)
+  assert_valid(spelling_valid, spelling_errors)
+  assert_eq(spelling_merged['page-width'], '21cm', 'the first spelling of the alias wins')
+  assert_contains(spelling_warnings, 'was given as both "text-width" and "text_width"')
+end)
+
+test('S7: validate_format reads a schema whose alias is not a string', function()
+  -- `no` reads as a boolean and `42` as a number, and a schema file is not
+  -- checked against the meta-schema before it is used. A malformed alias is
+  -- skipped, as `_lookup` skips it everywhere else, rather than stopping a
+  -- render over a configuration file.
+  local loaded = load_schema([[
+formats:
+  typst:
+    paper:
+      type: string
+      aliases: [no, 42]
+]])
+  local meta = pandoc.read('---\npaper: a4\n---\n', 'markdown').meta
+  local valid, errors, _, merged = schema.validate_format(meta, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged.paper, 'a4')
+end)
+
+test('S7: validate_format reports one name written twice once', function()
+  -- The alias is only the other spelling of the name that declares it, which
+  -- `_lookup` already reads, so the pair is one mistake and not two.
+  local loaded = load_schema([[
+formats:
+  typst:
+    page-width:
+      type: string
+      aliases:
+        - page_width
+]])
+  local meta = pandoc.read('---\npage-width: 21cm\npage_width: 12cm\n---\n', 'markdown').meta
+  local valid, errors, warnings, merged = schema.validate_format(meta, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged['page-width'], '21cm', 'the declared spelling wins')
+  assert_eq(#warnings, 1, 'one mistake is reported once')
+  assert_contains(warnings, 'was given as both "page-width" and "page_width"; "page-width" was used.')
+end)
+
+test('S7: validate_format keeps an undeclared metadata key out of the merge', function()
+  local loaded = load_schema([[
+formats:
+  typst:
+    paper:
+      type: string
+]])
+  local meta = pandoc.read('---\ntitle: A document\npaper: a4\n---\n', 'markdown').meta
+  local valid, errors, warnings, merged = schema.validate_format(meta, 'typst', loaded, { unknown = 'warn' })
+  assert_valid(valid, errors)
+  assert_eq(merged.paper, 'a4')
+  assert_eq(merged.title, nil, 'a document key no descriptor declares is not a format option')
+  assert_eq(#warnings, 0, 'a document key no descriptor declares raises no warning')
 end)
 
 test('S11: a second YAML document is reported clearly', function()
