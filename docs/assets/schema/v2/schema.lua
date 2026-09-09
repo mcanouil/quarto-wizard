@@ -2417,29 +2417,38 @@ function M.validate_format(meta, format, schema, options)
   -- loser through the `unknown` option, which has nothing to report here, so the
   -- collection reports it in the same words `_validate_map` uses.
   local values = {}
-  local function collect(name, owner)
-    local value, found_key = _lookup(meta, name)
-    if value == nil then
-      return
-    end
-    values[found_key] = _convert_pandoc_value(value)
-
-    for _, other in ipairs({ (name:gsub('%-', '_')), (name:gsub('_', '-')) }) do
-      if other ~= found_key and meta[other] ~= nil then
-        _report(context, 'warning', format .. '.' .. owner, 'aliases',
-          string.format('was given as both "%s" and "%s"; "%s" was used.',
-            found_key, other, found_key))
-      end
-    end
-  end
-
   for field, raw_spec in pairs(descriptors) do
-    collect(field, field)
-
     local spec = _compile(raw_spec)
+
+    -- One entry per name, and not one per spelling. `_lookup` reads both
+    -- spellings of whichever entry is kept, so an alias that is only the other
+    -- spelling of a name already listed adds nothing. Probing it as well would
+    -- collect the two spellings under separate keys, and one mistake would then
+    -- be reported three times, once by each probe and once by `_validate_map`.
+    local names = { field }
+    local listed = { [(field:gsub('_', '-'))] = true }
     if type(spec) == 'table' and type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
-        collect(alias, field)
+        local normalised = (alias:gsub('_', '-'))
+        if not listed[normalised] then
+          listed[normalised] = true
+          names[#names + 1] = alias
+        end
+      end
+    end
+
+    for _, name in ipairs(names) do
+      local value, found_key = _lookup(meta, name)
+      if value ~= nil then
+        values[found_key] = _convert_pandoc_value(value)
+
+        for _, other in ipairs({ (name:gsub('%-', '_')), (name:gsub('_', '-')) }) do
+          if other ~= found_key and meta[other] ~= nil then
+            _report(context, 'warning', format .. '.' .. field, 'aliases',
+              string.format('was given as both "%s" and "%s"; "%s" was used.',
+                found_key, other, found_key))
+          end
+        end
       end
     end
   end

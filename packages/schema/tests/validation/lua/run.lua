@@ -1259,6 +1259,25 @@ formats:
   assert_contains(spelling_warnings, 'was given as both "text-width" and "text_width"')
 end)
 
+test('S7: validate_format reports one name written twice once', function()
+  -- The alias is only the other spelling of the name that declares it, which
+  -- `_lookup` already reads, so the pair is one mistake and not two.
+  local loaded = load_schema([[
+formats:
+  typst:
+    page-width:
+      type: string
+      aliases:
+        - page_width
+]])
+  local meta = pandoc.read('---\npage-width: 21cm\npage_width: 12cm\n---\n', 'markdown').meta
+  local valid, errors, warnings, merged = schema.validate_format(meta, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged['page-width'], '21cm', 'the declared spelling wins')
+  assert_eq(#warnings, 1, 'one mistake is reported once')
+  assert_contains(warnings, 'was given as both "page-width" and "page_width"; "page-width" was used.')
+end)
+
 test('S7: validate_format keeps an undeclared metadata key out of the merge', function()
   local loaded = load_schema([[
 formats:
