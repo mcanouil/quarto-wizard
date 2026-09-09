@@ -52,7 +52,6 @@ The `@quarto-wizard/core` package (`packages/core`) uses Vitest for testing.
 #### Core Dependencies
 
 - `vitest` - The test framework.
-- `@vitest/coverage-v8` - Code coverage support.
 
 #### Core Configuration
 
@@ -131,9 +130,6 @@ npm test
 
 # Run tests in watch mode
 npm run test:watch
-
-# Run tests with coverage
-npm test -- --coverage
 ```
 
 Or from the root directory:
