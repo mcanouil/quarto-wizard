@@ -1259,6 +1259,24 @@ formats:
   assert_contains(spelling_warnings, 'was given as both "text-width" and "text_width"')
 end)
 
+test('S7: validate_format reads a schema whose alias is not a string', function()
+  -- `no` reads as a boolean and `42` as a number, and a schema file is not
+  -- checked against the meta-schema before it is used. A malformed alias is
+  -- skipped, as `_lookup` skips it everywhere else, rather than stopping a
+  -- render over a configuration file.
+  local loaded = load_schema([[
+formats:
+  typst:
+    paper:
+      type: string
+      aliases: [no, 42]
+]])
+  local meta = pandoc.read('---\npaper: a4\n---\n', 'markdown').meta
+  local valid, errors, _, merged = schema.validate_format(meta, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged.paper, 'a4')
+end)
+
 test('S7: validate_format reports one name written twice once', function()
   -- The alias is only the other spelling of the name that declares it, which
   -- `_lookup` already reads, so the pair is one mistake and not two.

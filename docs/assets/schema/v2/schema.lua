@@ -2429,10 +2429,15 @@ function M.validate_format(meta, format, schema, options)
     local listed = { [(field:gsub('_', '-'))] = true }
     if type(spec) == 'table' and type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
-        local normalised = (alias:gsub('_', '-'))
-        if not listed[normalised] then
-          listed[normalised] = true
-          names[#names + 1] = alias
+        -- A schema file is not read against the meta-schema, so an unquoted
+        -- `no` reaches here as a boolean. `_lookup` skips a key that is not a
+        -- string everywhere else, and so does this.
+        if type(alias) == 'string' then
+          local normalised = (alias:gsub('_', '-'))
+          if not listed[normalised] then
+            listed[normalised] = true
+            names[#names + 1] = alias
+          end
         end
       end
     end
