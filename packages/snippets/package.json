@@ -22,7 +22,7 @@
 		"snippets"
 	],
 	"author": {
-		"name": "Mickaël CANOUIL",
+		"name": "Micka\u00ebl CANOUIL",
 		"url": "https://mickael.canouil.fr"
 	},
 	"license": "MIT",
@@ -33,9 +33,8 @@
 	},
 	"devDependencies": {
 		"@types/node": "^26.1.1",
-		"@vitest/coverage-v8": "^4.1.10",
 		"typescript": "^6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^5.0.0"
 	},
 	"engines": {
 		"node": ">=25.0.0"
