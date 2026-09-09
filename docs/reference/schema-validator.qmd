@@ -129,6 +129,7 @@ It says what to do with a key that the schema does not declare.
 `validate_format` reads a value only when a descriptor declares its name, under that name, its other spelling, or one of its aliases.
 No undeclared key ever reaches the check, so the setting has no effect.
 It is accepted so that the five entry points keep one signature.
+A name that the document wrote in two spellings is still reported as a warning, because the setting cannot report it.
 
 A group or a format that the schema does not declare is not an error.
 `validate_attributes` then returns the supplied attributes unchanged, and `validate_format` returns an empty table.

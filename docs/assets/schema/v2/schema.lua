@@ -2411,20 +2411,35 @@ function M.validate_format(meta, format, schema, options)
   -- declared name. `_validate_map` is what moves an alias or the other spelling
   -- to the declared name, and it needs the original key to say which two
   -- spellings a document supplied for one field.
+  --
+  -- `_lookup` returns the first spelling it finds, so a document that wrote one
+  -- name in both spellings loses the other. Every other entry point reports the
+  -- loser through the `unknown` option, which has nothing to report here, so the
+  -- collection reports it in the same words `_validate_map` uses.
   local values = {}
-  for field, raw_spec in pairs(descriptors) do
-    local value, found_key = _lookup(meta, field)
-    if value ~= nil then
-      values[found_key] = _convert_pandoc_value(value)
+  local function collect(name, owner)
+    local value, found_key = _lookup(meta, name)
+    if value == nil then
+      return
     end
+    values[found_key] = _convert_pandoc_value(value)
+
+    for _, other in ipairs({ (name:gsub('%-', '_')), (name:gsub('_', '-')) }) do
+      if other ~= found_key and meta[other] ~= nil then
+        _report(context, 'warning', format .. '.' .. owner, 'aliases',
+          string.format('was given as both "%s" and "%s"; "%s" was used.',
+            found_key, other, found_key))
+      end
+    end
+  end
+
+  for field, raw_spec in pairs(descriptors) do
+    collect(field, field)
 
     local spec = _compile(raw_spec)
     if type(spec) == 'table' and type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
-        local aliased, alias_key = _lookup(meta, alias)
-        if aliased ~= nil then
-          values[alias_key] = _convert_pandoc_value(aliased)
-        end
+        collect(alias, field)
       end
     end
   end

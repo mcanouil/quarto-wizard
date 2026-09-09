@@ -1228,6 +1228,37 @@ formats:
   assert_eq(other_merged['page-width'], '21cm', 'the underscore spelling resolves to the declared name')
 end)
 
+test('S7: validate_format reports a name that a document wrote twice', function()
+  local loaded = load_schema([[
+formats:
+  typst:
+    page-width:
+      type: string
+      aliases:
+        - text-width
+]])
+  local both_spellings = pandoc.read('---\npage-width: 21cm\npage_width: 12cm\n---\n', 'markdown').meta
+  local valid, errors, warnings, merged = schema.validate_format(both_spellings, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged['page-width'], '21cm', 'the declared spelling wins')
+  assert_eq(merged['page_width'], nil, 'the losing spelling is not kept as well')
+  assert_contains(warnings, 'was given as both "page-width" and "page_width"')
+
+  local with_alias = pandoc.read('---\npage-width: 21cm\ntext-width: 12cm\n---\n', 'markdown').meta
+  local alias_valid, alias_errors, alias_warnings, alias_merged = schema.validate_format(with_alias, 'typst', loaded)
+  assert_valid(alias_valid, alias_errors)
+  assert_eq(alias_merged['page-width'], '21cm', 'the declared name wins over an alias')
+  assert_eq(alias_merged['text-width'], nil, 'the alias is not kept as well')
+  assert_contains(alias_warnings, 'was given as both "page-width" and "text-width"')
+
+  local alias_spellings = pandoc.read('---\ntext-width: 21cm\ntext_width: 12cm\n---\n', 'markdown').meta
+  local spelling_valid, spelling_errors, spelling_warnings, spelling_merged =
+    schema.validate_format(alias_spellings, 'typst', loaded)
+  assert_valid(spelling_valid, spelling_errors)
+  assert_eq(spelling_merged['page-width'], '21cm', 'the first spelling of the alias wins')
+  assert_contains(spelling_warnings, 'was given as both "text-width" and "text_width"')
+end)
+
 test('S7: validate_format keeps an undeclared metadata key out of the merge', function()
   local loaded = load_schema([[
 formats:
