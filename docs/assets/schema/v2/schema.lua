@@ -2382,6 +2382,12 @@ function M.validate_attributes(attributes, group, schema, options)
 end
 
 --- Validate the options of one output format against the `formats` section.
+--- Quarto merges the options of the selected format into the top level of the
+--- metadata, so the values are read from there. The format name is never a key.
+--- A value is collected only when a descriptor declares its name, which keeps
+--- the document's own keys, such as `title`, out of the merge. The `unknown`
+--- option therefore has nothing to report here, and is kept so that the entry
+--- points keep one signature.
 --- @param meta table Document metadata
 --- @param format string Format name, such as 'html' or 'typst'
 --- @param schema table Loaded schema
@@ -2401,11 +2407,25 @@ function M.validate_format(meta, format, schema, options)
     return _finish(context, {})
   end
 
+  -- Each value is stored under the spelling the document wrote, never under the
+  -- declared name. `_validate_map` is what moves an alias or the other spelling
+  -- to the declared name, and it needs the original key to say which two
+  -- spellings a document supplied for one field.
   local values = {}
-  local format_meta = meta and _lookup(meta, format)
-  if format_meta ~= nil then
-    for key, value in pairs(format_meta) do
-      values[tostring(key)] = _convert_pandoc_value(value)
+  for field, raw_spec in pairs(descriptors) do
+    local value, found_key = _lookup(meta, field)
+    if value ~= nil then
+      values[found_key] = _convert_pandoc_value(value)
+    end
+
+    local spec = _compile(raw_spec)
+    if type(spec) == 'table' and type(spec.aliases) == 'table' then
+      for _, alias in ipairs(spec.aliases) do
+        local aliased, alias_key = _lookup(meta, alias)
+        if aliased ~= nil then
+          values[alias_key] = _convert_pandoc_value(aliased)
+        end
+      end
     end
   end
 
