@@ -385,16 +385,30 @@ jobs:
           # it never saw. That red clears itself: a sibling that has not reported
           # yet reports after this one, so its check run is the later of the two
           # and is the one the required context resolves to.
+          # Every earlier run on this commit left a `summary` behind, and a draft
+          # run leaves a failure. Only a check run that started after this run
+          # did can be the sibling, so an old draft verdict cannot be mirrored,
+          # and the newest of those is taken rather than whichever the API lists
+          # first. A completed status is what excludes this run's own check,
+          # which is still in progress while this step runs; the run identifier
+          # in the URL says so a second time, in case that ever stops holding.
+          SINCE=$(gh api "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}" --jq '.run_started_at' || true)
+          if [[ -z "${SINCE}" ]]; then
+            echo "::warning::Could not read the start time of this run. Reading every completed sibling instead."
+            SINCE="1970-01-01T00:00:00Z"
+          fi
+
           VERDICT=""
           for _ in $(seq 1 48); do
             VERDICT=$(gh api "repos/${GH_REPO}/commits/${HEAD_SHA}/check-runs?per_page=100" 2>/dev/null \
-              | jq -r --arg run "/runs/${GITHUB_RUN_ID}/" '
+              | jq -r --arg run "/runs/${GITHUB_RUN_ID}/" --arg since "${SINCE}" '
                   [ .check_runs[]
                     | select(.name == "summary")
-                    | select(.html_url | contains($run) | not)
                     | select(.status == "completed")
-                    | .conclusion
-                  ] | first // empty' || true)
+                    | select(.started_at > $since)
+                    | select(.html_url | contains($run) | not)
+                  ]
+                  | sort_by(.started_at) | last | .conclusion // empty' || true)
             if [[ -n "${VERDICT}" ]]; then
               break
             fi
