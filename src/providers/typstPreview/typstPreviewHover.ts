@@ -15,8 +15,8 @@ import { surfaceSettings, type TypstSurfaceSettings } from "./typstPreviewSettin
 /**
  * How much image a hover carries.
  *
- * A base64 string is a third larger than the image, and the whole of it is
- * rendered inside a tooltip that appears and disappears with the pointer. A
+ * This bounds the data URI, not the SVG it encodes: base64 inflates the raw
+ * image by a third, and the URI, not the SVG, is what the hover renders. A
  * dense page of glyph outlines takes long enough to decode that the hover
  * arrives after the pointer has moved on, so above this the reader is sent to
  * the panel, which renders once and stays.
@@ -103,12 +103,13 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 			// A hover cannot size an image, so the root element is scaled instead and
 			// the `viewBox` is left alone, which keeps the drawing filling it.
 			const clamped = clampSvg(result.svg, maxHeight);
-			if (clamped.length > IMAGE_LIMIT_BYTES) {
+			const uri = svgDataUri(clamped);
+			if (uri.length > IMAGE_LIMIT_BYTES) {
 				markdown.appendText(
 					"The compiled image is too large for a hover. Run Quarto Wizard: Preview Typst Block to see it in the panel.",
 				);
 			} else {
-				markdown.appendMarkdown(`![The compiled Typst block.](${svgDataUri(clamped)})`);
+				markdown.appendMarkdown(`![The compiled Typst block.](${uri})`);
 			}
 		}
 		if (result.error !== undefined) {

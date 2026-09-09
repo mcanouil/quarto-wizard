@@ -420,6 +420,46 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should point at the panel for an image whose data URI alone is too large", async () => {
+		// The guard used to measure the raw SVG, which the markdown never carries.
+		// An image in the gap between the raw limit and the base64 limit passed the
+		// guard and reached VS Code as a literal `![...](data:...)` string, because
+		// the URI was too long for VS Code to parse as an image.
+		const prefix = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"><!--';
+		const suffix = "--></svg>";
+		const padded = prefix + "x".repeat(240_000 - prefix.length - suffix.length) + suffix;
+		assert.strictEqual(padded.length, 240_000, "the fixture itself must land at the intended length");
+		assert.ok(padded.length < 256 * 1024, "the raw SVG must be under the raw limit");
+		assert.ok(
+			Buffer.from(padded, "utf-8").toString("base64").length > 256 * 1024,
+			"the encoded image must be over the limit",
+		);
+		const controller = makeController(new StubCompiler({ svg: padded, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("panel"), `unexpected hover: ${hoverText(shown)}`);
+		assert.ok(
+			!hoverText(shown).includes("data:image/svg+xml"),
+			`the oversized URI reached the hover: ${hoverText(shown)}`,
+		);
+		controller.dispose();
+	});
+
+	test("Should still show an image well under the data URI limit", async () => {
+		// The guard above must not be simply always on.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/svg+xml"), `no image in the hover: ${hoverText(shown)}`);
+		controller.dispose();
+	});
+
 	test("Should offer no hover when the document asks for another surface", async () => {
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
