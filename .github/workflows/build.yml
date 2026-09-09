@@ -310,12 +310,17 @@ jobs:
         # satisfied. The guards above are what keep a draft off the runners; the
         # cost of this step is one job that ends in seconds.
         #
-        # Two questions, and a payload answers only the first. The payload is
-        # frozen at the moment its event fired, so it says what this run built,
-        # while the pull request may have changed since. Both have to hold for
-        # a pass: this run must have built the matrix, and the pull request must
-        # be ready now. Reporting on the payload alone made the verdict depend
-        # on which of two racing runs spoke last.
+        # The live state decides, and the payload only says what this run built.
+        # Marking a draft ready starts two runs, and the concurrency group above
+        # keeps both alive on purpose, so both report a check named `summary` on
+        # one commit. GitHub resolves a required context to the check run that
+        # started last, and not to the one that passed, so a run that built
+        # nothing must never fail: two seconds of scheduling order is enough to
+        # leave a ready pull request red with no event left to clear it.
+        #
+        # A ready pull request always has a sibling run that built the matrix,
+        # and that run carries the verdict. This step therefore answers one
+        # question only, which is whether the pull request is a draft now.
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -344,7 +349,7 @@ jobs:
             IS_DRAFT="${BUILT_AS_DRAFT}"
           fi
 
-          if [[ "${BUILT_AS_DRAFT}" != "true" && "${IS_DRAFT}" != "true" ]]; then
+          if [[ "${IS_DRAFT}" != "true" ]]; then
             exit 0
           fi
           {
@@ -354,12 +359,9 @@ jobs:
               echo "This pull request went back to being a draft after the run started."
               echo "The matrix ran, but on the state the pull request has left."
               echo "Mark it ready for review to get a verdict on the state it has now."
-            elif [[ "${IS_DRAFT}" == "true" ]]; then
+            else
               echo "This pull request is a draft, so the build matrix did not run."
               echo "Mark it ready for review to build it."
-            else
-              echo "This run started while the pull request was a draft, so it built nothing."
-              echo "The run started by marking it ready for review carries the verdict."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
           exit 1
