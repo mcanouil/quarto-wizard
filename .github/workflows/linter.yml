@@ -4,7 +4,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.action }}-${{ github.ref }}-${{ github.event_name }}
+  # `github.action` is the step identifier and is empty here, and this
+  # workflow answers one event, so neither grouped anything.
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions: read-all
