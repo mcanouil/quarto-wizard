@@ -45,10 +45,9 @@
 		"@types/node": "^26.1.1",
 		"@types/semver": "^7.7.1",
 		"@types/unzipper": "^0.10.11",
-		"@vitest/coverage-v8": "^4.1.10",
 		"archiver": "^8.0.0",
 		"typescript": "^6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^5.0.0"
 	},
 	"engines": {
 		"node": ">=25.0.0"
