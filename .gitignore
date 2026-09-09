@@ -23,3 +23,6 @@ node_modules
 /.luarc.json
 /.quarto/
 **/*.quarto_ipynb
+
+# Subagent-driven development scratch
+.superpowers/
