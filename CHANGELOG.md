@@ -9,7 +9,7 @@
 
 ### Bug Fixes
 
-- fix: Read an inline span carrying the `.typst` class as plain code, the way the block form of that class is read. The span no longer needs the `typst-render` extension installed, and no option of a cell applies to it. (#444)
+- fix: Read an inline span carrying the `.typst` class as plain code, the way the block form of that class is read. The span no longer needs the `typst-render` extension installed, and no option of a cell applies to it. (#445)
 - docs: Point the social card of the documentation website at the image that exists, so a link to the site shows a card. (#441)
 - fix: Read the options of an output format from the top level of the metadata in the Lua reference validator. The format name is never a metadata key, so `validate_format` collected nothing and passed whatever the document wrote. (#439)
 - fix: Offer the panel when a compiled Typst image is too large for a hover. The hover measured the image and not the text it carries, so a large image printed as unreadable markup. (#436)
