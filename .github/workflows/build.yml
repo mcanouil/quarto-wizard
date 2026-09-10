@@ -204,7 +204,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: quarto-wizard-${{ github.sha }}-${{ matrix.os }}-${{ matrix.node-version }}
+          name: quarto-wizard-${{ github.sha }}
           path: quarto-wizard.vsix
           retention-days: 10
 
@@ -331,6 +331,22 @@ jobs:
           mkdir -p job-summaries
 
           lua_summary="job-summaries/job-summary-lua/job-summary.txt"
+          mapfile -t summary_files < <(find job-summaries -type f -name "job-summary.txt")
+          successful_cells=0
+
+          # The verdict comes from the job results, which are reported whatever
+          # a job managed to upload. A matrix cell killed by its timeout leaves
+          # no summary file, so counting files would call that run a success.
+          # A skipped job is not a failure: this job is the required check, so
+          # a pull request that changes no build input has nothing to run and
+          # must still report a verdict.
+          failed_names=""
+          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
+            case "${job#*:}" in
+              "success" | "skipped") ;;
+              *) failed_names="${failed_names} ${job}" ;;
+            esac
+          done
 
           {
             echo "# 🚀 Quarto Wizard Build & Test Results"
@@ -352,13 +368,13 @@ jobs:
             # The table reports the cells that uploaded a summary. A cell killed by
             # its timeout never reaches its upload step, so the table can be short.
             # The verdict below therefore comes from the job results, not from here.
-            find job-summaries -type f -name "job-summary.txt" 2>/dev/null | while read -r summary_file; do
+            for summary_file in "${summary_files[@]}"; do
               os=$(grep "OS:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
               node=$(grep "Node:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
               status=$(grep "Status:" "${summary_file}" | cut -d' ' -f2- || echo "unknown")
               timestamp=$(grep "Timestamp:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
               case "${status}" in
-                "success") status_emoji="✅" ;;
+                "success") status_emoji="✅" ; successful_cells=$((successful_cells + 1)) ;;
                 "failure") status_emoji="❌" ;;
                 "cancelled") status_emoji="🟡" ;;
                 *) status_emoji="⚠️" ;;
@@ -374,33 +390,13 @@ jobs:
             echo "## 📈 Summary Statistics"
             echo ""
 
-            # The table loop runs in a subshell, so its counters are lost. Recount
-            # the reported cells here. These describe the table, not the verdict.
-            reported_cells=$(find job-summaries -type f -name "job-summary.txt" 2>/dev/null | wc -l)
-            successful_cells=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; 2>/dev/null | wc -l)
-
-            echo "- **Reported Cells**: ${reported_cells// /}"
-            echo "- **Successful**: ${successful_cells// /} ✅"
+            # These describe the table, not the verdict.
+            echo "- **Reported Cells**: ${#summary_files[@]}"
+            echo "- **Successful**: ${successful_cells} ✅"
             echo "- **Build Matrix**: ${{ needs.build.result }}"
             echo "- **Lua reference validator**: ${{ needs.lua.result }}"
             echo ""
-          } >> "${GITHUB_STEP_SUMMARY}"
 
-          # The verdict comes from the job results, which are reported whatever
-          # a job managed to upload. A matrix cell killed by its timeout leaves
-          # no summary file, so counting files would call that run a success.
-          # A skipped job is not a failure: this job is the required check, so
-          # a pull request that changes no build input has nothing to run and
-          # must still report a verdict.
-          failed_names=""
-          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
-            case "${job#*:}" in
-              "success" | "skipped") ;;
-              *) failed_names="${failed_names} ${job}" ;;
-            esac
-          done
-
-          {
             if [[ -z "${failed_names}" ]]; then
               echo "## 🎉 Overall Result: SUCCESS"
               if [[ "${{ needs.changes.outputs.code }}" == "true" ]]; then
