@@ -28,12 +28,31 @@ export interface TypstCommand {
 	argv: string[];
 	/** The directory to run from, absent when the document names none. */
 	cwd?: string;
+	/**
+	 * What the image is, so a caller knows whether the output is text or bytes.
+	 *
+	 * Beside the argv that asks for it, because reading the format back out of
+	 * the arguments is a second place for the two to disagree, and decoding a
+	 * raster as text is not a mistake that reports itself.
+	 */
+	format: TypstImageFormat;
+	/**
+	 * The resolution a raster was compiled at, absent for a vector.
+	 *
+	 * A raster says how many pixels it holds and never how large the page was,
+	 * so the two together are what a surface reads a page size from. Assuming
+	 * one resolution reads a scaled raster as a smaller page.
+	 */
+	ppi?: number;
 }
+
+/** The formats a surface can ask a block to compile as. */
+export type TypstImageFormat = "svg" | "png";
 
 /** The arguments that read the source from stdin and write the image to stdout. */
 const STDIO: readonly string[] = ["-", "-"];
 
-/** The image format every surface can show, whatever the cell asks to render as. */
+/** The vector every surface can show, whatever the cell asks to render as. */
 const FORMAT: readonly string[] = ["compile", "--format", "svg"];
 
 /**
@@ -119,6 +138,15 @@ export interface TypstCommandRequest {
 	/** The text fill of the mode in force, absent when the cell sets none. */
 	foreground?: string;
 	paths: TypstPaths;
+	/**
+	 * The resolution a raster is wanted at, absent when a vector is wanted.
+	 *
+	 * A hover asks for one, because it carries its image inside a data URI and a
+	 * raster of the size shown is shorter than a page of glyph outlines. The
+	 * panel asks for none: it renders once and stays, and a reader looking at it
+	 * can see the difference between a vector and a raster.
+	 */
+	raster?: { ppi: number };
 }
 
 /**
@@ -128,12 +156,15 @@ export interface TypstCommandRequest {
  * author who writes `typst-render-background` in their own `input:` mapping has
  * it overridden by the resolved colour, the same way a render does.
  *
- * `--ppi` is not emitted, because the preview compiles to SVG and the flag reads
- * on a raster format alone.
+ * `--ppi` is emitted for a raster alone, because the flag reads on a raster
+ * format and says nothing about a vector. The filter compiles to SVG and never
+ * emits it; a hover asks for a raster of its own, which is a surface the filter
+ * has no equivalent of rather than a departure from what it renders.
  */
 export function buildTypstCommand(request: TypstCommandRequest): TypstCommand {
-	const { global = {}, paths } = request;
-	const argv = [...FORMAT];
+	const { global = {}, paths, raster } = request;
+	const format: TypstImageFormat = raster === undefined ? "svg" : "png";
+	const argv = raster === undefined ? [...FORMAT] : ["compile", "--format", format, "--ppi", String(raster.ppi)];
 
 	const root = resolveCompileRoot(global.root === undefined ? undefined : String(global.root), paths);
 	if (root !== undefined) {
@@ -166,7 +197,7 @@ export function buildTypstCommand(request: TypstCommandRequest): TypstCommand {
 	}
 
 	argv.push(...STDIO);
-	return { argv, cwd: compileCwd(paths) };
+	return { argv, cwd: compileCwd(paths), format, ppi: raster?.ppi };
 }
 
 /**

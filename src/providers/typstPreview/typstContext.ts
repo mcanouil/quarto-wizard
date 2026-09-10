@@ -274,6 +274,7 @@ export async function buildCompileRequest(
 	header: string,
 	cache: TypstContextCache,
 	brandMode?: TypstBrandMode,
+	raster?: { ppi: number },
 ): Promise<CompileRequest | Unavailable> {
 	const text = document.getText();
 	// The whole list is kept, because a raw block compiles with the raw blocks
@@ -300,7 +301,7 @@ export async function buildCompileRequest(
 		// Neither kind reaches the filter, so neither carries an option of it. The
 		// directory of the document is the whole answer, and finding it costs no
 		// read, which is what keeps these two off the disk entirely.
-		const command = buildTypstCommand({ paths: { documentDirectory: documentDirectoryOf(document) } });
+		const command = buildTypstCommand({ paths: { documentDirectory: documentDirectoryOf(document) }, raster });
 		return { block, blockIndex, ...assembled, command, notes, bodyLineOffset: 0 };
 	}
 
@@ -331,6 +332,7 @@ export async function buildCompileRequest(
 		// document cannot be paired with the halves of another.
 		paths: chain,
 		readFile: (documentPath) => readTypstFile(documentPath, chain),
+		raster,
 	});
 	if (isUnavailable(built)) {
 		return built;

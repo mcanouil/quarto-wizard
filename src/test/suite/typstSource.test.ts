@@ -220,5 +220,22 @@ suite("Typst Source Test Suite", () => {
 			// A span carries no option run, so nothing of the body sits above the code.
 			assert.strictEqual(built.bodyLineOffset, 0);
 		});
+
+		test("Should ask for a raster when the surface asks for one", async () => {
+			// A hover shows a raster, and it shows one for a span as much as for a
+			// fence. A span left compiling a vector renders nothing at all there.
+			const [unit] = findTypstInlines("Value: `{typst} #calc.pi`.\n");
+			const built = await buildInlineCell(unit, {
+				levels: [],
+				brand: EMPTY_BRAND,
+				mode: "light",
+				paths: {},
+				readFile: () => Promise.resolve(undefined),
+				raster: { ppi: 144 },
+			});
+			assert.ok(!isUnavailable(built));
+			assert.strictEqual(built.command.format, "png");
+			assert.strictEqual(built.command.ppi, 144);
+		});
 	});
 });
