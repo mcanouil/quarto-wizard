@@ -499,9 +499,9 @@ jobs:
         shell: bash
         run: |
           # This job has no checkout and no `node_modules`, so `npx` downloads
-          # the package. Naming it in full keeps the deprecated `vsce` package
-          # of the same name out of the call.
-          PUBLISHED=$(npx @vscode/vsce show mcanouil.quarto-wizard --json 2>/dev/null \
+          # the package, which is what `--yes` is for. Naming it in full keeps
+          # the deprecated `vsce` package of the same name out of the call.
+          PUBLISHED=$(npx --yes @vscode/vsce show mcanouil.quarto-wizard --json 2>/dev/null \
             | jq -r --arg v "${VERSION}" '.versions[]? | select(.version == $v) | .version' \
             | head -n 1) || PUBLISHED=""
           if [ -n "${PUBLISHED}" ]; then
@@ -513,7 +513,7 @@ jobs:
           if [ "${TYPE}" = "pre-release" ]; then
             PRERELEASE_FLAG="--pre-release"
           fi
-          npx @vscode/vsce publish ${PRERELEASE_FLAG} \
+          npx --yes @vscode/vsce publish ${PRERELEASE_FLAG} \
             --packagePath "quarto-wizard-${VERSION}.vsix" \
             --pat "${VS_MARKETPLACE_TOKEN}"
 

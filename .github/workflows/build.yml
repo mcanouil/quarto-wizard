@@ -124,7 +124,7 @@ jobs:
       - name: Lint schema package
         shell: bash
         working-directory: packages/schema
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Test schema package
         shell: bash
@@ -134,7 +134,7 @@ jobs:
       - name: Lint snippets package
         shell: bash
         working-directory: packages/snippets
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Test snippets package
         shell: bash
@@ -144,7 +144,7 @@ jobs:
       - name: Lint core package
         shell: bash
         working-directory: packages/core
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Test core package
         shell: bash
@@ -163,7 +163,7 @@ jobs:
 
       - name: Run linter
         shell: bash
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Compile TypeScript
         shell: bash
@@ -203,10 +203,8 @@ jobs:
         if: always()
         shell: bash
         run: |
-          # `job.status` is the status of this job so far, which this step
-          # reads because it runs with `if: always()`. The step used to name
-          # every step of the job instead, so a step that nobody added to that
-          # list reported success when it failed.
+          # `job.status` holds the status of this job so far, which this step
+          # can read because it runs with `if: always()`.
           {
             echo "OS: ${{ matrix.os }}"
             echo "Node: ${{ matrix.node-version }}"
@@ -238,7 +236,6 @@ jobs:
           version: pre-release
 
       - name: Test Lua reference validator
-        id: test-lua
         shell: bash
         working-directory: packages/schema
         run: npm run test:lua
@@ -250,7 +247,7 @@ jobs:
           {
             echo "OS: ubuntu-latest (Lua)"
             echo "Node: n/a"
-            echo "Status: ${{ steps.test-lua.outcome }}"
+            echo "Status: ${{ job.status }}"
             echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           } > job-summary.txt
 
