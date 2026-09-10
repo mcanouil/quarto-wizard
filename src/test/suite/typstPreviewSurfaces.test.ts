@@ -376,6 +376,22 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should show a raster for an inline span as well as a fence", async () => {
+		// A span is a surface of its own, and it reached the compiler asking for a
+		// vector while every fence asked for a raster, so a hover over one showed
+		// nothing at all. The raw form is used here because it needs no extension
+		// installed in the workspace.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS + "\nValue: `#calc.pi`{=typst}\n");
+		const inline = new vscode.Position(14, 10);
+
+		const shown = await hover.provideHover(document, inline, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"), `no image for a span: ${hoverText(shown)}`);
+		controller.dispose();
+	});
+
 	test("Should offer no hover for a raster it cannot read", async () => {
 		// Bytes that are not a raster carry no size, so there is nothing to show
 		// and nothing to say. An empty hover is a widget with no content in it.
