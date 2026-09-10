@@ -1,16 +1,6 @@
 import * as assert from "assert";
 import { pngDataUri, pngSize, rasterPpi } from "../../utils/typst/typstRaster";
-
-/** A PNG header declaring one size, which is all `pngSize` reads. */
-function pngHeader(width: number, height: number): Buffer {
-	const png = Buffer.alloc(24);
-	Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(png, 0);
-	png.writeUInt32BE(13, 8);
-	png.write("IHDR", 12, "ascii");
-	png.writeUInt32BE(width, 16);
-	png.writeUInt32BE(height, 20);
-	return png;
-}
+import { pngHeader } from "./pngFixtures";
 
 suite("Typst Raster Test Suite", () => {
 	test("Should read the size a PNG header declares", () => {

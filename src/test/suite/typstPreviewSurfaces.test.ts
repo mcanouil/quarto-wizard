@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { TypstPreviewController, type TypstCompilerLike } from "../../providers/typstPreview/typstPreviewController";
 import type { TypstCompileResult } from "../../providers/typstPreview/typstCompiler";
 import type { TypstCommand } from "../../utils/typst/typstCli";
+import { pngHeader } from "./pngFixtures";
 import { TypstPreviewCodeLens } from "../../providers/typstPreview/typstPreviewCodeLens";
 import { TypstPreviewHover } from "../../providers/typstPreview/typstPreviewHover";
 import {
@@ -17,15 +18,7 @@ import {
 const SVG = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"></svg>';
 
 /** A raster header declaring one size, which is all a surface reads from it. */
-function png(width: number, height: number): Buffer {
-	const bytes = Buffer.alloc(24);
-	Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes, 0);
-	bytes.writeUInt32BE(13, 8);
-	bytes.write("IHDR", 12, "ascii");
-	bytes.writeUInt32BE(width, 16);
-	bytes.writeUInt32BE(height, 20);
-	return bytes;
-}
+const png = pngHeader;
 
 /** A raster of a page that fits the hover whole, at twice the height shown. */
 const PNG = png(20, 20);
@@ -48,6 +41,7 @@ class StubCompiler implements TypstCompilerLike {
 	constructor(
 		private readonly result: TypstCompileResult,
 		raster?: TypstCompileResult,
+		private readonly rasterFor?: (ppi: number) => TypstCompileResult,
 	) {
 		// A compiler that cannot compile a block cannot compile it in either
 		// format, so a stub given a failure fails whichever one is asked for.
@@ -60,7 +54,10 @@ class StubCompiler implements TypstCompilerLike {
 		if (this.next !== undefined) {
 			return Promise.resolve(this.next);
 		}
-		return Promise.resolve(command.format === "png" ? this.raster : this.result);
+		if (command.format !== "png") {
+			return Promise.resolve(this.result);
+		}
+		return Promise.resolve(this.rasterFor?.(ppiOf(command)) ?? this.raster);
 	}
 
 	dispose(): void {
@@ -141,6 +138,12 @@ function fixedSettings(
 	codeLens = true,
 ): () => TypstSurfaceSettings {
 	return () => ({ surfaces: new Set(surfaces), maxHeight, codeLens });
+}
+
+/** Settings a test can change between hovers, as a reader changes a setting. */
+function mutableSettings(surfaces: readonly TypstPreviewSurface[], maxHeight: number) {
+	const state = { surfaces: new Set(surfaces), maxHeight, codeLens: true };
+	return { read: () => state, set: (height: number) => (state.maxHeight = height) };
 }
 
 const NO_CANCEL = new vscode.CancellationTokenSource().token;
@@ -373,6 +376,42 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// tall, shown at 100. The resolution falls by that same ratio.
 		assert.strictEqual(ppiOf(tall.commands[1]), 36);
 		assert.ok(hoverText(shown).includes('height="100"'), `no clamped height: ${hoverText(shown)}`);
+		controller.dispose();
+	});
+
+	test("Should offer no hover for a raster it cannot read", async () => {
+		// Bytes that are not a raster carry no size, so there is nothing to show
+		// and nothing to say. An empty hover is a widget with no content in it.
+		const unreadable = { png: Buffer.from("not a raster", "utf-8"), stderr: "" };
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }, unreadable));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.strictEqual(shown, undefined, "a raster with no size is not a hover");
+		controller.dispose();
+	});
+
+	test("Should size a held raster by the resolution it was compiled at", async () => {
+		// A held raster can be the scaled one from a taller page, so its height is
+		// not the page at the plain resolution. Reading the page size from the
+		// pixels alone would report the height of the hover that scaled it.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: png(100, 800), stderr: "" }, (ppi) => ({
+			png: png(100, Math.round((800 * ppi) / 144)),
+			stderr: "",
+		}));
+		const controller = makeController(compiler);
+		const settings = mutableSettings(["hover"], 100);
+		const hover = new TypstPreviewHover(controller, () => settings.read());
+		const document = await quartoDocument(THREE_KINDS);
+
+		// A page of 400 points, shown at 100, so the second pass renders 200 pixels.
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		settings.set(400);
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes('height="400"'), `the page was mis-sized: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 

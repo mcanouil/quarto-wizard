@@ -96,6 +96,11 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		if (token.isCancellationRequested) {
 			return undefined;
 		}
+		// Bytes that carry no size are not an image, so a result holding only those
+		// has nothing to show and nothing to say.
+		if (raster === undefined && result.error === undefined) {
+			return undefined;
+		}
 		return new vscode.Hover(this.describe(result, raster), range);
 	}
 
@@ -149,7 +154,10 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		if (size === undefined) {
 			return undefined;
 		}
-		const pageHeight = size.height / PIXELS_PER_POINT;
+		// The pixels alone do not say how large the page is. A held raster can be
+		// the scaled one from a taller page, and reading it at the plain resolution
+		// would report the height of the hover that scaled it as the page.
+		const pageHeight = (size.height * POINTS_PER_INCH) / (first.ppi ?? PIXELS_PER_POINT * POINTS_PER_INCH);
 		if (pageHeight <= maxHeight) {
 			return { png: first.png, shownHeight: pageHeight };
 		}

@@ -120,6 +120,8 @@ export interface TypstPreviewResult {
 	 * surface a reader can zoom stays a vector.
 	 */
 	png?: Buffer;
+	/** The resolution `png` was compiled at, which is how its page size is read. */
+	ppi?: number;
 	/** What the surface says about the block beside the image. */
 	header: string;
 	/** The one line a failure shows, absent when the compile produced an image. */
@@ -830,6 +832,9 @@ export class TypstPreviewController implements vscode.Disposable {
 			brandMode: request.brandMode,
 			svg: compiled.svg ?? (sameBlock ? previous?.svg : undefined),
 			png: compiled.png ?? (sameBlock ? previous?.png : undefined),
+			// Beside the raster and never apart from it: a carried image keeps the
+			// resolution it was compiled at, not the one this compile asked for.
+			ppi: compiled.png === undefined ? (sameBlock ? previous?.ppi : undefined) : request.command.ppi,
 			header: headerText(document, request),
 			error: image === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};

@@ -36,6 +36,14 @@ export interface TypstCommand {
 	 * raster as text is not a mistake that reports itself.
 	 */
 	format: TypstImageFormat;
+	/**
+	 * The resolution a raster was compiled at, absent for a vector.
+	 *
+	 * A raster says how many pixels it holds and never how large the page was,
+	 * so the two together are what a surface reads a page size from. Assuming
+	 * one resolution reads a scaled raster as a smaller page.
+	 */
+	ppi?: number;
 }
 
 /** The formats a surface can ask a block to compile as. */
@@ -189,7 +197,7 @@ export function buildTypstCommand(request: TypstCommandRequest): TypstCommand {
 	}
 
 	argv.push(...STDIO);
-	return { argv, cwd: compileCwd(paths), format };
+	return { argv, cwd: compileCwd(paths), format, ppi: raster?.ppi };
 }
 
 /**
