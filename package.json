@@ -64,9 +64,9 @@
 	],
 	"main": "./dist/extension",
 	"scripts": {
-		"build:schema": "cd packages/schema && npm run build",
-		"build:snippets": "cd packages/snippets && npm run build",
-		"build:core": "cd packages/core && npm run build",
+		"build:schema": "npx tsc -p packages/schema && node packages/schema/scripts/copy-schemas.mjs",
+		"build:snippets": "npx tsc -p packages/snippets",
+		"build:core": "npx tsc -p packages/core",
 		"vscode:prepublish": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --mode production",
 		"webpack": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --mode development --stats-error-details",
 		"watch": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --watch --mode development --stats-error-details",
