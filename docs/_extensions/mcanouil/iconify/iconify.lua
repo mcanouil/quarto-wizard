@@ -1,4 +1,4 @@
---- @module iconify
+--- @module "iconify"
 --- @license MIT
 --- @copyright 2026 Mickaël Canouil
 --- @author Mickaël Canouil
@@ -7,10 +7,27 @@
 local EXTENSION_NAME = "iconify"
 
 --- Load modules
-local str = require(quarto.utils.resolve_path('_modules/string.lua'):gsub('%.lua$', ''))
-local log = require(quarto.utils.resolve_path('_modules/logging.lua'):gsub('%.lua$', ''))
-local meta_mod = require(quarto.utils.resolve_path('_modules/metadata.lua'):gsub('%.lua$', ''))
+local str = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/string.lua'):gsub('%.lua$', ''))
+local log = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/logging.lua'):gsub('%.lua$', ''))
+local meta_mod = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/metadata.lua'):gsub('%.lua$', ''))
 local typst = require(quarto.utils.resolve_path('_modules/typst.lua'):gsub('%.lua$', ''))
+local schema = require(quarto.utils.resolve_path('_vendor/quarto-wizard/schema.lua'):gsub('%.lua$', ''))
+local check = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/schema-check.lua'):gsub('%.lua$', ''))
+
+--- The schema check, built once and reused by every shortcode call. It reads
+--- `_schema.yml` on the way in, checks the document configuration once, and
+--- checks each call against the entry that describes it.
+---
+--- The validator is injected rather than required by the check module, so the
+--- two vendored sources stay independent of where the other was placed.
+---
+--- The check runs from here rather than from the companion filter because that
+--- filter is opt-in (`filters: [iconify]`), while a shortcode always runs when
+--- there is an icon to render.
+---
+--- A schema that cannot be read is reported by the module as an error and the
+--- render carries on: a configuration file must not stop a document.
+local checker = check.new(schema, EXTENSION_NAME)
 
 --- Per-key deprecation warning tracker. Each deprecated metadata key warns
 --- at least once per render rather than once total. The companion filter
@@ -270,10 +287,65 @@ local function recover_kwargs(args, kwargs)
   return positional
 end
 
+--- Render a resolved option for the string contract every caller expects.
+--- A schema `inline: true` therefore reads as "true", which is what
+--- `meta_mod.get_metadata_value` produces for the same value in metadata.
+--- @param value any A value from the schema, of any scalar type
+--- @return string
+local function option_to_string(value)
+  local kind = type(value)
+  if kind == 'string' then
+    return value
+  end
+  if kind == 'number' or kind == 'boolean' then
+    return tostring(value)
+  end
+  return ''
+end
+
+--- Get a document-level option, ignoring shortcode attributes.
+--- Resolution order: nested `extensions.iconify.<key>`, then the deprecated
+--- top-level `iconify.<key>` (with a per-key deprecation warning), then the
+--- default declared in `_schema.yml`.
+---
+--- The schema default is deliberately last. Placed any earlier it would mask
+--- the deprecated form, because a default is always present once declared.
+---
+--- Presence is tested with `~= nil` rather than truthiness, so a deliberate
+--- `inline: false` or `typst-cache-max-age: 0` is honoured instead of being
+--- read as an absent key and replaced by its own default.
+---
+--- With no readable schema there is no tier left to fall back to, so the value
+--- is empty. The module has already reported that as an error, and the author
+--- has to restore the file rather than read a default the extension invented.
+--- @param key string The option name to retrieve
+--- @param meta table<string, any> Document metadata table
+--- @return string The option value as a string
+local function document_option(key, meta)
+  --- The second return holds the `provided`, `merged` and `defaults` tables,
+  --- and is nil when there is no readable schema. They belong to the checker
+  --- and are read, never written to. The first return is a copy of the
+  --- defaults, which `options.defaults` already answers for.
+  local _, options = checker:options(meta)
+
+  if options ~= nil and options.provided[key] ~= nil then
+    return option_to_string(options.merged[key])
+  end
+
+  local deprecated_value = check_deprecated_config(meta, key)
+  if deprecated_value then
+    return deprecated_value
+  end
+
+  if options ~= nil then
+    return option_to_string(options.defaults[key])
+  end
+
+  return ''
+end
+
 --- Get an iconify option from arguments or metadata.
---- Resolution order: positional/named kwargs first, then nested
---- `extensions.iconify.<key>`, then the deprecated top-level `iconify.<key>`
---- (with a per-key deprecation warning).
+--- The shortcode attribute wins, then the document tiers in `document_option`.
 --- @param x string The option name to retrieve
 --- @param arg table<string, any> Arguments table containing options
 --- @param meta table<string, any> Document metadata table
@@ -286,17 +358,24 @@ local function get_iconify_options(x, arg, meta)
     return arg_value
   end
 
-  local meta_value = meta_mod.get_metadata_value(meta, 'iconify', x)
-  if not str.is_empty(meta_value) then
-    return meta_value
-  end
+  return document_option(x, meta)
+end
 
-  local deprecated_value = check_deprecated_config(meta, x)
-  if deprecated_value then
-    return deprecated_value
-  end
-
-  return arg_value
+--- Collect the Typst cache options for the typst module.
+--- The module holds no default of its own, so both the value and the
+--- last-resort fallback are read from `_schema.yml` here.
+--- @param meta table<string, any> Document metadata
+--- @return table<string, string>
+local function typst_cache_options(meta)
+  local _, options = checker:options(meta)
+  return {
+    cache_dir = document_option('typst-cache', meta),
+    cache_fallback = options
+      and option_to_string(options.defaults['typst-cache'])
+      or '',
+    max_age_days = document_option('typst-cache-max-age', meta),
+    max_entries = document_option('typst-cache-max-entries', meta),
+  }
 end
 
 --- Render an Iconify icon as a Typst `#image`, delegating retrieval and
@@ -358,6 +437,9 @@ local function render_typst(icon, set, default_label, decorative, kwargs, meta)
   --- @type string
   local inline = get_iconify_options('inline', kwargs, meta)
 
+  --- @type table<string, string>
+  local cache_options = typst_cache_options(meta)
+
   --- @type any
   local result = typst.render({
     set = set,
@@ -367,25 +449,37 @@ local function render_typst(icon, set, default_label, decorative, kwargs, meta)
     inline = str.is_empty(inline) or inline ~= 'false',
     alt = alt,
     fallback = get_iconify_options('fallback', kwargs, meta),
-    meta = meta
+    options = cache_options
   })
 
   -- Prune the cache once per render, after at least one icon has populated it.
   if not typst_cleanup_done then
     typst_cleanup_done = true
-    typst.cleanup(meta)
+    typst.cleanup(cache_options)
   end
 
   return result
 end
 
 --- Render an Iconify icon as a Pandoc RawInline for HTML output.
+--- Expects `args` to have been through `recover_kwargs` already, and does not
+--- validate: each shortcode entry point checks its own call against the
+--- schema entry that describes it.
 --- @param args table<integer, any> Icon arguments (icon set and name)
 --- @param kwargs table<string, any> Key-value options for the icon
 --- @param meta table<string, any> Document metadata
 --- @return any Pandoc RawInline for HTML or Pandoc Null for other formats
-local function iconify(args, kwargs, meta)
-  args = recover_kwargs(args, kwargs)
+local function render_icon(args, kwargs, meta)
+
+  -- Checked before the format gate below, so a call with no icon is handled
+  -- the same way for every output format rather than only the two that render
+  -- something. An empty first argument counts as no icon, which is what the
+  -- schema's `required` check already decided, so the two agree.
+  -- The schema check has reported this to the author; there is nothing to add
+  -- here beyond not reading a first argument that is not there.
+  if #args == 0 or str.is_empty(str.stringify(args[1])) then
+    return pandoc.Null()
+  end
 
   -- HTML (excluding epub which will not host the Web Component) renders the
   -- Web Component; Typst renders a cached SVG. Every other format renders
@@ -400,19 +494,12 @@ local function iconify(args, kwargs, meta)
 
   --- @type string
   local icon = str.stringify(args[1])
-  --- @type string
-  local set = 'octicon'
 
-  -- Resolve the default icon set, preferring the nested metadata structure.
-  local meta_set = meta_mod.get_metadata_value(meta, 'iconify', 'set')
-  if not str.is_empty(meta_set) then
-    set = meta_set
-  else
-    local deprecated_set = check_deprecated_config(meta, 'set')
-    if deprecated_set then
-      set = deprecated_set
-    end
-  end
+  --- The icon set comes from the positional arguments, never from a shortcode
+  --- attribute, so this reads the document tiers only. The fallback is the
+  --- `set` default in `_schema.yml`.
+  --- @type string
+  local set = document_option('set', meta)
 
   if #args > 1 and string.find(str.stringify(args[2]), ':') then
     log.log_warning(
@@ -575,6 +662,18 @@ local function iconify(args, kwargs, meta)
   )
 end
 
+--- The `iconify` shortcode: check the call, then render it.
+--- @param args table<integer, any> Icon arguments (icon set and name)
+--- @param kwargs table<string, any> Key-value options for the icon
+--- @param meta table<string, any> Document metadata
+--- @return any Pandoc RawInline for HTML or Pandoc Null for other formats
+local function iconify(args, kwargs, meta)
+  checker:options(meta)
+  args = recover_kwargs(args, kwargs)
+  checker:call('iconify', args, kwargs)
+  return render_icon(args, kwargs, meta)
+end
+
 --- Render Quarto icon using the iconify function with preset styling.
 --- @param args table<integer, any> Icon arguments (the icon is a preset, so these are read only for attributes a metadata field left unparsed)
 --- @param kwargs table<string, any>|nil Key-value options that might override default styling
@@ -585,7 +684,9 @@ local function iconify_quarto(args, kwargs, meta)
   local quarto_args = { 'simple-icons:quarto' }
   --- @type table<string, any>
   local quarto_kwargs = kwargs or {}
+  checker:options(meta)
   recover_kwargs(args, quarto_kwargs)
+  checker:call('quarto', {}, quarto_kwargs)
   -- A decorative icon carries neither, and setting them here would re-introduce
   -- exactly what `aria-hidden` removes.
   if not is_decorative(quarto_kwargs, false) then
@@ -606,7 +707,7 @@ local function iconify_quarto(args, kwargs, meta)
   else
     quarto_kwargs['style'] = quarto_colour
   end
-  return iconify(quarto_args, quarto_kwargs, meta)
+  return render_icon(quarto_args, quarto_kwargs, meta)
 end
 
 --- @type table<string, function>
