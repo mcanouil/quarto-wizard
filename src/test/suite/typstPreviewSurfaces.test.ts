@@ -94,22 +94,6 @@ function nextResultFor(
 	});
 }
 
-/** Run an action and wait for the result it publishes. */
-function nextPublished(controller: TypstPreviewController, act: () => void): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const timer = setTimeout(() => {
-			subscription.dispose();
-			reject(new Error("no result was published"));
-		}, 2000);
-		const subscription = controller.onDidChangeResult(() => {
-			clearTimeout(timer);
-			subscription.dispose();
-			resolve();
-		});
-		act();
-	});
-}
-
 /** Settings that answer the same way for every document. */
 function fixedSettings(
 	surfaces: readonly TypstPreviewSurface[],
@@ -288,15 +272,22 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	test("Should keep a failure out of the HTML part when both reach one hover", async () => {
 		// A failure keeps the last good image of the same block behind it, so a
 		// hover can carry an image and a message at once. That is the case the
-		// split exists for, and the one where merging them would be a defect.
+		// split exists for, and the one where merging them would be a defect. It is
+		// also the ordinary one: a working block edited into a broken one.
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
-		await nextResultFor(controller, document, INSIDE_PLAIN);
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 		compiler.next = { stderr: "error: unexpected <script>alert(1)</script>\n" };
-		await nextPublished(controller, () => controller.reload());
+		// The body of the block, so the source changes and the compile is not
+		// answered out of the cache. The line is inserted above the one the
+		// position names, which leaves the position inside the same block.
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(document.uri, new vscode.Position(INSIDE_PLAIN.line, 0), "#line()\n");
+		assert.ok(await vscode.workspace.applyEdit(edit), "the fixture edit must apply");
+
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
 		const parts = hoverParts(shown);
