@@ -2,6 +2,8 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import { TypstPreviewController, type TypstCompilerLike } from "../../providers/typstPreview/typstPreviewController";
 import type { TypstCompileResult } from "../../providers/typstPreview/typstCompiler";
+import type { TypstCommand } from "../../utils/typst/typstCli";
+import { pngHeader } from "./pngFixtures";
 import { TypstPreviewCodeLens } from "../../providers/typstPreview/typstPreviewCodeLens";
 import { TypstPreviewHover } from "../../providers/typstPreview/typstPreviewHover";
 import {
@@ -15,20 +17,55 @@ import {
 /** An image that is never compiled, so nothing here spawns Typst. */
 const SVG = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"></svg>';
 
-/** A compiler that answers every compile with the same image. */
+/** A raster of a page that fits the hover whole, at twice the height shown. */
+const PNG = pngHeader(20, 20);
+
+/**
+ * A compiler that answers every compile with the same image.
+ *
+ * Answers in the format the command asks for, the way Typst does, so a hover
+ * asking for a raster is not handed a vector it cannot read.
+ */
 class StubCompiler implements TypstCompilerLike {
 	readonly sources: string[] = [];
+	readonly commands: TypstCommand[] = [];
 
-	constructor(private readonly result: TypstCompileResult) {}
+	/** What the next compile answers with, so one test can make a block fail. */
+	next: TypstCompileResult | undefined;
 
-	compile(source: string): Promise<TypstCompileResult> {
+	private readonly raster: TypstCompileResult;
+
+	constructor(
+		private readonly result: TypstCompileResult,
+		raster?: TypstCompileResult,
+		private readonly rasterFor?: (ppi: number) => TypstCompileResult,
+	) {
+		// A compiler that cannot compile a block cannot compile it in either
+		// format, so a stub given a failure fails whichever one is asked for.
+		this.raster = raster ?? (result.svg === undefined ? { stderr: result.stderr } : { png: PNG, stderr: "" });
+	}
+
+	compile(source: string, command: TypstCommand): Promise<TypstCompileResult> {
 		this.sources.push(source);
-		return Promise.resolve(this.result);
+		this.commands.push(command);
+		if (this.next !== undefined) {
+			return Promise.resolve(this.next);
+		}
+		if (command.format !== "png") {
+			return Promise.resolve(this.result);
+		}
+		return Promise.resolve(this.rasterFor?.(ppiOf(command)) ?? this.raster);
 	}
 
 	dispose(): void {
 		/* Nothing is spawned, so there is nothing to kill. */
 	}
+}
+
+/** The resolution one compile asked for, which decides how sharp it is. */
+function ppiOf(command: TypstCommand): number {
+	const at = command.argv.indexOf("--ppi");
+	return at === -1 ? 0 : Number(command.argv[at + 1]);
 }
 
 /** A document holding one plain block, one raw block and one cell. */
@@ -100,6 +137,12 @@ function fixedSettings(
 	return () => ({ surfaces: new Set(surfaces), maxHeight, codeLens });
 }
 
+/** Settings a test can change between hovers, as a reader changes a setting. */
+function mutableSettings(surfaces: readonly TypstPreviewSurface[], maxHeight: number) {
+	const state = { surfaces: new Set(surfaces), maxHeight, codeLens: true };
+	return { read: () => state, set: (height: number) => (state.maxHeight = height) };
+}
+
 const NO_CANCEL = new vscode.CancellationTokenSource().token;
 
 /** Let every pending microtask and timer of the current pass run. */
@@ -107,10 +150,21 @@ function settle(delayMs = 50): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
-/** The markdown of a hover, which every assertion here reads. */
+/**
+ * The markdown of a hover, which every assertion here reads.
+ *
+ * Every part, because an image and a compiler message travel as two, so that
+ * the one that enables HTML carries nothing a compiler wrote.
+ */
 function hoverText(hover: vscode.Hover | undefined): string {
 	assert.ok(hover, "expected a hover");
-	return (hover.contents[0] as vscode.MarkdownString).value;
+	return (hover.contents as vscode.MarkdownString[]).map((part) => part.value).join("\n\n");
+}
+
+/** The parts of a hover, for an assertion about which part holds what. */
+function hoverParts(hover: vscode.Hover | undefined): vscode.MarkdownString[] {
+	assert.ok(hover, "expected a hover");
+	return hover.contents as vscode.MarkdownString[];
 }
 
 suite("Typst Preview Surfaces Test Suite", () => {
@@ -231,10 +285,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 		const shown = await hover.provideHover(document, INSIDE_RAW, NO_CANCEL);
 
-		assert.ok(
-			hoverText(shown).includes("data:image/svg+xml;base64,"),
-			`no image in the first hover: ${hoverText(shown)}`,
-		);
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"), `no image in the first hover: ${hoverText(shown)}`);
 		assert.strictEqual(compiler.sources.length, 1);
 		controller.dispose();
 	});
@@ -250,7 +301,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 		const shown = await hover.provideHover(document, new vscode.Position(14, 10), NO_CANCEL);
 
-		assert.ok(hoverText(shown).includes("data:image/svg+xml"), `no image for the span: ${hoverText(shown)}`);
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"), `no image for the span: ${hoverText(shown)}`);
 		// The header names the kind, and a span of this form is not a cell.
 		const header = controller.current()?.header ?? "";
 		assert.ok(header.includes("inline code"), `the header names the wrong kind: ${header}`);
@@ -262,6 +313,189 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		assert.ok(source.endsWith("#calc.pi"), `the span body is not what compiled: ${source}`);
 		assert.ok(!source.includes("#let a = 1"), `a passthrough chain reached the span: ${source}`);
 		assert.ok(!source.includes("bottom: 0.25em"), `the page of a cell reached the span: ${source}`);
+		controller.dispose();
+	});
+
+	test("Should centre the image inside the hover", async () => {
+		// The widget is wider than the image, because it reserves room for its copy
+		// button and because VS Code merges the hovers of several providers into
+		// one. An image left where it falls sits against the left edge of all that.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		const [image] = hoverParts(shown);
+		assert.ok(image.value.includes('<div align="center">'), `the image is not centred: ${image.value}`);
+		assert.strictEqual(image.supportHtml, true, "a centred image needs the markdown string to allow HTML");
+		controller.dispose();
+	});
+
+	test("Should keep a failure out of the HTML part when both reach one hover", async () => {
+		// A failure keeps the last good image of the same block behind it, so a
+		// hover can carry an image and a message at once. That is the case the
+		// split exists for, and the one where merging them would be a defect. It is
+		// also the ordinary one: a working block edited into a broken one.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		compiler.next = { stderr: "error: unexpected <script>alert(1)</script>\n" };
+		// The body of the block, so the source changes and the compile is not
+		// answered out of the cache. The line is inserted above the one the
+		// position names, which leaves the position inside the same block.
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(document.uri, new vscode.Position(INSIDE_PLAIN.line, 0), "#line()\n");
+		assert.ok(await vscode.workspace.applyEdit(edit), "the fixture edit must apply");
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		const parts = hoverParts(shown);
+		assert.strictEqual(parts.length, 2, `an image and a message are two parts: ${hoverText(shown)}`);
+		assert.ok(parts[0].value.includes("data:image/"), `no image in the first part: ${parts[0].value}`);
+		assert.strictEqual(parts[0].supportHtml, true, "the image part allows HTML");
+		assert.ok(!parts[0].value.includes("script"), "the message reached the part that allows HTML");
+		assert.ok(parts[1].value.includes("script"), `no message in the second part: ${parts[1].value}`);
+		assert.notStrictEqual(parts[1].supportHtml, true, "the message allows HTML");
+		controller.dispose();
+	});
+
+	test("Should show a raster, sized to the height the hover shows", async () => {
+		// A raster carries a fixed number of pixels and markdown cannot scale one,
+		// so the height comes from the markup. Twice the height is compiled and
+		// half of it asked for back, which is what keeps it sharp on a dense
+		// display.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(40, 20), stderr: "" });
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"], 200));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"), `no raster: ${hoverText(shown)}`);
+		assert.ok(hoverText(shown).includes('height="10"'), `no height on the image: ${hoverText(shown)}`);
+		assert.strictEqual(compiler.commands.length, 1, "a page the hover shows whole compiles once");
+		assert.strictEqual(ppiOf(compiler.commands[0]), 144);
+		controller.dispose();
+	});
+
+	test("Should compile a tall page again, at the resolution the hover shows it at", async () => {
+		// Twice the height shown, and never twice the page. A page taller than the
+		// hover shows is scaled down before a reader sees it, and every pixel above
+		// that ratio is length in the URI that buys nothing.
+		const tall = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(100, 800), stderr: "" });
+		const controller = makeController(tall);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"], 100));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.strictEqual(tall.commands.length, 2, "a page taller than the hover shows is compiled again");
+		assert.strictEqual(ppiOf(tall.commands[0]), 144);
+		// The first pass reported 800 pixels at 144, which is a page 400 points
+		// tall, shown at 100. The resolution falls by that same ratio.
+		assert.strictEqual(ppiOf(tall.commands[1]), 36);
+		assert.ok(hoverText(shown).includes('height="100"'), `no clamped height: ${hoverText(shown)}`);
+		controller.dispose();
+	});
+
+	test("Should show a raster for an inline span as well as a fence", async () => {
+		// A span is a surface of its own, and it reached the compiler asking for a
+		// vector while every fence asked for a raster, so a hover over one showed
+		// nothing at all. The raw form is used here because it needs no extension
+		// installed in the workspace.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS + "\nValue: `#calc.pi`{=typst}\n");
+		const inline = new vscode.Position(14, 10);
+
+		const shown = await hover.provideHover(document, inline, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"), `no image for a span: ${hoverText(shown)}`);
+		controller.dispose();
+	});
+
+	test("Should offer no hover for a raster it cannot read", async () => {
+		// Bytes that are not a raster carry no size, so there is nothing to show
+		// and nothing to say. An empty hover is a widget with no content in it.
+		const unreadable = { png: Buffer.from("not a raster", "utf-8"), stderr: "" };
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }, unreadable));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.strictEqual(shown, undefined, "a raster with no size is not a hover");
+		controller.dispose();
+	});
+
+	test("Should size a held raster by the resolution it was compiled at", async () => {
+		// A held raster can be the scaled one from a taller page, so its height is
+		// not the page at the plain resolution. Reading the page size from the
+		// pixels alone would report the height of the hover that scaled it.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(100, 800), stderr: "" }, (ppi) => ({
+			png: pngHeader(100, Math.round((800 * ppi) / 144)),
+			stderr: "",
+		}));
+		const controller = makeController(compiler);
+		const settings = mutableSettings(["hover"], 100);
+		const hover = new TypstPreviewHover(controller, () => settings.read());
+		const document = await quartoDocument(THREE_KINDS);
+
+		// A page of 400 points, shown at 100, so the second pass renders 200 pixels.
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		settings.set(400);
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes('height="400"'), `the page was mis-sized: ${hoverText(shown)}`);
+		// The room the reader made is room for pixels as well. A held raster of 200
+		// pixels stretched over 400 points is a quarter of the density asked for,
+		// so the page is read again at the resolution it is now shown at. The image
+		// served says which one that is, where a count of compiles would not: the
+		// page was already compiled at this resolution once and is answered from
+		// the cache rather than by a second process.
+		assert.ok(
+			hoverText(shown).includes(pngHeader(100, 800).toString("base64")),
+			"the hover kept the raster of the smaller height",
+		);
+		controller.dispose();
+	});
+
+	test("Should keep the raster it has when the compile of a scaled one answers nothing", async () => {
+		// A newer request supersedes a compile, and the page still has to be shown.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(100, 800), stderr: "" }, (ppi) =>
+			ppi === 144 ? { png: pngHeader(100, 800), stderr: "" } : { png: Buffer.from("superseded", "utf-8"), stderr: "" },
+		);
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"], 100));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"), `no image: ${hoverText(shown)}`);
+		assert.ok(hoverText(shown).includes('height="100"'), `the page was mis-sized: ${hoverText(shown)}`);
+		controller.dispose();
+	});
+
+	test("Should keep a compile failure out of a part that allows HTML", async () => {
+		// A Typst message is arbitrary text. Carrying it in a string that allows
+		// HTML would let angle brackets in a message reach the reader as markup.
+		const stderr = "error: unexpected <script>alert(1)</script>\n";
+		const controller = makeController(new StubCompiler({ stderr }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		for (const part of hoverParts(shown)) {
+			if (part.value.includes("script")) {
+				assert.notStrictEqual(part.supportHtml, true, "the message allows HTML");
+			}
+		}
+		assert.ok(hoverText(shown).includes("script"), `no message in the hover: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 
@@ -283,7 +517,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
-		assert.ok(hoverText(shown).includes("data:image/svg+xml;base64,"));
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"));
 		assert.strictEqual(compiler.sources.length, 1);
 		controller.dispose();
 	});
@@ -404,17 +638,22 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		controller.dispose();
 	});
 
-	test("Should answer from the preview on screen without compiling again", async () => {
+	test("Should answer a second hover of one block without compiling again", async () => {
+		// The panel compiles a vector and the hover shows a raster, so the panel
+		// cannot answer for the hover. One hover of a block still answers the next,
+		// which is what keeps a pointer moving over the same block free.
 		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
 		const controller = makeController(compiler);
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
-		await nextResultFor(controller, document, INSIDE_PLAIN);
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		const compiledOnce = compiler.sources.length;
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
-		assert.ok(hoverText(shown).includes("data:image/svg+xml;base64,"));
-		assert.strictEqual(compiler.sources.length, 1, "the block on screen is not compiled a second time");
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"));
+		assert.strictEqual(compiledOnce, 1, "the first hover compiles the block once");
+		assert.strictEqual(compiler.sources.length, 1, "a second hover of one block compiles nothing");
 		controller.dispose();
 	});
 
@@ -434,8 +673,11 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	});
 
 	test("Should point at the panel for an image too large to hover", async () => {
-		const huge = `<svg width="10pt" height="10pt">${"x".repeat(400_000)}</svg>`;
-		const controller = makeController(new StubCompiler({ svg: huge, stderr: "" }));
+		// A raster of the size shown is shorter than the vector for all but the
+		// simplest drawing, and a page dense enough still outruns what a data URI
+		// can carry. The reader is sent to the panel rather than shown markup.
+		const huge = Buffer.concat([pngHeader(20, 20), Buffer.alloc(400_000)]);
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }, { png: huge, stderr: "" }));
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
@@ -447,30 +689,21 @@ suite("Typst Preview Surfaces Test Suite", () => {
 	});
 
 	test("Should point at the panel for an image whose data URI alone is too large", async () => {
-		// The guard used to measure the raw SVG, which the markdown never carries.
-		// An image in the gap between the raw limit and the base64 limit passed the
-		// guard and reached VS Code as a literal `![...](data:...)` string, because
-		// the URI was too long for VS Code to parse as an image.
-		const prefix = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"><!--';
-		const suffix = "--></svg>";
-		const padded = prefix + "x".repeat(240_000 - prefix.length - suffix.length) + suffix;
-		assert.strictEqual(padded.length, 240_000, "the fixture itself must land at the intended length");
-		assert.ok(padded.length < 256 * 1024, "the raw SVG must be under the raw limit");
-		assert.ok(
-			Buffer.from(padded, "utf-8").toString("base64").length > 256 * 1024,
-			"the encoded image must be over the limit",
-		);
-		const controller = makeController(new StubCompiler({ svg: padded, stderr: "" }));
+		// The guard measures the URI and not the image, because the URI is what the
+		// markdown carries. An image in the gap between the two passed the guard and
+		// reached VS Code as a literal `![...](data:...)` string.
+		const raw = 200_000;
+		const padded = Buffer.concat([pngHeader(20, 20), Buffer.alloc(raw - 24)]);
+		assert.ok(padded.length < 256 * 1024, "the raw image must be under the raw limit");
+		assert.ok(padded.toString("base64").length > 256 * 1024, "the encoded image must be over the limit");
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }, { png: padded, stderr: "" }));
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
 
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
 		assert.ok(hoverText(shown).includes("panel"), `unexpected hover: ${hoverText(shown)}`);
-		assert.ok(
-			!hoverText(shown).includes("data:image/svg+xml"),
-			`the oversized URI reached the hover: ${hoverText(shown)}`,
-		);
+		assert.ok(!hoverText(shown).includes("data:image/png"), `the oversized URI reached the hover: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 
@@ -482,7 +715,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
-		assert.ok(hoverText(shown).includes("data:image/svg+xml"), `no image in the hover: ${hoverText(shown)}`);
+		assert.ok(hoverText(shown).includes("data:image/png"), `no image in the hover: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 

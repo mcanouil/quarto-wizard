@@ -112,6 +112,16 @@ export interface TypstPreviewResult {
 	brandMode?: TypstBrandMode;
 	/** The image on screen, which is the last one this block compiled to. */
 	svg?: string;
+	/**
+	 * The raster of this block, for a surface that asked for one.
+	 *
+	 * A hover carries its image inside a data URI, and a raster of the size shown
+	 * is shorter than a page of glyph outlines. The panel reads `svg`, so the
+	 * surface a reader can zoom stays a vector.
+	 */
+	png?: Buffer;
+	/** The resolution `png` was compiled at, which is how its page size is read. */
+	ppi?: number;
 	/** What the surface says about the block beside the image. */
 	header: string;
 	/** The one line a failure shows, absent when the compile produced an image. */
@@ -311,6 +321,17 @@ function isContextDocument(document: vscode.TextDocument): boolean {
 }
 
 /**
+ * How much of the budget one remembered compile takes.
+ *
+ * Whichever image the entry holds, because a raster and a vector are counted
+ * against one budget and reading the vector alone would let a session of
+ * rasters grow without any of them being counted.
+ */
+function imageBytes(compiled: TypstCompileResult | undefined): number {
+	return compiled?.svg?.length ?? compiled?.png?.length ?? 0;
+}
+
+/**
  * The state of the Typst preview, and every event that changes it.
  *
  * Nothing here spawns Typst until a surface is showing a preview or the user
@@ -438,6 +459,22 @@ export class TypstPreviewController implements vscode.Disposable {
 		return this.attempt(document, position, "surface");
 	}
 
+	/**
+	 * The same block, compiled as a raster at one resolution.
+	 *
+	 * Asked for by a surface that shows its image through a data URI, where the
+	 * length of the URI is what decides whether the image renders at all. The
+	 * resolution is part of what identifies the compile, so two surfaces asking
+	 * at two sizes do not read each other's image out of the cache.
+	 */
+	previewRaster(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+		ppi: number,
+	): Promise<TypstPreviewResult | undefined> {
+		return this.attempt(document, position, "surface", false, { ppi });
+	}
+
 	/** Preview the block under the cursor again, because something changed. */
 	refresh(): void {
 		this.compile(cursorTarget(), "background");
@@ -558,8 +595,9 @@ export class TypstPreviewController implements vscode.Disposable {
 		position: vscode.Position,
 		reason: PreviewReason,
 		fresh = false,
+		raster?: { ppi: number },
 	): Promise<TypstPreviewResult | undefined> {
-		return this.run(document, position, reason, fresh).catch((error: unknown) => {
+		return this.run(document, position, reason, fresh, raster).catch((error: unknown) => {
 			const message = getErrorMessage(error);
 			logMessage(`Typst preview: ${message}`, "error");
 			if (reason === "asked") {
@@ -610,6 +648,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		position: vscode.Position,
 		reason: PreviewReason,
 		fresh: boolean,
+		raster?: { ppi: number },
 	): Promise<TypstPreviewResult | undefined> {
 		if (this.disposed || (reason === "background" && !this.options.hasSurface())) {
 			return undefined;
@@ -666,7 +705,14 @@ export class TypstPreviewController implements vscode.Disposable {
 		// so an edit landing during a compile would stamp the new version onto the
 		// old image, and a surface trusting the stamp would serve it as current.
 		const compiledVersion = document.version;
-		const request = await buildCompileRequest(document, position, header, this.contexts, this.brandModeOverride);
+		const request = await buildCompileRequest(
+			document,
+			position,
+			header,
+			this.contexts,
+			this.brandModeOverride,
+			raster,
+		);
 		if (stale()) {
 			return undefined;
 		}
@@ -757,7 +803,8 @@ export class TypstPreviewController implements vscode.Disposable {
 			return undefined;
 		}
 
-		if (compiled.svg === undefined) {
+		const image = compiled.svg ?? compiled.png;
+		if (image === undefined) {
 			if (failure === undefined) {
 				logMessage(`Typst preview: the compiler reported:\n${compiled.stderr}`, "debug");
 			}
@@ -778,6 +825,12 @@ export class TypstPreviewController implements vscode.Disposable {
 		const previous = reason === "surface" ? this.result : this.shown();
 		const sameBlock =
 			previous?.uri.toString() === document.uri.toString() && previous?.blockIndex === request.blockIndex;
+		// Only a compile that produced nothing keeps what came before it. A compile
+		// that produced one format stamps this version of the block, and carrying
+		// the other format across would pair that version with an image compiled
+		// from text that has since changed, which a surface would then serve as
+		// current.
+		const kept = image === undefined && sameBlock ? previous : undefined;
 		this.result = {
 			uri: document.uri,
 			block: request.block,
@@ -785,9 +838,13 @@ export class TypstPreviewController implements vscode.Disposable {
 			version: compiledVersion,
 			source: request.source,
 			brandMode: request.brandMode,
-			svg: compiled.svg ?? (sameBlock ? previous?.svg : undefined),
+			svg: compiled.svg ?? kept?.svg,
+			png: compiled.png ?? kept?.png,
+			// Beside the raster and never apart from it: a carried image keeps the
+			// resolution it was compiled at, not the one this compile asked for.
+			ppi: compiled.png === undefined ? kept?.ppi : request.command.ppi,
 			header: headerText(document, request),
-			error: compiled.svg === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
+			error: image === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};
 		if (reason !== "surface") {
 			// Every other reason is a block a surface will render, so it is what the
@@ -800,7 +857,7 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Forget one compiled image, and the bytes it was counted for. */
 	private forget(key: string): void {
-		this.cacheBytes -= this.cache.get(key)?.svg?.length ?? 0;
+		this.cacheBytes -= imageBytes(this.cache.get(key));
 		this.cache.delete(key);
 	}
 
@@ -812,7 +869,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		// recently used one.
 		this.forget(key);
 		this.cache.set(key, compiled);
-		this.cacheBytes += compiled.svg?.length ?? 0;
+		this.cacheBytes += imageBytes(compiled);
 		// A `Map` iterates in insertion order and every hit is re-inserted, so the
 		// first key is the one used longest ago. Both bounds matter: the count keeps
 		// a session of small blocks from growing without end, and the byte total
@@ -823,7 +880,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			if (oldest.done) {
 				return;
 			}
-			this.cacheBytes -= this.cache.get(oldest.value)?.svg?.length ?? 0;
+			this.cacheBytes -= imageBytes(this.cache.get(oldest.value));
 			this.cache.delete(oldest.value);
 		}
 	}
