@@ -295,6 +295,11 @@ jobs:
     # No draft condition, unlike the jobs above. This is the single required
     # check, and a skipped required check does not block, so skipping here let
     # a draft reach a mergeable state with nothing built.
+    #
+    # The job id is a contract. `verdict.yml` reads the jobs of this run and
+    # selects the one whose API name is the literal `summary`. This job has no
+    # `name` key, so its API name is this job id. A `name` key added here
+    # would report every commit as not built.
     if: always()
     needs:
       - changes

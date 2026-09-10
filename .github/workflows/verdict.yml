@@ -73,8 +73,10 @@ jobs:
           # The question is about the commit and not about the run that
           # triggered this workflow. Every build run for this head SHA is
           # read, so two verdict runs on one commit reach the same answer and
-          # the order they finish in stops mattering. That is what replaces
-          # the wait loop that used to mirror a sibling verdict.
+          # the order they finish in stops mattering. Once the ruleset
+          # requires this check, that supersedes the wait loop in the summary
+          # job of `build.yml`, which mirrors a sibling verdict for the same
+          # reason. Both run until the ruleset moves.
           #
           # `github.event.workflow_run.conclusion` is reported empty in
           # practice, so the decision never reads it.
@@ -95,8 +97,10 @@ jobs:
               # The summary job carries no `name` key, so its API name is its
               # job id. It already knows whether the matrix passed, and
               # whether a pull request that changed no build input had
-              # anything to run.
-              outcome=$(api "repos/${GH_REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+              # anything to run. `build.yml` carries a note that this literal
+              # is a contract, because a `name` key added there would report
+              # every commit as not built.
+              outcome=$(api --paginate "repos/${GH_REPO}/actions/runs/${run_id}/jobs?per_page=100" \
                 --jq '[.jobs[] | select(.name == "summary") | .conclusion] | first // empty') \
                 || { read_failed=true; break; }
               if [[ "${outcome}" == "success" ]]; then
