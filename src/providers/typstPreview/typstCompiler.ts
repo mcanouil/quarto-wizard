@@ -120,8 +120,10 @@ const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 /** The outcome of one compile that Typst itself reported on. */
 export interface TypstCompileResult {
-	/** The image, absent when Typst produced none. */
+	/** The vector, absent when the command asked for a raster or Typst produced none. */
 	svg?: string;
+	/** The raster, absent when the command asked for a vector or Typst produced none. */
+	png?: Buffer;
 	/** The captured standard error, which carries every diagnostic. */
 	stderr: string;
 }
@@ -279,9 +281,16 @@ export class TypstCompiler {
 
 			child.on("close", (code: number | null) => {
 				settle(() => {
-					const svg = Buffer.concat(output).toString("utf-8");
+					const image = Buffer.concat(output);
 					const stderr = Buffer.concat(errorOutput).toString("utf-8");
-					resolve(code === 0 && svg.length > 0 ? { svg, stderr } : { stderr });
+					if (code !== 0 || image.length === 0) {
+						resolve({ stderr });
+						return;
+					}
+					// A raster stays bytes. Decoding one as text replaces every sequence
+					// that is not valid UTF-8, and the image would reach the surface
+					// corrupted with nothing along the way reporting it.
+					resolve(command.format === "png" ? { png: image, stderr } : { svg: image.toString("utf-8"), stderr });
 				});
 			});
 		});

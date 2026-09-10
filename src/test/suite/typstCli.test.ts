@@ -87,6 +87,31 @@ suite("Typst CLI Test Suite", () => {
 			assert.strictEqual(command.cwd, undefined);
 		});
 
+		test("Should ask for a raster at the resolution a surface names", () => {
+			// A hover carries its image in a data URI, and a raster of the size shown
+			// is shorter than the vector for all but the simplest drawing.
+			const command = buildTypstCommand({ paths: PATHS, raster: { ppi: 96 } });
+			assert.strictEqual(command.format, "png");
+			assert.strictEqual(flag(command.argv, "--format"), "png");
+			assert.strictEqual(flag(command.argv, "--ppi"), "96");
+		});
+
+		test("Should ask for a vector when no surface names a resolution", () => {
+			const command = buildTypstCommand({ paths: PATHS });
+			assert.strictEqual(command.format, "svg");
+			// `--ppi` reads on a raster format alone, so a vector must not carry one.
+			assert.strictEqual(flag(command.argv, "--ppi"), undefined);
+		});
+
+		test("Should tell two resolutions of one block apart", () => {
+			// The key is what a cached image is found under, so a raster compiled for
+			// a short hover must not be served to a taller one.
+			const coarse = buildTypstCommand({ paths: PATHS, raster: { ppi: 48 } });
+			const fine = buildTypstCommand({ paths: PATHS, raster: { ppi: 144 } });
+			assert.notStrictEqual(commandKey(coarse), commandKey(fine));
+			assert.notStrictEqual(commandKey(coarse), commandKey(buildTypstCommand({ paths: PATHS })));
+		});
+
 		test("Should root a block at the root the configuration names", () => {
 			const command = buildTypstCommand({ global: { root: "/" }, paths: PATHS });
 			assert.strictEqual(flag(command.argv, "--root"), PROJECT);
@@ -142,7 +167,10 @@ suite("Typst CLI Test Suite", () => {
 	suite("commandKey", () => {
 		test("Should tell two commands apart by their directory alone", () => {
 			const argv = ["compile", "-", "-"];
-			assert.notStrictEqual(commandKey({ argv, cwd: "/a" }), commandKey({ argv, cwd: "/b" }));
+			assert.notStrictEqual(
+				commandKey({ argv, cwd: "/a", format: "svg" }),
+				commandKey({ argv, cwd: "/b", format: "svg" }),
+			);
 		});
 
 		test("Should give one command one key", () => {
@@ -151,7 +179,7 @@ suite("Typst CLI Test Suite", () => {
 		});
 
 		test("Should tell a directory that is absent from one that is empty", () => {
-			assert.notStrictEqual(commandKey({ argv: [] }), commandKey({ argv: [], cwd: "" }));
+			assert.notStrictEqual(commandKey({ argv: [], format: "svg" }), commandKey({ argv: [], cwd: "", format: "svg" }));
 		});
 
 		test("Should let no character of an argument spell a boundary", () => {
@@ -160,7 +188,10 @@ suite("Typst CLI Test Suite", () => {
 			// command never spawns, and aliasing one onto a command that does spawn
 			// would serve its image for the wrong document.
 			const nul = String.fromCharCode(0);
-			assert.notStrictEqual(commandKey({ argv: [`a${nul}b`] }), commandKey({ argv: ["a", "b"] }));
+			assert.notStrictEqual(
+				commandKey({ argv: [`a${nul}b`], format: "svg" }),
+				commandKey({ argv: ["a", "b"], format: "svg" }),
+			);
 		});
 	});
 });

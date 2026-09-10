@@ -109,7 +109,7 @@ suite("Typst Preview Messages Test Suite", () => {
 				block,
 				blockIndex: 0,
 				source: "",
-				command: { argv: [] },
+				command: { argv: [], format: "svg" },
 				injectedLines: 0,
 				bodyLineOffset: 0,
 				notes: [],

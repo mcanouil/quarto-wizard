@@ -26,7 +26,7 @@ const RUNTIME = process.execPath;
 
 /** A command that runs one expression in a child process. */
 function run(source: string): TypstCommand {
-	return { argv: ["-e", source] };
+	return { argv: ["-e", source], format: "svg" };
 }
 
 /** A token that is already cancelled. */
@@ -109,6 +109,24 @@ suite("Typst Compiler Test Suite", () => {
 				const result = await compiler.compile("", run("process.stdout.write('<svg/>')"), never);
 				assert.strictEqual(result.svg, "<svg/>");
 				assert.strictEqual(result.stderr, "");
+			} finally {
+				compiler.dispose();
+			}
+		});
+
+		test("Should keep a raster as bytes rather than decoding it as text", async () => {
+			// A PNG holds bytes no text encoding round-trips. Decoding one as UTF-8
+			// replaces every invalid sequence, and the image reaches the surface
+			// corrupted with nothing reporting it.
+			const compiler = new TypstCompiler(RUNTIME);
+			try {
+				const emit = "process.stdout.write(Buffer.from([0x89,0x50,0x4e,0x47,0x00,0xff,0xfe]))";
+				const command: TypstCommand = { ...run(emit), format: "png" };
+
+				const result = await compiler.compile("", command, never);
+
+				assert.strictEqual(result.svg, undefined, "a raster is not text");
+				assert.deepStrictEqual(result.png, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe]));
 			} finally {
 				compiler.dispose();
 			}
@@ -247,7 +265,7 @@ suite("Typst Compiler Test Suite", () => {
 			const compiler = new TypstCompiler(path.join(BIN, "tools", "aarch64", "typst"));
 			try {
 				await assert.rejects(
-					compiler.compile("", { argv: [] }, never),
+					compiler.compile("", { argv: [], format: "svg" }, never),
 					(error: unknown) => error instanceof TypstCompileFailure && /Failed to start Typst/.test(String(error)),
 				);
 			} finally {

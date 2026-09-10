@@ -307,6 +307,14 @@ export interface CellContext {
 	 */
 	paths: TypstPaths;
 	readFile: ReadFile;
+	/**
+	 * The resolution a raster is wanted at, absent when a vector is wanted.
+	 *
+	 * A surface and not a document decides this, the way `mode` does: both
+	 * describe how one compile is to be shown rather than what the document
+	 * says. It travels here because this is what reaches the command builder.
+	 */
+	raster?: { ppi: number };
 }
 
 /** Something the preview cannot do, and the one line that says why. */
@@ -459,6 +467,7 @@ export async function buildCell(block: TypstUnit, context: CellContext): Promise
 		background,
 		foreground,
 		paths: context.paths,
+		raster: context.raster,
 	});
 	const notes = cellNotes(options);
 	// The upstream warning at `code-cell.lua:110-118`. An option line below the
