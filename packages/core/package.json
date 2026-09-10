@@ -14,7 +14,8 @@
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"lint": "eslint --fix --cache \"src/**/*.ts\""
+		"lint": "eslint --fix --cache \"src/**/*.ts\"",
+		"lint:check": "eslint --cache \"src/**/*.ts\""
 	},
 	"keywords": [
 		"quarto",
