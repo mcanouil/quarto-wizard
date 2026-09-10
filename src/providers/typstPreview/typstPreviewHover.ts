@@ -124,10 +124,10 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 	/**
 	 * One preview as markdown, which is an image, a failure, or both.
 	 *
-	 * Two parts and never one. The image allows HTML, because that is what
-	 * centres it, and a compiler message is arbitrary text that a string allowing
-	 * HTML must never carry: a message holding angle brackets would reach the
-	 * reader as markup rather than as what Typst said.
+	 * An image and a message never travel in one part. The image allows HTML,
+	 * because that is what centres it, and a compiler message is arbitrary text
+	 * that a string allowing HTML must never carry: a message holding angle
+	 * brackets would reach the reader as markup rather than as what Typst said.
 	 */
 	private describe(result: TypstPreviewResult, maxHeight: number): vscode.MarkdownString[] {
 		const parts: vscode.MarkdownString[] = [];
