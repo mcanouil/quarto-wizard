@@ -58,9 +58,17 @@ jobs:
           # with nothing left to clear it. Each read is tried three times, and
           # a read that still fails posts a failure that names itself, which a
           # re-run of this job clears.
+          # Each attempt is buffered, and only the one that succeeded is
+          # printed. A paginated read streams a page at a time, so an attempt
+          # that failed on the second page has already written the first one.
+          # Printing straight to the caller would leave those lines in front
+          # of the full retry, and a doubled `success` fails the comparison
+          # below, which posts a red verdict on a commit that passed.
           api() {
+            local out
             for _ in 1 2 3; do
-              if gh api "$@"; then
+              if out=$(gh api "$@"); then
+                printf '%s\n' "${out}"
                 return 0
               fi
               sleep 5
@@ -120,6 +128,9 @@ jobs:
             conclusion="failure"
             title="The build runs could not be read"
             text=$'The GitHub API did not answer, so this check cannot say whether the commit is built.\n\nRe-run this job to try again.'
+            # The link is this run and not the build run, because re-running
+            # the build run does not refresh the verdict.
+            details="${GITHUB_SERVER_URL}/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}"
           elif [[ "${built}" == "true" ]]; then
             conclusion="success"
             title="The commit is built"
