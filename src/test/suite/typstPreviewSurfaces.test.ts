@@ -243,7 +243,8 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// The class marks code that Quarto styles, so nothing executes the span and
 		// the filter has nothing to say about it. Read as a cell it demanded an
 		// extension it does not use, and a project without one saw no preview.
-		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS + "\nValue: `#calc.pi`{.typst}\n");
 
@@ -253,6 +254,14 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// The header names the kind, and a span of this form is not a cell.
 		const header = controller.current()?.header ?? "";
 		assert.ok(header.includes("inline code"), `the header names the wrong kind: ${header}`);
+		// What was compiled, and not only what it was called. The body sits under
+		// the page directive a fence uses, with nothing of a cell around it: no
+		// page cropped to the glyphs, and none of the bindings a passthrough
+		// accumulates from the blocks above it.
+		const [source] = compiler.sources;
+		assert.ok(source.endsWith("#calc.pi"), `the span body is not what compiled: ${source}`);
+		assert.ok(!source.includes("#let a = 1"), `a passthrough chain reached the span: ${source}`);
+		assert.ok(!source.includes("bottom: 0.25em"), `the page of a cell reached the span: ${source}`);
 		controller.dispose();
 	});
 

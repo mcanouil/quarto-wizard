@@ -27,6 +27,17 @@ suite("Typst Inline Test Suite", () => {
 		assert.strictEqual(unit.unitEnd, text.indexOf("}") + 1);
 	});
 
+	test("Should read a span carrying both the prefix and the class as a cell", () => {
+		// The prefix is what makes a span executable, and a class added beside it
+		// for styling does not take that away. Read as plain the span compiled the
+		// prefix itself as Typst source, which is not what the document says.
+		const text = "A circle: `{typst} #circle()`{.typst}.\n";
+		const [unit] = findTypstInlines(text);
+		assert.strictEqual(unit.kind, "cell");
+		assert.strictEqual(unit.body, "#circle()");
+		assert.strictEqual(unit.bodyStart, text.indexOf("#circle()"));
+	});
+
 	test("Should read the raw form as raw", () => {
 		const text = "Bound here: `#let a = 1`{=typst}.\n";
 		const [unit] = findTypstInlines(text);

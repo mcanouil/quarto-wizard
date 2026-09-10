@@ -124,7 +124,10 @@ export function findTypstInlines(text: string): TypstUnit[] {
 			continue;
 		}
 
-		const prefix = attribute === "" ? (PREFIX.exec(content.text)?.[0].length ?? 0) : 0;
+		// Sliced off every cell and no other kind. A cell carries the prefix whether
+		// or not it also carries an attribute, and a span of another kind that
+		// happens to start with the same characters is not carrying a prefix at all.
+		const prefix = kind === "cell" ? (PREFIX.exec(content.text)?.[0].length ?? 0) : 0;
 		const body = content.text.slice(prefix);
 
 		// Every offset this module reports counts document characters, and `body`
@@ -135,7 +138,7 @@ export function findTypstInlines(text: string): TypstUnit[] {
 		// CommonMark ends already removed, so the length is in document units and
 		// needs no further correction.
 		const rawContent = raw.slice(content.leading, raw.length - content.trailing);
-		const rawPrefix = attribute === "" ? (PREFIX_RAW.exec(rawContent)?.[0].length ?? 0) : 0;
+		const rawPrefix = kind === "cell" ? (PREFIX_RAW.exec(rawContent)?.[0].length ?? 0) : 0;
 
 		const bodyStart = span.start + run + content.leading + rawPrefix + from;
 		const bodyEnd = span.end - run - content.trailing + from;
@@ -199,7 +202,13 @@ function classify(text: string, attribute: string): TypstUnitKind | undefined {
 		if (RAW_ATTRIBUTE.test(attribute)) {
 			return "raw";
 		}
-		return hasTypstClass(attribute) ? "plain" : undefined;
+		if (!hasTypstClass(attribute)) {
+			return undefined;
+		}
+		// The prefix is what makes a span executable, and a class added beside it
+		// for styling does not take that away. Read as plain, such a span would
+		// compile the prefix itself as Typst source.
+		return PREFIX.test(text) ? "cell" : "plain";
 	}
 	return PREFIX.test(text) ? "cell" : undefined;
 }
