@@ -107,10 +107,21 @@ function settle(delayMs = 50): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
-/** The markdown of a hover, which every assertion here reads. */
+/**
+ * The markdown of a hover, which every assertion here reads.
+ *
+ * Every part, because an image and a compiler message travel as two, so that
+ * the one that enables HTML carries nothing a compiler wrote.
+ */
 function hoverText(hover: vscode.Hover | undefined): string {
 	assert.ok(hover, "expected a hover");
-	return (hover.contents[0] as vscode.MarkdownString).value;
+	return (hover.contents as vscode.MarkdownString[]).map((part) => part.value).join("\n\n");
+}
+
+/** The parts of a hover, for an assertion about which part holds what. */
+function hoverParts(hover: vscode.Hover | undefined): vscode.MarkdownString[] {
+	assert.ok(hover, "expected a hover");
+	return hover.contents as vscode.MarkdownString[];
 }
 
 suite("Typst Preview Surfaces Test Suite", () => {
@@ -236,6 +247,41 @@ suite("Typst Preview Surfaces Test Suite", () => {
 			`no image in the first hover: ${hoverText(shown)}`,
 		);
 		assert.strictEqual(compiler.sources.length, 1);
+		controller.dispose();
+	});
+
+	test("Should centre the image inside the hover", async () => {
+		// The widget is wider than the image, because it reserves room for its copy
+		// button and because VS Code merges the hovers of several providers into
+		// one. An image left where it falls sits against the left edge of all that.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		const [image] = hoverParts(shown);
+		assert.ok(image.value.includes('<div align="center">'), `the image is not centred: ${image.value}`);
+		assert.strictEqual(image.supportHtml, true, "a centred image needs the markdown string to allow HTML");
+		controller.dispose();
+	});
+
+	test("Should keep a compile failure out of a part that allows HTML", async () => {
+		// A Typst message is arbitrary text. Carrying it in a string that allows
+		// HTML would let angle brackets in a message reach the reader as markup.
+		const stderr = "error: unexpected <script>alert(1)</script>\n";
+		const controller = makeController(new StubCompiler({ stderr }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		for (const part of hoverParts(shown)) {
+			if (part.value.includes("script")) {
+				assert.notStrictEqual(part.supportHtml, true, "the message allows HTML");
+			}
+		}
+		assert.ok(hoverText(shown).includes("script"), `no message in the hover: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 

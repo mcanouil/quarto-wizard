@@ -78,6 +78,31 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 	}
 
 	/**
+	 * The image, centred, as the one part of a hover that allows HTML.
+	 *
+	 * A hover widget is wider than the image it carries. It keeps room for its
+	 * own copy button, and VS Code merges the hovers of every provider that
+	 * answers for a position into one widget, so the width follows the widest of
+	 * them. An image left where it falls sits against the left edge of all that.
+	 *
+	 * A hover cannot size an image, so the root element is scaled instead and the
+	 * `viewBox` is left alone, which keeps the drawing filling it.
+	 */
+	private image(svg: string, maxHeight: number): vscode.MarkdownString {
+		const markdown = new vscode.MarkdownString();
+		const uri = svgDataUri(clampSvg(svg, maxHeight));
+		if (uri.length > IMAGE_LIMIT_BYTES) {
+			markdown.appendText(
+				"The compiled image is too large for a hover. Run Quarto Wizard: Preview Typst Block to see it in the panel.",
+			);
+			return markdown;
+		}
+		markdown.supportHtml = true;
+		markdown.appendMarkdown(`<div align="center">\n\n![The compiled Typst block.](${uri})\n\n</div>`);
+		return markdown;
+	}
+
+	/**
 	 * The held preview, when it describes this block of this document version.
 	 *
 	 * Asked twice: before compiling, because the block on screen needs no compile,
@@ -96,30 +121,26 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 			: undefined;
 	}
 
-	/** One preview as markdown, which is an image, a failure, or both. */
-	private describe(result: TypstPreviewResult, maxHeight: number): vscode.MarkdownString {
-		const markdown = new vscode.MarkdownString();
+	/**
+	 * One preview as markdown, which is an image, a failure, or both.
+	 *
+	 * Two parts and never one. The image allows HTML, because that is what
+	 * centres it, and a compiler message is arbitrary text that a string allowing
+	 * HTML must never carry: a message holding angle brackets would reach the
+	 * reader as markup rather than as what Typst said.
+	 */
+	private describe(result: TypstPreviewResult, maxHeight: number): vscode.MarkdownString[] {
+		const parts: vscode.MarkdownString[] = [];
 		if (result.svg !== undefined) {
-			// A hover cannot size an image, so the root element is scaled instead and
-			// the `viewBox` is left alone, which keeps the drawing filling it.
-			const clamped = clampSvg(result.svg, maxHeight);
-			const uri = svgDataUri(clamped);
-			if (uri.length > IMAGE_LIMIT_BYTES) {
-				markdown.appendText(
-					"The compiled image is too large for a hover. Run Quarto Wizard: Preview Typst Block to see it in the panel.",
-				);
-			} else {
-				markdown.appendMarkdown(`![The compiled Typst block.](${uri})`);
-			}
+			parts.push(this.image(result.svg, maxHeight));
 		}
 		if (result.error !== undefined) {
-			if (markdown.value.length > 0) {
-				markdown.appendMarkdown("\n\n");
-			}
+			const message = new vscode.MarkdownString();
 			// Written as text and not as markdown: a Typst message carries backticks,
 			// underscores and asterisks, and rendering them would change what it says.
-			markdown.appendText(result.error);
+			message.appendText(result.error);
+			parts.push(message);
 		}
-		return markdown;
+		return parts;
 	}
 }
