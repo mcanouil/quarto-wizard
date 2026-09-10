@@ -19,11 +19,14 @@ const SVG = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"></svg>';
 class StubCompiler implements TypstCompilerLike {
 	readonly sources: string[] = [];
 
+	/** What the next compile answers with, so one test can make a block fail. */
+	next: TypstCompileResult | undefined;
+
 	constructor(private readonly result: TypstCompileResult) {}
 
 	compile(source: string): Promise<TypstCompileResult> {
 		this.sources.push(source);
-		return Promise.resolve(this.result);
+		return Promise.resolve(this.next ?? this.result);
 	}
 
 	dispose(): void {
@@ -107,10 +110,21 @@ function settle(delayMs = 50): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
-/** The markdown of a hover, which every assertion here reads. */
+/**
+ * The markdown of a hover, which every assertion here reads.
+ *
+ * Every part, because an image and a compiler message travel as two, so that
+ * the one that enables HTML carries nothing a compiler wrote.
+ */
 function hoverText(hover: vscode.Hover | undefined): string {
 	assert.ok(hover, "expected a hover");
-	return (hover.contents[0] as vscode.MarkdownString).value;
+	return (hover.contents as vscode.MarkdownString[]).map((part) => part.value).join("\n\n");
+}
+
+/** The parts of a hover, for an assertion about which part holds what. */
+function hoverParts(hover: vscode.Hover | undefined): vscode.MarkdownString[] {
+	assert.ok(hover, "expected a hover");
+	return hover.contents as vscode.MarkdownString[];
 }
 
 suite("Typst Preview Surfaces Test Suite", () => {
@@ -236,6 +250,72 @@ suite("Typst Preview Surfaces Test Suite", () => {
 			`no image in the first hover: ${hoverText(shown)}`,
 		);
 		assert.strictEqual(compiler.sources.length, 1);
+		controller.dispose();
+	});
+
+	test("Should centre the image inside the hover", async () => {
+		// The widget is wider than the image, because it reserves room for its copy
+		// button and because VS Code merges the hovers of several providers into
+		// one. An image left where it falls sits against the left edge of all that.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		const [image] = hoverParts(shown);
+		assert.ok(image.value.includes('<div align="center">'), `the image is not centred: ${image.value}`);
+		assert.strictEqual(image.supportHtml, true, "a centred image needs the markdown string to allow HTML");
+		controller.dispose();
+	});
+
+	test("Should keep a failure out of the HTML part when both reach one hover", async () => {
+		// A failure keeps the last good image of the same block behind it, so a
+		// hover can carry an image and a message at once. That is the case the
+		// split exists for, and the one where merging them would be a defect. It is
+		// also the ordinary one: a working block edited into a broken one.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+		compiler.next = { stderr: "error: unexpected <script>alert(1)</script>\n" };
+		// The body of the block, so the source changes and the compile is not
+		// answered out of the cache. The line is inserted above the one the
+		// position names, which leaves the position inside the same block.
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(document.uri, new vscode.Position(INSIDE_PLAIN.line, 0), "#line()\n");
+		assert.ok(await vscode.workspace.applyEdit(edit), "the fixture edit must apply");
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		const parts = hoverParts(shown);
+		assert.strictEqual(parts.length, 2, `an image and a message are two parts: ${hoverText(shown)}`);
+		assert.ok(parts[0].value.includes("data:image/"), `no image in the first part: ${parts[0].value}`);
+		assert.strictEqual(parts[0].supportHtml, true, "the image part allows HTML");
+		assert.ok(!parts[0].value.includes("script"), "the message reached the part that allows HTML");
+		assert.ok(parts[1].value.includes("script"), `no message in the second part: ${parts[1].value}`);
+		assert.notStrictEqual(parts[1].supportHtml, true, "the message allows HTML");
+		controller.dispose();
+	});
+
+	test("Should keep a compile failure out of a part that allows HTML", async () => {
+		// A Typst message is arbitrary text. Carrying it in a string that allows
+		// HTML would let angle brackets in a message reach the reader as markup.
+		const stderr = "error: unexpected <script>alert(1)</script>\n";
+		const controller = makeController(new StubCompiler({ stderr }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		for (const part of hoverParts(shown)) {
+			if (part.value.includes("script")) {
+				assert.notStrictEqual(part.supportHtml, true, "the message allows HTML");
+			}
+		}
+		assert.ok(hoverText(shown).includes("script"), `no message in the hover: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 
