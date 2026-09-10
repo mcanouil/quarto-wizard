@@ -84,7 +84,7 @@ jobs:
           inputs+='|webpack\.config\.js$'                 # webpack
           inputs+='|eslint\.config\.mjs$'                 # lint
           inputs+='|\.prettierrc\.json$|\.prettierignore$' # format:check
-          inputs+='|\.vscode-test\.mjs$'                  # npm test
+          inputs+='|\.vscode-test\.mjs$'                  # vscode-test
           inputs+='|\.vscodeignore$'                      # vsce package
           inputs+='|\.github/workflows/build\.yml$)'      # this workflow
 
@@ -157,6 +157,13 @@ jobs:
         working-directory: packages/core
         run: npm test
 
+      # This runs before the build, because `npm run webpack` begins with
+      # `npm run format`, which rewrites the files this step reads.
+      - name: Check formatting
+        id: format
+        shell: bash
+        run: npm run format:check
+
       - name: Compile extension
         id: webpack
         shell: bash
@@ -167,16 +174,13 @@ jobs:
         shell: bash
         run: npm run lint
 
-      - name: Check formatting
-        id: format
-        shell: bash
-        run: npm run format:check
-
       - name: Compile TypeScript
         id: test-compile
         shell: bash
         run: npm run test-compile
 
+      # `npx vscode-test` and not `npm test`, which would run the `pretest`
+      # script and repeat the compile and the lint of the steps above.
       - name: Run tests (Ubuntu)
         id: test-ubuntu
         if: runner.os == 'Linux'
@@ -184,13 +188,13 @@ jobs:
         run: |
           export DISPLAY=':99.0'
           /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          npm test
+          npx vscode-test
 
       - name: Run tests (Windows/macOS)
         id: test-other
         if: runner.os != 'Linux'
         shell: bash
-        run: npm test
+        run: npx vscode-test
 
       # The package holds no native dependency and no `--target`, so one
       # operating system produces the artefact that all three would.
