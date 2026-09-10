@@ -12,13 +12,13 @@ import type { TypstUnit, TypstUnitKind } from "./typstBlocks";
  * The `typst-render` filter walks Pandoc `Code` inlines beside `CodeBlock`
  * elements, so an inline cell renders to an image and the editor has to say so.
  *
- * The rule is the filter's own, at `cell.is_inline_code`: the class `typst` and
- * the text prefix `{typst}` are the same executable cell. That is not the block
- * rule, where a `.typst` fence is a plain block Quarto only highlights, and the
- * difference is deliberate upstream.
+ * Three forms, and one of them is executed. The text prefix `{typst}` marks a
+ * cell that the filter renders. `{=typst}` marks raw Typst, passed to a Typst
+ * output as it is written and dropped from every other format. The class marks
+ * code that Quarto styles and nothing renders, which is the same rule the block
+ * form of that class follows.
  *
- * There is no inline `plain` kind for that reason. An inline span is a cell or
- * a raw passthrough, and nothing else.
+ * An inline span therefore takes any of the three kinds a fence takes.
  */
 
 /** An attribute that follows the closing backtick run, on the same line. */
@@ -179,10 +179,13 @@ export function findTypstInlines(text: string): TypstUnit[] {
  * class is read, as a plain unit: it is previewed, it needs no extension
  * installed, and no option of a cell applies to it.
  *
- * An attribute is read before a prefix, so `` `{typst} #x`{.python} `` is not a
- * cell even though its text carries the prefix. That follows the order of
- * `cell.is_inline_code` upstream, where the class test is reached first and an
- * element carrying `.python` fails it.
+ * An attribute is read before a prefix, so `` `{typst} #x`{.python} `` is read
+ * as not Typst at all even though its text carries the prefix. Whether the
+ * filter executes that span is not settled here: its class test failing may
+ * fall through to the prefix, in which case a render produces an image and this
+ * shows none. The direction is the safe one either way, because showing nothing
+ * costs a reader a preview and showing an image the render does not produce
+ * tells them something untrue about their document.
  *
  * @param text - The span's content, converted the way `spanContent` reads it,
  *   so a prefix that runs across a line ending is still found.

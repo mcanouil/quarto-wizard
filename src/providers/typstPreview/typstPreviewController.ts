@@ -242,10 +242,12 @@ export function errorText(stderr: string, place: ErrorPlace): string {
 export function headerText(document: vscode.TextDocument, request: CompileRequest): string {
 	const parts = [`${path.basename(document.fileName)} · line ${request.block.fenceLine + 1}`];
 	if (request.block.scope === "inline") {
-		// An inline unit is cropped to its glyphs by a page directive the filter
-		// fixes, so its image is a different shape from every fenced one, and the
-		// reader is told which they are looking at.
-		parts.push(request.block.kind === "raw" ? "inline passthrough" : "inline cell");
+		// Which of the three a reader is looking at, because the three compile
+		// differently: a cell is cropped to its glyphs by a page directive the
+		// filter fixes, so its image is a different shape from every fenced one,
+		// and the other two compile under the same page a fence does.
+		const INLINE_NAMES = { raw: "inline passthrough", cell: "inline cell", plain: "inline code" } as const;
+		parts.push(INLINE_NAMES[request.block.kind]);
 	}
 	if (request.brandMode !== undefined) {
 		// A cell resolves its `auto` colours against one side of the brand, and

@@ -250,6 +250,9 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		const shown = await hover.provideHover(document, new vscode.Position(14, 10), NO_CANCEL);
 
 		assert.ok(hoverText(shown).includes("data:image/svg+xml"), `no image for the span: ${hoverText(shown)}`);
+		// The header names the kind, and a span of this form is not a cell.
+		const header = controller.current()?.header ?? "";
+		assert.ok(header.includes("inline code"), `the header names the wrong kind: ${header}`);
 		controller.dispose();
 	});
 
