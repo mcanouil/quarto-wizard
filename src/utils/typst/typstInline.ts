@@ -12,13 +12,13 @@ import type { TypstUnit, TypstUnitKind } from "./typstBlocks";
  * The `typst-render` filter walks Pandoc `Code` inlines beside `CodeBlock`
  * elements, so an inline cell renders to an image and the editor has to say so.
  *
- * The rule is the filter's own, at `cell.is_inline_code`: the class `typst` and
- * the text prefix `{typst}` are the same executable cell. That is not the block
- * rule, where a `.typst` fence is a plain block Quarto only highlights, and the
- * difference is deliberate upstream.
+ * Three forms, and one of them is executed. The text prefix `{typst}` marks a
+ * cell that the filter renders. `{=typst}` marks raw Typst, passed to a Typst
+ * output as it is written and dropped from every other format. The class marks
+ * code that Quarto styles and nothing renders, which is the same rule the block
+ * form of that class follows.
  *
- * There is no inline `plain` kind for that reason. An inline span is a cell or
- * a raw passthrough, and nothing else.
+ * An inline span therefore takes any of the three kinds a fence takes.
  */
 
 /** An attribute that follows the closing backtick run, on the same line. */
@@ -124,7 +124,10 @@ export function findTypstInlines(text: string): TypstUnit[] {
 			continue;
 		}
 
-		const prefix = attribute === "" ? (PREFIX.exec(content.text)?.[0].length ?? 0) : 0;
+		// Sliced off every cell and no other kind. A cell carries the prefix whether
+		// or not it also carries an attribute, and a span of another kind that
+		// happens to start with the same characters is not carrying a prefix at all.
+		const prefix = kind === "cell" ? (PREFIX.exec(content.text)?.[0].length ?? 0) : 0;
 		const body = content.text.slice(prefix);
 
 		// Every offset this module reports counts document characters, and `body`
@@ -135,7 +138,7 @@ export function findTypstInlines(text: string): TypstUnit[] {
 		// CommonMark ends already removed, so the length is in document units and
 		// needs no further correction.
 		const rawContent = raw.slice(content.leading, raw.length - content.trailing);
-		const rawPrefix = attribute === "" ? (PREFIX_RAW.exec(rawContent)?.[0].length ?? 0) : 0;
+		const rawPrefix = kind === "cell" ? (PREFIX_RAW.exec(rawContent)?.[0].length ?? 0) : 0;
 
 		const bodyStart = span.start + run + content.leading + rawPrefix + from;
 		const bodyEnd = span.end - run - content.trailing + from;
@@ -173,15 +176,19 @@ export function findTypstInlines(text: string): TypstUnit[] {
 /**
  * The kind a span declares, or undefined when it is not Typst.
  *
- * Upstream, `cell.is_inline_code` tests the class first and reaches the text
- * prefix only when that test fails, so `` `{typst} #x`{.python} `` is read as
- * not an inline cell even though its text carries the prefix: the class test
- * alone decides it, because it is reached first and an element carrying
- * `.python` fails it. This module follows that order, an attribute before a
- * prefix, so the same span is skipped here too. The reasoning is a reading of
- * the filter and not a recorded render, and the direction it commits to on
- * that uncertainty is the safe one: show nothing rather than an image the
- * render does not produce.
+ * Three forms, and only one of them is executed. The text prefix marks a cell,
+ * `{=typst}` marks raw Typst used as it is written, and the class marks code
+ * that Quarto styles. The class is read here the way the block form of the same
+ * class is read, as a plain unit: it is previewed, it needs no extension
+ * installed, and no option of a cell applies to it.
+ *
+ * An attribute is read before a prefix, so `` `{typst} #x`{.python} `` is read
+ * as not Typst at all even though its text carries the prefix. Whether the
+ * filter executes that span is not settled here: its class test failing may
+ * fall through to the prefix, in which case a render produces an image and this
+ * shows none. The direction is the safe one either way, because showing nothing
+ * costs a reader a preview and showing an image the render does not produce
+ * tells them something untrue about their document.
  *
  * @param text - The span's content, converted the way `spanContent` reads it,
  *   so a prefix that runs across a line ending is still found.
@@ -195,7 +202,13 @@ function classify(text: string, attribute: string): TypstUnitKind | undefined {
 		if (RAW_ATTRIBUTE.test(attribute)) {
 			return "raw";
 		}
-		return hasTypstClass(attribute) ? "cell" : undefined;
+		if (!hasTypstClass(attribute)) {
+			return undefined;
+		}
+		// The prefix is what makes a span executable, and a class added beside it
+		// for styling does not take that away. Read as plain, such a span would
+		// compile the prefix itself as Typst source.
+		return PREFIX.test(text) ? "cell" : "plain";
 	}
 	return PREFIX.test(text) ? "cell" : undefined;
 }

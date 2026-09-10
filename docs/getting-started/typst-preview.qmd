@@ -55,10 +55,14 @@ The other two kinds need no extension.
 
 ## Inline Forms
 
-An inline span compiles the same way a `{typst}` cell does.
-`` `{typst} #calc.pi` `` and `` `#calc.pi`{.typst} `` are the same executable inline cell, which is the rule of the `typst-render` extension.
+An inline span takes the same three kinds a fence takes.
+
+`` `{typst} #calc.pi` `` is a cell, which the `typst-render` extension renders to an image.
 An inline cell reads the global options only.
 It carries no `//|` option line, because there is no line above it to hold one.
+
+`` `#calc.pi`{.typst} `` is plain code, the inline counterpart of a ` ```typst ` block.
+Quarto styles it and nothing renders it, so the preview needs no extension and applies no option of a cell.
 
 `` `#a`{=typst} `` is a raw passthrough, the inline counterpart of a ` ```{=typst} ` block.
 It is passed to the Typst output untouched, and the prose around it is not compiled.

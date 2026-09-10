@@ -15,13 +15,27 @@ suite("Typst Inline Test Suite", () => {
 		assert.strictEqual(unit.unitEnd, text.indexOf("` today") + 1);
 	});
 
-	test("Should read the class form as a cell, because the filter executes it", () => {
+	test("Should read the class form as plain, because nothing executes it", () => {
+		// The class marks code that Quarto styles, the way a `typst` fence does.
+		// Only the text prefix is executable, and a span carrying the class is read
+		// the way the block form of the same class is read.
 		const text = "A circle: `#circle()`{.typst}.\n";
 		const [unit] = findTypstInlines(text);
-		assert.strictEqual(unit.kind, "cell");
+		assert.strictEqual(unit.kind, "plain");
 		assert.strictEqual(unit.body, "#circle()");
 		// The attribute belongs to the unit, so a cursor inside it finds the unit.
 		assert.strictEqual(unit.unitEnd, text.indexOf("}") + 1);
+	});
+
+	test("Should read a span carrying both the prefix and the class as a cell", () => {
+		// The prefix is what makes a span executable, and a class added beside it
+		// for styling does not take that away. Read as plain the span compiled the
+		// prefix itself as Typst source, which is not what the document says.
+		const text = "A circle: `{typst} #circle()`{.typst}.\n";
+		const [unit] = findTypstInlines(text);
+		assert.strictEqual(unit.kind, "cell");
+		assert.strictEqual(unit.body, "#circle()");
+		assert.strictEqual(unit.bodyStart, text.indexOf("#circle()"));
 	});
 
 	test("Should read the raw form as raw", () => {
@@ -33,7 +47,7 @@ suite("Typst Inline Test Suite", () => {
 
 	test("Should keep a class beside other classes", () => {
 		const text = "A circle: `#circle()`{.typst .extra}.\n";
-		assert.strictEqual(findTypstInlines(text)[0]?.kind, "cell");
+		assert.strictEqual(findTypstInlines(text)[0]?.kind, "plain");
 	});
 
 	test("Should read a span written with a longer backtick run", () => {
@@ -121,7 +135,7 @@ suite("Typst Inline Test Suite", () => {
 
 	test("Should read a real class beside another attribute", () => {
 		const text = 'A circle: `#circle()`{alt="see here" .typst}.\n';
-		assert.strictEqual(findTypstInlines(text)[0]?.kind, "cell");
+		assert.strictEqual(findTypstInlines(text)[0]?.kind, "plain");
 	});
 
 	test("Should read no phantom span between two fences of equal run length", () => {

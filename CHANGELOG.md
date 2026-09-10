@@ -4,12 +4,13 @@
 
 ### New Features
 
-- feat: Preview an inline Typst cell, written as `` `{typst} ...` `` or `` `...`{.typst} ``. (#423)
+- feat: Preview an inline Typst cell, written as `` `{typst} ...` ``. (#423)
 - feat: Show the Typst preview in the panel and in a hover at the same time. (#420)
 - feat: Show a Typst hover image as a raster of the height the hover displays. A plot whose vector is too long for a data URI now appears in the hover, and the panel still shows the vector. (#443)
 
 ### Bug Fixes
 
+- fix: Read an inline span carrying the `.typst` class as plain code, the way the block form of that class is read. The span no longer needs the `typst-render` extension installed, and no option of a cell applies to it. (#445)
 - docs: Point the social card of the documentation website at the image that exists, so a link to the site shows a card. (#441)
 - fix: Centre the image in a Typst hover. It sat against the left edge of a box that is wider than the image, because the hover keeps room for its copy button and merges the hovers of several providers into one. (#442)
 - fix: Read the options of an output format from the top level of the metadata in the Lua reference validator. The format name is never a metadata key, so `validate_format` collected nothing and passed whatever the document wrote. (#439)
