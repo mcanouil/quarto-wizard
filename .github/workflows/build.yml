@@ -20,20 +20,10 @@ on:
     # expensive jobs have anything to do.
 
 concurrency:
-  # The draft state and not the event name. Every activity type above reports
-  # `pull_request`, so a synchronize run and a ready_for_review run shared one
-  # group and cancelled each other. When the draft run won that race, the jobs
-  # below skipped on their draft guard, the required summary failed by design,
-  # and the pull request was left ready, red, and with no further event coming.
-  #
-  # `github.action` is the step identifier and is empty here, so it grouped
-  # nothing. `github.ref` already separates a pull request from a dispatch.
-  #
-  # The two groups no longer cancel each other, so a pull request sent back to
-  # draft leaves its ready matrix running to an answer nobody needs. That costs
-  # runner minutes in a rare case, and it is the price of never cancelling the
-  # run that carries the verdict.
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.draft }}
+  # A draft run holds no verdict, because every job below skips on a draft, so
+  # cancelling one loses nothing. `github.ref` separates a pull request from a
+  # dispatch, which is the only split this needs.
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions: read-all
@@ -292,161 +282,32 @@ jobs:
           retention-days: 1
 
   summary:
-    # No draft condition, unlike the jobs above. This is the single required
-    # check, and a skipped required check does not block, so skipping here let
-    # a draft reach a mergeable state with nothing built.
+    # The same draft condition as `changes`, which `build` and `lua` inherit
+    # through `needs.changes.outputs.code`. Every job of a draft run therefore
+    # skips, the run concludes as `skipped`, and nothing sends a failure
+    # notification. That is what this condition is for.
+    #
+    # This job is no longer the required check, so a skipped check counting as
+    # satisfied stops mattering. `verdict.yml` posts the required check, and it
+    # reports whether the commit has been built rather than how this run ended.
+    # A draft that skips here has no successful `summary` for its commit, so
+    # its verdict is red and the merge stays blocked.
     #
     # The job id is a contract. `verdict.yml` reads the jobs of this run and
     # selects the one whose API name is the literal `summary`. This job has no
     # `name` key, so its API name is this job id. A `name` key added here
     # would report every commit as not built.
-    if: always()
+    if: always() && github.event.pull_request.draft == false
     needs:
       - changes
       - build
       - lua
-    # Long enough for the wait below, which is bounded at eight minutes.
-    timeout-minutes: 20
+    # This job downloads a few small artifacts and writes a table.
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - name: Report on a run that built nothing
-        # `changes`, `build` and `lua` are each guarded on the draft state, so a
-        # run on a draft skips all of them and there is nothing to report. A
-        # failure here states that, where a skip stated nothing and counted as
-        # satisfied. The guards above are what keep a draft off the runners.
-        #
-        # Marking a draft ready starts two runs, and the concurrency group above
-        # keeps both alive on purpose, so both report a check named `summary` on
-        # one commit. GitHub resolves a required context to the check run that
-        # started last, and not to the one that passed, and two seconds of
-        # scheduling order decided it on pull request 439. Neither run may
-        # therefore answer for itself: one that failed by design left a ready
-        # pull request red with no event left to clear it, and one that passed
-        # by design would hide a failed matrix behind a green check.
-        #
-        # The run that built carries the verdict, and the run that built nothing
-        # repeats it. The two check runs then say the same thing, so which one
-        # the context resolves to stops mattering.
-        id: report
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          BUILT_AS_DRAFT: ${{ github.event.pull_request.draft }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # This is the single required check, so an unanswered call must not
-          # be what fails it. No pull request event follows a failure here, and
-          # the check would stay red with nothing left to clear it. After three
-          # attempts the step falls back to the payload, which is what this
-          # check read before and is a state the workflow already handled.
-          IS_DRAFT=""
-          for _ in 1 2 3; do
-            IS_DRAFT=$(gh pr view "${PR_NUMBER}" --json isDraft --jq '.isDraft' || true)
-            if [[ -n "${IS_DRAFT}" ]]; then
-              break
-            fi
-            sleep 5
-          done
-          if [[ -z "${IS_DRAFT}" ]]; then
-            echo "::warning::Could not read the draft state of pull request ${PR_NUMBER}. Reporting on the event payload instead."
-            IS_DRAFT="${BUILT_AS_DRAFT}"
-          fi
-
-          if [[ "${IS_DRAFT}" == "true" ]]; then
-            {
-              echo "# 🚧 Build deferred"
-              echo ""
-              if [[ "${BUILT_AS_DRAFT}" != "true" ]]; then
-                echo "This pull request went back to being a draft after the run started."
-                echo "The matrix ran, but on the state the pull request has left."
-                echo "Mark it ready for review to get a verdict on the state it has now."
-              else
-                echo "This pull request is a draft, so the build matrix did not run."
-                echo "Mark it ready for review to build it."
-              fi
-            } >> "${GITHUB_STEP_SUMMARY}"
-            exit 1
-          fi
-
-          if [[ "${BUILT_AS_DRAFT}" != "true" ]]; then
-            # This run built the matrix, so the steps below report on it.
-            echo "built=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          # Nothing was built here, so the steps below have nothing to read.
-          echo "built=false" >> "${GITHUB_OUTPUT}"
-
-          # The sibling reports once its matrix has answered, which takes about
-          # as long as the matrix does. Waiting costs one small job, and it buys
-          # a verdict that does not depend on which run is scheduled first.
-          #
-          # A wait that runs out fails, because a check cannot vouch for a build
-          # it never saw. That red clears itself: a sibling that has not reported
-          # yet reports after this one, so its check run is the later of the two
-          # and is the one the required context resolves to.
-          # Every earlier run on this commit left a `summary` behind, and a draft
-          # run leaves a failure. Only a check run that started after this run
-          # did can be the sibling, so an old draft verdict cannot be mirrored,
-          # and the newest of those is taken rather than whichever the API lists
-          # first. A completed status is what excludes this run's own check,
-          # which is still in progress while this step runs; the run identifier
-          # in the URL says so a second time, in case that ever stops holding.
-          SINCE=$(gh api "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}" --jq '.run_started_at' || true)
-          if [[ -z "${SINCE}" ]]; then
-            echo "::warning::Could not read the start time of this run. Reading every completed sibling instead."
-            SINCE="1970-01-01T00:00:00Z"
-          fi
-
-          VERDICT=""
-          for _ in $(seq 1 48); do
-            VERDICT=$(gh api "repos/${GH_REPO}/commits/${HEAD_SHA}/check-runs?per_page=100" 2>/dev/null \
-              | jq -r --arg run "/runs/${GITHUB_RUN_ID}/" --arg since "${SINCE}" '
-                  [ .check_runs[]
-                    | select(.name == "summary")
-                    | select(.status == "completed")
-                    | select(.started_at > $since)
-                    | select(.html_url | contains($run) | not)
-                  ]
-                  | sort_by(.started_at) | last | .conclusion // empty' || true)
-            if [[ -n "${VERDICT}" ]]; then
-              break
-            fi
-            sleep 10
-          done
-
-          {
-            echo "# 🚧 Nothing to build"
-            echo ""
-            echo "This run started while the pull request was a draft, so it built nothing."
-            case "${VERDICT}" in
-              success)
-                echo "The run started by marking it ready for review passed, and this reports the same."
-                ;;
-              "")
-                echo "The run started by marking it ready for review has not reported yet."
-                echo "This check cannot vouch for a build it did not see, so it fails."
-                echo "Push again, or re-run this job once that run has finished."
-                ;;
-              *)
-                echo "The run started by marking it ready for review ended as ${VERDICT}, and this reports the same."
-                ;;
-            esac
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-          if [[ "${VERDICT}" == "success" ]]; then
-            exit 0
-          fi
-          exit 1
-
       - name: Download all job summaries
-        if: steps.report.outputs.built != 'false'
-        # The summary now runs even when a needed job fails, so there may be no
+        # The summary runs even when a needed job fails, so there may be no
         # artifact at all. The consolidated summary below falls back to the job
         # results in that case, which it cannot do if this step fails first.
         continue-on-error: true
@@ -456,10 +317,6 @@ jobs:
           path: job-summaries
 
       - name: Generate consolidated summary
-        # A run that built nothing has no job result worth a table, and the
-        # success branch below would read the skipped `changes` job and name the
-        # paths filter as the reason the matrix did not run, which is not why.
-        if: steps.report.outputs.built != 'false'
         shell: bash
         env:
           # A pull request title is attacker controlled. Read through the
