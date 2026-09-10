@@ -2,8 +2,6 @@ project:
   output-dir: _site/dev
   resources:
     - quarto-wizard-dev.vsix
-  pre-render: scripts/dev-copy-assets.sh
-  post-render: scripts/dev-clean-assets.sh
 
 website:
   site-url: "https://m.canouil.dev/quarto-wizard/dev"

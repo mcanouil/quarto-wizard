@@ -8,13 +8,13 @@ lang: en-GB
 # date: today
 # date-modified: today
 date-format: "dddd[, the] Do [of] MMMM, YYYY"
-image: "assets/social/social-card.png"
+image: "assets/logo/logo-social.png"
 
 website:
   title: "Quarto Wizard {{< env VERSION >}}"
   description: "A Visual Studio Code extension that helps you manage Quarto projects and extensions."
   favicon: "assets/logo/logo.svg"
-  image: "assets/social/social-card.png"
+  image: "assets/logo/logo-social.png"
   image-alt: "Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
   site-url: "https://m.canouil.dev/quarto-wizard"
   repo-url: https://github.com/mcanouil/quarto-wizard
