@@ -535,6 +535,7 @@ export async function buildInlineCell(unit: TypstUnit, context: CellContext): Pr
 		background,
 		foreground,
 		paths: context.paths,
+		raster: context.raster,
 	});
 	const notes = cellNotes(options);
 	for (const name of droppedOptions) {
