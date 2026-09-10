@@ -239,6 +239,20 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should preview a span of the class form with no extension installed", async () => {
+		// The class marks code that Quarto styles, so nothing executes the span and
+		// the filter has nothing to say about it. Read as a cell it demanded an
+		// extension it does not use, and a project without one saw no preview.
+		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }));
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS + "\nValue: `#calc.pi`{.typst}\n");
+
+		const shown = await hover.provideHover(document, new vscode.Position(14, 10), NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/svg+xml"), `no image for the span: ${hoverText(shown)}`);
+		controller.dispose();
+	});
+
 	test("Should compile for a hover even when nothing is showing a preview", async () => {
 		// A hover renders nothing until the pointer rests, so it is not a surface
 		// that makes a background edit worth compiling. It still has to be able to

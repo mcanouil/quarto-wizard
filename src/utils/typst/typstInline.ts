@@ -173,15 +173,16 @@ export function findTypstInlines(text: string): TypstUnit[] {
 /**
  * The kind a span declares, or undefined when it is not Typst.
  *
- * Upstream, `cell.is_inline_code` tests the class first and reaches the text
- * prefix only when that test fails, so `` `{typst} #x`{.python} `` is read as
- * not an inline cell even though its text carries the prefix: the class test
- * alone decides it, because it is reached first and an element carrying
- * `.python` fails it. This module follows that order, an attribute before a
- * prefix, so the same span is skipped here too. The reasoning is a reading of
- * the filter and not a recorded render, and the direction it commits to on
- * that uncertainty is the safe one: show nothing rather than an image the
- * render does not produce.
+ * Three forms, and only one of them is executed. The text prefix marks a cell,
+ * `{=typst}` marks raw Typst used as it is written, and the class marks code
+ * that Quarto styles. The class is read here the way the block form of the same
+ * class is read, as a plain unit: it is previewed, it needs no extension
+ * installed, and no option of a cell applies to it.
+ *
+ * An attribute is read before a prefix, so `` `{typst} #x`{.python} `` is not a
+ * cell even though its text carries the prefix. That follows the order of
+ * `cell.is_inline_code` upstream, where the class test is reached first and an
+ * element carrying `.python` fails it.
  *
  * @param text - The span's content, converted the way `spanContent` reads it,
  *   so a prefix that runs across a line ending is still found.
@@ -195,7 +196,7 @@ function classify(text: string, attribute: string): TypstUnitKind | undefined {
 		if (RAW_ATTRIBUTE.test(attribute)) {
 			return "raw";
 		}
-		return hasTypstClass(attribute) ? "cell" : undefined;
+		return hasTypstClass(attribute) ? "plain" : undefined;
 	}
 	return PREFIX.test(text) ? "cell" : undefined;
 }
