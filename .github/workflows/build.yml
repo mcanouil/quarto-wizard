@@ -192,16 +192,16 @@ jobs:
         shell: bash
         run: npm test
 
-      - name: Install Visual Studio Code Extension Manager
-        shell: bash
-        run: npm install -g @vscode/vsce
-
+      # The package holds no native dependency and no `--target`, so one
+      # operating system produces the artefact that all three would.
       - name: Build extension
         id: build-extension
+        if: runner.os == 'Linux'
         shell: bash
-        run: vsce package --pre-release --out quarto-wizard.vsix
+        run: npx vsce package --pre-release --out quarto-wizard.vsix
 
       - name: Upload VSIX as workflow artifact
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
           name: quarto-wizard-${{ github.sha }}-${{ matrix.os }}-${{ matrix.node-version }}
