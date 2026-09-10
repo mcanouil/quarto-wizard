@@ -35,6 +35,9 @@ const PIXELS_PER_POINT = 2;
 /** Points to the inch, which is what a resolution is counted in. */
 const POINTS_PER_INCH = 72;
 
+/** The resolution a page shown whole is compiled at. */
+const PLAIN_PPI = PIXELS_PER_POINT * POINTS_PER_INCH;
+
 export class TypstPreviewHover implements vscode.HoverProvider {
 	constructor(
 		private readonly controller: TypstPreviewController,
@@ -78,10 +81,11 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		// that URI is what decides whether it renders at all. The held result
 		// answers only when it holds one: the panel compiles a vector, and a
 		// vector is not something this surface can show.
-		const plain = PIXELS_PER_POINT * POINTS_PER_INCH;
 		const held = this.showing(document, blockIndex);
 		const result =
-			held ?? (await this.controller.previewRaster(document, position, plain)) ?? this.showing(document, blockIndex);
+			held ??
+			(await this.controller.previewRaster(document, position, PLAIN_PPI)) ??
+			this.showing(document, blockIndex);
 
 		// The pointer left while Typst ran, so the reader is looking somewhere else.
 		// The compile still finished and is held, which is what makes the hover they
@@ -157,16 +161,23 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 		// The pixels alone do not say how large the page is. A held raster can be
 		// the scaled one from a taller page, and reading it at the plain resolution
 		// would report the height of the hover that scaled it as the page.
-		const pageHeight = (size.height * POINTS_PER_INCH) / (first.ppi ?? PIXELS_PER_POINT * POINTS_PER_INCH);
-		if (pageHeight <= maxHeight) {
-			return { png: first.png, shownHeight: pageHeight };
+		const compiledAt = first.ppi ?? PLAIN_PPI;
+		const pageHeight = (size.height * POINTS_PER_INCH) / compiledAt;
+		const shownHeight = Math.min(pageHeight, maxHeight);
+
+		// One question rather than two: what resolution does this page want at the
+		// height it is shown at. A held raster that already answers it is kept, and
+		// one that does not is compiled again, whether it holds too many pixels for
+		// a tall page or too few for a page the reader has since made room for.
+		const wanted = rasterPpi(pageHeight, maxHeight);
+		if (compiledAt === wanted) {
+			return { png: first.png, shownHeight };
 		}
-		const scaled = await this.controller.previewRaster(document, position, rasterPpi(pageHeight, maxHeight));
-		// Read the same way the first pass is. A scaled compile that a newer
-		// request superseded answers with nothing, and the page still has to be
-		// shown at the height the hover shows it at.
-		const usable = scaled?.png !== undefined && pngSize(scaled.png) !== undefined ? scaled.png : first.png;
-		return { png: usable, shownHeight: maxHeight };
+		const again = await this.controller.previewRaster(document, position, wanted);
+		// Read the same way the first pass is. A compile that a newer request
+		// superseded answers with nothing, and the page still has to be shown.
+		const usable = again?.png !== undefined && pngSize(again.png) !== undefined ? again.png : first.png;
+		return { png: usable, shownHeight };
 	}
 
 	/**

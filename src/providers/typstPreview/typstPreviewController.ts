@@ -823,6 +823,12 @@ export class TypstPreviewController implements vscode.Disposable {
 		const previous = reason === "surface" ? this.result : this.shown();
 		const sameBlock =
 			previous?.uri.toString() === document.uri.toString() && previous?.blockIndex === request.blockIndex;
+		// Only a compile that produced nothing keeps what came before it. A compile
+		// that produced one format stamps this version of the block, and carrying
+		// the other format across would pair that version with an image compiled
+		// from text that has since changed, which a surface would then serve as
+		// current.
+		const kept = image === undefined && sameBlock ? previous : undefined;
 		this.result = {
 			uri: document.uri,
 			block: request.block,
@@ -830,11 +836,11 @@ export class TypstPreviewController implements vscode.Disposable {
 			version: compiledVersion,
 			source: request.source,
 			brandMode: request.brandMode,
-			svg: compiled.svg ?? (sameBlock ? previous?.svg : undefined),
-			png: compiled.png ?? (sameBlock ? previous?.png : undefined),
+			svg: compiled.svg ?? kept?.svg,
+			png: compiled.png ?? kept?.png,
 			// Beside the raster and never apart from it: a carried image keeps the
 			// resolution it was compiled at, not the one this compile asked for.
-			ppi: compiled.png === undefined ? (sameBlock ? previous?.ppi : undefined) : request.command.ppi,
+			ppi: compiled.png === undefined ? kept?.ppi : request.command.ppi,
 			header: headerText(document, request),
 			error: image === undefined ? (failure ?? errorText(compiled.stderr, request)) : undefined,
 		};

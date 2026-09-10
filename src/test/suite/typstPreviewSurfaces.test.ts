@@ -409,6 +409,32 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
 
 		assert.ok(hoverText(shown).includes('height="400"'), `the page was mis-sized: ${hoverText(shown)}`);
+		// The room the reader made is room for pixels as well. A held raster of 200
+		// pixels stretched over 400 points is a quarter of the density asked for,
+		// so the page is read again at the resolution it is now shown at. The image
+		// served says which one that is, where a count of compiles would not: the
+		// page was already compiled at this resolution once and is answered from
+		// the cache rather than by a second process.
+		assert.ok(
+			hoverText(shown).includes(pngHeader(100, 800).toString("base64")),
+			"the hover kept the raster of the smaller height",
+		);
+		controller.dispose();
+	});
+
+	test("Should keep the raster it has when the compile of a scaled one answers nothing", async () => {
+		// A newer request supersedes a compile, and the page still has to be shown.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(100, 800), stderr: "" }, (ppi) =>
+			ppi === 144 ? { png: pngHeader(100, 800), stderr: "" } : { png: Buffer.from("superseded", "utf-8"), stderr: "" },
+		);
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"], 100));
+		const document = await quartoDocument(THREE_KINDS);
+
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		assert.ok(hoverText(shown).includes("data:image/png;base64,"), `no image: ${hoverText(shown)}`);
+		assert.ok(hoverText(shown).includes('height="100"'), `the page was mis-sized: ${hoverText(shown)}`);
 		controller.dispose();
 	});
 
