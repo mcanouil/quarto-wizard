@@ -19,11 +19,14 @@ const SVG = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"></svg>';
 class StubCompiler implements TypstCompilerLike {
 	readonly sources: string[] = [];
 
+	/** What the next compile answers with, so one test can make a block fail. */
+	next: TypstCompileResult | undefined;
+
 	constructor(private readonly result: TypstCompileResult) {}
 
 	compile(source: string): Promise<TypstCompileResult> {
 		this.sources.push(source);
-		return Promise.resolve(this.result);
+		return Promise.resolve(this.next ?? this.result);
 	}
 
 	dispose(): void {
@@ -88,6 +91,22 @@ function nextResultFor(
 			resolve();
 		});
 		controller.request(document, position);
+	});
+}
+
+/** Run an action and wait for the result it publishes. */
+function nextPublished(controller: TypstPreviewController, act: () => void): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const timer = setTimeout(() => {
+			subscription.dispose();
+			reject(new Error("no result was published"));
+		}, 2000);
+		const subscription = controller.onDidChangeResult(() => {
+			clearTimeout(timer);
+			subscription.dispose();
+			resolve();
+		});
+		act();
 	});
 }
 
@@ -263,6 +282,30 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		const [image] = hoverParts(shown);
 		assert.ok(image.value.includes('<div align="center">'), `the image is not centred: ${image.value}`);
 		assert.strictEqual(image.supportHtml, true, "a centred image needs the markdown string to allow HTML");
+		controller.dispose();
+	});
+
+	test("Should keep a failure out of the HTML part when both reach one hover", async () => {
+		// A failure keeps the last good image of the same block behind it, so a
+		// hover can carry an image and a message at once. That is the case the
+		// split exists for, and the one where merging them would be a defect.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const controller = makeController(compiler);
+		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
+		const document = await quartoDocument(THREE_KINDS);
+
+		await nextResultFor(controller, document, INSIDE_PLAIN);
+		compiler.next = { stderr: "error: unexpected <script>alert(1)</script>\n" };
+		await nextPublished(controller, () => controller.reload());
+		const shown = await hover.provideHover(document, INSIDE_PLAIN, NO_CANCEL);
+
+		const parts = hoverParts(shown);
+		assert.strictEqual(parts.length, 2, `an image and a message are two parts: ${hoverText(shown)}`);
+		assert.ok(parts[0].value.includes("data:image/"), `no image in the first part: ${parts[0].value}`);
+		assert.strictEqual(parts[0].supportHtml, true, "the image part allows HTML");
+		assert.ok(!parts[0].value.includes("script"), "the message reached the part that allows HTML");
+		assert.ok(parts[1].value.includes("script"), `no message in the second part: ${parts[1].value}`);
+		assert.notStrictEqual(parts[1].supportHtml, true, "the message allows HTML");
 		controller.dispose();
 	});
 
