@@ -6,7 +6,7 @@
 
 - feat: Preview an inline Typst cell, written as `` `{typst} ...` `` or `` `...`{.typst} ``. (#423)
 - feat: Show the Typst preview in the panel and in a hover at the same time. (#420)
-- feat: Show a Typst hover image as a raster of the height the hover displays, so a plot whose vector is too long for a data URI appears instead of pointing at the panel. The panel still shows the vector. (#443)
+- feat: Show a Typst hover image as a raster of the height the hover displays. A plot whose vector is too long for a data URI now appears in the hover, and the panel still shows the vector. (#443)
 
 ### Bug Fixes
 

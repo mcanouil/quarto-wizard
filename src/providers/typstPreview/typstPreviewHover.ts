@@ -162,7 +162,11 @@ export class TypstPreviewHover implements vscode.HoverProvider {
 			return { png: first.png, shownHeight: pageHeight };
 		}
 		const scaled = await this.controller.previewRaster(document, position, rasterPpi(pageHeight, maxHeight));
-		return { png: scaled?.png ?? first.png, shownHeight: maxHeight };
+		// Read the same way the first pass is. A scaled compile that a newer
+		// request superseded answers with nothing, and the page still has to be
+		// shown at the height the hover shows it at.
+		const usable = scaled?.png !== undefined && pngSize(scaled.png) !== undefined ? scaled.png : first.png;
+		return { png: usable, shownHeight: maxHeight };
 	}
 
 	/**

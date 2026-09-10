@@ -17,11 +17,8 @@ import {
 /** An image that is never compiled, so nothing here spawns Typst. */
 const SVG = '<svg viewBox="0 0 10 10" width="10pt" height="10pt"></svg>';
 
-/** A raster header declaring one size, which is all a surface reads from it. */
-const png = pngHeader;
-
 /** A raster of a page that fits the hover whole, at twice the height shown. */
-const PNG = png(20, 20);
+const PNG = pngHeader(20, 20);
 
 /**
  * A compiler that answers every compile with the same image.
@@ -345,7 +342,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// so the height comes from the markup. Twice the height is compiled and
 		// half of it asked for back, which is what keeps it sharp on a dense
 		// display.
-		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: png(40, 20), stderr: "" });
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(40, 20), stderr: "" });
 		const controller = makeController(compiler);
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"], 200));
 		const document = await quartoDocument(THREE_KINDS);
@@ -363,7 +360,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// Twice the height shown, and never twice the page. A page taller than the
 		// hover shows is scaled down before a reader sees it, and every pixel above
 		// that ratio is length in the URI that buys nothing.
-		const tall = new StubCompiler({ svg: SVG, stderr: "" }, { png: png(100, 800), stderr: "" });
+		const tall = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(100, 800), stderr: "" });
 		const controller = makeController(tall);
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"], 100));
 		const document = await quartoDocument(THREE_KINDS);
@@ -397,8 +394,8 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// A held raster can be the scaled one from a taller page, so its height is
 		// not the page at the plain resolution. Reading the page size from the
 		// pixels alone would report the height of the hover that scaled it.
-		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: png(100, 800), stderr: "" }, (ppi) => ({
-			png: png(100, Math.round((800 * ppi) / 144)),
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" }, { png: pngHeader(100, 800), stderr: "" }, (ppi) => ({
+			png: pngHeader(100, Math.round((800 * ppi) / 144)),
 			stderr: "",
 		}));
 		const controller = makeController(compiler);
@@ -611,7 +608,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// A raster of the size shown is shorter than the vector for all but the
 		// simplest drawing, and a page dense enough still outruns what a data URI
 		// can carry. The reader is sent to the panel rather than shown markup.
-		const huge = Buffer.concat([png(20, 20), Buffer.alloc(400_000)]);
+		const huge = Buffer.concat([pngHeader(20, 20), Buffer.alloc(400_000)]);
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }, { png: huge, stderr: "" }));
 		const hover = new TypstPreviewHover(controller, fixedSettings(["hover"]));
 		const document = await quartoDocument(THREE_KINDS);
@@ -628,7 +625,7 @@ suite("Typst Preview Surfaces Test Suite", () => {
 		// markdown carries. An image in the gap between the two passed the guard and
 		// reached VS Code as a literal `![...](data:...)` string.
 		const raw = 200_000;
-		const padded = Buffer.concat([png(20, 20), Buffer.alloc(raw - 24)]);
+		const padded = Buffer.concat([pngHeader(20, 20), Buffer.alloc(raw - 24)]);
 		assert.ok(padded.length < 256 * 1024, "the raw image must be under the raw limit");
 		assert.ok(padded.toString("base64").length > 256 * 1024, "the encoded image must be over the limit");
 		const controller = makeController(new StubCompiler({ svg: SVG, stderr: "" }, { png: padded, stderr: "" }));
