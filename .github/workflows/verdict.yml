@@ -1,0 +1,122 @@
+# @license MIT
+# @copyright 2026 Mickaël Canouil
+# @author Mickaël Canouil
+
+name: Build Verdict
+
+on:
+  workflow_run:
+    workflows:
+      - Build & Test Extension
+    types:
+      - completed
+
+concurrency:
+  # One commit, one check run. Two build runs on one commit produce two
+  # verdict runs that write the same check run, so they must not overlap.
+  # The answer does not depend on which one wins, because both read the same
+  # commit, so this serialises the writes rather than deciding the verdict.
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+permissions:
+  # A workflow_run workflow gets a write token even when the run that
+  # triggered it did not, which is what covers a fork pull request. It
+  # therefore runs no code from the head commit and does not check it out.
+  checks: write
+  actions: read
+  contents: read
+
+jobs:
+  verdict:
+    # A manual build has no pull request to gate, so it gets no verdict.
+    if: github.event.workflow_run.event == 'pull_request'
+    name: Report whether the commit is built
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post the verdict check run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+
+          # The question is about the commit and not about the run that
+          # triggered this workflow. Every build run for this head SHA is
+          # read, so two verdict runs on one commit reach the same answer and
+          # the order they finish in stops mattering. That is what replaces
+          # the wait loop that used to mirror a sibling verdict.
+          #
+          # `github.event.workflow_run.conclusion` is reported empty in
+          # practice, so nothing here reads it.
+          runs=$(gh api --paginate \
+            "repos/${GH_REPO}/actions/workflows/build.yml/runs?head_sha=${HEAD_SHA}&event=pull_request&per_page=100" \
+            --jq '.workflow_runs[].id')
+
+          built=false
+          seen=false
+          while IFS= read -r run_id; do
+            if [[ -z "${run_id}" ]]; then
+              continue
+            fi
+            seen=true
+            # The summary job carries no `name` key, so its API name is its
+            # job id. It already knows whether the matrix passed, and whether
+            # a pull request that changed no build input had anything to run.
+            outcome=$(gh api "repos/${GH_REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+              --jq '[.jobs[] | select(.name == "summary") | .conclusion] | first // empty')
+            if [[ "${outcome}" == "success" ]]; then
+              built=true
+              break
+            fi
+          done <<< "${runs}"
+
+          if [[ "${built}" == "true" ]]; then
+            conclusion="success"
+            title="The commit is built"
+            text="A run of the build workflow for this commit has a summary job that passed."
+          elif [[ "${seen}" == "true" ]]; then
+            conclusion="failure"
+            title="The commit is not built"
+            text=$'No run of the build workflow for this commit has a summary job that passed.\n\nA draft pull request builds nothing, so mark it ready for review. Otherwise read the failed run.'
+          else
+            conclusion="failure"
+            title="The commit has no build"
+            text="No run of the build workflow exists for this commit."
+          fi
+
+          # A check run of this name may already exist, from an earlier build
+          # run on the same commit. Updating it keeps one check run per
+          # commit, so a required context cannot resolve to a stale duplicate.
+          check_id=$(gh api "repos/${GH_REPO}/commits/${HEAD_SHA}/check-runs?check_name=verdict&per_page=100" \
+            --jq '.check_runs | sort_by(.started_at) | last | .id // empty')
+
+          if [[ -n "${check_id}" ]]; then
+            gh api --method PATCH "repos/${GH_REPO}/check-runs/${check_id}" \
+              -f status=completed \
+              -f conclusion="${conclusion}" \
+              -f details_url="${RUN_URL}" \
+              -f "output[title]=${title}" \
+              -f "output[summary]=${text}" > /dev/null
+          else
+            gh api --method POST "repos/${GH_REPO}/check-runs" \
+              -f name=verdict \
+              -f head_sha="${HEAD_SHA}" \
+              -f status=completed \
+              -f conclusion="${conclusion}" \
+              -f details_url="${RUN_URL}" \
+              -f "output[title]=${title}" \
+              -f "output[summary]=${text}" > /dev/null
+          fi
+
+          {
+            echo "# ${title}"
+            echo ""
+            echo "${text}"
+            echo ""
+            echo "Commit: \`${HEAD_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
