@@ -330,59 +330,61 @@ jobs:
           # which is the case this job exists to report on.
           mkdir -p job-summaries
 
-          echo "# 🚀 Quarto Wizard Build & Test Results" >> ${GITHUB_STEP_SUMMARY}
-          echo "" >> ${GITHUB_STEP_SUMMARY}
-
-          # Add Pull Request link if triggered by PR event
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "**🔗 Pull Request**: [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${PR_TITLE}" >> ${GITHUB_STEP_SUMMARY}
-            echo "" >> ${GITHUB_STEP_SUMMARY}
-          fi
-
-          echo "## 📊 Build Matrix Results" >> ${GITHUB_STEP_SUMMARY}
-          echo "" >> ${GITHUB_STEP_SUMMARY}
-
-          # Create table header
-          echo "| Operating System | Node.js Version | Status | Timestamp |" >> ${GITHUB_STEP_SUMMARY}
-          echo "|------------------|-----------------|--------|-----------|" >> ${GITHUB_STEP_SUMMARY}
-
           lua_summary="job-summaries/job-summary-lua/job-summary.txt"
 
-          # The table reports the cells that uploaded a summary. A cell killed by
-          # its timeout never reaches its upload step, so the table can be short.
-          # The verdict below therefore comes from the job results, not from here.
-          find job-summaries -type f -name "job-summary.txt" 2>/dev/null | while read summary_file; do
-            os=$(grep "OS:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
-            node=$(grep "Node:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
-            status=$(grep "Status:" "${summary_file}" | cut -d' ' -f2- || echo "unknown")
-            timestamp=$(grep "Timestamp:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
-            case "${status}" in
-              "success") status_emoji="✅" ;;
-              "failure") status_emoji="❌" ;;
-              "cancelled") status_emoji="🟡" ;;
-              *) status_emoji="⚠️" ;;
-            esac
-            echo "| ${os} | ${node} | ${status_emoji} ${status} | ${timestamp} |" >> ${GITHUB_STEP_SUMMARY}
-          done
+          {
+            echo "# 🚀 Quarto Wizard Build & Test Results"
+            echo ""
 
-          if [[ ! -f "${lua_summary}" ]]; then
-            echo "| Lua reference validator | n/a | ⚠️ ${{ needs.lua.result }} (no summary uploaded) | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> "${GITHUB_STEP_SUMMARY}"
-          fi
+            # Add Pull Request link if triggered by PR event
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              echo "**🔗 Pull Request**: [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${PR_TITLE}"
+              echo ""
+            fi
 
-          echo "" >> ${GITHUB_STEP_SUMMARY}
-          echo "## 📈 Summary Statistics" >> ${GITHUB_STEP_SUMMARY}
-          echo "" >> ${GITHUB_STEP_SUMMARY}
+            echo "## 📊 Build Matrix Results"
+            echo ""
 
-          # The table loop runs in a subshell, so its counters are lost. Recount
-          # the reported cells here. These describe the table, not the verdict.
-          reported_cells=$(find job-summaries -type f -name "job-summary.txt" 2>/dev/null | wc -l)
-          successful_cells=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; 2>/dev/null | wc -l)
+            # Create table header
+            echo "| Operating System | Node.js Version | Status | Timestamp |"
+            echo "|------------------|-----------------|--------|-----------|"
 
-          echo "- **Reported Cells**: ${reported_cells// /}" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Successful**: ${successful_cells// /} ✅" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Build Matrix**: ${{ needs.build.result }}" >> ${GITHUB_STEP_SUMMARY}
-          echo "- **Lua reference validator**: ${{ needs.lua.result }}" >> ${GITHUB_STEP_SUMMARY}
-          echo "" >> ${GITHUB_STEP_SUMMARY}
+            # The table reports the cells that uploaded a summary. A cell killed by
+            # its timeout never reaches its upload step, so the table can be short.
+            # The verdict below therefore comes from the job results, not from here.
+            find job-summaries -type f -name "job-summary.txt" 2>/dev/null | while read -r summary_file; do
+              os=$(grep "OS:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+              node=$(grep "Node:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+              status=$(grep "Status:" "${summary_file}" | cut -d' ' -f2- || echo "unknown")
+              timestamp=$(grep "Timestamp:" "${summary_file}" | cut -d' ' -f2- || echo "Unknown")
+              case "${status}" in
+                "success") status_emoji="✅" ;;
+                "failure") status_emoji="❌" ;;
+                "cancelled") status_emoji="🟡" ;;
+                *) status_emoji="⚠️" ;;
+              esac
+              echo "| ${os} | ${node} | ${status_emoji} ${status} | ${timestamp} |"
+            done
+
+            if [[ ! -f "${lua_summary}" ]]; then
+              echo "| Lua reference validator | n/a | ⚠️ ${{ needs.lua.result }} (no summary uploaded) | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |"
+            fi
+
+            echo ""
+            echo "## 📈 Summary Statistics"
+            echo ""
+
+            # The table loop runs in a subshell, so its counters are lost. Recount
+            # the reported cells here. These describe the table, not the verdict.
+            reported_cells=$(find job-summaries -type f -name "job-summary.txt" 2>/dev/null | wc -l)
+            successful_cells=$(find job-summaries -type f -name "job-summary.txt" -exec grep -l "Status: success" {} \; 2>/dev/null | wc -l)
+
+            echo "- **Reported Cells**: ${reported_cells// /}"
+            echo "- **Successful**: ${successful_cells// /} ✅"
+            echo "- **Build Matrix**: ${{ needs.build.result }}"
+            echo "- **Lua reference validator**: ${{ needs.lua.result }}"
+            echo ""
+          } >> "${GITHUB_STEP_SUMMARY}"
 
           # The verdict comes from the job results, which are reported whatever
           # a job managed to upload. A matrix cell killed by its timeout leaves
@@ -398,17 +400,19 @@ jobs:
             esac
           done
 
-          if [[ -z "${failed_names}" ]]; then
-            echo "## 🎉 Overall Result: SUCCESS" >> ${GITHUB_STEP_SUMMARY}
-            if [[ "${{ needs.changes.outputs.code }}" == "true" ]]; then
-              echo "Every job completed successfully." >> "${GITHUB_STEP_SUMMARY}"
+          {
+            if [[ -z "${failed_names}" ]]; then
+              echo "## 🎉 Overall Result: SUCCESS"
+              if [[ "${{ needs.changes.outputs.code }}" == "true" ]]; then
+                echo "Every job completed successfully."
+              else
+                echo "This pull request changes no build input, so the build matrix and the Lua job did not run."
+              fi
             else
-              echo "This pull request changes no build input, so the build matrix and the Lua job did not run." >> "${GITHUB_STEP_SUMMARY}"
+              echo "## ⚠️ Overall Result: FAILURE"
+              echo "Not successful:${failed_names}. Check the individual job logs for details."
             fi
-          else
-            echo "## ⚠️ Overall Result: FAILURE" >> ${GITHUB_STEP_SUMMARY}
-            echo "Not successful:${failed_names}. Check the individual job logs for details." >> ${GITHUB_STEP_SUMMARY}
-          fi
+          } >> "${GITHUB_STEP_SUMMARY}"
 
           # The job runs on every outcome, so it has to carry the verdict it
           # prints. Without this it reports success while the table says failure.
