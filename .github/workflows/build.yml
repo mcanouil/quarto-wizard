@@ -198,7 +198,7 @@ jobs:
         id: build-extension
         if: runner.os == 'Linux'
         shell: bash
-        run: npx vsce package --pre-release --out quarto-wizard.vsix
+        run: npx @vscode/vsce package --pre-release --out quarto-wizard.vsix
 
       - name: Upload VSIX as workflow artifact
         if: runner.os == 'Linux'
