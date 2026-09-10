@@ -337,9 +337,8 @@ jobs:
           # The verdict comes from the job results, which are reported whatever
           # a job managed to upload. A matrix cell killed by its timeout leaves
           # no summary file, so counting files would call that run a success.
-          # A skipped job is not a failure: this job is the required check, so
-          # a pull request that changes no build input has nothing to run and
-          # must still report a verdict.
+          # A skipped job is not a failure: a pull request that changes no
+          # build input has nothing to run and must still report a verdict.
           failed_names=""
           for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
             case "${job#*:}" in
