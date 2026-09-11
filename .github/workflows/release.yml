@@ -304,8 +304,8 @@ jobs:
         run: |
           current_version=$(jq -r .version package.json)
           version_line=$(grep -n '"version"' package.json | cut -d: -f1)
-          echo "VERSION=${current_version}" >> ${GITHUB_ENV}
-          echo "version=${current_version}" >> ${GITHUB_OUTPUT}
+          echo "VERSION=${current_version}" >> "${GITHUB_ENV}"
+          echo "version=${current_version}" >> "${GITHUB_OUTPUT}"
           echo "::notice file=package.json,line=${version_line}::${current_version}"
 
           # Read from the tree that is checked out, and not by repeating the
@@ -323,7 +323,7 @@ jobs:
             /^## / && flag {flag=0}
             flag
           ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
-          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> ${GITHUB_ENV}
+          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> "${GITHUB_ENV}"
 
       - name: Append installation instructions to changelog
         env:
@@ -333,6 +333,9 @@ jobs:
           DOCS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         shell: bash
         run: |
+          # The single quotes are the point. `envsubst` reads the list of
+          # names to expand, and the shell must not expand them first.
+          # shellcheck disable=SC2016
           envsubst '${WIZARD_VERSION} ${REPO} ${DOCS_URL}' \
             < .github/workflows/assets/install-instructions.md \
             >> "${CHANGELOG}"
