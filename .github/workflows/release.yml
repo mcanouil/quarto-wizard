@@ -524,11 +524,15 @@ jobs:
             # `vsce` reports an extension that was never published this way,
             # on standard output and with a zero exit status.
             PUBLISHED=""
-          elif jq -e 'type == "object" and has("versions")' > /dev/null 2>&1 <<< "${SHOWN}"; then
+          elif jq -e 'type == "object" and (.versions | type == "array")' > /dev/null 2>&1 <<< "${SHOWN}"; then
             PUBLISHED=$(jq -r --arg v "${VERSION}" \
               'first(.versions[] | select(.version == $v) | .version) // ""' <<< "${SHOWN}")
           else
-            echo "::error::vsce show returned an answer this check cannot read: ${SHOWN}"
+            # The whole answer goes to the log. A workflow command stops at the
+            # first newline, so the annotation carries one line of it.
+            echo "vsce show returned:"
+            echo "${SHOWN}"
+            echo "::error::vsce show returned an answer this check cannot read: $(head -c 200 <<< "${SHOWN}" | tr '\n' ' ')"
             exit 1
           fi
 
@@ -583,7 +587,7 @@ jobs:
           # otherwise end a release that had nothing wrong with it. Only a
           # persistent answer reaches the branches below, where anything but
           # the two expected codes is a failure and not an absence.
-          STATUS=$(curl -sL --retry 3 --retry-all-errors -o /dev/null -w '%{http_code}' \
+          STATUS=$(curl -sSL --retry 3 --retry-all-errors -o /dev/null -w '%{http_code}' \
             "https://open-vsx.org/api/mcanouil/quarto-wizard/${VERSION}")
           case "${STATUS}" in
             200)
