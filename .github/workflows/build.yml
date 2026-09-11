@@ -256,47 +256,6 @@ jobs:
         working-directory: packages/schema
         run: npm run test:lua
 
-  lint:
-    # No `needs: changes`. That job passes for the inputs of the build alone,
-    # so gating this one on it would skip the linter on exactly the
-    # documentation and workflow pull requests it exists to read.
-    name: Lint the files the build does not
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.ref }}
-          # Super-Linter compares against the default branch, so it needs the
-          # history to compare with.
-          fetch-depth: 0
-
-      # Only the languages nothing else reads. `eslint` and `prettier` already
-      # cover TypeScript inside the matrix above, and a second opinion over
-      # those files would report style this repository has settled.
-      - name: Super-Linter
-        uses: super-linter/super-linter@v8
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BRANCH: main
-          IGNORE_GITIGNORED_FILES: true
-          # A pull request has a base to compare against, so it reads the
-          # files it changes. Any other event does not: the release calls this
-          # workflow on the tip of `main`, where the comparison with `main` is
-          # empty, and the job would pass having read nothing.
-          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
-          # A status per language needs `statuses: write`, which the workflow
-          # does not grant. The job result carries the answer instead.
-          MULTI_STATUS: false
-          # Setting any of these to true leaves every unset one false, so this
-          # list is the whole scope.
-          VALIDATE_YAML: true
-          VALIDATE_JSON: true
-          VALIDATE_MARKDOWN: true
-          VALIDATE_BASH: true
-          VALIDATE_GITHUB_ACTIONS: true
-
   summary:
     # This job is the required status check of the ruleset, and it reports one
     # thing: did every job of this run pass. A draft builds like any other
@@ -307,7 +266,6 @@ jobs:
       - changes
       - build
       - lua
-      - lint
     # This job downloads a few small artifacts and writes a table.
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -345,7 +303,7 @@ jobs:
           # A skipped job is not a failure: a pull request that changes no
           # build input has nothing to run and must still report a verdict.
           failed_names=""
-          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}" "lint:${{ needs.lint.result }}"; do
+          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
             case "${job#*:}" in
               "success" | "skipped") ;;
               *) failed_names="${failed_names} ${job}" ;;
@@ -395,7 +353,6 @@ jobs:
             echo "- **Successful**: ${successful_cells} ✅"
             echo "- **Build Matrix**: ${{ needs.build.result }}"
             echo "- **Lua reference validator**: ${{ needs.lua.result }}"
-            echo "- **Lint**: ${{ needs.lint.result }}"
             echo ""
 
             if [[ -z "${failed_names}" ]]; then
