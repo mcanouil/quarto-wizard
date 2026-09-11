@@ -456,14 +456,19 @@ jobs:
             # is dispatched a second time, which is how a release recovers
             # from a publish that failed, so it has to reach the jobs that
             # publish rather than end here.
-            PRESENT=$(gh release view "${VERSION}" --json assets --jq '.assets[].name')
+            # `state` and not the name alone. An upload that died part way
+            # leaves the name on the release with a state that is not
+            # `uploaded`, and that is the very failure a second dispatch is
+            # here to recover from.
+            PRESENT=$(gh release view "${VERSION}" --json assets \
+              --jq '.assets[] | select(.state == "uploaded") | .name')
             MISSING=""
             for asset in "${ASSETS[@]}"; do
               name=$(basename "${asset%%#*}")
               grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
             done
             if [ -n "${MISSING}" ]; then
-              echo "::error::Release ${VERSION} is missing:${MISSING}. A published release is immutable, so this run cannot add them. Delete the release and its tag, then run the release again."
+              echo "::error::Release ${VERSION} is missing, or has not finished uploading:${MISSING}. A published release is immutable, so this run cannot replace them. Release the next patch version rather than repairing this one."
               exit 1
             fi
 
