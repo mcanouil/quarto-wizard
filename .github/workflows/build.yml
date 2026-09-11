@@ -39,7 +39,10 @@ permissions: read-all
 
 jobs:
   changes:
-    if: github.event.pull_request.draft == false
+    # A draft builds nothing. Any other event has no draft flag to read, and
+    # the first half of the condition answers for it, rather than leaving the
+    # decision to `null == false`.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Detect relevant changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -291,7 +294,7 @@ jobs:
     # selects the one whose API name is the literal `summary`. This job has no
     # `name` key, so its API name is this job id. A `name` key added here
     # would report every commit as not built.
-    if: always() && github.event.pull_request.draft == false
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     needs:
       - changes
       - build
