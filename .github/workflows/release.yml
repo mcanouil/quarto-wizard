@@ -105,11 +105,14 @@ jobs:
           git config --global user.name "${USER_NAME}"
           git config --global user.email "${USER_EMAIL}"
 
-      - name: Check for "unreleased" in CHANGELOG.md
+      # The heading, and not the word. Entries are written as full sentences,
+      # so one of them can carry the word `Unreleased` in its prose, and a
+      # release must not read that as a section to bump.
+      - name: Check for the Unreleased heading in CHANGELOG.md
         id: check_unreleased
         shell: bash
         run: |
-          if grep -q "Unreleased" CHANGELOG.md; then
+          if grep -q "^## Unreleased$" CHANGELOG.md; then
             echo "UNRELEASED_FOUND=true" >> "${GITHUB_OUTPUT}"
           else
             echo "UNRELEASED_FOUND=false" >> "${GITHUB_OUTPUT}"
@@ -156,7 +159,14 @@ jobs:
           npm run sync-metadata
 
           VERSION=$(jq -r .version package.json)
-          sed -i "s/Unreleased/${VERSION} (${DATE})/" CHANGELOG.md
+          # The first heading alone, matched in full. A substitution on the
+          # word rewrites the first match on every line, so an entry whose
+          # prose carries it would be corrupted in the release notes.
+          awk -v heading="## ${VERSION} (${DATE})" '
+            !done && $0 == "## Unreleased" {print heading; done = 1; next}
+            {print}
+          ' CHANGELOG.md > CHANGELOG.md.new
+          mv CHANGELOG.md.new CHANGELOG.md
           sed -i "s/^version:.*/version: ${VERSION}/" CITATION.cff
           sed -i "s/^date-released:.*/date-released: \"${DATE}\"/" CITATION.cff
 
@@ -181,8 +191,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git push --force \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+          # `git` reads the token through `GIT_ASKPASS` and not from the
+          # command line. A command line is readable from `/proc`, and the
+          # steps above have run the lifecycle scripts of every dependency,
+          # any of which can leave a process behind to read it.
+          ASKPASS="${RUNNER_TEMP}/askpass.sh"
+          cat > "${ASKPASS}" <<'ASKPASS_SCRIPT'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo "x-access-token" ;;
+            *) echo "${GH_TOKEN}" ;;
+          esac
+          ASKPASS_SCRIPT
+          chmod 700 "${ASKPASS}"
+          trap 'rm -f "${ASKPASS}"' EXIT
+
+          GIT_ASKPASS="${ASKPASS}" git push --force \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
             "HEAD:refs/heads/${BRANCH}"
 
   # The full matrix and the Lua job, on the exact tree the release publishes.
@@ -384,12 +409,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! git push \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            HEAD:refs/heads/main; then
-            echo "::error::main moved since this release was dispatched, so the bump cannot land on it. Dispatch the release again."
-            exit 1
+          # `git` reads the token through `GIT_ASKPASS` and not from the
+          # command line. A command line is readable from `/proc`, and the
+          # steps above have run the lifecycle scripts of every dependency,
+          # any of which can leave a process behind to read it.
+          ASKPASS="${RUNNER_TEMP}/askpass.sh"
+          cat > "${ASKPASS}" <<'ASKPASS_SCRIPT'
+          #!/bin/sh
+          case "$1" in
+            Username*) echo "x-access-token" ;;
+            *) echo "${GH_TOKEN}" ;;
+          esac
+          ASKPASS_SCRIPT
+          chmod 700 "${ASKPASS}"
+          trap 'rm -f "${ASKPASS}"' EXIT
+
+          # The error names what git reported. A refused fast-forward means
+          # `main` moved, and a re-dispatch is the answer. A revoked token, a
+          # ruleset that no longer exempts the app, and a network failure are
+          # different problems, and a message that names only the first one
+          # sends the operator through a whole rebuild for nothing.
+          PUSH_ERROR=$(mktemp)
+          if GIT_ASKPASS="${ASKPASS}" git push \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:refs/heads/main 2>"${PUSH_ERROR}"; then
+            exit 0
           fi
+          cat "${PUSH_ERROR}"
+          if grep -qiE 'non-fast-forward|fetch first|behind its remote' "${PUSH_ERROR}"; then
+            echo "::error::main moved since this release was dispatched, so the bump cannot land on it. Dispatch the release again."
+          else
+            echo "::error::The push to main failed: $(tr '\n' ' ' < "${PUSH_ERROR}")"
+          fi
+          exit 1
 
   # The branch must not outlive the run, so this job runs after success, after
   # failure and after a cancel. It needs no ordering against the jobs that
