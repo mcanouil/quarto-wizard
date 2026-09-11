@@ -588,3 +588,15 @@ jobs:
           npx --yes ovsx publish ${PRERELEASE_FLAG} \
             "quarto-wizard-${VERSION}.vsix" \
             --pat "${OPEN_VSX_REGISTRY_TOKEN}"
+
+  # The documentation site reads the latest tag, which `release-github` has
+  # just created.
+  deploy:
+    needs: release-github
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    uses: ./.github/workflows/deploy.yml

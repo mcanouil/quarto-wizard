@@ -11,9 +11,22 @@ on:
         description: "Render release site from main instead of latest tag"
         type: boolean
         default: false
-  release:
-    types:
-      - published
+  # The release workflow calls this one once the release exists.
+  #
+  # `release: published` used to trigger it. That worked only because
+  # `release-github` creates the release with the app token, and a release
+  # created by `GITHUB_TOKEN` triggers no workflow at all. The site therefore
+  # depended on which credential made the release, and nothing said so.
+  #
+  # A release published by hand no longer deploys the site. Dispatch this
+  # workflow for that.
+  workflow_call:
+    inputs:
+      use-main-as-release:
+        description: "Render release site from main instead of latest tag"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
