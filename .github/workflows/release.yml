@@ -513,9 +513,9 @@ jobs:
           # and the job that packaged the file run the same major. Move both
           # together.
           #
-          # The retries match the ones the Open VSX check makes, so a busy or a
+          # The lookup retries, as the Open VSX check does, so a busy or a
           # restarting registry does not end a release that had nothing wrong
-          # with it. A failure that outlasts them ends the step.
+          # with it. A failure that outlasts the attempts ends the step.
           for attempt in 1 2 3; do
             if SHOWN=$(npx --yes @vscode/vsce@3 show mcanouil.quarto-wizard --json); then
               break
