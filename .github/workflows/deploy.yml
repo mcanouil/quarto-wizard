@@ -11,9 +11,10 @@ on:
         description: "Render release site from main instead of latest tag"
         type: boolean
         default: false
-  release:
-    types:
-      - published
+  # The release workflow calls this one once the release exists. A release
+  # published by hand does not deploy the site, so dispatch this workflow for
+  # that.
+  workflow_call:
 
 permissions:
   contents: read

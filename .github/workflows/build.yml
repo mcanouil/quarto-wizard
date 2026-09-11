@@ -6,12 +6,17 @@ name: Build & Test Extension
 
 on:
   workflow_dispatch:
+  # The release workflow calls this one on the commit it is about to publish.
+  # It passes no input: inside a called workflow the `github` context is the
+  # caller's, so `github.sha` below is already that commit.
+  workflow_call:
   pull_request:
+    # No `ready_for_review`. A draft builds, so its commit is already built by
+    # the time it is marked ready, and that event would only repeat the run.
     types:
       - opened
       - synchronize
       - reopened
-      - ready_for_review
     branches:
       - main
     # No paths filter. The ruleset requires the summary job, and a required
@@ -20,9 +25,8 @@ on:
     # expensive jobs have anything to do.
 
 concurrency:
-  # A draft run holds no verdict, because every job below skips on a draft, so
-  # cancelling one loses nothing. `github.ref` separates a pull request from a
-  # dispatch, which is the only split this needs.
+  # One run per ref, so one `summary` reports per commit. That is what lets a
+  # required check resolve to a single answer.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
@@ -30,7 +34,6 @@ permissions: read-all
 
 jobs:
   changes:
-    if: github.event.pull_request.draft == false
     name: Detect relevant changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -49,7 +52,8 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # A manual run has no pull request to compare against, so it builds.
+          # A manual run, or a call from the release workflow, has no pull
+          # request to compare against, so it builds.
           if [[ "${EVENT_NAME}" != "pull_request" ]]; then
             echo "code=true" >> "${GITHUB_OUTPUT}"
             exit 0
@@ -108,8 +112,16 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [25.x]
     steps:
+      # The commit of the event, and not the branch. `actions/checkout` with
+      # no `ref` resolves `github.ref`, which is the branch and therefore its
+      # tip at checkout time, so a commit landing between the dispatch and
+      # this step would be built instead of the one that was asked for. On a
+      # pull request `github.sha` is the merge commit, which is what the
+      # default resolves to anyway.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
@@ -229,6 +241,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
 
       - name: Set up Quarto CLI
         uses: quarto-dev/quarto-actions/setup@v2
@@ -240,42 +254,12 @@ jobs:
         working-directory: packages/schema
         run: npm run test:lua
 
-      - name: Generate job result summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "OS: ubuntu-latest (Lua)"
-            echo "Node: n/a"
-            echo "Status: ${{ job.status }}"
-            echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-          } > job-summary.txt
-
-      - name: Upload job summary
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: job-summary-lua
-          path: job-summary.txt
-          retention-days: 1
-
   summary:
-    # The same draft condition as `changes`, which `build` and `lua` inherit
-    # through `needs.changes.outputs.code`. Every job of a draft run therefore
-    # skips, the run concludes as `skipped`, and nothing sends a failure
-    # notification. That is what this condition is for.
-    #
-    # This job is no longer the required check, so a skipped check counting as
-    # satisfied stops mattering. `verdict.yml` posts the required check, and it
-    # reports whether the commit has been built rather than how this run ended.
-    # A draft that skips here has no successful `summary` for its commit, so
-    # its verdict is red and the merge stays blocked.
-    #
-    # The job id is a contract. `verdict.yml` reads the jobs of this run and
-    # selects the one whose API name is the literal `summary`. This job has no
-    # `name` key, so its API name is this job id. A `name` key added here
-    # would report every commit as not built.
-    if: always() && github.event.pull_request.draft == false
+    # This job is the required status check of the ruleset, and it reports one
+    # thing: did every job of this run pass. A draft builds like any other
+    # pull request, so this answer is never a skip that GitHub would read as
+    # satisfied.
+    if: always()
     needs:
       - changes
       - build
@@ -308,7 +292,6 @@ jobs:
           # which is the case this job exists to report on.
           mkdir -p job-summaries
 
-          lua_summary="job-summaries/job-summary-lua/job-summary.txt"
           mapfile -t summary_files < <(find job-summaries -type f -name "job-summary.txt")
           successful_cells=0
 
@@ -358,10 +341,6 @@ jobs:
               esac
               echo "| ${os} | ${node} | ${status_emoji} ${status} | ${timestamp} |"
             done
-
-            if [[ ! -f "${lua_summary}" ]]; then
-              echo "| Lua reference validator | n/a | ⚠️ ${{ needs.lua.result }} (no summary uploaded) | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |"
-            fi
 
             echo ""
             echo "## 📈 Summary Statistics"

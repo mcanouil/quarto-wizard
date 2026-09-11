@@ -28,27 +28,41 @@ on:
         default: "minor"
 
 jobs:
-  bump-version:
+  # The checks run before anything is written, on the commit the release was
+  # dispatched from. This ordering is the gate.
+  #
+  # The bump then commits on that same commit, and what it adds is the version
+  # in `package.json`, `package-lock.json` and `CITATION.cff`, a heading in
+  # `CHANGELOG.md`, and the rendered documentation. None of it is a source
+  # file, and nothing builds that commit before it reaches `main`. That is the
+  # trade this design makes: the checks cover everything the release is built
+  # from, and the bump on top of them is taken to be mechanical.
+  verify:
+    permissions: read-all
+    uses: ./.github/workflows/build.yml
+
+  bump:
     runs-on: ubuntu-latest
 
+    needs: verify
+
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
 
     env:
-      BRANCH: ci/bump-version
-      COMMIT: "ci: bump version for release :rocket:"
       BUMP_VERSION: ${{ inputs.version }}
 
     outputs:
-      sha: ${{ steps.merge-bump.outputs.sha }}
+      # A skipped step reports an empty output, so a release with nothing to
+      # bump falls through to the commit the dispatch resolved, which `verify`
+      # has just built. That is how a release recovers from a publish that
+      # failed.
+      sha: ${{ steps.bump.outputs.sha || github.sha }}
 
     steps:
-      # The bump pull request targets the branch the release was dispatched
-      # from. `build.yml` runs on pull requests against `main` alone, so a
-      # dispatch from anywhere else opens a pull request that no required check
-      # ever reports on, and the gate below would then time out for a reason it
-      # cannot name.
+      # The bump is pushed to `main`. A dispatch from any other branch would
+      # push a commit of that branch onto `main`, or be refused as not a
+      # fast-forward, and neither is a release.
       - name: Check the release runs from main
         shell: bash
         run: |
@@ -58,20 +72,21 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Set up Quarto CLI
-        uses: quarto-dev/quarto-actions/setup@v2
-        with:
-          version: pre-release
-
       - name: Create GitHub App token
         uses: actions/create-github-app-token@v3
         id: app-token
         with:
           client-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_KEY }}
+
+      # The commit `verify` built, and not the tip of the branch. The checkout
+      # keeps the token, so the push below runs as the app, which the ruleset
+      # exempts. That is what lets the bump reach `main` with no pull request.
+      - name: Checkout the commit the checks passed
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Get GitHub App User ID
         id: get-user-id
@@ -96,178 +111,96 @@ jobs:
           git config --global user.name "${USER_NAME}"
           git config --global user.email "${USER_EMAIL}"
 
-      - name: Check for "unreleased" in CHANGELOG.md
+      # The heading, and not the word. Entries are written as full sentences,
+      # so one of them can carry the word `Unreleased` in its prose, and a
+      # release must not read that as a section to bump.
+      - name: Check for the Unreleased heading in CHANGELOG.md
         id: check_unreleased
         shell: bash
         run: |
-          if grep -q "Unreleased" CHANGELOG.md; then
-            echo "UNRELEASED_FOUND=true" >> ${GITHUB_OUTPUT}
-          else
-            echo "UNRELEASED_FOUND=false" >> ${GITHUB_OUTPUT}
+          set -euo pipefail
+          if grep -q "^## Unreleased$" CHANGELOG.md; then
+            echo "UNRELEASED_FOUND=true" >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
+          echo "UNRELEASED_FOUND=false" >> "${GITHUB_OUTPUT}"
+          # Absent is how a release that recovers a failed publish runs, so it
+          # is not an error. It is also what a heading written in another
+          # shape looks like, and that case ends green having released
+          # nothing, so the log says which reading applies.
+          echo "::notice::No '## Unreleased' heading, so this run republishes the current version. A bump was expected if that is not what you asked for."
+
+      # Quarto renders the documentation and Node runs the bump. A release
+      # with nothing to bump does neither, so both sit behind the check above.
+      - name: Set up Quarto CLI
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
 
       - name: Set up Node.js
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         uses: actions/setup-node@v7
 
+      # `npm ci` and not `npm install`, so this job, the matrix that gated the
+      # release and the job that packages it all resolve the same dependency
+      # tree. `npm version` below updates the version in the lock file, which
+      # is the only change this job makes to it.
       - name: Install dependencies
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
-        run: npm install
+        run: npm ci
 
-      - name: Bump Version / Commit / Push CHANGELOG.md
-        id: bump-pull-request
+      - name: Bump the version and push it to main
+        id: bump
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          COMMIT: "ci: bump version for release :rocket:"
           DATE: ${{ github.event.inputs.date }}
         shell: bash
         run: |
-          # `-B` and not `-b`. The checkout above fetches the triggering ref
-          # alone, so this branch is normally absent, but a re-run must not end
-          # here if it is present.
-          git checkout -B "${BRANCH}"
+          set -euo pipefail
           if [ "${DATE}" = "today" ]; then
             DATE=$(date +%Y-%m-%d)
-          else
-            DATE=${DATE}
+          fi
+          # The input is free text, and it reaches the `sed` expressions below
+          # as part of a substitution delimited by `/`. A value such as
+          # `2026/09/11` would end the step with an error that names nothing
+          # the operator typed, and only after the bump had written files.
+          if ! [[ "${DATE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "::error::The date input must be \"today\" or YYYY-MM-DD. Read: ${DATE}"
+            exit 1
           fi
 
-          npm version ${BUMP_VERSION} --no-git-tag-version
+          npm version "${BUMP_VERSION}" --no-git-tag-version
           npm run sync-metadata
 
           VERSION=$(jq -r .version package.json)
-          RELEASE_DATE="${VERSION} (${DATE})"
-          sed -i "s/Unreleased/${RELEASE_DATE}/" CHANGELOG.md
+          # The first heading alone, matched in full. A substitution on the
+          # word rewrites the first match on every line, so an entry whose
+          # prose carries it would be corrupted in the release notes.
+          awk -v heading="## ${VERSION} (${DATE})" '
+            !done && $0 == "## Unreleased" {print heading; done = 1; next}
+            {print}
+          ' CHANGELOG.md > CHANGELOG.md.new
+          mv CHANGELOG.md.new CHANGELOG.md
           sed -i "s/^version:.*/version: ${VERSION}/" CITATION.cff
           sed -i "s/^date-released:.*/date-released: \"${DATE}\"/" CITATION.cff
-          git add CHANGELOG.md || echo "No changes to add"
-          git add CITATION.cff || echo "No changes to add"
-          git add packages/*/package.json || echo "No changes to add"
-          git add package.json || echo "No changes to add"
-          git add package-lock.json || echo "No changes to add"
 
           npm run docs:build
-          git add docs/ || echo "No changes to add"
 
-          git commit -m "${COMMIT}" || echo "No changes to commit"
-          git push --force origin ${BRANCH} || echo "No changes to push"
+          git add CHANGELOG.md CITATION.cff package.json package-lock.json packages/*/package.json docs/
+          git commit -m "ci: bump version for release :rocket:"
 
-          git status
-
-          sleep 5
-          # A release that stops at the check gate leaves this branch and its
-          # pull request open. The force push above updates that pull request,
-          # so reuse it. `gh pr create` refuses a second one and would end the
-          # re-run here, before the gate it exists to reach.
-          PR_NUMBER=$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number // empty')
-          if [ -z "${PR_NUMBER}" ]; then
-            PR_URL=$(gh pr create --fill-first --base "${GITHUB_REF_NAME}" --head "${BRANCH}" --label "Type: CI/CD :robot:" | tail -n 1)
-            PR_NUMBER="${PR_URL##*/}"
-          else
-            echo "::notice::Reusing the open version bump pull request ${PR_NUMBER}."
-          fi
-          if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
-            echo "::error::Failed to open the version bump pull request. Read a pull request number from: ${PR_NUMBER}"
-            exit 1
-          fi
-          echo "number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
-
-      # The token minted at the top of the job lasts an hour. The bump renders
-      # the documentation, and the gate below then waits for the matrix, so
-      # that hour can run out part way through the wait or before the merge.
-      # Both steps take a token minted here instead.
-      - name: Create GitHub App token for the gate
-        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
-        uses: actions/create-github-app-token@v3
-        id: gate-token
-        with:
-          client-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_KEY }}
-
-      # `gh pr merge --auto` does not hold the pull request here. The token that
-      # opens it can bypass the ruleset, so the automatic merge flag merges at
-      # once instead of queueing behind the required check. The release then
-      # packages a commit that nothing built. This step is the gate instead.
-      - name: Wait for the required checks to pass
-        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
-        timeout-minutes: 30
-        env:
-          GH_TOKEN: ${{ steps.gate-token.outputs.token }}
-          PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
-          APPEARANCE_TIMEOUT_SECONDS: "300"
-          POLL_INTERVAL_SECONDS: "30"
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # `gh pr checks --watch` fails outright when no check has registered
-          # yet, and a pull request seconds old is exactly that state. Wait for
-          # a required context to appear before watching it.
-          deadline=$((SECONDS + APPEARANCE_TIMEOUT_SECONDS))
-          while true; do
-            # `gh pr checks` prints a count and still exits non-zero while the
-            # checks are pending, so read the count and judge it here rather
-            # than let the exit code stand for the answer.
-            count=$(gh pr checks "${PR_NUMBER}" --required --json state --jq 'length' 2>/dev/null || true)
-            count=${count##*$'\n'}
-            if [[ "${count}" =~ ^[1-9][0-9]*$ ]]; then
-              break
-            fi
-            if [ "${SECONDS}" -ge "${deadline}" ]; then
-              # The loop hides every failure, so a bad token looks the same as a
-              # check that has not started. Run once more without the muzzle, so
-              # the log carries the real reason next to the timeout.
-              echo "::error::No required check reported on pull request ${PR_NUMBER} after ${APPEARANCE_TIMEOUT_SECONDS} seconds. The last attempt reported:"
-              gh pr checks "${PR_NUMBER}" --required --json state || true
-              exit 1
-            fi
-            sleep "${POLL_INTERVAL_SECONDS}"
-          done
-
-          gh pr checks "${PR_NUMBER}" --required --watch --fail-fast --interval "${POLL_INTERVAL_SECONDS}"
-
-      - name: Merge the version bump pull request
-        id: merge-bump
-        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
-        env:
-          GH_TOKEN: ${{ steps.gate-token.outputs.token }}
-          GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ steps.bump-pull-request.outputs.number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # The gate above proves that one commit was built. The merge response
-          # names the commit it creates, so take the SHA from the merge itself.
-          # Reading it back afterwards would race the write, which is the class
-          # of gap this whole gate exists to close.
-          # No retry. GitHub can refuse a merge it will accept a moment later,
-          # but it can also drop the response of a merge it performed, and a
-          # second attempt cannot tell those apart. Report and stop.
-          if ! SHA=$(gh api -X PUT "repos/${GH_REPO}/pulls/${PR_NUMBER}/merge" \
-            -f merge_method=squash --jq '.sha'); then
-            echo "::error::The merge of pull request ${PR_NUMBER} was refused. Read the error above, and inspect the default branch before running the release again, because a plain re-run bumps the version a second time."
-            exit 1
-          fi
-          if ! [[ "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Pull request ${PR_NUMBER} merged, but the response named no merge commit. Read: ${SHA}"
-            echo "::error::The merge itself succeeded. Inspect the default branch before running the release again, because a plain re-run bumps the version a second time."
-            exit 1
-          fi
-          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
-
-          # The merge is done and recorded. A branch left behind is untidy, not
-          # a reason to strand a release that has already landed its commit.
-          if ! gh api -X DELETE "repos/${GH_REPO}/git/refs/heads/${BRANCH}"; then
-            echo "::warning::Merged pull request ${PR_NUMBER}, but could not delete ${BRANCH}."
-          fi
+          # A plain push, so it is a fast-forward. If `main` moved since the
+          # dispatch, git refuses it and says so, and the bump belongs on the
+          # new tip.
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
   package:
     runs-on: ubuntu-latest
 
-    needs: bump-version
+    needs: bump
 
     permissions:
       contents: read
@@ -281,22 +214,20 @@ jobs:
       sha: ${{ steps.set-version.outputs.sha }}
 
     steps:
-      # The commit the gate cleared, not the tip of the default branch. Any
-      # commit landing between the merge and this checkout would otherwise be
-      # the one that gets packaged and published. A release that skipped the
-      # bump has no such commit, and takes the commit the dispatch resolved.
-      # Both are pinned; a branch name here would reopen the same race.
-      - name: Checkout the commit the gate cleared
+      # The commit the bump made, or the commit the dispatch resolved when
+      # there was nothing to bump. Either way it is pinned, and a branch name
+      # here would package whatever landed on `main` in the meantime.
+      - name: Checkout the commit to release
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.bump-version.outputs.sha || github.sha }}
+          ref: ${{ needs.bump.outputs.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
 
       - name: Install dependencies
         shell: bash
-        run: npm install
+        run: npm ci
 
       - name: Set version
         id: set-version
@@ -304,8 +235,8 @@ jobs:
         run: |
           current_version=$(jq -r .version package.json)
           version_line=$(grep -n '"version"' package.json | cut -d: -f1)
-          echo "VERSION=${current_version}" >> ${GITHUB_ENV}
-          echo "version=${current_version}" >> ${GITHUB_OUTPUT}
+          echo "VERSION=${current_version}" >> "${GITHUB_ENV}"
+          echo "version=${current_version}" >> "${GITHUB_OUTPUT}"
           echo "::notice file=package.json,line=${version_line}::${current_version}"
 
           # Read from the tree that is checked out, and not by repeating the
@@ -323,7 +254,7 @@ jobs:
             /^## / && flag {flag=0}
             flag
           ' CHANGELOG.md >"CHANGELOG-${VERSION}.md"
-          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> ${GITHUB_ENV}
+          echo "CHANGELOG=CHANGELOG-${VERSION}.md" >> "${GITHUB_ENV}"
 
       - name: Append installation instructions to changelog
         env:
@@ -333,6 +264,9 @@ jobs:
           DOCS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         shell: bash
         run: |
+          # The single quotes are the point. `envsubst` reads the list of
+          # names to expand, and the shell must not expand them first.
+          # shellcheck disable=SC2016
           envsubst '${WIZARD_VERSION} ${REPO} ${DOCS_URL}' \
             < .github/workflows/assets/install-instructions.md \
             >> "${CHANGELOG}"
@@ -653,3 +587,15 @@ jobs:
           npx --yes ovsx publish ${PRERELEASE_FLAG} \
             "quarto-wizard-${VERSION}.vsix" \
             --pat "${OPEN_VSX_REGISTRY_TOKEN}"
+
+  # The documentation site reads the latest tag, which `release-github` has
+  # just created.
+  deploy:
+    needs: release-github
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    uses: ./.github/workflows/deploy.yml
