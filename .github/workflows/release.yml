@@ -443,8 +443,23 @@ jobs:
           # the name alone, because an upload that died part way leaves the
           # name on the release with a state that is not `uploaded`, and that
           # is the very failure a second dispatch is here to recover from.
+          #
+          # `release not found` is the one failure that means the release is
+          # absent. Every other failure is a failure to read, and a guard that
+          # takes what it cannot read as an absence stops being a guard. This
+          # one would create a release that is already there.
+          VIEW_ERROR=$(mktemp)
           if PRESENT=$(gh release view "${VERSION}" --json assets \
-            --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null); then
+            --jq '.assets[] | select(.state == "uploaded") | .name' 2>"${VIEW_ERROR}"); then
+            FOUND=true
+          elif grep -qiF 'release not found' "${VIEW_ERROR}"; then
+            FOUND=false
+          else
+            echo "::error::Could not read release ${VERSION}: $(tr '\n' ' ' < "${VIEW_ERROR}")"
+            exit 1
+          fi
+
+          if [ "${FOUND}" = true ]; then
             # The tag of an existing release stays where it is. Assets built
             # somewhere else would leave the tag and the assets naming
             # different commits, which is what this release is careful not
@@ -468,7 +483,7 @@ jobs:
               grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
             done
             if [ -n "${MISSING}" ]; then
-              echo "::error::Release ${VERSION} is missing, or has not finished uploading:${MISSING}. A published release is immutable, so this run cannot replace them. Release the next patch version rather than repairing this one."
+              echo "::error::Release ${VERSION} exists, but these assets are missing or have not finished uploading:${MISSING}. A published release is immutable, so this run cannot replace them. Release the next patch version rather than repairing this one."
               exit 1
             fi
 
