@@ -498,16 +498,56 @@ jobs:
           TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
+          # An empty version would ask the registry about the extension rather
+          # than about a release of it, and the answer would read as "already
+          # published" below.
+          if [ -z "${VERSION}" ]; then
+            echo "::error::The package job reported no version."
+            exit 1
+          fi
+
           # This job has no checkout and no `node_modules`, so `npx` downloads
           # the package, which is what `--yes` is for. Naming it in full keeps
-          # the deprecated `vsce` package of the same name out of the call.
+          # the deprecated `vsce` package of the same name out of the call. The
+          # major version tracks the `@vscode/vsce` devDependency, so this job
+          # and the job that packaged the file run the same major. Move both
+          # together.
           #
-          # The major version tracks the `@vscode/vsce` devDependency, so this
-          # job and the job that packaged the file run the same major. Move
-          # both together.
-          PUBLISHED=$(npx --yes @vscode/vsce@3 show mcanouil.quarto-wizard --json 2>/dev/null \
-            | jq -r --arg v "${VERSION}" '.versions[]? | select(.version == $v) | .version' \
-            | head -n 1) || PUBLISHED=""
+          # The lookup retries, as the Open VSX check does, so a busy or a
+          # restarting registry does not end a release that had nothing wrong
+          # with it. A failure that outlasts the attempts ends the step.
+          for attempt in 1 2 3; do
+            if SHOWN=$(npx --yes @vscode/vsce@3 show mcanouil.quarto-wizard --json); then
+              break
+            fi
+            if [ "${attempt}" = 3 ]; then
+              echo "::error::vsce show failed three times. The Marketplace could not be read."
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+
+          # Only two answers are understood, and anything else ends the step.
+          # A guard that treats what it cannot read as an absence stops being a
+          # guard on the day the output changes shape, and says nothing.
+          if [ "${SHOWN}" = "undefined" ]; then
+            # `vsce` reports an extension that was never published this way,
+            # on standard output and with a zero exit status.
+            PUBLISHED=""
+          elif jq -e 'type == "object" and (.versions | type == "array")' > /dev/null 2>&1 <<< "${SHOWN}"; then
+            PUBLISHED=$(jq -r --arg v "${VERSION}" \
+              'first(.versions[] | select(.version == $v) | .version) // ""' <<< "${SHOWN}")
+          else
+            # The whole answer goes to the log. A workflow command stops at the
+            # first newline, so the annotation carries one line of it. The
+            # runner reads a workflow command from any line of the log, so the
+            # answer of the registry is indented before it is printed.
+            echo "vsce show returned:"
+            printf '%s\n' "${SHOWN}" | sed 's/^::/  ::/'
+            echo "::error::vsce show returned an answer this check cannot read: $(head -c 200 <<< "${SHOWN}" | tr '\n' ' ')"
+            exit 1
+          fi
+
           if [ -n "${PUBLISHED}" ]; then
             echo "::notice::mcanouil.quarto-wizard@${VERSION} already on Marketplace, skipping."
             exit 0
@@ -546,12 +586,32 @@ jobs:
           TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
-            "https://open-vsx.org/api/mcanouil/quarto-wizard/${VERSION}")
-          if [ "${STATUS}" = "200" ]; then
-            echo "::notice::mcanouil/quarto-wizard@${VERSION} already on Open VSX, skipping."
-            exit 0
+          # An empty version would ask the registry about the extension rather
+          # than about a release of it, and 200 would then read as "already
+          # published" below.
+          if [ -z "${VERSION}" ]; then
+            echo "::error::The package job reported no version."
+            exit 1
           fi
+
+          # The step runs under `-e`, so a network failure ends it here. The
+          # retries cover a busy or a restarting registry, which would
+          # otherwise end a release that had nothing wrong with it. Only a
+          # persistent answer reaches the branches below, where anything but
+          # the two expected codes is a failure and not an absence.
+          STATUS=$(curl -sSL --retry 3 --retry-all-errors -o /dev/null -w '%{http_code}' \
+            "https://open-vsx.org/api/mcanouil/quarto-wizard/${VERSION}")
+          case "${STATUS}" in
+            200)
+              echo "::notice::mcanouil/quarto-wizard@${VERSION} already on Open VSX, skipping."
+              exit 0
+              ;;
+            404) ;;
+            *)
+              echo "::error::Open VSX answered ${STATUS} for the version check."
+              exit 1
+              ;;
+          esac
 
           PRERELEASE_FLAG=""
           if [ "${TYPE}" = "pre-release" ]; then
