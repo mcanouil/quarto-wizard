@@ -17,9 +17,8 @@ on:
         type: string
         required: false
   pull_request:
-    # `ready_for_review` is not a type. A draft builds, so its commit is
-    # already built by the time it is marked ready, and that event would only
-    # repeat the run.
+    # No `ready_for_review`. A draft builds, so its commit is already built by
+    # the time it is marked ready, and that event would only repeat the run.
     types:
       - opened
       - synchronize
@@ -206,14 +205,11 @@ jobs:
         shell: bash
         run: npx @vscode/vsce package --pre-release --out quarto-wizard.vsix
 
-      # `inputs.ref` first. Inside a called workflow the `github` context is
-      # the caller's, so `github.sha` there is the commit the release was
-      # dispatched from and not the commit these files were built from.
       - name: Upload VSIX as workflow artifact
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: quarto-wizard-${{ inputs.ref || github.sha }}
+          name: quarto-wizard-${{ github.sha }}
           path: quarto-wizard.vsix
           retention-days: 10
 
@@ -260,25 +256,6 @@ jobs:
         working-directory: packages/schema
         run: npm run test:lua
 
-      - name: Generate job result summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "OS: ubuntu-latest (Lua)"
-            echo "Node: n/a"
-            echo "Status: ${{ job.status }}"
-            echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-          } > job-summary.txt
-
-      - name: Upload job summary
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: job-summary-lua
-          path: job-summary.txt
-          retention-days: 1
-
   lint:
     # No `needs: changes`. That job passes for the inputs of the build alone,
     # so gating this one on it would skip the linter on exactly the
@@ -286,14 +263,6 @@ jobs:
     name: Lint the files the build does not
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # No `statuses: write`. The release calls this workflow from a job that
-    # grants `read-all`, and a called workflow cannot ask for more than its
-    # caller. `MULTI_STATUS: false` below is what makes the write scope
-    # unnecessary, so the job behaves the same whether it is called or
-    # triggered by a pull request.
-    permissions:
-      contents: read
-      packages: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -312,9 +281,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEFAULT_BRANCH: main
           IGNORE_GITIGNORED_FILES: true
-          VALIDATE_ALL_CODEBASE: false
-          # A status per language needs `statuses: write`, which this job
-          # cannot have. The job result carries the answer instead.
+          # A pull request has a base to compare against, so it reads the
+          # files it changes. Any other event does not: the release calls this
+          # workflow on the tip of `main`, where the comparison with `main` is
+          # empty, and the job would pass having read nothing.
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
+          # A status per language needs `statuses: write`, which the workflow
+          # does not grant. The job result carries the answer instead.
           MULTI_STATUS: false
           # Setting any of these to true leaves every unset one false, so this
           # list is the whole scope.
@@ -323,25 +296,6 @@ jobs:
           VALIDATE_MARKDOWN: true
           VALIDATE_BASH: true
           VALIDATE_GITHUB_ACTIONS: true
-
-      - name: Generate job result summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "OS: ubuntu-latest (Lint)"
-            echo "Node: n/a"
-            echo "Status: ${{ job.status }}"
-            echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-          } > job-summary.txt
-
-      - name: Upload job summary
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: job-summary-lint
-          path: job-summary.txt
-          retention-days: 1
 
   summary:
     # This job is the required status check of the ruleset, and it reports one
@@ -382,7 +336,6 @@ jobs:
           # which is the case this job exists to report on.
           mkdir -p job-summaries
 
-          lua_summary="job-summaries/job-summary-lua/job-summary.txt"
           mapfile -t summary_files < <(find job-summaries -type f -name "job-summary.txt")
           successful_cells=0
 
@@ -432,10 +385,6 @@ jobs:
               esac
               echo "| ${os} | ${node} | ${status_emoji} ${status} | ${timestamp} |"
             done
-
-            if [[ ! -f "${lua_summary}" ]]; then
-              echo "| Lua reference validator | n/a | ⚠️ ${{ needs.lua.result }} (no summary uploaded) | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |"
-            fi
 
             echo ""
             echo "## 📈 Summary Statistics"

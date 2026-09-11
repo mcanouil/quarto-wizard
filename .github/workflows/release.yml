@@ -28,11 +28,15 @@ on:
         default: "minor"
 
 jobs:
-  # The checks run before anything is written. The bump then commits on the
-  # very commit they passed, so the tree that lands on `main` is the tree that
-  # was built. This ordering is the gate. It replaces a pull request that was
-  # opened only so a required check had somewhere to report, and the loops
-  # that waited for it.
+  # The checks run before anything is written, on the commit the release was
+  # dispatched from. This ordering is the gate.
+  #
+  # The bump then commits on that same commit, and what it adds is the version
+  # in `package.json`, `package-lock.json` and `CITATION.cff`, a heading in
+  # `CHANGELOG.md`, and the rendered documentation. None of it is a source
+  # file, and nothing builds that commit before it reaches `main`. That is the
+  # trade this design makes: the checks cover everything the release is built
+  # from, and the bump on top of them is taken to be mechanical.
   verify:
     permissions: read-all
     uses: ./.github/workflows/build.yml
@@ -48,7 +52,6 @@ jobs:
       contents: read
 
     env:
-      COMMIT: "ci: bump version for release :rocket:"
       BUMP_VERSION: ${{ inputs.version }}
 
     outputs:
@@ -161,10 +164,10 @@ jobs:
           if [ "${DATE}" = "today" ]; then
             DATE=$(date +%Y-%m-%d)
           fi
-          # The input is free text. It reaches a `sed` expression that uses
-          # `/` as its delimiter, and the changelog heading, so a value such
-          # as `2026/09/11` would end the step with an error that names
-          # nothing the operator typed.
+          # The input is free text, and it reaches the `sed` expressions below
+          # as part of a substitution delimited by `/`. A value such as
+          # `2026/09/11` would end the step with an error that names nothing
+          # the operator typed, and only after the bump had written files.
           if ! [[ "${DATE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
             echo "::error::The date input must be \"today\" or YYYY-MM-DD. Read: ${DATE}"
             exit 1
@@ -188,7 +191,7 @@ jobs:
           npm run docs:build
 
           git add CHANGELOG.md CITATION.cff package.json package-lock.json packages/*/package.json docs/
-          git commit -m "${COMMIT}"
+          git commit -m "ci: bump version for release :rocket:"
 
           # A plain push, so it is a fast-forward. If `main` moved since the
           # dispatch, git refuses it and says so, and the bump belongs on the
@@ -224,8 +227,6 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
 
-      # `npm ci` and not `npm install`, so the artefacts this job publishes
-      # come from the dependency tree the matrix tested.
       - name: Install dependencies
         shell: bash
         run: npm ci
