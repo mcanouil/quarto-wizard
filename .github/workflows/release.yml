@@ -423,7 +423,7 @@ jobs:
         with:
           name: release-bundle
 
-      - name: Create or update GitHub release
+      - name: Create or verify the GitHub release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TYPE: ${{ github.event.inputs.type }}
@@ -438,23 +438,56 @@ jobs:
             "./schema.lua#Quarto Wizard Schema Validator (lua)"
           )
 
-          if gh release view "${VERSION}" >/dev/null 2>&1; then
-            # The tag of an existing release stays where it is. Refreshing it
-            # with assets built somewhere else would leave the tag and the
-            # assets naming different commits, which is what this release is
-            # careful not to do.
+          # One call, which both reports whether the release is there and
+          # lists what it carries. It reads the state of each asset and not
+          # the name alone, because an upload that died part way leaves the
+          # name on the release with a state that is not `uploaded`, and that
+          # is the very failure a second dispatch is here to recover from.
+          #
+          # `release not found` is the one failure that means the release is
+          # absent. Every other failure is a failure to read, and a guard that
+          # takes what it cannot read as an absence stops being a guard. This
+          # one would create a release that is already there.
+          VIEW_ERROR=$(mktemp)
+          if PRESENT=$(gh release view "${VERSION}" --json assets \
+            --jq '.assets[] | select(.state == "uploaded") | .name' 2>"${VIEW_ERROR}"); then
+            FOUND=true
+          elif grep -qiF 'release not found' "${VIEW_ERROR}"; then
+            FOUND=false
+          else
+            echo "::error::Could not read release ${VERSION}: $(tr '\n' ' ' < "${VIEW_ERROR}")"
+            exit 1
+          fi
+
+          if [ "${FOUND}" = true ]; then
+            # The tag of an existing release stays where it is. Assets built
+            # somewhere else would leave the tag and the assets naming
+            # different commits, which is what this release is careful not
+            # to do.
             TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${VERSION}" --jq '.object.sha')
             if [ "${TAGGED}" != "${SHA}" ]; then
               echo "::error::Release ${VERSION} is tagged at ${TAGGED}, and this run built ${SHA}. Delete the release and its tag, or run the release from the tagged commit."
               exit 1
             fi
-            echo "::notice::Release ${VERSION} already exists; refreshing assets and notes."
-            FILES=()
+
+            # A published release is immutable, so its assets cannot be
+            # rewritten. The check above already proves that this release was
+            # built from this commit, so there is nothing here to refresh,
+            # only something to confirm. This branch carries a release that
+            # is dispatched a second time, which is how a release recovers
+            # from a publish that failed, so it has to reach the jobs that
+            # publish rather than end here.
+            MISSING=""
             for asset in "${ASSETS[@]}"; do
-              FILES+=("${asset%%#*}")
+              name=$(basename "${asset%%#*}")
+              grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
             done
-            gh release upload "${VERSION}" "${FILES[@]}" --clobber
-            gh release edit "${VERSION}" --notes-file "${CHANGELOG}"
+            if [ -n "${MISSING}" ]; then
+              echo "::error::Release ${VERSION} exists, but these assets are missing or have not finished uploading:${MISSING}. A published release is immutable, so this run cannot replace them. Release the next patch version rather than repairing this one."
+              exit 1
+            fi
+
+            echo "::notice::Release ${VERSION} already exists and carries every asset."
             exit 0
           fi
 
