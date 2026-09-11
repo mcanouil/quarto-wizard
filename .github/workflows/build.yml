@@ -279,6 +279,70 @@ jobs:
           path: job-summary.txt
           retention-days: 1
 
+  lint:
+    # No `needs: changes`. That job passes for the inputs of the build alone,
+    # so gating this one on it would skip the linter on exactly the
+    # documentation and workflow pull requests it exists to read.
+    name: Lint the files the build does not
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # No `statuses: write`. The release calls this workflow from a job that
+    # grants `read-all`, and a called workflow cannot ask for more than its
+    # caller. `MULTI_STATUS: false` below is what makes the write scope
+    # unnecessary, so the job behaves the same whether it is called or
+    # triggered by a pull request.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          # Super-Linter compares against the default branch, so it needs the
+          # history to compare with.
+          fetch-depth: 0
+
+      # Only the languages nothing else reads. `eslint` and `prettier` already
+      # cover TypeScript inside the matrix above, and a second opinion over
+      # those files would report style this repository has settled.
+      - name: Super-Linter
+        uses: super-linter/super-linter@v8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BRANCH: main
+          IGNORE_GITIGNORED_FILES: true
+          VALIDATE_ALL_CODEBASE: false
+          # A status per language needs `statuses: write`, which this job
+          # cannot have. The job result carries the answer instead.
+          MULTI_STATUS: false
+          # Setting any of these to true leaves every unset one false, so this
+          # list is the whole scope.
+          VALIDATE_YAML: true
+          VALIDATE_JSON: true
+          VALIDATE_MARKDOWN: true
+          VALIDATE_BASH: true
+          VALIDATE_GITHUB_ACTIONS: true
+
+      - name: Generate job result summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "OS: ubuntu-latest (Lint)"
+            echo "Node: n/a"
+            echo "Status: ${{ job.status }}"
+            echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          } > job-summary.txt
+
+      - name: Upload job summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: job-summary-lint
+          path: job-summary.txt
+          retention-days: 1
+
   summary:
     # This job is the required status check of the ruleset, and it reports one
     # thing: did every job of this run pass. A draft builds like any other
@@ -289,6 +353,7 @@ jobs:
       - changes
       - build
       - lua
+      - lint
     # This job downloads a few small artifacts and writes a table.
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -327,7 +392,7 @@ jobs:
           # A skipped job is not a failure: a pull request that changes no
           # build input has nothing to run and must still report a verdict.
           failed_names=""
-          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}"; do
+          for job in "changes:${{ needs.changes.result }}" "build:${{ needs.build.result }}" "lua:${{ needs.lua.result }}" "lint:${{ needs.lint.result }}"; do
             case "${job#*:}" in
               "success" | "skipped") ;;
               *) failed_names="${failed_names} ${job}" ;;
@@ -381,6 +446,7 @@ jobs:
             echo "- **Successful**: ${successful_cells} ✅"
             echo "- **Build Matrix**: ${{ needs.build.result }}"
             echo "- **Lua reference validator**: ${{ needs.lua.result }}"
+            echo "- **Lint**: ${{ needs.lint.result }}"
             echo ""
 
             if [[ -z "${failed_names}" ]]; then
