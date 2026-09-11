@@ -208,11 +208,14 @@ jobs:
         shell: bash
         run: npx @vscode/vsce package --pre-release --out quarto-wizard.vsix
 
+      # `inputs.ref` first. Inside a called workflow the `github` context is
+      # the caller's, so `github.sha` there is the commit the release was
+      # dispatched from and not the commit these files were built from.
       - name: Upload VSIX as workflow artifact
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: quarto-wizard-${{ github.sha }}
+          name: quarto-wizard-${{ inputs.ref || github.sha }}
           path: quarto-wizard.vsix
           retention-days: 10
 

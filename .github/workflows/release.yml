@@ -71,13 +71,16 @@ jobs:
           client-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_KEY }}
 
-      # The checkout keeps this token, so the push below runs as the app. The
-      # app is exempt from the ruleset, which is what lets the bump land on
-      # `main` without a pull request.
+      # `persist-credentials: false`, so no token is written to `.git/config`.
+      # This job runs `npm ci` and `npm run docs:build`, which run the
+      # lifecycle scripts of every dependency. A stored token is readable by
+      # all of them, and this one is exempt from the ruleset, so it can push
+      # to `main` unreviewed. The step that pushes takes the token in its own
+      # environment instead.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
 
       - name: Get GitHub App User ID
         id: get-user-id
@@ -125,12 +128,19 @@ jobs:
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         uses: actions/setup-node@v7
 
+      # `npm ci` and not `npm install`, so this job, the matrix that gates the
+      # release and the job that packages it all resolve the same dependency
+      # tree. `npm version` below updates the version in the lock file, which
+      # is the only change this job makes to it.
       - name: Install dependencies
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         shell: bash
-        run: npm install
+        run: npm ci
 
-      - name: Bump the version and push it to the temporary branch
+      # No token in this step. It runs the lifecycle scripts of every
+      # dependency through `npm`, and the push that follows holds the token
+      # for its own step alone.
+      - name: Bump the version and commit it
         id: bump
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
@@ -154,14 +164,26 @@ jobs:
 
           git add CHANGELOG.md CITATION.cff package.json package-lock.json packages/*/package.json docs/
           git commit -m "${COMMIT}"
-
-          # No pull request. The commit goes to a branch of its own, the
-          # verify job builds it there, and the package job fast-forwards
-          # `main` to it once the matrix has passed. `--force`, because a run
-          # that ended before the cleanup job, or a lost runner, can leave the
-          # branch behind, and this run must not stop on that.
-          git push --force origin "HEAD:refs/heads/${BRANCH}"
           echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      # No pull request. The commit goes to a branch of its own, the verify
+      # job builds it there, and the package job fast-forwards `main` to it
+      # once the matrix has passed.
+      #
+      # The remote is named in full, because the checkout stored no
+      # credentials. `--force`, because a run that ended before the cleanup
+      # job, or a lost runner, can leave the branch behind, and this run must
+      # not stop on that.
+      - name: Push the bump to the temporary branch
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/${BRANCH}"
 
   # The full matrix and the Lua job, on the exact tree the release publishes.
   # This is the gate that the bump pull request used to be. A called workflow
@@ -218,18 +240,25 @@ jobs:
       # The commit the matrix built, not the tip of the default branch. Any
       # commit landing on `main` between the dispatch and this checkout would
       # otherwise be the one that gets packaged and published.
+      #
+      # `persist-credentials: false`, so no token is written to `.git/config`.
+      # This job runs `npm ci`, `vsce package` and `npm pack`, which run the
+      # lifecycle scripts of every dependency. The step that pushes to `main`
+      # takes the token in its own environment instead.
       - name: Checkout the commit the matrix built
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.bump.outputs.sha }}
-          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
 
+      # `npm ci` and not `npm install`, so the artefacts this job publishes
+      # come from the dependency tree the matrix tested.
       - name: Install dependencies
         shell: bash
-        run: npm install
+        run: npm ci
 
       - name: Set version
         id: set-version
@@ -333,22 +362,31 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Last, and not first. `main` carrying a released version number with no
-      # release is the state this job can leave behind, so the window where it
-      # holds is the few seconds after this step rather than the length of the
-      # build above.
+      # Last, and not first. From this push until `release-github` creates the
+      # release, `main` carries a released version number that has no release.
+      # Running it here keeps that window to the length of `release-github`,
+      # rather than adding the whole build above to it. A release that fails
+      # inside that window is recovered by dispatching it again, which finds
+      # no `Unreleased`, skips the bump and publishes the tip of `main`.
       #
       # A fast-forward, so the commit on `main` is the commit the matrix built
       # and the `non_fast_forward` rule is never in question. The app is exempt
       # from the ruleset, which is what lets this push skip the pull request
       # and the required check. A push that is refused means `main` moved since
       # the dispatch, and the bump then belongs on the new tip.
+      #
+      # The remote is named in full, because the checkout stored no
+      # credentials.
       - name: Land the bump on main
         if: ${{ needs.bump.outputs.bumped == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if ! git push origin HEAD:refs/heads/main; then
+          if ! git push \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:refs/heads/main; then
             echo "::error::main moved since this release was dispatched, so the bump cannot land on it. Dispatch the release again."
             exit 1
           fi
