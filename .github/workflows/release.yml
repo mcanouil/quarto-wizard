@@ -40,8 +40,6 @@ jobs:
   verify:
     permissions: read-all
     uses: ./.github/workflows/build.yml
-    with:
-      ref: ${{ github.sha }}
 
   bump:
     runs-on: ubuntu-latest

@@ -7,15 +7,9 @@ name: Build & Test Extension
 on:
   workflow_dispatch:
   # The release workflow calls this one on the commit it is about to publish.
-  # The caller passes that commit here, because `actions/checkout` with no
-  # `ref` resolves `github.ref`, which is the branch and therefore its tip at
-  # checkout time, and not the commit the caller was dispatched from.
+  # It passes no input: inside a called workflow the `github` context is the
+  # caller's, so `github.sha` below is already that commit.
   workflow_call:
-    inputs:
-      ref:
-        description: The commit to build instead of the one the caller runs on
-        type: string
-        required: false
   pull_request:
     # No `ready_for_review`. A draft builds, so its commit is already built by
     # the time it is marked ready, and that event would only repeat the run.
@@ -118,12 +112,16 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [25.x]
     steps:
-      # `ref` is empty on a pull request and on a manual run, and the action
-      # then checks out the commit of the event, as it does today.
+      # The commit of the event, and not the branch. `actions/checkout` with
+      # no `ref` resolves `github.ref`, which is the branch and therefore its
+      # tip at checkout time, so a commit landing between the dispatch and
+      # this step would be built instead of the one that was asked for. On a
+      # pull request `github.sha` is the merge commit, which is what the
+      # default resolves to anyway.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
@@ -244,7 +242,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.sha }}
 
       - name: Set up Quarto CLI
         uses: quarto-dev/quarto-actions/setup@v2
