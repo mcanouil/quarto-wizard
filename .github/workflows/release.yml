@@ -513,9 +513,19 @@ jobs:
           # and the job that packaged the file run the same major. Move both
           # together.
           #
-          # The step runs under `-e`, so a registry failure, a network failure
-          # or a failed download ends it here.
-          SHOWN=$(npx --yes @vscode/vsce@3 show mcanouil.quarto-wizard --json)
+          # The retries match the ones the Open VSX check makes, so a busy or a
+          # restarting registry does not end a release that had nothing wrong
+          # with it. A failure that outlasts them ends the step.
+          for attempt in 1 2 3; do
+            if SHOWN=$(npx --yes @vscode/vsce@3 show mcanouil.quarto-wizard --json); then
+              break
+            fi
+            if [ "${attempt}" = 3 ]; then
+              echo "::error::vsce show failed three times. The Marketplace could not be read."
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
 
           # Only two answers are understood, and anything else ends the step.
           # A guard that treats what it cannot read as an absence stops being a
@@ -529,9 +539,11 @@ jobs:
               'first(.versions[] | select(.version == $v) | .version) // ""' <<< "${SHOWN}")
           else
             # The whole answer goes to the log. A workflow command stops at the
-            # first newline, so the annotation carries one line of it.
+            # first newline, so the annotation carries one line of it. The
+            # runner reads a workflow command from any line of the log, so the
+            # answer of the registry is indented before it is printed.
             echo "vsce show returned:"
-            echo "${SHOWN}"
+            printf '%s\n' "${SHOWN}" | sed 's/^::/  ::/'
             echo "::error::vsce show returned an answer this check cannot read: $(head -c 200 <<< "${SHOWN}" | tr '\n' ' ')"
             exit 1
           fi
