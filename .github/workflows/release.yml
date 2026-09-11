@@ -166,8 +166,14 @@ jobs:
   # The full matrix and the Lua job, on the exact tree the release publishes.
   # This is the gate that the bump pull request used to be. A called workflow
   # runs inside this run, so `verdict.yml` never fires for it.
+  #
+  # A release with nothing to bump publishes a commit that is already on
+  # `main`, which reached `main` through a pull request and carries a green
+  # `verdict` for that reason. Building it again costs a three operating
+  # system matrix and answers a question that is already answered.
   verify:
     needs: bump
+    if: needs.bump.outputs.bumped == 'true'
     permissions: read-all
     uses: ./.github/workflows/build.yml
     with:
@@ -177,6 +183,16 @@ jobs:
     runs-on: ubuntu-latest
 
     needs: [bump, verify]
+
+    # A skipped `verify` is the release that had nothing to bump, and it must
+    # reach the publish jobs, because that is how a release recovers from a
+    # publish that failed. A `verify` that ran and did not pass must not.
+    # `always()` is what lets this job read a skipped result at all.
+    if: >-
+      always()
+      && needs.bump.result == 'success'
+      && needs.verify.result != 'failure'
+      && needs.verify.result != 'cancelled'
 
     # `GITHUB_TOKEN` writes nothing here. The push to `main` carries the app
     # token, and the attestation needs the two write scopes below.
