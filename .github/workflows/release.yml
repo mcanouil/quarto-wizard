@@ -340,6 +340,50 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # The branch must not outlive the run. This job runs after success, after
+  # failure and after a cancel, and it sits after `package` so the branch is
+  # gone before the publish jobs start. The commit is on `main` by then, or
+  # the release is over and the next bump starts from scratch.
+  cleanup:
+    runs-on: ubuntu-latest
+
+    needs: [bump, verify, package]
+
+    if: always()
+
+    permissions: {}
+
+    env:
+      BRANCH: ci/bump-version
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Create GitHub App token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      # A branch that is already absent is the wanted state and not an error.
+      # A release with nothing to bump never creates it, and a run that failed
+      # in `bump` may have ended before the push.
+      - name: Delete the temporary branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DELETE_ERROR=$(mktemp)
+          if gh api -X DELETE "repos/${GH_REPO}/git/refs/heads/${BRANCH}" 2>"${DELETE_ERROR}"; then
+            echo "Deleted ${BRANCH}."
+          elif grep -qiF 'reference does not exist' "${DELETE_ERROR}"; then
+            echo "${BRANCH} was already absent."
+          else
+            echo "::error::Could not delete ${BRANCH}: $(tr '\n' ' ' < "${DELETE_ERROR}")"
+            exit 1
+          fi
+
   release-github:
     runs-on: ubuntu-latest
 
