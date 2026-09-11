@@ -438,7 +438,13 @@ jobs:
             "./schema.lua#Quarto Wizard Schema Validator (lua)"
           )
 
-          if gh release view "${VERSION}" >/dev/null 2>&1; then
+          # One call, which both reports whether the release is there and
+          # lists what it carries. It reads the state of each asset and not
+          # the name alone, because an upload that died part way leaves the
+          # name on the release with a state that is not `uploaded`, and that
+          # is the very failure a second dispatch is here to recover from.
+          if PRESENT=$(gh release view "${VERSION}" --json assets \
+            --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null); then
             # The tag of an existing release stays where it is. Assets built
             # somewhere else would leave the tag and the assets naming
             # different commits, which is what this release is careful not
@@ -456,12 +462,6 @@ jobs:
             # is dispatched a second time, which is how a release recovers
             # from a publish that failed, so it has to reach the jobs that
             # publish rather than end here.
-            # `state` and not the name alone. An upload that died part way
-            # leaves the name on the release with a state that is not
-            # `uploaded`, and that is the very failure a second dispatch is
-            # here to recover from.
-            PRESENT=$(gh release view "${VERSION}" --json assets \
-              --jq '.assets[] | select(.state == "uploaded") | .name')
             MISSING=""
             for asset in "${ASSETS[@]}"; do
               name=$(basename "${asset%%#*}")
