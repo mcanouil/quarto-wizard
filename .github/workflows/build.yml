@@ -6,6 +6,15 @@ name: Build & Test Extension
 
 on:
   workflow_dispatch:
+  # The release workflow calls this one on the commit it is about to publish.
+  # The caller passes that commit here, because a called workflow otherwise
+  # checks out the commit the caller was dispatched from.
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to build instead of the one the caller runs on
+        type: string
+        required: false
   pull_request:
     types:
       - opened
@@ -49,7 +58,8 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # A manual run has no pull request to compare against, so it builds.
+          # A manual run, or a call from the release workflow, has no pull
+          # request to compare against, so it builds.
           if [[ "${EVENT_NAME}" != "pull_request" ]]; then
             echo "code=true" >> "${GITHUB_OUTPUT}"
             exit 0
@@ -108,8 +118,12 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [25.x]
     steps:
+      # `ref` is empty on a pull request and on a manual run, and the action
+      # then checks out the commit of the event, as it does today.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
@@ -229,6 +243,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Set up Quarto CLI
         uses: quarto-dev/quarto-actions/setup@v2
