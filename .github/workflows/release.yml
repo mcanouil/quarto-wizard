@@ -498,25 +498,38 @@ jobs:
           TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
+          # An empty version would ask the registry about the extension rather
+          # than about a release of it, and the answer would read as "already
+          # published" below.
+          if [ -z "${VERSION}" ]; then
+            echo "::error::The package job reported no version."
+            exit 1
+          fi
+
           # This job has no checkout and no `node_modules`, so `npx` downloads
           # the package, which is what `--yes` is for. Naming it in full keeps
-          # the deprecated `vsce` package of the same name out of the call.
+          # the deprecated `vsce` package of the same name out of the call. The
+          # major version tracks the `@vscode/vsce` devDependency, so this job
+          # and the job that packaged the file run the same major. Move both
+          # together.
           #
-          # The major version tracks the `@vscode/vsce` devDependency, so this
-          # job and the job that packaged the file run the same major. Move
-          # both together.
           # The step runs under `-e`, so a registry failure, a network failure
-          # or a failed download ends it here. This used to send every one of
-          # them down the branch that publishes.
+          # or a failed download ends it here.
           SHOWN=$(npx --yes @vscode/vsce@3 show mcanouil.quarto-wizard --json)
 
-          # An extension that was never published is not a failure. `vsce`
-          # exits 0 and prints the literal `undefined`, which is not JSON.
-          if jq -e . > /dev/null 2>&1 <<< "${SHOWN}"; then
-            PUBLISHED=$(jq -r --arg v "${VERSION}" \
-              'first(.versions[]? | select(.version == $v) | .version) // ""' <<< "${SHOWN}")
-          else
+          # Only two answers are understood, and anything else ends the step.
+          # A guard that treats what it cannot read as an absence stops being a
+          # guard on the day the output changes shape, and says nothing.
+          if [ "${SHOWN}" = "undefined" ]; then
+            # `vsce` reports an extension that was never published this way,
+            # on standard output and with a zero exit status.
             PUBLISHED=""
+          elif jq -e 'type == "object" and has("versions")' > /dev/null 2>&1 <<< "${SHOWN}"; then
+            PUBLISHED=$(jq -r --arg v "${VERSION}" \
+              'first(.versions[] | select(.version == $v) | .version) // ""' <<< "${SHOWN}")
+          else
+            echo "::error::vsce show returned an answer this check cannot read: ${SHOWN}"
+            exit 1
           fi
 
           if [ -n "${PUBLISHED}" ]; then
@@ -557,10 +570,20 @@ jobs:
           TYPE: ${{ github.event.inputs.type }}
         shell: bash
         run: |
-          # The step runs under `-e`, so a network failure ends it here. Only
-          # the answer of the registry is read below, where anything other
-          # than the two expected codes is a failure and not an absence.
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+          # An empty version would ask the registry about the extension rather
+          # than about a release of it, and 200 would then read as "already
+          # published" below.
+          if [ -z "${VERSION}" ]; then
+            echo "::error::The package job reported no version."
+            exit 1
+          fi
+
+          # The step runs under `-e`, so a network failure ends it here. The
+          # retries cover a busy or a restarting registry, which would
+          # otherwise end a release that had nothing wrong with it. Only a
+          # persistent answer reaches the branches below, where anything but
+          # the two expected codes is a failure and not an absence.
+          STATUS=$(curl -sL --retry 3 --retry-all-errors -o /dev/null -w '%{http_code}' \
             "https://open-vsx.org/api/mcanouil/quarto-wizard/${VERSION}")
           case "${STATUS}" in
             200)
