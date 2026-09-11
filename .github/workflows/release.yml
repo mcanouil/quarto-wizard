@@ -112,10 +112,38 @@ jobs:
         id: check_unreleased
         shell: bash
         run: |
+          set -euo pipefail
           if grep -q "^## Unreleased$" CHANGELOG.md; then
             echo "UNRELEASED_FOUND=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "UNRELEASED_FOUND=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          echo "UNRELEASED_FOUND=false" >> "${GITHUB_OUTPUT}"
+
+          # Absent means one of two things, and only one of them is wanted.
+          # A release that recovers a failed publish has no heading, and a
+          # heading written in another shape has none either. The second case
+          # would otherwise repackage the version that is already released,
+          # find every registry satisfied, and end green having released
+          # nothing. The log names both readings, and shows any near miss.
+          echo "::notice::No '## Unreleased' heading, so this run republishes the current version. A bump was expected if that is not what you asked for."
+          grep -niF "unreleased" CHANGELOG.md || true
+
+      # The heading is absent, so this run republishes what is already on
+      # `main`. That is only correct while `main` is still the commit the
+      # failed release built. A commit landing after it would be packaged
+      # under the version of the release that is being recovered, and tagged
+      # with it, although no run ever built that pair.
+      - name: Check the recovery runs on the bump commit
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'false' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The prefix, because a bump that a pull request squashed onto
+          # `main` before this workflow changed carries a number after it.
+          SUBJECT=$(git log -1 --format=%s)
+          if [ "${SUBJECT#"${COMMIT}"}" = "${SUBJECT}" ]; then
+            echo "::error::main has moved past the bump commit, so this release cannot be recovered by republishing its tip. The tip is: ${SUBJECT}. Add an Unreleased section and release the next version instead."
+            exit 1
           fi
 
       # Quarto renders the documentation, and Node runs the bump itself. A
@@ -154,6 +182,14 @@ jobs:
           if [ "${DATE}" = "today" ]; then
             DATE=$(date +%Y-%m-%d)
           fi
+          # The input is free text. It reaches a `sed` expression that uses
+          # `/` as its delimiter, and the changelog heading, so a value such
+          # as `2026/09/11` ends the step with an error that names nothing
+          # the operator typed.
+          if ! [[ "${DATE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "::error::The date input must be \"today\" or YYYY-MM-DD. Read: ${DATE}"
+            exit 1
+          fi
 
           npm version "${BUMP_VERSION}" --no-git-tag-version
           npm run sync-metadata
@@ -191,22 +227,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # `git` reads the token through `GIT_ASKPASS` and not from the
-          # command line. A command line is readable from `/proc`, and the
-          # steps above have run the lifecycle scripts of every dependency,
-          # any of which can leave a process behind to read it.
-          ASKPASS="${RUNNER_TEMP}/askpass.sh"
-          cat > "${ASKPASS}" <<'ASKPASS_SCRIPT'
-          #!/bin/sh
-          case "$1" in
-            Username*) echo "x-access-token" ;;
-            *) echo "${GH_TOKEN}" ;;
-          esac
-          ASKPASS_SCRIPT
-          chmod 700 "${ASKPASS}"
-          trap 'rm -f "${ASKPASS}"' EXIT
-
-          GIT_ASKPASS="${ASKPASS}" git push --force \
+          GIT_ASKPASS=.github/workflows/assets/askpass.sh git push --force \
             "https://github.com/${GITHUB_REPOSITORY}.git" \
             "HEAD:refs/heads/${BRANCH}"
 
@@ -214,10 +235,11 @@ jobs:
   # This is the gate that the bump pull request used to be. A called workflow
   # runs inside this run, so `verdict.yml` never fires for it.
   #
-  # A release with nothing to bump publishes a commit that is already on
-  # `main`, which reached `main` through a pull request and carries a green
-  # `verdict` for that reason. Building it again costs a three operating
-  # system matrix and answers a question that is already answered.
+  # A release with nothing to bump republishes a commit that is already on
+  # `main`. The bump job proves that commit is the bump of the release being
+  # recovered, and the run that created it only reached `main` by passing
+  # this same matrix. Building it again answers a question already answered,
+  # at the price of three operating systems.
   verify:
     needs: bump
     if: needs.bump.outputs.bumped == 'true'
@@ -409,28 +431,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # `git` reads the token through `GIT_ASKPASS` and not from the
-          # command line. A command line is readable from `/proc`, and the
-          # steps above have run the lifecycle scripts of every dependency,
-          # any of which can leave a process behind to read it.
-          ASKPASS="${RUNNER_TEMP}/askpass.sh"
-          cat > "${ASKPASS}" <<'ASKPASS_SCRIPT'
-          #!/bin/sh
-          case "$1" in
-            Username*) echo "x-access-token" ;;
-            *) echo "${GH_TOKEN}" ;;
-          esac
-          ASKPASS_SCRIPT
-          chmod 700 "${ASKPASS}"
-          trap 'rm -f "${ASKPASS}"' EXIT
-
           # The error names what git reported. A refused fast-forward means
           # `main` moved, and a re-dispatch is the answer. A revoked token, a
           # ruleset that no longer exempts the app, and a network failure are
           # different problems, and a message that names only the first one
           # sends the operator through a whole rebuild for nothing.
           PUSH_ERROR=$(mktemp)
-          if GIT_ASKPASS="${ASKPASS}" git push \
+          if GIT_ASKPASS=.github/workflows/assets/askpass.sh git push \
             "https://github.com/${GITHUB_REPOSITORY}.git" \
             HEAD:refs/heads/main 2>"${PUSH_ERROR}"; then
             exit 0
