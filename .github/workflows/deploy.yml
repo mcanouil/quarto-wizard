@@ -91,7 +91,7 @@ jobs:
 
       - name: Build dev VSIX
         shell: bash
-        run: npx vsce package --pre-release --out docs/quarto-wizard-dev.vsix
+        run: npx @vscode/vsce package --pre-release --out docs/quarto-wizard-dev.vsix
 
       - name: Render dev site
         shell: bash
