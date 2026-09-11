@@ -84,7 +84,7 @@ jobs:
           inputs+='|webpack\.config\.js$'                 # webpack
           inputs+='|eslint\.config\.mjs$'                 # lint
           inputs+='|\.prettierrc\.json$|\.prettierignore$' # format:check
-          inputs+='|\.vscode-test\.mjs$'                  # npm test
+          inputs+='|\.vscode-test\.mjs$'                  # vscode-test
           inputs+='|\.vscodeignore$'                      # vsce package
           inputs+='|\.github/workflows/build\.yml$)'      # this workflow
 
@@ -122,80 +122,71 @@ jobs:
         run: npm ci
 
       - name: Lint schema package
-        id: lint-schema
         shell: bash
         working-directory: packages/schema
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Test schema package
-        id: test-schema
         shell: bash
         working-directory: packages/schema
         run: npm test
 
       - name: Lint snippets package
-        id: lint-snippets
         shell: bash
         working-directory: packages/snippets
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Test snippets package
-        id: test-snippets
         shell: bash
         working-directory: packages/snippets
         run: npm test
 
       - name: Lint core package
-        id: lint-core
         shell: bash
         working-directory: packages/core
-        run: npm run lint
+        run: npm run lint:check
 
       - name: Test core package
-        id: test-core
         shell: bash
         working-directory: packages/core
         run: npm test
 
+      # This runs before the build, because `npm run webpack` begins with
+      # `npm run format`, which rewrites the files this step reads.
+      - name: Check formatting
+        shell: bash
+        run: npm run format:check
+
       - name: Compile extension
-        id: webpack
         shell: bash
         run: npm run webpack
 
       - name: Run linter
-        id: lint
         shell: bash
-        run: npm run lint
-
-      - name: Check formatting
-        id: format
-        shell: bash
-        run: npm run format:check
+        run: npm run lint:check
 
       - name: Compile TypeScript
-        id: test-compile
         shell: bash
         run: npm run test-compile
 
+      # `npx vscode-test` and not `npm test`, which would run the `pretest`
+      # script and repeat the compile and the lint of the steps above.
       - name: Run tests (Ubuntu)
-        id: test-ubuntu
         if: runner.os == 'Linux'
         shell: bash
         run: |
           export DISPLAY=':99.0'
           /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          npm test
+          npx vscode-test
 
       - name: Run tests (Windows/macOS)
-        id: test-other
         if: runner.os != 'Linux'
         shell: bash
-        run: npm test
+        run: npx vscode-test
 
       # The package holds no native dependency and no `--target`, so one
       # operating system produces the artefact that all three would.
       - name: Build extension
-        id: build-extension
         if: runner.os == 'Linux'
         shell: bash
         run: npx @vscode/vsce package --pre-release --out quarto-wizard.vsix
@@ -212,26 +203,14 @@ jobs:
         if: always()
         shell: bash
         run: |
-          # Create a summary file for this specific job
-          echo "OS: ${{ matrix.os }}" > job-summary.txt
-          echo "Node: ${{ matrix.node-version }}" >> job-summary.txt
-
-          # Determine test step outcome based on OS
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            test_outcome="${{ steps.test-ubuntu.outcome }}"
-          else
-            test_outcome="${{ steps.test-other.outcome }}"
-          fi
-
-          # Use steps context to determine overall job status
-          if [[ "${{ steps.lint-schema.outcome }}" == "failure" || "${{ steps.test-schema.outcome }}" == "failure" || "${{ steps.lint-snippets.outcome }}" == "failure" || "${{ steps.test-snippets.outcome }}" == "failure" || "${{ steps.lint-core.outcome }}" == "failure" || "${{ steps.test-core.outcome }}" == "failure" || "${{ steps.webpack.outcome }}" == "failure" || "${{ steps.lint.outcome }}" == "failure" || "${{ steps.format.outcome }}" == "failure" || "${{ steps.test-compile.outcome }}" == "failure" || "$test_outcome" == "failure" || "${{ steps.build-extension.outcome }}" == "failure" ]]; then
-            echo "Status: failure" >> job-summary.txt
-          elif [[ "${{ steps.lint-schema.outcome }}" == "cancelled" || "${{ steps.test-schema.outcome }}" == "cancelled" || "${{ steps.lint-snippets.outcome }}" == "cancelled" || "${{ steps.test-snippets.outcome }}" == "cancelled" || "${{ steps.lint-core.outcome }}" == "cancelled" || "${{ steps.test-core.outcome }}" == "cancelled" || "${{ steps.webpack.outcome }}" == "cancelled" || "${{ steps.lint.outcome }}" == "cancelled" || "${{ steps.format.outcome }}" == "cancelled" || "${{ steps.test-compile.outcome }}" == "cancelled" || "$test_outcome" == "cancelled" || "${{ steps.build-extension.outcome }}" == "cancelled" ]]; then
-            echo "Status: cancelled" >> job-summary.txt
-          else
-            echo "Status: success" >> job-summary.txt
-          fi
-          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> job-summary.txt
+          # `job.status` holds the status of this job so far, which this step
+          # can read because it runs with `if: always()`.
+          {
+            echo "OS: ${{ matrix.os }}"
+            echo "Node: ${{ matrix.node-version }}"
+            echo "Status: ${{ job.status }}"
+            echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          } > job-summary.txt
 
       - name: Upload job summary
         if: always()
@@ -257,7 +236,6 @@ jobs:
           version: pre-release
 
       - name: Test Lua reference validator
-        id: test-lua
         shell: bash
         working-directory: packages/schema
         run: npm run test:lua
@@ -269,7 +247,7 @@ jobs:
           {
             echo "OS: ubuntu-latest (Lua)"
             echo "Node: n/a"
-            echo "Status: ${{ steps.test-lua.outcome }}"
+            echo "Status: ${{ job.status }}"
             echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           } > job-summary.txt
 

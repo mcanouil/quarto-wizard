@@ -244,7 +244,7 @@ const KEY_ALIASES: Record<string, string> = {
  * {@link KEY_ALIASES}, minus `replace-with` (deprecation-spec scope only).
  * Iterated when checking for camelCase/kebab-case collisions on one descriptor.
  */
-export const FIELD_ALIAS_PAIRS: ReadonlyArray<readonly [string, string]> = Object.entries(KEY_ALIASES)
+export const FIELD_ALIAS_PAIRS: readonly (readonly [string, string])[] = Object.entries(KEY_ALIASES)
 	.filter(([from]) => from !== "replace-with")
 	.map(([from, to]) => [to, from] as const);
 
