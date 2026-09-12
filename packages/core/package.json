@@ -1,7 +1,7 @@
 {
 	"name": "@quarto-wizard/core",
 	"displayName": "Quarto Wizard Core",
-	"version": "3.6.1",
+	"version": "3.6.2",
 	"description": "Core library for Quarto extension management",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -56,7 +56,7 @@
 	"bugs": {
 		"url": "https://github.com/mcanouil/quarto-wizard/issues"
 	},
-	"homepage": "https://github.com/mcanouil/quarto-wizard",
+	"homepage": "https://m.canouil.dev/quarto-wizard/",
 	"sponsor": {
 		"url": "https://github.com/sponsors/mcanouil"
 	}
