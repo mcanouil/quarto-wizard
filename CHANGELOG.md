@@ -1,11 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- docs: Fix changelog headings not being properly nested.
+
 ## 3.6.2 (2026-09-12)
 
-## Documentation
+### Documentation
 
 - docs: Update the homepage URL to the documentation site.
-- docs: enable 'gitlink' linking in changelog.
+- docs: Enable 'gitlink' linking in changelog.
 
 ## 3.6.1 (2026-09-12)
 
