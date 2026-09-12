@@ -8,58 +8,59 @@
  * A fault that only the production build carries therefore reaches the
  * Marketplace while every check stays green.
  * Version 3.6.0 shipped that way.
- * The minifier joined three statements of a dependency into one call.
- * The bundle threw an error while it evaluated, so no command registered.
  *
  * The `vscode` module exists only inside the extension host.
  * A proxy stands in for it, and the proxy answers any property, call, or
  * construction.
  */
 
-import { createRequire } from "node:module";
+import Module, { createRequire } from "node:module";
 import { existsSync } from "node:fs";
-import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import Module from "node:module";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const bundlePath = join(__dirname, "..", "dist", "extension.js");
+const bundlePath = fileURLToPath(new URL("../dist/extension.js", import.meta.url));
 
-if (!existsSync(bundlePath)) {
-	console.error(`No bundle exists at ${bundlePath}.`);
-	console.error("Run `npx webpack --mode production`, then run this check again.");
+function fail(...lines) {
+	console.error(lines.join("\n"));
 	process.exit(1);
 }
 
+if (!existsSync(bundlePath)) {
+	fail(`No bundle exists at ${bundlePath}.`, "Run `npx webpack --mode production`, then run this check again.");
+}
+
 const stubHandler = {
-	get: (_target, property) => (property === "then" ? undefined : stub()),
-	apply: () => stub(),
-	construct: () => stub(),
+	// A stub that answers `then` looks like a promise, and an `await` on it never settles.
+	get: (_target, property) => (property === "then" ? undefined : stub),
+	apply: () => stub,
+	construct: () => stub,
 };
 
-function stub() {
-	return new Proxy(function () {}, stubHandler);
-}
+const stub = new Proxy(function () {}, stubHandler);
 
 const load = Module._load;
 Module._load = function (request, parent, isMain) {
-	return request === "vscode" ? stub() : load.call(this, request, parent, isMain);
+	return request === "vscode" ? stub : load.call(this, request, parent, isMain);
 };
 
 let bundle;
 try {
 	bundle = createRequire(import.meta.url)(bundlePath);
 } catch (error) {
-	console.error(`The production bundle threw an error while it loaded: ${error.message}`);
-	console.error(error.stack);
-	console.error("The bundle is broken and the extension cannot activate. Do not publish it.");
-	process.exit(1);
+	fail(
+		`The production bundle threw an error while it loaded: ${error.message}`,
+		error.stack,
+		"The bundle is broken and the extension cannot activate. Do not publish it.",
+	);
 }
 
-if (typeof bundle.activate !== "function") {
-	console.error("The production bundle loaded, but it exports no `activate` function.");
-	console.error("The extension cannot activate. Do not publish it.");
-	process.exit(1);
+for (const name of ["activate", "deactivate"]) {
+	if (typeof bundle[name] !== "function") {
+		fail(`The production bundle loaded, but it exports no \`${name}\` function.`, "Do not publish it.");
+	}
 }
 
-console.log("The production bundle loads and exports `activate`.");
+console.log("The production bundle loads and exports `activate` and `deactivate`.");
+
+// The bundle can register a handle as it loads, and an open handle would hold the job open.
+process.exit(0);
