@@ -67,7 +67,7 @@
 		"build:schema": "npx tsc -p packages/schema && node packages/schema/scripts/copy-schemas.mjs",
 		"build:snippets": "npx tsc -p packages/snippets",
 		"build:core": "npx tsc -p packages/core",
-		"vscode:prepublish": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --mode production",
+		"vscode:prepublish": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --mode production && npm run check:bundle",
 		"webpack": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --mode development --stats-error-details",
 		"watch": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx webpack --watch --mode development --stats-error-details",
 		"test-compile": "npm run format && npm run build:schema && npm run build:snippets && npm run build:core && npx tsc -p ./",
@@ -75,6 +75,7 @@
 		"test": "vscode-test",
 		"test:watch": "npm run test-compile && vscode-test",
 		"test:manual": "node ./out/test/runTest.js",
+		"check:bundle": "node scripts/check-bundle.mjs",
 		"lint": "eslint --fix --cache --format unix \"src/**/*.{ts,tsx}\"",
 		"lint:check": "eslint --cache --format unix \"src/**/*.{ts,tsx}\"",
 		"format": "prettier --write \"src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\" \"packages/*/tests/**/*.ts\"",
@@ -86,7 +87,7 @@
 		"docs:preview": "npm run docs:api && cd docs && quarto preview",
 		"docs:clean": "rm -rf docs/api docs/_site",
 		"docs:format": "prettier --write \"docs/**/*.{qmd,yml}\"",
-		"update:deps": "npx npm-check-updates -u --reject @types/vscode,typescript,mocha --workspaces --root && npm install"
+		"update:deps": "npx npm-check-updates -u --reject @types/vscode,typescript,mocha,webpack --workspaces --root && npm install"
 	},
 	"overrides": {
 		"diff": "^8.0.3",
@@ -120,7 +121,7 @@
 		"typedoc-plugin-markdown": "^4.13.0",
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.70.0",
-		"webpack": "^5.110.3",
+		"webpack": "5.109.2",
 		"webpack-cli": "^7.2.3"
 	},
 	"capabilities": {

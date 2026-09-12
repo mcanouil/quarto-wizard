@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- fix: Activate the extension again. Version 3.6.0 did not start, so no command worked and the extension found no project. (#457)
+
 ## 3.6.0 (2026-09-11)
 
 ### New Features
