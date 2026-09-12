@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.6.3 (2026-09-12)
 
 ### Documentation
 
