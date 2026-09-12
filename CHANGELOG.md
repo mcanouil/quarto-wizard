@@ -5,6 +5,7 @@
 ## Documentation
 
 - docs: Update the homepage URL to the documentation site.
+- docs: enable 'gitlink' linking in changelog.
 
 ## 3.6.1 (2026-09-12)
 

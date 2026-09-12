@@ -1,5 +1,8 @@
 ---
 title: "Changelog"
+extensions:
+  gitlink:
+    enabled: true
 ---
 
 ## 3 {#version-3}

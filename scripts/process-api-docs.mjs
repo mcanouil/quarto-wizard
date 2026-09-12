@@ -1160,7 +1160,7 @@ function generateChangelog() {
 
 	const content = readFileSync(changelogMdPath, "utf-8");
 	const lines = content.split("\n");
-	const output = ["---", 'title: "Changelog"', "---", ""];
+	const output = ["---", 'title: "Changelog"', 'extensions:', '  gitlink:', '    enabled: true', "---", ""];
 
 	let currentMajor = null;
 	let currentMinor = null;
