@@ -22,8 +22,14 @@ jobs:
       attestations: write
 
     steps:
+      # The commit of the dispatch, and not the tip of the branch it names, so
+      # that a commit landing between the dispatch and this step cannot be
+      # released. It is also the commit that `--target` names later, so the
+      # tag, the assets and the attestation all agree.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
 
       # `workflow_dispatch` lets an operator pick any ref. A tag and its
       # attestation built from a branch other than `main` cannot be told
@@ -72,51 +78,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The first match only, because `readModuleVersion` in the test
+          # helper reads the first match too. A second `@version` line, in the
+          # LuaDoc of an inner function for example, would otherwise pass the
+          # test and write two lines into `GITHUB_OUTPUT`, of which the second
+          # is not a `key=value` pair.
           VERSION=$(sed -n 's/^---[[:space:]]*@version[[:space:]]\{1,\}\([0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\)[[:space:]]*$/\1/p' \
-            packages/schema/src/validation/schema.lua)
+            packages/schema/src/validation/schema.lua | head -n 1)
           if [ -z "${VERSION}" ]; then
             echo "::error file=packages/schema/src/validation/schema.lua,line=6::No @version tag found."
             exit 1
           fi
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "::notice file=packages/schema/src/validation/schema.lua,line=6::Schema version ${VERSION}"
-
-      - name: Stage the release assets
-        env:
-          ASSETS: ${{ runner.temp }}/assets
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${ASSETS}"
-          cp packages/schema/src/validation/schema.lua "${ASSETS}/schema.lua"
-          cp packages/schema/src/validation/extension-schema.json "${ASSETS}/extension-schema.json"
-          cp packages/schema/src/validation/extension-schema-v2.json "${ASSETS}/extension-schema-v2.json"
-
-      - name: Read the release notes
-        env:
-          NOTES: ${{ runner.temp }}/notes.md
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          # The same reader that `release.yml` uses over the root changelog.
-          # A `$` anchor inside a group is undefined in POSIX ERE and varies
-          # between awk implementations, so the heading is matched with the
-          # form this repository already proves.
-          awk -v version="^## ${VERSION}.*" '
-            $0 ~ version {flag=1; next}
-            /^## / && flag {flag=0}
-            flag
-          ' packages/schema/CHANGELOG.md >"${NOTES}"
-          if [ ! -s "${NOTES}" ]; then
-            echo "::error file=packages/schema/CHANGELOG.md::No entries under a \"## ${VERSION}\" heading. Rename the Unreleased heading to ${VERSION} before you release."
-            exit 1
-          fi
-
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: ${{ runner.temp }}/assets/*
 
       - name: Create GitHub App token
         uses: actions/create-github-app-token@v3
@@ -125,12 +99,13 @@ jobs:
           client-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_KEY }}
 
-      - name: Create the release
+      # Ahead of the attestation, because an attestation is a write to a public
+      # append-only log, and a run that fails after it leaves a signed record
+      # of artefacts that no release carries and that nobody can withdraw.
+      - name: Check the release and its tag are absent
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
-          ASSETS: ${{ runner.temp }}/assets
-          NOTES: ${{ runner.temp }}/notes.md
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
@@ -176,6 +151,64 @@ jobs:
             echo "::error::Release ${TAG} exists, but these assets are missing or have not finished uploading:${MISSING}. A published release is immutable, so this run cannot repair it. Delete the release and its tag, or bump the @version tag in schema.lua and release that version instead."
             exit 1
           fi
+
+          # The tag outlives the release, because deleting a release leaves its
+          # tag behind. `gh release create` reuses a tag that is already there,
+          # and the API discards `--target` for it, so without this check the
+          # release would be tagged at one commit and carry assets, and an
+          # attestation, built from another.
+          if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null); then
+            echo "::error::Tag ${TAG} already exists at ${TAGGED}, and carries no release. Delete the tag, or bump the @version tag in schema.lua and release that version instead."
+            exit 1
+          fi
+
+      - name: Stage the release assets
+        env:
+          ASSETS: ${{ runner.temp }}/assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${ASSETS}"
+          cp packages/schema/src/validation/schema.lua "${ASSETS}/schema.lua"
+          cp packages/schema/src/validation/extension-schema.json "${ASSETS}/extension-schema.json"
+          cp packages/schema/src/validation/extension-schema-v2.json "${ASSETS}/extension-schema-v2.json"
+
+      - name: Read the release notes
+        env:
+          NOTES: ${{ runner.temp }}/notes.md
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The same reader that `release.yml` uses over the root changelog.
+          # A `$` anchor inside a group is undefined in POSIX ERE and varies
+          # between awk implementations, so the heading is matched with the
+          # form this repository already proves.
+          awk -v version="^## ${VERSION}.*" '
+            $0 ~ version {flag=1; next}
+            /^## / && flag {flag=0}
+            flag
+          ' packages/schema/CHANGELOG.md >"${NOTES}"
+          if [ ! -s "${NOTES}" ]; then
+            echo "::error file=packages/schema/CHANGELOG.md::No entries under a \"## ${VERSION}\" heading. Rename the Unreleased heading to ${VERSION} before you release."
+            exit 1
+          fi
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ runner.temp }}/assets/*
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ASSETS: ${{ runner.temp }}/assets
+          NOTES: ${{ runner.temp }}/notes.md
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="schema-v${VERSION}"
 
           # `--latest=false`, so that the extension release stays the latest
           # release of this repository. Tools that ask an origin for its newest
