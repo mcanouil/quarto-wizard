@@ -25,6 +25,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # `workflow_dispatch` lets an operator pick any ref. A tag and its
+      # attestation built from a branch other than `main` cannot be told
+      # apart from one built from `main` by anyone who later fetches it, so
+      # the dispatch is refused here rather than left for a reader to notice.
+      - name: Check the release runs from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "::error::The release runs from main only. It was dispatched from ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+
       - name: Set up Node.js
         uses: actions/setup-node@v7
 
@@ -123,13 +136,44 @@ jobs:
         run: |
           set -euo pipefail
           TAG="schema-v${VERSION}"
+          ASSET_NAMES=(schema.lua extension-schema.json extension-schema-v2.json)
+
+          # One call, which both reports whether the release is there and
+          # lists what it carries. It reads the state of each asset and not
+          # the name alone, because an upload that died part way leaves the
+          # name on the release with a state that is not `uploaded`, and that
+          # is the very failure this guard exists to catch.
+          #
+          # `release not found` is the one failure that means the release is
+          # absent. Every other failure is a failure to read, and a guard that
+          # takes what it cannot read as an absence stops being a guard. This
+          # one would create a release that is already there.
+          VIEW_ERROR=$(mktemp)
+          if PRESENT=$(gh release view "${TAG}" --json assets \
+            --jq '.assets[] | select(.state == "uploaded") | .name' 2>"${VIEW_ERROR}"); then
+            FOUND=true
+          elif grep -qiF 'release not found' "${VIEW_ERROR}"; then
+            FOUND=false
+          else
+            echo "::error::Could not read release ${TAG}: $(tr '\n' ' ' < "${VIEW_ERROR}")"
+            exit 1
+          fi
 
           # A published release is immutable and its tag names the commit that
-          # its assets were built from. A second dispatch at the same version
-          # would leave the tag and the assets naming different commits, so it
-          # stops here. Release the next patch rather than repairing this one.
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            echo "::error::Release ${TAG} already exists. Bump the @version tag in schema.lua and dispatch again."
+          # its assets were built from. Either shape of an existing release
+          # stops here: repairing one is not what a second dispatch is for.
+          if [ "${FOUND}" = true ]; then
+            MISSING=""
+            for name in "${ASSET_NAMES[@]}"; do
+              grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
+            done
+
+            if [ -z "${MISSING}" ]; then
+              echo "::error::Release ${TAG} already exists and carries every asset. Bump the @version tag in schema.lua and dispatch again."
+              exit 1
+            fi
+
+            echo "::error::Release ${TAG} exists, but these assets are missing or have not finished uploading:${MISSING}. A published release is immutable, so this run cannot repair it. Delete the release and its tag, or bump the @version tag in schema.lua and release that version instead."
             exit 1
           fi
 
