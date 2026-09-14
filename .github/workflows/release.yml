@@ -338,13 +338,6 @@ jobs:
       SHA: ${{ needs.package.outputs.sha }}
       GH_REPO: ${{ github.repository }}
 
-    outputs:
-      # `drafted` when this run created the draft, `published` when it found a
-      # release that was published by an earlier run. The job that publishes
-      # the draft reads this, because there is no draft to flip in the second
-      # case and an immutable release refuses the edit.
-      state: ${{ steps.release.outputs.state }}
-
     steps:
       - name: Create GitHub App token
         uses: actions/create-github-app-token@v3
@@ -368,7 +361,6 @@ jobs:
       # version can be released again. This is the order GitHub documents, for
       # the same reason.
       - name: Draft or verify the GitHub release
-        id: release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TYPE: ${{ github.event.inputs.type }}
@@ -383,12 +375,26 @@ jobs:
             "./quarto-wizard-snippets-${VERSION}.tgz#Quarto Wizard Snippets (tgz)"
           )
 
+          # Reads the state of each asset and not the name alone, because an
+          # upload that died part way leaves the name on the release with a
+          # state that is not `uploaded`, and that is the failure this job is
+          # built around. It takes the names from `ASSETS`, so the list that
+          # uploads the assets is the same list that every check of them reads,
+          # and a fifth artefact cannot be added to one and forgotten in the
+          # other. Reads the release JSON on standard input, and writes the
+          # names it did not find.
+          missing_assets() {
+            local present name missing=""
+            present=$(jq -r '.assets[] | select(.state == "uploaded") | .name')
+            for name in "${ASSETS[@]}"; do
+              name=$(basename "${name%%#*}")
+              grep -qxF "${name}" <<< "${present}" || missing="${missing} ${name}"
+            done
+            printf '%s' "${missing}"
+          }
+
           # One call, which reports whether the release is there, whether it is
-          # still a draft, and what it carries. It reads the state of each
-          # asset and not the name alone, because an upload that died part way
-          # leaves the name on the release with a state that is not
-          # `uploaded`, and that is the very failure a second dispatch is here
-          # to recover from.
+          # still a draft, and what it carries.
           #
           # `release not found` is the one failure that means the release is
           # absent. Every other failure is a failure to read, and a guard that
@@ -433,19 +439,13 @@ jobs:
             # is dispatched a second time, which is how a release recovers
             # from a publish that failed, so it has to reach the jobs that
             # publish rather than end here.
-            PRESENT=$(jq -r '.assets[] | select(.state == "uploaded") | .name' <<< "${VIEW}")
-            MISSING=""
-            for asset in "${ASSETS[@]}"; do
-              name=$(basename "${asset%%#*}")
-              grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
-            done
+            MISSING=$(missing_assets <<< "${VIEW}")
             if [ -n "${MISSING}" ]; then
               echo "::error::Release ${VERSION} exists, but these assets are missing or have not finished uploading:${MISSING}. A published release is immutable, so this run cannot replace them. Release the next patch version rather than repairing this one."
               exit 1
             fi
 
             echo "::notice::Release ${VERSION} already exists and carries every asset."
-            echo "state=published" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -467,31 +467,10 @@ jobs:
             --title "${VERSION}" \
             --notes-file "${CHANGELOG}" \
             --generate-notes
-          echo "state=drafted" >> "${GITHUB_OUTPUT}"
 
-      - name: Check the draft carries every asset
-        if: ${{ steps.release.outputs.state == 'drafted' }}
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          ASSET_NAMES=(
-            "quarto-wizard-${VERSION}.vsix"
-            "quarto-wizard-core-${VERSION}.tgz"
-            "quarto-wizard-schema-${VERSION}.tgz"
-            "quarto-wizard-snippets-${VERSION}.tgz"
-          )
-
-          # The state of each asset and not the name alone, for the reason
-          # given at the guard above. This is the failure the draft exists to
-          # absorb: nothing is published yet, so the version is not spent.
-          PRESENT=$(gh release view "${VERSION}" --json assets \
-            --jq '.assets[] | select(.state == "uploaded") | .name')
-          MISSING=""
-          for name in "${ASSET_NAMES[@]}"; do
-            grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
-          done
+          # Read back rather than trusted. This is the failure the draft exists
+          # to absorb: nothing is published yet, so the version is not spent.
+          MISSING=$(gh release view "${VERSION}" --json assets | missing_assets)
           if [ -n "${MISSING}" ]; then
             echo "::error::The draft of ${VERSION} is missing these assets:${MISSING}. Nothing is published, so delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
             exit 1
@@ -655,12 +634,9 @@ jobs:
   # them and carries no data. A draft does not hold either of them up.
   publish-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     needs: [package, release-github, publish-marketplace, publish-openvsx]
-
-    # A release that was already published reaches the store jobs to recover a
-    # publish that failed. There is no draft to flip in that case.
-    if: ${{ needs.release-github.outputs.state == 'drafted' }}
 
     permissions:
       contents: write
@@ -684,6 +660,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # A release that is already published reaches the store jobs to
+          # recover a publish that failed, and there is no draft to flip. The
+          # state is read here rather than carried from `release-github` as a
+          # job output, because an output would have to gate this job with an
+          # `if`, a skipped job would take the deployment down with it, and the
+          # deployment would then need a status expression to climb back out.
+          #
+          # The read is captured apart from the test. A failure inside a test
+          # substitution reads as an empty answer, which would take an
+          # unreadable release for a published one and skip the publish with a
+          # notice, leaving the draft behind and the release never made.
+          if ! IS_DRAFT=$(gh release view "${VERSION}" --json isDraft --jq '.isDraft'); then
+            echo "::error::Could not read release ${VERSION}. Nothing is published, so the draft is still there."
+            exit 1
+          fi
+          if [ "${IS_DRAFT}" != true ]; then
+            echo "::notice::Release ${VERSION} is already published."
+            exit 0
+          fi
+
           # The tag is read here, because publication is what creates it. The
           # guard in `release-github` proves the tag was absent then, and the
           # draft and both store publishes run in between. A tag pushed into
@@ -713,13 +709,7 @@ jobs:
   # and `deploy.yml` carries a `workflow_dispatch` for that, so a deployment
   # that fails does not warrant holding the release in a draft.
   deploy:
-    needs: [release-github, publish-release]
-
-    # `publish-release` is skipped when the release was already published,
-    # which is how a second dispatch recovers a store publish that failed. The
-    # tag exists in that case, so the deployment has something to render and
-    # must not be skipped along with it.
-    if: ${{ !cancelled() && !failure() }}
+    needs: publish-release
 
     permissions:
       contents: read
