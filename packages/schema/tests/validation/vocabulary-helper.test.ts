@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
 	parseKeywordTable,
 	readSchemaVersion,
+	readModuleVersion,
 	metaSchemaProperties,
 	metaSchemaVocabulary,
 	keywordGroups,
@@ -102,5 +103,21 @@ describe("keywordGroups", () => {
 		const groups = keywordGroups(["minLength", "min-length", "type"]);
 		expect(groups.get("minlength")).toEqual(["minLength", "min-length"]);
 		expect(groups.get("type")).toEqual(["type"]);
+	});
+});
+
+describe("readModuleVersion", () => {
+	it("reads the version that the module stamps", () => {
+		expect(readModuleVersion('--- @module "schema"\n--- @version 2.1.0\n')).toBe("2.1.0");
+	});
+
+	it("returns null when the tag is absent", () => {
+		expect(readModuleVersion('--- @module "schema"\n')).toBeNull();
+	});
+
+	// A tag named in prose is not a stamp. A reader that took one would let a
+	// comment set the version that the release workflow tags.
+	it("does not read a version from a line that only names the tag", () => {
+		expect(readModuleVersion("-- see the @version 9.9.9 tag above\n")).toBeNull();
 	});
 });

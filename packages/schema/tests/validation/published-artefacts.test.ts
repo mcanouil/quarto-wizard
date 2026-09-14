@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
-import { readSchemaVersion } from "../helpers/schemaVocabulary.js";
+import { readSchemaVersion, readModuleVersion } from "../helpers/schemaVocabulary.js";
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const validationDir = join(pkgRoot, "src", "validation");
@@ -25,6 +25,18 @@ describe("Lua reference validator", () => {
 		const declared = readSchemaVersion(luaSource);
 		expect(declared, "M.SCHEMA_VERSION assignment not found in schema.lua").not.toBeNull();
 		expect(declared).toBe(metaSchema.$id);
+	});
+
+	// The stamped version is what an author pins, and the `$id` is what the
+	// module implements. A patch or a minor may move the stamp alone, but a
+	// new meta-schema major that leaves the stamp behind would publish a
+	// `2.x.y` module that implements v3.
+	it("stamps a version whose major is the major of the meta-schema", () => {
+		const declared = readModuleVersion(luaSource) ?? "";
+		expect(declared, "@version tag not found in schema.lua").not.toBe("");
+		const segment = /\/v(\d+)\/[^/]+$/.exec(String(metaSchema.$id));
+		expect(segment, `no version segment in the $id ${String(metaSchema.$id)}`).not.toBeNull();
+		expect(declared.split(".")[0]).toBe(segment?.[1]);
 	});
 });
 
