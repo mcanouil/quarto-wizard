@@ -414,17 +414,24 @@ jobs:
             # A draft is the one shape that can be cleared. It holds no tag yet
             # and it is not immutable, so nothing on the GitHub side is spent.
             #
-            # The operator is asked to read the stores first, because a draft
-            # is left by a run that failed anywhere between the draft and the
-            # publish, and the store publishes sit in that window. A dispatch
-            # that follows the deletion finds no `## Unreleased` heading, so it
-            # builds the current tip of `main` and releases the same version
-            # from it. Where the stores already carry that version, both of
-            # those jobs skip, and the tag and the attestation would come to
-            # name a commit that the binaries the stores serve were not built
-            # from. Nothing downstream detects that, so it is refused here.
+            # The run that left the draft is the cheapest way out, and the
+            # message names it first. Its `release-bundle` artifact holds for
+            # thirty days, so re-running its failed jobs reaches the same
+            # draft, at the same commit, with the same assets, and rebuilds
+            # nothing.
+            #
+            # A dispatch is the expensive way out, and the message asks the
+            # operator to read the stores before taking it. A draft is left by
+            # a run that failed anywhere between the draft and the publish, and
+            # the store publishes sit in that window. A dispatch that follows a
+            # deletion finds no `## Unreleased` heading, so it builds the
+            # current tip of `main` and releases the same version from it.
+            # Where a store already carries that version, its job skips, and
+            # the tag and the attestation would come to name a commit that the
+            # binaries the store serves were not built from. Nothing downstream
+            # detects that, so it is refused here.
             if [ "$(jq -r '.isDraft' <<< "${VIEW}")" = true ]; then
-              echo "::error::A draft release ${VERSION} is left from an earlier run. Nothing is published on GitHub, so the version is not spent there. Read the Marketplace and Open VSX before you clear it. If either already carries ${VERSION}, release the next patch version instead, because a dispatch that follows a deletion builds the tip of main and would tag a commit that the published binaries were not built from. If neither carries it, delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
+              echo "::error::A draft release ${VERSION} is left from an earlier run. Nothing is published on GitHub, so the version is not spent there. Re-run the failed jobs of the run that left it: that reaches this same draft at the same commit and rebuilds nothing. Dispatch again only when that run is too old for its artefacts, or main has moved, and read the Marketplace and Open VSX first. If either already carries ${VERSION}, release the next patch version, because a dispatch that follows a deletion builds the tip of main and would tag a commit that the published binaries were not built from. If neither carries it, delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
               exit 1
             fi
 
