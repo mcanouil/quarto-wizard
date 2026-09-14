@@ -94,3 +94,16 @@ export function keywordGroups(properties: string[]): Map<string, string[]> {
 	}
 	return groups;
 }
+
+/**
+ * The version that the module stamps in its `@version` tag, or null when the
+ * tag is absent.
+ *
+ * The tag is the authoritative version of the schema release train. The
+ * release workflow reads the same line from the shell, so the pattern is
+ * anchored to a whole tag line and not to the words `@version` alone.
+ */
+export function readModuleVersion(luaSource: string): string | null {
+	const declared = /^---[ \t]*@version[ \t]+(\d+\.\d+\.\d+)[ \t]*$/m.exec(luaSource);
+	return declared === null ? null : declared[1];
+}
