@@ -4,8 +4,10 @@
 # @author Mickaël Canouil
 #
 # Stamp a version on the Lua reference validator and open its changelog
-# section. The format of the `@version` tag and the shape of the `Unreleased`
-# heading are known here, and nowhere else outside the tests.
+# section. This is the only writer of the `@version` tag and of the
+# `Unreleased` heading. Two readers of the same tag exist and must follow a
+# change to its shape: `readModuleVersion` in the test helper, and the
+# `Resolve the version` step of the release workflow.
 
 set -euo pipefail
 

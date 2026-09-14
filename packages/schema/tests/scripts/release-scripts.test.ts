@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,12 @@ function makeWorkspace(module: string, changelog: string): string {
 	workspaces.push(workspace);
 	mkdirSync(join(workspace, "scripts"));
 	mkdirSync(join(workspace, "src", "validation"), { recursive: true });
-	copyFileSync(join(scriptsDir, "stamp-version.sh"), join(workspace, "scripts", "stamp-version.sh"));
+	const script = join(workspace, "scripts", "stamp-version.sh");
+	copyFileSync(join(scriptsDir, "stamp-version.sh"), script);
+	// Stated rather than inherited from the copy, so a checkout that does not
+	// keep the mode fails on the release workflow and not here, with a message
+	// about the mode rather than an EACCES from every case.
+	chmodSync(script, 0o755);
 	writeFileSync(join(workspace, "src", "validation", "schema.lua"), module);
 	writeFileSync(join(workspace, "CHANGELOG.md"), changelog);
 	return workspace;
@@ -169,7 +174,10 @@ onAShell("changelog-section.sh", () => {
 	});
 
 	it("refuses a heading that is absent", () => {
-		expect(section(changelogWithEntries, "9.9.9").status).toBe(1);
+		const result = section(changelogWithEntries, "9.9.9");
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain('No entries under a "## 9.9.9" heading');
 	});
 
 	it("refuses a changelog that is absent", () => {
