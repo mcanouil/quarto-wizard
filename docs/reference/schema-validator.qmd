@@ -28,9 +28,11 @@ Download the asset from the release you want.
 Vendor it into your extension, at `_extensions/<name>/_modules/schema.lua`.
 
 ```sh
-curl -fsSL -o _extensions/<name>/_modules/schema.lua \
+curl -fsSL --create-dirs -o _extensions/<name>/_modules/schema.lua \
   https://github.com/mcanouil/quarto-wizard/releases/download/schema-v<version>/schema.lua
 ```
+
+`--create-dirs` writes `_modules` when it is absent, which is the normal state the first time you vendor the module.
 
 A render must not need network access, so a vendored copy is the normal choice.
 
