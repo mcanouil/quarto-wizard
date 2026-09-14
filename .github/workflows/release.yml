@@ -411,14 +411,20 @@ jobs:
           fi
 
           if [ "${FOUND}" = true ]; then
-            # A draft is the one shape that can be cleared. It holds no tag
-            # yet and it is not immutable, so a run that failed between the
-            # draft and the publish leaves something the operator can delete.
-            # The bump commit is already on `main` by then, so a dispatch that
-            # follows the deletion finds no `## Unreleased` heading and
-            # releases this same version again.
+            # A draft is the one shape that can be cleared. It holds no tag yet
+            # and it is not immutable, so nothing on the GitHub side is spent.
+            #
+            # The operator is asked to read the stores first, because a draft
+            # is left by a run that failed anywhere between the draft and the
+            # publish, and the store publishes sit in that window. A dispatch
+            # that follows the deletion finds no `## Unreleased` heading, so it
+            # builds the current tip of `main` and releases the same version
+            # from it. Where the stores already carry that version, both of
+            # those jobs skip, and the tag and the attestation would come to
+            # name a commit that the binaries the stores serve were not built
+            # from. Nothing downstream detects that, so it is refused here.
             if [ "$(jq -r '.isDraft' <<< "${VIEW}")" = true ]; then
-              echo "::error::A draft release ${VERSION} is left from an earlier run. Delete it with \`gh release delete ${VERSION}\`, then dispatch again."
+              echo "::error::A draft release ${VERSION} is left from an earlier run. Nothing is published on GitHub, so the version is not spent there. Read the Marketplace and Open VSX before you clear it. If either already carries ${VERSION}, release the next patch version instead, because a dispatch that follows a deletion builds the tip of main and would tag a commit that the published binaries were not built from. If neither carries it, delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
               exit 1
             fi
 
@@ -473,10 +479,21 @@ jobs:
           # The read is captured apart from the check, so that a failure to
           # read carries the same advice as a draft that came back short,
           # rather than ending the job on the raw error of `gh`.
-          if ! DRAFT=$(gh release view "${VERSION}" --json assets); then
+          if ! DRAFT=$(gh release view "${VERSION}" --json isDraft,assets); then
             echo "::error::The draft of ${VERSION} was created, but it could not be read back. Nothing is published, so the version is not spent. Delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
             exit 1
           fi
+
+          # `gh release view` resolves a tag name to a published release ahead
+          # of a draft, so this asks what came back rather than assuming it is
+          # the draft written a moment ago. A release published into the window
+          # between the guard above and this read would otherwise have its
+          # assets checked in place of the draft, and would pass.
+          if [ "$(jq -r '.isDraft' <<< "${DRAFT}")" != true ]; then
+            echo "::error::${VERSION} was drafted by this run, but reading it back returned a release that is already published. This run has published nothing. Work out where that release came from before releasing again."
+            exit 1
+          fi
+
           MISSING=$(missing_assets <<< "${DRAFT}")
           if [ -n "${MISSING}" ]; then
             echo "::error::The draft of ${VERSION} is missing these assets:${MISSING}. Nothing is published, so delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
