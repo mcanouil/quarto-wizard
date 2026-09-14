@@ -33,7 +33,7 @@ sources:
   quarto-wizard:
     origin: "https://github.com/mcanouil/quarto-wizard"
     fetch: "{origin}/releases/download/{version}/{file}"
-    version: "schema-v2.1.0"
+    version: "2.1.0"
     licence: MIT
     tag-prefix: schema-v
     files:
