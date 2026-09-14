@@ -22,15 +22,9 @@ jobs:
       attestations: write
 
     steps:
-      # The commit of the dispatch, and not the tip of the branch it names, so
-      # that a commit landing between the dispatch and this step cannot be
-      # released. It is also the commit that `--target` names later, so the
-      # tag, the assets and the attestation all agree.
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
-
+      # Ahead of the checkout, because it reads the ref of the dispatch and
+      # nothing of the tree.
+      #
       # `workflow_dispatch` lets an operator pick any ref. A tag and its
       # attestation built from a branch other than `main` cannot be told
       # apart from one built from `main` by anyone who later fetches it, so
@@ -44,32 +38,14 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-
-      - name: Set up Quarto CLI
-        uses: quarto-dev/quarto-actions/setup@v2
+      # The commit of the dispatch, and not the tip of the branch it names, so
+      # that a commit landing between the dispatch and this step cannot be
+      # released. It is also the commit that `--target` names later, so the
+      # tag, the assets and the attestation all agree.
+      - name: Checkout repository
+        uses: actions/checkout@v7
         with:
-          version: pre-release
-
-      - name: Install dependencies
-        shell: bash
-        run: npm ci
-
-      # The gates. The package suite holds the keyword parity test, the
-      # published copies test, and the test that the stamped version and the
-      # meta-schema agree on their major. The Lua suite holds the validator
-      # tests and the conformance sweep over every schema this repository
-      # carries. Both run before anything is written.
-      - name: Test schema package
-        shell: bash
-        working-directory: packages/schema
-        run: npm test
-
-      - name: Test Lua reference validator
-        shell: bash
-        working-directory: packages/schema
-        run: npm run test:lua
+          ref: ${{ github.sha }}
 
       # The version is read from the file and not taken as an input, so the
       # tag cannot name a version that the module does not stamp.
@@ -90,6 +66,9 @@ jobs:
             exit 1
           fi
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          # The tag is named once, here, so that the steps below cannot spell
+          # it differently from one another.
+          echo "tag=schema-v${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "::notice file=packages/schema/src/validation/schema.lua,line=6::Schema version ${VERSION}"
 
       - name: Create GitHub App token
@@ -102,15 +81,20 @@ jobs:
       # Ahead of the attestation, because an attestation is a write to a public
       # append-only log, and a run that fails after it leaves a signed record
       # of artefacts that no release carries and that nobody can withdraw.
+      #
+      # Ahead of the setup and the suites too, because this guard needs only
+      # the tree and `gh`. A dispatch at a version that is already released is
+      # an ordinary operator slip, and refusing it here costs seconds rather
+      # than a Quarto download, an `npm ci` and two suites.
       - name: Check the release and its tag are absent
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="schema-v${VERSION}"
           ASSET_NAMES=(schema.lua extension-schema.json extension-schema-v2.json)
 
           # One call, which both reports whether the release is there and
@@ -169,9 +153,7 @@ jobs:
           # the release would be tagged at one commit and carry assets, and an
           # attestation, built from another.
           #
-          # A read that fails for any other reason is not an absence. Taking it
-          # as one is how this guard would wave through the case it exists to
-          # stop.
+          # The same rule as above about an unreadable answer, for the tag.
           TAG_ERROR=$(mktemp)
           if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq '.object.sha' 2>"${TAG_ERROR}"); then
             echo "::error::Tag ${TAG} already exists at ${TAGGED} and carries no release. Delete the tag if nothing ever released from it, otherwise bump the @version tag in schema.lua and release the next version."
@@ -180,6 +162,33 @@ jobs:
             echo "::error::Could not read tag ${TAG}: $(tr '\n' ' ' < "${TAG_ERROR}")"
             exit 1
           fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+
+      - name: Set up Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
+
+      - name: Install dependencies
+        shell: bash
+        run: npm ci
+
+      # The gates. The package suite holds the keyword parity test, the
+      # published copies test, and the test that the stamped version and the
+      # meta-schema agree on their major. The Lua suite holds the validator
+      # tests and the conformance sweep over every schema this repository
+      # carries. Both run before anything is written.
+      - name: Test schema package
+        shell: bash
+        working-directory: packages/schema
+        run: npm test
+
+      - name: Test Lua reference validator
+        shell: bash
+        working-directory: packages/schema
+        run: npm run test:lua
 
       - name: Stage the release assets
         env:
@@ -218,28 +227,22 @@ jobs:
         with:
           subject-path: ${{ runner.temp }}/assets/*
 
-      # This repository publishes immutable releases, so publication is the
-      # point of no return: the assets freeze, and the tag name is reserved
-      # for good even if the release and the tag are later deleted. A version
-      # that publishes without all three assets is therefore spent, not
-      # broken.
-      #
-      # So the release is drafted first, and published only once every asset
-      # is there. A draft carries no tag and is not immutable, so a run that
-      # dies before the publish costs nothing but a draft to delete. This is
-      # the order GitHub documents for the same reason.
+      # Drafted first, and published only once every asset is there, because
+      # publication is the point of no return described at the guard above. A
+      # draft carries no tag and is not immutable, so a run that dies before
+      # the publish costs nothing but a draft to delete. This is the order
+      # GitHub documents, for the same reason.
       - name: Draft the release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           ASSETS: ${{ runner.temp }}/assets
           NOTES: ${{ runner.temp }}/notes.md
+          TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="schema-v${VERSION}"
-
           gh release create "${TAG}" \
             "${ASSETS}/schema.lua#Quarto extension schema validator (lua)" \
             "${ASSETS}/extension-schema.json#Quarto extension meta-schema v1 (json)" \
@@ -253,16 +256,14 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="schema-v${VERSION}"
           ASSET_NAMES=(schema.lua extension-schema.json extension-schema-v2.json)
 
-          # The state of each asset, and not the name alone, because an upload
-          # that died part way leaves the name on the draft in a state that is
-          # not `uploaded`.
+          # The state of each asset and not the name alone, for the reason
+          # given at the guard above.
           PRESENT=$(gh release view "${TAG}" --json assets \
             --jq '.assets[] | select(.state == "uploaded") | .name')
           MISSING=""
