@@ -1355,14 +1355,40 @@ options:
   assert_eq(type(merged.inline), 'boolean', 'and it is still a boolean')
 end)
 
+-- An attribute and a shortcode argument always arrive as a string, so `"true"`
+-- has to reach a `type: boolean` declaration as a boolean. A document's own
+-- metadata does not need this, because Pandoc already hands over a real boolean
+-- for a bare `true`.
 test('a string boolean is normalised', function()
   local loaded = load_schema([[
 options:
   inline:
     type: boolean
 ]])
-  local _, _, _, merged = schema.validate({ inline = 'no' }, loaded.options)
+  local _, _, _, merged = schema.validate({ inline = 'false' }, loaded.options)
   assert_eq(merged.inline, false)
+  local _, _, _, affirmative = schema.validate({ inline = 'true' }, loaded.options)
+  assert_eq(affirmative.inline, true)
+end)
+
+-- `yes` and `no` are booleans in YAML 1.1 and strings in YAML 1.2, which is what
+-- Pandoc reads. Accepting them here made this validator disagree with the YAML
+-- the documents are written in, and it made `enabled: no` mean false in an
+-- extension that read the schema while meaning the string "no" in one that read
+-- the document. They are a type error now, and the author is told to write
+-- `false`.
+test('yes and no are not booleans', function()
+  local loaded = load_schema([[
+options:
+  inline:
+    type: boolean
+]])
+  for _, word in ipairs({ 'yes', 'no', 'Yes', 'NO', 'on', 'off' }) do
+    local valid, errors, _, merged = schema.validate({ inline = word }, loaded.options)
+    assert_eq(valid, false, word .. ' is rejected')
+    assert_contains(errors, 'must be of type "boolean"')
+    assert_eq(merged.inline, word, word .. ' is left as the string it is')
+  end
 end)
 
 test('a string enum of "true" and "false" stays a string', function()
