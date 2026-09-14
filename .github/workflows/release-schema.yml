@@ -1,0 +1,147 @@
+# @license MIT
+# @copyright 2026 Mickaël Canouil
+# @author Mickaël Canouil
+
+name: Release Extension Schema
+
+concurrency:
+  group: release-schema
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+
+      - name: Set up Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: pre-release
+
+      - name: Install dependencies
+        shell: bash
+        run: npm ci
+
+      # The gates. The package suite holds the keyword parity test, the
+      # published copies test, and the test that the stamped version and the
+      # meta-schema agree on their major. The Lua suite holds the validator
+      # tests and the conformance sweep over every schema this repository
+      # carries. Both run before anything is written.
+      - name: Test schema package
+        shell: bash
+        working-directory: packages/schema
+        run: npm test
+
+      - name: Test Lua reference validator
+        shell: bash
+        working-directory: packages/schema
+        run: npm run test:lua
+
+      # The version is read from the file and not taken as an input, so the
+      # tag cannot name a version that the module does not stamp.
+      - name: Read the stamped version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^---[[:space:]]*@version[[:space:]]\{1,\}\([0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\)[[:space:]]*$/\1/p' \
+            packages/schema/src/validation/schema.lua)
+          if [ -z "${VERSION}" ]; then
+            echo "::error file=packages/schema/src/validation/schema.lua,line=6::No @version tag found."
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "::notice file=packages/schema/src/validation/schema.lua,line=6::Schema version ${VERSION}"
+
+      - name: Stage the release assets
+        env:
+          ASSETS: ${{ runner.temp }}/assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${ASSETS}"
+          cp packages/schema/src/validation/schema.lua "${ASSETS}/schema.lua"
+          cp packages/schema/src/validation/extension-schema.json "${ASSETS}/extension-schema.json"
+          cp packages/schema/src/validation/extension-schema-v2.json "${ASSETS}/extension-schema-v2.json"
+
+      - name: Read the release notes
+        env:
+          NOTES: ${{ runner.temp }}/notes.md
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The same reader that `release.yml` uses over the root changelog.
+          # A `$` anchor inside a group is undefined in POSIX ERE and varies
+          # between awk implementations, so the heading is matched with the
+          # form this repository already proves.
+          awk -v version="^## ${VERSION}.*" '
+            $0 ~ version {flag=1; next}
+            /^## / && flag {flag=0}
+            flag
+          ' packages/schema/CHANGELOG.md >"${NOTES}"
+          if [ ! -s "${NOTES}" ]; then
+            echo "::error file=packages/schema/CHANGELOG.md::No entries under a \"## ${VERSION}\" heading. Rename the Unreleased heading to ${VERSION} before you release."
+            exit 1
+          fi
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ runner.temp }}/assets/*
+
+      - name: Create GitHub App token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          ASSETS: ${{ runner.temp }}/assets
+          NOTES: ${{ runner.temp }}/notes.md
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="schema-v${VERSION}"
+
+          # A published release is immutable and its tag names the commit that
+          # its assets were built from. A second dispatch at the same version
+          # would leave the tag and the assets naming different commits, so it
+          # stops here. Release the next patch rather than repairing this one.
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "::error::Release ${TAG} already exists. Bump the @version tag in schema.lua and dispatch again."
+            exit 1
+          fi
+
+          # `--latest=false`, so that the extension release stays the latest
+          # release of this repository. Tools that ask an origin for its newest
+          # release mean the extension, and a schema release must not answer
+          # that question.
+          gh release create "${TAG}" \
+            "${ASSETS}/schema.lua#Quarto extension schema validator (lua)" \
+            "${ASSETS}/extension-schema.json#Quarto extension meta-schema v1 (json)" \
+            "${ASSETS}/extension-schema-v2.json#Quarto extension meta-schema v2 (json)" \
+            --latest=false \
+            --target "${GITHUB_SHA}" \
+            --title "Extension schema ${VERSION}" \
+            --notes-file "${NOTES}"
