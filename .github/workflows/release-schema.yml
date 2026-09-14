@@ -124,8 +124,7 @@ jobs:
           # takes what it cannot read as an absence stops being a guard. This
           # one would create a release that is already there.
           VIEW_ERROR=$(mktemp)
-          if PRESENT=$(gh release view "${TAG}" --json assets \
-            --jq '.assets[] | select(.state == "uploaded") | .name' 2>"${VIEW_ERROR}"); then
+          if VIEW=$(gh release view "${TAG}" --json isDraft,assets 2>"${VIEW_ERROR}"); then
             FOUND=true
           elif grep -qiF 'release not found' "${VIEW_ERROR}"; then
             FOUND=false
@@ -134,31 +133,51 @@ jobs:
             exit 1
           fi
 
-          # A published release is immutable and its tag names the commit that
-          # its assets were built from. Either shape of an existing release
-          # stops here: repairing one is not what a second dispatch is for.
           if [ "${FOUND}" = true ]; then
+            # A draft is the one shape that can be cleared. It holds no tag
+            # yet and it is not immutable, so an earlier run that failed
+            # between the draft and the publish leaves something the operator
+            # can delete and dispatch again at the same version.
+            if [ "$(jq -r '.isDraft' <<< "${VIEW}")" = true ]; then
+              echo "::error::A draft release ${TAG} is left from an earlier run. Delete it with \`gh release delete ${TAG}\`, then dispatch again."
+              exit 1
+            fi
+
+            # This repository publishes immutable releases. A published one
+            # cannot take an asset, lose one, or give its tag back: the tag
+            # name stays reserved even after the release and the tag are
+            # deleted, so this version can never be published again. The only
+            # way on is the next version, whether or not the assets are all
+            # there.
+            PRESENT=$(jq -r '.assets[] | select(.state == "uploaded") | .name' <<< "${VIEW}")
             MISSING=""
             for name in "${ASSET_NAMES[@]}"; do
               grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
             done
 
             if [ -z "${MISSING}" ]; then
-              echo "::error::Release ${TAG} already exists and carries every asset. Bump the @version tag in schema.lua and dispatch again."
+              echo "::error::Release ${TAG} is already published and carries every asset. Bump the @version tag in schema.lua and dispatch again."
               exit 1
             fi
 
-            echo "::error::Release ${TAG} exists, but these assets are missing or have not finished uploading:${MISSING}. A published release is immutable, so this run cannot repair it. Delete the release and its tag, or bump the @version tag in schema.lua and release that version instead."
+            echo "::error::Release ${TAG} is published but these assets are missing:${MISSING}. An immutable release cannot be repaired and its tag name cannot be reused, so ${VERSION} is spent. Bump the @version tag in schema.lua and release the next version."
             exit 1
           fi
 
-          # The tag outlives the release, because deleting a release leaves its
-          # tag behind. `gh release create` reuses a tag that is already there,
-          # and the API discards `--target` for it, so without this check the
-          # release would be tagged at one commit and carry assets, and an
+          # A tag with no release behind it. `gh release create` would adopt it
+          # and the API discards `--target` for a tag that already exists, so
+          # the release would be tagged at one commit and carry assets, and an
           # attestation, built from another.
-          if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null); then
-            echo "::error::Tag ${TAG} already exists at ${TAGGED}, and carries no release. Delete the tag, or bump the @version tag in schema.lua and release that version instead."
+          #
+          # A read that fails for any other reason is not an absence. Taking it
+          # as one is how this guard would wave through the case it exists to
+          # stop.
+          TAG_ERROR=$(mktemp)
+          if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq '.object.sha' 2>"${TAG_ERROR}"); then
+            echo "::error::Tag ${TAG} already exists at ${TAGGED} and carries no release. Delete the tag if nothing ever released from it, otherwise bump the @version tag in schema.lua and release the next version."
+            exit 1
+          elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
+            echo "::error::Could not read tag ${TAG}: $(tr '\n' ' ' < "${TAG_ERROR}")"
             exit 1
           fi
 
@@ -199,9 +218,20 @@ jobs:
         with:
           subject-path: ${{ runner.temp }}/assets/*
 
-      - name: Create the release
+      # This repository publishes immutable releases, so publication is the
+      # point of no return: the assets freeze, and the tag name is reserved
+      # for good even if the release and the tag are later deleted. A version
+      # that publishes without all three assets is therefore spent, not
+      # broken.
+      #
+      # So the release is drafted first, and published only once every asset
+      # is there. A draft carries no tag and is not immutable, so a run that
+      # dies before the publish costs nothing but a draft to delete. This is
+      # the order GitHub documents for the same reason.
+      - name: Draft the release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           ASSETS: ${{ runner.temp }}/assets
           NOTES: ${{ runner.temp }}/notes.md
           VERSION: ${{ steps.version.outputs.version }}
@@ -210,15 +240,42 @@ jobs:
           set -euo pipefail
           TAG="schema-v${VERSION}"
 
-          # `--latest=false`, so that the extension release stays the latest
-          # release of this repository. Tools that ask an origin for its newest
-          # release mean the extension, and a schema release must not answer
-          # that question.
           gh release create "${TAG}" \
             "${ASSETS}/schema.lua#Quarto extension schema validator (lua)" \
             "${ASSETS}/extension-schema.json#Quarto extension meta-schema v1 (json)" \
             "${ASSETS}/extension-schema-v2.json#Quarto extension meta-schema v2 (json)" \
-            --latest=false \
+            --draft \
             --target "${GITHUB_SHA}" \
             --title "Extension schema ${VERSION}" \
             --notes-file "${NOTES}"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="schema-v${VERSION}"
+          ASSET_NAMES=(schema.lua extension-schema.json extension-schema-v2.json)
+
+          # The state of each asset, and not the name alone, because an upload
+          # that died part way leaves the name on the draft in a state that is
+          # not `uploaded`.
+          PRESENT=$(gh release view "${TAG}" --json assets \
+            --jq '.assets[] | select(.state == "uploaded") | .name')
+          MISSING=""
+          for name in "${ASSET_NAMES[@]}"; do
+            grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
+          done
+          if [ -n "${MISSING}" ]; then
+            echo "::error::The draft of ${TAG} is missing these assets:${MISSING}. Nothing is published, so delete the draft with \`gh release delete ${TAG}\` and dispatch again."
+            exit 1
+          fi
+
+          # `--latest=false`, so that the extension release stays the latest
+          # release of this repository. Tools that ask an origin for its newest
+          # release mean the extension, and a schema release must not answer
+          # that question.
+          gh release edit "${TAG}" --draft=false --latest=false
