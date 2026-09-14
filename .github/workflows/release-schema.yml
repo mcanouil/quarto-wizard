@@ -10,6 +10,11 @@ concurrency:
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: 'Version ("MAJOR.MINOR.PATCH")'
+        required: true
 
 jobs:
   release:
@@ -41,45 +46,77 @@ jobs:
             exit 1
           fi
 
-      # The commit of the dispatch, and not the tip of the branch it names, so
-      # that a commit landing between the dispatch and this step cannot be
-      # released. It is also the commit that `--target` names later, so the
-      # tag, the assets and the attestation all agree.
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
-
-      # The version is read from the file and not taken as an input, so the
-      # tag cannot name a version that the module does not stamp.
-      - name: Read the stamped version
-        id: version
-        shell: bash
-        run: |
-          set -euo pipefail
-          # The first match only, because `readModuleVersion` in the test
-          # helper reads the first match too. A second `@version` line, in the
-          # LuaDoc of an inner function for example, would otherwise pass the
-          # test and write two lines into `GITHUB_OUTPUT`, of which the second
-          # is not a `key=value` pair.
-          VERSION=$(sed -n 's/^---[[:space:]]*@version[[:space:]]\{1,\}\([0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\)[[:space:]]*$/\1/p' \
-            packages/schema/src/validation/schema.lua | head -n 1)
-          if [ -z "${VERSION}" ]; then
-            echo "::error file=packages/schema/src/validation/schema.lua,line=6::No @version tag found."
-            exit 1
-          fi
-          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
-          # The tag is named once, here, so that the steps below cannot spell
-          # it differently from one another.
-          echo "tag=schema-v${VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "::notice file=packages/schema/src/validation/schema.lua,line=6::Schema version ${VERSION}"
-
       - name: Create GitHub App token
         uses: actions/create-github-app-token@v3
         id: app-token
         with:
           client-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_KEY }}
+
+      # The commit of the dispatch, and not the tip of the branch it names, so
+      # that a commit landing between the dispatch and this step cannot be
+      # released. The bump below commits on it, and the commit that reaches
+      # `main` is the one that `--target` names later, so the tag, the assets
+      # and the attestation all agree.
+      #
+      # The checkout keeps the token, so the push below runs as the app, which
+      # the ruleset exempts. That is what lets the bump reach `main` with no
+      # pull request.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      # The version is an input and the module is stamped from it, so the two
+      # can no longer disagree. The stamped version is read all the same, to
+      # tell a bump from a dispatch of a version that is already stamped.
+      - name: Resolve the version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "${INPUT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::The version input must be MAJOR.MINOR.PATCH. Read: ${INPUT_VERSION}"
+            exit 1
+          fi
+
+          # The first match only, because `readModuleVersion` in the test
+          # helper reads the first match too. A second `@version` line, in the
+          # LuaDoc of an inner function for example, would otherwise pass the
+          # test while this step read the wrong line.
+          STAMPED=$(sed -n 's/^---[[:space:]]*@version[[:space:]]\{1,\}\([0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\)[[:space:]]*$/\1/p' \
+            packages/schema/src/validation/schema.lua | head -n 1)
+          if [ -z "${STAMPED}" ]; then
+            echo "::error file=packages/schema/src/validation/schema.lua,line=6::No @version tag found."
+            exit 1
+          fi
+
+          # Equal is how a dispatch recovers a run that pushed the bump and
+          # then died before the release was published. The stamp, the built
+          # copies and the heading are already on `main`, and the section that
+          # carries the notes is no longer named `Unreleased`, so such a run
+          # must release the commit it finds rather than write anything.
+          if [ "${INPUT_VERSION}" = "${STAMPED}" ]; then
+            BUMP=false
+            echo "::notice::Version ${INPUT_VERSION} is already stamped, so this run releases the current commit and writes nothing."
+          elif [ "$(printf '%s\n%s\n' "${STAMPED}" "${INPUT_VERSION}" | sort -V | head -n 1)" = "${INPUT_VERSION}" ]; then
+            echo "::error::The version input ${INPUT_VERSION} is lower than the stamped version ${STAMPED}."
+            exit 1
+          else
+            BUMP=true
+            echo "::notice file=packages/schema/src/validation/schema.lua,line=6::Bumping the extension schema from ${STAMPED} to ${INPUT_VERSION}."
+          fi
+
+          {
+            echo "bump=${BUMP}"
+            echo "version=${INPUT_VERSION}"
+            # The tag is named once, here, so that the steps below cannot
+            # spell it differently from one another.
+            echo "tag=schema-v${INPUT_VERSION}"
+          } >> "${GITHUB_OUTPUT}"
 
       # Ahead of the attestation, because an attestation is a write to a public
       # append-only log, and a run that fails after it leaves a signed record
@@ -143,11 +180,11 @@ jobs:
             done
 
             if [ -z "${MISSING}" ]; then
-              echo "::error::Release ${TAG} is already published and carries every asset. Bump the @version tag in schema.lua and dispatch again."
+              echo "::error::Release ${TAG} is already published and carries every asset. Dispatch again at the next version."
               exit 1
             fi
 
-            echo "::error::Release ${TAG} is published but these assets are missing:${MISSING}. An immutable release cannot be repaired and its tag name cannot be reused, so ${VERSION} is spent. Bump the @version tag in schema.lua and release the next version."
+            echo "::error::Release ${TAG} is published but these assets are missing:${MISSING}. An immutable release cannot be repaired and its tag name cannot be reused, so ${VERSION} is spent. Dispatch again at the next version."
             exit 1
           fi
 
@@ -163,12 +200,37 @@ jobs:
           # it in `git log` while following the advice below.
           if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" \
             --jq '"\(.object.sha) (\(.object.type))"' 2>"${TAG_ERROR}"); then
-            echo "::error::Tag ${TAG} already exists at ${TAGGED} and carries no release. Delete the tag if nothing ever released from it, otherwise bump the @version tag in schema.lua and release the next version."
+            echo "::error::Tag ${TAG} already exists at ${TAGGED} and carries no release. Delete the tag if nothing ever released from it, otherwise dispatch again at the next version."
             exit 1
           elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
             echo "::error::Could not read tag ${TAG}: $(tr '\n' ' ' < "${TAG_ERROR}")"
             exit 1
           fi
+
+      - name: Get GitHub App User ID
+        if: ${{ steps.version.outputs.bump == 'true' }}
+        id: get-user-id
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure Environment for Git User
+        if: ${{ steps.version.outputs.bump == 'true' }}
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          USER_ID: ${{ steps.get-user-id.outputs.user-id }}
+        run: |
+          if [ -z "${APP_SLUG}" ]; then
+            USER_NAME="github-actions[bot]"
+            USER_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+          else
+            USER_NAME="${APP_SLUG}[bot]"
+            USER_EMAIL="${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          fi
+          git config --global user.name "${USER_NAME}"
+          git config --global user.email "${USER_EMAIL}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -182,11 +244,56 @@ jobs:
         shell: bash
         run: npm ci
 
+      # The stamp is written before the suites and pushed after them. A change
+      # to `schema.lua` is a change to a source file, so it cannot take the
+      # trade that the bump job of `release.yml` records, where a mechanical
+      # commit reaches `main` without being built. The major of the stamped
+      # version must equal the major of the meta-schema, and the test that
+      # holds it is in the package suite below.
+      - name: Stamp the version and the changelog heading
+        if: ${{ steps.version.outputs.bump == 'true' }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Ahead of every write, because a heading renamed over a section
+          # with no entry releases a body with nothing in it, and an immutable
+          # release cannot be corrected afterwards.
+          packages/schema/scripts/changelog-section.sh packages/schema/CHANGELOG.md Unreleased >/dev/null
+
+          # The first `@version` line alone, for the reason the reader above
+          # gives. A substitution over the file would rewrite a second one in
+          # the LuaDoc of an inner function too.
+          awk -v stamp="--- @version ${VERSION}" '
+            !done && /^---[ \t]*@version[ \t]/ {print stamp; done = 1; next}
+            {print}
+          ' packages/schema/src/validation/schema.lua > schema.lua.new
+          mv schema.lua.new packages/schema/src/validation/schema.lua
+
+          # The first heading alone, matched in full, and a new empty
+          # `Unreleased` section left above it. An entry is written as a
+          # sentence, so a substitution on the word would corrupt one that
+          # carries it in its prose.
+          awk -v heading="## ${VERSION}" '
+            !done && $0 == "## Unreleased" {print "## Unreleased"; print ""; print heading; done = 1; next}
+            {print}
+          ' packages/schema/CHANGELOG.md > CHANGELOG.md.new
+          mv CHANGELOG.md.new packages/schema/CHANGELOG.md
+
+      # In the same commit as the stamp, so the copy the documentation site
+      # serves and the copy the release carries cannot disagree.
+      - name: Build the served schema copies
+        if: ${{ steps.version.outputs.bump == 'true' }}
+        shell: bash
+        run: npm run build:schema
+
       # The gates. The package suite holds the keyword parity test, the
       # published copies test, and the test that the stamped version and the
       # meta-schema agree on their major. The Lua suite holds the validator
       # tests and the conformance sweep over every schema this repository
-      # carries. Both run before anything is written.
+      # carries. Both run on the stamped tree, and before anything is pushed
+      # or published.
       - name: Test schema package
         shell: bash
         working-directory: packages/schema
@@ -196,6 +303,22 @@ jobs:
         shell: bash
         working-directory: packages/schema
         run: npm run test:lua
+
+      - name: Push the bump to main
+        id: push
+        if: ${{ steps.version.outputs.bump == 'true' }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add packages/schema/CHANGELOG.md packages/schema/src/validation/schema.lua docs/assets/schema
+          git commit -m "ci: bump the extension schema to ${VERSION} :rocket:"
+
+          # A plain push, so it is a fast-forward. If `main` moved since the
+          # dispatch, git refuses it and says so, and nothing is released.
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: Stage the release assets
         env:
@@ -215,17 +338,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The same reader that `release.yml` uses over the root changelog.
-          # A `$` anchor inside a group is undefined in POSIX ERE and varies
-          # between awk implementations, so the heading is matched with the
-          # form this repository already proves.
-          awk -v version="^## ${VERSION}.*" '
-            $0 ~ version {flag=1; next}
-            /^## / && flag {flag=0}
-            flag
-          ' packages/schema/CHANGELOG.md >"${NOTES}"
-          if [ ! -s "${NOTES}" ]; then
-            echo "::error file=packages/schema/CHANGELOG.md::No entries under a \"## ${VERSION}\" heading. Rename the Unreleased heading to ${VERSION} before you release."
+          # The same reader that the stamp above uses, so the section that
+          # passed the gate is the section that becomes the release body. It
+          # refuses a section that carries no entry, which a test on the size
+          # of the file cannot do: the single blank line between two headings
+          # is one byte.
+          if ! packages/schema/scripts/changelog-section.sh packages/schema/CHANGELOG.md "${VERSION}" >"${NOTES}"; then
+            echo "::error file=packages/schema/CHANGELOG.md::No entries under a \"## ${VERSION}\" heading."
             exit 1
           fi
 
@@ -242,6 +361,11 @@ jobs:
           NOTES: ${{ runner.temp }}/notes.md
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
+          # The commit the bump pushed, or the commit the dispatch resolved
+          # when the version was already stamped. Either way it is the commit
+          # the assets were built from, and a branch name here would tag
+          # whatever landed on `main` in the meantime.
+          RELEASE_SHA: ${{ steps.push.outputs.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -250,7 +374,7 @@ jobs:
             "${ASSETS}/extension-schema.json#Quarto extension meta-schema v1 (json)" \
             "${ASSETS}/extension-schema-v2.json#Quarto extension meta-schema v2 (json)" \
             --draft \
-            --target "${GITHUB_SHA}" \
+            --target "${RELEASE_SHA}" \
             --title "Extension schema ${VERSION}" \
             --notes-file "${NOTES}"
 
