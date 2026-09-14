@@ -207,30 +207,19 @@ jobs:
             exit 1
           fi
 
-      - name: Get GitHub App User ID
+      # Alongside the guard above, and ahead of the setup, because it reads one
+      # small file and needs no toolchain. A dispatch with nothing to release
+      # is an ordinary operator slip, and refusing it here costs seconds
+      # rather than a Quarto download, an `npm ci` and two suites.
+      - name: Check the Unreleased section carries entries
         if: ${{ steps.version.outputs.bump == 'true' }}
-        id: get-user-id
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        shell: bash
         run: |
-          echo "user-id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "${GITHUB_OUTPUT}"
-
-      - name: Configure Environment for Git User
-        if: ${{ steps.version.outputs.bump == 'true' }}
-        env:
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          USER_ID: ${{ steps.get-user-id.outputs.user-id }}
-        run: |
-          if [ -z "${APP_SLUG}" ]; then
-            USER_NAME="github-actions[bot]"
-            USER_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
-          else
-            USER_NAME="${APP_SLUG}[bot]"
-            USER_EMAIL="${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          set -euo pipefail
+          if ! MESSAGE=$(packages/schema/scripts/changelog-section.sh packages/schema/CHANGELOG.md Unreleased 2>&1 >/dev/null); then
+            echo "::error file=packages/schema/CHANGELOG.md::${MESSAGE}"
+            exit 1
           fi
-          git config --global user.name "${USER_NAME}"
-          git config --global user.email "${USER_EMAIL}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -250,43 +239,19 @@ jobs:
       # commit reaches `main` without being built. The major of the stamped
       # version must equal the major of the meta-schema, and the test that
       # holds it is in the package suite below.
-      - name: Stamp the version and the changelog heading
+      #
+      # `build:schema` runs here rather than in a step of its own, so the copy
+      # the documentation site serves lands in the same commit as the stamp
+      # and the two cannot disagree.
+      - name: Stamp the version and build the served copies
         if: ${{ steps.version.outputs.bump == 'true' }}
         env:
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          # Ahead of every write, because a heading renamed over a section
-          # with no entry releases a body with nothing in it, and an immutable
-          # release cannot be corrected afterwards.
-          packages/schema/scripts/changelog-section.sh packages/schema/CHANGELOG.md Unreleased >/dev/null
-
-          # The first `@version` line alone, for the reason the reader above
-          # gives. A substitution over the file would rewrite a second one in
-          # the LuaDoc of an inner function too.
-          awk -v stamp="--- @version ${VERSION}" '
-            !done && /^---[ \t]*@version[ \t]/ {print stamp; done = 1; next}
-            {print}
-          ' packages/schema/src/validation/schema.lua > schema.lua.new
-          mv schema.lua.new packages/schema/src/validation/schema.lua
-
-          # The first heading alone, matched in full, and a new empty
-          # `Unreleased` section left above it. An entry is written as a
-          # sentence, so a substitution on the word would corrupt one that
-          # carries it in its prose.
-          awk -v heading="## ${VERSION}" '
-            !done && $0 == "## Unreleased" {print "## Unreleased"; print ""; print heading; done = 1; next}
-            {print}
-          ' packages/schema/CHANGELOG.md > CHANGELOG.md.new
-          mv CHANGELOG.md.new packages/schema/CHANGELOG.md
-
-      # In the same commit as the stamp, so the copy the documentation site
-      # serves and the copy the release carries cannot disagree.
-      - name: Build the served schema copies
-        if: ${{ steps.version.outputs.bump == 'true' }}
-        shell: bash
-        run: npm run build:schema
+          packages/schema/scripts/stamp-version.sh "${VERSION}"
+          npm run build:schema
 
       # The gates. The package suite holds the keyword parity test, the
       # published copies test, and the test that the stamped version and the
@@ -304,22 +269,6 @@ jobs:
         working-directory: packages/schema
         run: npm run test:lua
 
-      - name: Push the bump to main
-        id: push
-        if: ${{ steps.version.outputs.bump == 'true' }}
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git add packages/schema/CHANGELOG.md packages/schema/src/validation/schema.lua docs/assets/schema
-          git commit -m "ci: bump the extension schema to ${VERSION} :rocket:"
-
-          # A plain push, so it is a fast-forward. If `main` moved since the
-          # dispatch, git refuses it and says so, and nothing is released.
-          git push origin HEAD:main
-          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
-
       - name: Stage the release assets
         env:
           ASSETS: ${{ runner.temp }}/assets
@@ -331,6 +280,11 @@ jobs:
           cp packages/schema/src/validation/extension-schema.json "${ASSETS}/extension-schema.json"
           cp packages/schema/src/validation/extension-schema-v2.json "${ASSETS}/extension-schema-v2.json"
 
+      # Ahead of the push, so that the last thing the job can refuse is
+      # refused while everything is still on the runner. It reads the section
+      # the stamp renamed, and refuses one that carries no entry, which a test
+      # on the size of the file cannot do: the single blank line between two
+      # headings is one byte.
       - name: Read the release notes
         env:
           NOTES: ${{ runner.temp }}/notes.md
@@ -338,15 +292,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The same reader that the stamp above uses, so the section that
-          # passed the gate is the section that becomes the release body. It
-          # refuses a section that carries no entry, which a test on the size
-          # of the file cannot do: the single blank line between two headings
-          # is one byte.
-          if ! packages/schema/scripts/changelog-section.sh packages/schema/CHANGELOG.md "${VERSION}" >"${NOTES}"; then
-            echo "::error file=packages/schema/CHANGELOG.md::No entries under a \"## ${VERSION}\" heading."
+          if ! MESSAGE=$(packages/schema/scripts/changelog-section.sh packages/schema/CHANGELOG.md "${VERSION}" 2>&1 >"${NOTES}"); then
+            echo "::error file=packages/schema/CHANGELOG.md::${MESSAGE}"
             exit 1
           fi
+
+      - name: Push the bump to main
+        id: push
+        if: ${{ steps.version.outputs.bump == 'true' }}
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The identity of the app, which is what the ruleset exempts. It is
+          # set on the commit rather than in the configuration of the runner,
+          # because this job makes one commit and no other.
+          USER_ID=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          git add packages/schema/CHANGELOG.md packages/schema/src/validation/schema.lua docs/assets/schema
+          git \
+            -c "user.name=${APP_SLUG}[bot]" \
+            -c "user.email=${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com" \
+            commit -m "ci: bump the extension schema to ${VERSION} :rocket:"
+
+          # A plain push, so it is a fast-forward. If `main` moved since the
+          # dispatch, git refuses it and says so, and nothing is released.
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       # Drafted first, and published only once every asset is there, because
       # publication is the point of no return described at the guard above. A
@@ -362,9 +336,8 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
           # The commit the bump pushed, or the commit the dispatch resolved
-          # when the version was already stamped. Either way it is the commit
-          # the assets were built from, and a branch name here would tag
-          # whatever landed on `main` in the meantime.
+          # when the version was already stamped. Either way the assets were
+          # built from it.
           RELEASE_SHA: ${{ steps.push.outputs.sha || github.sha }}
         shell: bash
         run: |

@@ -4,9 +4,7 @@
 # @author Mickaël Canouil
 #
 # Print the body of one section of a changelog, and refuse a section that
-# carries no entry. The release workflow reads it twice: once to refuse a
-# bump of an empty `Unreleased` section, and once to take the release notes
-# of the version it publishes.
+# carries no entry.
 
 set -euo pipefail
 
