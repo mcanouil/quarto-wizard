@@ -33,8 +33,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${GITHUB_REF_NAME}" != "main" ]; then
-            echo "::error::The release runs from main only. It was dispatched from ${GITHUB_REF_NAME}."
+          # The full ref, and not the short name. A tag named `main` gives the
+          # same short name as the branch, and anyone who can push a tag can
+          # make one, without touching the protection on the branch.
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::The release runs from the main branch only. It was dispatched from ${GITHUB_REF}."
             exit 1
           fi
 
@@ -155,7 +158,11 @@ jobs:
           #
           # The same rule as above about an unreadable answer, for the tag.
           TAG_ERROR=$(mktemp)
-          if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq '.object.sha' 2>"${TAG_ERROR}"); then
+          # The type as well as the sha. An annotated tag points at a tag
+          # object, so its sha is not a commit and an operator would not find
+          # it in `git log` while following the advice below.
+          if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" \
+            --jq '"\(.object.sha) (\(.object.type))"' 2>"${TAG_ERROR}"); then
             echo "::error::Tag ${TAG} already exists at ${TAGGED} and carries no release. Delete the tag if nothing ever released from it, otherwise bump the @version tag in schema.lua and release the next version."
             exit 1
           elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
@@ -222,11 +229,6 @@ jobs:
             exit 1
           fi
 
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: ${{ runner.temp }}/assets/*
-
       # Drafted first, and published only once every asset is there, because
       # publication is the point of no return described at the guard above. A
       # draft carries no tag and is not immutable, so a run that dies before
@@ -252,7 +254,7 @@ jobs:
             --title "Extension schema ${VERSION}" \
             --notes-file "${NOTES}"
 
-      - name: Publish the release
+      - name: Check the draft carries every asset
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
@@ -272,6 +274,39 @@ jobs:
           done
           if [ -n "${MISSING}" ]; then
             echo "::error::The draft of ${TAG} is missing these assets:${MISSING}. Nothing is published, so delete the draft with \`gh release delete ${TAG}\` and dispatch again."
+            exit 1
+          fi
+
+      # After the draft is known to be complete, and before it is published.
+      # An attestation is a write to a public append-only log that nobody can
+      # withdraw, so it must not name artefacts that end up in a draft which
+      # is deleted rather than published.
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ runner.temp }}/assets/*
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The tag is read again, here, because publication is what creates
+          # it. The guard near the start of the job proves the tag was absent
+          # then, and the suites, the staging and the draft all run in
+          # between. A tag pushed into that window would be adopted by the
+          # publish, which discards the target the draft recorded, and the
+          # `concurrency` group covers another run of this workflow and not a
+          # tag pushed by hand.
+          TAG_ERROR=$(mktemp)
+          if gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" >/dev/null 2>"${TAG_ERROR}"; then
+            echo "::error::Tag ${TAG} appeared while this run was working. Nothing is published, so delete the draft with \`gh release delete ${TAG}\` and work out where the tag came from before releasing again."
+            exit 1
+          elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
+            echo "::error::Could not read tag ${TAG}: $(tr '\n' ' ' < "${TAG_ERROR}")"
             exit 1
           fi
 
