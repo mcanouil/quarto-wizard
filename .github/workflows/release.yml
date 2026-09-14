@@ -455,6 +455,25 @@ jobs:
             exit 0
           fi
 
+          # A tag with no release behind it. `gh release create` would adopt it,
+          # and the API discards `--target` for a tag that already exists, so
+          # the release would be tagged at one commit and carry assets, and an
+          # attestation, built from another.
+          #
+          # The same rule as above about an unreadable answer, for the tag.
+          TAG_ERROR=$(mktemp)
+          # The type as well as the sha. An annotated tag points at a tag
+          # object, so its sha is not a commit and an operator would not find
+          # it in `git log` while following the advice below.
+          if TAGGED=$(gh api "repos/${GH_REPO}/git/ref/tags/${VERSION}" \
+            --jq '"\(.object.sha) (\(.object.type))"' 2>"${TAG_ERROR}"); then
+            echo "::error::Tag ${VERSION} already exists at ${TAGGED} and carries no release. Delete the tag if nothing ever released from it, otherwise release the next patch version."
+            exit 1
+          elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
+            echo "::error::Could not read tag ${VERSION}: $(tr '\n' ' ' < "${TAG_ERROR}")"
+            exit 1
+          fi
+
           PRERELEASE_FLAG=""
           if [ "${TYPE}" = "pre-release" ]; then
             PRERELEASE_FLAG="--prerelease"
@@ -712,7 +731,7 @@ jobs:
           # another run of this workflow and not a tag pushed by hand.
           TAG_ERROR=$(mktemp)
           if gh api "repos/${GH_REPO}/git/ref/tags/${VERSION}" >/dev/null 2>"${TAG_ERROR}"; then
-            echo "::error::Tag ${VERSION} appeared while this run was working, so the draft was not published. Both stores already carry this version, and the GitHub release is the only part outstanding. Work out where the tag came from before you touch the draft, because a run dispatched again would adopt the tag rather than the commit this one built."
+            echo "::error::Tag ${VERSION} appeared while this run was working, so the draft was not published. Both stores already carry this version, and the GitHub release is the only part outstanding. Work out where the tag came from before you touch the draft. A run dispatched again is refused while the tag is there."
             exit 1
           elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
             echo "::error::Could not read tag ${VERSION}: $(tr '\n' ' ' < "${TAG_ERROR}")"
