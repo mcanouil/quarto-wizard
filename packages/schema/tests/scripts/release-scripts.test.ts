@@ -8,6 +8,12 @@ import { describe, it, expect, afterEach } from "vitest";
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const scriptsDir = join(pkgRoot, "scripts");
 
+// Both scripts are release tooling, and the release workflow runs on
+// `ubuntu-latest` alone. The suite that holds them runs on the Windows cell of
+// the build matrix too, where a shebang is not executable, so the cases are
+// skipped there rather than spawned through whichever `bash` that runner has.
+const onAShell = describe.runIf(process.platform !== "win32");
+
 const workspaces: string[] = [];
 
 afterEach(() => {
@@ -68,7 +74,7 @@ const changelogWithEntries = [
 	"",
 ].join("\n");
 
-describe("stamp-version.sh", () => {
+onAShell("stamp-version.sh", () => {
 	it("rewrites the first @version tag and leaves a later one alone", () => {
 		const workspace = makeWorkspace(moduleWithTwoTags, changelogWithEntries);
 
@@ -131,7 +137,7 @@ describe("stamp-version.sh", () => {
 	});
 });
 
-describe("changelog-section.sh", () => {
+onAShell("changelog-section.sh", () => {
 	it("prints the body of a section, subheadings included", () => {
 		const result = section(changelogWithEntries, "Unreleased");
 

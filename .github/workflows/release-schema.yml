@@ -78,6 +78,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # `stamp-version.sh` owns the shape of a version and refuses a
+          # malformed one too. It is read here as well, because the tag, the
+          # comparison below and the guard that follows all name the input
+          # long before the stamp runs.
           if ! [[ "${INPUT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::The version input must be MAJOR.MINOR.PATCH. Read: ${INPUT_VERSION}"
             exit 1
