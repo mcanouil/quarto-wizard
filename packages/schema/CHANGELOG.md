@@ -3,6 +3,9 @@
 The extension meta-schemas and the Lua reference validator are versioned apart from the Quarto Wizard extension.
 The major version is the major version of the meta-schema, so a `2.x.y` release implements the v2 vocabulary.
 A release is tagged `schema-v<version>`.
+This is not the changelog of the `@quarto-wizard/schema` npm package, whose version follows the Quarto Wizard extension and whose changes are recorded in the root `CHANGELOG.md`.
+
+## Unreleased
 
 ## 2.1.0
 
