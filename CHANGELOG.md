@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- fix: Accept only `true` and `false` as booleans in the schema validator. `yes` and `no` are booleans in YAML 1.1 only, and Pandoc reads them as strings, so a document that used them meant one thing to the validator and another to the extension.
+
 ## 3.6.3 (2026-09-12)
 
 ### Documentation
