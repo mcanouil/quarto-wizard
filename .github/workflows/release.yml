@@ -470,7 +470,14 @@ jobs:
 
           # Read back rather than trusted. This is the failure the draft exists
           # to absorb: nothing is published yet, so the version is not spent.
-          MISSING=$(gh release view "${VERSION}" --json assets | missing_assets)
+          # The read is captured apart from the check, so that a failure to
+          # read carries the same advice as a draft that came back short,
+          # rather than ending the job on the raw error of `gh`.
+          if ! DRAFT=$(gh release view "${VERSION}" --json assets); then
+            echo "::error::The draft of ${VERSION} was created, but it could not be read back. Nothing is published, so the version is not spent. Delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
+            exit 1
+          fi
+          MISSING=$(missing_assets <<< "${DRAFT}")
           if [ -n "${MISSING}" ]; then
             echo "::error::The draft of ${VERSION} is missing these assets:${MISSING}. Nothing is published, so delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
             exit 1
@@ -672,7 +679,7 @@ jobs:
           # unreadable release for a published one and skip the publish with a
           # notice, leaving the draft behind and the release never made.
           if ! IS_DRAFT=$(gh release view "${VERSION}" --json isDraft --jq '.isDraft'); then
-            echo "::error::Could not read release ${VERSION}. Nothing is published, so the draft is still there."
+            echo "::error::Could not read release ${VERSION}, so the draft was not flipped. Both stores already carry this version. Read the state of the release before dispatching again."
             exit 1
           fi
           if [ "${IS_DRAFT}" != true ]; then
@@ -688,7 +695,7 @@ jobs:
           # another run of this workflow and not a tag pushed by hand.
           TAG_ERROR=$(mktemp)
           if gh api "repos/${GH_REPO}/git/ref/tags/${VERSION}" >/dev/null 2>"${TAG_ERROR}"; then
-            echo "::error::Tag ${VERSION} appeared while this run was working. Nothing is published, so delete the draft with \`gh release delete ${VERSION}\` and work out where the tag came from before releasing again."
+            echo "::error::Tag ${VERSION} appeared while this run was working, so the draft was not published. Both stores already carry this version, and the GitHub release is the only part outstanding. Work out where the tag came from before you touch the draft, because a run dispatched again would adopt the tag rather than the commit this one built."
             exit 1
           elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
             echo "::error::Could not read tag ${VERSION}: $(tr '\n' ' ' < "${TAG_ERROR}")"
