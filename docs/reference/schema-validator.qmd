@@ -20,13 +20,28 @@ For the vocabulary that a schema file may use, read the [Extension Schema Specif
 
 ## Get the Module
 
-The module is published at [`v2/schema.lua`](/assets/schema/v2/schema.lua).
+The module is released apart from the Quarto Wizard extension.
+Each release is tagged `schema-v<version>` and carries `schema.lua` as an asset.
+The `--- @version` line inside the file names that same version, so a vendored copy records where it came from.
 
+Download the asset from the release you want.
 Vendor it into your extension, at `_extensions/<name>/_modules/schema.lua`.
+
+```sh
+curl -fsSL --create-dirs -o _extensions/<name>/_modules/schema.lua \
+  https://github.com/mcanouil/quarto-wizard/releases/download/schema-v<version>/schema.lua
+```
+
+`--create-dirs` writes `_modules` when it is absent, which is the normal state the first time you vendor the module.
+
 A render must not need network access, so a vendored copy is the normal choice.
 
 The module is standalone.
 It requires no other module, so one file is the whole dependency.
+
+The address [`v2/schema.lua`](/assets/schema/v2/schema.lua) mirrors the copy that Quarto Wizard ships.
+It stays for convenience, and because the `$id` of the JSON beside it resolves against this site.
+It is not the release, so the release is the better source for a vendored copy.
 
 ## Load the Module
 
