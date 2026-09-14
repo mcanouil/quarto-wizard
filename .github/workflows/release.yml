@@ -338,6 +338,13 @@ jobs:
       SHA: ${{ needs.package.outputs.sha }}
       GH_REPO: ${{ github.repository }}
 
+    outputs:
+      # `drafted` when this run created the draft, `published` when it found a
+      # release that was published by an earlier run. The job that publishes
+      # the draft reads this, because there is no draft to flip in the second
+      # case and an immutable release refuses the edit.
+      state: ${{ steps.release.outputs.state }}
+
     steps:
       - name: Create GitHub App token
         uses: actions/create-github-app-token@v3
@@ -351,13 +358,24 @@ jobs:
         with:
           name: release-bundle
 
-      - name: Create or verify the GitHub release
+      # Drafted here, and published only once both stores have taken the
+      # version. This repository publishes immutable releases: a published one
+      # cannot take an asset, lose one, or give its tag back, and the tag name
+      # stays reserved even after the release and the tag are deleted, so a
+      # version that publishes without all of its assets is spent rather than
+      # broken. A draft creates no tag and is not immutable, so a run that
+      # dies during the upload leaves only a draft to delete and the same
+      # version can be released again. This is the order GitHub documents, for
+      # the same reason.
+      - name: Draft or verify the GitHub release
+        id: release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TYPE: ${{ github.event.inputs.type }}
           CHANGELOG: CHANGELOG-${{ env.VERSION }}.md
         shell: bash
         run: |
+          set -euo pipefail
           ASSETS=(
             "./quarto-wizard-${VERSION}.vsix#Quarto Wizard (vsix)"
             "./quarto-wizard-core-${VERSION}.tgz#Quarto Wizard Core (tgz)"
@@ -365,19 +383,19 @@ jobs:
             "./quarto-wizard-snippets-${VERSION}.tgz#Quarto Wizard Snippets (tgz)"
           )
 
-          # One call, which both reports whether the release is there and
-          # lists what it carries. It reads the state of each asset and not
-          # the name alone, because an upload that died part way leaves the
-          # name on the release with a state that is not `uploaded`, and that
-          # is the very failure a second dispatch is here to recover from.
+          # One call, which reports whether the release is there, whether it is
+          # still a draft, and what it carries. It reads the state of each
+          # asset and not the name alone, because an upload that died part way
+          # leaves the name on the release with a state that is not
+          # `uploaded`, and that is the very failure a second dispatch is here
+          # to recover from.
           #
           # `release not found` is the one failure that means the release is
           # absent. Every other failure is a failure to read, and a guard that
           # takes what it cannot read as an absence stops being a guard. This
           # one would create a release that is already there.
           VIEW_ERROR=$(mktemp)
-          if PRESENT=$(gh release view "${VERSION}" --json assets \
-            --jq '.assets[] | select(.state == "uploaded") | .name' 2>"${VIEW_ERROR}"); then
+          if VIEW=$(gh release view "${VERSION}" --json isDraft,assets 2>"${VIEW_ERROR}"); then
             FOUND=true
           elif grep -qiF 'release not found' "${VIEW_ERROR}"; then
             FOUND=false
@@ -387,6 +405,17 @@ jobs:
           fi
 
           if [ "${FOUND}" = true ]; then
+            # A draft is the one shape that can be cleared. It holds no tag
+            # yet and it is not immutable, so a run that failed between the
+            # draft and the publish leaves something the operator can delete.
+            # The bump commit is already on `main` by then, so a dispatch that
+            # follows the deletion finds no `## Unreleased` heading and
+            # releases this same version again.
+            if [ "$(jq -r '.isDraft' <<< "${VIEW}")" = true ]; then
+              echo "::error::A draft release ${VERSION} is left from an earlier run. Delete it with \`gh release delete ${VERSION}\`, then dispatch again."
+              exit 1
+            fi
+
             # The tag of an existing release stays where it is. Assets built
             # somewhere else would leave the tag and the assets naming
             # different commits, which is what this release is careful not
@@ -404,6 +433,7 @@ jobs:
             # is dispatched a second time, which is how a release recovers
             # from a publish that failed, so it has to reach the jobs that
             # publish rather than end here.
+            PRESENT=$(jq -r '.assets[] | select(.state == "uploaded") | .name' <<< "${VIEW}")
             MISSING=""
             for asset in "${ASSETS[@]}"; do
               name=$(basename "${asset%%#*}")
@@ -415,6 +445,7 @@ jobs:
             fi
 
             echo "::notice::Release ${VERSION} already exists and carries every asset."
+            echo "state=published" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -422,16 +453,49 @@ jobs:
           if [ "${TYPE}" = "pre-release" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
+          # `--prerelease` on the draft rather than on the publish, so a draft
+          # that an operator inspects reads as the thing it was meant to be.
+          #
           # `--target`, so the tag records the commit these assets were built
           # from. Without it the tag lands on the tip of the default branch at
           # release time, which is not necessarily the same commit.
           gh release create "${VERSION}" \
             "${ASSETS[@]}" \
             ${PRERELEASE_FLAG} \
+            --draft \
             --target "${SHA}" \
             --title "${VERSION}" \
             --notes-file "${CHANGELOG}" \
             --generate-notes
+          echo "state=drafted" >> "${GITHUB_OUTPUT}"
+
+      - name: Check the draft carries every asset
+        if: ${{ steps.release.outputs.state == 'drafted' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET_NAMES=(
+            "quarto-wizard-${VERSION}.vsix"
+            "quarto-wizard-core-${VERSION}.tgz"
+            "quarto-wizard-schema-${VERSION}.tgz"
+            "quarto-wizard-snippets-${VERSION}.tgz"
+          )
+
+          # The state of each asset and not the name alone, for the reason
+          # given at the guard above. This is the failure the draft exists to
+          # absorb: nothing is published yet, so the version is not spent.
+          PRESENT=$(gh release view "${VERSION}" --json assets \
+            --jq '.assets[] | select(.state == "uploaded") | .name')
+          MISSING=""
+          for name in "${ASSET_NAMES[@]}"; do
+            grep -qxF "${name}" <<< "${PRESENT}" || MISSING="${MISSING} ${name}"
+          done
+          if [ -n "${MISSING}" ]; then
+            echo "::error::The draft of ${VERSION} is missing these assets:${MISSING}. Nothing is published, so delete the draft with \`gh release delete ${VERSION}\` and dispatch again."
+            exit 1
+          fi
 
   publish-marketplace:
     runs-on: ubuntu-latest
@@ -581,10 +645,81 @@ jobs:
             "quarto-wizard-${VERSION}.vsix" \
             --pat "${OPEN_VSX_REGISTRY_TOKEN}"
 
-  # The documentation site reads the latest tag, which `release-github` has
-  # just created.
+  # The release flips from draft to published here, after both stores have
+  # taken the version. Publication is what creates the tag and what makes the
+  # release immutable, so it sits after the two steps that are hard to take
+  # back. Nothing before this point reserves the version number.
+  #
+  # Both store jobs read the vsix from the `release-bundle` artifact and not
+  # from the GitHub release, so their dependency on `release-github` orders
+  # them and carries no data. A draft does not hold either of them up.
+  publish-release:
+    runs-on: ubuntu-latest
+
+    needs: [package, release-github, publish-marketplace, publish-openvsx]
+
+    # A release that was already published reaches the store jobs to recover a
+    # publish that failed. There is no draft to flip in that case.
+    if: ${{ needs.release-github.outputs.state == 'drafted' }}
+
+    permissions:
+      contents: write
+
+    env:
+      VERSION: ${{ needs.package.outputs.version }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Create GitHub App token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TYPE: ${{ github.event.inputs.type }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The tag is read here, because publication is what creates it. The
+          # guard in `release-github` proves the tag was absent then, and the
+          # draft and both store publishes run in between. A tag pushed into
+          # that window would be adopted by the publish, which discards the
+          # target the draft recorded, and the `concurrency` group covers
+          # another run of this workflow and not a tag pushed by hand.
+          TAG_ERROR=$(mktemp)
+          if gh api "repos/${GH_REPO}/git/ref/tags/${VERSION}" >/dev/null 2>"${TAG_ERROR}"; then
+            echo "::error::Tag ${VERSION} appeared while this run was working. Nothing is published, so delete the draft with \`gh release delete ${VERSION}\` and work out where the tag came from before releasing again."
+            exit 1
+          elif ! grep -qiF 'Not Found' "${TAG_ERROR}"; then
+            echo "::error::Could not read tag ${VERSION}: $(tr '\n' ' ' < "${TAG_ERROR}")"
+            exit 1
+          fi
+
+          # `--latest` is named rather than left to the API, which decides it
+          # for itself when a draft is published. A pre-release must not become
+          # the latest release of this repository, and a release must.
+          LATEST=true
+          if [ "${TYPE}" = "pre-release" ]; then
+            LATEST=false
+          fi
+          gh release edit "${VERSION}" --draft=false --latest="${LATEST}"
+
+  # The documentation site reads the latest tag, which the publish above has
+  # just created. It is also the one step of the release that repeats freely,
+  # and `deploy.yml` carries a `workflow_dispatch` for that, so a deployment
+  # that fails does not warrant holding the release in a draft.
   deploy:
-    needs: release-github
+    needs: [release-github, publish-release]
+
+    # `publish-release` is skipped when the release was already published,
+    # which is how a second dispatch recovers a store publish that failed. The
+    # tag exists in that case, so the deployment has something to render and
+    # must not be skipped along with it.
+    if: ${{ !cancelled() && !failure() }}
 
     permissions:
       contents: read
