@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-### Bug Fixes
-
-- fix: Accept only `true` and `false` as booleans in the schema validator. `yes` and `no` are booleans in YAML 1.1 only, and Pandoc reads them as strings, so a document that used them meant one thing to the validator and another to the extension.
-
 ### Build System
 
 - build: Publish the Lua reference validator on its own release, tagged `schema-v<version>`. An extension now pins the version of the validator and not the version of the editor extension.
