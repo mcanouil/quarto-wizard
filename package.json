@@ -91,9 +91,7 @@
 		"prepare": "husky"
 	},
 	"lint-staged": {
-		"src/**/*.{ts,tsx}": "prettier --write",
-		"packages/*/src/**/*.ts": "prettier --write",
-		"packages/*/tests/**/*.ts": "prettier --write"
+		"{src/**/*.{ts,tsx},packages/*/src/**/*.ts,packages/*/tests/**/*.ts}": "prettier --write"
 	},
 	"overrides": {
 		"diff": "^8.0.3",
