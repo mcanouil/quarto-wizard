@@ -11,6 +11,7 @@
 .markdownlint.yml
 .luarc.json
 .eslintcache
+.husky
 .beads
 .claude
 
