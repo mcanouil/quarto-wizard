@@ -163,8 +163,6 @@ jobs:
         working-directory: packages/core
         run: npm test
 
-      # This runs before the build, because `npm run webpack` begins with
-      # `npm run format`, which rewrites the files this step reads.
       - name: Check formatting
         shell: bash
         run: npm run format:check
