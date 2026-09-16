@@ -1798,7 +1798,7 @@ local function _check_object(value, spec, path, context)
 
   if type(spec.properties) == 'table' then
     local sub, filled = _validate_map(value, spec.properties, path, context, {
-      unknown = spec.additionalProperties == false and 'error' or 'ignore',
+      unknown = spec.additionalProperties == false and 'warn' or 'ignore',
       additional = type(spec.additionalProperties) == 'table' and spec.additionalProperties or nil,
     })
 

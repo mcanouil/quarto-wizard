@@ -474,7 +474,7 @@ options:
   assert_valid(valid, errors)
 end)
 
-test('S4: additionalProperties false rejects surplus keys', function()
+test('S4: additionalProperties false warns on a surplus key', function()
   local loaded = load_schema([[
 options:
   layout:
@@ -484,10 +484,31 @@ options:
       columns:
         type: number
 ]])
-  local valid, errors = schema.validate(
+  local valid, errors, warnings = schema.validate(
     { layout = { columns = '2', rows = '3' } }, loaded.options)
-  assert_false(valid)
-  assert_contains(errors, 'layout.rows')
+  assert_true(valid, 'a surplus key is advice, not an error')
+  assert_eq(#errors, 0)
+  assert_contains(warnings, 'layout.rows')
+end)
+
+test('S4: additionalProperties false on a nested object is a warning, not an error', function()
+  -- The extension owns the whole of `extensions.<name>`, and an ignored key
+  -- changes no output, so an unknown key is advice at any depth.
+  local loaded = load_schema([[
+options:
+  widget:
+    type: object
+    additionalProperties: false
+    properties:
+      sponsor:
+        type: boolean
+]])
+  local valid, errors, warnings = schema.validate(
+    { widget = { sponsr = true } }, loaded.options)
+  assert_true(valid, 'a nested unknown key is advice, not an error')
+  assert_eq(#errors, 0, 'no error is raised for the nested unknown key')
+  assert_eq(#warnings, 1, 'the nested unknown key is reported once')
+  assert_contains(warnings, 'widget.sponsr: is not a recognised key and was ignored.')
 end)
 
 test('S4: additionalProperties as a descriptor validates surplus keys', function()
