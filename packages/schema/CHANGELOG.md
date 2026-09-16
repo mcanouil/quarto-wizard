@@ -7,6 +7,8 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+## 2.2.0
+
 ### Bug Fixes
 
 - fix: Report an unknown key nested inside an option as a warning rather than as an error. (#468)
