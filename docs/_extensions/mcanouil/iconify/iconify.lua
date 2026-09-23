@@ -11,6 +11,8 @@ local str = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/string
 local log = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/logging.lua'):gsub('%.lua$', ''))
 local meta_mod = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/metadata.lua'):gsub('%.lua$', ''))
 local typst = require(quarto.utils.resolve_path('_modules/typst.lua'):gsub('%.lua$', ''))
+local css = require(quarto.utils.resolve_path('_modules/css.lua'):gsub('%.lua$', ''))
+local name_mod = require(quarto.utils.resolve_path('_modules/name.lua'):gsub('%.lua$', ''))
 local schema = require(quarto.utils.resolve_path('_vendor/quarto-wizard/schema.lua'):gsub('%.lua$', ''))
 local check = require(quarto.utils.resolve_path('_vendor/quarto-lua-modules/schema-check.lua'):gsub('%.lua$', ''))
 
@@ -175,19 +177,6 @@ local function resolve_size(size)
     return ''
   end
   return 'font-size: ' .. value .. ';'
-end
-
---- Validate an Iconify icon or set name.
---- Matches the pattern enforced by the Iconify Web Component itself
---- (`/^[a-z0-9]+(-[a-z0-9]+)*$/`): lowercase letters or digits separated
---- by single hyphens, with no leading or trailing hyphen.
---- @param value string
---- @return boolean
-local function is_valid_iconify_name(value)
-  if value == nil or value == '' then return false end
-  if value:find('%-%-') then return false end
-  if value:sub(1, 1) == '-' or value:sub(-1) == '-' then return false end
-  return value:match('^[a-z0-9-]+$') ~= nil
 end
 
 --- Read an attribute value with a surrounding quote pair removed.
@@ -410,7 +399,7 @@ local function render_typst(icon, set, default_label, decorative, kwargs, meta)
     --- @type string
     local style = get_iconify_options('style', kwargs, meta)
     if not str.is_empty(style) then
-      colour = str.trim(style:match('color%s*:%s*([^;]+)') or '')
+      colour = css.declaration(style, 'color')
     end
   end
 
@@ -519,8 +508,10 @@ local function render_icon(args, kwargs, meta)
   end
 
   -- Validate icon and set names. Invalid names still render so that authors
-  -- can see what went wrong in the output, but a warning is emitted.
-  if not is_valid_iconify_name(set) then
+  -- can see what went wrong in the output, but a warning is emitted. Typst
+  -- renders the fallback instead, because the Typst module refuses a name
+  -- that is not a single path segment.
+  if not name_mod.is_valid(set) then
     log.log_warning(
       EXTENSION_NAME,
       'Icon set name "' .. set .. '" is invalid. ' ..
@@ -528,7 +519,7 @@ local function render_icon(args, kwargs, meta)
       'The icon will likely fail to load.'
     )
   end
-  if not is_valid_iconify_name(icon) then
+  if not name_mod.is_valid(icon) then
     log.log_warning(
       EXTENSION_NAME,
       'Icon name "' .. icon .. '" is invalid. ' ..
@@ -668,7 +659,9 @@ end
 --- @param meta table<string, any> Document metadata
 --- @return any Pandoc RawInline for HTML or Pandoc Null for other formats
 local function iconify(args, kwargs, meta)
-  checker:options(meta)
+  if quarto.doc.is_format('html:js') or quarto.doc.is_format('typst') then
+    checker:options(meta)
+  end
   args = recover_kwargs(args, kwargs)
   checker:call('iconify', args, kwargs)
   return render_icon(args, kwargs, meta)
@@ -684,7 +677,9 @@ local function iconify_quarto(args, kwargs, meta)
   local quarto_args = { 'simple-icons:quarto' }
   --- @type table<string, any>
   local quarto_kwargs = kwargs or {}
-  checker:options(meta)
+  if quarto.doc.is_format('html:js') or quarto.doc.is_format('typst') then
+    checker:options(meta)
+  end
   recover_kwargs(args, quarto_kwargs)
   checker:call('quarto', {}, quarto_kwargs)
   -- A decorative icon carries neither, and setting them here would re-introduce
