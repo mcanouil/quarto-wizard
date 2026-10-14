@@ -613,7 +613,7 @@ Example instances showing every supported property are also available:
 - [`v2/extension-schema-example.yml`](/assets/schema/v2/extension-schema-example.yml) (v2 YAML, canonical names).
 - [`v2/extension-schema-example.json`](/assets/schema/v2/extension-schema-example.json) (v2 JSON, canonical names).
 
-::: {.content-visible when-format="html"}
+::: {.content-hidden when-format="llms-txt"}
 
 ## Generating a Schema with AI
 
