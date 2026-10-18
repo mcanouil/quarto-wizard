@@ -30,13 +30,13 @@ anchor-sections: false
 
 ## VS Code
 
-```bash
+```{.bash filename="Terminal"}
 code --install-extension mcanouil.quarto-wizard
 ```
 
 ## Positron
 
-```bash
+```{.bash filename="Terminal"}
 positron --install-extension mcanouil.quarto-wizard
 ```
 

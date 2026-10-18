@@ -1,5 +1,5 @@
 ```{=html}
-<figure class="vsc-window" role="img" aria-label="Install Extensions quick pick filtered on mcanouil. Highlight Text, Iconify and Letter are listed with their type, stars and repository. Two are ticked and the counter reads 2 Selected.">
+<figure class="vsc-window" role="img" aria-label="Install Extensions quick pick filtered on mcanouil. Iconify, Highlight Text, Letter and Animate are listed with their type, stars and repository. Two are ticked and the counter reads 2 Selected.">
   <div class="vsc-titlebar" aria-hidden="true"><i></i><i></i><i></i><span>my-paper</span></div>
   <div class="vsc-stage" aria-hidden="true">
     <div class="vsc-quickpick">
