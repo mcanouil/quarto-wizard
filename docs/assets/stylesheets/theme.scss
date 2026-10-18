@@ -760,7 +760,7 @@ $vsc-selection: #04395e;
 }
 
 .landing-lead,
-.landing-feature-text > p,
+.landing-feature-text section > p,
 .landing-card p,
 .landing-detail {
   color: var(--bs-secondary-color);
@@ -826,7 +826,7 @@ $vsc-selection: #04395e;
   gap: 0.75rem;
 }
 
-.landing-install {
+.panel-tabset.landing-install {
   max-width: 34rem;
   margin-top: 1.5rem;
 }
