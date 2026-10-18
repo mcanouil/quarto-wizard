@@ -46,12 +46,13 @@ jobs:
             exit 1
           fi
 
-      - name: Create GitHub App token
-        uses: actions/create-github-app-token@v3
-        id: app-token
+      - name: Get the token
+        id: token
+        uses: mcanouil/release-actions/token@v1
         with:
-          client-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_KEY }}
+          app-id: ${{ vars.APP_ID }}
+          app-key: ${{ secrets.APP_KEY }}
+          require-app: true
 
       # The commit of the dispatch, and not the tip of the branch it names, so
       # that a commit landing between the dispatch and this step cannot be
@@ -66,7 +67,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.token.outputs.token }}
 
       # The version is an input and the module is stamped from it, so the two
       # can no longer disagree. The stamped version is read all the same, to
@@ -132,7 +133,7 @@ jobs:
       # than a Quarto download, an `npm ci` and two suites.
       - name: Check the release and its tag are absent
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -305,21 +306,13 @@ jobs:
         id: push
         if: ${{ steps.version.outputs.bump == 'true' }}
         env:
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          # The identity of the app, which is what the ruleset exempts. It is
-          # set on the commit rather than in the configuration of the runner,
-          # because this job makes one commit and no other.
-          USER_ID=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
           git add packages/schema/CHANGELOG.md packages/schema/src/validation/schema.lua docs/assets/schema
-          git \
-            -c "user.name=${APP_SLUG}[bot]" \
-            -c "user.email=${USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com" \
-            commit -m "ci: bump the extension schema to ${VERSION} :rocket:"
+          git commit -m "ci: bump the extension schema to ${VERSION} :rocket:"
 
           # A plain push, so it is a fast-forward. If `main` moved since the
           # dispatch, git refuses it and says so, and nothing is released.
@@ -333,7 +326,7 @@ jobs:
       # GitHub documents, for the same reason.
       - name: Draft the release
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           ASSETS: ${{ runner.temp }}/assets
           NOTES: ${{ runner.temp }}/notes.md
@@ -357,7 +350,7 @@ jobs:
 
       - name: Check the draft carries every asset
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.version.outputs.tag }}
         shell: bash
@@ -389,7 +382,7 @@ jobs:
 
       - name: Publish the release
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.version.outputs.tag }}
         shell: bash
