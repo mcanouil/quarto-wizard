@@ -725,6 +725,642 @@ div.code-with-filename pre.sourceCode {
 }
 
 // ===========================================================================
+// LANDING PAGE
+// ===========================================================================
+// index.qmd uses page-layout: custom, so it brings its own container. The
+// editor illustrations (.vsc-*) are redrawn in HTML from the real UI and stay on
+// the VS Code Dark Modern palette in both schemes, like a screenshot would.
+$landing-muted: body-mix(28%);
+$landing-surface: body-mix(94%);
+
+.landing {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+}
+
+.landing h2,
+.landing h3 {
+  margin-top: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+  text-wrap: balance;
+}
+
+.landing-eyebrow {
+  display: inline-block;
+  padding: 0.2rem 0.75rem;
+  border: 1px solid var(--mc-border);
+  border-radius: 999px;
+  background: var(--mc-ember-soft);
+  color: var(--mc-ember);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.landing-hero {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 2.5rem;
+  align-items: center;
+  padding: 4.5rem 0 3rem;
+}
+
+h1.landing-title {
+  margin: 1rem 0 0.75rem;
+  font-size: clamp(2.6rem, 5vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1.1;
+  background: var(--mc-title-grad);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing-lead {
+  display: block;
+  max-width: 40ch;
+  color: $landing-muted;
+  font-size: 1.2rem;
+}
+
+.landing-actions p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.landing-install {
+  max-width: 34rem;
+  margin-top: 1.5rem;
+}
+
+.landing-install div.sourceCode {
+  margin: 0;
+}
+
+.landing-hero-logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+// Ember halo behind the logo, the same glow as the night-sky nebula.
+.landing-hero-logo::before {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--mc-glow-strong), transparent 65%);
+  filter: blur(24px);
+}
+
+.landing-logo img {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+}
+
+.landing-feature {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 3.5rem;
+  align-items: center;
+  padding: 3.5rem 0;
+}
+
+.landing-feature-flip {
+  grid-template-columns: 1.15fr 0.85fr;
+}
+
+.landing-feature-flip .landing-feature-text {
+  order: 2;
+}
+
+// Grid items default to min-width: auto, so the nowrap editor rows would
+// widen the column past the viewport on small screens.
+.landing-hero > *,
+.landing-feature > * {
+  min-width: 0;
+}
+
+.landing-feature-text h2 {
+  margin: 0.75rem 0;
+  font-size: 1.8rem;
+}
+
+.landing-feature-text > p {
+  color: $landing-muted;
+}
+
+// The legend carries the explanation; the numbered pins on the illustration
+// are aria-hidden and only point at it.
+.landing-legend ol {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: landing-legend;
+}
+
+.landing-legend li {
+  position: relative;
+  padding-left: 2.4rem;
+  font-weight: 600;
+  counter-increment: landing-legend;
+}
+
+.landing-legend li::before {
+  content: counter(landing-legend);
+  position: absolute;
+  top: 0.1rem;
+  left: 0;
+}
+
+.landing-legend li::before,
+.vsc-pin {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--mc-ember);
+  color: var(--bs-body-bg);
+  font: 700 0.8rem/1 var(--bs-body-font-family);
+}
+
+.landing-legend-detail {
+  display: block;
+  color: $landing-muted;
+  font-size: 0.93rem;
+  font-weight: 400;
+}
+
+.landing-section {
+  padding: 3rem 0 1rem;
+}
+
+h2.landing-section-title {
+  margin-bottom: 2rem;
+  text-align: center;
+  font-size: 2rem;
+}
+
+.landing-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.landing-card,
+.landing-links a {
+  border: 1px solid var(--mc-border);
+  border-radius: $border-radius-lg;
+  background: $landing-surface;
+}
+
+.landing-card {
+  padding: 1.5rem;
+}
+
+.landing-card h3 {
+  margin: 0.9rem 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.landing-card p {
+  margin: 0;
+  color: $landing-muted;
+}
+
+.landing-card-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: $border-radius-lg;
+  background: var(--mc-ember-soft);
+  color: var(--mc-ember);
+  font-size: 1.4rem;
+}
+
+.landing-links {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.landing-links p {
+  display: flex;
+  margin: 0;
+}
+
+// Matches the specificity of the site-wide link rule in LINKS, so the cards
+// drop its underline and ember colour.
+#quarto-document-content .landing-links a:not(.btn):not(.nav-link) {
+  flex: 1;
+  padding: 1.25rem;
+  color: var(--bs-body-color);
+  text-decoration: none;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--mc-ember);
+    transform: translateY(-2px);
+    text-shadow: none;
+  }
+}
+
+.landing-links strong {
+  display: block;
+  font-family: var(--bs-heading-font-family, inherit);
+  font-size: 1.05rem;
+}
+
+.landing-links strong::after {
+  content: " \2192";
+  color: var(--mc-ember);
+}
+
+.landing-link-detail {
+  display: block;
+  margin-top: 0.25rem;
+  color: $landing-muted;
+  font-size: 0.92rem;
+}
+
+// Editor illustrations ------------------------------------------------------
+
+.vsc-window {
+  margin: 0;
+  border: 1px solid var(--mc-border);
+  border-radius: $border-radius-lg;
+  background: #1f1f1f;
+  box-shadow: 0 14px 40px -18px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.2);
+  color: #cccccc;
+  font: 13px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+
+.vsc-window iconify-icon {
+  font-size: 16px;
+  vertical-align: -3px;
+}
+
+.vsc-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #2b2b2b;
+  border-radius: $border-radius-lg $border-radius-lg 0 0;
+  background: #181818;
+}
+
+.vsc-titlebar i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+
+.vsc-titlebar i:nth-child(2) {
+  background: #febc2e;
+}
+
+.vsc-titlebar i:nth-child(3) {
+  background: #28c840;
+}
+
+.vsc-titlebar span {
+  flex: 1;
+  margin-right: 51px;
+  color: #9d9d9d;
+  font-size: 12px;
+  text-align: center;
+}
+
+.vsc-pin {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  box-shadow:
+    0 0 0 3px #1f1f1f,
+    0 0 16px rgba(226, 133, 78, 0.7);
+}
+
+.vsc-pin-start {
+  left: -34px;
+}
+
+.vsc-pin-end {
+  right: -34px;
+}
+
+.vsc-qp-field > .vsc-pin-end {
+  right: 6px;
+}
+
+.vsc-stage {
+  padding: 1.5rem;
+  border-radius: 0 0 $border-radius-lg $border-radius-lg;
+}
+
+.vsc-quickpick {
+  padding: 6px;
+  border: 1px solid #454545;
+  border-radius: 8px;
+  background: #222222;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.vsc-qp-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vsc-qp-field {
+  position: relative;
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #0078d4;
+  border-radius: 4px;
+  background: #313131;
+}
+
+.vsc-qp-field.is-placeholder {
+  color: #989898;
+}
+
+.vsc-qp-count {
+  padding: 0 7px;
+  border-radius: 10px;
+  background: #616161;
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.vsc-qp-ok {
+  padding: 2px 12px;
+  border-radius: 3px;
+  background: #0078d4;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.vsc-qp-list {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vsc-qp-separator {
+  margin-top: 4px;
+  padding: 2px 8px 0;
+  border-top: 1px solid #3c3c3c;
+  color: #9d9d9d;
+  font-size: 11px;
+  text-align: right;
+}
+
+.vsc-qp-separator:first-child {
+  border-top: 0;
+}
+
+.vsc-qp-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+
+.vsc-qp-item > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.vsc-qp-item.is-active {
+  background: #04395e;
+  outline: 1px solid #0078d4;
+  outline-offset: -1px;
+}
+
+.vsc-qp-label {
+  margin-right: 6px;
+  color: #ffffff;
+}
+
+.vsc-qp-desc {
+  position: relative;
+  color: #9d9d9d;
+  font-size: 12px;
+}
+
+.vsc-qp-detail {
+  display: block;
+  overflow: hidden;
+  color: #9d9d9d;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vsc-qp-button {
+  color: #cccccc;
+}
+
+.vsc-check {
+  position: relative;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border: 1px solid #6b6b6b;
+  border-radius: 3px;
+}
+
+.vsc-check.is-checked {
+  border-color: #0078d4;
+  background: #0078d4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3.5 8 3 3 6-6' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
+
+.vsc-qp-input > .vsc-check {
+  margin-top: 0;
+}
+
+.vsc-workbench {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  min-height: 330px;
+  border-radius: 0 0 $border-radius-lg $border-radius-lg;
+  background: #181818;
+}
+
+.vsc-activitybar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding-top: 12px;
+  border-right: 1px solid #2b2b2b;
+  border-bottom-left-radius: $border-radius-lg;
+  color: #868686;
+}
+
+.vsc-activitybar iconify-icon {
+  font-size: 22px;
+}
+
+.vsc-activitybar img {
+  width: 24px;
+  height: 24px;
+}
+
+.vsc-view-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px 8px 20px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vsc-actions {
+  position: relative;
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+  color: #cccccc;
+}
+
+.vsc-tree {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.vsc-tree li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding-right: 10px;
+  white-space: nowrap;
+}
+
+.vsc-tree li.is-selected {
+  background: #04395e;
+  outline: 1px solid #0078d4;
+  outline-offset: -1px;
+}
+
+.vsc-tree .vsc-l0 {
+  padding-left: 8px;
+}
+
+.vsc-tree .vsc-l1 {
+  padding-left: 24px;
+}
+
+.vsc-tree .vsc-l2 {
+  padding-left: 62px;
+}
+
+.vsc-tree .vsc-l3 {
+  padding-left: 78px;
+}
+
+.vsc-tree .vsc-l2:has(.vsc-twistie) {
+  padding-left: 40px;
+}
+
+.vsc-desc {
+  position: relative;
+  color: #9d9d9d;
+  font-size: 12px;
+}
+
+@media (max-width: 991.98px) {
+  .landing-hero,
+  .landing-feature,
+  .landing-feature-flip {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-hero {
+    padding-top: 2.5rem;
+  }
+
+  .landing-hero-logo {
+    order: -1;
+  }
+
+  .landing-logo img {
+    max-width: 220px;
+  }
+
+  .landing-feature-flip .landing-feature-text {
+    order: 0;
+  }
+
+  .landing-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-links {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vsc-window {
+    font-size: 12px;
+  }
+
+  .vsc-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .vsc-activitybar {
+    display: none;
+  }
+
+  .vsc-window {
+    overflow: hidden;
+  }
+
+  .vsc-sidebar {
+    min-width: 0;
+  }
+
+  .vsc-tree li {
+    overflow: hidden;
+  }
+
+  // No gutter is left for the pins on narrow screens; the legend still reads
+  // as a plain list.
+  .vsc-pin {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .landing-links {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ===========================================================================
 // 404 PAGE
 // ===========================================================================
 // Quarto renders 404.qmd as an ordinary page with no distinguishing class;
@@ -812,8 +1448,14 @@ $scrollbar-thumb: body-mix(72%);
   }
 
   // The gitlink widget ships its own reduced-motion guard.
-  .navbar .nav-link::after {
+  .navbar .nav-link::after,
+  #quarto-document-content .landing-links a:not(.btn):not(.nav-link) {
     transition: none;
+  }
+
+  #quarto-document-content .landing-links a:not(.btn):not(.nav-link):hover,
+  #quarto-document-content .landing-links a:not(.btn):not(.nav-link):focus-visible {
+    transform: none;
   }
 }
 

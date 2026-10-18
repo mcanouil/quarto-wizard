@@ -1,0 +1,26 @@
+```{=html}
+<script id="landing-install-tabs" type="text/javascript">
+  /**
+   * @license MIT
+   * @copyright 2026 Mickaël Canouil
+   * @author Mickaël Canouil
+   */
+  // Hovering or focusing an install button shows the matching command tab.
+  // Bootstrap's Tab.show() is used instead of a click so the choice is not
+  // saved to Quarto's persistent tabset state.
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabs = document.querySelectorAll('.landing-install .nav-link');
+    document.querySelectorAll('[data-landing-tab]').forEach((button) => {
+      const tab = Array.from(tabs).find(
+        (link) => link.textContent.trim() === button.dataset.landingTab,
+      );
+      if (!tab) {
+        return;
+      }
+      const show = () => bootstrap.Tab.getOrCreateInstance(tab).show();
+      button.addEventListener('mouseenter', show);
+      button.addEventListener('focus', show);
+    });
+  });
+</script>
+```
