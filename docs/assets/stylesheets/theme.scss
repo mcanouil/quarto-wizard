@@ -267,7 +267,7 @@ header#title-block-header h1.title {
 // LINKS
 // ===========================================================================
 
-#quarto-document-content a:not(.btn):not(.nav-link):not(.no-external),
+#quarto-document-content a:not(.btn):not(.nav-link):not(.no-external):not(.landing-link),
 .quarto-title-block a:not(.btn) {
   text-decoration-color: var(--mc-ember-soft);
   text-underline-offset: 0.18em;
@@ -727,11 +727,23 @@ div.code-with-filename pre.sourceCode {
 // ===========================================================================
 // LANDING PAGE
 // ===========================================================================
-// index.qmd uses page-layout: custom, so it brings its own container. The
-// editor illustrations (.vsc-*) are redrawn in HTML from the real UI and stay on
-// the VS Code Dark Modern palette in both schemes, like a screenshot would.
-$landing-muted: body-mix(28%);
-$landing-surface: body-mix(94%);
+// index.qmd uses page-layout: full and brings its own container. Headings are
+// styled through their container: Quarto copies a heading's classes onto the
+// <section> that wraps it. The editor illustrations (.vsc-*) are redrawn in
+// HTML from the real UI and stay on the VS Code Dark Modern palette in both
+// schemes, like a screenshot would.
+$vsc-editor: #1f1f1f;
+$vsc-sidebar: #181818;
+$vsc-widget: #222222;
+$vsc-input: #313131;
+$vsc-border: #2b2b2b;
+$vsc-widget-border: #454545;
+$vsc-separator: #3c3c3c;
+$vsc-fg: #cccccc;
+$vsc-muted: #9d9d9d;
+$vsc-icon: #868686;
+$vsc-focus: #0078d4;
+$vsc-selection: #04395e;
 
 .landing {
   max-width: 1140px;
@@ -747,6 +759,19 @@ $landing-surface: body-mix(94%);
   text-wrap: balance;
 }
 
+.landing-lead,
+.landing-feature-text > p,
+.landing-card p,
+.landing-detail {
+  color: var(--bs-secondary-color);
+}
+
+.landing-detail {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+
 .landing-eyebrow {
   display: inline-block;
   padding: 0.2rem 0.75rem;
@@ -760,15 +785,25 @@ $landing-surface: body-mix(94%);
   text-transform: uppercase;
 }
 
-.landing-hero {
+.landing-hero,
+.landing-feature {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 2.5rem;
   align-items: center;
-  padding: 4.5rem 0 3rem;
 }
 
-h1.landing-title {
+// Grid items default to min-width: auto, so the nowrap editor rows would
+// widen the column past the viewport on small screens.
+.landing-hero > *,
+.landing-feature > * {
+  min-width: 0;
+}
+
+.landing-hero {
+  gap: 2.5rem;
+  padding: 2.5rem 0 3rem;
+}
+
+.landing-hero h1 {
   margin: 1rem 0 0.75rem;
   font-size: clamp(2.6rem, 5vw, 3.6rem);
   font-weight: 900;
@@ -782,7 +817,6 @@ h1.landing-title {
 .landing-lead {
   display: block;
   max-width: 40ch;
-  color: $landing-muted;
   font-size: 1.2rem;
 }
 
@@ -805,55 +839,32 @@ h1.landing-title {
   position: relative;
   display: grid;
   place-items: center;
+  order: -1;
 }
 
-// Ember halo behind the logo, the same glow as the night-sky nebula.
 .landing-hero-logo::before {
   content: "";
   position: absolute;
   inset: 10%;
   border-radius: 50%;
   background: radial-gradient(circle, var(--mc-glow-strong), transparent 65%);
-  filter: blur(24px);
 }
 
-.landing-logo img {
+.landing-hero-logo img {
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 220px;
   height: auto;
 }
 
 .landing-feature {
-  display: grid;
-  grid-template-columns: 0.85fr 1.15fr;
   gap: 3.5rem;
-  align-items: center;
   padding: 3.5rem 0;
-}
-
-.landing-feature-flip {
-  grid-template-columns: 1.15fr 0.85fr;
-}
-
-.landing-feature-flip .landing-feature-text {
-  order: 2;
-}
-
-// Grid items default to min-width: auto, so the nowrap editor rows would
-// widen the column past the viewport on small screens.
-.landing-hero > *,
-.landing-feature > * {
-  min-width: 0;
 }
 
 .landing-feature-text h2 {
   margin: 0.75rem 0;
   font-size: 1.8rem;
-}
-
-.landing-feature-text > p {
-  color: $landing-muted;
 }
 
 // The legend carries the explanation; the numbered pins on the illustration
@@ -893,38 +904,27 @@ h1.landing-title {
   font: 700 0.8rem/1 var(--bs-body-font-family);
 }
 
-.landing-legend-detail {
-  display: block;
-  color: $landing-muted;
-  font-size: 0.93rem;
-  font-weight: 400;
-}
-
 .landing-section {
   padding: 3rem 0 1rem;
 }
 
-h2.landing-section-title {
+.landing-section h2 {
   margin-bottom: 2rem;
   text-align: center;
   font-size: 2rem;
 }
 
-.landing-cards {
+.landing-cards,
+.landing-links {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
-}
-
-.landing-card,
-.landing-links a {
-  border: 1px solid var(--mc-border);
-  border-radius: $border-radius-lg;
-  background: $landing-surface;
 }
 
 .landing-card {
   padding: 1.5rem;
+  border: 1px solid var(--mc-border);
+  border-radius: $border-radius-lg;
+  background-color: body-mix(96%);
 }
 
 .landing-card h3 {
@@ -934,7 +934,6 @@ h2.landing-section-title {
 
 .landing-card p {
   margin: 0;
-  color: $landing-muted;
 }
 
 .landing-card-icon {
@@ -948,64 +947,84 @@ h2.landing-section-title {
   font-size: 1.4rem;
 }
 
-.landing-links {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-}
-
+// The links reuse .card for the surface and the hover lift; the site-wide link
+// rule skips .landing-link.
 .landing-links p {
   display: flex;
   margin: 0;
 }
 
-// Matches the specificity of the site-wide link rule in LINKS, so the cards
-// drop its underline and ember colour.
-#quarto-document-content .landing-links a:not(.btn):not(.nav-link) {
+.landing-link {
   flex: 1;
   padding: 1.25rem;
   color: var(--bs-body-color);
   text-decoration: none;
-  transition:
-    border-color 0.2s ease,
-    transform 0.2s ease;
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--mc-ember);
-    transform: translateY(-2px);
-    text-shadow: none;
-  }
 }
 
-.landing-links strong {
+.landing-link strong {
   display: block;
+  margin-bottom: 0.25rem;
   font-family: var(--bs-heading-font-family, inherit);
   font-size: 1.05rem;
 }
 
-.landing-links strong::after {
+.landing-link strong::after {
   content: " \2192";
   color: var(--mc-ember);
 }
 
-.landing-link-detail {
-  display: block;
-  margin-top: 0.25rem;
-  color: $landing-muted;
-  font-size: 0.92rem;
+@media (min-width: 576px) {
+  .landing-links {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 992px) {
+  .landing-hero {
+    grid-template-columns: 1.15fr 0.85fr;
+    padding-top: 4.5rem;
+  }
+
+  .landing-hero-logo {
+    order: 0;
+  }
+
+  .landing-hero-logo img {
+    max-width: 400px;
+  }
+
+  .landing-feature {
+    grid-template-columns: 0.85fr 1.15fr;
+  }
+
+  .landing-feature-flip {
+    grid-template-columns: 1.15fr 0.85fr;
+  }
+
+  .landing-feature-flip .landing-feature-text {
+    order: 2;
+  }
+
+  .landing-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .landing-links {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 // Editor illustrations ------------------------------------------------------
 
 .vsc-window {
   margin: 0;
+  overflow: hidden;
   border: 1px solid var(--mc-border);
   border-radius: $border-radius-lg;
-  background: #1f1f1f;
-  box-shadow: 0 14px 40px -18px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.2);
-  color: #cccccc;
-  font: 13px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+  background: $vsc-editor;
+  box-shadow: 0 14px 40px -18px rgba(0, 0, 0, 0.6);
+  color: $vsc-fg;
+  font: 12px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
 }
 
 .vsc-window iconify-icon {
@@ -1018,9 +1037,8 @@ h2.landing-section-title {
   align-items: center;
   gap: 6px;
   padding: 9px 12px;
-  border-bottom: 1px solid #2b2b2b;
-  border-radius: $border-radius-lg $border-radius-lg 0 0;
-  background: #181818;
+  border-bottom: 1px solid $vsc-border;
+  background: $vsc-sidebar;
 }
 
 .vsc-titlebar i {
@@ -1041,18 +1059,20 @@ h2.landing-section-title {
 .vsc-titlebar span {
   flex: 1;
   margin-right: 51px;
-  color: #9d9d9d;
-  font-size: 12px;
+  color: $vsc-muted;
   text-align: center;
 }
 
+// No gutter is left for the pins on narrow screens; the legend still reads as
+// a plain list there.
 .vsc-pin {
+  display: none;
   position: absolute;
   top: 50%;
   z-index: 1;
   transform: translateY(-50%);
   box-shadow:
-    0 0 0 3px #1f1f1f,
+    0 0 0 3px $vsc-editor,
     0 0 16px rgba(226, 133, 78, 0.7);
 }
 
@@ -1070,14 +1090,13 @@ h2.landing-section-title {
 
 .vsc-stage {
   padding: 1.5rem;
-  border-radius: 0 0 $border-radius-lg $border-radius-lg;
 }
 
 .vsc-quickpick {
   padding: 6px;
-  border: 1px solid #454545;
+  border: 1px solid $vsc-widget-border;
   border-radius: 8px;
-  background: #222222;
+  background: $vsc-widget;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
@@ -1091,13 +1110,13 @@ h2.landing-section-title {
   position: relative;
   flex: 1;
   padding: 4px 8px;
-  border: 1px solid #0078d4;
+  border: 1px solid $vsc-focus;
   border-radius: 4px;
-  background: #313131;
+  background: $vsc-input;
 }
 
 .vsc-qp-field.is-placeholder {
-  color: #989898;
+  color: $vsc-muted;
 }
 
 .vsc-qp-count {
@@ -1111,9 +1130,8 @@ h2.landing-section-title {
 .vsc-qp-ok {
   padding: 2px 12px;
   border-radius: 3px;
-  background: #0078d4;
+  background: $vsc-focus;
   color: #ffffff;
-  font-size: 12px;
 }
 
 .vsc-qp-list {
@@ -1125,8 +1143,8 @@ h2.landing-section-title {
 .vsc-qp-separator {
   margin-top: 4px;
   padding: 2px 8px 0;
-  border-top: 1px solid #3c3c3c;
-  color: #9d9d9d;
+  border-top: 1px solid $vsc-separator;
+  color: $vsc-muted;
   font-size: 11px;
   text-align: right;
 }
@@ -1149,34 +1167,31 @@ h2.landing-section-title {
   min-width: 0;
 }
 
-.vsc-qp-item.is-active {
-  background: #04395e;
-  outline: 1px solid #0078d4;
+.vsc-qp-item.is-active,
+.vsc-tree li.is-selected {
+  background: $vsc-selection;
+  outline: 1px solid $vsc-focus;
   outline-offset: -1px;
 }
 
 .vsc-qp-label {
   margin-right: 6px;
   color: #ffffff;
+  font-size: 13px;
 }
 
-.vsc-qp-desc {
+.vsc-desc,
+.vsc-qp-desc,
+.vsc-qp-detail {
   position: relative;
-  color: #9d9d9d;
-  font-size: 12px;
+  color: $vsc-muted;
 }
 
 .vsc-qp-detail {
   display: block;
   overflow: hidden;
-  color: #9d9d9d;
-  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.vsc-qp-button {
-  color: #cccccc;
 }
 
 .vsc-check {
@@ -1184,37 +1199,33 @@ h2.landing-section-title {
   flex: none;
   width: 14px;
   height: 14px;
-  margin-top: 3px;
   border: 1px solid #6b6b6b;
   border-radius: 3px;
 }
 
-.vsc-check.is-checked {
-  border-color: #0078d4;
-  background: #0078d4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3.5 8 3 3 6-6' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E") center / 12px no-repeat;
+.vsc-qp-item > .vsc-check {
+  margin-top: 3px;
 }
 
-.vsc-qp-input > .vsc-check {
-  margin-top: 0;
+.vsc-check.is-checked {
+  border-color: $vsc-focus;
+  background: $vsc-focus url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3.5 8 3 3 6-6' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E") center / 12px no-repeat;
 }
 
 .vsc-workbench {
   display: grid;
-  grid-template-columns: 44px 1fr;
   min-height: 330px;
-  border-radius: 0 0 $border-radius-lg $border-radius-lg;
-  background: #181818;
+  background: $vsc-sidebar;
 }
 
 .vsc-activitybar {
-  display: flex;
+  display: none;
   flex-direction: column;
   align-items: center;
   gap: 18px;
   padding-top: 12px;
-  border-right: 1px solid #2b2b2b;
-  border-bottom-left-radius: $border-radius-lg;
-  color: #868686;
+  border-right: 1px solid $vsc-border;
+  color: $vsc-icon;
 }
 
 .vsc-activitybar iconify-icon {
@@ -1224,6 +1235,10 @@ h2.landing-section-title {
 .vsc-activitybar img {
   width: 24px;
   height: 24px;
+}
+
+.vsc-sidebar {
+  min-width: 0;
 }
 
 .vsc-view-title {
@@ -1241,13 +1256,13 @@ h2.landing-section-title {
   display: inline-flex;
   gap: 6px;
   margin-left: auto;
-  color: #cccccc;
 }
 
 .vsc-tree {
   margin: 0 0 12px;
   padding: 0;
   list-style: none;
+  font-size: 13px;
 }
 
 .vsc-tree li {
@@ -1257,13 +1272,19 @@ h2.landing-section-title {
   gap: 6px;
   height: 22px;
   padding-right: 10px;
+  overflow: hidden;
   white-space: nowrap;
 }
 
-.vsc-tree li.is-selected {
-  background: #04395e;
-  outline: 1px solid #0078d4;
-  outline-offset: -1px;
+// Leaf rows keep an empty twistie, as VS Code does, so each level has a single
+// indent.
+.vsc-twistie {
+  flex: none;
+  width: 16px;
+}
+
+.vsc-tree .vsc-desc {
+  font-size: 12px;
 }
 
 .vsc-tree .vsc-l0 {
@@ -1275,88 +1296,44 @@ h2.landing-section-title {
 }
 
 .vsc-tree .vsc-l2 {
-  padding-left: 62px;
-}
-
-.vsc-tree .vsc-l3 {
-  padding-left: 78px;
-}
-
-.vsc-tree .vsc-l2:has(.vsc-twistie) {
   padding-left: 40px;
 }
 
-.vsc-desc {
-  position: relative;
-  color: #9d9d9d;
-  font-size: 12px;
+.vsc-tree .vsc-l3 {
+  padding-left: 56px;
 }
 
-@media (max-width: 991.98px) {
-  .landing-hero,
-  .landing-feature,
-  .landing-feature-flip {
-    grid-template-columns: 1fr;
-  }
-
-  .landing-hero {
-    padding-top: 2.5rem;
-  }
-
-  .landing-hero-logo {
-    order: -1;
-  }
-
-  .landing-logo img {
-    max-width: 220px;
-  }
-
-  .landing-feature-flip .landing-feature-text {
-    order: 0;
-  }
-
-  .landing-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .landing-links {
-    grid-template-columns: 1fr 1fr;
-  }
-
+@media (min-width: 992px) {
   .vsc-window {
+    overflow: visible;
+    font-size: 13px;
+  }
+
+  .vsc-titlebar {
+    border-radius: $border-radius-lg $border-radius-lg 0 0;
+  }
+
+  .vsc-qp-desc,
+  .vsc-qp-detail {
     font-size: 12px;
   }
 
+  .vsc-pin {
+    display: grid;
+  }
+
   .vsc-workbench {
-    grid-template-columns: 1fr;
+    grid-template-columns: 44px 1fr;
+    border-radius: 0 0 $border-radius-lg $border-radius-lg;
   }
 
   .vsc-activitybar {
-    display: none;
-  }
-
-  .vsc-window {
-    overflow: hidden;
-  }
-
-  .vsc-sidebar {
-    min-width: 0;
+    display: flex;
+    border-bottom-left-radius: $border-radius-lg;
   }
 
   .vsc-tree li {
-    overflow: hidden;
-  }
-
-  // No gutter is left for the pins on narrow screens; the legend still reads
-  // as a plain list.
-  .vsc-pin {
-    display: none;
-  }
-}
-
-@media (max-width: 575.98px) {
-  .landing-links {
-    grid-template-columns: 1fr;
+    overflow: visible;
   }
 }
 
@@ -1448,14 +1425,8 @@ $scrollbar-thumb: body-mix(72%);
   }
 
   // The gitlink widget ships its own reduced-motion guard.
-  .navbar .nav-link::after,
-  #quarto-document-content .landing-links a:not(.btn):not(.nav-link) {
+  .navbar .nav-link::after {
     transition: none;
-  }
-
-  #quarto-document-content .landing-links a:not(.btn):not(.nav-link):hover,
-  #quarto-document-content .landing-links a:not(.btn):not(.nav-link):focus-visible {
-    transform: none;
   }
 }
 
