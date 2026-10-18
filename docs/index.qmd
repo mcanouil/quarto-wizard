@@ -1,4 +1,5 @@
 ---
+title: "Quarto Wizard"
 pagetitle: "Quarto Wizard {{< env VERSION >}}"
 description: "Browse, install and manage Quarto extensions, templates and brands without leaving Visual Studio Code or Positron."
 page-layout: full

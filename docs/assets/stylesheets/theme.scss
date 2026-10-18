@@ -745,6 +745,13 @@ $vsc-icon: #868686;
 $vsc-focus: #0078d4;
 $vsc-selection: #04395e;
 
+// The front-matter title feeds the page metadata and llms.txt, but Quarto
+// still renders it as a title block. The hero carries the visible h1, so the
+// title block is removed for sighted and assistive-technology users alike.
+main:has(> .landing) > .quarto-title-block {
+  display: none;
+}
+
 .landing {
   max-width: 1140px;
   margin: 0 auto;
