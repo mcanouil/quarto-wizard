@@ -15,6 +15,9 @@
         (link) => link.textContent.trim() === button.dataset.landingTab,
       );
       if (!tab) {
+        console.warn(
+          `landing-install-tabs: no install tab is labelled "${button.dataset.landingTab}".`,
+        );
         return;
       }
       const show = () => bootstrap.Tab.getOrCreateInstance(tab).show();
