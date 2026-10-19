@@ -6,8 +6,8 @@ import {
 	findArgumentOffset,
 	extractBareWords,
 	extractBlocks,
-	validateInlineValue,
-} from "../../providers/inlineAttributeDiagnosticsProvider";
+} from "../../utils/inlineAttributeText";
+import { validateInlineValue } from "../../providers/inlineAttributeDiagnosticsProvider";
 import type { FieldDescriptor } from "@quarto-wizard/schema";
 
 suite("Inline Attribute Diagnostics", () => {
