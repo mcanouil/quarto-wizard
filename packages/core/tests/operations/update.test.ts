@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { checkForUpdates, update } from "../../src/operations/update.js";
+import { applyUpdates, checkForUpdates, update, type UpdateInfo } from "../../src/operations/update.js";
 import { AuthenticationError, CancellationError, NetworkError, RepositoryNotFoundError } from "../../src/errors.js";
 
 vi.mock("../../src/registry/fetcher.js", () => ({
@@ -23,7 +23,16 @@ vi.mock("../../src/github/releases.js", async () => {
 	};
 });
 
+vi.mock("../../src/operations/install.js", async () => {
+	const actual = await vi.importActual<typeof import("../../src/operations/install.js")>(
+		"../../src/operations/install.js",
+	);
+	return { ...actual, install: vi.fn() };
+});
+
 import { fetchRegistry } from "../../src/registry/fetcher.js";
+import { install } from "../../src/operations/install.js";
+import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import { fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 import { resolveVersion } from "../../src/github/resolve.js";
 import type { GitHubRelease, GitHubTag } from "../../src/github/releases.js";
@@ -802,6 +811,46 @@ describe("update", () => {
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("applyUpdates", () => {
+	function pendingUpdate(name: string): UpdateInfo {
+		return {
+			extension: {
+				id: { owner: "quarto-ext", name },
+				manifest: { title: name, version: "1.0.0", source: `quarto-ext/${name}@v1.0.0` },
+			} as InstalledExtension,
+			projectDir: "/project",
+			currentVersion: "1.0.0",
+			latestVersion: "2.0.0",
+			latestRef: "v2.0.0",
+			refKind: "tag",
+			checkedOn: "github",
+			releaseUrl: null,
+			source: `quarto-ext/${name}@v2.0.0`,
+		};
+	}
+
+	it("passes the signal to install and stops at a cancellation", async () => {
+		vi.mocked(install).mockReset();
+		const controller = new AbortController();
+		vi.mocked(install).mockImplementation(async (_source, options) => {
+			controller.abort();
+			if (options.signal?.aborted) {
+				throw new CancellationError();
+			}
+			throw new Error("install ran without the signal");
+		});
+
+		await expect(
+			applyUpdates([pendingUpdate("fontawesome"), pendingUpdate("lightbox")], {
+				projectDirs: [],
+				signal: controller.signal,
+			}),
+		).rejects.toBeInstanceOf(CancellationError);
+
+		expect(install).toHaveBeenCalledTimes(1);
 	});
 });
 

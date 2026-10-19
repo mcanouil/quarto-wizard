@@ -486,12 +486,15 @@ function buildCommitUpdate(
 /**
  * Apply updates to extensions.
  *
+ * An aborted `signal` stops the running install, skips the remaining
+ * updates and rejects with a `CancellationError`.
+ *
  * @param updates - Updates to apply
  * @param options - Update options
  * @returns Update result
  */
 export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions): Promise<UpdateResult> {
-	const { auth, onProgress } = options;
+	const { auth, onProgress, signal } = options;
 
 	const result: UpdateResult = {
 		updated: [],
@@ -516,6 +519,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				auth,
 				force: true,
 				sourceType: update.extension.manifest.sourceType,
+				signal,
 				onProgress: (p) => {
 					onProgress?.({
 						extension: extName,
@@ -531,6 +535,9 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				newVersion: update.latestVersion,
 			});
 		} catch (error) {
+			if (isCancellationError(error)) {
+				throw error;
+			}
 			result.failed.push({
 				extension: update.extension,
 				error: getErrorMessage(error),
