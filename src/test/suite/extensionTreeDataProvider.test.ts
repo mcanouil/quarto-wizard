@@ -352,6 +352,17 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.ok(!healthy.includes("failed"), healthy);
 		});
 
+		test("a repository that denies access keeps the view message and marks the tooltip", async () => {
+			const { provider, view } = await runCheck({
+				token: "test-token",
+				repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 403 } },
+			});
+
+			assert.strictEqual(view.message, "Updates checked against GitHub.");
+			const tooltip = String((await extensionItem(provider, "acme/github-demo")).tooltip);
+			assert.ok(tooltip.includes("The update check of this extension failed."), tooltip);
+		});
+
 		test("a project that leaves the cache during the check does not lose the check", async () => {
 			restoreBoundary = stubUpdateBoundary({
 				token: "test-token",

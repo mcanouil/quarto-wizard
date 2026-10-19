@@ -7,7 +7,7 @@
  * @module registry
  */
 
-import { CancellationError, NetworkError } from "../errors.js";
+import { CancellationError, NetworkError, RateLimitError } from "../errors.js";
 import { proxyFetch } from "../proxy/index.js";
 import { USER_AGENT } from "../constants.js";
 import { detectSamlSsoError } from "../samlSso.js";
@@ -76,6 +76,30 @@ async function fetchWithTimeout(
 		clearTimeout(timeoutId);
 		externalSignal?.removeEventListener("abort", onExternalAbort);
 	}
+}
+
+/**
+ * Detect a GitHub rate limit from a non-ok HTTP response.
+ *
+ * A 429 is always a rate limit. A 403 is a rate limit when no request is
+ * left (`x-ratelimit-remaining: 0`), when the response asks to retry later
+ * (`retry-after`), or when its message names a rate limit, as a secondary
+ * rate limit can come without either header. Any other 403 is denied access.
+ *
+ * @param response - The failing HTTP response
+ * @returns RateLimitError, or undefined when the response is not a rate limit
+ */
+async function detectRateLimitError(response: Response): Promise<RateLimitError | undefined> {
+	const { status, headers } = response;
+	if (status !== 403 && status !== 429) {
+		return undefined;
+	}
+	const message = `HTTP ${status}: rate limit exceeded`;
+	if (status === 429 || headers.get("x-ratelimit-remaining") === "0" || headers.has("retry-after")) {
+		return new RateLimitError(message, { statusCode: status });
+	}
+	const body = await response.text().catch(() => "");
+	return /rate limit/i.test(body) ? new RateLimitError(message, { statusCode: status }) : undefined;
 }
 
 /**
@@ -159,6 +183,10 @@ async function fetchWithRetry<T>(
 				const samlError = detectSamlSsoError(response, `HTTP ${response.status}`);
 				if (samlError) {
 					throw samlError;
+				}
+				const rateLimitError = await detectRateLimitError(response);
+				if (rateLimitError) {
+					throw rateLimitError;
 				}
 				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}

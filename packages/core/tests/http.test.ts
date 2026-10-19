@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CancellationError, NetworkError, SamlSsoError } from "../src/errors.js";
+import { CancellationError, NetworkError, RateLimitError, SamlSsoError } from "../src/errors.js";
 import { fetchJson } from "../src/registry/http.js";
 import { proxyFetch } from "../src/proxy/index.js";
 
@@ -142,6 +142,68 @@ describe("registry http retry behavior", () => {
 			SamlSsoError,
 		);
 		expect(mockedProxyFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it("throws RateLimitError for a 403 with no requests left", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Forbidden", { status: 403, headers: { "x-ratelimit-remaining": "0" } }),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+		expect((error as RateLimitError).statusCode).toBe(403);
+	});
+
+	it("throws RateLimitError for a 403 that asks to retry later", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Forbidden", { status: 403, headers: { "retry-after": "60", "x-ratelimit-remaining": "42" } }),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+	});
+
+	it("throws RateLimitError for a 403 whose message names a secondary rate limit", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ message: "You have exceeded a secondary rate limit." }), {
+				status: 403,
+				headers: { "x-ratelimit-remaining": "4999" },
+			}),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+	});
+
+	it("throws RateLimitError for every 429", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(new Response("Too Many Requests", { status: 429 }));
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+		expect((error as RateLimitError).statusCode).toBe(429);
+	});
+
+	it("keeps a denied 403 apart from a rate limit", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ message: "Resource not accessible by personal access token" }), {
+				status: 403,
+				headers: { "x-ratelimit-remaining": "4999" },
+			}),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(NetworkError);
+		expect(error).not.toBeInstanceOf(RateLimitError);
+		expect((error as NetworkError).statusCode).toBe(403);
+	});
+
+	it("does not treat a 500 with rate limit headers as a rate limit", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Server Error", { status: 500, headers: { "x-ratelimit-remaining": "0" } }),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).not.toBeInstanceOf(RateLimitError);
 	});
 
 	it("cancels while waiting for retry backoff", async () => {

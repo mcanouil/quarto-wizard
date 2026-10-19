@@ -13,6 +13,7 @@ import { USER_AGENT } from "../constants.js";
 import {
 	AuthenticationError,
 	NetworkError,
+	RateLimitError,
 	RepositoryNotFoundError,
 	SamlSsoError,
 	VersionError,
@@ -166,17 +167,22 @@ export function constructArchiveUrl(
  * Handle GitHub API errors.
  */
 function handleGitHubError(error: unknown, owner: string, repo: string): never {
-	if (error instanceof SamlSsoError) {
+	if (error instanceof SamlSsoError || error instanceof RateLimitError) {
 		throw error;
 	}
 	if (error instanceof NetworkError) {
 		const status = error.statusCode;
 
-		if (status === 401 || status === 403) {
+		if (status === 401) {
 			throw new AuthenticationError(
-				`Authentication required for ${owner}/${repo}. ` +
-					`Status: ${status}. ` +
-					"The repository may be private or you may have hit the rate limit.",
+				`Authentication failed for ${owner}/${repo}. Status: 401. The GitHub token may be invalid or expired.`,
+				{ cause: error },
+			);
+		}
+
+		if (status === 403) {
+			throw new AuthenticationError(
+				`Access denied to ${owner}/${repo}. Status: 403. The GitHub token may not have access to this repository.`,
 				{ cause: error },
 			);
 		}
