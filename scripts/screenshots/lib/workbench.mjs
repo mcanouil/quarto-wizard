@@ -112,8 +112,10 @@ export function install(arrowPathSource) {
 	};
 
 	const drawLabels = (labels, boxes) => {
+		document.getElementById("qw-labels")?.remove();
 		const svgNs = "http://www.w3.org/2000/svg";
 		const svg = document.createElementNS(svgNs, "svg");
+		svg.id = "qw-labels";
 		svg.setAttribute("width", String(window.innerWidth));
 		svg.setAttribute("height", String(window.innerHeight));
 		svg.style.cssText = "position:fixed;inset:0;z-index:100000;pointer-events:none;overflow:visible";
@@ -131,7 +133,7 @@ export function install(arrowPathSource) {
 			text.setAttribute("x", String(x));
 			text.setAttribute("y", String(y));
 			text.setAttribute("fill", label.colour);
-			text.style.cssText = `font:500 ${label.size ?? 30}px -apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;paint-order:stroke;stroke:#1f1f1f;stroke-width:6px`;
+			text.style.cssText = `font:500 ${label.size ?? 30}px -apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;paint-order:stroke;stroke:${label.outline};stroke-width:6px`;
 			text.textContent = label.text;
 			svg.appendChild(text);
 			if (!label.target) {

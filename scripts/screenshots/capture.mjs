@@ -6,9 +6,10 @@
  * Usage: node scripts/screenshots/capture.mjs [scene ...]
  * Without scene names, every scene runs. Run `npm run webpack` first.
  *
- * One VS Code window runs the whole refresh. For each scene it opens a fresh copy of the sample
- * project, runs the steps, captures the dark image, switches the theme and captures the light
- * image. A scene writes only the files its `outputs` name.
+ * Each scene launches its own VS Code window from one downloaded build, with a fresh copy of the
+ * sample project and a window of 1280 x 800 pixels at a 2x scale. It runs the steps, captures the
+ * dark image, switches the theme and captures the light image, so the pair matches except for
+ * colours. A scene writes only the files its `outputs` name.
  *
  * Set GITHUB_TOKEN to check updates against GitHub; without it the view reports the registry.
  * The output depends on the screen and the fonts, so the script is a tool to refresh the images by

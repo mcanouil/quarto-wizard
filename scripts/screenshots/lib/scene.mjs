@@ -38,7 +38,7 @@ function validateStep(step, where) {
 		}
 	}
 	if (step.kind === "click" && step.text === undefined && step.label === undefined) {
-		throw new Error(`${where}: a "click" step needs text or label.`);
+		throw new Error(`${where}: a "${step.kind}" step needs text or label.`);
 	}
 	if (step.kind === "wait" && step.text === undefined && step.selector === undefined) {
 		throw new Error(`${where}: a "wait" step needs text or selector.`);

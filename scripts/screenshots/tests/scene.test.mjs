@@ -5,8 +5,17 @@ import path from "node:path";
 import test from "node:test";
 import { defaultOutputs, loadScenes, selectScenes } from "../lib/scene.mjs";
 
+const directories = [];
+
+test.after(() => {
+	for (const directory of directories) {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
+});
+
 function writeScenes(files) {
 	const directory = fs.mkdtempSync(path.join(os.tmpdir(), "qw-scene-test-"));
+	directories.push(directory);
 	for (const [name, scene] of Object.entries(files)) {
 		fs.writeFileSync(path.join(directory, name), JSON.stringify(scene));
 	}
@@ -59,4 +68,31 @@ test("selectScenes with no names returns every scene", () => {
 test("selectScenes rejects an unknown name and lists the known ones", () => {
 	const scenes = [minimal("a"), minimal("b")];
 	assert.throws(() => selectScenes(scenes, ["c"]), /Unknown scene "c".*a, b/);
+});
+
+test("loadScenes rejects a step field of the wrong type and names the field", () => {
+	const directory = writeScenes({
+		"a.json": { ...minimal("a"), steps: [{ kind: "sidebarWidth", width: "wide" }] },
+	});
+	assert.throws(() => loadScenes(directory), /a\.json.*steps\[0\].*width as a number/);
+});
+
+test("loadScenes rejects a click step without a target", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), steps: [{ kind: "click" }] } });
+	assert.throws(() => loadScenes(directory), /a\.json.*steps\[0\].*text or label/);
+});
+
+test("loadScenes rejects an unknown theme", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), themes: ["sepia"] } });
+	assert.throws(() => loadScenes(directory), /a\.json: themes/);
+});
+
+test("loadScenes rejects a frame part that does not exist", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), frame: ["sidebar", "footer"] } });
+	assert.throws(() => loadScenes(directory), /a\.json: frame/);
+});
+
+test("loadScenes rejects outputs that miss a theme", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), outputs: { dark: "a.png" } } });
+	assert.throws(() => loadScenes(directory), /a\.json: outputs.*light/);
 });

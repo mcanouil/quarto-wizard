@@ -1,27 +1,21 @@
 {
 	"name": "reprex-command-2",
-	"frame": ["editor"],
+	"frame": ["sidebar", "contextmenu"],
 	"steps": [
 		{
 			"kind": "open",
 			"file": "report.qmd"
 		},
 		{
-			"kind": "command",
-			"title": "Quarto Wizard: Quarto Reproducible Document"
+			"kind": "click",
+			"text": "report.qmd",
+			"part": "sidebar",
+			"button": "right"
 		},
 		{
-			"kind": "wait",
-			"selector": ".quick-input-list .monaco-list-row"
-		},
-		{
-			"kind": "key",
-			"key": "Enter"
-		},
-		{
-			"kind": "wait",
-			"text": "Untitled",
-			"timeout": 30000
+			"kind": "click",
+			"text": "Quarto Wizard",
+			"part": "contextmenu"
 		}
 	]
 }

@@ -2,6 +2,7 @@
 
 export const WINDOW = { width: 1280, height: 800 };
 export const CROP_MARGIN = 16;
+export const SCALE_FACTOR = 2;
 const CHROME_PARTS = ["titlebar", "activitybar", "sidebar", "editor", "panel", "statusbar"];
 
 /**
@@ -88,6 +89,17 @@ export function assertSameSize(a, b, scene) {
 	if (a.width !== b.width || a.height !== b.height) {
 		throw new Error(
 			`Scene ${scene}: the dark image is ${a.width} x ${a.height} but the light image is ${b.width} x ${b.height}.`,
+		);
+	}
+}
+
+/**
+ * @param {number} scaleFactor the device scale factor of the display that holds the window
+ */
+export function assertScale(scaleFactor) {
+	if (scaleFactor !== SCALE_FACTOR) {
+		throw new Error(
+			`The window runs at a device scale factor of ${scaleFactor}, but the screenshots need ${SCALE_FACTOR}. Run on a display that supports a ${SCALE_FACTOR}x scale.`,
 		);
 	}
 }

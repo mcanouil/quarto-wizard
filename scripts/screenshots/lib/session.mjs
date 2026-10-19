@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { downloadAndUnzipVSCode, resolveCliArgsFromVSCodeExecutablePath } from "@vscode/test-electron";
 import { _electron as electron } from "playwright-core";
-import { arrowPath, assertSameSize, cropRect, fitWindow, WINDOW } from "./geometry.mjs";
+import { arrowPath, assertScale, assertSameSize, cropRect, fitWindow, SCALE_FACTOR, WINDOW } from "./geometry.mjs";
+import { labelsForTheme } from "./labels.mjs";
 import { install } from "./workbench.mjs";
 
 const THEME_NAMES = { dark: "Default Dark Modern", light: "Default Light Modern" };
@@ -58,8 +59,14 @@ function prepareProfile(registryUrl) {
 function installQuartoExtension(cli) {
 	execFileSync(
 		cli,
-		[`--user-data-dir=${userData}`, `--extensions-dir=${extensionsDir}`, "--install-extension", "quarto.quarto"],
-		{ stdio: "inherit" },
+		[
+			`--user-data-dir=${userData}`,
+			`--extensions-dir=${extensionsDir}`,
+			"--install-extension",
+			"quarto.quarto",
+			"--force",
+		],
+		{ stdio: "inherit", shell: process.platform === "win32" },
 	);
 }
 
@@ -100,17 +107,19 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function poll(description, check, timeout = STEP_TIMEOUT) {
 	const deadline = Date.now() + timeout;
+	let lastError;
 	for (;;) {
 		try {
 			const value = await check();
 			if (value) {
 				return value;
 			}
-		} catch {
+		} catch (error) {
 			// The page may be navigating; try again until the deadline.
+			lastError = error;
 		}
 		if (Date.now() > deadline) {
-			throw new Error(description);
+			throw new Error(lastError ? `${description} Last error: ${lastError.message}` : description);
 		}
 		await sleep(250);
 	}
@@ -143,9 +152,11 @@ async function sizeWindow(app, page) {
 		const [win] = BrowserWindow.getAllWindows();
 		if (win.isFullScreen()) win.setFullScreen(false);
 		if (win.isMaximized()) win.unmaximize();
-		return screen.getDisplayMatching(win.getBounds()).workArea;
+		const display = screen.getDisplayMatching(win.getBounds());
+		return { workArea: display.workArea, scaleFactor: display.scaleFactor };
 	});
-	const target = fitWindow(bounds);
+	assertScale(bounds.scaleFactor);
+	const target = fitWindow(bounds.workArea);
 	await app.evaluate(({ BrowserWindow }, content) => {
 		const [win] = BrowserWindow.getAllWindows();
 		win.setContentBounds(content);
@@ -290,10 +301,22 @@ async function frame({ BrowserWindow }, { png, viewport, crop, margin, radius, c
 
 const pngSize = (buffer) => ({ width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) });
 
+async function drawSceneLabels(page, scene, theme, boxes) {
+	const missing = await page.evaluate(
+		([labels, parts]) => window.qwShot.drawLabels(labels, parts),
+		[labelsForTheme(scene.labels, theme), boxes],
+	);
+	if (missing.length > 0) {
+		throw new Error(`Scene ${scene.name}: labels without a target on screen: ${missing.join(", ")}.`);
+	}
+}
+
 async function captureTheme(app, page, scene, theme, geometry) {
 	if (theme !== "dark" || (await page.evaluate(() => window.qwShot.currentTheme())) !== "dark") {
 		await setTheme(page, scene.name, theme);
 	}
+	await drawSceneLabels(page, scene, theme, geometry.boxes);
+	await sleep(300);
 	const png = (await page.screenshot()).toString("base64");
 	const framed = await app.evaluate(frame, {
 		png,
@@ -320,18 +343,9 @@ async function runScene(app, scene, project, repo) {
 
 	const boxes = await page.evaluate(() => window.qwShot.partBoxes());
 	const crop = cropRect(scene.frame, boxes, viewport);
-	const missing = await page.evaluate(
-		([labels, parts]) => window.qwShot.drawLabels(labels, parts),
-		[scene.labels, boxes],
-	);
-	if (missing.length > 0) {
-		throw new Error(`Scene ${scene.name}: labels without a target on screen: ${missing.join(", ")}.`);
-	}
-	await sleep(300);
-
 	const images = {};
 	for (const theme of scene.themes) {
-		images[theme] = await captureTheme(app, page, scene, theme, { viewport, crop });
+		images[theme] = await captureTheme(app, page, scene, theme, { viewport, crop, boxes });
 	}
 	if (images.dark && images.light) {
 		assertSameSize(pngSize(images.dark), pngSize(images.light), scene.name);
@@ -339,6 +353,7 @@ async function runScene(app, scene, project, repo) {
 	return Object.fromEntries(
 		scene.themes.map((theme) => {
 			const output = path.join(repo, scene.outputs[theme]);
+			fs.mkdirSync(path.dirname(output), { recursive: true });
 			fs.writeFileSync(output, images[theme]);
 			return [theme, output];
 		}),
@@ -355,6 +370,7 @@ async function runScene(app, scene, project, repo) {
  */
 export async function runScenes(scenes, { repo, registryUrl }) {
 	fs.rmSync(projectsDir, { recursive: true, force: true });
+	fs.rmSync(userData, { recursive: true, force: true });
 	prepareProfile(registryUrl);
 	const executablePath = await downloadAndUnzipVSCode("stable");
 	const [cli] = resolveCliArgsFromVSCodeExecutablePath(executablePath);
@@ -371,6 +387,7 @@ export async function runScenes(scenes, { repo, registryUrl }) {
 				`--extensionDevelopmentPath=${repo}`,
 				`--user-data-dir=${userData}`,
 				`--extensions-dir=${extensionsDir}`,
+				`--force-device-scale-factor=${SCALE_FACTOR}`,
 				"--disable-workspace-trust",
 				"--skip-welcome",
 				"--skip-release-notes",

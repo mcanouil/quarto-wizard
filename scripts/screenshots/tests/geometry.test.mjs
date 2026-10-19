@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arrowPath, assertSameSize, cropRect, fitWindow } from "../lib/geometry.mjs";
+import { arrowPath, assertScale, assertSameSize, cropRect, fitWindow } from "../lib/geometry.mjs";
 
 const viewport = { width: 1280, height: 800 };
 
@@ -45,4 +45,14 @@ test("arrowPath matches the current walkthrough rule", () => {
 test("assertSameSize throws with the scene name when sizes differ", () => {
 	assert.throws(() => assertSameSize({ width: 1, height: 2 }, { width: 1, height: 3 }, "output-log"), /output-log/);
 	assert.doesNotThrow(() => assertSameSize({ width: 1, height: 2 }, { width: 1, height: 2 }, "x"));
+});
+
+test("cropRect clamps at the right and bottom edges", () => {
+	const parts = { editor: { x: 700, y: 500, width: 575, height: 295 } };
+	assert.deepEqual(cropRect(["editor"], parts, viewport), { x: 684, y: 484, width: 596, height: 316 });
+});
+
+test("assertScale accepts the required scale and rejects another with the value in the message", () => {
+	assert.doesNotThrow(() => assertScale(2));
+	assert.throws(() => assertScale(1), /scale factor.*1/);
 });

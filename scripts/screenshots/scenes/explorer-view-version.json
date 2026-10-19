@@ -1,12 +1,21 @@
 {
 	"name": "explorer-view-version",
-	"themes": ["dark", "light"],
 	"frame": ["activitybar", "sidebar"],
 	"steps": [
 		{
 			"kind": "setVersion",
 			"extension": "mcanouil/iconify",
 			"version": "4.0.0"
+		},
+		{
+			"kind": "write",
+			"file": "_extensions/demo/legacy/_extension.yml",
+			"content": "title: Legacy\nauthor: Demo\nversion: 1.0.0\nquarto-required: \">=100.0.0\"\ncontributes:\n  filters:\n    - legacy.lua\n"
+		},
+		{
+			"kind": "write",
+			"file": "_extensions/demo/legacy/legacy.lua",
+			"content": "return {}\n"
 		},
 		{
 			"kind": "command",
@@ -23,7 +32,7 @@
 		},
 		{
 			"kind": "expand",
-			"row": "mcanouil/iconify"
+			"row": "demo/legacy"
 		}
 	]
 }
