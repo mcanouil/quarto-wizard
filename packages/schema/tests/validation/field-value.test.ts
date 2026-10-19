@@ -96,6 +96,12 @@ describe("validateFieldValue", () => {
 		expect(validateFieldValue("name", "b", descriptor)).toEqual([]);
 	});
 
+	it("still applies a pattern of exactly 1024 characters", () => {
+		const pattern = `^${"a".repeat(1022)}$`;
+		expect(pattern).toHaveLength(1024);
+		expect(codes(validateFieldValue("name", "b", { type: "string", pattern }))).toEqual(["schema-pattern"]);
+	});
+
 	it("skips a pattern that does not compile", () => {
 		expect(validateFieldValue("name", "b", { type: "string", pattern: "(" })).toEqual([]);
 	});
