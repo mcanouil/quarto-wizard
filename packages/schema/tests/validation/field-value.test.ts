@@ -215,6 +215,19 @@ describe("coerceFieldValue", () => {
 		expect(coerceFieldValue("0x.8p1", "number")).toBe(1);
 	});
 
+	it("rounds a long or tiny hexadecimal float once, as Lua does", () => {
+		expect(coerceFieldValue("0x123456789abcdef01p-4", "number")).toBe(0x123456789abcdf * 2 ** 8);
+		expect(coerceFieldValue("0x1000p-1080", "number")).toBe(2 ** -1068);
+		expect(coerceFieldValue("0x.0000000000001p-1022", "number")).toBe(2 ** -1074);
+	});
+
+	it("reads a long run of digits that is not a number in linear time", () => {
+		const text = "9".repeat(50_000) + "x";
+		const started = performance.now();
+		expect(coerceFieldValue(text, "number")).toBe(text);
+		expect(performance.now() - started).toBeLessThan(1000);
+	});
+
 	it("wraps a hexadecimal integer at 64 bits, as Lua does", () => {
 		expect(coerceFieldValue("0xffffffffffffffff", "integer")).toBe(-1);
 		expect(coerceFieldValue("0x10000000000000000", "integer")).toBe(0);

@@ -89,7 +89,7 @@ function matchesDeclaredType(value: unknown, type: string | string[] | undefined
  * no-break space, and fewer, such as `-0x10` and the hexadecimal float `0x1p4`.
  */
 const LUA_SPACE = String.raw`[ \t\n\v\f\r]*`;
-const LUA_DECIMAL = new RegExp(String.raw`^${LUA_SPACE}([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)${LUA_SPACE}$`);
+const LUA_DECIMAL = new RegExp(String.raw`^${LUA_SPACE}([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)${LUA_SPACE}$`);
 const LUA_HEX = new RegExp(
 	String.raw`^${LUA_SPACE}([+-]?)0[xX](?:([\da-fA-F]+)(?:\.([\da-fA-F]*))?|\.([\da-fA-F]+))(?:[pP]([+-]?\d+))?${LUA_SPACE}$`,
 );
@@ -117,12 +117,12 @@ function luaToNumber(text: string): number | undefined {
 		const wrapped = BigInt.asIntN(64, BigInt(`0x${whole}`) * (sign === "-" ? -1n : 1n));
 		return Number(wrapped);
 	}
-	let mantissa = 0;
-	for (const digit of whole + (fraction ?? "")) {
-		mantissa = mantissa * 16 + parseInt(digit, 16);
-	}
+	// The mantissa is rounded once, and the power is applied in two halves, so
+	// neither a long mantissa nor a tiny result loses more than Lua's `strtod`.
+	const mantissa = Number(BigInt(`0x${whole}${fraction ?? ""}`));
 	const power = Number(exponent ?? 0) - 4 * (fraction?.length ?? 0);
-	return (sign === "-" ? -mantissa : mantissa) * 2 ** power;
+	const half = Math.trunc(power / 2);
+	return (sign === "-" ? -mantissa : mantissa) * 2 ** half * 2 ** (power - half);
 }
 
 function coerceScalar(value: string, name: string): { ok: boolean; value?: unknown } {
