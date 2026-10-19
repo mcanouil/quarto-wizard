@@ -266,7 +266,6 @@ async function main() {
 	const roots = findProjectRoots(options.dir);
 	const report = [];
 	const totals = { roots: 0, extensions: 0, sourceless: 0, pending: 0, unchecked: 0, updated: 0, failed: 0 };
-	let checkFailures = 0;
 
 	for (const root of roots) {
 		const label = relative(options.dir, root) || ".";
@@ -296,9 +295,6 @@ async function main() {
 		}
 
 		const checkFailure = checks.find((check) => check.checkFailure)?.checkFailure ?? null;
-		if (checkFailure) {
-			checkFailures += 1;
-		}
 
 		const updates = checks.flatMap((check) => check.updates);
 		const repositoryFailures = checks.flatMap((check) => check.repositoryFailures);
@@ -379,6 +375,7 @@ async function main() {
 		report.push(entry);
 	}
 
+	const checkFailures = report.filter((entry) => entry.checkFailure).length;
 	const status = checkFailures > 0 || totals.failed > 0 ? "failed" : totals.unchecked > 0 ? "partial" : "ok";
 
 	if (options.json) {
