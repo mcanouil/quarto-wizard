@@ -17,12 +17,25 @@ import {
 	findInstalledExtension,
 	type InstalledExtension,
 } from "../filesystem/discovery.js";
-import type { Registry } from "../types/registry.js";
+import type { Registry, RegistryEntry } from "../types/registry.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 import { lookupRegistryEntry } from "../registry/search.js";
-import { fetchReleases, fetchTags } from "../github/releases.js";
+import { fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
+import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { install, parseInstallSource } from "./install.js";
-import { getErrorMessage } from "../errors.js";
+import {
+	AuthenticationError,
+	ExtensionError,
+	NetworkError,
+	SamlSsoError,
+	getErrorMessage,
+	isCancellationError,
+} from "../errors.js";
+
+/**
+ * Where an update check looked for the latest version.
+ */
+export type UpdateCheckSource = "github" | "registry";
 
 /**
  * Information about an available update.
@@ -30,33 +43,74 @@ import { getErrorMessage } from "../errors.js";
 export interface UpdateInfo {
 	/** Extension with update available. */
 	extension: InstalledExtension;
-	/** Current installed version. */
+	/** Project directory the extension is installed in. */
+	projectDir: string;
+	/** Current installed version, or the installed commit for a commit comparison. */
 	currentVersion: string;
-	/** Latest available version. */
+	/** Latest available version, or the latest commit for a commit comparison. */
 	latestVersion: string;
-	/** URL to the release. */
+	/** Tag or seven-character commit to install. */
+	latestRef: string;
+	/** Whether `latestRef` is a tag or a commit. */
+	refKind: "tag" | "commit";
+	/** Where the latest version was found. */
+	checkedOn: UpdateCheckSource;
+	/** URL to the release, or to the repository when there is no release. */
 	releaseUrl: string | null;
-	/** Source reference for updating. */
+	/** Source to install, as `owner/repo@<latestRef>`. */
 	source: string;
+}
+
+/**
+ * A repository that could not be checked.
+ */
+export interface RepositoryFailure {
+	/** Repository as `owner/repo`. */
+	repository: string;
+	/** Reason of the failure. */
+	message: string;
+}
+
+/**
+ * A failure that stops the update check as a whole.
+ */
+export interface UpdateCheckFailure {
+	/** Kind of failure. */
+	kind: "registry-unavailable" | "rate-limited" | "network";
+	/** Reason of the failure. */
+	message: string;
+}
+
+/**
+ * Result of an update check.
+ */
+export interface UpdateCheckResult {
+	/** Where the check as a whole looked for the latest versions. */
+	checkedOn: UpdateCheckSource;
+	/** Available updates, in the order of the project directories. */
+	updates: UpdateInfo[];
+	/** Repositories that could not be checked, one entry each. */
+	repositoryFailures: RepositoryFailure[];
+	/** Set when the check could not complete. */
+	checkFailure?: UpdateCheckFailure;
 }
 
 /**
  * Options for checking updates.
  */
 export interface UpdateCheckOptions extends RegistryOptions {
-	/** Project directory. */
-	projectDir: string;
+	/** Project directories to check. */
+	projectDirs: string[];
 	/** Specific extension to check (all if omitted). */
 	extension?: ExtensionId;
 	/**
-	 * Allow registry lookup to resolve updates for GitHub-sourced extensions.
+	 * Where to look for the latest versions.
 	 *
-	 * When false (default), extensions with `sourceType: "github"` are resolved
-	 * against GitHub releases/tags directly, respecting how they were installed.
-	 * When true, if the GitHub lookup yields no tag, fall back to the registry
-	 * (legacy behaviour).
+	 * `"auto"` (default) uses GitHub when `auth.githubToken` is set, else the
+	 * registry, and GitHub for an extension that the registry does not list.
+	 * `"github"` uses GitHub for every extension, with or without a token.
 	 */
-	crossSource?: boolean;
+	source?: "auto" | "github";
 }
 
 /**
@@ -92,233 +146,279 @@ export interface UpdateResult {
 }
 
 /**
+ * An installed extension whose source points to a GitHub repository.
+ */
+interface UpdateCandidate {
+	extension: InstalledExtension;
+	projectDir: string;
+	/** Source without its ref, as recorded in the manifest. */
+	base: string;
+	owner: string;
+	repo: string;
+	/** Repository as `owner/repo`. */
+	fullName: string;
+	/** Seven-character commit when the source is pinned to a commit. */
+	currentCommit: string | null;
+}
+
+/**
+ * GitHub lookups shared by every extension of one check, so that each
+ * repository is resolved once.
+ */
+interface GitHubLookups {
+	latestTag(candidate: UpdateCandidate): Promise<LatestTag | null>;
+	latestCommit(candidate: UpdateCandidate): Promise<string | null>;
+}
+
+/**
  * Check for available updates.
  *
+ * A source pinned to a commit compares commits; every other source compares
+ * the installed version with the latest tag. An update never goes to a lower
+ * version.
+ *
  * @param options - Check options
- * @returns Array of available updates
+ * @returns Available updates and the failures met on the way
  */
-export async function checkForUpdates(options: UpdateCheckOptions): Promise<UpdateInfo[]> {
-	const { projectDir, extension: targetExtension, crossSource = false, ...registryOptions } = options;
+export async function checkForUpdates(options: UpdateCheckOptions): Promise<UpdateCheckResult> {
+	const { projectDirs, extension: targetExtension, source = "auto", ...registryOptions } = options;
+	const useGitHub = source === "github" || Boolean(registryOptions.auth?.githubToken);
+	const result: UpdateCheckResult = {
+		checkedOn: useGitHub ? "github" : "registry",
+		updates: [],
+		repositoryFailures: [],
+	};
 
-	let extensions: InstalledExtension[];
-
-	if (targetExtension) {
-		const ext = await findInstalledExtension(projectDir, targetExtension);
-		extensions = ext ? [ext] : [];
-	} else {
-		extensions = await discoverInstalledExtensions(projectDir);
+	const candidates = await collectCandidates(projectDirs, targetExtension);
+	if (candidates.length === 0) {
+		return result;
 	}
 
-	// Group extensions by the path they'll use for update discovery so we only
-	// fetch the registry when something actually needs it.
-	const registryBound: InstalledExtension[] = [];
-	const githubBound: InstalledExtension[] = [];
-	for (const ext of extensions) {
-		if (!ext.manifest.source) {
-			continue;
-		}
-		const effectiveType = getEffectiveSourceType(ext.manifest);
-		if (effectiveType === "github") {
-			githubBound.push(ext);
-		} else if (effectiveType === "registry") {
-			registryBound.push(ext);
-		}
-		// url/local/unknown are intentionally skipped: they aren't resolvable.
-	}
-
-	const needsRegistry = registryBound.length > 0 || (crossSource && githubBound.length > 0);
-	const registry = needsRegistry ? await fetchRegistry(registryOptions) : null;
-	const updates: UpdateInfo[] = [];
-
-	for (const ext of registryBound) {
-		const source = ext.manifest.source;
-		if (!source || !registry) {
-			continue;
-		}
-		const update = buildRegistryUpdate(ext, source, registry);
-		if (update) {
-			updates.push(update);
+	let registry: Registry | null = null;
+	if (!useGitHub) {
+		try {
+			registry = await fetchRegistry(registryOptions);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw error;
+			}
+			result.checkFailure = { kind: "registry-unavailable", message: getErrorMessage(error) };
+			return result;
 		}
 	}
 
-	const githubResults = await Promise.all(
-		githubBound.map(async (ext) => {
-			const source = ext.manifest.source;
-			if (!source) {
+	const lookups = createGitHubLookups({ auth: registryOptions.auth, timeout: registryOptions.timeout });
+	const repositoryFailures = new Map<string, RepositoryFailure>();
+
+	const updates = await Promise.all(
+		candidates.map(async (candidate) => {
+			const entry = registry ? lookupRegistryEntry(registry, candidate.base) : null;
+			if (entry) {
+				return buildRegistryUpdate(candidate, entry);
+			}
+			try {
+				return await buildGitHubUpdate(candidate, lookups);
+			} catch (error) {
+				if (isCancellationError(error)) {
+					throw error;
+				}
+				const message = getErrorMessage(error);
+				const kind = checkFailureKind(error);
+				if (kind) {
+					result.checkFailure ??= { kind, message };
+				} else {
+					const key = candidate.fullName.toLowerCase();
+					if (!repositoryFailures.has(key)) {
+						repositoryFailures.set(key, { repository: candidate.fullName, message });
+					}
+				}
 				return null;
 			}
-			const update = await buildGitHubUpdate(ext, source, registryOptions);
-			if (update) {
-				return update;
-			}
-			if (crossSource && registry) {
-				return buildRegistryUpdate(ext, source, registry);
-			}
-			return null;
 		}),
 	);
 
-	for (const update of githubResults) {
-		if (update) {
-			updates.push(update);
-		}
-	}
-
-	return updates;
+	result.updates = updates.filter((u): u is UpdateInfo => u !== null);
+	result.repositoryFailures = [...repositoryFailures.values()];
+	return result;
 }
 
 /**
- * Resolve a registry-sourced extension against the registry, producing an
- * UpdateInfo only if a newer tag or commit is advertised.
+ * Discover the installed extensions that can be checked, in the order of the
+ * project directories.
  */
-function buildRegistryUpdate(ext: InstalledExtension, source: string, registry: Registry): UpdateInfo | null {
-	const { base: baseName } = splitSourceRef(source);
-	const entry = lookupRegistryEntry(registry, baseName);
-
-	if (!entry) {
-		return null;
-	}
-
-	const currentCommit = extractCommitFromSource(source);
-
-	if (currentCommit && entry.latestCommit) {
-		const latestCommit = entry.latestCommit.substring(0, 7).toLowerCase();
-		if (currentCommit === latestCommit) {
-			return null;
-		}
-		return {
-			extension: ext,
-			currentVersion: currentCommit,
-			latestVersion: latestCommit,
-			releaseUrl: entry.htmlUrl,
-			source: `${entry.fullName}@${latestCommit}`,
-		};
-	}
-
-	if (currentCommit) {
-		// Current install is pinned to a commit but the registry doesn't track
-		// commits; we can't meaningfully compare, so report no update.
-		return null;
-	}
-
-	if (!entry.latestVersion) {
-		return null;
-	}
-
-	const currentVersion = normaliseVersion(ext.manifest.version);
-	const latestVersion = normaliseVersion(entry.latestVersion);
-
-	if (!currentVersion || !latestVersion) {
-		return null;
-	}
-
-	try {
-		if (semver.gt(latestVersion, currentVersion)) {
-			return {
-				extension: ext,
-				currentVersion,
-				latestVersion,
-				releaseUrl: entry.latestReleaseUrl,
-				source: entry.latestTag ? `${entry.fullName}@${entry.latestTag}` : entry.fullName,
-			};
-		}
-	} catch {
-		// Invalid semver — treat as no update rather than aborting the batch.
-		return null;
-	}
-
-	return null;
-}
-
-/**
- * Resolve a github-sourced extension against GitHub's releases/tags APIs
- * directly, bypassing the registry.
- */
-async function buildGitHubUpdate(
-	ext: InstalledExtension,
-	source: string,
-	registryOptions: RegistryOptions,
-): Promise<UpdateInfo | null> {
-	// Commit-pinned installs have no comparable data outside the registry; bail
-	// before issuing any network calls.
-	if (extractCommitFromSource(source)) {
-		return null;
-	}
-
-	const { base: baseName } = splitSourceRef(source);
-	const slashIndex = baseName.indexOf("/");
-	if (slashIndex <= 0 || slashIndex === baseName.length - 1) {
-		return null;
-	}
-	const owner = baseName.substring(0, slashIndex);
-	// GitHub's releases API only addresses the repository, so drop any
-	// "owner/repo/subdir" suffix and keep the first segment after the owner.
-	const rest = baseName.substring(slashIndex + 1);
-	const nextSlash = rest.indexOf("/");
-	const repo = nextSlash === -1 ? rest : rest.substring(0, nextSlash);
-	const fullName = `${owner}/${repo}`;
-	const htmlUrl = `https://github.com/${fullName}`;
-
-	const { auth, timeout } = registryOptions;
-	const githubOptions = { auth, timeout };
-
-	let latestTag: string | undefined;
-	let latestReleaseUrl: string | null = null;
-
-	try {
-		const releases = await fetchReleases(owner, repo, githubOptions);
-		const release = releases[0];
-		if (release) {
-			latestTag = release.tagName;
-			latestReleaseUrl = release.htmlUrl;
-		}
-	} catch (error) {
-		// Network or auth failures shouldn't abort the entire update check; the
-		// caller may still fall back to the registry. No logger dependency here.
-		console.error(`Failed to fetch releases for ${fullName}: ${getErrorMessage(error)}`);
-	}
-
-	if (!latestTag) {
-		try {
-			const tags = await fetchTags(owner, repo, githubOptions);
-			// Match `fetchReleases`'s default filtering: skip prerelease-style tags
-			// so a repo that only ships v2.0.0-beta.1 via tags doesn't get flagged
-			// as an update.
-			const tag = tags.find((t) => !isPrereleaseTag(t.name));
-			if (tag) {
-				latestTag = tag.name;
+async function collectCandidates(projectDirs: string[], target?: ExtensionId): Promise<UpdateCandidate[]> {
+	const perDirectory = await Promise.all(
+		projectDirs.map(async (projectDir) => {
+			let extensions: InstalledExtension[];
+			if (target) {
+				const ext = await findInstalledExtension(projectDir, target);
+				extensions = ext ? [ext] : [];
+			} else {
+				extensions = await discoverInstalledExtensions(projectDir);
 			}
-		} catch (error) {
-			console.error(`Failed to fetch tags for ${fullName}: ${getErrorMessage(error)}`);
+			return extensions.map((ext) => toCandidate(ext, projectDir)).filter((c): c is UpdateCandidate => c !== null);
+		}),
+	);
+	return perDirectory.flat();
+}
+
+function toCandidate(extension: InstalledExtension, projectDir: string): UpdateCandidate | null {
+	const source = extension.manifest.source;
+	if (!source) {
+		return null;
+	}
+	// url and local sources have no repository to resolve against.
+	const sourceType = getEffectiveSourceType(extension.manifest);
+	if (sourceType !== "github" && sourceType !== "registry") {
+		return null;
+	}
+
+	const { base } = splitSourceRef(source);
+	const [owner, repo] = base.split("/");
+	if (!owner || !repo) {
+		return null;
+	}
+
+	return {
+		extension,
+		projectDir,
+		base,
+		owner,
+		repo,
+		fullName: `${owner}/${repo}`,
+		currentCommit: extractCommitFromSource(source),
+	};
+}
+
+function createGitHubLookups(options: GitHubOptions): GitHubLookups {
+	const pending = new Map<string, Promise<unknown>>();
+
+	function once<T>(key: string, run: () => Promise<T>): Promise<T> {
+		let promise = pending.get(key) as Promise<T> | undefined;
+		if (!promise) {
+			promise = run();
+			pending.set(key, promise);
 		}
+		return promise;
 	}
 
-	if (!latestTag) {
+	return {
+		latestTag(candidate) {
+			const currentVersion = candidate.extension.manifest.version;
+			const normalised = normaliseVersion(currentVersion);
+			const followsPrereleases = normalised !== null && semver.prerelease(normalised) !== null;
+			const key = `${candidate.fullName.toLowerCase()}#tag#${followsPrereleases}`;
+			return once(key, () => resolveLatestTag(candidate.owner, candidate.repo, { ...options, currentVersion }));
+		},
+		latestCommit(candidate) {
+			const key = `${candidate.fullName.toLowerCase()}#commit`;
+			return once(key, () => fetchLatestCommit(candidate.owner, candidate.repo, options));
+		},
+	};
+}
+
+/**
+ * Classify an error as a failure of the whole check, or return null when it
+ * only concerns one repository.
+ */
+function checkFailureKind(error: unknown): UpdateCheckFailure["kind"] | null {
+	if (error instanceof SamlSsoError) {
 		return null;
 	}
-
-	const currentVersion = normaliseVersion(ext.manifest.version);
-	const latestVersion = normaliseVersion(latestTag);
-
-	if (!currentVersion || !latestVersion) {
-		return null;
+	// handleGitHubError turns a 401 or 403 into an AuthenticationError and keeps
+	// the original NetworkError as its cause.
+	const networkError =
+		error instanceof NetworkError
+			? error
+			: error instanceof AuthenticationError && error.cause instanceof NetworkError
+				? error.cause
+				: null;
+	const status = networkError?.statusCode;
+	if (status === 403 || status === 429) {
+		return "rate-limited";
 	}
-
-	try {
-		if (semver.gt(latestVersion, currentVersion)) {
-			return {
-				extension: ext,
-				currentVersion,
-				latestVersion,
-				releaseUrl: latestReleaseUrl ?? htmlUrl,
-				source: `${fullName}@${latestTag}`,
-			};
-		}
-	} catch {
-		return null;
+	if (networkError && (status === undefined || status >= 500)) {
+		return "network";
 	}
-
+	// fetch rejects with a TypeError when the connection itself fails.
+	if (error instanceof TypeError) {
+		return "network";
+	}
 	return null;
+}
+
+function buildRegistryUpdate(candidate: UpdateCandidate, entry: RegistryEntry): UpdateInfo | null {
+	if (candidate.currentCommit) {
+		return buildCommitUpdate(candidate, entry.latestCommit, entry.htmlUrl, "registry");
+	}
+	if (!entry.latestTag) {
+		return null;
+	}
+	return buildTagUpdate(candidate, entry.latestTag, entry.latestReleaseUrl, "registry");
+}
+
+async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLookups): Promise<UpdateInfo | null> {
+	const htmlUrl = `https://github.com/${candidate.fullName}`;
+	if (candidate.currentCommit) {
+		const latestCommit = await lookups.latestCommit(candidate);
+		return buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
+	}
+	const latest = await lookups.latestTag(candidate);
+	if (!latest) {
+		return null;
+	}
+	return buildTagUpdate(candidate, latest.tagName, latest.releaseUrl ?? htmlUrl, "github");
+}
+
+function buildTagUpdate(
+	candidate: UpdateCandidate,
+	latestTag: string,
+	releaseUrl: string | null,
+	checkedOn: UpdateCheckSource,
+): UpdateInfo | null {
+	const currentVersion = normaliseVersion(candidate.extension.manifest.version);
+	const latestVersion = normaliseVersion(latestTag);
+	if (!currentVersion || !latestVersion || !semver.gt(latestVersion, currentVersion)) {
+		return null;
+	}
+	return {
+		extension: candidate.extension,
+		projectDir: candidate.projectDir,
+		currentVersion,
+		latestVersion,
+		latestRef: latestTag,
+		refKind: "tag",
+		checkedOn,
+		releaseUrl,
+		source: `${candidate.fullName}@${latestTag}`,
+	};
+}
+
+function buildCommitUpdate(
+	candidate: UpdateCandidate,
+	latestCommit: string | null,
+	releaseUrl: string,
+	checkedOn: UpdateCheckSource,
+): UpdateInfo | null {
+	const currentCommit = candidate.currentCommit;
+	if (!currentCommit || !latestCommit) {
+		return null;
+	}
+	const latestRef = latestCommit.substring(0, 7).toLowerCase();
+	if (latestRef === currentCommit) {
+		return null;
+	}
+	return {
+		extension: candidate.extension,
+		projectDir: candidate.projectDir,
+		currentVersion: currentCommit,
+		latestVersion: latestRef,
+		latestRef,
+		refKind: "commit",
+		checkedOn,
+		releaseUrl,
+		source: `${candidate.fullName}@${latestRef}`,
+	};
 }
 
 /**
@@ -329,7 +429,7 @@ async function buildGitHubUpdate(
  * @returns Update result
  */
 export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions): Promise<UpdateResult> {
-	const { projectDir, auth, onProgress } = options;
+	const { auth, onProgress } = options;
 
 	const result: UpdateResult = {
 		updated: [],
@@ -350,7 +450,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 			const source = parseInstallSource(update.source);
 
 			const installResult = await install(source, {
-				projectDir,
+				projectDir: update.projectDir,
 				auth,
 				force: true,
 				sourceType: update.extension.manifest.sourceType,
@@ -384,9 +484,14 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
  *
  * @param options - Update options
  * @returns Update result
+ * @throws ExtensionError when the check could not complete
  */
 export async function update(options: UpdateOptions): Promise<UpdateResult> {
-	const updates = await checkForUpdates(options);
+	const { updates, checkFailure } = await checkForUpdates(options);
+
+	if (checkFailure) {
+		throw new ExtensionError(`Update check failed: ${checkFailure.message}`);
+	}
 
 	if (updates.length === 0) {
 		return { updated: [], skipped: [], failed: [] };
@@ -409,37 +514,4 @@ function extractCommitFromSource(source: string): string | null {
 		return ref.toLowerCase();
 	}
 	return null;
-}
-
-/**
- * Determine whether a tag name encodes a prerelease (e.g. `v2.0.0-beta.1`).
- * `normaliseVersion` runs through `semver.coerce`, which strips prerelease
- * identifiers, so this check operates on the raw tag.
- */
-function isPrereleaseTag(tag: string): boolean {
-	const cleaned = tag.replace(/^v/, "").trim();
-	const parsed = semver.parse(cleaned, { loose: true });
-	if (parsed) {
-		return parsed.prerelease.length > 0;
-	}
-	return semver.prerelease(cleaned, { loose: true }) !== null;
-}
-
-/**
- * Normalise a version string for comparison.
- * Strips leading "v" prefix and coerces to valid semver.
- *
- * @param version - Version string to normalise
- * @returns Normalised semver string, or null if invalid
- */
-export function normaliseVersion(version: string): string | null {
-	if (!version) {
-		return null;
-	}
-
-	const cleaned = version.replace(/^v/, "").trim();
-
-	const parsed = semver.valid(semver.coerce(cleaned));
-
-	return parsed;
 }

@@ -59,12 +59,13 @@ vi.mock("../src/registry/http.js", () => ({
 }));
 
 import {
+	fetchLatestCommit,
 	fetchReleases,
 	fetchTags,
 	getLatestRelease,
-	resolveVersion,
 	constructArchiveUrl,
 } from "../src/github/releases.js";
+import { resolveVersion } from "../src/github/resolve.js";
 import { AuthenticationError, CancellationError, NetworkError, SamlSsoError } from "../src/errors.js";
 
 const REPO_METADATA_URL = "https://api.github.com/repos/owner/repo";
@@ -142,6 +143,38 @@ describe("fetchTags", () => {
 		expect(tags).toHaveLength(2);
 		expect(tags[0]?.name).toBe("v2.0.0");
 		expect(tags[0]?.sha).toBe("abc123");
+	});
+});
+
+describe("fetchLatestCommit", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("returns the newest commit of the default branch", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockResolvedValueOnce([{ sha: "def5678901234" }]);
+
+		const sha = await fetchLatestCommit("owner", "repo");
+
+		expect(sha).toBe("def5678901234");
+		expect(fetchJson.mock.calls[0]?.[0]).toBe("https://api.github.com/repos/owner/repo/commits?per_page=1");
+	});
+
+	it("returns null for a repository without commits", async () => {
+		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockResolvedValueOnce([]);
+
+		expect(await fetchLatestCommit("owner", "repo")).toBeNull();
+	});
+
+	it("keeps the HTTP status of a rate limit as the cause", async () => {
+		const forbidden = new NetworkError("HTTP 403: Forbidden", { statusCode: 403 });
+		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockRejectedValueOnce(forbidden);
+
+		const error = await fetchLatestCommit("owner", "repo").catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(AuthenticationError);
+		expect((error as AuthenticationError).cause).toBe(forbidden);
 	});
 });
 

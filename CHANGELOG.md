@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+- feat: Resolve every update to the latest GitHub tag, the highest version among the releases and tags, and never to a lower version. In `@quarto-wizard/core`, `checkForUpdates()` takes `projectDirs`, checks GitHub when a token is set, returns its failures, and drops `crossSource`.
+
 ### Build System
 
 - build: Publish the Lua reference validator on its own release, tagged `schema-v<version>`. An extension now pins the version of the validator and not the version of the editor extension.
