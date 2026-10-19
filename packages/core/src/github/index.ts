@@ -9,7 +9,6 @@ export {
 	fetchReleases,
 	fetchTags,
 	fetchLatestCommit,
-	getLatestRelease,
 } from "./releases.js";
 
 export { type ResolvedVersion, type ResolveVersionOptions, resolveVersion } from "./resolve.js";

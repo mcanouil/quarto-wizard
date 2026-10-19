@@ -58,13 +58,7 @@ vi.mock("../src/registry/http.js", () => ({
 	}),
 }));
 
-import {
-	fetchLatestCommit,
-	fetchReleases,
-	fetchTags,
-	getLatestRelease,
-	constructArchiveUrl,
-} from "../src/github/releases.js";
+import { fetchLatestCommit, fetchReleases, fetchTags, constructArchiveUrl } from "../src/github/releases.js";
 import { resolveVersion } from "../src/github/resolve.js";
 import { AuthenticationError, CancellationError, NetworkError, SamlSsoError } from "../src/errors.js";
 
@@ -175,19 +169,6 @@ describe("fetchLatestCommit", () => {
 
 		expect(error).toBeInstanceOf(AuthenticationError);
 		expect((error as AuthenticationError).cause).toBe(forbidden);
-	});
-});
-
-describe("getLatestRelease", () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-	});
-
-	it("returns the first release", async () => {
-		const release = await getLatestRelease("owner", "repo");
-
-		expect(release).not.toBeNull();
-		expect(release?.tagName).toBe("v2.0.0");
 	});
 });
 

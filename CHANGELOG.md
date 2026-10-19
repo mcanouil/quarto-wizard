@@ -4,7 +4,7 @@
 
 ### Breaking Changes
 
-- feat: Resolve every update to the latest GitHub tag, the highest version among the releases and tags, and never to a lower version. In `@quarto-wizard/core`, `checkForUpdates()` takes `projectDirs`, checks GitHub when a token is set, returns its failures, and drops `crossSource`.
+- feat: Resolve every update to the latest GitHub tag, the highest version among the releases and tags, and never to a lower version. In `@quarto-wizard/core`, `checkForUpdates()` takes `projectDirs`, checks GitHub when a token is set and returns its failures, while `crossSource` and `getLatestRelease()` are removed.
 
 ### Build System
 

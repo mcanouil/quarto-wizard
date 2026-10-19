@@ -34,22 +34,30 @@ export interface ResolveLatestTagOptions extends GitHubOptions {
 	currentVersion?: string;
 }
 
+const VERSION_PATTERN = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
+
 /**
  * Normalise a version string for comparison.
- * Strips leading "v" prefix and coerces to valid semver, keeping prerelease
- * identifiers so that "2.0.0-beta.1" sorts below "2.0.0".
+ *
+ * The string, after one optional leading "v", must be a version from start to
+ * end: one to three numeric parts, an optional prerelease and an optional
+ * build. Missing parts become zero ("1.2" gives "1.2.0"), the build is dropped,
+ * and the prerelease is kept so that "2.0.0-beta.1" sorts below "2.0.0".
+ * A name that only contains a version, such as "release-3", is rejected.
  *
  * @param version - Version string to normalise
  * @returns Normalised semver string, or null if invalid
  */
 export function normaliseVersion(version: string): string | null {
-	if (!version) {
+	const match = VERSION_PATTERN.exec(version.trim().replace(/^v/, ""));
+	if (!match) {
 		return null;
 	}
 
-	const cleaned = version.replace(/^v/, "").trim();
+	const [, major, minor = "0", patch = "0", prerelease] = match;
+	const normalised = `${major}.${minor}.${patch}${prerelease ? `-${prerelease}` : ""}`;
 
-	return semver.valid(semver.coerce(cleaned, { includePrerelease: true }));
+	return semver.valid(normalised);
 }
 
 function isPrereleaseVersion(version: string | undefined): boolean {

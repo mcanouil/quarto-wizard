@@ -6,10 +6,11 @@
  */
 
 import type { VersionSpec } from "../types/extension.js";
-import { VersionError } from "../errors.js";
+import { SamlSsoError, VersionError, isCancellationError } from "../errors.js";
 import {
 	constructArchiveUrl,
 	fetchDefaultBranch,
+	fetchLatestCommit,
 	fetchReleases,
 	fetchTags,
 	validateBranch,
@@ -73,7 +74,7 @@ export async function resolveVersion(
 			// Fallback to default branch with commit tracking. The registry hint is
 			// preferred, then GitHub itself, because the branch is not always "main".
 			const branch = defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
-			const commitSha = latestCommit?.substring(0, 7);
+			const commitSha = (latestCommit ?? (await lookUpLatestCommit(owner, repo, options)))?.substring(0, 7);
 			return {
 				tagName: commitSha ?? "HEAD",
 				zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
@@ -134,5 +135,22 @@ export async function resolveVersion(
 				tarballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "tarball"),
 			};
 		}
+	}
+}
+
+/**
+ * Look up the latest commit of the default branch, so that an install without
+ * tags records the commit it installed. A failed lookup returns `undefined`,
+ * so the install still goes ahead without a commit. A SAML SSO error and a
+ * cancellation are rethrown, as in `fetchDefaultBranch`.
+ */
+async function lookUpLatestCommit(owner: string, repo: string, options: GitHubOptions): Promise<string | undefined> {
+	try {
+		return (await fetchLatestCommit(owner, repo, options)) ?? undefined;
+	} catch (error) {
+		if (error instanceof SamlSsoError || isCancellationError(error)) {
+			throw error;
+		}
+		return undefined;
 	}
 }

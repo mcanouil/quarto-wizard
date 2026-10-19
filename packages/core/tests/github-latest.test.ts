@@ -77,6 +77,19 @@ describe("resolveLatestTag", () => {
 		expect(latest?.tagName).toBe("v1.0.0");
 	});
 
+	it("ignores tags that only contain a version", async () => {
+		vi.mocked(fetchTags).mockResolvedValue([
+			tag("build-20240101"),
+			tag("schema-v9.0.0"),
+			tag("release-3"),
+			tag("v1.0.0"),
+		]);
+
+		const latest = await resolveLatestTag("owner", "repo", {});
+
+		expect(latest?.tagName).toBe("v1.0.0");
+	});
+
 	it("returns null when no tag qualifies", async () => {
 		vi.mocked(fetchReleases).mockResolvedValue([release("v3.0.0-rc.1", true)]);
 		vi.mocked(fetchTags).mockResolvedValue([tag("nightly"), tag("v3.0.0-rc.1")]);
@@ -113,5 +126,15 @@ describe("normaliseVersion", () => {
 	it("returns null for a name that is not a version", () => {
 		expect(normaliseVersion("nightly")).toBeNull();
 		expect(normaliseVersion("")).toBeNull();
+	});
+
+	it("only accepts a name that is a version from start to end", () => {
+		expect(normaliseVersion("build-20240101")).toBeNull();
+		expect(normaliseVersion("quarto-1.4")).toBeNull();
+		expect(normaliseVersion("vv1.0.0")).toBeNull();
+		expect(normaliseVersion("1.2.3.4")).toBeNull();
+		expect(normaliseVersion("3")).toBe("3.0.0");
+		expect(normaliseVersion("v1.2.3+build.5")).toBe("1.2.3");
+		expect(normaliseVersion("1.2-rc.1")).toBe("1.2.0-rc.1");
 	});
 });

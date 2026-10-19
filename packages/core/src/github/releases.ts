@@ -399,20 +399,3 @@ export async function fetchLatestCommit(
 		handleGitHubError(error, owner, repo);
 	}
 }
-
-/**
- * Get the latest release for a repository.
- *
- * @param owner - Repository owner
- * @param repo - Repository name
- * @param options - GitHub options
- * @returns Latest release or null if none
- */
-export async function getLatestRelease(
-	owner: string,
-	repo: string,
-	options: GitHubOptions = {},
-): Promise<GitHubRelease | null> {
-	const releases = await fetchReleases(owner, repo, options);
-	return releases[0] ?? null;
-}
