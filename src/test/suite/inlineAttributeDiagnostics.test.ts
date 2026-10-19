@@ -386,6 +386,15 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.strictEqual(findings[0].code, "schema-type-mismatch");
 		});
 
+		test("blank text is not a number", () => {
+			const descriptor: FieldDescriptor = { type: "number", min: 10 };
+			const findings = validateInlineValue("size", "  ", descriptor);
+			assert.deepStrictEqual(
+				findings.map((finding) => finding.code),
+				["schema-type-mismatch"],
+			);
+		});
+
 		test("union type [number, boolean]: accepts valid number", () => {
 			const descriptor: FieldDescriptor = { type: ["number", "boolean"] };
 			const findings = validateInlineValue("val", "42", descriptor);

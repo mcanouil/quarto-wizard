@@ -664,11 +664,8 @@ export function validateInlineValue(
 	value: string,
 	descriptor: FieldDescriptor,
 ): InlineValidationFinding[] {
-	const findings: InlineValidationFinding[] = validateFieldValue(
-		key,
-		coerceFieldValue(value, descriptor.type),
-		descriptor,
-	).map((finding) => ({
+	const coerced = coerceFieldValue(value, descriptor.type);
+	const findings: InlineValidationFinding[] = validateFieldValue(key, coerced, descriptor).map((finding) => ({
 		...finding,
 		message:
 			finding.code === "schema-deprecated" ? `Attribute ${finding.message}` : `Attribute "${key}": ${finding.message}`,
@@ -686,29 +683,11 @@ export function validateInlineValue(
 			return findings;
 		}
 
-		// If "string" is in the union, any string value is valid.
+		// If "string" is in the union, any string value is valid. Otherwise the
+		// text is valid only when it coerces to a number, an integer or a
+		// boolean that the union declares, and coercion leaves anything else text.
 		if (!typeIncludes(descriptor.type, "string")) {
-			let typeValid = false;
-
-			if (typeIncludes(descriptor.type, "number") && Number.isFinite(Number(value))) {
-				typeValid = true;
-			}
-
-			if (!typeValid && typeIncludes(descriptor.type, "integer")) {
-				const n = Number(value);
-				if (Number.isFinite(n) && Number.isInteger(n)) {
-					typeValid = true;
-				}
-			}
-
-			if (!typeValid && typeIncludes(descriptor.type, "boolean")) {
-				const lower = value.toLowerCase();
-				if (lower === "true" || lower === "false") {
-					typeValid = true;
-				}
-			}
-
-			if (!typeValid) {
+			if (typeof coerced === "string") {
 				findings.push({
 					message: `Attribute "${key}": expected type "${formatType(descriptor.type)}", got string "${value}".`,
 					severity: "error",
