@@ -1,0 +1,42 @@
+{
+	"name": "version-validation",
+	"frame": ["editor", "dialog"],
+	"steps": [
+		{
+			"kind": "write",
+			"file": "packs/old/_extensions/demo/old/_extension.yml",
+			"content": "title: Old\nauthor: Demo\nversion: 1.0.0\nquarto-required: \">=100.0.0\"\ncontributes:\n  filters:\n    - old.lua\n"
+		},
+		{
+			"kind": "write",
+			"file": "packs/old/_extensions/demo/old/old.lua",
+			"content": "return {}\n"
+		},
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "click",
+			"text": "packs",
+			"part": "sidebar"
+		},
+		{
+			"kind": "click",
+			"text": "old",
+			"part": "sidebar",
+			"button": "right"
+		},
+		{
+			"kind": "click",
+			"text": "Install Extension from Local",
+			"part": "contextmenu"
+		},
+		{
+			"kind": "wait",
+			"selector": ".monaco-dialog-box",
+			"timeout": 60000
+		}
+	],
+	"themes": ["dark", "light"]
+}

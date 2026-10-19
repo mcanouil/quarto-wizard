@@ -15,23 +15,48 @@ export function install(arrowPathSource) {
 		panel: ".part.panel",
 		statusbar: ".part.statusbar",
 		quickinput: ".quick-input-widget",
-		contextmenu: ".monaco-menu-container .monaco-menu",
+		contextmenu: ".monaco-menu",
 		dialog: ".monaco-dialog-box",
 	};
 
 	const toBox = (rect) =>
 		rect && rect.width > 0 && rect.height > 0 ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
 
-	const partElement = (name) =>
-		name === "workbench" ? document.body : document.querySelector(PART_SELECTORS[name] ?? "");
+	/** Context menus live in the shadow root of a `.shadow-root-host`, so a query has to look inside it too. */
+	const roots = () => [
+		document,
+		...[...document.querySelectorAll(".shadow-root-host")].map((el) => el.shadowRoot).filter(Boolean),
+	];
+	const queryAll = (selector) => roots().flatMap((root) => [...root.querySelectorAll(selector)]);
 
+	const partElement = (name) => {
+		if (name === "workbench") {
+			return document.body;
+		}
+		if (name === "contextmenu") {
+			const [menuRoot] = roots().filter((root) =>
+				[...root.querySelectorAll(PART_SELECTORS.contextmenu)].some((menu) => toBox(menu.getBoundingClientRect())),
+			);
+			return menuRoot === document ? document.body : (menuRoot ?? null);
+		}
+		return document.querySelector(PART_SELECTORS[name] ?? "");
+	};
+
+	const unionBox = (elements) => {
+		const boxes = elements.map((el) => toBox(el.getBoundingClientRect())).filter(Boolean);
+		if (boxes.length === 0) {
+			return null;
+		}
+		const left = Math.min(...boxes.map((box) => box.x));
+		const top = Math.min(...boxes.map((box) => box.y));
+		const right = Math.max(...boxes.map((box) => box.x + box.width));
+		const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+		return { x: left, y: top, width: right - left, height: bottom - top };
+	};
+
+	/** A part with several elements, such as a menu and its submenus, is the box that holds them all. */
 	const partBoxes = () =>
-		Object.fromEntries(
-			Object.keys(PART_SELECTORS).map((name) => [
-				name,
-				toBox(document.querySelector(PART_SELECTORS[name])?.getBoundingClientRect()),
-			]),
-		);
+		Object.fromEntries(Object.entries(PART_SELECTORS).map(([name, selector]) => [name, unionBox(queryAll(selector))]));
 
 	const byLabel = (root, prefix) =>
 		[...root.querySelectorAll("[aria-label]")].find(

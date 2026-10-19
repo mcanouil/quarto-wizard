@@ -1,0 +1,22 @@
+{
+	"name": "editor-context",
+	"frame": ["editor", "contextmenu"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "click",
+			"text": "Hello.",
+			"part": "editor",
+			"button": "right"
+		},
+		{
+			"kind": "click",
+			"text": "Quarto Wizard",
+			"part": "contextmenu"
+		}
+	],
+	"themes": ["dark", "light"]
+}

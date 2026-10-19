@@ -313,7 +313,9 @@ async function runScene(app, scene, project, repo) {
 
 	await setTheme(page, scene.name, scene.themes[0]);
 	await runSteps(page, scene);
-	await page.mouse.move(0, 0);
+	if (scene.frame === "window" || !scene.frame.includes("contextmenu")) {
+		await page.mouse.move(0, 0);
+	}
 	await sleep(500);
 
 	const boxes = await page.evaluate(() => window.qwShot.partBoxes());

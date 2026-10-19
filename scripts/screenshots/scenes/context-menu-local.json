@@ -1,0 +1,18 @@
+{
+	"name": "context-menu-local",
+	"frame": ["sidebar", "contextmenu"],
+	"steps": [
+		{
+			"kind": "click",
+			"text": "_extensions",
+			"part": "sidebar"
+		},
+		{
+			"kind": "click",
+			"text": "iconify",
+			"part": "sidebar",
+			"button": "right"
+		}
+	],
+	"themes": ["dark", "light"]
+}
