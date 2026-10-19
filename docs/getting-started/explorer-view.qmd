@@ -151,7 +151,8 @@ For each workspace folder, you can:
 
 For each installed extension, you can:
 
-- **Update**: Download and install the latest GitHub tag (if outdated).
+- **Update**: Check GitHub and install the latest GitHub tag when it is newer.
+  When nothing is newer, the message `Extension "<name>" is up to date.` appears.
 - **Remove**: Delete the extension from the `_extensions` directory.
 - **Open Source**: View the extension's GitHub repository (if source is available).
 - **Reveal in Explorer View**: Open the extension folder in the file explorer.
@@ -196,7 +197,10 @@ Update then installs the latest commit of the default branch.
 
 The background check uses GitHub when you are signed in to GitHub or when a token is set.
 Otherwise, it uses the registry, which can be a little behind GitHub.
+An extension that the registry does not list is still checked on GitHub, without a token.
+An extension installed from a repository that has no tags records a commit, so the check compares commits.
 When you click **Update** or **Update All**, Quarto Wizard looks up GitHub, with or without a token.
+Quarto Wizard 4.0.0 removes the `quartoWizard.update.crossSource` setting, which no longer has an effect.
 
 A line at the top of the view shows which source was used:
 
@@ -223,13 +227,13 @@ The rest of `_extension.yml` is left byte for byte identical, so comments, key o
 ## Visibility
 
 The Explorer View panel is only visible when at least one workspace folder is open.
-If no extensions are installed, the view displays a welcome message with links to install extensions, use a template, or browse the extensions directory.
+If no extensions are installed, the view displays a welcome message with links to install extensions, use a template, use a brand, or browse the extensions directory.
 
 ## Context Menu
 
 Right-click on an extension to access additional options:
 
-- Update (if available).
+- Update (for an extension installed from GitHub or from the registry, even when it is up to date).
 - Remove.
 - Open Source (if source is available).
 - Reveal in Explorer View.
