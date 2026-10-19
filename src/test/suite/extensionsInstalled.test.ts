@@ -1,10 +1,12 @@
 import * as assert from "assert";
+import * as path from "path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
+import { registerInstallCommands } from "../../commands/installQuartoExtension";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
-import { ExtensionTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
+import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/quarto";
 import { makeFolder, makeRoot } from "./projectFixtures";
@@ -70,7 +72,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 	}
 
 	function runCommand(name: string, ...args: unknown[]): Thenable<unknown> {
-		return vscode.commands.executeCommand(`${COMMAND_PREFIX}quartoWizard.extensionsInstalled.${name}`, ...args);
+		const id =
+			name === "installExtension" ? "quartoWizard.installExtension" : `quartoWizard.extensionsInstalled.${name}`;
+		return vscode.commands.executeCommand(`${COMMAND_PREFIX}${id}`, ...args);
 	}
 
 	setup(async () => {
@@ -121,6 +125,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = () => undefined;
 		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = () => false;
 
+		registerInstallCommands(createContext(), () => undefined);
 		const instance = new ExtensionsInstalled(createContext(), new SchemaCache(), new SnippetCache());
 		provider = (instance as unknown as { treeDataProvider: ProviderInternals }).treeDataProvider;
 		await provider.pendingRefresh;
@@ -336,5 +341,37 @@ suite("Extensions Installed Commands Test Suite", () => {
 		await runCommand("remove", createItem("acme/github-demo"));
 
 		assert.deepStrictEqual(removeCalls, [{ extension: "acme/github-demo", workspaceFolder: FIXTURE_ROOT }]);
+	});
+
+	async function installFromLocalSource(target: unknown): Promise<string> {
+		const localSource = path.join(FIXTURE_ROOT, "local-source");
+		const originalShowQuickPick = vscode.window.showQuickPick;
+		const originalShowOpenDialog = vscode.window.showOpenDialog;
+		vscode.window.showQuickPick = (async (items: readonly (vscode.QuickPickItem & { sourceType?: string })[]) =>
+			items.find((item) => item.sourceType === "local") ?? items[0]) as unknown as typeof vscode.window.showQuickPick;
+		vscode.window.showOpenDialog = (async () => [vscode.Uri.file(localSource)]) as typeof vscode.window.showOpenDialog;
+		try {
+			await runCommand("installExtension", target);
+		} finally {
+			vscode.window.showQuickPick = originalShowQuickPick;
+			vscode.window.showOpenDialog = originalShowOpenDialog;
+		}
+		return localSource;
+	}
+
+	test("install with an extension tree item installs into the folder of that item", async () => {
+		const localSource = await installFromLocalSource(createItem("acme/github-demo"));
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: localSource, workspaceFolder: FIXTURE_ROOT, sourceType: undefined },
+		]);
+	});
+
+	test("install with a workspace folder tree item installs into that folder", async () => {
+		const localSource = await installFromLocalSource(new WorkspaceFolderTreeItem("treeCommands", FIXTURE_ROOT));
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: localSource, workspaceFolder: FIXTURE_ROOT, sourceType: undefined },
+		]);
 	});
 });

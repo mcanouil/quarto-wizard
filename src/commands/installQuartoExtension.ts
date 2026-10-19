@@ -17,6 +17,7 @@ import {
 	showTypeFilterQuickPick,
 } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
+import { ExtensionTreeItem, WorkspaceFolderTreeItem } from "../ui/extensionTreeItems";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
 import {
 	isAbsolutePathForAnyPlatform,
@@ -409,32 +410,90 @@ async function installFromSource(
 }
 
 /**
+ * A tree item that names the folder a command installs into.
+ */
+export type InstallTarget = ExtensionTreeItem | WorkspaceFolderTreeItem;
+
+/**
+ * Resolve the folder that a command installs into.
+ * A tree item names its own folder; without one, the user picks a project folder.
+ *
+ * @param target - The tree item that the command was run from, if any.
+ * @returns The folder path, or undefined when the user cancels the selection.
+ */
+async function resolveTargetFolder(target?: InstallTarget): Promise<string | undefined> {
+	if (target instanceof ExtensionTreeItem || target instanceof WorkspaceFolderTreeItem) {
+		return target.workspaceFolder;
+	}
+	return selectWorkspaceFolder();
+}
+
+/**
  * Command handler for installing Quarto extensions.
- * Prompts the user to select a workspace folder and then calls installQuartoExtensionFolderCommand.
+ * Installs into the folder of the given tree item, or prompts the user to select a workspace folder.
  *
  * @param context - The extension context.
+ * @param target - The tree item that the command was run from, if any.
+ * @returns The folder that was targeted, or undefined when the user cancels the folder selection.
  */
-export async function installQuartoExtensionCommand(context: vscode.ExtensionContext) {
-	const workspaceFolder = await selectWorkspaceFolder();
+export async function installQuartoExtensionCommand(
+	context: vscode.ExtensionContext,
+	target?: InstallTarget,
+): Promise<string | undefined> {
+	const workspaceFolder = await resolveTargetFolder(target);
 	if (!workspaceFolder) {
-		return;
+		return undefined;
 	}
 	await installQuartoExtensionFolderCommand(context, workspaceFolder, false);
+	return workspaceFolder;
 }
 
 /**
  * Executes the command to use a Quarto template.
- * This function prompts the user to select a workspace folder, then installs a Quarto extension configured as a template.
+ * Installs into the folder of the given tree item, or prompts the user to select a workspace folder,
+ * then installs a Quarto extension configured as a template.
  *
  * @param context - The VS Code extension context
- * @returns A Promise that resolves when the operation is complete, or void if the user cancels folder selection
+ * @param target - The tree item that the command was run from, if any.
+ * @returns The folder that was targeted, or undefined when the user cancels the folder selection.
  */
-export async function useQuartoTemplateCommand(context: vscode.ExtensionContext) {
-	const workspaceFolder = await selectWorkspaceFolder();
+export async function useQuartoTemplateCommand(
+	context: vscode.ExtensionContext,
+	target?: InstallTarget,
+): Promise<string | undefined> {
+	const workspaceFolder = await resolveTargetFolder(target);
 	if (!workspaceFolder) {
-		return;
+		return undefined;
 	}
 	await installQuartoExtensionFolderCommand(context, workspaceFolder, true);
+	return workspaceFolder;
+}
+
+/**
+ * Register the main install and template commands.
+ * A command run from a tree item reports the folder it installed into, so that the view can refresh.
+ *
+ * @param context - The extension context.
+ * @param onInstalledFromItem - Called with the target folder after a command run from a tree item.
+ */
+export function registerInstallCommands(
+	context: vscode.ExtensionContext,
+	onInstalledFromItem: (folder: string) => void,
+): void {
+	const register = (
+		command: string,
+		run: (context: vscode.ExtensionContext, target?: InstallTarget) => Promise<string | undefined>,
+	) =>
+		context.subscriptions.push(
+			vscode.commands.registerCommand(command, async (target?: InstallTarget) => {
+				const folder = await run(context, target);
+				if (target && folder) {
+					onInstalledFromItem(folder);
+				}
+			}),
+		);
+	register("quartoWizard.installExtension", installQuartoExtensionCommand);
+	register("quartoWizard.useTemplate", useQuartoTemplateCommand);
 }
 
 /**
