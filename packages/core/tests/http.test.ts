@@ -264,6 +264,17 @@ describe("fetchJsonPages", () => {
 		expect(proxyFetch).toHaveBeenCalledTimes(2);
 	});
 
+	it("resolves a relative next link against the page it came from", async () => {
+		vi.mocked(proxyFetch)
+			.mockResolvedValueOnce(page([1], "?page=2"))
+			.mockResolvedValueOnce(page([2]));
+
+		const items = await fetchJsonPages<number>(base, {}, 5);
+
+		expect(items).toEqual([1, 2]);
+		expect(vi.mocked(proxyFetch).mock.calls[1]?.[0]).toBe(`${base}?page=2`);
+	});
+
 	it("does not follow a next link to another origin", async () => {
 		vi.mocked(proxyFetch).mockResolvedValueOnce(page([1], "https://elsewhere.example.org/items?page=2"));
 

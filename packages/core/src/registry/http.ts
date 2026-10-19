@@ -227,15 +227,16 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 /**
  * Read the URL of the next page from a `Link` header.
  *
- * A next page on another origin is ignored, so that the request headers, which
- * can hold a token, go only to the origin of the first page.
+ * A relative link is resolved against the page it came from. A next page on
+ * another origin is ignored, so that the request headers, which can hold a
+ * token, go only to the origin of the first page.
  */
-function nextPageUrl(response: Response, origin: string): string | null {
+function nextPageUrl(response: Response, pageUrl: string, origin: string): string | null {
 	const match = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get("link") ?? "");
 	if (!match) {
 		return null;
 	}
-	const next = new URL(match[1], origin);
+	const next = new URL(match[1], pageUrl);
 	return next.origin === origin ? next.href : null;
 }
 
@@ -257,10 +258,11 @@ export async function fetchJsonPages<T>(url: string, options: HttpOptions, maxPa
 	let next: string | null = url;
 
 	for (let page = 0; next && page < maxPages; page++) {
+		const pageUrl: string = next;
 		const result: { data: T[]; next: string | null } = await fetchWithRetry(
-			next,
+			pageUrl,
 			{ Accept: "application/json", "User-Agent": USER_AGENT },
-			async (response) => ({ data: (await response.json()) as T[], next: nextPageUrl(response, origin) }),
+			async (response) => ({ data: (await response.json()) as T[], next: nextPageUrl(response, pageUrl, origin) }),
 			options,
 		);
 		items.push(...result.data);
