@@ -1,0 +1,43 @@
+# Schema for the field value conformance sweep.
+#
+# The directory holds no `_extension.yml`, so the extension discovery does not
+# list it. The Lua conformance sweep reads every `_schema.yml`, and these
+# descriptors give it a deprecated field forwarded through `replaceWith`, next
+# to the bounds, pattern and lengths that the other schemas do not declare.
+
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json
+
+options:
+  size:
+    type: number
+    minimum: 1
+    maximum: 10
+  old-size:
+    type: number
+    minimum: 1
+    maximum: 10
+    deprecated:
+      since: "1.0"
+      replaceWith: size
+  ratio:
+    type: number
+    exclusiveMinimum: 0
+    exclusiveMaximum: 1
+  label:
+    type: string
+    pattern: "^[a-z]+$"
+    minLength: 2
+    maxLength: 8
+  old-label:
+    type: string
+    pattern: "^[a-z]+$"
+    maxLength: 8
+    deprecated: "Use label instead"
+  colour:
+    type: string
+    enum: [red, blue]
+  old-colour:
+    type: string
+    enum: [red, blue]
+    deprecated:
+      replaceWith: colour

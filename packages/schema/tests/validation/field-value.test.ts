@@ -131,6 +131,16 @@ describe("validateFieldValue", () => {
 		expect(codes(validateFieldValue("old", null, descriptor))).toEqual(["schema-deprecated"]);
 	});
 
+	it("deprecated: checks nothing else when the value is forwarded to a replacement", () => {
+		const descriptor: FieldDescriptor = { type: "number", max: 10, deprecated: { replaceWith: "size" } };
+		expect(codes(validateFieldValue("old-size", 99, descriptor))).toEqual(["schema-deprecated"]);
+	});
+
+	it("deprecated: still checks the value when no replacement is named", () => {
+		const descriptor: FieldDescriptor = { type: "number", max: 10, deprecated: { since: "1.0" } };
+		expect(codes(validateFieldValue("old-size", 99, descriptor))).toEqual(["schema-deprecated", "schema-max"]);
+	});
+
 	it("checks no keyword of a value that does not match the declared type", () => {
 		const descriptor: FieldDescriptor = { type: "number", min: 10, deprecated: true };
 		expect(codes(validateFieldValue("size", "small", descriptor))).toEqual(["schema-deprecated"]);

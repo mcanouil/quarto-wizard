@@ -231,8 +231,10 @@ function checkString(value: string, descriptor: FieldDescriptor, findings: Field
  *
  * Checks `deprecated`, `enum` (with `enumCaseInsensitive`), the numeric bounds,
  * `pattern`, `minLength` and `maxLength`. A missing value, a value of another
- * type than the declared one, and a `content` value get the deprecation
- * finding only: the caller reports a type error, and content is not checked.
+ * type than the declared one, a `content` value, and the value of a field
+ * deprecated with a `replaceWith` get the deprecation finding only: the caller
+ * reports a type error, content is not checked, and a replaced value belongs
+ * to its replacement.
  *
  * @param key - The key as the author wrote it, used by the deprecation message.
  * @param value - The value, already coerced to the declared type when it was text.
@@ -250,7 +252,12 @@ export function validateFieldValue(key: string, value: unknown, descriptor: Fiel
 		});
 	}
 
+	// The Lua validator moves a value with a replacement to the replacement,
+	// and so never holds it to this descriptor.
+	const forwarded = typeof descriptor.deprecated === "object" && Boolean(descriptor.deprecated.replaceWith);
+
 	if (
+		forwarded ||
 		value === null ||
 		value === undefined ||
 		typeNames(descriptor.type).includes("content") ||
