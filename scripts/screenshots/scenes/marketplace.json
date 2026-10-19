@@ -1,0 +1,26 @@
+{
+	"name": "marketplace",
+	"development": false,
+	"frame": ["activitybar", "sidebar"],
+	"height": 222,
+	"steps": [
+		{
+			"kind": "command",
+			"title": "Extensions: Install Extensions"
+		},
+		{
+			"kind": "type",
+			"text": "quarto wizard"
+		},
+		{
+			"kind": "wait",
+			"text": "Mickaël CANOUIL",
+			"timeout": 60000
+		},
+		{
+			"kind": "click",
+			"text": "Mickaël CANOUIL",
+			"part": "sidebar"
+		}
+	]
+}

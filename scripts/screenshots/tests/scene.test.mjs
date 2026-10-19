@@ -160,3 +160,29 @@ test("loadScenes rejects a label side other than top", () => {
 	});
 	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*side/);
 });
+
+test("loadScenes loads the development build unless a scene opts out", () => {
+	const directory = writeScenes({ "a.json": minimal("a"), "b.json": { ...minimal("b"), development: false } });
+	assert.deepEqual(
+		loadScenes(directory).map((scene) => scene.development),
+		[true, false],
+	);
+});
+
+test("loadScenes rejects a development flag that is not true or false", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), development: "no" } });
+	assert.throws(() => loadScenes(directory), /a\.json: development/);
+});
+
+test("loadScenes keeps the whole crop height unless a scene sets one", () => {
+	const directory = writeScenes({ "a.json": minimal("a"), "b.json": { ...minimal("b"), height: 230 } });
+	assert.deepEqual(
+		loadScenes(directory).map((scene) => scene.height),
+		[undefined, 230],
+	);
+});
+
+test("loadScenes rejects a height that is not a positive number", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), height: 0 } });
+	assert.throws(() => loadScenes(directory), /a\.json: height/);
+});
