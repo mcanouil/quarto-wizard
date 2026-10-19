@@ -221,6 +221,15 @@ describe("coerceFieldValue", () => {
 		expect(coerceFieldValue("0x.0000000000001p-1022", "number")).toBe(2 ** -1074);
 	});
 
+	it("reads a hexadecimal float with an overflowing exponent as Lua does", () => {
+		const huge = "9".repeat(309);
+		expect(coerceFieldValue(`0x1p${huge}`, "number")).toBe(Infinity);
+		expect(coerceFieldValue(`-0x1p${huge}`, "number")).toBe(-Infinity);
+		expect(coerceFieldValue(`0x1p-${huge}`, "number")).toBe(0);
+		expect(coerceFieldValue(`0x0p${huge}`, "number")).toBe(0);
+		expect(coerceFieldValue("0x0p5000", "number")).toBe(0);
+	});
+
 	it("reads a long run of digits that is not a number in linear time", () => {
 		const text = "9".repeat(50_000) + "x";
 		const started = performance.now();

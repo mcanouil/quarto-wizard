@@ -118,11 +118,19 @@ function luaToNumber(text: string): number | undefined {
 		return Number(wrapped);
 	}
 	// The mantissa is rounded once, and the power is applied in two halves, so
-	// neither a long mantissa nor a tiny result loses more than Lua's `strtod`.
+	// no intermediate overflows or underflows. A mantissa wider than 53 bits
+	// with a subnormal result is still rounded twice, where `strtod` rounds once.
 	const mantissa = Number(BigInt(`0x${whole}${fraction ?? ""}`));
 	const power = Number(exponent ?? 0) - 4 * (fraction?.length ?? 0);
+	const signed = sign === "-" ? -1 : 1;
+	if (mantissa === 0 || power === -Infinity) {
+		return 0;
+	}
+	if (power === Infinity) {
+		return signed * Infinity;
+	}
 	const half = Math.trunc(power / 2);
-	return (sign === "-" ? -mantissa : mantissa) * 2 ** half * 2 ** (power - half);
+	return signed * mantissa * 2 ** half * 2 ** (power - half);
 }
 
 function coerceScalar(value: string, name: string): { ok: boolean; value?: unknown } {

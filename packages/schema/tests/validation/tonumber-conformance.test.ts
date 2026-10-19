@@ -53,7 +53,8 @@ describe.skipIf(!enabled)("number coercion conformance with Lua tonumber (run by
 			const expected = luaNumber(value);
 			const actual = coerceFieldValue(text, "number");
 			// `===` and not `Object.is`: Lua has no negative integer zero, and the
-			// sign of a zero changes no finding.
+			// sign of a zero changes no finding. A Lua integer beyond 2^53 is
+			// compared once rounded to a double, the only form a finding sees.
 			const same = expected === undefined ? actual === text : actual === expected;
 			if (!same) {
 				mismatches.push({ text, lua: value, typescript: actual });
