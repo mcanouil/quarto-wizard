@@ -352,6 +352,30 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.ok(!healthy.includes("failed"), healthy);
 		});
 
+		test("a project that leaves the cache during the check does not lose the check", async () => {
+			restoreBoundary = stubUpdateBoundary({
+				token: "test-token",
+				repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] } },
+			});
+			const provider = new QuartoExtensionTreeDataProvider(
+				[makeRoot(makeFolder("treeCommands", TREE_COMMANDS_ROOT))],
+				new SchemaCache(),
+				new SnippetCache(),
+			);
+			await waitForInitialRefresh(provider);
+			const stubbedFetch = globalThis.fetch;
+			globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+				(provider as unknown as { cache: Record<string, unknown> }).cache = {};
+				return stubbedFetch(...args);
+			}) as typeof fetch;
+			const view = { message: undefined, badge: undefined } as unknown as vscode.TreeView<TreeItemType>;
+
+			const total = await provider.checkUpdate({} as vscode.ExtensionContext, view);
+
+			assert.strictEqual(total, 0);
+			assert.strictEqual(view.message, undefined);
+		});
+
 		test("the crossSource setting is gone", () => {
 			// inspect() returns an object for any key; a key that no extension contributes has no default.
 			const inspected = vscode.workspace.getConfiguration("quartoWizard").inspect("update.crossSource");
