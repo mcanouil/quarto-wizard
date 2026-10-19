@@ -1,0 +1,28 @@
+# Attributes
+
+::: {.demo-box }
+:::
+
+::: {.demo-box tone= }
+:::
+
+::: {.demo-box pinned= }
+:::
+
+::: {.demo-box anchor= }
+:::
+
+::: {.}
+:::
+
+::: {.demo-box tone="calm" note="x" width="1" }
+:::
+
+::: {.other }
+:::
+
+Plain text.
+
+```markdown
+::: {.demo-box }
+```

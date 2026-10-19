@@ -1,0 +1,119 @@
+$schema: https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json
+
+options:
+  mode:
+    type: string
+    description: "Rendering mode."
+    enum:
+      - fast
+      - slow
+  verbose:
+    type: boolean
+    default: false
+    description: "Print extra detail."
+  kind:
+    type: string
+    const: fixed
+    description: "Always fixed."
+  template:
+    type: string
+    description: "Template file."
+    completion:
+      type: file
+      extensions:
+        - qmd
+  limits:
+    type: object
+    description: "Numeric limits."
+    properties:
+      depth:
+        type: number
+        min: 1
+        max: 9
+        description: "Maximum depth."
+      strict:
+        type: boolean
+        description: "Fail on overflow."
+  old-name:
+    type: string
+    description: "Superseded option."
+    aliases:
+      - legacy-name
+    deprecated: true
+
+formats:
+  html:
+    highlight:
+      type: string
+      description: "Highlight style."
+      enum:
+        - plain
+        - bold
+
+shortcodes:
+  demo:
+    description: "Renders a demo widget."
+    arguments:
+      - name: kind
+        type: string
+        required: true
+        description: "Widget kind."
+        enum:
+          - alpha
+          - beta
+    attributes:
+      size:
+        type: string
+        description: "Widget size."
+      flip:
+        type: string
+        description: "Flip direction."
+        enum:
+          - horizontal
+          - vertical
+      active:
+        type: boolean
+        description: "Whether the widget is active."
+      source:
+        type: string
+        description: "Source file."
+        completion:
+          type: file
+          extensions:
+            - qmd
+      label:
+        type: string
+        description: "Widget label."
+        aliases:
+          - caption
+
+attributes:
+  demo-box:
+    tone:
+      type: string
+      description: "Box tone."
+      enum:
+        - calm
+        - loud
+    pinned:
+      type: boolean
+      description: "Pin the box."
+    anchor:
+      type: string
+      description: "Anchor file."
+      completion:
+        type: file
+        extensions:
+          - qmd
+  Div:
+    width:
+      type: string
+      description: "Div width."
+  _any:
+    note:
+      type: string
+      description: "Free note."
+
+classes:
+  demo-box:
+    description: "A demo box."

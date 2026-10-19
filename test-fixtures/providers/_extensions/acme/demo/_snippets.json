@@ -1,0 +1,12 @@
+{
+	"Demo widget": {
+		"prefix": "widget",
+		"body": "{{< demo ${1:alpha} >}}",
+		"description": "Insert a demo widget"
+	},
+	"Demo box": {
+		"prefix": ["box", "demo-box"],
+		"body": [":::: {.demo-box}", "$0", "::::"],
+		"description": "Insert a demo box"
+	}
+}
