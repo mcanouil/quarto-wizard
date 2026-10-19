@@ -94,12 +94,12 @@ async function detectRateLimitError(response: Response): Promise<RateLimitError 
 	if (status !== 403 && status !== 429) {
 		return undefined;
 	}
-	const message = `HTTP ${status}: rate limit exceeded`;
-	if (status === 429 || headers.get("x-ratelimit-remaining") === "0" || headers.has("retry-after")) {
-		return new RateLimitError(message, { statusCode: status });
-	}
-	const body = await response.text().catch(() => "");
-	return /rate limit/i.test(body) ? new RateLimitError(message, { statusCode: status }) : undefined;
+	const rateLimited =
+		status === 429 ||
+		headers.get("x-ratelimit-remaining") === "0" ||
+		headers.has("retry-after") ||
+		/rate limit/i.test(await response.text().catch(() => ""));
+	return rateLimited ? new RateLimitError(`HTTP ${status}: rate limit exceeded`, { statusCode: status }) : undefined;
 }
 
 /**
