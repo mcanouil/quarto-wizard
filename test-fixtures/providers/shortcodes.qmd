@@ -1,0 +1,25 @@
+# Shortcodes
+
+{{< >}}
+
+{{< demo >}}
+
+{{< demo alpha  >}}
+
+{{< demo alpha flip= >}}
+
+{{< demo alpha active= >}}
+
+{{< demo alpha source= >}}
+
+{{< demo alpha size= >}}
+
+{{< demo alpha flip=horizontal caption="x" >}}
+
+{{< unknown thing >}}
+
+Plain text.
+
+```markdown
+{{< demo >}}
+```

@@ -1,0 +1,15 @@
+---
+extensions:
+  demo:
+    mode: 
+    verbose: 
+    kind: 
+    template: 
+    limits:
+      depth: 
+      strict: 
+    size: 
+format:
+  html:
+    highlight: 
+---

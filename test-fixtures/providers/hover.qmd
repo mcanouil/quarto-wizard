@@ -1,0 +1,16 @@
+---
+title: Hover
+extensions:
+  demo:
+    mode: fast
+    limits:
+      depth: 3
+    old-name: a
+    legacy-name: b
+    unknown: 1
+format:
+  html:
+    highlight: plain
+---
+
+Body text.

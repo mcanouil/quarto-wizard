@@ -1,0 +1,6 @@
+title: Demo
+author: Acme
+version: 1.0.0
+contributes:
+  shortcodes:
+    - demo.lua
