@@ -47,6 +47,7 @@ export function cropRect(frame, parts, viewport) {
 }
 
 /**
+ * Self-contained, because the workbench page receives its source.
  * @param {{ x: number, y: number }} start
  * @param {{ x: number, y: number }} end
  * @param {[number, number]} control
@@ -54,10 +55,9 @@ export function cropRect(frame, parts, viewport) {
 export function arrowPath(start, end, control) {
 	const cx = end.x + (start.x - end.x) * control[0];
 	const cy = start.y + (end.y - start.y) * control[1];
+	const round = (value) => Math.round(value * 100) / 100;
 	return `M ${start.x} ${start.y} Q ${round(cx)} ${round(cy)} ${end.x} ${end.y}`;
 }
-
-const round = (value) => Math.round(value * 100) / 100;
 
 /**
  * @param {{ width: number, height: number }} a
