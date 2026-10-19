@@ -152,26 +152,12 @@
 				"description": "Opens the extension browser to browse and install Quarto extensions from the registry."
 			},
 			{
-				"command": "quartoWizard.extensionsInstalled.install",
-				"title": "Install Extensions",
-				"shortTitle": "Install",
-				"icon": "$(add)",
-				"category": "Quarto Wizard"
-			},
-			{
 				"command": "quartoWizard.useTemplate",
 				"title": "Use Template",
 				"shortTitle": "Quarto Use Template",
 				"icon": "$(new-file)",
 				"category": "Quarto Wizard",
 				"description": "Opens the template browser to select and install Quarto templates."
-			},
-			{
-				"command": "quartoWizard.extensionsInstalled.useTemplate",
-				"title": "Use Template",
-				"shortTitle": "Use Template",
-				"icon": "$(new-file)",
-				"category": "Quarto Wizard"
 			},
 			{
 				"command": "quartoWizard.useBrand",
@@ -478,12 +464,12 @@
 			],
 			"view/item/context": [
 				{
-					"command": "quartoWizard.extensionsInstalled.install",
+					"command": "quartoWizard.installExtension",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
 					"group": "inline@1"
 				},
 				{
-					"command": "quartoWizard.extensionsInstalled.useTemplate",
+					"command": "quartoWizard.useTemplate",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
 					"group": "inline@2"
 				},
@@ -559,14 +545,6 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "false"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.install",
-					"when": "false"
-				},
-				{
-					"command": "quartoWizard.extensionsInstalled.useTemplate",
 					"when": "false"
 				},
 				{

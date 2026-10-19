@@ -15,7 +15,6 @@ import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
-import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
 import { getAutoProjectDetection } from "../utils/extensionDetails";
 import { getEffectiveSourceType, resolveLocalSourcePath } from "../utils/extensions";
@@ -106,6 +105,12 @@ export class ExtensionsInstalled {
 	private treeDataProvider!: QuartoExtensionTreeDataProvider;
 
 	/**
+	 * Drops the cached data of a folder and refreshes the view after an install into it.
+	 * Does nothing while the view is not initialised.
+	 */
+	refreshAfterInstall: (folder: string) => void = () => undefined;
+
+	/**
 	 * Initialises the extensions view and sets up the tree data provider and commands.
 	 *
 	 * @param context - The extension context.
@@ -138,6 +143,11 @@ export class ExtensionsInstalled {
 				}
 			}
 			return vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
+		};
+
+		this.refreshAfterInstall = (folder) => {
+			invalidateProviderCaches(folder);
+			this.treeDataProvider.refreshAfterAction(context, view);
 		};
 
 		const updateProjectRoots = async (): Promise<boolean> => {
@@ -319,25 +329,6 @@ export class ExtensionsInstalled {
 							showMessageWithLogs(`Failed to open source for "${item.label}".`, "error");
 						}
 					}
-				},
-			),
-		);
-
-		context.subscriptions.push(
-			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.install", async (item: ExtensionTreeItem) => {
-				await installQuartoExtensionFolderCommand(context, item.workspaceFolder, false);
-				invalidateProviderCaches(item.workspaceFolder);
-				this.treeDataProvider.refreshAfterAction(context, view);
-			}),
-		);
-
-		context.subscriptions.push(
-			vscode.commands.registerCommand(
-				"quartoWizard.extensionsInstalled.useTemplate",
-				async (item: ExtensionTreeItem) => {
-					await installQuartoExtensionFolderCommand(context, item.workspaceFolder, true);
-					invalidateProviderCaches(item.workspaceFolder);
-					this.treeDataProvider.refreshAfterAction(context, view);
 				},
 			),
 		);

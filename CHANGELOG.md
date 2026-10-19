@@ -9,6 +9,7 @@
 - refactor: Return an `UpdateCheckResult` object from `checkForUpdates()` in `@quarto-wizard/core`, with `updates`, `repositoryFailures` and `checkFailure`, in place of an array of updates. Each `UpdateInfo` now also carries `projectDir`, `latestRef`, `refKind` and `checkedOn`.
 - refactor: Remove the `projectDir` and `crossSource` options of `update()` and `applyUpdates()` in `@quarto-wizard/core`. Both now take `projectDirs`, and each update installs in the project directory that its `UpdateInfo` names.
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
+- refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 
 ### New Features
 

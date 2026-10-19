@@ -3,8 +3,7 @@ import { getErrorMessage } from "@quarto-wizard/core";
 import { QW_LOG, STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "./constants";
 import { logMessage, showMessageWithLogs } from "./utils/log";
 import {
-	installQuartoExtensionCommand,
-	useQuartoTemplateCommand,
+	registerInstallCommands,
 	installExtensionFromRegistryCommand,
 	installExtensionFromURLCommand,
 	installExtensionFromGitHubCommand,
@@ -39,6 +38,8 @@ function refreshExtensionsView(): void {
 	});
 }
 
+let extensionsInstalled: ExtensionsInstalled | undefined;
+
 /**
  * This method is called when the extension is activated.
  * It registers various commands and initialises the ExtensionsInstalled class that defines the installed extensions view.
@@ -67,17 +68,8 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.clearCache", () => clearExtensionsCache(context)),
 	);
 
-	// Register main extension installation command
-	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.installExtension", async () =>
-			installQuartoExtensionCommand(context),
-		),
-	);
-
-	// Register template installation command
-	context.subscriptions.push(
-		vscode.commands.registerCommand("quartoWizard.useTemplate", async () => useQuartoTemplateCommand(context)),
-	);
+	// Register the extension installation and template commands
+	registerInstallCommands(context, (folder) => extensionsInstalled?.refreshAfterInstall(folder));
 
 	// Register brand application command
 	context.subscriptions.push(
@@ -166,7 +158,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const snippetCache = new SnippetCache();
 
 	// Initialise the Extensions Installed tree view provider
-	new ExtensionsInstalled(context, schemaCache, snippetCache);
+	extensionsInstalled = new ExtensionsInstalled(context, schemaCache, snippetCache);
 
 	// Register YAML completion and diagnostics providers for extension schemas
 	registerYamlProviders(context, schemaCache);
