@@ -1,34 +1,21 @@
 # Install Quarto Extensions
 
-Quarto Wizard provides access to over 250 Quarto extensions from the community.
+Quarto Wizard gives you access to the Quarto extensions of the community.
 
 ## How to Install Extensions
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
-2. Type **"Quarto Wizard: Install Extensions"**.
-3. Select a source (Registry, GitHub, URL, or Local).
-4. Browse and select extensions.
-5. Confirm the installation.
+2. Run **"Quarto Wizard: Install Extensions"**.
+3. Select a source: Registry, GitHub, URL or Local.
+4. Browse and select the extensions.
+5. Choose the workspace folder and confirm the installation.
 
-You can also click the **Install** button in the Quarto Wizard Explorer View.
+You can also select **Install Extensions** on a folder in the Explorer View.
+Quarto Wizard then installs into that folder and does not ask you to choose one.
 
 [Install Extensions](command:quartoWizard.installExtension)
 
-Extensions are installed from GitHub releases/tags for stability and reproducibility.
-
-## Private Repository Support
-
-Quarto Wizard supports installing extensions from private GitHub repositories.
-Configure authentication using one of:
-
-- **"Quarto Wizard: Sign In with GitHub Session"** to use your VSCode GitHub account.
-- **"Quarto Wizard: Set GitHub Token (Manual)"** to provide a personal access token.
-- Environment variables (`GITHUB_TOKEN` or `QUARTO_WIZARD_TOKEN`).
-
-If you attempt to install from a private GitHub repository without authentication, Quarto Wizard will offer to sign you in on the spot.
-
-[Sign In with GitHub Session](command:quartoWizard.signInWithGitHubSession)
-
-[Set GitHub Token (Manual)](command:quartoWizard.setGitHubToken)
+An extension from GitHub or from the registry installs its latest tag, or the latest commit of the default branch when the repository has no tags.
+Quarto Wizard records that tag or commit in `_extension.yml`, so you can update or reinstall the extension later.
 
 [Full guide](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html)

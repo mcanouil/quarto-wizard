@@ -1,17 +1,14 @@
 # Browse the Extensions Directory
 
-Explore the full catalogue of Quarto extensions on the web with advanced filtering and search.
+The directory is a website that lists the Quarto extensions of the community.
 
-## What's in the Directory?
+## What You Find There
 
-- **250+ extensions** from the community.
-- **Detailed metadata** including descriptions, stars, and licences.
-- **Filter by category** (Formats, Filters, Shortcodes, Reveal.js).
-- **Sort by popularity** or recent updates.
-- **One-click installation** directly from the website.
+- **Descriptions, stars and licences** for each extension.
+- **Filters** by category: formats, filters, shortcodes and Reveal.js plugins.
+- **Sorting** by popularity or recent updates.
+- **Install instructions** for the command line, VS Code, Positron and VSCodium.
 
-[Browse Extensions Directory: https://m.canouil.dev/quarto-extensions/](https://m.canouil.dev/quarto-extensions/)
-
-Each extension page includes installation options for command line, VS Code, Positron, and VSCodium.
+[Browse Extensions Directory](https://m.canouil.dev/quarto-extensions/)
 
 [Learn more about installing extensions](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html)

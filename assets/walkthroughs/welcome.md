@@ -1,20 +1,20 @@
 # Welcome to Quarto Wizard
 
-Your magical assistant for managing Quarto extensions and templates!
+Browse, install and manage Quarto extensions, templates and brands without leaving your editor.
 
-## What is Quarto Wizard?
+## What You Can Do
 
-Quarto Wizard simplifies working with [Quarto](https://quarto.org) by providing a user-friendly interface to:
-
-- **Browse and install** over 250 Quarto extensions.
-- **Use templates** for documents, presentations, and academic papers.
-- **Manage installed extensions** with automatic update detection.
-- **Create reproducible documents** for R, Python, and Julia.
+- **Install extensions** from the registry, GitHub, a URL or a local path.
+- **Keep extensions up to date** from the Explorer View.
+- **Insert snippets** and **preview Typst blocks** while you write.
+- **Use templates** to start documents, and **use brands** to style them.
+- **Create reproducible documents** for R, Python and Julia.
 
 ## Getting Started
 
-Follow the steps in this walkthrough to learn how to use Quarto Wizard's key features.
+Follow the steps of this walkthrough.
+Each step links to the command that it describes.
 
 [Open Quarto Wizard Explorer](command:workbench.view.extension.quarto-wizard-explorer)
 
-[Full Documentation](https://m.canouil.dev/quarto-wizard/) | [Credits](https://m.canouil.dev/quarto-wizard/credits.html)
+[Full documentation](https://m.canouil.dev/quarto-wizard/getting-started/index.html) | [Credits](https://m.canouil.dev/quarto-wizard/credits.html)

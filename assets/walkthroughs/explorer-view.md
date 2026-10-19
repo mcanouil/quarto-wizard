@@ -1,23 +1,25 @@
 # Manage Installed Extensions
 
-The Quarto Wizard Explorer provides a centralised view of all your installed extensions.
+The Explorer View lists the extensions that are installed in your workspace folders.
 
-## Features
+## What the View Shows
 
-- **View all installed extensions** across workspace folders.
-- **Check for updates** with automatic version detection.
-- **Review compatibility** from `quarto-required` and extension compatibility status.
-- **Inspect schema and snippets** directly from nested `Schema` and `Snippets` nodes.
-- **Update extensions** with one click.
-- **Remove extensions** easily.
-- **Open GitHub repositories** (if source is available) and reveal extension folders in Explorer.
+- **Installed extensions** for each project root.
+- **Update indicators** when a newer version is available.
+- **Compatibility** with your Quarto version, from `quarto-required`.
+- **Schema and Snippets** nodes for the extensions that provide them.
 
-Click the Quarto Wizard icon in the Activity Bar to access the Explorer View.
+## What You Can Do
+
+- **Update** one extension, or use **Update All** in the title bar.
+- **Remove** an extension.
+- **Open Source** to see the GitHub repository of an extension.
+
+A line at the top of the view tells you where the update check looked.
+If it reads `Updates checked against the registry. Sign in to GitHub to see new tags straight away.`, select **Sign In** in the title bar to check GitHub instead.
 
 [Open Explorer View](command:workbench.view.extension.quarto-wizard-explorer)
 
-![Quarto Wizard Explorer View with installed extensions, compatibility details, schema and snippet nodes, and management actions](../images/explorer-view.png)
-
-Extensions installed via Quarto Wizard include source tracking for seamless updates.
+![Quarto Wizard Explorer View with installed extensions, compatibility details, schema and snippet nodes, and management actions](./media/explorer-view.png)
 
 [Full guide](https://m.canouil.dev/quarto-wizard/getting-started/explorer-view.html)
