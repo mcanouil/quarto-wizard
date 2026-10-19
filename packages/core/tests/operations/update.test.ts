@@ -451,7 +451,7 @@ describe("checkForUpdates", () => {
 		});
 
 		it("update source is owner/repo@latestRef", async () => {
-			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome/sub@v1.0.0", "github");
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
 
 			vi.mocked(fetchTags).mockResolvedValue([tag("2.0.0")]);
 
@@ -460,6 +460,18 @@ describe("checkForUpdates", () => {
 			expect(fetchReleases).toHaveBeenCalledWith("quarto-ext", "fontawesome", expect.anything());
 			expect(result.updates[0]?.latestRef).toBe("2.0.0");
 			expect(result.updates[0]?.source).toBe("quarto-ext/fontawesome@2.0.0");
+		});
+
+		it("offers no update for a source with a subdirectory, which the installer cannot honour", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome/sub@v1.0.0", "github");
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("2.0.0")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(0);
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(fetchTags).not.toHaveBeenCalled();
 		});
 
 		it("never checks updates for url-sourced or local-sourced extensions", async () => {
@@ -492,6 +504,44 @@ describe("checkForUpdates", () => {
 			expect(found?.latestRef).toBe("def5678");
 			expect(found?.checkedOn).toBe("github");
 			expect(found?.source).toBe("quarto-ext/fontawesome@def5678");
+		});
+
+		it("treats a full 40-character commit as a pin", async () => {
+			setupExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				"quarto-ext/fontawesome@ABC1234567890abcdef1234567890abcdef12345",
+				"github",
+			);
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+			vi.mocked(fetchLatestCommit).mockResolvedValue("def5678901234567890abcdef1234567890abcd");
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
+
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(result.updates).toHaveLength(1);
+			const [found] = result.updates;
+			expect(found?.refKind).toBe("commit");
+			expect(found?.currentVersion).toBe("abc1234");
+			expect(found?.source).toBe("quarto-ext/fontawesome@def5678");
+		});
+
+		it("reports no update when a full commit pin matches the latest commit", async () => {
+			setupExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				"quarto-ext/fontawesome@def5678901234567890abcdef1234567890abcd",
+				"github",
+			);
+
+			vi.mocked(fetchLatestCommit).mockResolvedValue("def5678901234567890abcdef1234567890abcd");
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
+
+			expect(result.updates).toHaveLength(0);
 		});
 
 		it("against the registry latestCommit", async () => {
