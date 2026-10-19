@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "../constants";
 import { getShowLogsLink, logMessage, showMessageWithLogs } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
-import { installQuartoExtension, useQuartoExtension } from "../utils/quarto";
+import { installQuartoExtension, useQuartoExtension } from "../utils/coreOperations";
 import {
 	confirmTrustAuthors,
 	confirmInstall,

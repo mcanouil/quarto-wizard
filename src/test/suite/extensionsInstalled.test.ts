@@ -8,7 +8,7 @@ import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
-import * as quarto from "../../utils/quarto";
+import * as quarto from "../../utils/coreOperations";
 import { makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { AuthConfig } from "@quarto-wizard/core";
-import { installQuartoExtension, useQuartoExtension } from "./quarto";
+import { installQuartoExtension, useQuartoExtension } from "./coreOperations";
 import { isValidGitHubReference } from "./sourcePrompts";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";

@@ -5,7 +5,7 @@ import * as extensionsQuickPick from "../../ui/extensionsQuickPick";
 import * as ask from "../../utils/ask";
 import * as auth from "../../utils/auth";
 import * as network from "../../utils/network";
-import * as quarto from "../../utils/quarto";
+import * as quarto from "../../utils/coreOperations";
 import * as sourcePrompts from "../../utils/sourcePrompts";
 import * as workspace from "../../utils/workspace";
 import { Stubs } from "./stubs";
