@@ -1,125 +1,210 @@
 ---
-title: "Quarto Wizard {{< env VERSION >}}"
-subtitle: "A Visual Studio Code Extension for Quarto Projects"
-description: "Easily manage Quarto extensions, templates, brands, and schema-powered authoring with a user-friendly interface."
-language:
-  title-block-affiliation-single: "Homepage"
-author:
-  - name: "Mickaël CANOUIL, _Ph.D._"
-    degree: "Ph.D."
-    orcid: "0000-0002-3396-4549"
-    url: "https://mickael.canouil.fr"
-    affiliations:
-      - name: mickael.canouil.fr
-        url: "https://mickael.canouil.fr"
-other-links:
-  - text: "GitHub Release"
-    icon: box
-    href: https://github.com/mcanouil/quarto-wizard/releases/latest
-  - text: "Visual Studio Marketplace"
-    icon: box
-    href: https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard
-  - text: "Open VSX"
-    icon: box
-    href: https://open-vsx.org/extension/mcanouil/quarto-wizard
+title: "Quarto Wizard"
+pagetitle: "Quarto Wizard {{< env VERSION >}}"
+description: "Browse, install and manage Quarto extensions, templates and brands without leaving Visual Studio Code or Positron."
+page-layout: full
+title-block-style: none
+toc: false
+anchor-sections: false
 ---
 
-![](assets/logo/logo-social.png){
-.img-fluid .img-thumbnail .rounded-3 .border-light
-fig-align="center"
-fig-alt="Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
-width="75%"
-}
+::: {.landing}
 
-**Quarto Wizard** is a Visual Studio Code extension that helps you manage your [Quarto](https://quarto.org) projects.
-Install Quarto extensions directly from the [Quarto Extensions](https://github.com/mcanouil/quarto-extensions) listing repository with just a few clicks.
+::: {.landing-hero}
 
-## Features
+:::: {.landing-hero-text}
 
-Browse Extensions
-: View and search through hundreds of available Quarto extensions.
-Filter by type, author, or functionality.
+[VS Code · Positron · v{{< env VERSION >}}]{.landing-eyebrow}
 
-One-Click Install
-: Install selected extensions with a single click.
-Quarto Wizard handles downloading and setup automatically.
+# Quarto Wizard
 
-Manage Extensions
-: View, update, and remove installed extensions from the Explorer view.
-Keep your extensions up to date effortlessly.
+[Browse, install and manage Quarto extensions, templates and brands without leaving your editor.]{.landing-lead}
 
-Use Templates
-: Quick-start documents with pre-configured templates for papers, presentations, and more.
+::::: {.landing-actions}
 
-Use Brands
-: Apply Quarto brand assets to your project from GitHub, URL, or local sources.
+[Install for VS Code](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard){.btn .btn-primary .btn-lg data-landing-tab="VS Code"}
+[Install for Positron](https://open-vsx.org/extension/mcanouil/quarto-wizard){.btn .btn-primary .btn-lg data-landing-tab="Positron"}
 
-Insert Extension Snippets
-: Use snippets shipped by installed extensions directly from the Explorer view.
+:::::
 
-## Quick Start
+::::: {.panel-tabset .landing-install group="editor"}
 
-1. **Install** the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard).
-2. **Open** a Quarto project in VS Code.
-3. **Press** `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) and type "Quarto Wizard".
-4. **Browse** and install extensions!
-
-## Installation
-
-Install from the VS Code Marketplace:
-
-::: {.panel-tabset}
-
-### Visual Studio Code
+## VS Code
 
 ```{.bash filename="Terminal"}
 code --install-extension mcanouil.quarto-wizard
 ```
 
-Via [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard).
-
-### Positron
+## Positron
 
 ```{.bash filename="Terminal"}
 positron --install-extension mcanouil.quarto-wizard
 ```
 
-Via [Open VSX](https://open-vsx.org/extension/mcanouil/quarto-wizard).
+:::::
+
+::::
+
+:::: {.landing-hero-logo}
+
+[![Quarto Wizard logo: a black puppy in a wizard hat holding a glowing wand.](assets/logo/logo.png){width="400" height="400"}]{.landing-logo}
+
+::::
 
 :::
 
-Or search for "Quarto Wizard" in the Extensions view (`Ctrl+Shift+X`).
+::: {.landing-feature}
 
-See the [Installation Guide](getting-started/installation.qmd) for more options.
+:::: {.landing-feature-text}
 
-## Documentation
+[Discover]{.landing-eyebrow}
 
-- [Getting Started](getting-started/index.qmd) - Installation, usage, and troubleshooting.
-- [Reference](reference/index.qmd) - Commands and configuration.
-- [API Reference](api/index.qmd) - For developers.
+## Find and install in a few clicks
 
-## Links
+Pick from hundreds of extensions in the [Quarto Extensions](https://m.canouil.dev/quarto-extensions/) registry.
+Quarto Wizard downloads each one into `_extensions/`.
 
-- [GitHub Repository](https://github.com/mcanouil/quarto-wizard)
-- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mcanouil.quarto-wizard)
-- [Open VSX](https://open-vsx.org/extension/mcanouil/quarto-wizard)
-- [Report an Issue](https://github.com/mcanouil/quarto-wizard/issues)
+::::: {.landing-legend}
 
-## Contributing
+1. Filter as you type.
+   [Search by name, author, type or description.]{.landing-detail}
+2. Check before you install.
+   [Each row shows the type, the stars and the repository.]{.landing-detail}
+3. Pick several at once.
+   [Tick the boxes, then confirm.]{.landing-detail}
 
-Contributions are welcome!
-Please open an issue or submit a pull request on the [GitHub repository](https://github.com/mcanouil/quarto-wizard).
+:::::
 
-## Credits
+::::
 
-Quarto Wizard is developed by [Mickaël CANOUIL](https://github.com/mcanouil) ([mickael.canouil.fr](https://mickael.canouil.fr)).
+:::: {.landing-feature-figure}
 
-- Built for the [Quarto CLI](https://quarto.org) ecosystem.
-- Extension registry: [Quarto Extensions](https://m.canouil.dev/quarto-extensions/).
-- [All contributors](https://github.com/mcanouil/quarto-wizard/graphs/contributors).
+{{< include _landing/install-extensions.qmd >}}
 
-[Full credits](credits.qmd).
+::::
 
-## Licence
+:::
 
-This project is licensed under the [MIT Licence](https://github.com/mcanouil/quarto-wizard?tab=MIT-1-ov-file#readme).
+::: {.landing-feature .landing-feature-flip}
+
+:::: {.landing-feature-text}
+
+[Manage]{.landing-eyebrow}
+
+## Keep every project current
+
+The Quarto Wizard view lists the extensions in each workspace folder and shows the ones with a newer release.
+
+::::: {.landing-legend}
+
+1. See updates at a glance.
+   [The latest version shows next to the one you have.]{.landing-detail}
+2. Act from the row.
+   [Update, remove or open the source in one click.]{.landing-detail}
+3. Use extension snippets.
+   [Insert the snippets that an extension ships.]{.landing-detail}
+4. Work across folders.
+   [Install, use a template or clean up each folder.]{.landing-detail}
+
+:::::
+
+::::
+
+:::: {.landing-feature-figure}
+
+{{< include _landing/explorer-view.qmd >}}
+
+::::
+
+:::
+
+::: {.landing-feature}
+
+:::: {.landing-feature-text}
+
+[Create]{.landing-eyebrow}
+
+## Start from a template
+
+Open a paper, a slide deck or a report that is ready to render, with its extensions already in place.
+
+::::: {.landing-legend}
+
+1. Recently used first.
+   [Your usual templates stay at the top.]{.landing-detail}
+2. Journals and formats.
+   [ACM, ACS, AGU, Typst and more.]{.landing-detail}
+
+:::::
+
+::::
+
+:::: {.landing-feature-figure}
+
+{{< include _landing/use-template.qmd >}}
+
+::::
+
+:::
+
+::: {.landing-section}
+
+## And more
+
+:::: {.landing-cards}
+
+::::: {.landing-card}
+
+[{{< iconify octicon:paintbrush-24 aria-hidden='true' >}}]{.landing-card-icon}
+
+### Apply brands
+
+Bring `_brand.yml` assets from GitHub, a URL or a local folder.
+
+:::::
+
+::::: {.landing-card}
+
+[{{< iconify octicon:code-24 aria-hidden='true' >}}]{.landing-card-icon}
+
+### Smart authoring
+
+Completion and checks from the schema of each extension.
+
+:::::
+
+::::: {.landing-card}
+
+[{{< iconify octicon:shield-check-24 aria-hidden='true' >}}]{.landing-card-icon}
+
+### Trust controls
+
+Confirm authors and installs before anything lands in your project.
+
+:::::
+
+::::
+
+:::
+
+::: {.landing-section}
+
+## Where next?
+
+:::: {.landing-links}
+
+[**Getting Started**[Install, first steps and troubleshooting.]{.landing-detail}](getting-started/index.qmd){.card .landing-link}
+
+[**Reference**[Commands and settings.]{.landing-detail}](reference/index.qmd){.card .landing-link}
+
+[**API**[For developers and tool authors.]{.landing-detail}](api/index.qmd){.card .landing-link}
+
+[**Changelog**[What changed in each release.]{.landing-detail}](changelog.qmd){.card .landing-link}
+
+::::
+
+:::
+
+{{< include _landing/install-tabs.qmd >}}
+
+:::

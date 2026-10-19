@@ -1,0 +1,33 @@
+```{=html}
+<figure class="vsc-window" role="img" aria-label="Quarto Wizard view in the sidebar. The my-paper folder holds three extensions. Highlight Text is at 1.0.0 with 1.2.0 available, and shows update, remove and open source buttons. Iconify is expanded to show its details and one snippet. A second folder, slides, holds one extension.">
+  <div class="vsc-titlebar" aria-hidden="true"><i></i><i></i><i></i><span>my-paper</span></div>
+  <div class="vsc-workbench" aria-hidden="true">
+    <div class="vsc-activitybar">
+      <iconify-icon icon="codicon:files"></iconify-icon>
+      <iconify-icon icon="codicon:search"></iconify-icon>
+      <iconify-icon icon="codicon:source-control"></iconify-icon>
+      <iconify-icon icon="codicon:extensions"></iconify-icon>
+      <img class="is-active" src="assets/logo/logo.svg" alt="">
+    </div>
+    <div class="vsc-sidebar">
+      <div class="vsc-view-title">
+        <span>Quarto Wizard: Extensions Installed</span>
+        <span class="vsc-actions"><iconify-icon icon="codicon:add"></iconify-icon><iconify-icon icon="codicon:new-file"></iconify-icon><iconify-icon icon="codicon:cloud-download"></iconify-icon><iconify-icon icon="codicon:refresh"></iconify-icon></span>
+      </div>
+      <ul class="vsc-tree">
+        <li class="vsc-l0"><iconify-icon class="vsc-twistie" icon="codicon:chevron-down"></iconify-icon><iconify-icon icon="codicon:folder"></iconify-icon><span class="vsc-pin vsc-pin-start">4</span>my-paper<span class="vsc-actions"><iconify-icon icon="codicon:add"></iconify-icon><iconify-icon icon="codicon:new-file"></iconify-icon><iconify-icon icon="codicon:trash"></iconify-icon></span></li>
+        <li class="vsc-l1 is-selected"><iconify-icon class="vsc-twistie" icon="codicon:chevron-right"></iconify-icon><iconify-icon icon="codicon:package"></iconify-icon>mcanouil/highlight-text <span class="vsc-desc">1.0.0 (latest: 1.2.0)<span class="vsc-pin vsc-pin-end">1</span></span><span class="vsc-actions"><iconify-icon icon="codicon:cloud-download"></iconify-icon><iconify-icon icon="codicon:remove"></iconify-icon><iconify-icon icon="codicon:link-external"></iconify-icon><span class="vsc-pin vsc-pin-end">2</span></span></li>
+        <li class="vsc-l1"><iconify-icon class="vsc-twistie" icon="codicon:chevron-down"></iconify-icon><iconify-icon icon="codicon:package"></iconify-icon>mcanouil/iconify <span class="vsc-desc">3.1.0</span></li>
+        <li class="vsc-l2"><span class="vsc-twistie"></span>Title: Iconify</li>
+        <li class="vsc-l2"><span class="vsc-twistie"></span>Author: Mickaël Canouil</li>
+        <li class="vsc-l2"><span class="vsc-twistie"></span>Source: mcanouil/quarto-iconify@3.1.0</li>
+        <li class="vsc-l2"><iconify-icon class="vsc-twistie" icon="codicon:chevron-down"></iconify-icon><iconify-icon icon="codicon:symbol-snippet"></iconify-icon>Snippets <span class="vsc-desc">1 snippet</span></li>
+        <li class="vsc-l3"><span class="vsc-twistie"></span><iconify-icon icon="codicon:symbol-snippet"></iconify-icon>iconify <span class="vsc-desc">mcanouil-iconify:iconify<span class="vsc-pin vsc-pin-end">3</span></span><span class="vsc-actions"><iconify-icon icon="codicon:insert"></iconify-icon></span></li>
+        <li class="vsc-l1"><iconify-icon class="vsc-twistie" icon="codicon:chevron-right"></iconify-icon><iconify-icon icon="codicon:package"></iconify-icon>quarto-ext/fontawesome <span class="vsc-desc">1.2.0</span></li>
+        <li class="vsc-l0"><iconify-icon class="vsc-twistie" icon="codicon:chevron-down"></iconify-icon><iconify-icon icon="codicon:folder"></iconify-icon>slides</li>
+        <li class="vsc-l1"><iconify-icon class="vsc-twistie" icon="codicon:chevron-right"></iconify-icon><iconify-icon icon="codicon:package"></iconify-icon>mcanouil/animate <span class="vsc-desc">1.0.0</span></li>
+      </ul>
+    </div>
+  </div>
+</figure>
+```

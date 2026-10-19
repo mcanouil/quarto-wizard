@@ -1,0 +1,52 @@
+```{=html}
+<figure class="vsc-window" role="img" aria-label="Install Extensions quick pick filtered on mcanouil. Iconify, Highlight Text, Letter and Animate are listed with their type, stars and repository. Two are ticked and the counter reads 2 Selected.">
+  <div class="vsc-titlebar" aria-hidden="true"><i></i><i></i><i></i><span>my-paper</span></div>
+  <div class="vsc-stage" aria-hidden="true">
+    <div class="vsc-quickpick">
+      <div class="vsc-qp-input">
+        <span class="vsc-check is-checked"></span>
+        <span class="vsc-qp-field">mcanouil<span class="vsc-pin vsc-pin-end">1</span></span>
+        <span class="vsc-qp-count">2 Selected</span>
+        <span class="vsc-qp-ok">OK</span>
+      </div>
+      <ul class="vsc-qp-list">
+        <li class="vsc-qp-separator"><span>Recently Installed</span></li>
+        <li class="vsc-qp-item is-active">
+          <span class="vsc-check is-checked"><span class="vsc-pin vsc-pin-start">3</span></span>
+          <div>
+            <span class="vsc-qp-label">Iconify</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:code"></iconify-icon> Shortcode <iconify-icon icon="codicon:star-empty"></iconify-icon> 131 <iconify-icon icon="codicon:repo"></iconify-icon> mcanouil/quarto-iconify<span class="vsc-pin vsc-pin-end">2</span></span>
+            <span class="vsc-qp-detail">Use Iconify icons in HTML-based Quarto documents. (v3.1.0)</span>
+          </div>
+          <iconify-icon class="vsc-qp-button" icon="codicon:github"></iconify-icon>
+        </li>
+        <li class="vsc-qp-separator"><span>All Extensions</span></li>
+        <li class="vsc-qp-item">
+          <span class="vsc-check is-checked"></span>
+          <div>
+            <span class="vsc-qp-label">Highlight Text</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:filter"></iconify-icon> Filter <iconify-icon icon="codicon:star-empty"></iconify-icon> 20 <iconify-icon icon="codicon:repo"></iconify-icon> mcanouil/quarto-highlight-text</span>
+            <span class="vsc-qp-detail">Highlight text in a document for various formats. (v1.2.0)</span>
+          </div>
+        </li>
+        <li class="vsc-qp-item">
+          <span class="vsc-check"></span>
+          <div>
+            <span class="vsc-qp-label">Letter</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:file-code"></iconify-icon> Template <iconify-icon icon="codicon:star-empty"></iconify-icon> 72 <iconify-icon icon="codicon:repo"></iconify-icon> mcanouil/quarto-letter</span>
+            <span class="vsc-qp-detail">Letter template for Quarto. (v1.0.0)</span>
+          </div>
+        </li>
+        <li class="vsc-qp-item">
+          <span class="vsc-check"></span>
+          <div>
+            <span class="vsc-qp-label">Animate</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:filter"></iconify-icon> Filter <iconify-icon icon="codicon:star-empty"></iconify-icon> 42 <iconify-icon icon="codicon:repo"></iconify-icon> mcanouil/quarto-animate</span>
+            <span class="vsc-qp-detail">Animate.css extension for Quarto. (v1.0.0)</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</figure>
+```

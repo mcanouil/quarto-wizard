@@ -1,0 +1,53 @@
+```{=html}
+<figure class="vsc-window" role="img" aria-label="Use Template quick pick. Letter is listed under Recently Used. ACM, ACS, AGU and Academic Typst follow under All Extensions, each with stars and repository.">
+  <div class="vsc-titlebar" aria-hidden="true"><i></i><i></i><i></i><span>my-paper</span></div>
+  <div class="vsc-stage" aria-hidden="true">
+    <div class="vsc-quickpick">
+      <div class="vsc-qp-input">
+        <span class="vsc-qp-field is-placeholder">Search templates</span>
+      </div>
+      <ul class="vsc-qp-list">
+        <li class="vsc-qp-separator"><span>Recently Used</span></li>
+        <li class="vsc-qp-item is-active">
+          <span class="vsc-pin vsc-pin-start">1</span>
+          <div>
+            <span class="vsc-qp-label">Letter</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:file-code"></iconify-icon> Template <iconify-icon icon="codicon:star-empty"></iconify-icon> 72 <iconify-icon icon="codicon:repo"></iconify-icon> mcanouil/quarto-letter</span>
+            <span class="vsc-qp-detail">Letter template for Quarto. (v1.0.0)</span>
+          </div>
+        </li>
+        <li class="vsc-qp-separator"><span>All Extensions</span></li>
+        <li class="vsc-qp-item">
+          <span class="vsc-pin vsc-pin-start">2</span>
+          <div>
+            <span class="vsc-qp-label">ACM</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:file-code"></iconify-icon> Template <iconify-icon icon="codicon:star-empty"></iconify-icon> 20 <iconify-icon icon="codicon:repo"></iconify-icon> quarto-journals/acm</span>
+            <span class="vsc-qp-detail">Template for the Association for Computing Machinery.</span>
+          </div>
+        </li>
+        <li class="vsc-qp-item">
+          <div>
+            <span class="vsc-qp-label">ACS</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:file-code"></iconify-icon> Template <iconify-icon icon="codicon:star-empty"></iconify-icon> 4 <iconify-icon icon="codicon:repo"></iconify-icon> quarto-journals/acs</span>
+            <span class="vsc-qp-detail">Template for the American Chemical Society.</span>
+          </div>
+        </li>
+        <li class="vsc-qp-item">
+          <div>
+            <span class="vsc-qp-label">AGU</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:file-code"></iconify-icon> Template <iconify-icon icon="codicon:star-empty"></iconify-icon> 4 <iconify-icon icon="codicon:repo"></iconify-icon> quarto-journals/agu</span>
+            <span class="vsc-qp-detail">Template for the American Geophysical Union.</span>
+          </div>
+        </li>
+        <li class="vsc-qp-item">
+          <div>
+            <span class="vsc-qp-label">Academic Typst</span>
+            <span class="vsc-qp-desc"><iconify-icon icon="codicon:file-code"></iconify-icon> Template <iconify-icon icon="codicon:star-empty"></iconify-icon> 56 <iconify-icon icon="codicon:repo"></iconify-icon> kazuyanagimoto/quarto-academic-typst</span>
+            <span class="vsc-qp-detail">A Quarto and Typst template for academic manuscripts.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</figure>
+```
