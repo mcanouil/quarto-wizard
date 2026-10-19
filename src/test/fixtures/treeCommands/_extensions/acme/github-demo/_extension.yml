@@ -1,0 +1,6 @@
+title: GitHub demo
+author: Acme
+version: 1.0.0
+contributes: {}
+source: acme/github-demo@v2.1.0
+source-type: github

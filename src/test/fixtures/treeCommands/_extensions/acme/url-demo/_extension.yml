@@ -1,0 +1,6 @@
+title: URL demo
+author: Acme
+version: 1.0.0
+contributes: {}
+source: https://example.com/downloads/url-demo.zip
+source-type: url

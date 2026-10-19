@@ -1,0 +1,6 @@
+title: Local demo
+author: Acme
+version: 1.0.0
+contributes: {}
+source: ../local-demo-source
+source-type: local

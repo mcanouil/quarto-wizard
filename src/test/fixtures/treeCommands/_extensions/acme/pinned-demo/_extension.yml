@@ -1,0 +1,6 @@
+title: Pinned demo
+author: Acme
+version: 1.0.0
+contributes: {}
+source: acme/pinned-demo@4f3c2a1b9d8e7f60514233a4b5c6d7e8f9012345
+source-type: github
