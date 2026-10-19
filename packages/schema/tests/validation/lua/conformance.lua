@@ -153,13 +153,43 @@ end
 
 local probes = {}
 
+--- Text that the validator coerces to a number, an integer or a boolean,
+--- including the forms where Lua `tonumber` and JavaScript `Number()` differ.
+local COERCED_TEXTS = {
+  '42', ' 42 ', '-7', '2.5', '1e3', '.5', '-0x10', '0x1p4', '0x1.8', '0xffffffffffffffff',
+  '0b101', '0o7', '1e999', '-1e999', '\u{A0}42', '1_000', 'inf', 'TRUE', 'False', 'yes',
+}
+
+--- Report whether a descriptor declares a type that text is coerced to.
+local function declares_coerced_type(spec)
+  local names = type(spec.type) == 'table' and spec.type or { spec.type }
+  for _, name in ipairs(names) do
+    if name == 'number' or name == 'integer' or name == 'boolean' then
+      return true
+    end
+  end
+  return false
+end
+
 --- List the values to probe a descriptor with: a few of every scalar type,
---- the values the descriptor names, and each side of every bound.
+--- the values the descriptor names, and each side of every bound. A
+--- descriptor of a type that text is coerced to also gets each value written
+--- as text, as an attribute or a shortcode argument would give it.
 local function probe_values(spec)
   local values = { '', 'conformance-value', 0, -1, 1, 0.5, true, false }
+  local coerced = declares_coerced_type(spec)
   local function add(value)
     if value ~= nil and type(value) ~= 'table' then
       values[#values + 1] = value
+      if coerced and type(value) ~= 'string' then
+        values[#values + 1] = tostring(value)
+      end
+    end
+  end
+
+  if coerced then
+    for _, text in ipairs(COERCED_TEXTS) do
+      add(text)
     end
   end
 
@@ -206,45 +236,28 @@ local function probe_values(spec)
   return unique
 end
 
---- Report whether the validator would coerce a value before checking it.
---- Only text is coerced, and only towards a declared type other than string,
---- so such a value is left out: the TypeScript side receives it uncoerced.
-local function is_coerced(value, spec)
-  if type(value) ~= 'string' or spec.type == nil then
-    return false
-  end
-  local names = type(spec.type) == 'table' and spec.type or { spec.type }
-  for _, name in ipairs(names) do
-    if name == 'string' or name == 'content' then
-      return false
-    end
-  end
-  return true
-end
-
 --- Validate every probe value against one descriptor and record the findings
---- about the field itself. A value of the wrong type is left out, because the
---- shared TypeScript function leaves the type check to its callers.
+--- about the field itself, and whether the value has the wrong type once
+--- coerced. The shared TypeScript function leaves the type check to its
+--- callers, so the reader compares the type outcome on its own.
 local function probe(file, location, name, spec)
   if type(spec) ~= 'table' then
     return
   end
   for _, value in ipairs(probe_values(spec)) do
-    if not is_coerced(value, spec) then
-      local _, _, _, _, findings = schema.validate({ [name] = value }, { [name] = spec }, { unknown = 'ignore' })
-      local kept, wrong_type = {}, false
-      for _, finding in ipairs(findings) do
-        if finding.path == name then
-          if finding.keyword == 'type' then
-            wrong_type = true
-          end
-          kept[#kept + 1] = { keyword = finding.keyword, severity = finding.severity }
+    local _, _, _, _, findings = schema.validate({ [name] = value }, { [name] = spec }, { unknown = 'ignore' })
+    local kept, wrong_type = {}, false
+    for _, finding in ipairs(findings) do
+      if finding.path == name then
+        if finding.keyword == 'type' then
+          wrong_type = true
         end
-      end
-      if not wrong_type then
-        probes[#probes + 1] = { file = file, location = location, value = value, findings = kept }
+        kept[#kept + 1] = { keyword = finding.keyword, severity = finding.severity }
       end
     end
+    probes[#probes + 1] = {
+      file = file, location = location, value = value, wrong_type = wrong_type, findings = kept,
+    }
   end
 end
 
