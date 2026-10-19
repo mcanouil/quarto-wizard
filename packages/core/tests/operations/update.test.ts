@@ -261,6 +261,21 @@ describe("checkForUpdates", () => {
 			expect(found?.source).toBe("quarto-ext/fontawesome@v1.2.0");
 		});
 
+		it("does not offer the installed registry tag again when the installed version is not a version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "dev", "quarto-ext/fontawesome@v1.2.0");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "1.2.0",
+					latestTag: "v1.2.0",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates).toHaveLength(0);
+		});
+
 		it("does not offer a registry prerelease when the installed version is not a version", async () => {
 			setupExtension("quarto-ext", "fontawesome", "dev", "quarto-ext/fontawesome@v1.0.0");
 
@@ -364,6 +379,29 @@ describe("checkForUpdates", () => {
 			expect(found?.latestVersion).toBe("1.2.0");
 			expect(found?.latestRef).toBe("v1.2.0");
 			expect(found?.source).toBe("quarto-ext/fontawesome@v1.2.0");
+		});
+
+		it("does not offer the installed tag again when the installed version is not a version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "dev", "quarto-ext/fontawesome@V1.2.0", "github");
+			setupExtension("quarto-ext", "lightbox", "dev", "quarto-ext/lightbox@1.2.0", "github");
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("v1.2.0"), tag("v1.1.0")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(0);
+		});
+
+		it("offers the latest tag when an unparsable install records an older tag", async () => {
+			setupExtension("quarto-ext", "fontawesome", "dev", "quarto-ext/fontawesome@v1.1.0", "github");
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("v1.2.0"), tag("v1.1.0")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(1);
+			expect(result.updates[0]?.latestRef).toBe("v1.2.0");
+			expect(result.updates[0]?.source).toBe("quarto-ext/fontawesome@v1.2.0");
 		});
 
 		it("resolves each repository once across project roots", async () => {

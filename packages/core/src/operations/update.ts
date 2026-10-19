@@ -386,7 +386,7 @@ function buildTagUpdate(
 	// latest stable tag is offered and the never-downgrade guard does not apply.
 	const isUpdate = currentVersion
 		? semver.gt(latestVersion, currentVersion)
-		: semver.prerelease(latestVersion) === null;
+		: semver.prerelease(latestVersion) === null && !isInstalledTag(candidate, latestTag);
 	if (!isUpdate) {
 		return null;
 	}
@@ -401,6 +401,19 @@ function buildTagUpdate(
 		releaseUrl,
 		source: `${candidate.fullName}@${latestTag}`,
 	};
+}
+
+/**
+ * Whether the ref recorded in the manifest source is the given tag, ignoring
+ * case and one leading "v".
+ */
+function isInstalledTag(candidate: UpdateCandidate, tag: string): boolean {
+	const source = candidate.extension.manifest.source ?? "";
+	if (!splitSourceRef(source).hasRef) {
+		return false;
+	}
+	const comparable = (ref: string) => ref.toLowerCase().replace(/^v/, "");
+	return comparable(source.substring(source.lastIndexOf("@") + 1)) === comparable(tag);
 }
 
 function buildCommitUpdate(
