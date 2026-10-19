@@ -136,7 +136,13 @@ An active internet connection is required for:
 
 ## Optional: GitHub Authentication
 
-For accessing private repositories or avoiding rate limits, you can configure GitHub authentication:
+For accessing private repositories or avoiding rate limits, you can configure GitHub authentication.
+When you are signed in, or when a token is set, Quarto Wizard checks GitHub for new extension tags.
+Otherwise, it checks the registry, which can be a little behind.
+
+To sign in with your VS Code GitHub session, run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette.
+When the view says that updates were checked against the registry, you can also select **Sign In** in its title bar.
+To use a personal access token instead:
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
 2. Run `Quarto Wizard: Set GitHub Token (Manual)`.

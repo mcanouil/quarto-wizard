@@ -151,7 +151,8 @@ For each workspace folder, you can:
 
 For each installed extension, you can:
 
-- **Update**: Download and install the latest version (if outdated).
+- **Update**: Check GitHub and install the latest GitHub tag when it is newer.
+  When nothing is newer, the message `Extension "<name>" is up to date.` appears.
 - **Remove**: Delete the extension from the `_extensions` directory.
 - **Open Source**: View the extension's GitHub repository (if source is available).
 - **Reveal in Explorer View**: Open the extension folder in the file explorer.
@@ -168,7 +169,7 @@ The view toolbar provides:
 
 - **Install Extensions**: Open the extension browser.
 - **Use Template**: Open the template browser.
-- **Update All**: Update all outdated extensions in the workspace.
+- **Update All**: Update all outdated extensions in the workspace to their latest GitHub tag.
 - **Refresh**: Reload the list of installed extensions.
 
 The tree updates automatically after installations, updates, removals, and local file changes.
@@ -183,19 +184,56 @@ Extensions can only be updated if they were installed by Quarto Wizard or have `
 You can manually add the source field to enable update detection.
 :::
 
+### Which Version Is Installed
+
+Each update, from the **Update** button or from **Update All**, installs the latest GitHub tag.
+This is the highest semantic version among the releases and tags of the repository.
+Prereleases are only considered when the installed version is a prerelease.
+An update never installs a lower version than the one you have.
+When an extension is installed from a commit, Quarto Wizard compares commits instead.
+Update then installs the latest commit of the default branch.
+
+### Where Updates Are Checked
+
+The background check uses GitHub when you are signed in to GitHub or when a token is set.
+Otherwise, it uses the registry, which can be a little behind GitHub.
+An extension that the registry does not list is still checked on GitHub, without a token.
+An extension installed from a repository that has no tags records a commit, so the check compares commits.
+When you click **Update** or **Update All**, Quarto Wizard looks up GitHub, with or without a token.
+Quarto Wizard 4.0.0 removes the `quartoWizard.update.crossSource` setting, which no longer has an effect.
+
+A line at the top of the view shows which source was used:
+
+- `Updates checked against GitHub.`
+- `Updates checked against the registry. Sign in to GitHub to see new tags straight away.`
+- `Update check failed. Show log.`
+
+The title bar of the view can show one button for this line:
+
+- **Sign In** appears only when updates were checked against the registry.
+- **Show Log** appears only when the update check failed.
+
+Neither button appears when updates were checked against GitHub, or when no extensions are installed.
+You can always run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette.
+To sign in or to set a token, see [Optional: GitHub Authentication](installation.qmd#optional-github-authentication).
+
+Hover over an extension to see its latest version and where it was found.
+The details of an extension show `Installed from:`.
+When an update is available, they also show `Latest:` with the version and the source of the check, for example `Latest: 1.2.0 (checked on GitHub)`.
+
 Quarto Wizard records `source` and `source-type` by editing those two lines only.
 The rest of `_extension.yml` is left byte for byte identical, so comments, key order, and quoting written by the extension author are preserved.
 
 ## Visibility
 
 The Explorer View panel is only visible when at least one workspace folder is open.
-If no extensions are installed, the view displays a welcome message with links to install extensions, use a template, or browse the extensions directory.
+If no extensions are installed, the view displays a welcome message with links to install extensions, use a template, use a brand, or browse the extensions directory.
 
 ## Context Menu
 
 Right-click on an extension to access additional options:
 
-- Update (if available).
+- Update (for an extension installed from GitHub or from the registry, even when it is up to date).
 - Remove.
 - Open Source (if source is available).
 - Reveal in Explorer View.
