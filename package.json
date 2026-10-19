@@ -660,7 +660,7 @@
 		"viewsWelcome": [
 			{
 				"view": "quartoWizard.extensionsInstalled",
-				"contents": "No Quarto extensions installed.\n[Install Extensions](command:quartoWizard.installExtension)\n[Use Template](command:quartoWizard.useTemplate)\n[Browse Extensions Directory](https://m.canouil.dev/quarto-extensions/)\n\nLearn more: [Documentation](https://m.canouil.dev/quarto-wizard/) | [Credits](https://m.canouil.dev/quarto-wizard/credits.html)"
+				"contents": "No Quarto extensions installed.\n[Install Extensions](command:quartoWizard.installExtension)\n[Use Template](command:quartoWizard.useTemplate)\n[Use Brand](command:quartoWizard.useBrand)\n[Browse Extensions Directory](https://m.canouil.dev/quarto-extensions/)\n\nLearn more: [Documentation](https://m.canouil.dev/quarto-wizard/) | [Credits](https://m.canouil.dev/quarto-wizard/credits.html)"
 			}
 		],
 		"views": {

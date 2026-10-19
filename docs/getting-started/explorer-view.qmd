@@ -151,7 +151,7 @@ For each workspace folder, you can:
 
 For each installed extension, you can:
 
-- **Update**: Download and install the latest version (if outdated).
+- **Update**: Download and install the latest GitHub tag (if outdated).
 - **Remove**: Delete the extension from the `_extensions` directory.
 - **Open Source**: View the extension's GitHub repository (if source is available).
 - **Reveal in Explorer View**: Open the extension folder in the file explorer.
@@ -168,7 +168,7 @@ The view toolbar provides:
 
 - **Install Extensions**: Open the extension browser.
 - **Use Template**: Open the template browser.
-- **Update All**: Update all outdated extensions in the workspace.
+- **Update All**: Update all outdated extensions in the workspace to their latest GitHub tag.
 - **Refresh**: Reload the list of installed extensions.
 
 The tree updates automatically after installations, updates, removals, and local file changes.
@@ -182,6 +182,32 @@ Quarto Wizard can detect when updates are available for your installed extension
 Extensions can only be updated if they were installed by Quarto Wizard or have `source: <owner>/<repository>` in their `_extension.yml` file.
 You can manually add the source field to enable update detection.
 :::
+
+### Which Version Is Installed
+
+Each update, from the **Update** button or from **Update All**, installs the latest GitHub tag.
+This is the highest semantic version among the releases and tags of the repository.
+Prereleases are only considered when the installed version is a prerelease.
+An update never installs a lower version than the one you have.
+When an extension is installed from a commit, Quarto Wizard compares commits instead.
+
+### Where Updates Are Checked
+
+The background check uses GitHub when you are signed in to GitHub or when a token is set.
+Otherwise, it uses the registry, which can be a little behind GitHub.
+When you click **Update** or **Update All**, Quarto Wizard looks up GitHub, with or without a token.
+
+A line at the top of the view shows which source was used:
+
+- `Updates checked against GitHub.`
+- `Updates checked against the registry. Sign in to GitHub to see new tags straight away.`
+- `Update check failed. Show log.`
+
+The **Sign In** and **Show Log** buttons are in the title bar of the view.
+To sign in or to set a token, see [Optional: GitHub Authentication](installation.qmd#optional-github-authentication).
+
+Hover over an extension to see its latest version and where it was found.
+The details of an extension show `Installed from:` and `Latest:` with the version and the source of the check, for example `Latest: 1.2.0 (checked on GitHub)`.
 
 Quarto Wizard records `source` and `source-type` by editing those two lines only.
 The rest of `_extension.yml` is left byte for byte identical, so comments, key order, and quoting written by the extension author are preserved.

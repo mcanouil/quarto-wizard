@@ -65,11 +65,16 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 
 - The extension was not installed by Quarto Wizard.
 - The extension's `_extension.yml` lacks a `source` field.
+- You are not signed in to GitHub, and the registry does not list the new tag yet.
+- The update check failed.
+  The line at the top of the Extensions Installed view says so.
 
 **Solutions**:
 
 1. Manually add `source: owner/repository` (full specification: `source: owner/repository/subdirectory@reference` where `reference` is a Git branch, tag, or commit SHA) to the extension's `_extension.yml`.
 2. Reinstall the extension using Quarto Wizard.
+3. Select **Sign In** in the title bar of the Extensions Installed view, or set a GitHub token, to check GitHub directly.
+4. If the view says `Update check failed. Show log.`, select **Show Log** and read the error.
 
 ### Extensions Install in the Wrong Folder
 

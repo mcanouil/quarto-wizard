@@ -102,6 +102,10 @@ You can:
 
 The extension will be downloaded and installed to the `_extensions` directory in your chosen workspace folder.
 
+You can also select **Install Extensions** on a folder in the Extensions Installed view.
+Quarto Wizard then installs into that folder and does not ask you to choose one.
+To update an extension later, see [Update Detection](explorer-view.qmd#update-detection).
+
 ## Installation Sources
 
 Quarto Wizard supports installing extensions from multiple sources.
