@@ -191,7 +191,9 @@ This is the highest semantic version among the releases and tags of the reposito
 Prereleases are only considered when the installed version is a prerelease.
 An update never installs a lower version than the one you have.
 When an extension is installed from a commit, Quarto Wizard compares commits instead.
+The commit can be the short form of seven characters or the full form of 40 characters.
 Update then installs the latest commit of the default branch.
+Quarto Wizard does not check an extension installed from a subdirectory of a repository, such as `owner/repository/subdirectory`, for updates.
 
 ### Where Updates Are Checked
 
