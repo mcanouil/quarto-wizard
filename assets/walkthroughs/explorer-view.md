@@ -20,6 +20,6 @@ If it reads `Updates checked against the registry. Sign in to GitHub to see new 
 
 [Open Explorer View](command:workbench.view.extension.quarto-wizard-explorer)
 
-![Quarto Wizard Explorer View with installed extensions, compatibility details, schema and snippet nodes, and management actions](./media/explorer-view.png)
+![The Extensions Installed view, with labels on the Install Extensions, Use Template and Update All buttons, the line that says updates were checked against GitHub, an extension that shows version 4.0.0 with latest 4.2.2 and its Update, Remove and Open Repository buttons, the Latest detail row, the Schema and Snippets nodes, the update badge on the activity bar, and the Quarto Wizard log](./media/explorer-view.png)
 
 [Full guide](https://m.canouil.dev/quarto-wizard/getting-started/explorer-view.html)
