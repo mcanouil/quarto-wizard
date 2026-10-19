@@ -5,6 +5,9 @@
 ### Breaking Changes
 
 - feat: Resolve every update to the latest GitHub tag, the highest version among the releases and tags, and never to a lower version. In `@quarto-wizard/core`, `checkForUpdates()` takes `projectDirs`, checks GitHub when a token is set and returns its failures, while `crossSource` and `getLatestRelease()` are removed.
+- feat: Install the highest semantic version among the releases and tags of `owner/repo`, and no longer the release that GitHub marks as latest. Tag names that are not versions are ignored, and a repository that has only prereleases installs its default branch.
+- refactor: Return an `UpdateCheckResult` object from `checkForUpdates()` in `@quarto-wizard/core`, with `updates`, `repositoryFailures` and `checkFailure`, in place of an array of updates. Each `UpdateInfo` now also carries `projectDir`, `latestRef`, `refKind` and `checkedOn`.
+- refactor: Remove the `projectDir` and `crossSource` options of `update()` and `applyUpdates()` in `@quarto-wizard/core`. Both now take `projectDirs`, and each update installs in the project directory that its `UpdateInfo` names.
 
 ### Build System
 
