@@ -14,7 +14,7 @@
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"test:lua": "quarto pandoc lua -e \"assert(loadfile('src/validation/schema.lua'))\" && quarto pandoc lua tests/validation/lua/run.lua && quarto pandoc lua tests/validation/lua/conformance.lua --findings ../../node_modules/.cache/quarto-wizard-schema/lua-field-findings.json ../../docs/_extensions ../../test-fixtures/_extensions && vitest run tests/validation/field-value-conformance.test.ts",
+		"test:lua": "quarto pandoc lua -e \"assert(loadfile('src/validation/schema.lua'))\" && quarto pandoc lua tests/validation/lua/run.lua && quarto pandoc lua tests/validation/lua/conformance.lua --findings ../../node_modules/.cache/quarto-wizard-schema/lua-field-findings.json ../../docs/_extensions ../../test-fixtures/_extensions && QW_SCHEMA_CONFORMANCE=1 vitest run tests/validation/field-value-conformance.test.ts",
 		"lint": "eslint --fix --cache \"src/**/*.ts\"",
 		"lint:check": "eslint --cache \"src/**/*.ts\""
 	},

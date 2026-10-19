@@ -7,7 +7,9 @@ import { validateFieldValue, type FieldFindingCode } from "../../src/validation/
 import type { ExtensionSchema, FieldDescriptor } from "../../src/types/schema.js";
 
 // `npm run test:lua` writes this file with the Lua validator, then runs this
-// test alone. Without Quarto there is no file, and the test skips.
+// test alone with QW_SCHEMA_CONFORMANCE=1. Without that variable the test
+// skips, so a file left by an earlier run never decides a plain `npm test`.
+const enabled = process.env.QW_SCHEMA_CONFORMANCE === "1";
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const findingsPath = join(
 	packageRoot,
@@ -65,14 +67,19 @@ function luaFindings(probe: Probe): string[] {
 		.sort();
 }
 
-const probes: Probe[] = existsSync(findingsPath) ? JSON.parse(readFileSync(findingsPath, "utf-8")) : [];
+const probes: Probe[] = enabled && existsSync(findingsPath) ? JSON.parse(readFileSync(findingsPath, "utf-8")) : [];
 const byFile = new Map<string, Probe[]>();
 for (const probe of probes) {
 	const file = resolve(packageRoot, probe.file);
 	byFile.set(file, [...(byFile.get(file) ?? []), probe]);
 }
 
-describe.skipIf(probes.length === 0)("field value conformance with the Lua validator", () => {
+describe.skipIf(!enabled)("field value conformance with the Lua validator (run by npm run test:lua)", () => {
+	it("reads the probes that the Lua sweep wrote", () => {
+		expect(existsSync(findingsPath), `${findingsPath} is missing`).toBe(true);
+		expect(probes.length).toBeGreaterThan(0);
+	});
+
 	it("probes the extensions of both corpora", () => {
 		const files = [...byFile.keys()].map((file) => relative(join(packageRoot, "..", ".."), file));
 		expect(files.some((file) => file.startsWith(join("docs", "_extensions")))).toBe(true);
