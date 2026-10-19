@@ -6,9 +6,9 @@ alt-text:
     The detail rows show the title, author, version, required Quarto version, compatibility, contributions, source, origin and latest version.
     The Schema and Snippets nodes sit below them.
     Labels name the title buttons, the update message, the row buttons, the latest version row, the Schema and Snippets nodes, and the update badge on the Activity Bar icon.
-  reprex-command-2: |
-    The Explorer context menu on report.qmd in VS Code.
-    The Quarto Wizard submenu is open and lists Install Extensions, Use Template, Quarto Reproducible Document, Show Quarto Wizard Log Output, Clear Recently Installed Extensions and Clear Extension Cache.
+  explorer-view-context: |
+    The context menu of the mcanouil/iconify row in the Quarto Wizard view.
+    It offers Reinstall Extension, Update Extension, Remove Extension, Open Extension Source and Reveal in Explorer View.
   explorer-view-version: |
     The Quarto Wizard view with the extension demo/legacy expanded.
     A warning icon marks the extension, and the detail rows show Quarto required >=100.0.0 and Compatibility incompatible.
@@ -252,17 +252,17 @@ Right-click on an extension to access additional options:
 - Reveal in Explorer View.
 
 ::: {style="text-align: center;"}
-![](images/reprex-command-2-dark.png "Explorer Context Menu: Quarto Wizard Submenu"){
+![](images/explorer-view-context-dark.png "Extension Row Context Menu"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-dark"
-fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+fig-alt='{{< meta alt-text.explorer-view-context >}}'
 }
-![](images/reprex-command-2-light.png "Explorer Context Menu: Quarto Wizard Submenu"){
+![](images/explorer-view-context-light.png "Extension Row Context Menu"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-light"
-fig-alt='{{< meta alt-text.reprex-command-2 >}}'
+fig-alt='{{< meta alt-text.explorer-view-context >}}'
 }
 :::
 
