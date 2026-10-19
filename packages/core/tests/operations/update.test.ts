@@ -832,25 +832,30 @@ describe("applyUpdates", () => {
 		};
 	}
 
-	it("passes the signal to install and stops at a cancellation", async () => {
+	it("passes the signal to install and skips the remaining updates at a cancellation", async () => {
 		vi.mocked(install).mockReset();
 		const controller = new AbortController();
-		vi.mocked(install).mockImplementation(async (_source, options) => {
-			controller.abort();
-			if (options.signal?.aborted) {
-				throw new CancellationError();
+		vi.mocked(install).mockImplementation(async (source, options) => {
+			if (!options.signal) {
+				throw new Error("install ran without the signal");
 			}
-			throw new Error("install ran without the signal");
+			if (source.type === "github" && source.repo === "fontawesome") {
+				return { extension: pendingUpdate("fontawesome").extension } as Awaited<ReturnType<typeof install>>;
+			}
+			controller.abort();
+			throw new CancellationError();
 		});
+		const updates = ["fontawesome", "lightbox", "iconify"].map(pendingUpdate);
 
-		await expect(
-			applyUpdates([pendingUpdate("fontawesome"), pendingUpdate("lightbox")], {
-				projectDirs: [],
-				signal: controller.signal,
-			}),
-		).rejects.toBeInstanceOf(CancellationError);
+		const result = await applyUpdates(updates, { projectDirs: [], signal: controller.signal });
 
-		expect(install).toHaveBeenCalledTimes(1);
+		expect(install).toHaveBeenCalledTimes(2);
+		expect(result.updated.map((u) => u.extension.id.name)).toEqual(["fontawesome"]);
+		expect(result.failed).toEqual([]);
+		expect(result.skipped).toEqual([
+			{ extension: updates[1].extension, reason: "Operation cancelled by the user." },
+			{ extension: updates[2].extension, reason: "Operation cancelled by the user." },
+		]);
 	});
 });
 

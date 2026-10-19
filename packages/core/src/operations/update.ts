@@ -486,8 +486,9 @@ function buildCommitUpdate(
 /**
  * Apply updates to extensions.
  *
- * An aborted `signal` stops the running install, skips the remaining
- * updates and rejects with a `CancellationError`.
+ * An aborted `signal` stops the running install. That update and every
+ * update after it go to `skipped`, and the result keeps the updates that
+ * were already installed.
  *
  * @param updates - Updates to apply
  * @param options - Update options
@@ -502,7 +503,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 		failed: [],
 	};
 
-	for (const update of updates) {
+	for (const [index, update] of updates.entries()) {
 		const extName = formatExtensionId(update.extension.id);
 
 		try {
@@ -536,7 +537,8 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 			});
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw error;
+				result.skipped.push(...updates.slice(index).map((u) => ({ extension: u.extension, reason: error.message })));
+				break;
 			}
 			result.failed.push({
 				extension: update.extension,
