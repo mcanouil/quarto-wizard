@@ -13,7 +13,7 @@ import {
 } from "@quarto-wizard/core";
 import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { logMessage, showMessageWithLogs } from "../utils/log";
-import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
+import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/coreOperations";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { getAuthConfig } from "../utils/auth";
 import { getAutoProjectDetection } from "../utils/extensionDetails";

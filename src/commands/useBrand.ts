@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { getShowLogsLink, logMessage, showMessageWithLogs } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
-import { useQuartoBrand } from "../utils/quarto";
+import { useQuartoBrand } from "../utils/coreOperations";
 import { confirmTrustAuthors, confirmInstall } from "../utils/ask";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
