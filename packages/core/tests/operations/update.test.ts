@@ -241,6 +241,41 @@ describe("checkForUpdates", () => {
 			expect(result.updates[0]?.checkedOn).toBe("registry");
 		});
 
+		it("reports the latest tag when the installed version is not a version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0.9000", "quarto-ext/fontawesome@v1.0.0");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "1.2.0",
+					latestTag: "v1.2.0",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates).toHaveLength(1);
+			const [found] = result.updates;
+			expect(found?.checkedOn).toBe("registry");
+			expect(found?.currentVersion).toBe("1.0.0.9000");
+			expect(found?.latestRef).toBe("v1.2.0");
+			expect(found?.source).toBe("quarto-ext/fontawesome@v1.2.0");
+		});
+
+		it("does not offer a registry prerelease when the installed version is not a version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "dev", "quarto-ext/fontawesome@v1.0.0");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "2.0.0-beta.1",
+					latestTag: "v2.0.0-beta.1",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates).toHaveLength(0);
+		});
+
 		it("reports an unavailable registry as a check failure", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome");
 
@@ -313,6 +348,22 @@ describe("checkForUpdates", () => {
 			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
 
 			expect(result.updates).toHaveLength(0);
+		});
+
+		it("reports the latest tag when the installed version is not a version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0.9000", "quarto-ext/fontawesome@v1.0.0", "github");
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("v1.2.0"), tag("v1.1.0"), tag("v2.0.0-beta.1")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(1);
+			const [found] = result.updates;
+			expect(found?.refKind).toBe("tag");
+			expect(found?.currentVersion).toBe("1.0.0.9000");
+			expect(found?.latestVersion).toBe("1.2.0");
+			expect(found?.latestRef).toBe("v1.2.0");
+			expect(found?.source).toBe("quarto-ext/fontawesome@v1.2.0");
 		});
 
 		it("resolves each repository once across project roots", async () => {

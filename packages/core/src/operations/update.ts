@@ -376,15 +376,24 @@ function buildTagUpdate(
 	releaseUrl: string | null,
 	checkedOn: UpdateCheckSource,
 ): UpdateInfo | null {
-	const currentVersion = normaliseVersion(candidate.extension.manifest.version);
+	const installedVersion = candidate.extension.manifest.version;
+	const currentVersion = normaliseVersion(installedVersion);
 	const latestVersion = normaliseVersion(latestTag);
-	if (!currentVersion || !latestVersion || !semver.gt(latestVersion, currentVersion)) {
+	if (!latestVersion) {
+		return null;
+	}
+	// An installed version that is not a version cannot be compared, so the
+	// latest stable tag is offered and the never-downgrade guard does not apply.
+	const isUpdate = currentVersion
+		? semver.gt(latestVersion, currentVersion)
+		: semver.prerelease(latestVersion) === null;
+	if (!isUpdate) {
 		return null;
 	}
 	return {
 		extension: candidate.extension,
 		projectDir: candidate.projectDir,
-		currentVersion,
+		currentVersion: currentVersion ?? installedVersion,
 		latestVersion,
 		latestRef: latestTag,
 		refKind: "tag",
