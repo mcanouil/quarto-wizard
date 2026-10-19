@@ -230,6 +230,12 @@ describe("coerceFieldValue", () => {
 		expect(coerceFieldValue("0x0p5000", "number")).toBe(0);
 	});
 
+	it("reads a hexadecimal float with a very long significand as Lua does", () => {
+		expect(coerceFieldValue(`0x.${"f".repeat(300)}`, "number")).toBe(1);
+		expect(coerceFieldValue(`0x.${"f".repeat(600)}`, "number")).toBe(1);
+		expect(coerceFieldValue(`0x${"0".repeat(600)}1p0`, "number")).toBe(1);
+	});
+
 	it("reads a long run of digits that is not a number in linear time", () => {
 		const text = "9".repeat(50_000) + "x";
 		const started = performance.now();

@@ -117,11 +117,19 @@ function luaToNumber(text: string): number | undefined {
 		const wrapped = BigInt.asIntN(64, BigInt(`0x${whole}`) * (sign === "-" ? -1n : 1n));
 		return Number(wrapped);
 	}
-	// The mantissa is rounded once, and the power is applied in two halves, so
-	// no intermediate overflows or underflows. A mantissa wider than 53 bits
-	// with a subnormal result is still rounded twice, where `strtod` rounds once.
-	const mantissa = Number(BigInt(`0x${whole}${fraction ?? ""}`));
-	const power = Number(exponent ?? 0) - 4 * (fraction?.length ?? 0);
+	// The significand is cut to 64 bits, with a sticky bit for what is cut, so
+	// it is rounded once and never overflows. The power is applied in two
+	// halves, so no intermediate overflows or underflows. A significand wider
+	// than 53 bits with a subnormal result is still rounded twice, where
+	// `strtod` rounds once.
+	let significand = BigInt(`0x${whole}${fraction ?? ""}`);
+	const excess = Math.max(significand.toString(2).length - 64, 0);
+	if (excess > 0) {
+		const sticky = significand & ((1n << BigInt(excess)) - 1n) ? 1n : 0n;
+		significand = (significand >> BigInt(excess)) | sticky;
+	}
+	const mantissa = Number(significand);
+	const power = Number(exponent ?? 0) - 4 * (fraction?.length ?? 0) + excess;
 	const signed = sign === "-" ? -1 : 1;
 	if (mantissa === 0 || power === -Infinity) {
 		return 0;
