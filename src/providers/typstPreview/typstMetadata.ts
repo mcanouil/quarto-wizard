@@ -2,6 +2,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
+import { readSourceText } from "../../utils/readSourceText";
 import { parseFrontMatter } from "../../utils/yamlPosition";
 import {
 	BRAND_CANDIDATES,
@@ -44,27 +45,6 @@ export interface MetadataChain extends TypstPaths {
 	 * that names the key, and the document directory when any higher level does.
 	 */
 	brandBase?: string;
-}
-
-/**
- * A file read as text, preferring a copy open in the editor.
- *
- * An unsaved edit to `_quarto.yml` or to a `.typ` beside the block drives the
- * preview the way an unsaved edit to the document itself already does.
- */
-export async function readSourceText(fsPath: string): Promise<string | undefined> {
-	const target = path.normalize(fsPath);
-	for (const open of vscode.workspace.textDocuments) {
-		if (open.uri.scheme === "file" && path.normalize(open.uri.fsPath) === target) {
-			return open.getText();
-		}
-	}
-	try {
-		const buffer = await vscode.workspace.fs.readFile(vscode.Uri.file(fsPath));
-		return Buffer.from(buffer).toString("utf8");
-	} catch {
-		return undefined;
-	}
 }
 
 /** A YAML document read from disk, or undefined when it is absent or invalid. */

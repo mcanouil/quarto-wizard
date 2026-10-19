@@ -4,6 +4,7 @@ import * as yaml from "js-yaml";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { buildExcludeGlob, isInside, MAX_SCAN_RESULTS } from "./quartoProjectDiscovery";
 import { logMessage } from "./log";
+import { readSourceText } from "./readSourceText";
 
 /**
  * Per-project-root index of YAML files included via Quarto's `metadata-files:`
@@ -88,21 +89,6 @@ function extractFrontMatter(text: string): string | null {
 		}
 	}
 	return null;
-}
-
-async function readSourceText(sourceFsPath: string): Promise<string | undefined> {
-	// Prefer the in-memory document so unsaved edits drive the registry.
-	for (const doc of vscode.workspace.textDocuments) {
-		if (doc.uri.scheme === "file" && normalisePath(doc.uri.fsPath) === normalisePath(sourceFsPath)) {
-			return doc.getText();
-		}
-	}
-	try {
-		const buffer = await vscode.workspace.fs.readFile(vscode.Uri.file(sourceFsPath));
-		return Buffer.from(buffer).toString("utf8");
-	} catch {
-		return undefined;
-	}
 }
 
 function isQuartoOrMetadataYaml(fsPath: string): boolean {
