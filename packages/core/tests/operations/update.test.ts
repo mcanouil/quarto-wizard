@@ -291,6 +291,37 @@ describe("checkForUpdates", () => {
 			expect(result.updates).toHaveLength(0);
 		});
 
+		it("does not offer a registry prerelease to a stable install", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.2.0", "quarto-ext/fontawesome@v1.2.0");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "1.3.0-beta.1",
+					latestTag: "v1.3.0-beta.1",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates).toHaveLength(0);
+		});
+
+		it("offers a registry prerelease to a prerelease install", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.3.0-beta.0", "quarto-ext/fontawesome@v1.3.0-beta.0");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "1.3.0-beta.1",
+					latestTag: "v1.3.0-beta.1",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates).toHaveLength(1);
+			expect(result.updates[0]?.latestRef).toBe("v1.3.0-beta.1");
+		});
+
 		it("reports an unavailable registry as a check failure", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome");
 

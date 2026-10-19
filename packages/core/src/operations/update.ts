@@ -382,11 +382,14 @@ function buildTagUpdate(
 	if (!latestVersion) {
 		return null;
 	}
+	// Prereleases qualify only for a prerelease install, as in resolveLatestTag.
+	const followsPrereleases = currentVersion !== null && semver.prerelease(currentVersion) !== null;
+	if (semver.prerelease(latestVersion) !== null && !followsPrereleases) {
+		return null;
+	}
 	// An installed version that is not a version cannot be compared, so the
 	// latest stable tag is offered and the never-downgrade guard does not apply.
-	const isUpdate = currentVersion
-		? semver.gt(latestVersion, currentVersion)
-		: semver.prerelease(latestVersion) === null && !isInstalledTag(candidate, latestTag);
+	const isUpdate = currentVersion ? semver.gt(latestVersion, currentVersion) : !isInstalledTag(candidate, latestTag);
 	if (!isUpdate) {
 		return null;
 	}
