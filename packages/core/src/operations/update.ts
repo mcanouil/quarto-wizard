@@ -273,9 +273,11 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 		return null;
 	}
 
+	// The installer only accepts owner/repo, so a source with a subdirectory cannot be updated
+	// without installing the repository root in place of the recorded extension.
 	const { base } = splitSourceRef(source);
-	const [owner, repo] = base.split("/");
-	if (!owner || !repo) {
+	const [owner, repo, ...subdirectory] = base.split("/");
+	if (!owner || !repo || subdirectory.length > 0) {
 		return null;
 	}
 
@@ -536,9 +538,8 @@ export function extractCommitFromSource(source: string): string | null {
 	if (atIndex <= 0) return null;
 
 	const ref = source.substring(atIndex + 1);
-	// Match 7-character hex string (short commit hash)
-	if (/^[a-f0-9]{7}$/i.test(ref)) {
-		return ref.toLowerCase();
+	if (/^[a-f0-9]{7,40}$/i.test(ref)) {
+		return ref.substring(0, 7).toLowerCase();
 	}
 	return null;
 }

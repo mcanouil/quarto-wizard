@@ -610,7 +610,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				logMessage(message, "info");
 			}
 
-			const hasExtensions = projectDirs.some((dir) => Object.keys(this.cache[dir].extensions).length > 0);
+			const hasExtensions = projectDirs.some((dir) => Object.keys(this.cache[dir]?.extensions ?? {}).length > 0);
 			await vscode.commands.executeCommand("setContext", UPDATE_CHECK_CONTEXT_KEY, hasExtensions ? state : undefined);
 
 			if (view) {
@@ -640,7 +640,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	private storeUpdates(projectDirs: string[], result: UpdateCheckResult): void {
 		const failedRepositories = new Set(result.repositoryFailures.map((failure) => failure.repository.toLowerCase()));
 		for (const dir of projectDirs) {
+			// A refresh during the check can replace the cache and drop a project.
 			const folderCache = this.cache[dir];
+			if (!folderCache) {
+				continue;
+			}
 			folderCache.updates = {};
 			folderCache.updateCheckFailures = new Set();
 			for (const [extId, ext] of Object.entries(folderCache.extensions)) {
