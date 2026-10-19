@@ -1,3 +1,4 @@
 extensions:
   github:
     repository-name: a/b
+    unknown-key: 1

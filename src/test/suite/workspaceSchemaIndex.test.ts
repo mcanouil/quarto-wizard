@@ -55,7 +55,7 @@ suite("Workspace Schema Index", () => {
 		assert.strictEqual(extMap.size, 0);
 	});
 
-	test("Keys the first extension of a short name that two owners share", async () => {
+	test("Gives a short name that two owners share to the first one found", async () => {
 		temporary = fs.mkdtempSync(path.join(os.tmpdir(), "qw-index-"));
 		installExtension(temporary, "alpha", "same", schemaWithOption("first"));
 		installExtension(temporary, "beta", "same", schemaWithOption("second"));
@@ -63,7 +63,7 @@ suite("Workspace Schema Index", () => {
 		assert.deepStrictEqual([...schemaMap.keys()].sort(), ["alpha/same", "beta/same", "same"]);
 		assert.ok(schemaMap.get("alpha/same")?.options?.["first"]);
 		assert.ok(schemaMap.get("beta/same")?.options?.["second"]);
-		assert.strictEqual(schemaMap.get("same"), schemaMap.get("alpha/same") ?? schemaMap.get("beta/same"));
+		assert.strictEqual(schemaMap.get("same"), schemaMap.get("alpha/same"));
 	});
 
 	test("Reflects a changed schema once the index is invalidated", async () => {
