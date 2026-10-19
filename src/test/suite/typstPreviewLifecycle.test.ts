@@ -4,12 +4,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
-	CACHE_LIMIT,
 	TypstPreviewController,
 	type TypstCompilerLike,
 	type TypstPreviewResult,
 	type TypstPreviewUpdate,
 } from "../../providers/typstPreview/typstPreviewController";
+import { CACHE_LIMIT } from "../../providers/typstPreview/typstPreviewMemory";
 import type { TypstCompileResult } from "../../providers/typstPreview/typstCompiler";
 import { invalidateProjectRoots, setProjectRoots } from "../../utils/projectRootsRegistry";
 import { invalidateInstalledExtensionsCache } from "../../utils/installedExtensionsCache";

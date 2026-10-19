@@ -11,9 +11,10 @@ import { logMessage } from "../../utils/log";
 import { isQmdFile } from "../../utils/metadataFilesRegistry";
 import { otherBrandMode, type TypstBrandMode } from "../../utils/typst/typstOptions";
 import { commandKey, type TypstCommand } from "../../utils/typst/typstCli";
-import { EXTENSION_MANIFEST_GLOB } from "../../utils/quartoProjectDiscovery";
 import { buildCompileRequest, NO_BLOCK_MESSAGE, TypstContextCache, type CompileRequest } from "./typstContext";
 import { TypstCompiler, invalidateTypstBinary, resolveTypstBinary, type TypstCompileResult } from "./typstCompiler";
+import { TypstImageMemory } from "./typstPreviewMemory";
+import { CONTEXT_FILE_NAMES, TypstPreviewWatchers } from "./typstPreviewWatchers";
 import { compileSettings, documentDelayOf, surfacesOf } from "./typstPreviewSettings";
 
 /**
@@ -34,24 +35,6 @@ const SELECTION_DEBOUNCE_MS = 250;
 
 /** How long after a file the preview reads changes it is rebuilt. */
 const CONTEXT_DEBOUNCE_MS = 300;
-
-/**
- * How many compiled results are remembered.
- *
- * Enough to hold every block of a document under an edit and its undo history,
- * and small enough that a session of many documents does not grow without
- * bound.
- */
-export const CACHE_LIMIT = 32;
-
-/**
- * How many bytes of image the remembered results may hold together.
- *
- * The count alone is not a bound. One compile may produce up to the compiler's
- * own output limit, which is measured in megabytes, so a cache of a few dense
- * pages would hold far more of the extension host than the count suggests.
- */
-const CACHE_LIMIT_BYTES = 16 * 1024 * 1024;
 
 /** Where the lines of a compile live, so a diagnostic can be placed. */
 export interface ErrorPlace {
@@ -291,21 +274,6 @@ function cursorTarget(): PreviewTarget | undefined {
 }
 
 /**
- * The metadata files a preview reads beside the block.
- *
- * `_quarto` and `_metadata` are the chain, and `_brand` is where an `auto`
- * colour resolves from. The glob and the name test below are both built from
- * this, because two hand-kept lists of one set drift apart in silence.
- */
-const CONTEXT_FILE_NAMES = ["quarto", "metadata", "brand"] as const;
-
-/** Every metadata file of the chain, at any depth, including `_brand/_brand.yml`. */
-const CONTEXT_FILE_GLOB = `**/_{${CONTEXT_FILE_NAMES.join(",")}}.{yml,yaml}`;
-
-/** A `preamble:` or a `file:`, which a cell compiles in place of its own body. */
-const TYPST_FILE_GLOB = "**/*.typ";
-
-/**
  * Whether a document is one a preview reads beside the block.
  *
  * An unsaved edit to one of these drives the preview the way an unsaved edit to
@@ -321,17 +289,6 @@ function isContextDocument(document: vscode.TextDocument): boolean {
 }
 
 /**
- * How much of the budget one remembered compile takes.
- *
- * Whichever image the entry holds, because a raster and a vector are counted
- * against one budget and reading the vector alone would let a session of
- * rasters grow without any of them being counted.
- */
-function imageBytes(compiled: TypstCompileResult | undefined): number {
-	return compiled?.svg?.length ?? compiled?.png?.length ?? 0;
-}
-
-/**
  * The state of the Typst preview, and every event that changes it.
  *
  * Nothing here spawns Typst until a surface is showing a preview or the user
@@ -341,16 +298,9 @@ function imageBytes(compiled: TypstCompileResult | undefined): number {
 export class TypstPreviewController implements vscode.Disposable {
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly contexts = new TypstContextCache();
+	private readonly images: TypstImageMemory;
+	private readonly watchers: TypstPreviewWatchers;
 	private readonly resultEmitter = new vscode.EventEmitter<TypstPreviewUpdate>();
-	/**
-	 * The compiled results, most recently used last.
-	 *
-	 * Keyed by what decides the image: the source, the arguments and the binary.
-	 * A failure is remembered as well, because an unchanged broken block is the
-	 * normal state halfway through an edit and recompiling it says the same thing
-	 * at the cost of a process.
-	 */
-	private readonly cache = new Map<string, TypstCompileResult>();
 	/**
 	 * The token every compile is given.
 	 *
@@ -367,10 +317,6 @@ export class TypstPreviewController implements vscode.Disposable {
 	private compiler: TypstCompilerLike | undefined;
 	/** What the compiler was built for, so it is replaced when that changes. */
 	private compilerKey: string | undefined;
-	/** How many bytes of image the cache is holding. */
-	private cacheBytes = 0;
-	/** Whether the file watchers are up, which the first request raises. */
-	private watching = false;
 	/** Rises with every request, so a result that arrives out of order is dropped. */
 	private requestVersion = 0;
 	private result: TypstPreviewResult | undefined;
@@ -411,6 +357,9 @@ export class TypstPreviewController implements vscode.Disposable {
 			this.contexts.forgetFiles();
 			this.recompile();
 		}, CONTEXT_DEBOUNCE_MS);
+		this.images = new TypstImageMemory(options.cacheLimitBytes);
+		this.watchers = new TypstPreviewWatchers(() => this.contextDebounce());
+		this.disposables.push(this.watchers);
 		this.wireEvents();
 	}
 
@@ -625,7 +574,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		this.compiler = undefined;
 		this.uncancelled.dispose();
 		this.resultEmitter.dispose();
-		this.forgetImages();
+		this.images.clear();
 		this.contexts.forgetFiles();
 		this.result = undefined;
 		this.tracked = undefined;
@@ -690,7 +639,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		// project that has not installed the extension never produces a result, and
 		// the manifest watcher is what lets it start working once the extension is
 		// installed, so waiting for a result would keep that case broken for good.
-		this.watchFiles();
+		this.watchers.start();
 
 		const settings = compileSettings(document);
 		// The header applies to a plain block and a raw block. A cell keeps the
@@ -746,18 +695,14 @@ export class TypstPreviewController implements vscode.Disposable {
 			// supersedes never reaches `remember`, so an entry left here would be the
 			// image the reader asked to stop trusting, served back to them by the
 			// request that superseded the refresh.
-			this.forget(key);
+			this.images.forget(key);
 		}
 		if (stale()) {
 			return undefined;
 		}
 
-		const held = this.cache.get(key);
+		const held = this.images.recall(key);
 		if (held !== undefined) {
-			// Re-inserted so the least recently used entry is the first one, which is
-			// what the eviction below removes.
-			this.cache.delete(key);
-			this.cache.set(key, held);
 			return this.publish(document, request, held, reason, compiledVersion);
 		}
 
@@ -770,7 +715,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			if (stale()) {
 				return undefined;
 			}
-			this.remember(key, compiled);
+			this.images.remember(key, compiled);
 			return this.publish(document, request, compiled, reason, compiledVersion);
 		} catch (error) {
 			if (stale() || error instanceof vscode.CancellationError) {
@@ -855,36 +800,6 @@ export class TypstPreviewController implements vscode.Disposable {
 		return this.result;
 	}
 
-	/** Forget one compiled image, and the bytes it was counted for. */
-	private forget(key: string): void {
-		this.cacheBytes -= imageBytes(this.cache.get(key));
-		this.cache.delete(key);
-	}
-
-	/** Remember one compile, and forget those used longest ago to make room. */
-	private remember(key: string, compiled: TypstCompileResult): void {
-		// Anything held for this source is dropped first. Without this the budget
-		// would count the same image twice, and the replacement would keep the
-		// insertion place of the entry it replaced rather than becoming the most
-		// recently used one.
-		this.forget(key);
-		this.cache.set(key, compiled);
-		this.cacheBytes += imageBytes(compiled);
-		// A `Map` iterates in insertion order and every hit is re-inserted, so the
-		// first key is the one used longest ago. Both bounds matter: the count keeps
-		// a session of small blocks from growing without end, and the byte total
-		// keeps a handful of dense pages from holding the extension host.
-		const limitBytes = this.options.cacheLimitBytes ?? CACHE_LIMIT_BYTES;
-		while (this.cache.size > CACHE_LIMIT || (this.cacheBytes > limitBytes && this.cache.size > 1)) {
-			const oldest = this.cache.keys().next();
-			if (oldest.done) {
-				return;
-			}
-			this.cacheBytes -= imageBytes(this.cache.get(oldest.value));
-			this.cache.delete(oldest.value);
-		}
-	}
-
 	/**
 	 * Stop describing one document, and say so when something changed.
 	 *
@@ -909,12 +824,6 @@ export class TypstPreviewController implements vscode.Disposable {
 		// here would hand a surface the block a pointer rested on, which is how the
 		// panel would move to a document the reader never asked it to show.
 		this.resultEmitter.fire({ result: this.tracked, reason: "background" });
-	}
-
-	/** Forget every compiled image, so the next request compiles again. */
-	private forgetImages(): void {
-		this.cache.clear();
-		this.cacheBytes = 0;
 	}
 
 	private resolveBinary(): Promise<string | undefined> {
@@ -1072,43 +981,6 @@ export class TypstPreviewController implements vscode.Disposable {
 			// or whether there is one at all.
 			vscode.extensions.onDidChange(() => this.forgetCompiler()),
 		);
-	}
-
-	/**
-	 * Watch the files a preview reads beside the block.
-	 *
-	 * Raised by the first request rather than at registration. These are
-	 * workspace-wide watchers, and until a preview is asked for every event they
-	 * deliver reaches a `recompile` that has nothing to recompile, so a session
-	 * that never opens the preview should not pay for them.
-	 *
-	 * A request and not a result, because a cell in a project that has not
-	 * installed the extension produces no result, and the manifest watcher is
-	 * what lets it start working once the extension is installed.
-	 */
-	private watchFiles(): void {
-		if (this.watching) {
-			return;
-		}
-		this.watching = true;
-		// One glob covers `_brand/_brand.yml` as well, because a leading `**/`
-		// matches the directory as readily as any other.
-		this.watch(CONTEXT_FILE_GLOB);
-		this.watch(TYPST_FILE_GLOB);
-		// The gate answer is held with the rest of the context, so a project that
-		// installs the extension while the preview is open stops reporting a cell as
-		// unpreviewable without waiting for a cache to expire.
-		this.watch(EXTENSION_MANIFEST_GLOB);
-	}
-
-	/** Rebuild the preview when a file it reads beside the block changes. */
-	private watch(glob: string): void {
-		const watcher = vscode.workspace.createFileSystemWatcher(glob);
-		const changed = (): void => this.contextDebounce();
-		this.disposables.push(watcher.onDidCreate(changed));
-		this.disposables.push(watcher.onDidChange(changed));
-		this.disposables.push(watcher.onDidDelete(changed));
-		this.disposables.push(watcher);
 	}
 
 	/**
