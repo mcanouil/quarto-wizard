@@ -62,7 +62,7 @@ const USAGE = `Usage: node scripts/update-extensions.mjs [dir] [options]
   --help             Show this message.
 
 Exit status:
-  0  Every repository was checked, and every update applied.
+  0  Every repository was checked, and nothing failed.
   1  A fatal error, an update check that failed for a project, or a failed update.
   2  The run finished, but some repositories could not be checked.
 `;
@@ -327,6 +327,9 @@ async function main() {
 			}
 			if (checkFailure) {
 				process.stdout.write(`${label}: the update check failed (${checkFailure.kind}): ${checkFailure.message}\n`);
+				if (options.apply && updates.length > 0) {
+					process.stdout.write(`${label}: updates not applied, because the check did not complete\n`);
+				}
 			}
 			if (options.verbose) {
 				for (const name of entry.skipped) {
