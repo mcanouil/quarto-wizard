@@ -4,9 +4,15 @@ import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
-import { ExtensionTreeItem, ProjectGroupTreeItem, WorkspaceFolderTreeItem } from "../../ui/extensionTreeItems";
+import {
+	ExtensionTreeItem,
+	ProjectGroupTreeItem,
+	WorkspaceFolderTreeItem,
+	type TreeItemType,
+} from "../../ui/extensionTreeItems";
 import type { InstalledExtension } from "../../utils/extensions";
 import { makeFolder, makeRoot } from "./projectFixtures";
+import { TREE_COMMANDS_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 
 suite("Extension Tree Data Provider Test Suite", () => {
 	function createProvider(): QuartoExtensionTreeDataProvider {
@@ -83,7 +89,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 					string,
 					{
 						extensions: Record<string, InstalledExtension>;
-						latestVersions: Record<string, string>;
+						updates: Record<string, unknown>;
+						updateCheckFailures: Set<string>;
 						parseErrors: Set<string>;
 						compatibility: Record<string, { status: string; detail: string; warningMessage?: string }>;
 					}
@@ -92,7 +99,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		).cache = {
 			"/workspace": {
 				extensions: { "quarto-ext/demo": extension },
-				latestVersions: {},
+				updates: {},
+				updateCheckFailures: new Set<string>(),
 				parseErrors: new Set<string>(),
 				compatibility: {
 					"quarto-ext/demo": {
@@ -130,7 +138,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 					string,
 					{
 						extensions: Record<string, InstalledExtension>;
-						latestVersions: Record<string, string>;
+						updates: Record<string, unknown>;
+						updateCheckFailures: Set<string>;
 						parseErrors: Set<string>;
 						compatibility: Record<string, { status: string; detail: string; warningMessage?: string }>;
 					}
@@ -139,7 +148,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		).cache = {
 			"/workspace": {
 				extensions: { "quarto-ext/demo": extension },
-				latestVersions: {},
+				updates: {},
+				updateCheckFailures: new Set<string>(),
 				parseErrors: new Set<string>(),
 				compatibility: {
 					"quarto-ext/demo": {
@@ -193,7 +203,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 					string,
 					{
 						extensions: Record<string, InstalledExtension>;
-						latestVersions: Record<string, string>;
+						updates: Record<string, unknown>;
+						updateCheckFailures: Set<string>;
 						parseErrors: Set<string>;
 						compatibility: Record<string, { status: string; detail: string; warningMessage?: string }>;
 					}
@@ -202,7 +213,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		).cache = {
 			[sub.fsPath]: {
 				extensions: { "quarto-ext/demo": createExtension() },
-				latestVersions: {},
+				updates: {},
+				updateCheckFailures: new Set<string>(),
 				parseErrors: new Set<string>(),
 				compatibility: {},
 			},
@@ -230,5 +242,106 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		assert.ok(top[1] instanceof WorkspaceFolderTreeItem);
 		assert.strictEqual(top[0].label, "repoA");
 		assert.strictEqual(top[1].label, "repoB");
+	});
+	suite("Update check", () => {
+		let restoreBoundary: (() => void) | undefined;
+
+		teardown(() => {
+			restoreBoundary?.();
+			restoreBoundary = undefined;
+		});
+
+		async function runCheck(
+			options: UpdateBoundaryOptions,
+		): Promise<{ provider: QuartoExtensionTreeDataProvider; view: vscode.TreeView<TreeItemType> }> {
+			restoreBoundary = stubUpdateBoundary(options);
+			const provider = new QuartoExtensionTreeDataProvider(
+				[makeRoot(makeFolder("treeCommands", TREE_COMMANDS_ROOT))],
+				new SchemaCache(),
+				new SnippetCache(),
+			);
+			await waitForInitialRefresh(provider);
+			const view = { message: undefined, badge: undefined } as unknown as vscode.TreeView<TreeItemType>;
+			const context = {} as vscode.ExtensionContext;
+			await provider.checkUpdate(context, view);
+			return { provider, view };
+		}
+
+		async function extensionItem(provider: QuartoExtensionTreeDataProvider, id: string): Promise<ExtensionTreeItem> {
+			const items = await provider.getChildren(new WorkspaceFolderTreeItem("treeCommands", TREE_COMMANDS_ROOT));
+			const item = items.find((candidate) => candidate.label === id);
+			assert.ok(item instanceof ExtensionTreeItem, `no tree item for ${id}`);
+			return item;
+		}
+
+		test("view message reports a check failure", async () => {
+			const { view } = await runCheck({ repositories: {}, registryStatus: 404 });
+
+			assert.strictEqual(view.message, "Update check failed. Show log.");
+		});
+
+		test("view message names GitHub with a token", async () => {
+			const { view } = await runCheck({
+				token: "test-token",
+				repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"], registryTag: "1.2.0" } },
+			});
+
+			assert.strictEqual(view.message, "Updates checked against GitHub.");
+		});
+
+		test("view message names the registry without a token", async () => {
+			const { view } = await runCheck({
+				repositories: { "acme/registry-demo": { registryTag: "1.2.0" }, "acme/github-demo": { registryTag: "1.0.0" } },
+			});
+
+			assert.strictEqual(
+				view.message,
+				"Updates checked against the registry. Sign in to GitHub to see new tags straight away.",
+			);
+		});
+
+		test("detail rows show Installed from and Latest", async () => {
+			const { provider } = await runCheck({
+				repositories: { "acme/registry-demo": { registryTag: "1.2.0" }, "acme/github-demo": { registryTag: "1.0.0" } },
+			});
+
+			const item = await extensionItem(provider, "acme/registry-demo");
+			const labels = (await provider.getChildren(item)).map((child) => String(child.label));
+
+			assert.ok(labels.includes("Installed from: registry"), labels.join(", "));
+			assert.ok(labels.includes("Latest: 1.2.0 (checked on the registry)"), labels.join(", "));
+			assert.ok(!labels.some((label) => label.startsWith("Source type:")), labels.join(", "));
+		});
+
+		test("tooltip names the latest version and where it was found", async () => {
+			const { provider } = await runCheck({
+				token: "test-token",
+				repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] } },
+			});
+
+			const tooltip = String((await extensionItem(provider, "acme/registry-demo")).tooltip);
+
+			assert.ok(tooltip.includes("Latest 1.3.0, found on GitHub."), tooltip);
+			assert.ok(tooltip.includes("Update installs the latest GitHub tag."), tooltip);
+		});
+
+		test("a repository failure keeps the view message and marks the tooltip", async () => {
+			const { provider, view } = await runCheck({
+				token: "test-token",
+				repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 404 } },
+			});
+
+			assert.strictEqual(view.message, "Updates checked against GitHub.");
+			const tooltip = String((await extensionItem(provider, "acme/github-demo")).tooltip);
+			assert.ok(tooltip.includes("The update check of this extension failed."), tooltip);
+			const healthy = String((await extensionItem(provider, "acme/registry-demo")).tooltip);
+			assert.ok(!healthy.includes("failed"), healthy);
+		});
+
+		test("the crossSource setting is gone", () => {
+			// inspect() returns an object for any key; a key that no extension contributes has no default.
+			const inspected = vscode.workspace.getConfiguration("quartoWizard").inspect("update.crossSource");
+			assert.strictEqual(inspected?.defaultValue, undefined);
+		});
 	});
 });

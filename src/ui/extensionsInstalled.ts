@@ -2,14 +2,23 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import type { SchemaCache } from "@quarto-wizard/schema";
 import type { SnippetCache, SnippetDefinition } from "@quarto-wizard/snippets";
-import { getErrorMessage } from "@quarto-wizard/core";
+import {
+	checkForUpdates,
+	formatExtensionId,
+	getErrorMessage,
+	type AuthConfig,
+	type ExtensionId,
+	type UpdateCheckResult,
+	type UpdateInfo,
+} from "@quarto-wizard/core";
+import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/quarto";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { installQuartoExtensionFolderCommand } from "../commands/installQuartoExtension";
 import { getAuthConfig } from "../utils/auth";
 import { getAutoProjectDetection } from "../utils/extensionDetails";
-import { getSourceBase, resolveLocalSourcePath } from "../utils/extensions";
+import { getEffectiveSourceType, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { invalidateMetadataFiles } from "../utils/metadataFilesRegistry";
@@ -24,6 +33,64 @@ import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from 
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
 const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
+
+/**
+ * Resolves the latest GitHub tag or commit of each extension, with or without a token, so that an
+ * update installs the version that its messages give.
+ */
+async function checkGitHubUpdates(
+	projectDirs: string[],
+	auth: AuthConfig,
+	extension?: ExtensionId,
+): Promise<UpdateCheckResult> {
+	try {
+		return await checkForUpdates({
+			projectDirs,
+			extension,
+			source: "github",
+			auth,
+			timeout: REGISTRY_FETCH_TIMEOUT_MS,
+		});
+	} catch (error) {
+		return {
+			checkedOn: "github",
+			updates: [],
+			repositoryFailures: [],
+			checkFailure: { kind: "network", message: getErrorMessage(error) },
+		};
+	}
+}
+
+/**
+ * Logs the failures of a GitHub check and tells the user when the whole check failed.
+ *
+ * @returns True when the check failed as a whole.
+ */
+async function reportCheckFailures(result: UpdateCheckResult, failureMessage: string): Promise<boolean> {
+	for (const failure of result.repositoryFailures) {
+		logMessage(`Failed to check updates for ${failure.repository}: ${failure.message}.`, "warn");
+	}
+	if (!result.checkFailure) {
+		return false;
+	}
+	logMessage(`Failed to check for updates: ${result.checkFailure.message}.`, "error");
+	if (result.checkFailure.kind === "rate-limited") {
+		const action = await vscode.window.showWarningMessage(
+			`${failureMessage} GitHub rate limit reached. Sign in to GitHub and try again.`,
+			"Sign In",
+		);
+		if (action === "Sign In") {
+			await vscode.commands.executeCommand("quartoWizard.signInWithGitHubSession");
+		}
+	} else {
+		showMessageWithLogs(`${failureMessage} The update check failed.`, "error");
+	}
+	return true;
+}
+
+function describeUpdate(update: UpdateInfo): string {
+	return `${formatExtensionId(update.extension.id)} ${update.currentVersion} to ${update.latestVersion}`;
+}
 
 /**
  * Manages the installed Quarto extensions.
@@ -271,34 +338,65 @@ export class ExtensionsInstalled {
 
 		/**
 		 * Updates a Quarto extension to the latest version.
-		 * Uses the source from the extension manifest, stripped of any pinned version.
+		 * A GitHub or registry extension resolves its latest GitHub tag at click time and installs that tag;
+		 * a URL or local extension installs its source again.
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.update", async (item: ExtensionTreeItem) => {
-				const source = item.extension?.manifest.source;
-				if (!source) {
+				const extension = item.extension;
+				const source = extension?.manifest.source;
+				if (!extension || !source) {
 					showMessageWithLogs(
 						`Failed to update extension "${item.label}". Source not found in extension manifest.`,
 						"error",
 					);
 					return;
 				}
-				const baseSource = getSourceBase(source, item.effectiveSourceType);
+				const failureMessage = `Failed to update extension "${item.label}".`;
+				const resolvesTag = item.effectiveSourceType === "github" || item.effectiveSourceType === "registry";
 				const auth = await getAuthConfig(context);
-				const result = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(baseSource, item.workspaceFolder, {
+				const install = (installSource: string, token: vscode.CancellationToken) =>
+					installQuartoExtension(installSource, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 					});
+				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
+					if (!resolvesTag) {
+						return { installed: await install(source, token) };
+					}
+					const check = await checkGitHubUpdates([item.workspaceFolder], auth, extension.id);
+					const update = check.updates[0];
+					if (!update || check.checkFailure || check.repositoryFailures.length > 0 || token.isCancellationRequested) {
+						return { check };
+					}
+					return { check, update, installed: await install(update.source, token) };
 				});
-				if (result === true) {
+
+				if (outcome.check) {
+					if (await reportCheckFailures(outcome.check, failureMessage)) {
+						return;
+					}
+					if (outcome.check.repositoryFailures.length > 0) {
+						showMessageWithLogs(failureMessage, "error");
+						return;
+					}
+					if (outcome.check.updates.length === 0) {
+						vscode.window.showInformationMessage(`Extension "${item.label}" is up to date.`);
+						return;
+					}
+				}
+				if (outcome.installed === true) {
 					invalidateProviderCaches(item.workspaceFolder);
-					vscode.window.showInformationMessage(`Extension "${item.label}" updated successfully.`);
+					vscode.window.showInformationMessage(
+						outcome.update
+							? `Extension "${item.label}" updated to ${outcome.update.latestVersion}.`
+							: `Extension "${item.label}" updated successfully.`,
+					);
 					this.treeDataProvider.refreshAfterAction(context, view);
-				} else if (result === false) {
-					showMessageWithLogs(`Failed to update extension "${item.label}".`, "error");
+				} else if (outcome.installed === false) {
+					showMessageWithLogs(failureMessage, "error");
 				}
 			}),
 		);
@@ -415,20 +513,30 @@ export class ExtensionsInstalled {
 		);
 
 		/**
-		 * Updates all outdated extensions to their latest versions.
+		 * Updates every GitHub or registry extension that has a newer GitHub tag.
+		 * The check runs against GitHub at click time, with or without a token, and each update installs
+		 * the tag that the check found.
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.updateAll", async () => {
-				const outdated = this.treeDataProvider.getOutdatedExtensions();
+				const failureMessage = "Failed to update extensions.";
+				const auth = await getAuthConfig(context);
+				const check = await withProgressNotification("Checking for updates ...", async () =>
+					checkGitHubUpdates(this.treeDataProvider.getProjectDirs(), auth),
+				);
+				if (await reportCheckFailures(check, failureMessage)) {
+					return;
+				}
+				const updates = check.updates;
 
-				if (outdated.length === 0) {
+				if (updates.length === 0) {
 					vscode.window.showInformationMessage("All extensions are up to date.");
 					return;
 				}
 
 				const confirm = await vscode.window.showWarningMessage(
-					`Update ${outdated.length} extension(s) to their latest versions?`,
-					{ modal: true },
+					`Update ${updates.length} extension(s) to their latest versions?`,
+					{ modal: true, detail: updates.map(describeUpdate).join("\n") },
 					"Update All",
 				);
 
@@ -436,24 +544,22 @@ export class ExtensionsInstalled {
 					return;
 				}
 
-				const auth = await getAuthConfig(context);
-				let successCount = 0;
+				const updated: UpdateInfo[] = [];
 				let failedCount = 0;
 
-				await withProgressNotification(`Updating ${outdated.length} extension(s) ...`, async (token) => {
-					for (const ext of outdated) {
+				await withProgressNotification(`Updating ${updates.length} extension(s) ...`, async (token) => {
+					for (const update of updates) {
 						if (token.isCancellationRequested) {
 							break;
 						}
-						const source = ext.source ? getSourceBase(ext.source, ext.sourceType) : ext.extensionId;
-						const result = await installQuartoExtension(source, ext.workspaceFolder, {
+						const result = await installQuartoExtension(update.source, update.projectDir, {
 							auth,
 							skipOverwritePrompt: true,
 							cancellationToken: token,
-							sourceType: ext.sourceType,
+							sourceType: getEffectiveSourceType(update.extension.manifest),
 						});
 						if (result === true) {
-							successCount++;
+							updated.push(update);
 						} else if (result === false) {
 							failedCount++;
 						} else {
@@ -461,16 +567,19 @@ export class ExtensionsInstalled {
 							break;
 						}
 					}
-					return successCount > 0;
+					return updated.length > 0;
 				});
 
-				if (successCount > 0) {
+				if (updated.length > 0) {
 					invalidateProviderCaches();
+					const versions = updated
+						.map((update) => `${formatExtensionId(update.extension.id)} to ${update.latestVersion}`)
+						.join(", ");
 					vscode.window.showInformationMessage(
-						`Successfully updated ${successCount} extension(s)${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
+						`Updated ${versions}${failedCount > 0 ? `; ${failedCount} failed` : ""}.`,
 					);
 				} else {
-					showMessageWithLogs("Failed to update extensions.", "error");
+					showMessageWithLogs(failureMessage, "error");
 				}
 
 				this.treeDataProvider.refreshAfterAction(context, view);

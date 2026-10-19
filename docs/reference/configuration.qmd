@@ -41,25 +41,6 @@ Ask for confirmation before installing an extension. `ask` to ask for confirmati
 }
 ```
 
-## Update Behaviour
-
-### Cross-source Updates
-
-**Setting**: `quartoWizard.update.crossSource`
-
-Allow cross-source update discovery. When disabled (default), update checks respect the recorded `source-type`: extensions installed via the registry are resolved against the registry, and extensions installed with `quarto add owner/repo` are resolved against GitHub releases directly. When enabled, GitHub-sourced extensions also fall back to the registry when GitHub has no releases or tags.
-
-| Property | Value   |
-| -------- | ------- |
-| Type     | Boolean |
-| Default  | `false` |
-
-```json
-{
-  "quartoWizard.update.crossSource": false
-}
-```
-
 ## Project Detection
 
 ### Auto Project Detection
@@ -280,7 +261,6 @@ Here is an example `settings.json` with all Quarto Wizard settings:
 {
   "quartoWizard.ask.trustAuthors": "ask",
   "quartoWizard.ask.confirmInstall": "ask",
-  "quartoWizard.update.crossSource": false,
   "quartoWizard.autoProjectDetection": "subFolders",
   "quartoWizard.cache.ttlMinutes": 30,
   "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json",

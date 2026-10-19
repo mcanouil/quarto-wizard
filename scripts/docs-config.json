@@ -119,11 +119,6 @@
 			"prefix": "quartoWizard.ask."
 		},
 		{
-			"id": "update",
-			"title": "Update Behaviour",
-			"prefix": "quartoWizard.update."
-		},
-		{
 			"id": "project-detection",
 			"title": "Project Detection",
 			"prefix": "quartoWizard.autoProjectDetection",

@@ -2,11 +2,16 @@ import * as vscode from "vscode";
 import type { SchemaCache, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import type { SnippetCache } from "@quarto-wizard/snippets";
 import { snippetNamespace } from "@quarto-wizard/snippets";
-import { checkForUpdates, formatExtensionId, getErrorMessage, type SourceType } from "@quarto-wizard/core";
+import { checkForUpdates, formatExtensionId, getErrorMessage, type UpdateCheckResult } from "@quarto-wizard/core";
 import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
-import { getInstalledExtensionsRecord, getExtensionContributes, getEffectiveSourceType } from "../utils/extensions";
+import {
+	getInstalledExtensionsRecord,
+	getExtensionContributes,
+	getEffectiveSourceType,
+	getExtensionRepository,
+} from "../utils/extensions";
 import { getCacheTTL, getRegistryUrl } from "../utils/extensionDetails";
 import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
 import { getAuthConfig } from "../utils/auth";
@@ -31,7 +36,21 @@ import {
 	type TreeItemType,
 	type FolderCache,
 	type ExtensionCompatibility,
+	describeCheckSource,
 } from "./extensionTreeItems";
+
+/**
+ * Context key that tells the view title which action goes with the view message.
+ */
+const UPDATE_CHECK_CONTEXT_KEY = "quartoWizard.extensionsInstalled.updateCheck";
+
+const UPDATE_CHECK_MESSAGES = {
+	github: "Updates checked against GitHub.",
+	registry: "Updates checked against the registry. Sign in to GitHub to see new tags straight away.",
+	failed: "Update check failed. Show log.",
+} as const;
+
+type UpdateCheckState = keyof typeof UPDATE_CHECK_MESSAGES;
 
 /**
  * Provides data for the Quarto extensions tree view.
@@ -187,9 +206,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				workspacePath,
 				folderCache.extensions[ext],
 				"package",
-				folderCache.latestVersions[ext],
+				folderCache.updates[ext],
 				folderCache.parseErrors.has(ext),
 				compatibilityWarning,
+				folderCache.updateCheckFailures.has(ext),
 			);
 		});
 	}
@@ -242,11 +262,20 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				element.workspaceFolder,
 			),
 			new ExtensionTreeItem(
-				`Source type: ${getEffectiveSourceType(ext.manifest) ?? "N/A"}`,
+				`Installed from: ${getEffectiveSourceType(ext.manifest) ?? "N/A"}`,
 				vscode.TreeItemCollapsibleState.None,
 				element.workspaceFolder,
 			),
 		];
+		if (element.update) {
+			items.push(
+				new ExtensionTreeItem(
+					`Latest: ${element.update.latestVersion} (checked on ${describeCheckSource(element.update.checkedOn)})`,
+					vscode.TreeItemCollapsibleState.None,
+					element.workspaceFolder,
+				),
+			);
+		}
 
 		const schema = this.schemaCache.get(ext.directory);
 		if (schema) {
@@ -480,7 +509,8 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 				newCache[projectPath] = {
 					extensions,
-					latestVersions: this.cache[projectPath]?.latestVersions || {},
+					updates: this.cache[projectPath]?.updates ?? {},
+					updateCheckFailures: this.cache[projectPath]?.updateCheckFailures ?? new Set(),
 					parseErrors,
 					compatibility,
 				};
@@ -497,46 +527,12 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	/**
-	 * Gets all outdated extensions across all workspace folders.
+	 * Gets the paths of the Quarto project roots shown in the view.
 	 *
-	 * @returns Array of objects with extension info and update details.
+	 * @returns Array of project directory paths.
 	 */
-	getOutdatedExtensions(): {
-		extensionId: string;
-		workspaceFolder: string;
-		source: string | undefined;
-		sourceType: SourceType | undefined;
-		latestVersion: string;
-	}[] {
-		const outdated: {
-			extensionId: string;
-			workspaceFolder: string;
-			source: string | undefined;
-			sourceType: SourceType | undefined;
-			latestVersion: string;
-		}[] = [];
-
-		for (const root of this.projectRoots) {
-			const projectPath = root.fsPath;
-			const folderCache = this.cache[projectPath];
-			if (!folderCache) continue;
-
-			for (const ext of Object.keys(folderCache.latestVersions)) {
-				const version = folderCache.latestVersions[ext];
-				if (version && version !== "unknown") {
-					const extension = folderCache.extensions[ext];
-					outdated.push({
-						extensionId: ext,
-						workspaceFolder: projectPath,
-						source: extension?.manifest.source,
-						sourceType: extension ? getEffectiveSourceType(extension.manifest) : undefined,
-						latestVersion: version,
-					});
-				}
-			}
-		}
-
-		return outdated;
+	getProjectDirs(): string[] {
+		return this.projectRoots.map((root) => root.fsPath);
 	}
 
 	/**
@@ -570,54 +566,55 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 		const doCheck = async (): Promise<number> => {
 			const auth = await getAuthConfig(context);
-			const registryUrl = getRegistryUrl();
-			const cacheTtl = getCacheTTL();
+			const projectDirs = this.projectRoots.map((root) => root.fsPath).filter((dir) => this.cache[dir]);
+
+			let result: UpdateCheckResult | undefined;
+			try {
+				result = await checkForUpdates({
+					projectDirs,
+					registryUrl: getRegistryUrl(),
+					cacheTtl: getCacheTTL(),
+					auth,
+					timeout: REGISTRY_FETCH_TIMEOUT_MS,
+				});
+			} catch (error) {
+				logMessage(`Failed to check for updates: ${getErrorMessage(error)}.`, "error");
+			}
+
+			for (const failure of result?.repositoryFailures ?? []) {
+				logMessage(`Failed to check updates for ${failure.repository}: ${failure.message}.`, "warn");
+			}
+
+			let state: UpdateCheckState;
+			if (!result) {
+				state = "failed";
+			} else if (result.checkFailure) {
+				// The updates of a failed check can be partial, so the previous state stays.
+				logMessage(`Failed to check for updates: ${result.checkFailure.message}.`, "error");
+				state = "failed";
+			} else {
+				this.storeUpdates(projectDirs, result);
+				state = result.checkedOn;
+			}
+
 			const updatesAvailable: string[] = [];
-			let totalUpdates = 0;
-
 			for (const root of this.projectRoots) {
-				const projectPath = root.fsPath;
-				const folderCache = this.cache[projectPath];
-				if (!folderCache) continue;
-
-				try {
-					const result = await checkForUpdates({
-						projectDirs: [projectPath],
-						registryUrl,
-						cacheTtl,
-						auth: auth ?? undefined,
-						timeout: REGISTRY_FETCH_TIMEOUT_MS,
-					});
-
-					for (const failure of result.repositoryFailures) {
-						logMessage(`Failed to check updates for ${failure.repository}: ${failure.message}.`, "warn");
-					}
-					if (result.checkFailure) {
-						// Keep the previous state, as for a thrown error.
-						logMessage(`Failed to check updates for ${projectPath}: ${result.checkFailure.message}.`, "error");
-						continue;
-					}
-
-					// Only reset after successful fetch to preserve previous state on error
-					folderCache.latestVersions = {};
-
-					for (const update of result.updates) {
-						const extId = formatExtensionId(update.extension.id);
-						folderCache.latestVersions[extId] = update.latestRef;
-						updatesAvailable.push(`${root.label}/${extId}`);
-						totalUpdates++;
-					}
-				} catch (error) {
-					logMessage(`Failed to check updates for ${projectPath}: ${getErrorMessage(error)}.`, "error");
+				for (const extId of Object.keys(this.cache[root.fsPath]?.updates ?? {})) {
+					updatesAvailable.push(`${root.label}/${extId}`);
 				}
 			}
+			const totalUpdates = updatesAvailable.length;
 
 			if (updatesAvailable.length > 0 && !silent) {
 				const message = `Updates available for the following extensions: ${updatesAvailable.join(", ")}.`;
 				logMessage(message, "info");
 			}
 
+			const hasExtensions = projectDirs.some((dir) => Object.keys(this.cache[dir].extensions).length > 0);
+			await vscode.commands.executeCommand("setContext", UPDATE_CHECK_CONTEXT_KEY, hasExtensions ? state : undefined);
+
 			if (view) {
+				view.message = hasExtensions ? UPDATE_CHECK_MESSAGES[state] : undefined;
 				view.badge =
 					totalUpdates > 0
 						? {
@@ -635,6 +632,30 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		});
 
 		return this.pendingCheck;
+	}
+
+	/**
+	 * Replaces the updates and the failed checks of each project with the result of a complete check.
+	 */
+	private storeUpdates(projectDirs: string[], result: UpdateCheckResult): void {
+		const failedRepositories = new Set(result.repositoryFailures.map((failure) => failure.repository.toLowerCase()));
+		for (const dir of projectDirs) {
+			const folderCache = this.cache[dir];
+			folderCache.updates = {};
+			folderCache.updateCheckFailures = new Set();
+			for (const [extId, ext] of Object.entries(folderCache.extensions)) {
+				const repository = getExtensionRepository(ext)?.toLowerCase();
+				if (repository && failedRepositories.has(repository)) {
+					folderCache.updateCheckFailures.add(extId);
+				}
+			}
+		}
+		for (const update of result.updates) {
+			const folderCache = this.cache[update.projectDir];
+			if (folderCache) {
+				folderCache.updates[formatExtensionId(update.extension.id)] = update;
+			}
+		}
 	}
 }
 

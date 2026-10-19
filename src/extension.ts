@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { getErrorMessage } from "@quarto-wizard/core";
 import { QW_LOG, STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "./constants";
 import { logMessage, showMessageWithLogs } from "./utils/log";
 import {
@@ -24,6 +25,19 @@ import { registerInlineAttributeDiagnostics } from "./providers/inlineAttributeD
 import { registerSnippetCompletionProvider } from "./providers/snippetCompletionProvider";
 import { registerTypstPreview } from "./providers/typstPreview";
 import { registerTypstPathLinks } from "./providers/typstPathLinks";
+
+/**
+ * Runs the update check of the extensions view again, so that its message follows a change of the GitHub
+ * authentication. The view exists only when a workspace folder was open at activation.
+ */
+function refreshExtensionsView(): void {
+	if (!vscode.workspace.workspaceFolders?.length) {
+		return;
+	}
+	vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh").then(undefined, (error: unknown) => {
+		logMessage(`Failed to refresh the extensions view: ${getErrorMessage(error)}.`, "warn");
+	});
+}
 
 /**
  * This method is called when the extension is activated.
@@ -91,6 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 			if (token) {
 				await setManualToken(context, token);
+				refreshExtensionsView();
 				showMessageWithLogs("GitHub token stored securely.", "info");
 			}
 		}),
@@ -101,6 +116,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.signInWithGitHubSession", async () => {
 			const ok = await enableVSCodeSessionAuth(context);
 			if (ok) {
+				refreshExtensionsView();
 				showMessageWithLogs(
 					"Signed in to GitHub. Quarto Wizard will use your VSCode session for authentication.",
 					"info",
@@ -116,6 +132,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("quartoWizard.clearGitHubAuth", async () => {
 			await clearManualToken(context);
 			await disableVSCodeSessionAuth(context);
+			refreshExtensionsView();
 			showMessageWithLogs("GitHub authentication cleared (manual token and VSCode session opt-in).", "info");
 		}),
 	);
