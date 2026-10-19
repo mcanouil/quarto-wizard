@@ -198,4 +198,61 @@ describe("coerceFieldValue", () => {
 	it("leaves a value with no declared type alone", () => {
 		expect(coerceFieldValue("42", undefined)).toBe("42");
 	});
+
+	it("reads text as a number the way Lua tonumber does", () => {
+		expect(coerceFieldValue(" 42\t", "number")).toBe(42);
+		expect(coerceFieldValue("\v42\f", "number")).toBe(42);
+		expect(coerceFieldValue(".5", "number")).toBe(0.5);
+		expect(coerceFieldValue("5.", "number")).toBe(5);
+		expect(coerceFieldValue("007", "number")).toBe(7);
+		expect(coerceFieldValue("1E3", "number")).toBe(1000);
+		expect(coerceFieldValue("-0x10", "number")).toBe(-16);
+		expect(coerceFieldValue("+0X10", "integer")).toBe(16);
+		expect(coerceFieldValue("0x1p4", "number")).toBe(16);
+		expect(coerceFieldValue("0x1P-1", "number")).toBe(0.5);
+		expect(coerceFieldValue("0x.8", "number")).toBe(0.5);
+		expect(coerceFieldValue("0x1.8", "number")).toBe(1.5);
+		expect(coerceFieldValue("0x.8p1", "number")).toBe(1);
+	});
+
+	it("wraps a hexadecimal integer at 64 bits, as Lua does", () => {
+		expect(coerceFieldValue("0xffffffffffffffff", "integer")).toBe(-1);
+		expect(coerceFieldValue("0x10000000000000000", "integer")).toBe(0);
+		expect(coerceFieldValue("-0xffffffffffffffff", "integer")).toBe(1);
+	});
+
+	it("reads an overflowing decimal as an infinite number, but not as an integer", () => {
+		expect(coerceFieldValue("1e999", "number")).toBe(Infinity);
+		expect(coerceFieldValue("-1e999", "number")).toBe(-Infinity);
+		expect(coerceFieldValue("1e999", "integer")).toBe("1e999");
+	});
+
+	it("leaves text that Lua tonumber rejects as text", () => {
+		for (const text of [
+			"0b101",
+			"0B101",
+			"0o7",
+			"0O7",
+			"0x",
+			"0x1p",
+			"1e",
+			"1e+",
+			".",
+			"- 42",
+			"--42",
+			"1_000",
+			"1,5",
+			"Infinity",
+			"-Infinity",
+			"inf",
+			"nan",
+			"NaN",
+			"\u00a042",
+			"\ufeff42",
+			"\u200342",
+			"42\u00a0",
+		]) {
+			expect(coerceFieldValue(text, "number"), JSON.stringify(text)).toBe(text);
+		}
+	});
 });

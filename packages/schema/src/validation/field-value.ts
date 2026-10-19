@@ -83,10 +83,52 @@ function matchesDeclaredType(value: unknown, type: string | string[] | undefined
 	return known.length === 0 || known.some((name) => matchesTypeName(value, name));
 }
 
+/**
+ * The forms that Lua 5.4 `tonumber` accepts, between the six ASCII spaces of
+ * C `isspace`. `Number()` alone accepts more, such as `0b101`, `0o7` and a
+ * no-break space, and fewer, such as `-0x10` and the hexadecimal float `0x1p4`.
+ */
+const LUA_DECIMAL = /^[ \t\n\v\f\r]*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)[ \t\n\v\f\r]*$/;
+const LUA_HEX = /^[ \t\n\v\f\r]*([+-]?)0[xX]([\da-fA-F]*)(?:\.([\da-fA-F]*))?(?:[pP]([+-]?\d+))?[ \t\n\v\f\r]*$/;
+
+/**
+ * Read text as a number, as Lua 5.4 `tonumber` does.
+ *
+ * A hexadecimal integer wraps at 64 bits, so `0xffffffffffffffff` is -1. A
+ * decimal that overflows is an infinity.
+ *
+ * @returns The number, or `undefined` when Lua answers nil.
+ */
+function luaToNumber(text: string): number | undefined {
+	const decimal = LUA_DECIMAL.exec(text);
+	if (decimal) {
+		return Number(decimal[1]);
+	}
+	const hex = LUA_HEX.exec(text);
+	if (!hex) {
+		return undefined;
+	}
+	const [, sign, whole, fraction, exponent] = hex;
+	if (whole === "" && (fraction === undefined || fraction === "")) {
+		return undefined;
+	}
+	if (fraction === undefined && exponent === undefined) {
+		const wrapped = BigInt.asIntN(64, BigInt(`0x${whole}`) * (sign === "-" ? -1n : 1n));
+		return Number(wrapped);
+	}
+	let mantissa = 0;
+	for (const digit of whole + (fraction ?? "")) {
+		mantissa = mantissa * 16 + parseInt(digit, 16);
+	}
+	const power = Number(exponent ?? 0) - 4 * (fraction?.length ?? 0);
+	return (sign === "-" ? -mantissa : mantissa) * 2 ** power;
+}
+
 function coerceScalar(value: string, name: string): { ok: boolean; value?: unknown } {
 	if (name === "number" || name === "integer") {
-		const number = value.trim() === "" ? NaN : Number(value);
-		if (Number.isFinite(number) && (name === "number" || Number.isInteger(number))) {
+		const number = luaToNumber(value);
+		// An integer is finite, as the Lua type check requires.
+		if (number !== undefined && (name === "number" || Number.isInteger(number))) {
 			return { ok: true, value: number };
 		}
 	} else if (name === "boolean") {
