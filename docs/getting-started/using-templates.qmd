@@ -2,13 +2,19 @@
 title: "Using Templates"
 alt-text:
   extension-source-picker: |
-    The extension source picker interface showing options to install from Registry, GitHub, URL, or Local.
+    The Install From pick list at the top of the VS Code window.
+    It offers Registry, GitHub, URL and Local as the place to install from.
+    The Explorer and an open Quarto file are visible behind it.
   template-browser: |
-    The template browser interface showing available Quarto templates with their names, versions, and descriptions.
+    The template browser with an empty search box labelled Search templates.
+    The list shows templates such as AAAI2026, Academic Typst, ACM and ACS, each with its types, star count, repository and description.
   target-subdir: |
-    The input box prompting for a target subdirectory where template files should be copied.
+    An input box titled Target Subdirectory with the hint e.g., templates/starter.
+    The text below asks for the subdirectory for the template files, and says that an empty value means the project root.
   template-files: |
-    The QuickPick dialog showing available template files to copy.
+    A pick list titled Select Template Files to Copy.
+    Files such as .gitignore, LICENSE and README.md are marked as excluded by default, while bibliography.bib, sample-franklin.png and template.qmd are ticked.
+    A counter shows how many files are selected, and an OK button confirms the choice.
 ---
 
 Quarto Wizard allows you to quickly start new documents using pre-configured templates from the extension registry, GitHub repositories, URLs, or local paths.
@@ -40,13 +46,13 @@ When you use a template, Quarto Wizard:
 ![](images/extension-source-picker-dark.png "Extension Source Picker"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
 }
 ![](images/extension-source-picker-light.png "Extension Source Picker"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
 }
 :::
@@ -55,13 +61,13 @@ fig-alt='{{< meta alt-text.extension-source-picker >}}'
 ![](images/template-browser-dark.png "Template Browser"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.template-browser >}}'
 }
 ![](images/template-browser-light.png "Template Browser"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.template-browser >}}'
 }
 :::
@@ -82,13 +88,13 @@ fig-alt='{{< meta alt-text.template-browser >}}'
 ![](images/target-subdir-dark.png "Target Subdirectory Input"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.target-subdir >}}'
 }
 ![](images/target-subdir-light.png "Target Subdirectory Input"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.target-subdir >}}'
 }
 :::
@@ -97,13 +103,13 @@ fig-alt='{{< meta alt-text.target-subdir >}}'
 ![](images/template-files-dark.png "QuickPick Dialog: Template Files"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.template-files >}}'
 }
 ![](images/template-files-light.png "QuickPick Dialog: Template Files"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.template-files >}}'
 }
 :::

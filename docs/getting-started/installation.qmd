@@ -4,9 +4,12 @@ alt-text:
   marketplace: |
     The Extensions view showing Quarto Wizard in the search results with the Install button.
   quick-start: |
-    The Command Palette showing Quarto Wizard commands ready to use.
+    The command palette with Quarto Wizard typed in.
+    The list shows the Quarto Wizard commands, such as Install Extensions, Install Extension from GitHub, Quarto Reproducible Document and Set GitHub Token (Manual).
+    The matching words are highlighted in blue.
   github-token: |
-    The input dialog for entering a GitHub personal access token.
+    An input box with the hint ghp_xxxx or github_pat_xxxx.
+    The text below asks for a GitHub Personal Access Token, and says to press Enter to confirm or Escape to cancel.
 ---
 
 There are several ways to install Quarto Wizard in Visual Studio Code or Positron.
@@ -108,13 +111,13 @@ After installation, you can verify it worked by:
 ![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
 ![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
 :::
@@ -152,13 +155,13 @@ To use a personal access token instead:
 ![](images/github-token-dark.png "Command Palette: GitHub Token Input"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.github-token >}}'
 }
 ![](images/github-token-light.png "Command Palette: GitHub Token Input"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.github-token >}}'
 }
 :::

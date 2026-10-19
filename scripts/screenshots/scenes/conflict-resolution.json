@@ -1,0 +1,31 @@
+{
+	"name": "conflict-resolution",
+	"frame": ["editor", "dialog"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Install Extension from GitHub"
+		},
+		{
+			"kind": "wait",
+			"selector": ".quick-input-widget input"
+		},
+		{
+			"kind": "type",
+			"text": "mcanouil/quarto-iconify"
+		},
+		{
+			"kind": "key",
+			"key": "Enter"
+		},
+		{
+			"kind": "wait",
+			"selector": ".monaco-dialog-box",
+			"timeout": 60000
+		}
+	]
+}

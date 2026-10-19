@@ -2,7 +2,9 @@
 title: "Getting Started"
 alt-text:
   quick-start: |
-    The Command Palette showing Quarto Wizard commands ready to use.
+    The command palette with Quarto Wizard typed in.
+    The list shows the Quarto Wizard commands, such as Install Extensions, Install Extension from GitHub, Quarto Reproducible Document and Set GitHub Token (Manual).
+    The matching words are highlighted in blue.
 ---
 
 Welcome to Quarto Wizard, a Visual Studio Code extension that helps you manage your Quarto projects and extensions.
@@ -33,13 +35,13 @@ It enhances your Quarto development experience by making extension management si
 ![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
 ![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
 :::

@@ -1,0 +1,37 @@
+{
+	"name": "explorer-view-snippets",
+	"themes": ["dark", "light"],
+	"frame": ["sidebar", "editor"],
+	"steps": [
+		{
+			"kind": "setVersion",
+			"extension": "mcanouil/iconify",
+			"version": "4.0.0"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Focus on Extensions Installed View"
+		},
+		{
+			"kind": "wait",
+			"text": "Updates checked against",
+			"timeout": 60000
+		},
+		{
+			"kind": "sidebarWidth",
+			"width": 500
+		},
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "expand",
+			"row": "mcanouil/iconify"
+		},
+		{
+			"kind": "expand",
+			"row": "Snippets"
+		}
+	]
+}

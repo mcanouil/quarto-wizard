@@ -1,0 +1,46 @@
+{
+	"name": "reprex-command-2",
+	"frame": ["sidebar", "editor", "contextmenu"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "click",
+			"text": "report.qmd",
+			"part": "sidebar",
+			"button": "right"
+		},
+		{
+			"kind": "click",
+			"text": "Quarto Wizard",
+			"part": "contextmenu"
+		}
+	],
+	"labels": [
+		{
+			"text": "Quarto Wizard",
+			"colour": "#f4a261",
+			"at": {
+				"part": "editor",
+				"x": 380,
+				"y": 330
+			},
+			"highlight": true,
+			"target": {
+				"menu": -1
+			}
+		},
+		{
+			"colour": "#f4a261",
+			"highlight": true,
+			"arrow": false,
+			"target": {
+				"text": "Quarto Wizard",
+				"part": "contextmenu",
+				"item": true
+			}
+		}
+	]
+}

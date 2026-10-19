@@ -1,0 +1,48 @@
+{
+	"name": "editor-context",
+	"frame": ["editor", "contextmenu"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "click",
+			"text": "Hello.",
+			"part": "editor",
+			"button": "right"
+		},
+		{
+			"kind": "click",
+			"text": "Quarto Wizard",
+			"part": "contextmenu"
+		}
+	],
+	"themes": ["dark", "light"],
+	"labels": [
+		{
+			"text": "Quarto Wizard commands",
+			"colour": "#f4a261",
+			"at": {
+				"part": "editor",
+				"x": 420,
+				"y": 440
+			},
+			"highlight": true,
+			"target": {
+				"menu": -1
+			},
+			"side": "top"
+		},
+		{
+			"colour": "#f4a261",
+			"highlight": true,
+			"arrow": false,
+			"target": {
+				"text": "Quarto Wizard",
+				"part": "contextmenu",
+				"item": true
+			}
+		}
+	]
+}

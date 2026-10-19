@@ -1,0 +1,155 @@
+{
+	"name": "walkthrough-explorer-view",
+	"themes": ["dark"],
+	"outputs": {
+		"dark": "assets/walkthroughs/media/explorer-view.png"
+	},
+	"frame": "window",
+	"steps": [
+		{
+			"kind": "setVersion",
+			"extension": "mcanouil/iconify",
+			"version": "4.0.0"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Show Quarto Wizard Log Output"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Focus on Extensions Installed View"
+		},
+		{
+			"kind": "wait",
+			"text": "mcanouil/iconify",
+			"timeout": 30000
+		},
+		{
+			"kind": "sidebarWidth",
+			"width": 620
+		},
+		{
+			"kind": "expand",
+			"row": "mcanouil/iconify"
+		}
+	],
+	"labels": [
+		{
+			"text": "Update all",
+			"colour": "#9be38a",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 27
+			},
+			"target": {
+				"action": "Update All"
+			},
+			"control": [0.52, 2.6]
+		},
+		{
+			"text": "Use a template",
+			"colour": "#f4a261",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 77
+			},
+			"target": {
+				"action": "Use Template"
+			},
+			"control": [0.17, 0.0]
+		},
+		{
+			"text": "Install extensions",
+			"colour": "#f5d76e",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 127
+			},
+			"target": {
+				"action": "Install Extensions"
+			},
+			"control": [0.12, 0.05]
+		},
+		{
+			"text": "Where updates were checked",
+			"colour": "#7fb2ff",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 187
+			},
+			"target": {
+				"text": "Updates checked against"
+			},
+			"control": [0.645, 1.16]
+		},
+		{
+			"text": "Update \u00b7 Remove \u00b7 Open repository",
+			"colour": "#ff8a80",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 247
+			},
+			"target": {
+				"row": "mcanouil/iconify",
+				"action": "Remove Extension"
+			},
+			"control": [0.32, 0.27]
+		},
+		{
+			"text": "Latest version and where it was found",
+			"colour": "#c39bff",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 341
+			},
+			"target": {
+				"text": "Latest:"
+			},
+			"control": [0.5, 0.0]
+		},
+		{
+			"text": "Schema and snippets",
+			"colour": "#ff7ad9",
+			"at": {
+				"part": "sidebar",
+				"x": 190,
+				"y": 488
+			},
+			"from": "top",
+			"target": {
+				"text": "Snippets"
+			},
+			"control": [0.4, 0.5]
+		},
+		{
+			"text": "Updates available",
+			"colour": "#6fe3e3",
+			"at": {
+				"part": "sidebar",
+				"x": 46,
+				"y": 610
+			},
+			"from": "top",
+			"target": {
+				"badge": "Quarto Wizard"
+			},
+			"control": [0.2, 0.48]
+		},
+		{
+			"text": "Quarto Wizard log",
+			"colour": "#ffffff",
+			"size": 44,
+			"at": {
+				"part": "panel",
+				"x": 150,
+				"y": 221
+			}
+		}
+	]
+}

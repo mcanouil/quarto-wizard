@@ -2,7 +2,8 @@
 title: "Troubleshooting"
 alt-text:
   output-log: |
-    The Output panel showing Quarto Wizard log messages with timestamps and log levels.
+    The Quarto Wizard view in the sidebar and the Output panel below the editor.
+    The panel shows the Quarto Wizard log with time-stamped information messages, including one that says a GitHub token was used for the update check.
 ---
 
 This guide helps you resolve common issues with Quarto Wizard.
@@ -19,13 +20,13 @@ The first step in troubleshooting is to check the output log:
 ![](images/output-log-dark.png "Output Log: Quarto Wizard"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.output-log >}}'
 }
 ![](images/output-log-light.png "Output Log: Quarto Wizard"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.output-log >}}'
 }
 :::

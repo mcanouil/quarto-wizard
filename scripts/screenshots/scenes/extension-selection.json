@@ -1,0 +1,56 @@
+{
+	"name": "extension-selection",
+	"frame": ["sidebar", "editor", "quickinput"],
+	"steps": [
+		{
+			"kind": "write",
+			"file": "packs/pair/_extensions/demo/alpha/_extension.yml",
+			"content": "title: Alpha\nauthor: Demo\nversion: 1.0.0\ncontributes:\n  filters:\n    - alpha.lua\n"
+		},
+		{
+			"kind": "write",
+			"file": "packs/pair/_extensions/demo/beta/_extension.yml",
+			"content": "title: Beta\nauthor: Demo\nversion: 1.0.0\ncontributes:\n  filters:\n    - beta.lua\n"
+		},
+		{
+			"kind": "write",
+			"file": "packs/pair/_extensions/demo/alpha/alpha.lua",
+			"content": "return {}\n"
+		},
+		{
+			"kind": "write",
+			"file": "packs/pair/_extensions/demo/beta/beta.lua",
+			"content": "return {}\n"
+		},
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "click",
+			"text": "packs",
+			"part": "sidebar"
+		},
+		{
+			"kind": "click",
+			"text": "pair",
+			"part": "sidebar",
+			"button": "right"
+		},
+		{
+			"kind": "click",
+			"text": "Quarto Wizard",
+			"part": "contextmenu"
+		},
+		{
+			"kind": "click",
+			"text": "Install Extension from Local",
+			"part": "workbench"
+		},
+		{
+			"kind": "wait",
+			"text": "Select Extension(s) to Install",
+			"timeout": 30000
+		}
+	]
+}

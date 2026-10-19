@@ -1,0 +1,18 @@
+{
+	"name": "reprex-language",
+	"frame": ["sidebar", "editor", "quickinput"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Quarto Reproducible Document"
+		},
+		{
+			"kind": "wait",
+			"selector": ".quick-input-list .monaco-list-row"
+		}
+	]
+}
