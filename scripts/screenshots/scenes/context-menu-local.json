@@ -1,6 +1,6 @@
 {
 	"name": "context-menu-local",
-	"frame": ["sidebar", "contextmenu"],
+	"frame": ["sidebar", "editor", "contextmenu"],
 	"steps": [
 		{
 			"kind": "click",
@@ -14,5 +14,23 @@
 			"button": "right"
 		}
 	],
-	"themes": ["dark", "light"]
+	"themes": ["dark", "light"],
+	"labels": [
+		{
+			"text": "Quarto Wizard",
+			"colour": "#f4a261",
+			"at": {
+				"part": "editor",
+				"x": 120,
+				"y": 300
+			},
+			"highlight": true,
+			"target": {
+				"text": ["Install Extension from Local", "Quarto Wizard"],
+				"part": "contextmenu",
+				"item": true
+			},
+			"control": [0.4, 0.5]
+		}
+	]
 }

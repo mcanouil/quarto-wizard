@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arrowPath, assertScale, assertSameSize, cropRect, fitWindow } from "../lib/geometry.mjs";
+import { arrowPath, assertScale, assertSameSize, cropRect, fitWindow, unionBoxes } from "../lib/geometry.mjs";
 
 const viewport = { width: 1280, height: 800 };
 
@@ -55,4 +55,18 @@ test("cropRect clamps at the right and bottom edges", () => {
 test("assertScale accepts the required scale and rejects another with the value in the message", () => {
 	assert.doesNotThrow(() => assertScale(2));
 	assert.throws(() => assertScale(1), /scale factor.*1/);
+});
+
+test("unionBoxes holds every box", () => {
+	assert.deepEqual(
+		unionBoxes([
+			{ x: 10, y: 20, width: 100, height: 30 },
+			{ x: 40, y: 60, width: 200, height: 10 },
+		]),
+		{ x: 10, y: 20, width: 230, height: 50 },
+	);
+});
+
+test("unionBoxes of nothing is null", () => {
+	assert.equal(unionBoxes([]), null);
 });

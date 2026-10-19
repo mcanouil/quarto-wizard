@@ -45,6 +45,54 @@ function validateStep(step, where) {
 	}
 }
 
+function validateLabel(label, where) {
+	const fail = (message) => {
+		throw new Error(`${where}: ${message}`);
+	};
+	const highlightOnly = label.text === undefined && label.highlight === true && label.arrow === false;
+	if (!highlightOnly) {
+		if (typeof label.text !== "string" || typeof label.colour !== "string") {
+			fail("a label needs text and colour as strings.");
+		}
+		const at = label.at;
+		if (!at || typeof at.part !== "string" || typeof at.x !== "number" || typeof at.y !== "number") {
+			fail("a label needs at as { part, x, y }.");
+		}
+	} else if (typeof label.colour !== "string") {
+		fail("a highlight needs colour as a string.");
+	}
+	const target = label.target;
+	if (label.highlight !== undefined && typeof label.highlight !== "boolean") {
+		fail("highlight must be true or false.");
+	}
+	if (label.arrow !== undefined && typeof label.arrow !== "boolean") {
+		fail("arrow must be true or false.");
+	}
+	if (label.side !== undefined && label.side !== "top") {
+		fail('side must be "top".');
+	}
+	if (label.highlight && !target) {
+		fail("a highlight needs a target.");
+	}
+	if (target === undefined) {
+		return;
+	}
+	const text = target.text;
+	if (
+		text !== undefined &&
+		typeof text !== "string" &&
+		!(Array.isArray(text) && text.length > 0 && text.every((item) => typeof item === "string"))
+	) {
+		fail("target.text must be a string or a list of strings.");
+	}
+	if (target.menu !== undefined && !Number.isInteger(target.menu)) {
+		fail("target.menu must be an integer.");
+	}
+	if (target.item !== undefined && typeof target.item !== "boolean") {
+		fail("target.item must be true or false.");
+	}
+}
+
 function validateScene(raw, file) {
 	const fail = (field, message) => {
 		throw new Error(`${file}: ${field} ${message}`);
@@ -67,13 +115,15 @@ function validateScene(raw, file) {
 		fail("steps", "must be a list.");
 	}
 	raw.steps.forEach((step, index) => validateStep(step, `${file}: steps[${index}]`));
+	const labels = raw.labels ?? [];
+	labels.forEach((label, index) => validateLabel(label, `${file}: labels[${index}]`));
 	const outputs = raw.outputs ?? defaultOutputs(raw.name, themes);
 	for (const theme of themes) {
 		if (typeof outputs[theme] !== "string") {
 			fail("outputs", `must name a file for the ${theme} theme.`);
 		}
 	}
-	return { name: raw.name, themes, outputs, frame, steps: raw.steps, labels: raw.labels ?? [] };
+	return { name: raw.name, themes, outputs, frame, steps: raw.steps, labels };
 }
 
 /**

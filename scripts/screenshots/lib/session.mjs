@@ -4,7 +4,16 @@ import os from "node:os";
 import path from "node:path";
 import { downloadAndUnzipVSCode, resolveCliArgsFromVSCodeExecutablePath } from "@vscode/test-electron";
 import { _electron as electron } from "playwright-core";
-import { arrowPath, assertScale, assertSameSize, cropRect, fitWindow, SCALE_FACTOR, WINDOW } from "./geometry.mjs";
+import {
+	arrowPath,
+	assertScale,
+	assertSameSize,
+	cropRect,
+	fitWindow,
+	SCALE_FACTOR,
+	unionBoxes,
+	WINDOW,
+} from "./geometry.mjs";
 import { labelsForTheme } from "./labels.mjs";
 import { install } from "./workbench.mjs";
 
@@ -137,7 +146,7 @@ async function workbenchPage(app, project) {
 					folder,
 				);
 				if (ready) {
-					await page.evaluate(install, arrowPath.toString());
+					await page.evaluate(install, [arrowPath.toString(), unionBoxes.toString()]);
 					return page;
 				}
 			}
@@ -301,6 +310,21 @@ async function frame({ BrowserWindow }, { png, viewport, crop, margin, radius, c
 
 const pngSize = (buffer) => ({ width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) });
 
+/** A part that moved or closed since the first capture would make the pair differ in more than colour. */
+async function assertSameParts(page, scene, theme, before) {
+	if (scene.frame === "window") {
+		return;
+	}
+	const after = await page.evaluate(() => window.qwShot.partBoxes());
+	for (const name of scene.frame) {
+		const [a, b] = [before[name], after[name]];
+		const same = a && b && ["x", "y", "width", "height"].every((key) => Math.abs(a[key] - b[key]) <= 1);
+		if (!same) {
+			throw new Error(`Scene ${scene.name}: the ${name} changed after the ${theme} theme applied.`);
+		}
+	}
+}
+
 async function drawSceneLabels(page, scene, theme, boxes) {
 	const missing = await page.evaluate(
 		([labels, parts]) => window.qwShot.drawLabels(labels, parts),
@@ -315,6 +339,7 @@ async function captureTheme(app, page, scene, theme, geometry) {
 	if (theme !== "dark" || (await page.evaluate(() => window.qwShot.currentTheme())) !== "dark") {
 		await setTheme(page, scene.name, theme);
 	}
+	await assertSameParts(page, scene, theme, geometry.boxes);
 	await drawSceneLabels(page, scene, theme, geometry.boxes);
 	await sleep(300);
 	const png = (await page.screenshot()).toString("base64");

@@ -103,3 +103,19 @@ export function assertScale(scaleFactor) {
 		);
 	}
 }
+
+/**
+ * Self-contained, because the workbench page receives its source.
+ * @param {Box[]} boxes
+ * @returns {Box | null}
+ */
+export function unionBoxes(boxes) {
+	if (boxes.length === 0) {
+		return null;
+	}
+	const left = Math.min(...boxes.map((box) => box.x));
+	const top = Math.min(...boxes.map((box) => box.y));
+	const right = Math.max(...boxes.map((box) => box.x + box.width));
+	const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+	return { x: left, y: top, width: right - left, height: bottom - top };
+}

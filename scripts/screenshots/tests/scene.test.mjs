@@ -96,3 +96,67 @@ test("loadScenes rejects outputs that miss a theme", () => {
 	const directory = writeScenes({ "a.json": { ...minimal("a"), outputs: { dark: "a.png" } } });
 	assert.throws(() => loadScenes(directory), /a\.json: outputs.*light/);
 });
+
+const label = (extra) => ({ text: "t", colour: "#f4a261", at: { part: "editor", x: 1, y: 2 }, ...extra });
+
+test("loadScenes accepts a highlighted target that spans several items", () => {
+	const directory = writeScenes({
+		"a.json": {
+			...minimal("a"),
+			labels: [
+				label({
+					highlight: true,
+					arrow: false,
+					target: { text: ["Install Extension from Local", "Quarto Wizard"], part: "contextmenu", item: true },
+				}),
+			],
+		},
+	});
+	assert.equal(loadScenes(directory)[0].labels[0].highlight, true);
+});
+
+test("loadScenes rejects a label without a position and names the label", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), labels: [{ text: "t", colour: "#f4a261" }] } });
+	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*at/);
+});
+
+test("loadScenes rejects a highlight without a target", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), labels: [label({ highlight: true })] } });
+	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*highlight.*target/);
+});
+
+test("loadScenes rejects a target text that is not a string or a list of strings", () => {
+	const directory = writeScenes({ "a.json": { ...minimal("a"), labels: [label({ target: { text: [1] } })] } });
+	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*target\.text/);
+});
+
+test("loadScenes rejects a menu index that is not an integer", () => {
+	const directory = writeScenes({
+		"a.json": { ...minimal("a"), labels: [label({ target: { part: "contextmenu", menu: "last" } })] },
+	});
+	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*target\.menu/);
+});
+
+test("loadScenes accepts a highlight without text or position when it has no arrow", () => {
+	const directory = writeScenes({
+		"a.json": {
+			...minimal("a"),
+			labels: [{ colour: "#f4a261", highlight: true, arrow: false, target: { text: "Quarto Wizard" } }],
+		},
+	});
+	assert.equal(loadScenes(directory)[0].labels.length, 1);
+});
+
+test("loadScenes rejects a label without text unless it is a highlight without an arrow", () => {
+	const directory = writeScenes({
+		"a.json": { ...minimal("a"), labels: [{ colour: "#f4a261", highlight: true, target: { text: "x" } }] },
+	});
+	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*text and colour/);
+});
+
+test("loadScenes rejects a label side other than top", () => {
+	const directory = writeScenes({
+		"a.json": { ...minimal("a"), labels: [label({ side: "left", target: { text: "x" } })] },
+	});
+	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*side/);
+});
