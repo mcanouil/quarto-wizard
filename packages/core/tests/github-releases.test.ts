@@ -38,8 +38,11 @@ const mockTags = [
 	},
 ];
 
-vi.mock("../src/registry/http.js", () => ({
-	fetchJson: vi.fn().mockImplementation((url: string) => {
+// The list endpoints read their pages through `fetchJsonPages`, which answers
+// here with the one page that the mocked `fetchJson` gives. Pagination itself is
+// covered in `github-pagination.test.ts`.
+vi.mock("../src/registry/http.js", () => {
+	const fetchJson = vi.fn().mockImplementation((url: string) => {
 		if (url.includes("/releases")) {
 			return Promise.resolve(mockReleases);
 		}
@@ -55,8 +58,12 @@ vi.mock("../src/registry/http.js", () => ({
 			return Promise.resolve({ sha: "abc1234567890", commit: { message: "test" } });
 		}
 		return Promise.reject(new Error("Unknown URL"));
-	}),
-}));
+	});
+	return {
+		fetchJson,
+		fetchJsonPages: vi.fn((url: string, options: unknown) => fetchJson(url, options)),
+	};
+});
 
 import { fetchLatestCommit, fetchReleases, fetchTags, constructArchiveUrl } from "../src/github/releases.js";
 import { resolveVersion } from "../src/github/resolve.js";

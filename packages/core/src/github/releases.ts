@@ -19,9 +19,15 @@ import {
 	VersionError,
 	isCancellationError,
 } from "../errors.js";
-import { fetchJson } from "../registry/http.js";
+import { fetchJson, fetchJsonPages } from "../registry/http.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
+
+/** Items per page for list endpoints, the GitHub maximum. */
+const PER_PAGE = 100;
+
+/** Pages read per list endpoint, which bounds the anonymous rate limit cost. */
+const MAX_PAGES = 3;
 
 /**
  * GitHub release information.
@@ -308,6 +314,8 @@ export async function fetchDefaultBranch(
 /**
  * Fetch releases for a repository.
  *
+ * At most the first 300 releases (three pages of 100) are read.
+ *
  * @param owner - Repository owner
  * @param repo - Repository name
  * @param options - GitHub options
@@ -319,15 +327,14 @@ export async function fetchReleases(
 	options: GitHubOptions = {},
 ): Promise<GitHubRelease[]> {
 	const { auth, timeout, includePrereleases = false, signal } = options;
-	const url = repoApiUrl(owner, repo, "releases");
+	const url = `${repoApiUrl(owner, repo, "releases")}?per_page=${PER_PAGE}`;
 
 	try {
-		const raw = await fetchJson<RawRelease[]>(url, {
-			headers: getGitHubHeaders(auth),
-			timeout,
-			retries: 2,
-			signal,
-		});
+		const raw = await fetchJsonPages<RawRelease>(
+			url,
+			{ headers: getGitHubHeaders(auth), timeout, retries: 2, signal },
+			MAX_PAGES,
+		);
 
 		return raw
 			.filter((r) => !r.draft && (includePrereleases || !r.prerelease))
@@ -349,6 +356,8 @@ export async function fetchReleases(
 /**
  * Fetch tags for a repository.
  *
+ * At most the first 300 tags (three pages of 100) are read.
+ *
  * @param owner - Repository owner
  * @param repo - Repository name
  * @param options - GitHub options
@@ -356,15 +365,14 @@ export async function fetchReleases(
  */
 export async function fetchTags(owner: string, repo: string, options: GitHubOptions = {}): Promise<GitHubTag[]> {
 	const { auth, timeout, signal } = options;
-	const url = repoApiUrl(owner, repo, "tags");
+	const url = `${repoApiUrl(owner, repo, "tags")}?per_page=${PER_PAGE}`;
 
 	try {
-		const raw = await fetchJson<RawTag[]>(url, {
-			headers: getGitHubHeaders(auth),
-			timeout,
-			retries: 2,
-			signal,
-		});
+		const raw = await fetchJsonPages<RawTag>(
+			url,
+			{ headers: getGitHubHeaders(auth), timeout, retries: 2, signal },
+			MAX_PAGES,
+		);
 
 		return raw.map((t) => ({
 			name: t.name,
