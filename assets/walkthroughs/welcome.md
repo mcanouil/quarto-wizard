@@ -13,7 +13,7 @@ Browse, install and manage Quarto extensions, templates and brands without leavi
 ## Getting Started
 
 Follow the steps of this walkthrough.
-Each step opens the command that it describes.
+Each step links to the command that it describes.
 
 [Open Quarto Wizard Explorer](command:workbench.view.extension.quarto-wizard-explorer)
 

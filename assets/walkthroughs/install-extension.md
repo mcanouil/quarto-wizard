@@ -15,6 +15,7 @@ Quarto Wizard then installs into that folder and does not ask you to choose one.
 
 [Install Extensions](command:quartoWizard.installExtension)
 
-Extensions are installed from GitHub releases and tags, so an installation is reproducible.
+An extension from GitHub or from the registry installs its latest tag, or the latest commit of the default branch when the repository has no tags.
+Quarto Wizard records that tag or commit in `_extension.yml`, so you can update or reinstall the extension later.
 
 [Full guide](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html)

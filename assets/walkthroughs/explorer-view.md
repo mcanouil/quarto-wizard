@@ -16,7 +16,7 @@ The Explorer View lists the extensions that are installed in your workspace fold
 - **Open Source** to see the GitHub repository of an extension.
 
 A line at the top of the view tells you where the update check looked.
-If it says "registry", select **Sign In** in the title bar to check GitHub instead.
+If it reads `Updates checked against the registry. Sign in to GitHub to see new tags straight away.`, select **Sign In** in the title bar to check GitHub instead.
 
 [Open Explorer View](command:workbench.view.extension.quarto-wizard-explorer)
 
