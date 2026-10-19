@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
-import type { SourceType } from "@quarto-wizard/core";
+import { extractCommitFromSource, type SourceType, type UpdateCheckSource, type UpdateInfo } from "@quarto-wizard/core";
 import { formatType } from "@quarto-wizard/schema";
 import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@quarto-wizard/snippets";
 import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
@@ -17,6 +17,13 @@ export interface ExtensionCompatibility {
 	status: ExtensionCompatibilityStatus;
 	detail: string;
 	warningMessage?: string;
+}
+
+/**
+ * Names the place where an update check looked, for use after "on" in a sentence.
+ */
+export function describeCheckSource(source: UpdateCheckSource): string {
+	return source === "github" ? "GitHub" : "the registry";
 }
 
 /**
@@ -63,7 +70,6 @@ export type ProjectFolderItem = WorkspaceFolderTreeItem | ProjectGroupTreeItem;
  * Represents a tree item for a Quarto extension.
  */
 export class ExtensionTreeItem extends vscode.TreeItem {
-	public latestVersion?: string;
 	public workspaceFolder: string;
 	public repository?: string;
 	public sourceUrl?: string;
@@ -75,12 +81,13 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		public readonly workspacePath: string,
 		public readonly extension?: InstalledExtension,
 		icon?: string,
-		latestVersion?: string,
+		public readonly update?: UpdateInfo,
 		hasIssue?: boolean,
 		compatibilityWarningMessage?: string,
+		public readonly updateCheckFailed = false,
 	) {
 		super(label, collapsibleState);
-		const needsUpdate = latestVersion !== undefined && latestVersion !== "unknown";
+		const needsUpdate = update !== undefined;
 		const noSource = extension && !extension.manifest.source;
 
 		// Set context value based on source type for VS Code context menus
@@ -91,15 +98,33 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			contextValue = "quartoExtensionItemDetails";
 		} else if (!sourceType) {
 			contextValue = "quartoExtensionItemNoSource";
-		} else if (sourceType === "github" || sourceType === "registry" || needsUpdate) {
+		} else if (sourceType === "github" || sourceType === "registry") {
 			contextValue = "quartoExtensionItem";
 		} else {
 			contextValue = "quartoExtensionItemUpToDate";
 		}
 
+		const updateNotes: string[] = [];
+		if (update) {
+			updateNotes.push(`Latest ${update.latestVersion}, found on ${describeCheckSource(update.checkedOn)}.`);
+		}
+		if (updateCheckFailed) {
+			updateNotes.push("The update check of this extension failed.");
+		}
+		if (sourceType === "github" || sourceType === "registry") {
+			updateNotes.push(
+				extractCommitFromSource(extension?.manifest.source ?? "") !== null
+					? "Update installs the latest commit of the default branch."
+					: "Update installs the latest GitHub tag.",
+			);
+		}
+
 		// Build tooltip with warning if there are issues
 		const warnings: string[] = [];
 		let tooltipText = `${this.label}`;
+		if (updateNotes.length > 0) {
+			tooltipText += `\n\n${updateNotes.join("\n")}`;
+		}
 		if (hasIssue) {
 			warnings.push("Could not parse extension manifest");
 		}
@@ -114,7 +139,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		}
 		this.tooltip = tooltipText;
 		this.description = this.extension
-			? `${this.extension.manifest.version}${needsUpdate ? ` (latest: ${latestVersion})` : ""}`
+			? `${this.extension.manifest.version}${needsUpdate ? ` (latest: ${update.latestVersion})` : ""}`
 			: "";
 		this.contextValue = contextValue;
 
@@ -125,8 +150,6 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			this.iconPath = new vscode.ThemeIcon(icon);
 		}
 
-		// Store the clean version string (without '@' prefix) for display and commands.
-		this.latestVersion = latestVersion !== "unknown" ? latestVersion : "";
 		this.workspaceFolder = workspacePath;
 
 		// Store repository, source URL, and effective source type for commands
@@ -423,7 +446,10 @@ export type TreeItemType =
  */
 export interface FolderCache {
 	extensions: Record<string, InstalledExtension>;
-	latestVersions: Record<string, string>;
+	/** Latest update found for each extension that has one. */
+	updates: Record<string, UpdateInfo>;
+	/** Extensions whose repository could not be checked. */
+	updateCheckFailures: Set<string>;
 	parseErrors: Set<string>;
 	compatibility: Record<string, ExtensionCompatibility>;
 }

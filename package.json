@@ -464,6 +464,16 @@
 					"command": "quartoWizard.extensionsInstalled.refresh",
 					"when": "view == quartoWizard.extensionsInstalled",
 					"group": "navigation@4"
+				},
+				{
+					"command": "quartoWizard.signInWithGitHubSession",
+					"when": "view == quartoWizard.extensionsInstalled && quartoWizard.extensionsInstalled.updateCheck == registry",
+					"group": "navigation@5"
+				},
+				{
+					"command": "quartoWizard.showOutput",
+					"when": "view == quartoWizard.extensionsInstalled && quartoWizard.extensionsInstalled.updateCheck == failed",
+					"group": "navigation@5"
 				}
 			],
 			"view/item/context": [
@@ -724,15 +734,6 @@
 					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again.",
 					"title": "Confirm Installation",
 					"description": "Prompt before installing."
-				},
-				"quartoWizard.update.crossSource": {
-					"order": 3,
-					"scope": "resource",
-					"type": "boolean",
-					"default": false,
-					"markdownDescription": "Allow cross-source update discovery. When disabled (default), update checks respect the recorded `source-type`: extensions installed via the registry are resolved against the registry, and extensions installed with `quarto add owner/repo` are resolved against GitHub releases directly. When enabled, GitHub-sourced extensions also fall back to the registry when GitHub has no releases or tags.",
-					"title": "Cross-source Updates",
-					"description": "Allow registry lookup for GitHub-sourced extensions."
 				},
 				"quartoWizard.autoProjectDetection": {
 					"order": 4,

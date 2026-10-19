@@ -8,6 +8,11 @@
 - feat: Install the highest semantic version among the releases and tags of `owner/repo`, and no longer the release that GitHub marks as latest. Tag names that are not versions are ignored, and a repository that has only prereleases installs its default branch.
 - refactor: Return an `UpdateCheckResult` object from `checkForUpdates()` in `@quarto-wizard/core`, with `updates`, `repositoryFailures` and `checkFailure`, in place of an array of updates. Each `UpdateInfo` now also carries `projectDir`, `latestRef`, `refKind` and `checkedOn`.
 - refactor: Remove the `projectDir` and `crossSource` options of `update()` and `applyUpdates()` in `@quarto-wizard/core`. Both now take `projectDirs`, and each update installs in the project directory that its `UpdateInfo` names.
+- feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
+
+### New Features
+
+- feat: Show where the update check looked, in a message at the top of the Extensions Installed view and in the tooltip and details of each extension. Update and Update All now check GitHub when you click them, and install the tag that their messages name.
 
 ### Build System
 

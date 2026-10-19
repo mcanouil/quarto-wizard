@@ -28,6 +28,7 @@ export {
 	type UpdateResult,
 	checkForUpdates,
 	applyUpdates,
+	extractCommitFromSource,
 	update,
 } from "./update.js";
 

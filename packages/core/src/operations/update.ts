@@ -527,9 +527,11 @@ export async function update(options: UpdateOptions): Promise<UpdateResult> {
 
 /**
  * Check if a source string represents a commit-based installation.
- * Returns the short commit hash if it is, null otherwise.
+ *
+ * @param source - Source as recorded in the manifest
+ * @returns The seven-character commit in lower case, or null when the source is not pinned to a commit
  */
-function extractCommitFromSource(source: string): string | null {
+export function extractCommitFromSource(source: string): string | null {
 	const atIndex = source.lastIndexOf("@");
 	if (atIndex <= 0) return null;
 
