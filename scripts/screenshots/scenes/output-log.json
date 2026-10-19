@@ -1,0 +1,29 @@
+{
+	"name": "output-log",
+	"themes": ["dark", "light"],
+	"frame": ["sidebar", "panel"],
+	"steps": [
+		{
+			"kind": "setVersion",
+			"extension": "mcanouil/iconify",
+			"version": "4.0.0"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Focus on Extensions Installed View"
+		},
+		{
+			"kind": "wait",
+			"text": "Updates checked against",
+			"timeout": 60000
+		},
+		{
+			"kind": "sidebarWidth",
+			"width": 500
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Show Quarto Wizard Log Output"
+		}
+	]
+}

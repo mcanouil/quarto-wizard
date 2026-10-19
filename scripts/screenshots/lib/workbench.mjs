@@ -8,6 +8,7 @@ export function install(arrowPathSource) {
 	const arrowPath = new Function(`return ${arrowPathSource}`)();
 
 	const PART_SELECTORS = {
+		titlebar: ".part.titlebar",
 		activitybar: ".part.activitybar",
 		sidebar: ".part.sidebar",
 		editor: ".part.editor",

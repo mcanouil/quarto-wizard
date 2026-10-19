@@ -122,7 +122,7 @@ async function workbenchPage(app, project) {
 		async () => {
 			for (const page of app.windows().reverse()) {
 				const ready = await page.evaluate(
-					(name) => document.title.includes(name) && Boolean(document.querySelector(".part.sidebar")) && !window.qwShot,
+					(name) => document.title.includes(name) && Boolean(document.querySelector(".part.sidebar")),
 					folder,
 				);
 				if (ready) {
@@ -286,8 +286,7 @@ async function captureTheme(app, page, scene, theme, geometry) {
 	return Buffer.from(framed, "base64");
 }
 
-async function runScene(app, scene, { repo, project, openProject }) {
-	await openProject(project);
+async function runScene(app, scene, project, repo) {
 	const page = await workbenchPage(app, project);
 	const viewport = await sizeWindow(app, page);
 	await sleep(4000);
@@ -325,7 +324,9 @@ async function runScene(app, scene, { repo, project, openProject }) {
 }
 
 /**
- * Runs every scene in one VS Code window and returns the files it wrote.
+ * Runs every scene in a fresh VS Code window of one downloaded build and returns the files it wrote.
+ * Opening another folder in a running window does nothing when the window is driven by Playwright,
+ * so each scene launches and closes its own window.
  * @param {object[]} scenes
  * @param {{ repo: string, registryUrl: string }} options
  * @returns {Promise<string[]>}
@@ -334,43 +335,35 @@ export async function runScenes(scenes, { repo, registryUrl }) {
 	fs.rmSync(projectsDir, { recursive: true, force: true });
 	prepareProfile(registryUrl);
 	const executablePath = await downloadAndUnzipVSCode("stable");
-	const [cli, ...cliArgs] = resolveCliArgsFromVSCodeExecutablePath(executablePath);
+	const [cli] = resolveCliArgsFromVSCodeExecutablePath(executablePath);
 	installQuartoExtension(cli);
 
-	const sessionArgs = [
-		`--extensionDevelopmentPath=${repo}`,
-		`--user-data-dir=${userData}`,
-		`--extensions-dir=${extensionsDir}`,
-		"--disable-workspace-trust",
-		"--skip-welcome",
-		"--skip-release-notes",
-	];
-	const firstProject = prepareProject(repo, scenes[0]);
-	const app = await electron.launch({
-		executablePath,
-		args: [firstProject, ...sessionArgs],
-		env: { ...process.env },
-	});
-
 	const written = [];
-	try {
-		const openProject = async (project) => {
-			if (project === firstProject) {
-				return;
-			}
-			execFileSync(cli, [...cliArgs, ...sessionArgs, "--reuse-window", project], { stdio: "inherit" });
-		};
-		for (const scene of scenes) {
-			console.log(`Scene ${scene.name}`);
-			const project = scene === scenes[0] ? firstProject : prepareProject(repo, scene);
-			const files = await runScene(app, scene, { repo, project, openProject });
+	for (const scene of scenes) {
+		console.log(`Scene ${scene.name}`);
+		const project = prepareProject(repo, scene);
+		const app = await electron.launch({
+			executablePath,
+			args: [
+				project,
+				`--extensionDevelopmentPath=${repo}`,
+				`--user-data-dir=${userData}`,
+				`--extensions-dir=${extensionsDir}`,
+				"--disable-workspace-trust",
+				"--skip-welcome",
+				"--skip-release-notes",
+			],
+			env: { ...process.env },
+		});
+		try {
+			const files = await runScene(app, scene, project, repo);
 			for (const file of Object.values(files)) {
 				console.log(`Wrote ${path.relative(repo, file)}.`);
 				written.push(file);
 			}
+		} finally {
+			await app.close();
 		}
-	} finally {
-		await app.close();
 	}
 	return written;
 }

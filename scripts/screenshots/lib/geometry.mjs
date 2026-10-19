@@ -2,6 +2,7 @@
 
 export const WINDOW = { width: 1280, height: 800 };
 export const CROP_MARGIN = 16;
+const CHROME_PARTS = ["titlebar", "activitybar", "sidebar", "editor", "panel", "statusbar"];
 
 /**
  * @param {Box} workArea
@@ -21,6 +22,8 @@ export function fitWindow(workArea) {
 }
 
 /**
+ * The margin never reaches into a workbench part that the frame does not name, so the image has no
+ * slivers of the title bar, the activity bar or the status bar.
  * @param {"window" | string[]} frame
  * @param {Record<string, Box | null>} parts
  * @param {{ width: number, height: number }} viewport
@@ -36,13 +39,30 @@ export function cropRect(frame, parts, viewport) {
 		}
 		return parts[name];
 	});
-	const left = Math.max(0, Math.floor(Math.min(...boxes.map((box) => box.x)) - CROP_MARGIN));
-	const top = Math.max(0, Math.floor(Math.min(...boxes.map((box) => box.y)) - CROP_MARGIN));
-	const right = Math.min(viewport.width, Math.ceil(Math.max(...boxes.map((box) => box.x + box.width)) + CROP_MARGIN));
-	const bottom = Math.min(
-		viewport.height,
-		Math.ceil(Math.max(...boxes.map((box) => box.y + box.height)) + CROP_MARGIN),
-	);
+	let left = Math.floor(Math.min(...boxes.map((box) => box.x)) - CROP_MARGIN);
+	let top = Math.floor(Math.min(...boxes.map((box) => box.y)) - CROP_MARGIN);
+	let right = Math.ceil(Math.max(...boxes.map((box) => box.x + box.width)) + CROP_MARGIN);
+	let bottom = Math.ceil(Math.max(...boxes.map((box) => box.y + box.height)) + CROP_MARGIN);
+	const union = {
+		left: Math.min(...boxes.map((box) => box.x)),
+		top: Math.min(...boxes.map((box) => box.y)),
+		right: Math.max(...boxes.map((box) => box.x + box.width)),
+		bottom: Math.max(...boxes.map((box) => box.y + box.height)),
+	};
+	for (const name of CHROME_PARTS.filter((part) => !frame.includes(part))) {
+		const box = parts[name];
+		if (!box) {
+			continue;
+		}
+		if (box.x + box.width <= union.left) left = Math.max(left, box.x + box.width);
+		if (box.x >= union.right) right = Math.min(right, box.x);
+		if (box.y + box.height <= union.top) top = Math.max(top, box.y + box.height);
+		if (box.y >= union.bottom) bottom = Math.min(bottom, box.y);
+	}
+	left = Math.max(0, left);
+	top = Math.max(0, top);
+	right = Math.min(viewport.width, right);
+	bottom = Math.min(viewport.height, bottom);
 	return { x: left, y: top, width: right - left, height: bottom - top };
 }
 

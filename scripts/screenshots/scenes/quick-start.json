@@ -1,0 +1,76 @@
+{
+	"name": "quick-start",
+	"themes": ["dark", "light"],
+	"frame": "window",
+	"steps": [
+		{
+			"kind": "setVersion",
+			"extension": "mcanouil/iconify",
+			"version": "4.0.0"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Focus on Extensions Installed View"
+		},
+		{
+			"kind": "wait",
+			"text": "Updates checked against",
+			"timeout": 60000
+		},
+		{
+			"kind": "sidebarWidth",
+			"width": 620
+		},
+		{
+			"kind": "click",
+			"text": "mcanouil/iconify",
+			"part": "sidebar"
+		},
+		{
+			"kind": "key",
+			"key": "ArrowLeft"
+		}
+	],
+	"labels": [
+		{
+			"text": "Update all",
+			"colour": "#9be38a",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 27
+			},
+			"target": {
+				"action": "Update All"
+			},
+			"control": [0.52, 2.6]
+		},
+		{
+			"text": "Where updates were checked",
+			"colour": "#7fb2ff",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 187
+			},
+			"target": {
+				"text": "Updates checked against"
+			},
+			"control": [0.645, 1.16]
+		},
+		{
+			"text": "Update \u00b7 Remove \u00b7 Open repository",
+			"colour": "#ff8a80",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 247
+			},
+			"target": {
+				"row": "mcanouil/iconify",
+				"action": "Remove Extension"
+			},
+			"control": [0.32, 0.27]
+		}
+	]
+}

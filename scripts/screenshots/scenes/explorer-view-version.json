@@ -1,0 +1,29 @@
+{
+	"name": "explorer-view-version",
+	"themes": ["dark", "light"],
+	"frame": ["activitybar", "sidebar"],
+	"steps": [
+		{
+			"kind": "setVersion",
+			"extension": "mcanouil/iconify",
+			"version": "4.0.0"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Focus on Extensions Installed View"
+		},
+		{
+			"kind": "wait",
+			"text": "Updates checked against",
+			"timeout": 60000
+		},
+		{
+			"kind": "sidebarWidth",
+			"width": 500
+		},
+		{
+			"kind": "expand",
+			"row": "mcanouil/iconify"
+		}
+	]
+}

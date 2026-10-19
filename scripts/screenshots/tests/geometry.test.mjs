@@ -24,6 +24,16 @@ test("cropRect unions parts with the margin", () => {
 	assert.deepEqual(cropRect(["sidebar", "quickinput"], parts, viewport), { x: 0, y: 19, width: 916, height: 732 });
 });
 
+test("cropRect keeps the margin out of parts that the frame does not name", () => {
+	const parts = {
+		titlebar: { x: 0, y: 0, width: 1280, height: 35 },
+		activitybar: { x: 0, y: 35, width: 48, height: 743 },
+		sidebar: { x: 48, y: 35, width: 400, height: 743 },
+		statusbar: { x: 0, y: 778, width: 1280, height: 22 },
+	};
+	assert.deepEqual(cropRect(["sidebar"], parts, viewport), { x: 48, y: 35, width: 416, height: 743 });
+});
+
 test("cropRect rejects a missing part", () => {
 	assert.throws(() => cropRect(["quickinput"], { quickinput: null }, viewport), /quickinput/);
 });
