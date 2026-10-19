@@ -6,8 +6,8 @@ alt-text:
     The matching command is highlighted at the top of the list.
     A similar command, Show Quarto Wizard Log Output, appears below it.
   reprex-command-2: |
-    A new untitled Quarto document in the editor, created by the reproducible document command.
-    It has a YAML header with a title, format, engine and references, then a sentence, an R code cell and a figure placeholder.
+    The Explorer context menu on report.qmd in VS Code.
+    The Quarto Wizard submenu is open and lists Install Extensions, Use Template, Quarto Reproducible Document, Show Quarto Wizard Log Output, Clear Recently Installed Extensions and Clear Extension Cache.
   reprex-language: |
     A pick list with the prompt Select the computing language.
     The choices are R, Python and Julia, and R is highlighted.
@@ -42,13 +42,13 @@ fig-alt='{{< meta alt-text.reprex-command-1 >}}'
 :::
 
 ::: {style="text-align: center;"}
-![](images/reprex-command-2-dark.png "Explorer Context Menu"){
+![](images/reprex-command-2-dark.png "Explorer Context Menu: Quarto Wizard Submenu"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.reprex-command-2 >}}'
 }
-![](images/reprex-command-2-light.png "Explorer Context Menu"){
+![](images/reprex-command-2-light.png "Explorer Context Menu: Quarto Wizard Submenu"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-light"

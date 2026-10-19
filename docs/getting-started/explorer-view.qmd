@@ -7,13 +7,12 @@ alt-text:
     The Schema and Snippets nodes sit below them.
     Labels name the title buttons, the update message, the row buttons, the latest version row, the Schema and Snippets nodes, and the update badge on the Activity Bar icon.
   reprex-command-2: |
-    A new untitled Quarto document in the editor, created by the reproducible document command.
-    It has a YAML header with a title, format, engine and references, then a sentence, an R code cell and a figure placeholder.
+    The Explorer context menu on report.qmd in VS Code.
+    The Quarto Wizard submenu is open and lists Install Extensions, Use Template, Quarto Reproducible Document, Show Quarto Wizard Log Output, Clear Recently Installed Extensions and Clear Extension Cache.
   explorer-view-version: |
-    The Quarto Wizard view in the sidebar with mcanouil/iconify expanded.
-    The extension is at version 4.0.0, and its row notes that 4.2.2 is the latest.
-    The detail rows list the title, author, version, required Quarto version, compatibility, contributions, source, origin and the latest version found on GitHub.
-    The Activity Bar icon shows a badge with the number 1.
+    The Quarto Wizard view with the extension demo/legacy expanded.
+    A warning icon marks the extension, and the detail rows show Quarto required >=100.0.0 and Compatibility incompatible.
+    The extension mcanouil/iconify below it shows version 4.0.0, with 4.2.2 as the latest.
   explorer-view-schema: |
     The Quarto Wizard view with the Schema node of mcanouil/iconify expanded.
     It holds two groups, Options and Shortcodes, each with the number of entries it contains.
@@ -135,13 +134,13 @@ If no editor is open, a prompt asks you to open a file first.
 If snippets cannot be parsed, the tree displays `Snippets (invalid)` with a warning.
 
 ::: {style="text-align: center;"}
-![](images/explorer-view-snippets-dark.png "Snippets Node with Tooltip Preview"){
+![](images/explorer-view-snippets-dark.png "Snippets Node Expanded"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.explorer-view-snippets >}}'
 }
-![](images/explorer-view-snippets-light.png "Snippets Node with Tooltip Preview"){
+![](images/explorer-view-snippets-light.png "Snippets Node Expanded"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-light"
@@ -253,13 +252,13 @@ Right-click on an extension to access additional options:
 - Reveal in Explorer View.
 
 ::: {style="text-align: center;"}
-![](images/reprex-command-2-dark.png "Explorer Context Menu"){
+![](images/reprex-command-2-dark.png "Explorer Context Menu: Quarto Wizard Submenu"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.reprex-command-2 >}}'
 }
-![](images/reprex-command-2-light.png "Explorer Context Menu"){
+![](images/reprex-command-2-light.png "Explorer Context Menu: Quarto Wizard Submenu"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-light"

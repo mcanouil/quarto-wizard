@@ -108,13 +108,13 @@ After installation, you can verify it worked by:
 3. You should see the available Quarto Wizard commands.
 
 ::: {style="text-align: center;"}
-![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
+![](images/quick-start-dark.png "Extensions Installed View with Labels"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
-![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
+![](images/quick-start-light.png "Extensions Installed View with Labels"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-light"

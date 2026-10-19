@@ -32,13 +32,13 @@ It enhances your Quarto development experience by making extension management si
 3. Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) and type "Quarto Wizard" to see available commands.
 
 ::: {style="text-align: center;"}
-![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
+![](images/quick-start-dark.png "Extensions Installed View with Labels"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
-![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
+![](images/quick-start-light.png "Extensions Installed View with Labels"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-light"
