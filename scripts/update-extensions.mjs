@@ -402,12 +402,12 @@ async function main() {
 	const exitCode = EXIT_CODES[status];
 	if (exitCode !== 0) {
 		const reasons = [
-			[checkFailures, "project check(s) failed"],
-			[totals.failed, "update(s) failed"],
-			[totals.unchecked, "repositories not checked"],
+			[checkFailures, "project check failed", "project checks failed"],
+			[totals.failed, "update failed", "updates failed"],
+			[totals.unchecked, "repository not checked", "repositories not checked"],
 		]
 			.filter(([count]) => count > 0)
-			.map(([count, text]) => `${count} ${text}`);
+			.map(([count, singular, plural]) => `${count} ${count === 1 ? singular : plural}`);
 		process.stderr.write(`Exiting with code ${exitCode}: ${reasons.join(", ")}.\n`);
 	}
 
