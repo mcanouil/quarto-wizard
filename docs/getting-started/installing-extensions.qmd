@@ -2,20 +2,31 @@
 title: "Installing Extensions"
 alt-text:
   extension-source-picker: |
-    The extension source picker interface showing options to install from Registry, GitHub, URL, or Local.
+    The Install From pick list at the top of the VS Code window.
+    It offers Registry, GitHub, URL and Local as the place to install from.
+    The Explorer and an open Quarto file are visible behind it.
   extension-browser-1: |
-    The extension browser interface showing extensions types filter with a search bar.
+    The Extension Type Filter pick list.
+    It offers All Extensions, Filter, Format, Shortcode, Reveal.js Plugin, Project, Metadata and Template, each with the number of extensions of that type.
   extension-browser-2: |
-    The extension browser interface showing a list of available Quarto extensions with their names, versions, star ratings, and descriptions.
+    The extension browser with the word code typed in the search box.
+    The list shows the matching extensions, each with its name, types, star count, repository and description.
+    The matching letters are highlighted in blue.
   context-menu-local: |
-    The context menu when right-clicking a folder or archive, showing the "Install Extension from Local" option in the Quarto Wizard submenu.
+    The Explorer context menu on the iconify folder inside the _extensions folder.
+    Among the usual file actions, the menu offers Install Extension from Local and a Quarto Wizard submenu.
   extension-selection: |
-    The QuickPick dialog showing a list of discovered extensions with checkboxes for multi-selection.
+    A pick list titled Select Extension(s) to Install.
+    It says that the source contains several extensions, and it offers demo/alpha and demo/beta, each with a checkbox and an OK button.
+    A progress notification in the bottom right corner shows that an installation from a local folder is running.
   conflict-resolution: |
-    The modal dialog asking whether to overwrite or skip a conflicting extension.
+    A dialog in the editor that asks whether to overwrite an extension.
+    The text reads: Extension "mcanouil/iconify" already exists. Overwrite?
+    The buttons are Cancel and Overwrite.
   version-validation: |
-    The warning dialog indicating that the extension version requirement is not met, showing the required and current Quarto versions with options to "Install Anyway" or "Cancel".
-    Also shows the following note: the extension may not work correctly with your current Quarto version.
+    A dialog that warns about the Quarto version.
+    It says that the extension requires Quarto >=100.0.0, but the installed version is 99.9.9, and that the extension may not work correctly.
+    The buttons are Cancel and Install Anyway.
 ---
 
 Quarto Wizard makes it easy to browse and install Quarto extensions from multiple sources.
@@ -33,13 +44,13 @@ Quarto Wizard makes it easy to browse and install Quarto extensions from multipl
 ![](images/extension-source-picker-dark.png "Extension Source Picker"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
 }
 ![](images/extension-source-picker-light.png "Extension Source Picker"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-source-picker >}}'
 }
 :::
@@ -48,13 +59,13 @@ fig-alt='{{< meta alt-text.extension-source-picker >}}'
 ![](images/extension-browser-1-dark.png "Extension Browser Interface"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-1 >}}'
 }
 ![](images/extension-browser-1-light.png "Extension Browser Interface"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-browser-1 >}}'
 }
 :::
@@ -63,13 +74,13 @@ fig-alt='{{< meta alt-text.extension-browser-1 >}}'
 ![](images/extension-browser-2-dark.png "Extension Browser Interface"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-browser-2 >}}'
 }
 ![](images/extension-browser-2-light.png "Extension Browser Interface"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-browser-2 >}}'
 }
 :::
@@ -161,13 +172,13 @@ Right-click on a folder or archive file (`.zip`, `.tar.gz`, `.tgz`) in the Explo
 ![](images/context-menu-local-dark.png "Explorer Context Menu"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+width="375px" fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.context-menu-local >}}'
 }
 ![](images/context-menu-local-light.png "Explorer Context Menu"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+width="375px" fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.context-menu-local >}}'
 }
 :::
@@ -190,13 +201,13 @@ This applies to all installation sources: Registry, GitHub, URL, and local.
 ![](images/extension-selection-dark.png "Extension Selection Dialog"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.extension-selection >}}'
 }
 ![](images/extension-selection-light.png "Extension Selection Dialog"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="500px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.extension-selection >}}'
 }
 :::
@@ -222,13 +233,13 @@ This applies to all installation sources: Registry, GitHub, URL, and local.
 ![](images/conflict-resolution-dark.png "Conflict Resolution Dialog"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="250px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.conflict-resolution >}}'
 }
 ![](images/conflict-resolution-light.png "Conflict Resolution Dialog"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="250px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.conflict-resolution >}}'
 }
 :::
@@ -251,13 +262,13 @@ Quarto Wizard validates this requirement before installation if the [Quarto VS C
 ![](images/version-validation-dark.png "Version Validation Dialog"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="250px" fig-align="center" group="quarto-wizard-dark"
+fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.version-validation >}}'
 }
 ![](images/version-validation-light.png "Version Validation Dialog"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
-width="250px" fig-align="center" group="quarto-wizard-light"
+fig-align="center" group="quarto-wizard-light"
 fig-alt='{{< meta alt-text.version-validation >}}'
 }
 :::
