@@ -73,8 +73,10 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 
 1. Manually add `source: owner/repository` (full specification: `source: owner/repository/subdirectory@reference` where `reference` is a Git branch, tag, or commit SHA) to the extension's `_extension.yml`.
 2. Reinstall the extension using Quarto Wizard.
-3. Select **Sign In** in the title bar of the Extensions Installed view, or set a GitHub token, to check GitHub directly.
-4. If the view says `Update check failed. Show log.`, select **Show Log** and read the error.
+3. Run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette, or set a GitHub token, to check GitHub directly.
+   When the view says that updates were checked against the registry, you can also select **Sign In** in its title bar.
+4. If the view says `Update check failed. Show log.`, select **Show Log** in the title bar of the view and read the error.
+   This button only appears when the update check failed.
 
 ### Extensions Install in the Wrong Folder
 

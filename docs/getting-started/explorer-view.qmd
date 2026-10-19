@@ -190,6 +190,7 @@ This is the highest semantic version among the releases and tags of the reposito
 Prereleases are only considered when the installed version is a prerelease.
 An update never installs a lower version than the one you have.
 When an extension is installed from a commit, Quarto Wizard compares commits instead.
+Update then installs the latest commit of the default branch.
 
 ### Where Updates Are Checked
 
@@ -203,11 +204,18 @@ A line at the top of the view shows which source was used:
 - `Updates checked against the registry. Sign in to GitHub to see new tags straight away.`
 - `Update check failed. Show log.`
 
-The **Sign In** and **Show Log** buttons are in the title bar of the view.
+The title bar of the view can show one button for this line:
+
+- **Sign In** appears only when updates were checked against the registry.
+- **Show Log** appears only when the update check failed.
+
+Neither button appears when updates were checked against GitHub, or when no extensions are installed.
+You can always run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette.
 To sign in or to set a token, see [Optional: GitHub Authentication](installation.qmd#optional-github-authentication).
 
 Hover over an extension to see its latest version and where it was found.
-The details of an extension show `Installed from:` and `Latest:` with the version and the source of the check, for example `Latest: 1.2.0 (checked on GitHub)`.
+The details of an extension show `Installed from:`.
+When an update is available, they also show `Latest:` with the version and the source of the check, for example `Latest: 1.2.0 (checked on GitHub)`.
 
 Quarto Wizard records `source` and `source-type` by editing those two lines only.
 The rest of `_extension.yml` is left byte for byte identical, so comments, key order, and quoting written by the extension author are preserved.
