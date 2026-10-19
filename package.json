@@ -75,6 +75,7 @@
 		"test": "vscode-test",
 		"test:watch": "npm run test-compile && vscode-test",
 		"test:manual": "node ./out/test/runTest.js",
+		"test:screenshots": "node --test scripts/screenshots/tests/",
 		"check:bundle": "node scripts/check-bundle.mjs",
 		"lint": "eslint --fix --cache --format unix \"src/**/*.{ts,tsx}\"",
 		"lint:check": "eslint --cache --format unix \"src/**/*.{ts,tsx}\"",
