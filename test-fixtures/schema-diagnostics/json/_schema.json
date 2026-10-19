@@ -1,0 +1,5 @@
+{
+	"options": {
+		"depth": { "type": "number", "min": 5, "max": 1 }
+	}
+}
