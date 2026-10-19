@@ -242,6 +242,17 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
+      # `test:lua` ends with a vitest file that holds the TypeScript field
+      # validation to the findings the Lua validator wrote.
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 25.x
+
+      - name: Install dependencies
+        shell: bash
+        run: npm ci
+
       - name: Set up Quarto CLI
         uses: quarto-dev/quarto-actions/setup@v2
         with:

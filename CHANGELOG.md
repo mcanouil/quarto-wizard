@@ -16,6 +16,10 @@
 - feat: Show where the update check looked, in a message at the top of the Extensions Installed view and in the tooltip and details of each extension. Update and Update All now check GitHub when you click them, and install the tag that their messages name.
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 
+### Bug Fixes
+
+- fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
+
 ### Documentation
 
 - docs: Refresh the Getting Started walkthrough with steps to sign in to GitHub, write with extensions and use a brand, and link each step to its page on the documentation website.

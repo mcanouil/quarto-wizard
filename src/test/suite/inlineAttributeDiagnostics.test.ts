@@ -271,21 +271,21 @@ suite("Inline Attribute Diagnostics", () => {
 			const descriptor: FieldDescriptor = { enum: ["red", "blue"] };
 			const findings = validateInlineValue("color", "purple", descriptor);
 			assert.strictEqual(findings.length, 1);
-			assert.strictEqual(findings[0].code, "schema-enum-invalid");
+			assert.strictEqual(findings[0].code, "schema-enum");
 		});
 
 		test("min: coerced number below min", () => {
 			const descriptor: FieldDescriptor = { type: "number", min: 10 };
 			const findings = validateInlineValue("size", "5", descriptor);
 			assert.strictEqual(findings.length, 1);
-			assert.strictEqual(findings[0].code, "schema-range");
+			assert.strictEqual(findings[0].code, "schema-min");
 		});
 
 		test("max: coerced number above max", () => {
 			const descriptor: FieldDescriptor = { type: "number", max: 100 };
 			const findings = validateInlineValue("size", "150", descriptor);
 			assert.strictEqual(findings.length, 1);
-			assert.strictEqual(findings[0].code, "schema-range");
+			assert.strictEqual(findings[0].code, "schema-max");
 		});
 
 		test("min/max: value within range", () => {
@@ -324,14 +324,14 @@ suite("Inline Attribute Diagnostics", () => {
 			const descriptor: FieldDescriptor = { minLength: 5 };
 			const findings = validateInlineValue("code", "ab", descriptor);
 			assert.strictEqual(findings.length, 1);
-			assert.strictEqual(findings[0].code, "schema-length");
+			assert.strictEqual(findings[0].code, "schema-min-length");
 		});
 
 		test("maxLength: too long", () => {
 			const descriptor: FieldDescriptor = { maxLength: 3 };
 			const findings = validateInlineValue("code", "abcde", descriptor);
 			assert.strictEqual(findings.length, 1);
-			assert.strictEqual(findings[0].code, "schema-length");
+			assert.strictEqual(findings[0].code, "schema-max-length");
 		});
 
 		test("minLength/maxLength: within range", () => {
@@ -384,6 +384,15 @@ suite("Inline Attribute Diagnostics", () => {
 			// Should only get the type mismatch, not range errors.
 			assert.strictEqual(findings.length, 1);
 			assert.strictEqual(findings[0].code, "schema-type-mismatch");
+		});
+
+		test("blank text is not a number", () => {
+			const descriptor: FieldDescriptor = { type: "number", min: 10 };
+			const findings = validateInlineValue("size", "  ", descriptor);
+			assert.deepStrictEqual(
+				findings.map((finding) => finding.code),
+				["schema-type-mismatch"],
+			);
 		});
 
 		test("union type [number, boolean]: accepts valid number", () => {
