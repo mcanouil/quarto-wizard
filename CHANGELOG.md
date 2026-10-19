@@ -16,6 +16,10 @@
 - feat: Show where the update check looked, in a message at the top of the Extensions Installed view and in the tooltip and details of each extension. Update and Update All now check GitHub when you click them, and install the tag that their messages name.
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 
+### Documentation
+
+- docs: Refresh the Getting Started walkthrough with steps to sign in to GitHub, write with extensions and use a brand, and link each step to its page on the documentation website.
+
 ### Build System
 
 - build: Publish the Lua reference validator on its own release, tagged `schema-v<version>`. An extension now pins the version of the validator and not the version of the editor extension.

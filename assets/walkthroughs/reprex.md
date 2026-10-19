@@ -1,22 +1,21 @@
 # Create Reproducible Documents
 
-Quarto Wizard includes templates for creating reproducible examples for bug reports or demonstrations.
+A reproducible document is a small example that others can run.
+Use it for bug reports, questions and demonstrations.
 
 ## Supported Languages
 
-- **R** - with `knitr` engine.
-- **Python** - with `jupyter` engine.
-- **Julia** - with `jupyter` engine.
+- **R**, with the `knitr` engine.
+- **Python**, with the `jupyter` engine.
+- **Julia**, with the `jupyter` engine.
 
-## How to Create a Reprex
+## How to Create One
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
-2. Type **"Quarto Wizard: Quarto Reproducible Document"**.
-3. Select your computing language.
-4. A new document opens with a ready-to-use template.
+2. Run **"Quarto Wizard: Quarto Reproducible Document"**.
+3. Select your language.
+4. Edit the new document, which opens ready to use.
 
 [Create Reproducible Document](command:quartoWizard.newQuartoReprex)
-
-Perfect for sharing minimal reproducible examples in issues or forums.
 
 [Full guide](https://m.canouil.dev/quarto-wizard/getting-started/reproducible-docs.html)

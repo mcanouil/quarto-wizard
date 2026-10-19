@@ -593,16 +593,26 @@
 					{
 						"id": "welcome",
 						"title": "Welcome to Quarto Wizard",
-						"description": "Your magical assistant for managing Quarto projects, extensions, and templates.",
+						"description": "Browse, install and manage Quarto extensions, templates and brands without leaving your editor.",
 						"media": {
-							"image": "assets/logo/logo.png",
-							"altText": "Quarto Wizard logo - a cartoon dog wizard wearing a dark hat with red band holding a magic wand"
+							"markdown": "assets/walkthroughs/welcome.md"
 						}
+					},
+					{
+						"id": "signIn",
+						"title": "Sign In to GitHub",
+						"description": "Check GitHub for new extension tags and reach private repositories.\n[Open Documentation](https://m.canouil.dev/quarto-wizard/getting-started/installation.html#optional-github-authentication)",
+						"media": {
+							"markdown": "assets/walkthroughs/sign-in.md"
+						},
+						"completionEvents": [
+							"onCommand:quartoWizard.signInWithGitHubSession"
+						]
 					},
 					{
 						"id": "installExtension",
 						"title": "Install Extensions",
-						"description": "Browse and install from over 250 Quarto extensions.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#install-quarto-extensions)",
+						"description": "Install extensions from the registry, GitHub, a URL or a local path.\n[Open Documentation](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html)",
 						"media": {
 							"markdown": "assets/walkthroughs/install-extension.md"
 						},
@@ -613,7 +623,7 @@
 					{
 						"id": "exploreView",
 						"title": "Manage Installed Extensions",
-						"description": "View, update, and remove extensions from the Explorer view.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#quarto-wizard-explorer-view)",
+						"description": "View, update and remove extensions from the Explorer View.\n[Open Documentation](https://m.canouil.dev/quarto-wizard/getting-started/explorer-view.html)",
 						"media": {
 							"markdown": "assets/walkthroughs/explorer-view.md"
 						},
@@ -622,9 +632,20 @@
 						]
 					},
 					{
+						"id": "writeWithExtensions",
+						"title": "Write with Extensions",
+						"description": "Insert extension snippets and preview Typst blocks.\n[Open Documentation](https://m.canouil.dev/quarto-wizard/getting-started/typst-preview.html)",
+						"media": {
+							"markdown": "assets/walkthroughs/write-with-extensions.md"
+						},
+						"completionEvents": [
+							"onCommand:quartoWizard.extensionsInstalled.insertSnippet"
+						]
+					},
+					{
 						"id": "useTemplate",
 						"title": "Use Templates",
-						"description": "Quick-start documents with pre-configured templates.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#use-quarto-templates)",
+						"description": "Start a document from a template.\n[Open Documentation](https://m.canouil.dev/quarto-wizard/getting-started/using-templates.html)",
 						"media": {
 							"markdown": "assets/walkthroughs/use-template.md"
 						},
@@ -633,9 +654,20 @@
 						]
 					},
 					{
+						"id": "useBrand",
+						"title": "Use a Brand",
+						"description": "Download a brand into your project.\n[Open Documentation](https://m.canouil.dev/quarto-wizard/getting-started/installing-extensions.html#using-brands)",
+						"media": {
+							"markdown": "assets/walkthroughs/use-brand.md"
+						},
+						"completionEvents": [
+							"onCommand:quartoWizard.useBrand"
+						]
+					},
+					{
 						"id": "createReprex",
 						"title": "Create Reproducible Documents",
-						"description": "Generate reproducible examples for R, Python, or Julia.\n[Open Documentation](https://github.com/mcanouil/quarto-wizard#create-a-new-reproducible-document)",
+						"description": "Generate a reproducible example for R, Python or Julia.\n[Open Documentation](https://m.canouil.dev/quarto-wizard/getting-started/reproducible-docs.html)",
 						"media": {
 							"markdown": "assets/walkthroughs/reprex.md"
 						},
