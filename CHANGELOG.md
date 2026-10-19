@@ -18,7 +18,7 @@
 
 ### Bug Fixes
 
-- fix: Check inline attribute values the same way as YAML options and the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
+- fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
 
 ### Documentation
 
