@@ -549,7 +549,7 @@ jobs:
           # restarting registry does not end a release that had nothing wrong
           # with it. A failure that outlasts the attempts ends the step.
           for attempt in 1 2 3; do
-            if SHOWN=$(npx --yes @vscode/vsce@3 show mcanouil.quarto-wizard --json); then
+            if SHOWN=$(npx --yes @vscode/vsce@4 show mcanouil.quarto-wizard --json); then
               break
             fi
             if [ "${attempt}" = 3 ]; then
@@ -589,7 +589,7 @@ jobs:
           if [ "${TYPE}" = "pre-release" ]; then
             PRERELEASE_FLAG="--pre-release"
           fi
-          npx --yes @vscode/vsce@3 publish ${PRERELEASE_FLAG} \
+          npx --yes @vscode/vsce@4 publish ${PRERELEASE_FLAG} \
             --packagePath "quarto-wizard-${VERSION}.vsix" \
             --pat "${VS_MARKETPLACE_TOKEN}"
 
