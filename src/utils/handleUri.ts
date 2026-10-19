@@ -5,7 +5,8 @@ import { isValidGitHubReference } from "./sourcePrompts";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import { selectWorkspaceFolder } from "../utils/workspace";
 import { withProgressNotification } from "../utils/withProgressNotification";
-import { createFileSelectionCallback, createTargetSubdirCallback } from "../utils/ask";
+import { createTargetSubdirCallback } from "../utils/ask";
+import { createFileSelectionCallback } from "../ui/fileSelectionPicker";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
 
 /**
