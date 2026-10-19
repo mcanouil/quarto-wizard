@@ -23,7 +23,8 @@ alt-text:
     Each snippet shows its prefix.
   editor-context: |
     The editor context menu in a Quarto document.
-    The Quarto Wizard entry is open, and its submenu lists Install Extensions, Use Template, Quarto Reproducible Document, Show Quarto Wizard Log Output, Clear Recently Installed Extensions, Clear Extension Cache and Preview Typst Block.
+    A box marks the Quarto Wizard entry, and a second box with the label Quarto Wizard commands marks its open submenu.
+    The submenu lists Install Extensions, Use Template, Quarto Reproducible Document, Show Quarto Wizard Log Output, Clear Recently Installed Extensions, Clear Extension Cache and Preview Typst Block.
 ---
 
 The Quarto Wizard Explorer View provides a dedicated interface for managing installed Quarto extensions across your workspace folders, including extension metadata, compatibility, schema contributions, and snippets.

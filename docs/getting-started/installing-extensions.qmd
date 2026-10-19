@@ -14,7 +14,7 @@ alt-text:
     The matching letters are highlighted in blue.
   context-menu-local: |
     The Explorer context menu on the iconify folder inside the _extensions folder.
-    Among the usual file actions, the menu offers Install Extension from Local and a Quarto Wizard submenu.
+    A box and the label Quarto Wizard mark the entries Install Extension from Local and Quarto Wizard among the usual file actions.
   extension-selection: |
     A pick list titled Select Extension(s) to Install.
     It says that the source contains several extensions, and it offers demo/alpha and demo/beta, each with a checkbox and an OK button.

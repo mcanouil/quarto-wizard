@@ -7,7 +7,8 @@ alt-text:
     A similar command, Show Quarto Wizard Log Output, appears below it.
   reprex-command-2: |
     The Explorer context menu on report.qmd in VS Code.
-    The Quarto Wizard submenu is open and lists Install Extensions, Use Template, Quarto Reproducible Document, Show Quarto Wizard Log Output, Clear Recently Installed Extensions and Clear Extension Cache.
+    A box marks the Quarto Wizard entry, and a second box with the label Quarto Wizard marks its open submenu.
+    The submenu lists Install Extensions, Use Template, Quarto Reproducible Document, Show Quarto Wizard Log Output, Clear Recently Installed Extensions and Clear Extension Cache.
   reprex-language: |
     A pick list with the prompt Select the computing language.
     The choices are R, Python and Julia, and R is highlighted.
