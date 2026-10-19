@@ -1,3 +1,5 @@
+type CacheEntry<T> = { status: "settled"; value: T; expiresAt: number } | { status: "pending"; inFlight: Promise<T> };
+
 /**
  * Generic TTL-based cache with in-flight request deduplication.
  *
@@ -6,8 +8,6 @@
  * Every value a fetch resolves to is cached, including falsy values
  * such as `""`, `0`, `false`, `null` and `undefined`.
  */
-type CacheEntry<T> = { status: "settled"; value: T; expiresAt: number } | { status: "pending"; inFlight: Promise<T> };
-
 export class AsyncKeyedCache<T> {
 	private cache = new Map<string, CacheEntry<T>>();
 
