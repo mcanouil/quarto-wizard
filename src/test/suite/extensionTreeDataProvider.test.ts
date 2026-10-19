@@ -325,6 +325,20 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.ok(tooltip.includes("Update installs the latest GitHub tag."), tooltip);
 		});
 
+		test("tooltip of a commit-pinned extension with no known update names the latest commit", () => {
+			const item = new ExtensionTreeItem(
+				"quarto-ext/demo",
+				vscode.TreeItemCollapsibleState.Collapsed,
+				"/workspace",
+				createExtension({ source: "quarto-ext/demo@4f3c2a1", sourceType: "github" }),
+			);
+
+			const tooltip = String(item.tooltip);
+
+			assert.ok(tooltip.includes("Update installs the latest commit of the default branch."), tooltip);
+			assert.ok(!tooltip.includes("GitHub tag"), tooltip);
+		});
+
 		test("a repository failure keeps the view message and marks the tooltip", async () => {
 			const { provider, view } = await runCheck({
 				token: "test-token",

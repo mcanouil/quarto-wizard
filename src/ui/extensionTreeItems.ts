@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
-import type { SourceType, UpdateCheckSource, UpdateInfo } from "@quarto-wizard/core";
+import { extractCommitFromSource, type SourceType, type UpdateCheckSource, type UpdateInfo } from "@quarto-wizard/core";
 import { formatType } from "@quarto-wizard/schema";
 import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@quarto-wizard/snippets";
 import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
@@ -113,7 +113,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		}
 		if (sourceType === "github" || sourceType === "registry") {
 			updateNotes.push(
-				update?.refKind === "commit"
+				extractCommitFromSource(extension?.manifest.source ?? "") !== null
 					? "Update installs the latest commit of the default branch."
 					: "Update installs the latest GitHub tag.",
 			);

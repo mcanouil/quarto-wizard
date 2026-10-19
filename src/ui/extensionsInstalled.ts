@@ -527,18 +527,25 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.updateAll", async () => {
 				const failureMessage = "Failed to update extensions.";
 				const auth = await getAuthConfig(context);
-				const check = await withProgressNotification("Checking for updates ...", async () =>
-					checkGitHubUpdates(this.treeDataProvider.getProjectDirs(), auth),
-				);
+				let cancelled = false;
+				const check = await withProgressNotification("Checking for updates ...", async (token) => {
+					const result = await checkGitHubUpdates(this.treeDataProvider.getProjectDirs(), auth);
+					cancelled = token.isCancellationRequested;
+					return result;
+				});
+				if (cancelled) {
+					return;
+				}
 				if (await reportCheckFailures(check, failureMessage, auth)) {
 					return;
 				}
 				const updates = check.updates;
 				const uncheckedCount = check.repositoryFailures.length;
+				const uncheckedRepositories = `${uncheckedCount} ${uncheckedCount === 1 ? "repository" : "repositories"}`;
 
 				if (updates.length === 0) {
 					if (uncheckedCount > 0) {
-						showMessageWithLogs(`Failed to check updates for ${uncheckedCount} extension(s).`, "warning");
+						showMessageWithLogs(`Failed to check updates for ${uncheckedRepositories}.`, "warning");
 					} else {
 						vscode.window.showInformationMessage("All extensions are up to date.");
 					}
@@ -588,7 +595,7 @@ export class ExtensionsInstalled {
 						.join(", ");
 					const problems = [
 						...(failedCount > 0 ? [`${failedCount} failed`] : []),
-						...(uncheckedCount > 0 ? [`${uncheckedCount} extension(s) could not be checked`] : []),
+						...(uncheckedCount > 0 ? [`${uncheckedRepositories} could not be checked`] : []),
 					];
 					vscode.window.showInformationMessage(`Updated ${[versions, ...problems].join("; ")}.`);
 				} else {

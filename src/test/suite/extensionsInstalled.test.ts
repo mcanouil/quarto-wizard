@@ -247,7 +247,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(messages, ["All extensions are up to date."]);
 	});
 
-	test("update all reports the extensions it could not check", async () => {
+	test("update all reports the repositories it could not check", async () => {
 		stubNetwork({
 			repositories: { "acme/registry-demo": { githubTags: ["v1.0.0"] }, "acme/github-demo": { githubStatus: 404 } },
 		});
@@ -255,11 +255,45 @@ suite("Extensions Installed Commands Test Suite", () => {
 		await runCommand("updateAll");
 
 		assert.deepStrictEqual(installCalls, []);
-		assert.deepStrictEqual(messages, ["Failed to check updates for 1 extension(s)."]);
+		assert.deepStrictEqual(messages, ["Failed to check updates for 1 repository."]);
 		assert.deepStrictEqual(warningActions, [["Show Logs"]]);
 	});
 
-	test("update all counts the extensions it could not check in its summary", async () => {
+	test("update all counts several repositories it could not check", async () => {
+		stubNetwork({
+			repositories: {
+				"acme/registry-demo": { githubTags: ["v1.0.0"] },
+				"acme/github-demo": { githubStatus: 404 },
+				"acme/pinned-demo": { githubStatus: 404 },
+			},
+		});
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(messages, ["Failed to check updates for 2 repositories."]);
+	});
+
+	test("update all stops without a confirmation when the check is cancelled", async () => {
+		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] } } });
+		const originalWithProgress = vscode.window.withProgress;
+		const cancelled = {
+			isCancellationRequested: true,
+			onCancellationRequested: () => new vscode.Disposable(() => undefined),
+		} as unknown as vscode.CancellationToken;
+		vscode.window.withProgress = ((_options, task) =>
+			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
+
+		try {
+			await runCommand("updateAll");
+		} finally {
+			vscode.window.withProgress = originalWithProgress;
+		}
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(messages, []);
+	});
+
+	test("update all counts the repositories it could not check in its summary", async () => {
 		stubNetwork({
 			repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 404 } },
 		});
@@ -271,7 +305,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		]);
 		assert.strictEqual(
 			messages[messages.length - 1],
-			"Updated acme/registry-demo to 1.3.0; 1 extension(s) could not be checked.",
+			"Updated acme/registry-demo to 1.3.0; 1 repository could not be checked.",
 		);
 	});
 
