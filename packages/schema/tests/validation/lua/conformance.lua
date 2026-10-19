@@ -155,10 +155,13 @@ local probes = {}
 
 --- Text that the validator coerces to a number, an integer or a boolean,
 --- including the forms where Lua `tonumber` and JavaScript `Number()` differ.
-local COERCED_TEXTS = {
-  '42', ' 42 ', '-7', '2.5', '1e3', '.5', '-0x10', '0x1p4', '0x1.8', '0xffffffffffffffff',
-  '0b101', '0o7', '1e999', '-1e999', '\u{A0}42', '1_000', 'inf', 'TRUE', 'False', 'yes',
-}
+--- `tonumber.lua` reads the same corpus.
+local COERCED_TEXTS
+do
+  local handle = assert(io.open(here .. 'tonumber-corpus.json', 'r'))
+  COERCED_TEXTS = pandoc.json.decode(handle:read('a'), false)
+  handle:close()
+end
 
 --- Report whether a descriptor declares a type that text is coerced to.
 local function declares_coerced_type(spec)

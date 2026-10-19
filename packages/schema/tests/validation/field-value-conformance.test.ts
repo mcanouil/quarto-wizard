@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { parseSchemaFile } from "../../src/filesystem/schema.js";
 import { coerceFieldValue, validateFieldValue, type FieldFindingCode } from "../../src/validation/field-value.js";
-import type { ExtensionSchema, FieldDescriptor } from "../../src/types/schema.js";
+import { typeIncludes, type ExtensionSchema, type FieldDescriptor } from "../../src/types/schema.js";
 
 // `npm run test:lua` writes this file with the Lua validator, then runs this
 // test alone with QW_SCHEMA_CONFORMANCE=1. Without that variable the test
@@ -66,15 +66,14 @@ function descriptorAt(schema: ExtensionSchema, location: (string | number)[]): F
 // it. The Lua validator moves a value with a replacement to the replacement,
 // and so never checks its type against this descriptor.
 function textOfWrongType(coerced: unknown, descriptor: FieldDescriptor): boolean {
-	const type = descriptor.type;
-	const names = type === undefined ? [] : Array.isArray(type) ? type : [type];
-	const forwarded = typeof descriptor.deprecated === "object" && Boolean(descriptor.deprecated.replaceWith);
+	const { type, deprecated } = descriptor;
+	const forwarded = typeof deprecated === "object" && Boolean(deprecated.replaceWith);
 	return (
 		!forwarded &&
 		typeof coerced === "string" &&
-		names.length > 0 &&
-		!names.includes("string") &&
-		!names.includes("content")
+		type !== undefined &&
+		!typeIncludes(type, "string") &&
+		!typeIncludes(type, "content")
 	);
 }
 

@@ -88,8 +88,11 @@ function matchesDeclaredType(value: unknown, type: string | string[] | undefined
  * C `isspace`. `Number()` alone accepts more, such as `0b101`, `0o7` and a
  * no-break space, and fewer, such as `-0x10` and the hexadecimal float `0x1p4`.
  */
-const LUA_DECIMAL = /^[ \t\n\v\f\r]*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)[ \t\n\v\f\r]*$/;
-const LUA_HEX = /^[ \t\n\v\f\r]*([+-]?)0[xX]([\da-fA-F]*)(?:\.([\da-fA-F]*))?(?:[pP]([+-]?\d+))?[ \t\n\v\f\r]*$/;
+const LUA_SPACE = String.raw`[ \t\n\v\f\r]*`;
+const LUA_DECIMAL = new RegExp(String.raw`^${LUA_SPACE}([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)${LUA_SPACE}$`);
+const LUA_HEX = new RegExp(
+	String.raw`^${LUA_SPACE}([+-]?)0[xX](?:([\da-fA-F]+)(?:\.([\da-fA-F]*))?|\.([\da-fA-F]+))(?:[pP]([+-]?\d+))?${LUA_SPACE}$`,
+);
 
 /**
  * Read text as a number, as Lua 5.4 `tonumber` does.
@@ -108,10 +111,8 @@ function luaToNumber(text: string): number | undefined {
 	if (!hex) {
 		return undefined;
 	}
-	const [, sign, whole, fraction, exponent] = hex;
-	if (whole === "" && (fraction === undefined || fraction === "")) {
-		return undefined;
-	}
+	const [, sign, whole = "", trailing, bare, exponent] = hex;
+	const fraction = trailing ?? bare;
 	if (fraction === undefined && exponent === undefined) {
 		const wrapped = BigInt.asIntN(64, BigInt(`0x${whole}`) * (sign === "-" ? -1n : 1n));
 		return Number(wrapped);

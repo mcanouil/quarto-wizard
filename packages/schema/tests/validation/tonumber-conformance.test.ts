@@ -30,8 +30,11 @@ function luaNumber(value: string | null): number | undefined {
 	if (value === null) {
 		return undefined;
 	}
-	if (value === "inf" || value === "-inf") {
-		return value === "inf" ? Infinity : -Infinity;
+	if (value === "inf") {
+		return Infinity;
+	}
+	if (value === "-inf") {
+		return -Infinity;
 	}
 	return Number(value);
 }
