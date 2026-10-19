@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import type { SchemaCache, FieldDescriptor, DeprecatedSpec, ShortcodeSchema } from "@quarto-wizard/schema";
-import { typeIncludes, formatType } from "@quarto-wizard/schema";
+import type { SchemaCache, FieldDescriptor, ShortcodeSchema } from "@quarto-wizard/schema";
+import { typeIncludes, formatType, validateFieldValue, coerceFieldValue } from "@quarto-wizard/schema";
 import { parseAttributeAtPosition, isPandocAttributeContext } from "../utils/elementAttributeParser";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import {
@@ -654,6 +654,8 @@ export interface InlineValidationFinding {
  *
  * All inline values are strings, so type checking requires coercion.
  * Types that cannot be represented inline (array, object, content) are skipped.
+ * The value checks are those of `validateFieldValue`, run on the value coerced
+ * to the declared type, as the Lua validator coerces it.
  *
  * @returns An array of findings (may be empty if valid).
  */
@@ -662,16 +664,15 @@ export function validateInlineValue(
 	value: string,
 	descriptor: FieldDescriptor,
 ): InlineValidationFinding[] {
-	const findings: InlineValidationFinding[] = [];
-
-	// Deprecated check.
-	if (descriptor.deprecated) {
-		findings.push({
-			message: buildDeprecatedMessage(key, descriptor.deprecated),
-			severity: "warning",
-			code: "schema-deprecated",
-		});
-	}
+	const findings: InlineValidationFinding[] = validateFieldValue(
+		key,
+		coerceFieldValue(value, descriptor.type),
+		descriptor,
+	).map((finding) => ({
+		...finding,
+		message:
+			finding.code === "schema-deprecated" ? `Attribute ${finding.message}` : `Attribute "${key}": ${finding.message}`,
+	}));
 
 	// Type check (coerce from string).
 	if (descriptor.type) {
@@ -729,108 +730,7 @@ export function validateInlineValue(
 		}
 	}
 
-	// Enum check.
-	if (descriptor.enum) {
-		const match = descriptor.enumCaseInsensitive
-			? descriptor.enum.some((v) => String(v).toLowerCase() === value.toLowerCase())
-			: descriptor.enum.some((v) => String(v) === value);
-		if (!match) {
-			findings.push({
-				message: `Attribute "${key}": value "${value}" is not in the allowed values (${descriptor.enum.map(String).join(", ")}).`,
-				severity: "error",
-				code: "schema-enum-invalid",
-			});
-		}
-	}
-
-	// Numeric range check (only when value coerces to a number).
-	const numericValue = Number(value);
-	if (Number.isFinite(numericValue)) {
-		if (descriptor.min !== undefined && numericValue < descriptor.min) {
-			findings.push({
-				message: `Attribute "${key}": value ${numericValue} is below the minimum of ${descriptor.min}.`,
-				severity: "error",
-				code: "schema-range",
-			});
-		}
-		if (descriptor.max !== undefined && numericValue > descriptor.max) {
-			findings.push({
-				message: `Attribute "${key}": value ${numericValue} exceeds the maximum of ${descriptor.max}.`,
-				severity: "error",
-				code: "schema-range",
-			});
-		}
-		if (descriptor.exclusiveMinimum !== undefined && numericValue <= descriptor.exclusiveMinimum) {
-			findings.push({
-				message: `Attribute "${key}": value ${numericValue} must be greater than ${descriptor.exclusiveMinimum}.`,
-				severity: "error",
-				code: "schema-range",
-			});
-		}
-		if (descriptor.exclusiveMaximum !== undefined && numericValue >= descriptor.exclusiveMaximum) {
-			findings.push({
-				message: `Attribute "${key}": value ${numericValue} must be less than ${descriptor.exclusiveMaximum}.`,
-				severity: "error",
-				code: "schema-range",
-			});
-		}
-	}
-
-	// Pattern check (skip patterns exceeding 1024 chars to mitigate ReDoS risk).
-	if (descriptor.pattern && descriptor.pattern.length <= 1024) {
-		try {
-			const regex = descriptor.patternExact ? new RegExp(`^${descriptor.pattern}$`) : new RegExp(descriptor.pattern);
-			if (!regex.test(value)) {
-				findings.push({
-					message: `Attribute "${key}": value "${value}" does not match the required pattern "${descriptor.pattern}".`,
-					severity: "error",
-					code: "schema-pattern",
-				});
-			}
-		} catch {
-			// Invalid regex in schema; skip validation.
-		}
-	}
-
-	// String length checks.
-	if (descriptor.minLength !== undefined && value.length < descriptor.minLength) {
-		findings.push({
-			message: `Attribute "${key}": value length ${value.length} is below the minimum of ${descriptor.minLength}.`,
-			severity: "error",
-			code: "schema-length",
-		});
-	}
-	if (descriptor.maxLength !== undefined && value.length > descriptor.maxLength) {
-		findings.push({
-			message: `Attribute "${key}": value length ${value.length} exceeds the maximum of ${descriptor.maxLength}.`,
-			severity: "error",
-			code: "schema-length",
-		});
-	}
-
 	return findings;
-}
-
-/**
- * Build a human-readable deprecation message matching the YAML provider's logic.
- */
-function buildDeprecatedMessage(key: string, deprecated: boolean | string | DeprecatedSpec): string {
-	if (typeof deprecated === "string") {
-		return `Attribute "${key}" is deprecated: ${deprecated}.`;
-	}
-	if (typeof deprecated === "object") {
-		const parts = [`Attribute "${key}" is deprecated`];
-		if (deprecated.since) {
-			parts[0] += ` since ${deprecated.since}`;
-		}
-		if (deprecated.message) {
-			parts.push(deprecated.message);
-		} else if (deprecated.replaceWith) {
-			parts.push(`Use "${deprecated.replaceWith}" instead.`);
-		}
-		return parts.join(". ") + (parts[parts.length - 1].endsWith(".") ? "" : ".");
-	}
-	return `Attribute "${key}" is deprecated.`;
 }
 
 // ---------------------------------------------------------------------------

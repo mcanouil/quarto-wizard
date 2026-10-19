@@ -23,3 +23,7 @@ export {
 	rootKeyMetadata,
 	SCHEMA_META_SCHEMA,
 } from "./schema-derived.js";
+
+export { validateFieldValue, deprecationMessage, coerceFieldValue } from "./field-value.js";
+
+export type { FieldFindingCode, FieldFinding } from "./field-value.js";

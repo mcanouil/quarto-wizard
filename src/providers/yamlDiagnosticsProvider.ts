@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { formatType } from "@quarto-wizard/schema";
+import { formatType, validateFieldValue, deprecationMessage } from "@quarto-wizard/schema";
 import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { getDocumentYaml } from "../utils/documentScan";
@@ -14,8 +14,9 @@ import { isRelevantYaml } from "../utils/metadataFilesRegistry";
 /**
  * Validate a single value against a field descriptor, returning error messages.
  * Used for array item validation where each item is checked independently.
+ * The messages name no key, so the caller adds the prefix.
  */
-function validateSingleValue(value: unknown, descriptor: FieldDescriptor): string[] {
+function validateSingleValue(key: string, value: unknown, descriptor: FieldDescriptor): string[] {
 	const errors: string[] = [];
 
 	if (value === null || value === undefined) {
@@ -60,51 +61,11 @@ function validateSingleValue(value: unknown, descriptor: FieldDescriptor): strin
 		errors.push(`value must be ${JSON.stringify(descriptor.const)}.`);
 	}
 
-	// Enum check.
-	if (descriptor.enum) {
-		const match = descriptor.enumCaseInsensitive
-			? descriptor.enum.some((v) => String(v).toLowerCase() === String(value).toLowerCase())
-			: descriptor.enum.includes(value);
-		if (!match) {
-			errors.push(`value "${String(value)}" is not in the allowed values (${descriptor.enum.map(String).join(", ")}).`);
-		}
-	}
-
-	// Numeric range checks.
-	if (typeof value === "number") {
-		if (descriptor.min !== undefined && value < descriptor.min) {
-			errors.push(`value ${value} is below the minimum of ${descriptor.min}.`);
-		}
-		if (descriptor.max !== undefined && value > descriptor.max) {
-			errors.push(`value ${value} exceeds the maximum of ${descriptor.max}.`);
-		}
-		if (descriptor.exclusiveMinimum !== undefined && value <= descriptor.exclusiveMinimum) {
-			errors.push(`value ${value} must be greater than ${descriptor.exclusiveMinimum}.`);
-		}
-		if (descriptor.exclusiveMaximum !== undefined && value >= descriptor.exclusiveMaximum) {
-			errors.push(`value ${value} must be less than ${descriptor.exclusiveMaximum}.`);
-		}
-	}
-
-	// Pattern check.
-	if (descriptor.pattern && typeof value === "string" && descriptor.pattern.length <= 1024) {
-		try {
-			const regex = descriptor.patternExact ? new RegExp(`^${descriptor.pattern}$`) : new RegExp(descriptor.pattern);
-			if (!regex.test(value)) {
-				errors.push(`value "${value}" does not match the required pattern "${descriptor.pattern}".`);
-			}
-		} catch {
-			// Invalid regex in schema; skip.
-		}
-	}
-
-	// String length checks.
-	if (typeof value === "string") {
-		if (descriptor.minLength !== undefined && value.length < descriptor.minLength) {
-			errors.push(`value length ${value.length} is below the minimum of ${descriptor.minLength}.`);
-		}
-		if (descriptor.maxLength !== undefined && value.length > descriptor.maxLength) {
-			errors.push(`value length ${value.length} exceeds the maximum of ${descriptor.maxLength}.`);
+	// Enum, numeric range, pattern and string length checks. A deprecation
+	// is about the key, so the caller reports it there.
+	for (const finding of validateFieldValue(key, value, descriptor)) {
+		if (finding.code !== "schema-deprecated") {
+			errors.push(finding.message);
 		}
 	}
 
@@ -405,25 +366,13 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 			// Deprecated check.
 			if (descriptor.deprecated) {
-				let message: string;
-				if (typeof descriptor.deprecated === "string") {
-					message = `Option "${key}" is deprecated: ${descriptor.deprecated}.`;
-				} else if (typeof descriptor.deprecated === "object") {
-					const spec = descriptor.deprecated;
-					const parts = [`Option "${key}" is deprecated`];
-					if (spec.since) {
-						parts[0] += ` since ${spec.since}`;
-					}
-					if (spec.message) {
-						parts.push(spec.message);
-					} else if (spec.replaceWith) {
-						parts.push(`Use "${spec.replaceWith}" instead.`);
-					}
-					message = parts.join(". ") + (parts[parts.length - 1].endsWith(".") ? "" : ".");
-				} else {
-					message = `Option "${key}" is deprecated.`;
-				}
-				diagnostics.push(new vscode.Diagnostic(keyRange, message, vscode.DiagnosticSeverity.Warning));
+				diagnostics.push(
+					new vscode.Diagnostic(
+						keyRange,
+						`Option ${deprecationMessage(key, descriptor.deprecated)}`,
+						vscode.DiagnosticSeverity.Warning,
+					),
+				);
 			}
 
 			// Type check.
@@ -444,7 +393,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 			// Value constraint checks (const, enum, numeric range, pattern, string length).
 			if (value !== null && value !== undefined) {
-				for (const msg of validateSingleValue(value, descriptor)) {
+				for (const msg of validateSingleValue(key, value, descriptor)) {
 					diagnostics.push(new vscode.Diagnostic(range, `Option "${key}": ${msg}`, vscode.DiagnosticSeverity.Error));
 				}
 			}
@@ -471,7 +420,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				}
 				if (descriptor.items) {
 					for (let i = 0; i < value.length; i++) {
-						const itemErrors = validateSingleValue(value[i], descriptor.items);
+						const itemErrors = validateSingleValue(key, value[i], descriptor.items);
 						if (itemErrors.length === 0) {
 							continue;
 						}
