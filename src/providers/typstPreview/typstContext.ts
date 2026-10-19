@@ -17,7 +17,8 @@ import { getInstalledExtensionsCached } from "../../utils/installedExtensionsCac
 import { getYamlFrontMatterRange } from "../../utils/yamlPosition";
 import { findOwningProjectRoot } from "../../utils/projectRootsRegistry";
 import { logMessage } from "../../utils/log";
-import { documentDirectoryOf, readBrand, readMetadataChain, readSourceText, type MetadataChain } from "./typstMetadata";
+import { readSourceText } from "../../utils/readSourceText";
+import { documentDirectoryOf, readBrand, readMetadataChain, type MetadataChain } from "./typstMetadata";
 import { resolveQuartoPath } from "../../utils/typst/typstPaths";
 
 /**
