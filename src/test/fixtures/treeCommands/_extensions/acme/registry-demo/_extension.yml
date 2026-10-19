@@ -1,0 +1,6 @@
+title: Registry demo
+author: Acme
+version: 1.0.0
+contributes: {}
+source: acme/registry-demo@1.0.0
+source-type: registry
