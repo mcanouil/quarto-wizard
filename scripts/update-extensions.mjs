@@ -16,7 +16,7 @@
  * `gh auth token`. Running without any of them works, but shares the unauthenticated
  * GitHub rate limit.
  *
- * Usage: node scripts/update-extensions.mjs [dir] [--source id] [--apply] [--refresh] [--cross-source] [--json] [--verbose]
+ * Usage: node scripts/update-extensions.mjs [dir] [--source id] [--apply] [--refresh] [--json] [--verbose]
  */
 
 import { execFileSync } from "node:child_process";
@@ -50,7 +50,6 @@ const USAGE = `Usage: node scripts/update-extensions.mjs [dir] [options]
                      suffix is ignored.
   --apply            Apply the updates. Without it, only report what is available.
   --refresh          Refetch the registry before scanning, ignoring the cache.
-  --cross-source     Let GitHub-sourced extensions fall back to the registry.
   --json             Emit a JSON report on stdout instead of text.
   --verbose          Also list extensions skipped for having no recorded source,
                      and report where the GitHub token came from.
@@ -63,7 +62,6 @@ function parseArguments(argv) {
 		source: null,
 		apply: false,
 		refresh: false,
-		crossSource: false,
 		json: false,
 		verbose: false,
 		help: false,
@@ -87,9 +85,6 @@ function parseArguments(argv) {
 				break;
 			case "--refresh":
 				options.refresh = true;
-				break;
-			case "--cross-source":
-				options.crossSource = true;
 				break;
 			case "--json":
 				options.json = true;
@@ -259,7 +254,7 @@ async function main() {
 
 	const roots = findProjectRoots(options.dir);
 	const report = [];
-	const totals = { roots: 0, extensions: 0, sourceless: 0, pending: 0, updated: 0, failed: 0 };
+	const totals = { roots: 0, extensions: 0, sourceless: 0, pending: 0, unchecked: 0, updated: 0, failed: 0 };
 
 	for (const root of roots) {
 		const label = relative(options.dir, root) || ".";
@@ -277,25 +272,26 @@ async function main() {
 		totals.extensions += installed.length;
 		totals.sourceless += sourceless.length;
 
-		let updates;
+		const checks = [];
 		if (matchesSource === null) {
-			updates = await checkForUpdates({ projectDir: root, auth, crossSource: options.crossSource });
+			checks.push(await checkForUpdates({ projectDirs: [root], auth }));
 		} else {
 			// Check each match by its installed owner/name, which is what core addresses;
 			// one source can be installed under more than one such id across projects.
-			updates = [];
 			for (const extension of installed) {
-				updates.push(
-					...(await checkForUpdates({
-						projectDir: root,
-						auth,
-						crossSource: options.crossSource,
-						extension: extension.id,
-					})),
-				);
+				checks.push(await checkForUpdates({ projectDirs: [root], auth, extension: extension.id }));
 			}
 		}
+
+		const checkFailure = checks.find((check) => check.checkFailure)?.checkFailure;
+		if (checkFailure) {
+			throw new Error(`${label}: the update check failed (${checkFailure.kind}): ${checkFailure.message}`);
+		}
+
+		const updates = checks.flatMap((check) => check.updates);
+		const repositoryFailures = checks.flatMap((check) => check.repositoryFailures);
 		totals.pending += updates.length;
+		totals.unchecked += repositoryFailures.length;
 
 		const entry = {
 			root: label,
@@ -306,6 +302,7 @@ async function main() {
 				source: update.source,
 			})),
 			skipped: sourceless.map((extension) => formatId(extension.id)),
+			unchecked: repositoryFailures,
 			updated: [],
 			failed: [],
 		};
@@ -315,6 +312,9 @@ async function main() {
 				process.stdout.write(
 					`${label}: ${update.extension} ${update.currentVersion} -> ${update.latestVersion} (${update.source})\n`,
 				);
+			}
+			for (const failure of entry.unchecked) {
+				process.stdout.write(`${label}: ${failure.repository} not checked: ${failure.message}\n`);
 			}
 			if (options.verbose) {
 				for (const name of entry.skipped) {
@@ -327,9 +327,8 @@ async function main() {
 			// The download phase reports on every chunk; one line per phase is enough.
 			let lastPhase = null;
 			const result = await applyUpdates(updates, {
-				projectDir: root,
+				projectDirs: [root],
 				auth,
-				crossSource: options.crossSource,
 				onProgress: ({ extension, phase, message }) => {
 					const key = `${extension} ${phase}`;
 					if (key === lastPhase) {
@@ -373,6 +372,7 @@ async function main() {
 			`${totals.extensions} extension(s)`,
 			`${totals.sourceless} without a source`,
 			`${totals.pending} update(s) available`,
+			`${totals.unchecked} repositories not checked`,
 		];
 		if (options.apply) {
 			summary.push(`${totals.updated} updated`, `${totals.failed} failed`);

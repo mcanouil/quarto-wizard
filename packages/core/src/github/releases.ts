@@ -8,7 +8,6 @@
  */
 
 import type { AuthConfig } from "../types/auth.js";
-import type { VersionSpec } from "../types/extension.js";
 import { getAuthHeaders } from "../types/auth.js";
 import { USER_AGENT } from "../constants.js";
 import {
@@ -81,6 +80,13 @@ interface RawRepository {
 }
 
 /**
+ * Raw commit response from GitHub API.
+ */
+interface RawCommit {
+	sha: string;
+}
+
+/**
  * Raw tag response from GitHub API.
  */
 interface RawTag {
@@ -102,30 +108,6 @@ export interface GitHubOptions {
 	includePrereleases?: boolean;
 	/** AbortSignal for cancellation. */
 	signal?: AbortSignal;
-}
-
-/**
- * Options for version resolution.
- */
-export interface ResolveVersionOptions extends GitHubOptions {
-	/** Default branch to use when no releases/tags exist. */
-	defaultBranch?: string;
-	/** Latest commit SHA on default branch (for fallback). */
-	latestCommit?: string;
-}
-
-/**
- * Result of version resolution.
- */
-export interface ResolvedVersion {
-	/** Resolved tag/version name. */
-	tagName: string;
-	/** URL to download the zipball. */
-	zipballUrl: string;
-	/** URL to download the tarball. */
-	tarballUrl: string;
-	/** Commit SHA if resolved to a commit (first 7 characters). */
-	commitSha?: string;
 }
 
 /**
@@ -195,6 +177,7 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
 				`Authentication required for ${owner}/${repo}. ` +
 					`Status: ${status}. ` +
 					"The repository may be private or you may have hit the rate limit.",
+				{ cause: error },
 			);
 		}
 
@@ -217,7 +200,12 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
  * @param options - GitHub options
  * @throws VersionError if branch does not exist
  */
-async function validateBranch(owner: string, repo: string, branch: string, options: GitHubOptions = {}): Promise<void> {
+export async function validateBranch(
+	owner: string,
+	repo: string,
+	branch: string,
+	options: GitHubOptions = {},
+): Promise<void> {
 	const { auth, timeout, signal } = options;
 	const url = repoApiUrl(owner, repo, "branches", branch);
 
@@ -247,7 +235,12 @@ async function validateBranch(owner: string, repo: string, branch: string, optio
  * @param options - GitHub options
  * @throws VersionError if commit does not exist
  */
-async function validateCommit(owner: string, repo: string, commit: string, options: GitHubOptions = {}): Promise<void> {
+export async function validateCommit(
+	owner: string,
+	repo: string,
+	commit: string,
+	options: GitHubOptions = {},
+): Promise<void> {
 	const { auth, timeout, signal } = options;
 	const url = repoApiUrl(owner, repo, "commits", commit);
 
@@ -283,7 +276,7 @@ async function validateCommit(owner: string, repo: string, commit: string, optio
  * @param options - GitHub options
  * @returns Default branch name, or undefined when the lookup fails
  */
-async function fetchDefaultBranch(
+export async function fetchDefaultBranch(
 	owner: string,
 	repo: string,
 	options: GitHubOptions = {},
@@ -379,122 +372,30 @@ export async function fetchTags(owner: string, repo: string, options: GitHubOpti
 }
 
 /**
- * Get the latest release for a repository.
+ * Fetch the latest commit of the default branch of a repository.
  *
  * @param owner - Repository owner
  * @param repo - Repository name
  * @param options - GitHub options
- * @returns Latest release or null if none
+ * @returns Full commit SHA, or null when the branch has no commit
  */
-export async function getLatestRelease(
+export async function fetchLatestCommit(
 	owner: string,
 	repo: string,
 	options: GitHubOptions = {},
-): Promise<GitHubRelease | null> {
-	const releases = await fetchReleases(owner, repo, options);
-	return releases[0] ?? null;
-}
+): Promise<string | null> {
+	const { auth, timeout, signal } = options;
+	const url = `${repoApiUrl(owner, repo, "commits")}?per_page=1`;
 
-/**
- * Resolve a version specification to a release or tag.
- *
- * @param owner - Repository owner
- * @param repo - Repository name
- * @param version - Version specification
- * @param options - Resolution options
- * @returns Resolved release/tag info with download URL
- */
-export async function resolveVersion(
-	owner: string,
-	repo: string,
-	version: VersionSpec,
-	options: ResolveVersionOptions = {},
-): Promise<ResolvedVersion> {
-	const { defaultBranch, latestCommit } = options;
-
-	switch (version.type) {
-		case "latest": {
-			const release = await getLatestRelease(owner, repo, options);
-			if (release) {
-				return {
-					tagName: release.tagName,
-					zipballUrl: release.zipballUrl,
-					tarballUrl: release.tarballUrl,
-				};
-			}
-
-			const tags = await fetchTags(owner, repo, options);
-			if (tags.length > 0 && tags[0]) {
-				return {
-					tagName: tags[0].name,
-					zipballUrl: tags[0].zipballUrl,
-					tarballUrl: tags[0].tarballUrl,
-				};
-			}
-
-			// Fallback to default branch with commit tracking. The registry hint is
-			// preferred, then GitHub itself, because the branch is not always "main".
-			const branch = defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
-			const commitSha = latestCommit?.substring(0, 7);
-			return {
-				tagName: commitSha ?? "HEAD",
-				zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, branch, "branch", "tarball"),
-				commitSha,
-			};
-		}
-
-		case "tag":
-		case "exact": {
-			const tagName = version.type === "tag" ? version.tag : `v${version.version}`;
-
-			const releases = await fetchReleases(owner, repo, options);
-			const release = releases.find((r) => r.tagName === tagName);
-			if (release) {
-				return {
-					tagName: release.tagName,
-					zipballUrl: release.zipballUrl,
-					tarballUrl: release.tarballUrl,
-				};
-			}
-
-			const tags = await fetchTags(owner, repo, options);
-			const tag = tags.find((t) => t.name === tagName);
-			if (tag) {
-				return {
-					tagName: tag.name,
-					zipballUrl: tag.zipballUrl,
-					tarballUrl: tag.tarballUrl,
-				};
-			}
-
-			throw new VersionError(`Version "${tagName}" not found for ${owner}/${repo}`, {
-				suggestion: `Check available releases at: https://github.com/${owner}/${repo}/releases`,
-			});
-		}
-
-		case "commit": {
-			const commitRef = version.commit;
-			// Validate commit exists before constructing URL
-			await validateCommit(owner, repo, commitRef, options);
-			const shortCommit = commitRef.substring(0, 7);
-			return {
-				tagName: shortCommit,
-				zipballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "tarball"),
-				commitSha: shortCommit,
-			};
-		}
-
-		case "branch": {
-			const branchName = version.branch;
-			// Validate branch exists before constructing URL
-			await validateBranch(owner, repo, branchName, options);
-			return {
-				tagName: branchName,
-				zipballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "tarball"),
-			};
-		}
+	try {
+		const raw = await fetchJson<RawCommit[]>(url, {
+			headers: getGitHubHeaders(auth),
+			timeout,
+			retries: 2,
+			signal,
+		});
+		return raw[0]?.sha ?? null;
+	} catch (error) {
+		handleGitHubError(error, owner, repo);
 	}
 }

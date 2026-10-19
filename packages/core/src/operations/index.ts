@@ -18,14 +18,17 @@ export {
 } from "./install.js";
 
 export {
+	type UpdateCheckSource,
 	type UpdateInfo,
+	type RepositoryFailure,
+	type UpdateCheckFailure,
+	type UpdateCheckResult,
 	type UpdateCheckOptions,
 	type UpdateOptions,
 	type UpdateResult,
 	checkForUpdates,
 	applyUpdates,
 	update,
-	normaliseVersion,
 } from "./update.js";
 
 export { type RemoveOptions, type RemoveResult, remove, removeMultiple } from "./remove.js";

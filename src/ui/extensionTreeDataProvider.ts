@@ -7,7 +7,7 @@ import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
 import { getInstalledExtensionsRecord, getExtensionContributes, getEffectiveSourceType } from "../utils/extensions";
-import { getCacheTTL, getCrossSourceUpdateEnabled, getRegistryUrl } from "../utils/extensionDetails";
+import { getCacheTTL, getRegistryUrl } from "../utils/extensionDetails";
 import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
 import { getAuthConfig } from "../utils/auth";
 import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
@@ -581,24 +581,29 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				if (!folderCache) continue;
 
 				try {
-					const updates = await checkForUpdates({
-						projectDir: projectPath,
+					const result = await checkForUpdates({
+						projectDirs: [projectPath],
 						registryUrl,
 						cacheTtl,
 						auth: auth ?? undefined,
 						timeout: REGISTRY_FETCH_TIMEOUT_MS,
-						crossSource: getCrossSourceUpdateEnabled(),
 					});
+
+					for (const failure of result.repositoryFailures) {
+						logMessage(`Failed to check updates for ${failure.repository}: ${failure.message}.`, "warn");
+					}
+					if (result.checkFailure) {
+						// Keep the previous state, as for a thrown error.
+						logMessage(`Failed to check updates for ${projectPath}: ${result.checkFailure.message}.`, "error");
+						continue;
+					}
 
 					// Only reset after successful fetch to preserve previous state on error
 					folderCache.latestVersions = {};
 
-					for (const update of updates) {
+					for (const update of result.updates) {
 						const extId = formatExtensionId(update.extension.id);
-						const atIndex = update.source.lastIndexOf("@");
-						const versionRef = atIndex > 0 ? update.source.substring(atIndex + 1) : update.latestVersion;
-
-						folderCache.latestVersions[extId] = versionRef;
+						folderCache.latestVersions[extId] = update.latestRef;
 						updatesAvailable.push(`${root.label}/${extId}`);
 						totalUpdates++;
 					}

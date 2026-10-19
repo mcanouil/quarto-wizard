@@ -19,7 +19,7 @@ import { CancellationError, NetworkError } from "../errors.js";
 import { detectSamlSsoError } from "../samlSso.js";
 import { formatSize, validateUrlProtocol } from "../archive/security.js";
 import { proxyFetch } from "../proxy/index.js";
-import { resolveVersion, type ResolveVersionOptions } from "./releases.js";
+import { resolveVersion, type ResolveVersionOptions } from "./resolve.js";
 
 /**
  * Progress callback for downloads.

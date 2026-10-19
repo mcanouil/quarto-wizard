@@ -6,13 +6,14 @@ export {
 	type GitHubRelease,
 	type GitHubTag,
 	type GitHubOptions,
-	type ResolvedVersion,
-	type ResolveVersionOptions,
 	fetchReleases,
 	fetchTags,
-	getLatestRelease,
-	resolveVersion,
+	fetchLatestCommit,
 } from "./releases.js";
+
+export { type ResolvedVersion, type ResolveVersionOptions, resolveVersion } from "./resolve.js";
+
+export { type LatestTag, type ResolveLatestTagOptions, normaliseVersion, resolveLatestTag } from "./latest.js";
 
 export {
 	type DownloadProgressCallback,
