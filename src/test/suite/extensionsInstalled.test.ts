@@ -75,10 +75,10 @@ suite("Extensions Installed Commands Test Suite", () => {
 	}
 
 	function cancelEveryProgress(): void {
-		const cancelled = {
-			isCancellationRequested: true,
-			onCancellationRequested: () => new vscode.Disposable(() => undefined),
-		} as unknown as vscode.CancellationToken;
+		const source = new vscode.CancellationTokenSource();
+		source.cancel();
+		subscriptions.push(source);
+		const cancelled = source.token;
 		vscode.window.withProgress = ((_options, task) =>
 			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
 	}
@@ -306,6 +306,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 		await runCommand("updateAll");
 
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
 		assert.deepStrictEqual(requests, []);
 		assert.deepStrictEqual(installCalls, []);
 		assert.deepStrictEqual(messages, []);
@@ -318,6 +320,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 		cancelEveryProgress();
 
 		await runCommand("update", createItem("acme/registry-demo"));
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		assert.deepStrictEqual(requests, []);
 		assert.deepStrictEqual(installCalls, []);

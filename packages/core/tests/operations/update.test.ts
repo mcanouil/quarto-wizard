@@ -740,6 +740,15 @@ describe("checkForUpdates", () => {
 	});
 
 	describe("cancellation", () => {
+		it("rejects an aborted signal when no extension can be checked", async () => {
+			const controller = new AbortController();
+			controller.abort();
+
+			await expect(checkForUpdates({ projectDirs: [tempDir], signal: controller.signal })).rejects.toBeInstanceOf(
+				CancellationError,
+			);
+		});
+
 		it("sends no request when the signal is already aborted", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
 			const controller = new AbortController();

@@ -193,12 +193,12 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		repositoryFailures: [],
 	};
 
+	if (registryOptions.signal?.aborted) {
+		throw new CancellationError();
+	}
 	const candidates = await collectCandidates(projectDirs, targetExtension);
 	if (candidates.length === 0) {
 		return result;
-	}
-	if (registryOptions.signal?.aborted) {
-		throw new CancellationError();
 	}
 
 	let registry: Registry | null = null;
