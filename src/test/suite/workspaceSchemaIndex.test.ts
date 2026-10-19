@@ -24,8 +24,8 @@ suite("Workspace Schema Index", () => {
 		}
 	});
 
-	function installExtension(root: string, owner: string, name: string, schema?: string): string {
-		const directory = path.join(root, "_extensions", owner, name);
+	function installExtension(root: string, owner: string | null, name: string, schema?: string): string {
+		const directory = path.join(root, "_extensions", ...(owner === null ? [name] : [owner, name]));
 		fs.mkdirSync(directory, { recursive: true });
 		fs.writeFileSync(path.join(directory, "_extension.yml"), `title: ${name}\nversion: 1.0.0\n`);
 		if (schema !== undefined) {
@@ -55,17 +55,25 @@ suite("Workspace Schema Index", () => {
 		assert.strictEqual(extMap.size, 0);
 	});
 
-	test("Maps a short name that two owners share to one of its owners", async () => {
+	test("Maps a short name that two owners share to the first owner", async () => {
 		temporary = fs.mkdtempSync(path.join(os.tmpdir(), "qw-index-"));
-		installExtension(temporary, "alpha", "same", schemaWithOption("first"));
 		installExtension(temporary, "beta", "same", schemaWithOption("second"));
-		const { schemaMap } = await getWorkspaceSchemaIndex(temporary, new SchemaCache());
+		installExtension(temporary, "alpha", "same", schemaWithOption("first"));
+		const { schemaMap, extMap } = await getWorkspaceSchemaIndex(temporary, new SchemaCache());
 		assert.deepStrictEqual([...schemaMap.keys()].sort(), ["alpha/same", "beta/same", "same"]);
 		assert.ok(schemaMap.get("alpha/same")?.options?.["first"]);
 		assert.ok(schemaMap.get("beta/same")?.options?.["second"]);
-		const shared = schemaMap.get("same");
-		const owners = [schemaMap.get("alpha/same"), schemaMap.get("beta/same")];
-		assert.strictEqual(owners.filter((owner) => owner === shared).length, 1);
+		assert.strictEqual(schemaMap.get("same"), schemaMap.get("alpha/same"));
+		assert.strictEqual(extMap.get("same"), extMap.get("alpha/same"));
+	});
+
+	test("Maps a short name that an ownerless extension shares to the first in discovery order", async () => {
+		temporary = fs.mkdtempSync(path.join(os.tmpdir(), "qw-index-"));
+		const owned = installExtension(temporary, "alpha", "same", schemaWithOption("owned"));
+		installExtension(temporary, null, "same", schemaWithOption("ownerless"));
+		const { schemaMap, extMap } = await getWorkspaceSchemaIndex(temporary, new SchemaCache());
+		assert.ok(schemaMap.get("same")?.options?.["owned"]);
+		assert.strictEqual(extMap.get("same")?.directory, owned);
 	});
 
 	test("Reflects a changed schema once the index is invalidated", async () => {

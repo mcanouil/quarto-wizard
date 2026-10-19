@@ -90,6 +90,19 @@ export async function discoverInstalledExtensions(
 }
 
 /**
+ * List a directory in code-point order of entry names.
+ *
+ * `readdirSync` returns entries in the order of the filesystem, which differs
+ * between machines. A fixed order makes the first match of a shared name the
+ * same everywhere.
+ */
+function readDirectorySorted(directory: string): fs.Dirent[] {
+	return fs
+		.readdirSync(directory, { withFileTypes: true })
+		.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+}
+
+/**
  * Synchronous version of discoverInstalledExtensions.
  *
  * @param projectDir - Project root directory
@@ -109,7 +122,7 @@ export function discoverInstalledExtensionsSync(
 	const results: InstalledExtension[] = [];
 
 	try {
-		const topEntries = fs.readdirSync(extensionsDir, { withFileTypes: true });
+		const topEntries = readDirectorySorted(extensionsDir);
 
 		for (const topEntry of topEntries) {
 			if (!topEntry.isDirectory()) {
@@ -131,7 +144,7 @@ export function discoverInstalledExtensionsSync(
 			}
 
 			// Otherwise, treat as owner directory and look for extensions inside
-			const extEntries = fs.readdirSync(topPath, { withFileTypes: true });
+			const extEntries = readDirectorySorted(topPath);
 
 			for (const extEntry of extEntries) {
 				if (!extEntry.isDirectory()) {

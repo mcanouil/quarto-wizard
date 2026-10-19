@@ -42,16 +42,11 @@ async function buildWorkspaceSchemaIndex(
 
 		const id = formatExtensionId(ext.id);
 		const shortName = ext.id.name;
-		schemaMap.set(id, schema);
-		if (!schemaMap.has(shortName)) {
-			schemaMap.set(shortName, schema);
-		}
-
-		if (!extMap.has(id)) {
-			extMap.set(id, ext);
-		}
-		if (!extMap.has(shortName)) {
-			extMap.set(shortName, ext);
+		for (const key of [id, shortName]) {
+			if (!schemaMap.has(key)) {
+				schemaMap.set(key, schema);
+				extMap.set(key, ext);
+			}
 		}
 	}
 
