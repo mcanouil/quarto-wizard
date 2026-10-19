@@ -1,0 +1,19 @@
+{
+	"name": "extension-source-picker",
+	"frame": ["sidebar", "editor", "quickinput"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Install Extensions"
+		},
+		{
+			"kind": "wait",
+			"text": "Install From",
+			"timeout": 30000
+		}
+	]
+}

@@ -1,0 +1,28 @@
+{
+	"name": "extension-browser-1",
+	"frame": ["sidebar", "editor", "quickinput"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Install Extensions"
+		},
+		{
+			"kind": "wait",
+			"text": "Install From",
+			"timeout": 30000
+		},
+		{
+			"kind": "key",
+			"key": "Enter"
+		},
+		{
+			"kind": "wait",
+			"text": "Extension Type Filter",
+			"timeout": 30000
+		}
+	]
+}

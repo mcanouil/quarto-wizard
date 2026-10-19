@@ -50,6 +50,8 @@ function prepareProfile(registryUrl) {
 		"editor.occurrencesHighlight": "off",
 		"editor.selectionHighlight": false,
 		"quartoWizard.registry.url": registryUrl,
+		"quartoWizard.ask.trustAuthors": "never",
+		"quartoWizard.ask.confirmInstall": "never",
 	});
 }
 
@@ -169,6 +171,23 @@ async function setTheme(page, scene, theme) {
 	await sleep(800);
 }
 
+/** The palette ranks by fuzzy match and history, so move to the entry whose label is the title. */
+async function selectPaletteEntry(page, title) {
+	const index = await page.evaluate(
+		(wanted) =>
+			[...document.querySelectorAll(".quick-input-list .monaco-list-row")].findIndex(
+				(row) => (row.querySelector(".label-name") ?? row).textContent.trim() === wanted,
+			),
+		title,
+	);
+	if (index < 0) {
+		throw new Error(`no command palette entry is named "${title}"`);
+	}
+	for (let step = 0; step < index; step++) {
+		await page.keyboard.press("ArrowDown");
+	}
+}
+
 const find = (page, target) => page.evaluate((t) => window.qwShot.findTarget(t), target);
 
 async function runStep(page, step) {
@@ -178,6 +197,7 @@ async function runStep(page, step) {
 			await sleep(500);
 			await page.keyboard.type(step.title);
 			await sleep(800);
+			await selectPaletteEntry(page, step.title);
 			await page.keyboard.press("Enter");
 			await sleep(1500);
 			return;

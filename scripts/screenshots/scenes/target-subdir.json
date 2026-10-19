@@ -1,0 +1,38 @@
+{
+	"name": "target-subdir",
+	"frame": ["sidebar", "editor", "quickinput"],
+	"steps": [
+		{
+			"kind": "open",
+			"file": "report.qmd"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Use Template"
+		},
+		{
+			"kind": "wait",
+			"text": "Install From",
+			"timeout": 30000
+		},
+		{
+			"kind": "key",
+			"key": "Enter"
+		},
+		{
+			"kind": "wait",
+			"text": "ACM",
+			"timeout": 60000
+		},
+		{
+			"kind": "click",
+			"text": "quarto-journals/acm",
+			"part": "quickinput"
+		},
+		{
+			"kind": "wait",
+			"text": "Target Subdirectory",
+			"timeout": 60000
+		}
+	]
+}
