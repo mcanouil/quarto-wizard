@@ -46,6 +46,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	let installCalls: InstallCall[];
 	let removeCalls: RemoveCall[];
 	let messages: string[];
+	let warningActions: string[][];
 	let restoreBoundary: () => void;
 	let subscriptions: vscode.Disposable[];
 	let provider: ProviderInternals;
@@ -85,6 +86,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		installCalls = [];
 		removeCalls = [];
 		messages = [];
+		warningActions = [];
 		subscriptions = [];
 		restoreBoundary = stubUpdateBoundary({ repositories: {} });
 
@@ -105,8 +107,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 			dispose: () => undefined,
 		})) as unknown as typeof vscode.window.createTreeView;
 		vscode.window.showWarningMessage = (async (message: string, ...rest: unknown[]) => {
-			const options = rest[0] as vscode.MessageOptions | undefined;
+			const options = typeof rest[0] === "object" ? (rest[0] as vscode.MessageOptions) : undefined;
 			messages.push(options?.detail ? `${message}\n${options.detail}` : message);
+			warningActions.push(rest.filter((item): item is string => typeof item === "string"));
 			return "Update All";
 		}) as unknown as typeof vscode.window.showWarningMessage;
 		vscode.window.showInformationMessage = (async (message: string) => {
@@ -242,6 +245,57 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 		assert.deepStrictEqual(installCalls, []);
 		assert.deepStrictEqual(messages, ["All extensions are up to date."]);
+	});
+
+	test("update all reports the extensions it could not check", async () => {
+		stubNetwork({
+			repositories: { "acme/registry-demo": { githubTags: ["v1.0.0"] }, "acme/github-demo": { githubStatus: 404 } },
+		});
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(messages, ["Failed to check updates for 1 extension(s)."]);
+		assert.deepStrictEqual(warningActions, [["Show Logs"]]);
+	});
+
+	test("update all counts the extensions it could not check in its summary", async () => {
+		stubNetwork({
+			repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 404 } },
+		});
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: "acme/registry-demo@v1.3.0", workspaceFolder: FIXTURE_ROOT, sourceType: "registry" },
+		]);
+		assert.strictEqual(
+			messages[messages.length - 1],
+			"Updated acme/registry-demo to 1.3.0; 1 extension(s) could not be checked.",
+		);
+	});
+
+	test("update asks to sign in when the anonymous rate limit stops the check", async () => {
+		stubNetwork({ repositories: { "acme/registry-demo": { githubStatus: 403 } } });
+
+		await runCommand("update", createItem("acme/registry-demo"));
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("Sign in to GitHub"), messages[0]);
+		assert.deepStrictEqual(warningActions, [["Sign In"]]);
+	});
+
+	test("update all does not ask to sign in when the rate limit stops a check with a token", async () => {
+		stubNetwork({ token: "test-token", repositories: { "acme/registry-demo": { githubStatus: 403 } } });
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("GitHub rate limit reached."), messages[0]);
+		assert.ok(!/sign in/i.test(messages[0]), messages[0]);
+		assert.deepStrictEqual(warningActions, [["Show Logs"]]);
 	});
 
 	test("remove passes the extension id and workspace folder", async () => {

@@ -66,7 +66,11 @@ async function checkGitHubUpdates(
  *
  * @returns True when the check failed as a whole.
  */
-async function reportCheckFailures(result: UpdateCheckResult, failureMessage: string): Promise<boolean> {
+async function reportCheckFailures(
+	result: UpdateCheckResult,
+	failureMessage: string,
+	auth: AuthConfig,
+): Promise<boolean> {
 	for (const failure of result.repositoryFailures) {
 		logMessage(`Failed to check updates for ${failure.repository}: ${failure.message}.`, "warn");
 	}
@@ -74,7 +78,9 @@ async function reportCheckFailures(result: UpdateCheckResult, failureMessage: st
 		return false;
 	}
 	logMessage(`Failed to check for updates: ${result.checkFailure.message}.`, "error");
-	if (result.checkFailure.kind === "rate-limited") {
+	if (result.checkFailure.kind === "rate-limited" && auth.githubToken) {
+		showMessageWithLogs(`${failureMessage} GitHub rate limit reached.`, "warning");
+	} else if (result.checkFailure.kind === "rate-limited") {
 		const action = await vscode.window.showWarningMessage(
 			`${failureMessage} GitHub rate limit reached. Sign in to GitHub and try again.`,
 			"Sign In",
@@ -375,7 +381,7 @@ export class ExtensionsInstalled {
 				});
 
 				if (outcome.check) {
-					if (await reportCheckFailures(outcome.check, failureMessage)) {
+					if (await reportCheckFailures(outcome.check, failureMessage, auth)) {
 						return;
 					}
 					if (outcome.check.repositoryFailures.length > 0) {
@@ -524,13 +530,18 @@ export class ExtensionsInstalled {
 				const check = await withProgressNotification("Checking for updates ...", async () =>
 					checkGitHubUpdates(this.treeDataProvider.getProjectDirs(), auth),
 				);
-				if (await reportCheckFailures(check, failureMessage)) {
+				if (await reportCheckFailures(check, failureMessage, auth)) {
 					return;
 				}
 				const updates = check.updates;
+				const uncheckedCount = check.repositoryFailures.length;
 
 				if (updates.length === 0) {
-					vscode.window.showInformationMessage("All extensions are up to date.");
+					if (uncheckedCount > 0) {
+						showMessageWithLogs(`Failed to check updates for ${uncheckedCount} extension(s).`, "warning");
+					} else {
+						vscode.window.showInformationMessage("All extensions are up to date.");
+					}
 					return;
 				}
 
@@ -575,9 +586,11 @@ export class ExtensionsInstalled {
 					const versions = updated
 						.map((update) => `${formatExtensionId(update.extension.id)} to ${update.latestVersion}`)
 						.join(", ");
-					vscode.window.showInformationMessage(
-						`Updated ${versions}${failedCount > 0 ? `; ${failedCount} failed` : ""}.`,
-					);
+					const problems = [
+						...(failedCount > 0 ? [`${failedCount} failed`] : []),
+						...(uncheckedCount > 0 ? [`${uncheckedCount} extension(s) could not be checked`] : []),
+					];
+					vscode.window.showInformationMessage(`Updated ${[versions, ...problems].join("; ")}.`);
 				} else {
 					showMessageWithLogs(failureMessage, "error");
 				}
