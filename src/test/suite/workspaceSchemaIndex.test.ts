@@ -67,13 +67,17 @@ suite("Workspace Schema Index", () => {
 		assert.strictEqual(extMap.get("same"), extMap.get("alpha/same"));
 	});
 
-	test("Maps a short name that an ownerless extension shares to the first in discovery order", async () => {
+	test("Maps a short name that an ownerless extension shares to the ownerless extension", async () => {
 		temporary = fs.mkdtempSync(path.join(os.tmpdir(), "qw-index-"));
-		const owned = installExtension(temporary, "alpha", "same", schemaWithOption("owned"));
-		installExtension(temporary, null, "same", schemaWithOption("ownerless"));
+		installExtension(temporary, "alpha", "same", schemaWithOption("before"));
+		const ownerless = installExtension(temporary, null, "same", schemaWithOption("ownerless"));
+		installExtension(temporary, "zulu", "same", schemaWithOption("after"));
 		const { schemaMap, extMap } = await getWorkspaceSchemaIndex(temporary, new SchemaCache());
-		assert.ok(schemaMap.get("same")?.options?.["owned"]);
-		assert.strictEqual(extMap.get("same")?.directory, owned);
+		assert.deepStrictEqual([...schemaMap.keys()].sort(), ["alpha/same", "same", "zulu/same"]);
+		assert.ok(schemaMap.get("same")?.options?.["ownerless"]);
+		assert.strictEqual(extMap.get("same")?.directory, ownerless);
+		assert.ok(schemaMap.get("alpha/same")?.options?.["before"]);
+		assert.ok(schemaMap.get("zulu/same")?.options?.["after"]);
 	});
 
 	test("Reflects a changed schema once the index is invalidated", async () => {
