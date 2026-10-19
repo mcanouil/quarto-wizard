@@ -17,12 +17,7 @@ import {
 	showTypeFilterQuickPick,
 } from "../ui/extensionsQuickPick";
 import { selectWorkspaceFolder } from "../utils/workspace";
-import {
-	ExtensionTreeItem,
-	ProjectGroupTreeItem,
-	WorkspaceFolderTreeItem,
-	type ProjectFolderItem,
-} from "../ui/extensionTreeItems";
+import { ExtensionTreeItem, WorkspaceFolderTreeItem } from "../ui/extensionTreeItems";
 import { getAuthConfig, logAuthStatus } from "../utils/auth";
 import {
 	isAbsolutePathForAnyPlatform,
@@ -417,7 +412,7 @@ async function installFromSource(
 /**
  * A tree item that names the folder a command installs into.
  */
-export type InstallTarget = ExtensionTreeItem | ProjectFolderItem;
+export type InstallTarget = ExtensionTreeItem | WorkspaceFolderTreeItem;
 
 /**
  * Resolve the folder that a command installs into.
@@ -429,9 +424,6 @@ export type InstallTarget = ExtensionTreeItem | ProjectFolderItem;
 async function resolveTargetFolder(target?: InstallTarget): Promise<string | undefined> {
 	if (target instanceof ExtensionTreeItem || target instanceof WorkspaceFolderTreeItem) {
 		return target.workspaceFolder;
-	}
-	if (target instanceof ProjectGroupTreeItem) {
-		return target.fsPath;
 	}
 	return selectWorkspaceFolder();
 }

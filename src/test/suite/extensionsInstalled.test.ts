@@ -6,7 +6,7 @@ import { SnippetCache } from "@quarto-wizard/snippets";
 import { registerInstallCommands } from "../../commands/installQuartoExtension";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
-import { ExtensionTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
+import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/quarto";
 import { makeFolder, makeRoot } from "./projectFixtures";
@@ -343,7 +343,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(removeCalls, [{ extension: "acme/github-demo", workspaceFolder: FIXTURE_ROOT }]);
 	});
 
-	test("install with a tree item installs into the folder of that item", async () => {
+	async function installFromLocalSource(target: unknown): Promise<string> {
 		const localSource = path.join(FIXTURE_ROOT, "local-source");
 		const originalShowQuickPick = vscode.window.showQuickPick;
 		const originalShowOpenDialog = vscode.window.showOpenDialog;
@@ -351,11 +351,24 @@ suite("Extensions Installed Commands Test Suite", () => {
 			items.find((item) => item.sourceType === "local") ?? items[0]) as unknown as typeof vscode.window.showQuickPick;
 		vscode.window.showOpenDialog = (async () => [vscode.Uri.file(localSource)]) as typeof vscode.window.showOpenDialog;
 		try {
-			await runCommand("installExtension", createItem("acme/github-demo"));
+			await runCommand("installExtension", target);
 		} finally {
 			vscode.window.showQuickPick = originalShowQuickPick;
 			vscode.window.showOpenDialog = originalShowOpenDialog;
 		}
+		return localSource;
+	}
+
+	test("install with an extension tree item installs into the folder of that item", async () => {
+		const localSource = await installFromLocalSource(createItem("acme/github-demo"));
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: localSource, workspaceFolder: FIXTURE_ROOT, sourceType: undefined },
+		]);
+	});
+
+	test("install with a workspace folder tree item installs into that folder", async () => {
+		const localSource = await installFromLocalSource(new WorkspaceFolderTreeItem("treeCommands", FIXTURE_ROOT));
 
 		assert.deepStrictEqual(installCalls, [
 			{ source: localSource, workspaceFolder: FIXTURE_ROOT, sourceType: undefined },
