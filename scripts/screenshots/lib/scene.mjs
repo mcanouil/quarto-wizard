@@ -117,13 +117,20 @@ function validateScene(raw, file) {
 	raw.steps.forEach((step, index) => validateStep(step, `${file}: steps[${index}]`));
 	const labels = raw.labels ?? [];
 	labels.forEach((label, index) => validateLabel(label, `${file}: labels[${index}]`));
+	const development = raw.development ?? true;
+	if (typeof development !== "boolean") {
+		fail("development", "must be true or false.");
+	}
+	if (raw.height !== undefined && !(typeof raw.height === "number" && raw.height > 0)) {
+		fail("height", "must be a positive number of pixels.");
+	}
 	const outputs = raw.outputs ?? defaultOutputs(raw.name, themes);
 	for (const theme of themes) {
 		if (typeof outputs[theme] !== "string") {
 			fail("outputs", `must name a file for the ${theme} theme.`);
 		}
 	}
-	return { name: raw.name, themes, outputs, frame, steps: raw.steps, labels };
+	return { name: raw.name, themes, outputs, frame, height: raw.height, development, steps: raw.steps, labels };
 }
 
 /**

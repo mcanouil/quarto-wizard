@@ -367,7 +367,7 @@ async function runScene(app, scene, project, repo) {
 	await sleep(500);
 
 	const boxes = await page.evaluate(() => window.qwShot.partBoxes());
-	const crop = cropRect(scene.frame, boxes, viewport);
+	const crop = cropRect(scene.frame, boxes, viewport, scene.height);
 	const images = {};
 	for (const theme of scene.themes) {
 		images[theme] = await captureTheme(app, page, scene, theme, { viewport, crop, boxes });
@@ -409,7 +409,7 @@ export async function runScenes(scenes, { repo, registryUrl }) {
 			executablePath,
 			args: [
 				project,
-				`--extensionDevelopmentPath=${repo}`,
+				...(scene.development ? [`--extensionDevelopmentPath=${repo}`] : []),
 				`--user-data-dir=${userData}`,
 				`--extensions-dir=${extensionsDir}`,
 				`--force-device-scale-factor=${SCALE_FACTOR}`,

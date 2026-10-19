@@ -25,14 +25,16 @@ export function fitWindow(workArea) {
 /**
  * The margin never reaches into a workbench part that the frame does not name, so the image has no
  * slivers of the title bar, the activity bar or the status bar.
+ * With `height`, only the top `height` pixels of the crop are kept.
  * @param {"window" | string[]} frame
  * @param {Record<string, Box | null>} parts
  * @param {{ width: number, height: number }} viewport
+ * @param {number} [height]
  * @returns {Box}
  */
-export function cropRect(frame, parts, viewport) {
+export function cropRect(frame, parts, viewport, height = Infinity) {
 	if (frame === "window") {
-		return { x: 0, y: 0, width: viewport.width, height: viewport.height };
+		return { x: 0, y: 0, width: viewport.width, height: Math.min(viewport.height, height) };
 	}
 	const boxes = frame.map((name) => {
 		if (!parts[name]) {
@@ -64,7 +66,7 @@ export function cropRect(frame, parts, viewport) {
 	top = Math.max(0, top);
 	right = Math.min(viewport.width, right);
 	bottom = Math.min(viewport.height, bottom);
-	return { x: left, y: top, width: right - left, height: bottom - top };
+	return { x: left, y: top, width: right - left, height: Math.min(bottom - top, height) };
 }
 
 /**

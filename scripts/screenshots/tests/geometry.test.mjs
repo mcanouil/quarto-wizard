@@ -34,6 +34,12 @@ test("cropRect keeps the margin out of parts that the frame does not name", () =
 	assert.deepEqual(cropRect(["sidebar"], parts, viewport), { x: 48, y: 35, width: 416, height: 743 });
 });
 
+test("cropRect keeps only the top of the crop when a height is given", () => {
+	const parts = { sidebar: { x: 48, y: 35, width: 416, height: 743 } };
+	assert.deepEqual(cropRect(["sidebar"], parts, viewport, 200), { x: 32, y: 19, width: 448, height: 200 });
+	assert.deepEqual(cropRect(["sidebar"], parts, viewport, 2000).height, 775);
+});
+
 test("cropRect rejects a missing part", () => {
 	assert.throws(() => cropRect(["quickinput"], { quickinput: null }, viewport), /quickinput/);
 });
