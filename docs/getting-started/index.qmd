@@ -2,9 +2,9 @@
 title: "Getting Started"
 alt-text:
   quick-start: |
-    The Extensions Installed view of Quarto Wizard in VS Code, with a sample project open.
-    The view lists three extensions, and mcanouil/iconify shows version 4.0.0 with a newer version, 4.2.2, available.
-    Labels point to the Update all button, the line that says where updates were checked, and the buttons on the extension row.
+    The command palette with Quarto Wizard typed in.
+    The list shows the Quarto Wizard commands, such as Install Extensions, Install Extension from GitHub, Quarto Reproducible Document and Set GitHub Token (Manual).
+    The matching words are highlighted in blue.
 ---
 
 Welcome to Quarto Wizard, a Visual Studio Code extension that helps you manage your Quarto projects and extensions.
@@ -32,13 +32,13 @@ It enhances your Quarto development experience by making extension management si
 3. Use the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) and type "Quarto Wizard" to see available commands.
 
 ::: {style="text-align: center;"}
-![](images/quick-start-dark.png "Extensions Installed View with Labels"){
+![](images/quick-start-dark.png "Command Palette: Quarto Wizard Commands"){
 .dark-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-dark"
 fig-alt='{{< meta alt-text.quick-start >}}'
 }
-![](images/quick-start-light.png "Extensions Installed View with Labels"){
+![](images/quick-start-light.png "Command Palette: Quarto Wizard Commands"){
 .light-content .lightbox
 .img-fluid .img-thumbnail .rounded-3 .border-light
 fig-align="center" group="quarto-wizard-light"

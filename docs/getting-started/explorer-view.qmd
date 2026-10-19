@@ -246,9 +246,10 @@ If no extensions are installed, the view displays a welcome message with links t
 
 Right-click on an extension to access additional options:
 
-- Update (for an extension installed from GitHub or from the registry, even when it is up to date).
-- Remove.
-- Open Source (if source is available).
+- Reinstall Extension (from its original source).
+- Update Extension (for an extension installed from GitHub or from the registry, even when it is up to date).
+- Remove Extension.
+- Open Extension Source (if source is available).
 - Reveal in Explorer View.
 
 ::: {style="text-align: center;"}

@@ -20,7 +20,7 @@ export const OUTLINE = { dark: "#1f1f1f", light: "#ffffff" };
  */
 export function labelsForTheme(labels, theme) {
 	return labels.map((label) => {
-		const colour = theme === "dark" ? label.colour : (label.colourLight ?? LIGHT_COLOURS[label.colour]);
+		const colour = theme === "dark" ? label.colour : LIGHT_COLOURS[label.colour];
 		if (!colour) {
 			throw new Error(`Label "${label.text}": no light variant for the colour ${label.colour}.`);
 		}
