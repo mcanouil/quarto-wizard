@@ -42,12 +42,15 @@ suite("Extensions Installed Commands Test Suite", () => {
 	let originalCreateTreeView: typeof vscode.window.createTreeView;
 	let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
 	let originalShowInformationMessage: typeof vscode.window.showInformationMessage;
+	let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
+	let originalWithProgress: typeof vscode.window.withProgress;
 	let originalRefreshAfterAction: typeof QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
 	let originalSetProjectRoots: typeof QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
 
 	let installCalls: InstallCall[];
 	let removeCalls: RemoveCall[];
 	let messages: string[];
+	let errors: string[];
 	let warningActions: string[][];
 	let restoreBoundary: () => void;
 	let subscriptions: vscode.Disposable[];
@@ -71,6 +74,15 @@ suite("Extensions Installed Commands Test Suite", () => {
 		restoreBoundary = stubUpdateBoundary(options);
 	}
 
+	function cancelEveryProgress(): void {
+		const cancelled = {
+			isCancellationRequested: true,
+			onCancellationRequested: () => new vscode.Disposable(() => undefined),
+		} as unknown as vscode.CancellationToken;
+		vscode.window.withProgress = ((_options, task) =>
+			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
+	}
+
 	function runCommand(name: string, ...args: unknown[]): Thenable<unknown> {
 		const id =
 			name === "installExtension" ? "quartoWizard.installExtension" : `quartoWizard.extensionsInstalled.${name}`;
@@ -84,12 +96,15 @@ suite("Extensions Installed Commands Test Suite", () => {
 		originalCreateTreeView = vscode.window.createTreeView;
 		originalShowWarningMessage = vscode.window.showWarningMessage;
 		originalShowInformationMessage = vscode.window.showInformationMessage;
+		originalShowErrorMessage = vscode.window.showErrorMessage;
+		originalWithProgress = vscode.window.withProgress;
 		originalRefreshAfterAction = QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
 		originalSetProjectRoots = QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
 
 		installCalls = [];
 		removeCalls = [];
 		messages = [];
+		errors = [];
 		warningActions = [];
 		subscriptions = [];
 		restoreBoundary = stubUpdateBoundary({ repositories: {} });
@@ -120,6 +135,10 @@ suite("Extensions Installed Commands Test Suite", () => {
 			messages.push(message);
 			return undefined;
 		}) as unknown as typeof vscode.window.showInformationMessage;
+		vscode.window.showErrorMessage = (async (message: string) => {
+			errors.push(message);
+			return undefined;
+		}) as unknown as typeof vscode.window.showErrorMessage;
 
 		// Both would reach the registry over the network or replace the roots injected below.
 		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = () => undefined;
@@ -152,6 +171,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 		vscode.window.createTreeView = originalCreateTreeView;
 		vscode.window.showWarningMessage = originalShowWarningMessage;
 		vscode.window.showInformationMessage = originalShowInformationMessage;
+		vscode.window.showErrorMessage = originalShowErrorMessage;
+		vscode.window.withProgress = originalWithProgress;
 		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = originalRefreshAfterAction;
 		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = originalSetProjectRoots;
 	});
@@ -279,23 +300,29 @@ suite("Extensions Installed Commands Test Suite", () => {
 	});
 
 	test("update all stops without a confirmation when the check is cancelled", async () => {
-		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] } } });
-		const originalWithProgress = vscode.window.withProgress;
-		const cancelled = {
-			isCancellationRequested: true,
-			onCancellationRequested: () => new vscode.Disposable(() => undefined),
-		} as unknown as vscode.CancellationToken;
-		vscode.window.withProgress = ((_options, task) =>
-			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
+		const requests: string[] = [];
+		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] } }, requests });
+		cancelEveryProgress();
 
-		try {
-			await runCommand("updateAll");
-		} finally {
-			vscode.window.withProgress = originalWithProgress;
-		}
+		await runCommand("updateAll");
 
+		assert.deepStrictEqual(requests, []);
 		assert.deepStrictEqual(installCalls, []);
 		assert.deepStrictEqual(messages, []);
+		assert.deepStrictEqual(errors, []);
+	});
+
+	test("update stops quietly when the check is cancelled", async () => {
+		const requests: string[] = [];
+		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.0.0"] } }, requests });
+		cancelEveryProgress();
+
+		await runCommand("update", createItem("acme/registry-demo"));
+
+		assert.deepStrictEqual(requests, []);
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(messages, []);
+		assert.deepStrictEqual(errors, []);
 	});
 
 	test("update all counts the repositories it could not check in its summary", async () => {

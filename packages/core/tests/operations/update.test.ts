@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { checkForUpdates, update } from "../../src/operations/update.js";
-import { AuthenticationError, NetworkError, RepositoryNotFoundError } from "../../src/errors.js";
+import { AuthenticationError, CancellationError, NetworkError, RepositoryNotFoundError } from "../../src/errors.js";
 
 vi.mock("../../src/registry/fetcher.js", () => ({
 	fetchRegistry: vi.fn(),
@@ -727,6 +727,61 @@ describe("checkForUpdates", () => {
 				{ repository: "gone/away", message: "Repository not found: gone/away" },
 			]);
 			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["fontawesome"]);
+		});
+	});
+
+	describe("cancellation", () => {
+		it("sends no request when the signal is already aborted", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			const controller = new AbortController();
+			controller.abort();
+
+			await expect(
+				checkForUpdates({ projectDirs: [tempDir], source: "github", signal: controller.signal }),
+			).rejects.toBeInstanceOf(CancellationError);
+
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(fetchTags).not.toHaveBeenCalled();
+			expect(fetchRegistry).not.toHaveBeenCalled();
+		});
+
+		it("rejects with a cancellation when the signal aborts during a lookup", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			const controller = new AbortController();
+			vi.mocked(fetchTags).mockImplementation(
+				(_owner, _repo, options) =>
+					new Promise((_resolve, reject) => {
+						options?.signal?.addEventListener("abort", () => reject(new CancellationError()), { once: true });
+						controller.abort();
+					}),
+			);
+
+			await expect(
+				checkForUpdates({ projectDirs: [tempDir], source: "github", signal: controller.signal }),
+			).rejects.toBeInstanceOf(CancellationError);
+		});
+
+		it("passes the signal to every GitHub lookup", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			setupExtension("quarto-ext", "lightbox", "1.0.0", "quarto-ext/lightbox@abc1234", "github");
+			const { signal } = new AbortController();
+
+			await checkForUpdates({ projectDirs: [tempDir], source: "github", signal });
+
+			const withSignal = expect.objectContaining({ signal });
+			expect(fetchReleases).toHaveBeenCalledWith("quarto-ext", "fontawesome", withSignal);
+			expect(fetchTags).toHaveBeenCalledWith("quarto-ext", "fontawesome", withSignal);
+			expect(fetchLatestCommit).toHaveBeenCalledWith("quarto-ext", "lightbox", withSignal);
+		});
+
+		it("passes the signal to the registry", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			vi.mocked(fetchRegistry).mockResolvedValue({});
+			const { signal } = new AbortController();
+
+			await checkForUpdates({ projectDirs: [tempDir], signal });
+
+			expect(fetchRegistry).toHaveBeenCalledWith(expect.objectContaining({ signal }));
 		});
 	});
 });

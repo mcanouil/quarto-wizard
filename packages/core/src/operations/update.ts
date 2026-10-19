@@ -25,6 +25,7 @@ import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/la
 import { install, parseInstallSource } from "./install.js";
 import {
 	AuthenticationError,
+	CancellationError,
 	ExtensionError,
 	NetworkError,
 	SamlSsoError,
@@ -177,6 +178,9 @@ interface GitHubLookups {
  * the installed version with the latest tag. An update never goes to a lower
  * version.
  *
+ * An aborted `signal` stops the requests and rejects with a
+ * `CancellationError`.
+ *
  * @param options - Check options
  * @returns Available updates and the failures met on the way
  */
@@ -193,6 +197,9 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 	if (candidates.length === 0) {
 		return result;
 	}
+	if (registryOptions.signal?.aborted) {
+		throw new CancellationError();
+	}
 
 	let registry: Registry | null = null;
 	if (!useGitHub) {
@@ -207,7 +214,11 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		}
 	}
 
-	const lookups = createGitHubLookups({ auth: registryOptions.auth, timeout: registryOptions.timeout });
+	const lookups = createGitHubLookups({
+		auth: registryOptions.auth,
+		timeout: registryOptions.timeout,
+		signal: registryOptions.signal,
+	});
 	const repositoryFailures = new Map<string, RepositoryFailure>();
 
 	const updates = await Promise.all(
