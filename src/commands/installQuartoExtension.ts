@@ -3,12 +3,8 @@ import { STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "../co
 import { getShowLogsLink, logMessage, showMessageWithLogs } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { installQuartoExtension, useQuartoExtension } from "../utils/coreOperations";
-import {
-	confirmTrustAuthors,
-	confirmInstall,
-	createFileSelectionCallback,
-	createTargetSubdirCallback,
-} from "../utils/ask";
+import { confirmTrustAuthors, confirmInstall, createTargetSubdirCallback } from "../utils/ask";
+import { createFileSelectionCallback } from "../ui/fileSelectionPicker";
 import { getExtensionsDetails } from "../utils/extensionDetails";
 import {
 	ExtensionQuickPickItem,
