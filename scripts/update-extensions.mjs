@@ -17,6 +17,9 @@
  * GitHub rate limit.
  *
  * Usage: node scripts/update-extensions.mjs [dir] [--source id] [--apply] [--refresh] [--json] [--verbose]
+ *
+ * Exits 0 on a clean run, 1 on a fatal error, a failed project check or a failed
+ * update, and 2 when the run finished but some repositories could not be checked.
  */
 
 import { execFileSync } from "node:child_process";
@@ -41,6 +44,9 @@ for (const stream of [process.stdout, process.stderr]) {
 /** Directories never worth descending into when looking for Quarto projects. */
 const PRUNED_DIRS = new Set(["node_modules", ".git", "_site", "_freeze", ".quarto", "_extensions"]);
 
+/** Exit code for each run status, as documented in the usage text. */
+const EXIT_CODES = { ok: 0, failed: 1, partial: 2 };
+
 const USAGE = `Usage: node scripts/update-extensions.mjs [dir] [options]
 
   dir                Root directory to scan. Default: current directory.
@@ -54,6 +60,11 @@ const USAGE = `Usage: node scripts/update-extensions.mjs [dir] [options]
   --verbose          Also list extensions skipped for having no recorded source,
                      and report where the GitHub token came from.
   --help             Show this message.
+
+Exit status:
+  0  Every repository was checked, and nothing failed.
+  1  A fatal error, an update check that failed for a project, or a failed update.
+  2  The run finished, but some repositories could not be checked.
 `;
 
 function parseArguments(argv) {
@@ -283,10 +294,7 @@ async function main() {
 			}
 		}
 
-		const checkFailure = checks.find((check) => check.checkFailure)?.checkFailure;
-		if (checkFailure) {
-			throw new Error(`${label}: the update check failed (${checkFailure.kind}): ${checkFailure.message}`);
-		}
+		const checkFailure = checks.find((check) => check.checkFailure)?.checkFailure ?? null;
 
 		const updates = checks.flatMap((check) => check.updates);
 		const repositoryFailures = checks.flatMap((check) => check.repositoryFailures);
@@ -303,6 +311,7 @@ async function main() {
 			})),
 			skipped: sourceless.map((extension) => formatId(extension.id)),
 			unchecked: repositoryFailures,
+			checkFailure,
 			updated: [],
 			failed: [],
 		};
@@ -316,6 +325,12 @@ async function main() {
 			for (const failure of entry.unchecked) {
 				process.stdout.write(`${label}: ${failure.repository} not checked: ${failure.message}\n`);
 			}
+			if (checkFailure) {
+				process.stdout.write(`${label}: the update check failed (${checkFailure.kind}): ${checkFailure.message}\n`);
+				if (options.apply && updates.length > 0) {
+					process.stdout.write(`${label}: updates not applied, because the check did not complete\n`);
+				}
+			}
 			if (options.verbose) {
 				for (const name of entry.skipped) {
 					process.stdout.write(`${label}: ${name} skipped, no recorded source\n`);
@@ -323,7 +338,8 @@ async function main() {
 			}
 		}
 
-		if (options.apply && updates.length > 0) {
+		// Like core's own `update`, a project whose check did not complete is not applied.
+		if (options.apply && updates.length > 0 && !checkFailure) {
 			// The download phase reports on every chunk; one line per phase is enough.
 			let lastPhase = null;
 			const result = await applyUpdates(updates, {
@@ -362,9 +378,12 @@ async function main() {
 		report.push(entry);
 	}
 
+	const checkFailures = report.filter((entry) => entry.checkFailure).length;
+	const status = checkFailures > 0 || totals.failed > 0 ? "failed" : totals.unchecked > 0 ? "partial" : "ok";
+
 	if (options.json) {
 		process.stdout.write(
-			`${JSON.stringify({ directory: options.dir, source: options.source, totals, projects: report }, null, "\t")}\n`,
+			`${JSON.stringify({ directory: options.dir, source: options.source, status, totals, projects: report }, null, "\t")}\n`,
 		);
 	} else {
 		const summary = [
@@ -380,7 +399,19 @@ async function main() {
 		process.stdout.write(`\n${summary.join(", ")}.\n`);
 	}
 
-	return totals.failed > 0 ? 1 : 0;
+	const exitCode = EXIT_CODES[status];
+	if (exitCode !== 0) {
+		const reasons = [
+			[checkFailures, "project check failed", "project checks failed"],
+			[totals.failed, "update failed", "updates failed"],
+			[totals.unchecked, "repository not checked", "repositories not checked"],
+		]
+			.filter(([count]) => count > 0)
+			.map(([count, singular, plural]) => `${count} ${count === 1 ? singular : plural}`);
+		process.stderr.write(`Exiting with code ${exitCode}: ${reasons.join(", ")}.\n`);
+	}
+
+	return exitCode;
 }
 
 try {
