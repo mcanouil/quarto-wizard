@@ -122,6 +122,20 @@ export class SamlSsoError extends NetworkError {
 }
 
 /**
+ * Error thrown when GitHub refuses a request because of a rate limit.
+ *
+ * GitHub signals a primary or a secondary rate limit with HTTP 403 or 429.
+ * A 403 for any other reason means denied access and stays a plain
+ * {@link NetworkError}.
+ */
+export class RateLimitError extends NetworkError {
+	constructor(message: string, options: { statusCode: number; cause?: unknown }) {
+		super(message, options);
+		this.name = "RateLimitError";
+	}
+}
+
+/**
  * Check if an error is a SamlSsoError.
  */
 export function isSamlSsoError(error: unknown): error is SamlSsoError {

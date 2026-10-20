@@ -38,8 +38,11 @@ const mockTags = [
 	},
 ];
 
-vi.mock("../src/registry/http.js", () => ({
-	fetchJson: vi.fn().mockImplementation((url: string) => {
+// The list endpoints read their pages through `fetchJsonPages`, which answers
+// here with the one page that the mocked `fetchJson` gives. Pagination itself is
+// covered in `github-pagination.test.ts`.
+vi.mock("../src/registry/http.js", () => {
+	const fetchJson = vi.fn().mockImplementation((url: string) => {
 		if (url.includes("/releases")) {
 			return Promise.resolve(mockReleases);
 		}
@@ -55,12 +58,16 @@ vi.mock("../src/registry/http.js", () => ({
 			return Promise.resolve({ sha: "abc1234567890", commit: { message: "test" } });
 		}
 		return Promise.reject(new Error("Unknown URL"));
-	}),
-}));
+	});
+	return {
+		fetchJson,
+		fetchJsonPages: vi.fn((url: string, options: unknown) => fetchJson(url, options)),
+	};
+});
 
 import { fetchLatestCommit, fetchReleases, fetchTags, constructArchiveUrl } from "../src/github/releases.js";
 import { resolveVersion } from "../src/github/resolve.js";
-import { AuthenticationError, CancellationError, NetworkError, SamlSsoError } from "../src/errors.js";
+import { AuthenticationError, CancellationError, NetworkError, RateLimitError, SamlSsoError } from "../src/errors.js";
 
 const REPO_METADATA_URL = "https://api.github.com/repos/owner/repo";
 
@@ -102,6 +109,36 @@ describe("handleGitHubError SAML pass-through", () => {
 		expect(error).toBeInstanceOf(SamlSsoError);
 		expect(error).not.toBeInstanceOf(AuthenticationError);
 		expect((error as SamlSsoError).authorizationUrl).toBe(samlUrl);
+	});
+
+	it("re-throws RateLimitError unchanged (does not convert to AuthenticationError)", async () => {
+		const rateLimit = new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 });
+		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockRejectedValueOnce(rateLimit);
+
+		const error = await fetchReleases("owner", "repo").catch((e: unknown) => e);
+		expect(error).toBe(rateLimit);
+	});
+
+	it("names a denied 403 as denied access, not as a rate limit", async () => {
+		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockRejectedValueOnce(
+			new NetworkError("HTTP 403: Forbidden", { statusCode: 403 }),
+		);
+
+		const error = await fetchReleases("owner", "repo").catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(AuthenticationError);
+		expect((error as Error).message).toContain("Access denied to owner/repo");
+		expect((error as Error).message).not.toMatch(/rate limit/i);
+	});
+
+	it("names a 401 as a rejected token", async () => {
+		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockRejectedValueOnce(
+			new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 }),
+		);
+
+		const error = await fetchReleases("owner", "repo").catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(AuthenticationError);
+		expect((error as Error).message).toContain("Authentication failed for owner/repo");
+		expect((error as Error).message).not.toMatch(/rate limit/i);
 	});
 });
 
@@ -161,7 +198,7 @@ describe("fetchLatestCommit", () => {
 		expect(await fetchLatestCommit("owner", "repo")).toBeNull();
 	});
 
-	it("keeps the HTTP status of a rate limit as the cause", async () => {
+	it("keeps the HTTP status of a denied request as the cause", async () => {
 		const forbidden = new NetworkError("HTTP 403: Forbidden", { statusCode: 403 });
 		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockRejectedValueOnce(forbidden);
 

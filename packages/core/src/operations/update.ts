@@ -28,6 +28,7 @@ import {
 	CancellationError,
 	ExtensionError,
 	NetworkError,
+	RateLimitError,
 	SamlSsoError,
 	getErrorMessage,
 	isCancellationError,
@@ -77,7 +78,7 @@ export interface RepositoryFailure {
  */
 export interface UpdateCheckFailure {
 	/** Kind of failure. */
-	kind: "registry-unavailable" | "rate-limited" | "network";
+	kind: "registry-unavailable" | "rate-limited" | "unauthorised" | "network";
 	/** Reason of the failure. */
 	message: string;
 }
@@ -338,8 +339,11 @@ function checkFailureKind(error: unknown): UpdateCheckFailure["kind"] | null {
 	if (error instanceof SamlSsoError) {
 		return null;
 	}
-	// handleGitHubError turns a 401 or 403 into an AuthenticationError and keeps
-	// the original NetworkError as its cause.
+	if (error instanceof RateLimitError) {
+		return "rate-limited";
+	}
+	// handleGitHubError turns a 401 or a denied 403 into an AuthenticationError
+	// and keeps the original NetworkError as its cause.
 	const networkError =
 		error instanceof NetworkError
 			? error
@@ -347,8 +351,12 @@ function checkFailureKind(error: unknown): UpdateCheckFailure["kind"] | null {
 				? error.cause
 				: null;
 	const status = networkError?.statusCode;
-	if (status === 403 || status === 429) {
+	if (status === 429) {
 		return "rate-limited";
+	}
+	// A rejected token fails every request, so the whole check is unreliable.
+	if (status === 401) {
+		return "unauthorised";
 	}
 	if (networkError && (status === undefined || status >= 500)) {
 		return "network";

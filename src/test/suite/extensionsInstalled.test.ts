@@ -12,6 +12,7 @@ import * as quarto from "../../utils/coreOperations";
 import { makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
+const RATE_LIMITED = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
 
 const quartoModule = quarto as {
 	installQuartoExtension: typeof quarto.installQuartoExtension;
@@ -41,8 +42,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 	let originalRegisterCommand: typeof vscode.commands.registerCommand;
 	let originalCreateTreeView: typeof vscode.window.createTreeView;
 	let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
-	let originalShowInformationMessage: typeof vscode.window.showInformationMessage;
 	let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
+	let originalShowInformationMessage: typeof vscode.window.showInformationMessage;
 	let originalWithProgress: typeof vscode.window.withProgress;
 	let originalRefreshAfterAction: typeof QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
 	let originalSetProjectRoots: typeof QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
@@ -95,8 +96,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 		originalRegisterCommand = vscode.commands.registerCommand;
 		originalCreateTreeView = vscode.window.createTreeView;
 		originalShowWarningMessage = vscode.window.showWarningMessage;
-		originalShowInformationMessage = vscode.window.showInformationMessage;
 		originalShowErrorMessage = vscode.window.showErrorMessage;
+		originalShowInformationMessage = vscode.window.showInformationMessage;
 		originalWithProgress = vscode.window.withProgress;
 		originalRefreshAfterAction = QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
 		originalSetProjectRoots = QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
@@ -131,14 +132,15 @@ suite("Extensions Installed Commands Test Suite", () => {
 			warningActions.push(rest.filter((item): item is string => typeof item === "string"));
 			return "Update All";
 		}) as unknown as typeof vscode.window.showWarningMessage;
+		vscode.window.showErrorMessage = (async (message: string) => {
+			messages.push(message);
+			errors.push(message);
+			return undefined;
+		}) as unknown as typeof vscode.window.showErrorMessage;
 		vscode.window.showInformationMessage = (async (message: string) => {
 			messages.push(message);
 			return undefined;
 		}) as unknown as typeof vscode.window.showInformationMessage;
-		vscode.window.showErrorMessage = (async (message: string) => {
-			errors.push(message);
-			return undefined;
-		}) as unknown as typeof vscode.window.showErrorMessage;
 
 		// Both would reach the registry over the network or replace the roots injected below.
 		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = () => undefined;
@@ -170,8 +172,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 		vscode.commands.registerCommand = originalRegisterCommand;
 		vscode.window.createTreeView = originalCreateTreeView;
 		vscode.window.showWarningMessage = originalShowWarningMessage;
-		vscode.window.showInformationMessage = originalShowInformationMessage;
 		vscode.window.showErrorMessage = originalShowErrorMessage;
+		vscode.window.showInformationMessage = originalShowInformationMessage;
 		vscode.window.withProgress = originalWithProgress;
 		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = originalRefreshAfterAction;
 		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = originalSetProjectRoots;
@@ -346,7 +348,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	});
 
 	test("update asks to sign in when the anonymous rate limit stops the check", async () => {
-		stubNetwork({ repositories: { "acme/registry-demo": { githubStatus: 403 } } });
+		stubNetwork({ repositories: { "acme/registry-demo": RATE_LIMITED } });
 
 		await runCommand("update", createItem("acme/registry-demo"));
 
@@ -357,7 +359,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	});
 
 	test("update all does not ask to sign in when the rate limit stops a check with a token", async () => {
-		stubNetwork({ token: "test-token", repositories: { "acme/registry-demo": { githubStatus: 403 } } });
+		stubNetwork({ token: "test-token", repositories: { "acme/registry-demo": RATE_LIMITED } });
 
 		await runCommand("updateAll");
 
@@ -366,6 +368,36 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.ok(messages[0].includes("GitHub rate limit reached."), messages[0]);
 		assert.ok(!/sign in/i.test(messages[0]), messages[0]);
 		assert.deepStrictEqual(warningActions, [["Show Logs"]]);
+	});
+
+	test("update all reports a repository that denies access and keeps the other results", async () => {
+		stubNetwork({
+			token: "test-token",
+			repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 403 } },
+		});
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: "acme/registry-demo@v1.3.0", workspaceFolder: FIXTURE_ROOT, sourceType: "registry" },
+		]);
+		assert.strictEqual(
+			messages[messages.length - 1],
+			"Updated acme/registry-demo to 1.3.0; 1 repository could not be checked.",
+		);
+	});
+
+	test("update all reports a rejected token as a failed check", async () => {
+		stubNetwork({
+			token: "expired-token",
+			repositories: { "acme/registry-demo": { githubStatus: 401 }, "acme/github-demo": { githubStatus: 401 } },
+		});
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("The update check failed."), messages[0]);
 	});
 
 	test("remove passes the extension id and workspace folder", async () => {
