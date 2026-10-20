@@ -810,8 +810,11 @@ main:has(> .landing) > .quarto-title-block {
   padding: 2.5rem 0 3rem;
 }
 
+// The gradient is clipped to the text but painted only inside the box, so
+// the bottom padding keeps the tail of the Cinzel "Q" below the line box.
 .landing-hero h1 {
-  margin: 1rem 0 0.75rem;
+  margin: 1rem 0 calc(0.75rem - 0.2em);
+  padding-bottom: 0.2em;
   font-size: clamp(2.6rem, 5vw, 3.6rem);
   font-weight: 900;
   line-height: 1.1;
