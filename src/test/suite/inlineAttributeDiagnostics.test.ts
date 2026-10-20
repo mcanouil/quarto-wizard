@@ -7,8 +7,13 @@ import {
 	extractBareWords,
 	extractBlocks,
 } from "../../utils/inlineAttributeText";
-import { validateInlineValue } from "../../providers/inlineAttributeDiagnosticsProvider";
-import type { FieldDescriptor } from "@quarto-wizard/schema";
+import * as vscode from "vscode";
+import {
+	InlineAttributeDiagnosticsProvider,
+	validateInlineValue,
+} from "../../providers/inlineAttributeDiagnosticsProvider";
+import type { ElementAttributeSchemas } from "../../providers/elementAttributeCompletionProvider";
+import type { FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
 
 suite("Inline Attribute Diagnostics", () => {
 	suite("findSpacesAroundEquals", () => {
@@ -362,6 +367,36 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.strictEqual(findings.length, 1);
 			assert.strictEqual(findings[0].code, "schema-deprecated");
 			assert.ok(findings[0].message.includes("new-attr"));
+		});
+
+		suite("replaceWith", () => {
+			const oldField: FieldDescriptor = { type: "number", deprecated: { replaceWith: "new" } };
+			const newField: FieldDescriptor = { type: "number" };
+
+			test("a replaced value is checked against its replacement", () => {
+				const findings = validateInlineValue("old", "abc", oldField, { key: "new", descriptor: newField });
+				assert.deepStrictEqual(
+					findings.map((finding) => finding.code),
+					["schema-deprecated", "schema-type-mismatch"],
+				);
+				assert.ok(findings[1].message.startsWith('Attribute "new":'));
+			});
+
+			test("a replaced value with the replacement present gets the deprecation only", () => {
+				const findings = validateInlineValue("old", "abc", oldField);
+				assert.deepStrictEqual(
+					findings.map((finding) => finding.code),
+					["schema-deprecated"],
+				);
+			});
+
+			test("a valid replaced value gets the deprecation only", () => {
+				const findings = validateInlineValue("old", "3", oldField, { key: "new", descriptor: newField });
+				assert.deepStrictEqual(
+					findings.map((finding) => finding.code),
+					["schema-deprecated"],
+				);
+			});
 		});
 
 		test("deprecated: structured spec with since and message", () => {
@@ -914,6 +949,42 @@ suite("Inline Attribute Diagnostics", () => {
 			const results = extractBareWords(".class - foo");
 			assert.strictEqual(results.length, 1);
 			assert.strictEqual(results[0].word, "foo");
+		});
+	});
+
+	suite("replaceWith in an attribute list", () => {
+		const schemas: ElementAttributeSchemas = {
+			cls: {
+				old: { descriptor: { type: "number", deprecated: { replaceWith: "new" } }, source: "ext" },
+				new: { descriptor: { type: "number", aliases: ["n"] }, source: "ext" },
+			},
+		};
+
+		async function codesFor(content: string): Promise<(string | number | undefined)[]> {
+			const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
+			const provider = new InlineAttributeDiagnosticsProvider({} as SchemaCache);
+			try {
+				const diagnostics: vscode.Diagnostic[] = [];
+				const [block] = extractBlocks(document.getText());
+				(
+					provider as unknown as {
+						validateElementBlock: (...args: unknown[]) => void;
+					}
+				).validateElementBlock(block, document.getText(), schemas, document, diagnostics, [], false);
+				return diagnostics.map((diagnostic) =>
+					typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code,
+				);
+			} finally {
+				provider.dispose();
+			}
+		}
+
+		test("a replacement written as an alias counts as present", async () => {
+			assert.deepStrictEqual(await codesFor('[text]{.cls old="abc" n="3"}\n'), ["schema-deprecated"]);
+		});
+
+		test("a missing replacement takes the value", async () => {
+			assert.deepStrictEqual(await codesFor('[text]{.cls old="abc"}\n'), ["schema-deprecated", "schema-type-mismatch"]);
 		});
 	});
 });

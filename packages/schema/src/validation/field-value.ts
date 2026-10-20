@@ -98,11 +98,13 @@ const LUA_HEX = new RegExp(
  * Read text as a number, as Lua 5.4 `tonumber` does.
  *
  * A hexadecimal integer wraps at 64 bits, so `0xffffffffffffffff` is -1. A
- * decimal that overflows is an infinity.
+ * decimal that overflows returns Infinity. Only the six ASCII spaces that Lua
+ * accepts around a number are skipped.
  *
+ * @param text - The text to read.
  * @returns The number, or `undefined` when Lua answers nil.
  */
-function luaToNumber(text: string): number | undefined {
+export function luaToNumber(text: string): number | undefined {
 	const decimal = LUA_DECIMAL.exec(text);
 	if (decimal) {
 		return Number(decimal[1]);

@@ -1,6 +1,10 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { DiagnosticRanges } from "../../providers/yamlDiagnosticsProvider";
+import {
+	DiagnosticRanges,
+	YamlDiagnosticsProvider,
+	validateSingleValue,
+} from "../../providers/yamlDiagnosticsProvider";
 import { getDocumentYaml } from "../../utils/documentScan";
 import type { YamlPathSegment } from "../../utils/yamlAnnotated";
 
@@ -65,5 +69,51 @@ suite("YAML Diagnostic Ranges Test Suite", () => {
 		// the positions still hold, and the second occurrence is the live one.
 		const content = "format:\n  html:\n    toc: 1\nother: x\nformat:\n  html:\n    toc: 2\n";
 		assert.strictEqual(await underlined(content, ["format", "html", "toc"], "value"), "2");
+	});
+
+	test("Should read a binary number as Quarto does for a number field", () => {
+		assert.deepStrictEqual(validateSingleValue("count", "0b101", { type: "number" }), []);
+	});
+
+	test("Should report a non-finite number for a number field", () => {
+		assert.deepStrictEqual(validateSingleValue("count", ".inf", { type: "number" }), [
+			'expected type "number", got string.',
+		]);
+		assert.deepStrictEqual(validateSingleValue("count", Infinity, { type: "number" }), [
+			'expected type "number", got string.',
+		]);
+	});
+
+	test("Should keep the text of a field that takes a string and a number", () => {
+		assert.deepStrictEqual(validateSingleValue("label", "0b101", { type: ["number", "string"] }), []);
+	});
+
+	test("Should read a top-level binary number as Quarto does", () => {
+		assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", "0b101", { type: "number" }), undefined);
+	});
+
+	test("Should report a top-level non-finite number with the type error", () => {
+		assert.strictEqual(
+			YamlDiagnosticsProvider.typeFinding("count", Infinity, { type: "number" }),
+			'Option "count": expected type "number", got string ".inf".',
+		);
+	});
+
+	test("Should keep the text of a top-level field that takes a string and a number", () => {
+		assert.strictEqual(
+			YamlDiagnosticsProvider.typeFinding("label", "0b101", { type: ["number", "string"] }),
+			undefined,
+		);
+	});
+
+	test("Should accept a quoted decimal string on a top-level number field, as Lua does", () => {
+		assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", "5", { type: "number" }), undefined);
+	});
+
+	test("Should read the remaining text as Lua tonumber does on a number field", () => {
+		for (const text of ["0x1p4", " 300", "0xA.8p0"]) {
+			assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", text, { type: "number" }), undefined, text);
+			assert.deepStrictEqual(validateSingleValue("count", text, { type: "number" }), [], text);
+		}
 	});
 });

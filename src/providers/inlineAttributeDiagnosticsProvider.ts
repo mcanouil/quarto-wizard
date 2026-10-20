@@ -45,19 +45,58 @@ export interface InlineValidationFinding {
 }
 
 /**
+ * The attribute that replaces a deprecated one, with its descriptor.
+ */
+export interface InlineReplacement {
+	key: string;
+	descriptor: FieldDescriptor;
+}
+
+/**
+ * Find the replacement of an attribute deprecated with `replaceWith`.
+ * There is none when the replacement is not declared, or when the attribute
+ * list already writes it, under its name or one of its aliases.
+ */
+function findInlineReplacement(
+	descriptor: FieldDescriptor,
+	written: Record<string, string>,
+	resolve: (name: string) => FieldDescriptor | undefined,
+): InlineReplacement | undefined {
+	const key = typeof descriptor.deprecated === "object" ? descriptor.deprecated.replaceWith : undefined;
+	if (!key) {
+		return undefined;
+	}
+	const replacement = resolve(key);
+	if (!replacement) {
+		return undefined;
+	}
+	const names = [key, ...(replacement.aliases ?? [])];
+	if (names.some((name) => name in written)) {
+		return undefined;
+	}
+	return { key, descriptor: replacement };
+}
+
+/**
  * Validate a single inline attribute value against a field descriptor.
  *
  * All inline values are strings, so type checking requires coercion.
  * Types that cannot be represented inline (array, object, content) are skipped.
  * The value checks are those of `validateFieldValue`, run on the value coerced
  * to the declared type, as the Lua validator coerces it.
+ * A descriptor deprecated with `replaceWith` gets the deprecation finding, and
+ * its value is checked against the replacement when one is given, as the Lua
+ * validator moves the value to the replacement.
  *
+ * @param replacement - The replacement of a deprecated attribute, when the
+ * attribute list does not write it.
  * @returns An array of findings (may be empty if valid).
  */
 export function validateInlineValue(
 	key: string,
 	value: string,
 	descriptor: FieldDescriptor,
+	replacement?: InlineReplacement,
 ): InlineValidationFinding[] {
 	const coerced = coerceFieldValue(value, descriptor.type);
 	const findings: InlineValidationFinding[] = validateFieldValue(key, coerced, descriptor).map((finding) => ({
@@ -65,6 +104,17 @@ export function validateInlineValue(
 		message:
 			finding.code === "schema-deprecated" ? `Attribute ${finding.message}` : `Attribute "${key}": ${finding.message}`,
 	}));
+
+	if (typeof descriptor.deprecated === "object" && descriptor.deprecated.replaceWith) {
+		if (replacement) {
+			findings.push(
+				...validateInlineValue(replacement.key, value, replacement.descriptor).filter(
+					(finding) => finding.code !== "schema-deprecated",
+				),
+			);
+		}
+		return findings;
+	}
 
 	// Type check (coerce from string).
 	if (descriptor.type) {
@@ -393,7 +443,16 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 				continue;
 			}
 
-			const findings = validateInlineValue(key, value, entry.descriptor);
+			const findings = validateInlineValue(
+				key,
+				value,
+				entry.descriptor,
+				findInlineReplacement(
+					entry.descriptor,
+					parsed.attributes,
+					(name) => resolveElementAttribute(applicable, name)?.descriptor,
+				),
+			);
 			if (findings.length === 0) {
 				continue;
 			}
@@ -476,7 +535,12 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 					continue;
 				}
 
-				const findings = validateInlineValue(key, value, descriptor);
+				const findings = validateInlineValue(
+					key,
+					value,
+					descriptor,
+					findInlineReplacement(descriptor, parsed.attributes, (name) => resolveShortcodeAttribute(schema, name)),
+				);
 				if (findings.length === 0) {
 					continue;
 				}

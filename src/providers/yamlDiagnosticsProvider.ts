@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { formatType, validateFieldValue, deprecationMessage } from "@quarto-wizard/schema";
+import { formatType, validateFieldValue, deprecationMessage, coerceFieldValue } from "@quarto-wizard/schema";
 import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { getDocumentYaml } from "../utils/documentScan";
@@ -10,14 +10,18 @@ import { debounce } from "../utils/debounce";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
 import { isRelevantYaml } from "../utils/metadataFilesRegistry";
+import { readYamlValueForType } from "../utils/quartoYamlScalar";
 
 /**
  * Validate a single value against a field descriptor, returning error messages.
  * Used for array item validation where each item is checked independently.
  * The messages name no key, so the caller adds the prefix.
+ *
+ * Exported for its own tests, as the provider needs a workspace to run.
  */
-function validateSingleValue(key: string, value: unknown, descriptor: FieldDescriptor): string[] {
+export function validateSingleValue(key: string, rawValue: unknown, descriptor: FieldDescriptor): string[] {
 	const errors: string[] = [];
+	const value = coerceFieldValue(readYamlValueForType(rawValue, descriptor.type), descriptor.type);
 
 	if (value === null || value === undefined) {
 		return errors;
@@ -376,19 +380,10 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			}
 
 			// Type check.
-			if (descriptor.type && value !== null && value !== undefined) {
-				const typeError = this.checkType(value, descriptor.type);
-				if (typeError) {
-					const valueStr = typeof value === "string" ? `"${value}"` : String(value);
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": expected type "${formatType(descriptor.type)}", got ${typeError} ${valueStr}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-					continue;
-				}
+			const typeFinding = YamlDiagnosticsProvider.typeFinding(key, value, descriptor);
+			if (typeFinding) {
+				diagnostics.push(new vscode.Diagnostic(range, typeFinding, vscode.DiagnosticSeverity.Error));
+				continue;
 			}
 
 			// Value constraint checks (const, enum, numeric range, pattern, string length).
@@ -460,14 +455,36 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object", "integer"]);
 
-	private checkType(value: unknown, expectedType: string | string[]): string | undefined {
+	/**
+	 * The type finding for a value written under a key, read as Quarto reads it.
+	 *
+	 * Exported through the class for its own tests, as the provider needs a workspace to run.
+	 *
+	 * @param key - The option name.
+	 * @param rawValue - The value as the extension parsed it.
+	 * @param descriptor - The field descriptor of the option.
+	 */
+	static typeFinding(key: string, rawValue: unknown, descriptor: FieldDescriptor): string | undefined {
+		const value = coerceFieldValue(readYamlValueForType(rawValue, descriptor.type), descriptor.type);
+		if (!descriptor.type || value === null || value === undefined) {
+			return undefined;
+		}
+		const typeError = YamlDiagnosticsProvider.checkType(value, descriptor.type);
+		if (!typeError) {
+			return undefined;
+		}
+		const valueStr = typeof value === "string" ? `"${value}"` : String(value);
+		return `Option "${key}": expected type "${formatType(descriptor.type)}", got ${typeError} ${valueStr}.`;
+	}
+
+	private static checkType(value: unknown, expectedType: string | string[]): string | undefined {
 		if (Array.isArray(expectedType)) {
 			const knownTypes = expectedType.filter((t) => YamlDiagnosticsProvider.KNOWN_TYPES.has(t));
 			if (knownTypes.length === 0) {
 				return undefined;
 			}
 			for (const t of knownTypes) {
-				if (this.checkType(value, t) === undefined) {
+				if (YamlDiagnosticsProvider.checkType(value, t) === undefined) {
 					return undefined;
 				}
 			}
