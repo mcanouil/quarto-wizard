@@ -609,7 +609,7 @@ export class ExtensionsInstalled {
 						...(cancelled && notAttempted > 0 ? [`cancelled before ${notAttempted} more`] : []),
 					];
 					vscode.window.showInformationMessage(`Updated ${[versions, ...problems].join("; ")}.`);
-				} else if (!cancelled) {
+				} else if (!cancelled || failedCount > 0) {
 					showMessageWithLogs(failureMessage, "error");
 				}
 

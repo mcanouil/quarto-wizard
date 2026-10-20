@@ -399,6 +399,24 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.strictEqual(messages[messages.length - 1], "Updated acme/github-demo to 1.3.0; cancelled before 1 more.");
 	});
 
+	test("update all reports a failed install when it is cancelled afterwards", async () => {
+		stubTwoUpdates();
+		const progress = cancellableProgress();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			if (installCalls.length === 1) {
+				return false;
+			}
+			progress.cancel();
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 2);
+		assert.deepStrictEqual(errors, ["Failed to update extensions."]);
+	});
+
 	test("update all counts the repositories it could not check in its summary", async () => {
 		stubNetwork({
 			repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 404 } },
