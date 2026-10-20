@@ -138,12 +138,12 @@ async function retryWithFreshAuth<T>(
 	cancelledValue: T,
 ): Promise<T> {
 	const signedIn = await handleAuthError(prefix, error, flags);
-	if (!signedIn) {
-		return fallbackValue;
-	}
 	if (cancellationToken?.isCancellationRequested) {
 		logMessage(`${prefix} Operation cancelled by the user.`, "info");
 		return cancelledValue;
+	}
+	if (!signedIn) {
+		return fallbackValue;
 	}
 	logMessage(`${prefix} Retrying after successful authentication.`, "info");
 	try {

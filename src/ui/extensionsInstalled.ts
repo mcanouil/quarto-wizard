@@ -590,7 +590,7 @@ export class ExtensionsInstalled {
 							} else if (result === false) {
 								failedCount++;
 							} else {
-								return true;
+								return token.isCancellationRequested;
 							}
 						}
 						return token.isCancellationRequested;

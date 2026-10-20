@@ -197,6 +197,21 @@ suite("Quarto Utils Test Suite", () => {
 				assert.strictEqual(archiveRequests.length, 0);
 			});
 
+			test("a cancel while the sign-in prompt is dismissed returns null", async () => {
+				requireAuth = true;
+				(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async () => {
+					source.cancel();
+					return undefined;
+				};
+
+				const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+					cancellationToken: source.token,
+				});
+
+				assert.strictEqual(result, null);
+				assert.strictEqual(archiveRequests.length, 0);
+			});
+
 			test("a cancel during the retry after sign-in returns null", async () => {
 				requireAuth = true;
 				signInOnDemand(() => undefined);

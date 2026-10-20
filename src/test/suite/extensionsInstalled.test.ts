@@ -380,6 +380,19 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.ok(!messages.some((message) => message.startsWith("Updated")), messages.join("\n"));
 	});
 
+	test("update all reports a declined install that is not a cancel", async () => {
+		stubTwoUpdates();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 1);
+		assert.deepStrictEqual(errors, ["Failed to update extensions."]);
+	});
+
 	test("update all reports the updates done before a cancel", async () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
