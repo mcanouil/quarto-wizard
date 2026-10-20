@@ -90,6 +90,21 @@ suite("Extensions Installed Commands Test Suite", () => {
 		return vscode.commands.executeCommand(`${COMMAND_PREFIX}${id}`, ...args);
 	}
 
+	// The constructor schedules a discovery that ends in refreshAfterAction, possibly after the test has ended.
+	// The stubs stay in place for the whole suite so that a late call never starts a real check during a later test.
+	suiteSetup(() => {
+		originalRefreshAfterAction = QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
+		originalSetProjectRoots = QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
+		// Both would reach the registry over the network or replace the roots injected below.
+		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = () => undefined;
+		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = () => false;
+	});
+
+	suiteTeardown(() => {
+		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = originalRefreshAfterAction;
+		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = originalSetProjectRoots;
+	});
+
 	setup(async () => {
 		originalInstall = quarto.installQuartoExtension;
 		originalRemove = quarto.removeQuartoExtension;
@@ -99,8 +114,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 		originalShowErrorMessage = vscode.window.showErrorMessage;
 		originalShowInformationMessage = vscode.window.showInformationMessage;
 		originalWithProgress = vscode.window.withProgress;
-		originalRefreshAfterAction = QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
-		originalSetProjectRoots = QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
 
 		installCalls = [];
 		removeCalls = [];
@@ -142,10 +155,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 			return undefined;
 		}) as unknown as typeof vscode.window.showInformationMessage;
 
-		// Both would reach the registry over the network or replace the roots injected below.
-		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = () => undefined;
-		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = () => false;
-
 		registerInstallCommands(createContext(), () => undefined);
 		const instance = new ExtensionsInstalled(createContext(), new SchemaCache(), new SnippetCache());
 		provider = (instance as unknown as { treeDataProvider: ProviderInternals }).treeDataProvider;
@@ -175,8 +184,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 		vscode.window.showErrorMessage = originalShowErrorMessage;
 		vscode.window.showInformationMessage = originalShowInformationMessage;
 		vscode.window.withProgress = originalWithProgress;
-		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = originalRefreshAfterAction;
-		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = originalSetProjectRoots;
 	});
 
 	test("update installs the latest GitHub tag for a registry extension", async () => {
