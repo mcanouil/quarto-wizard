@@ -36,14 +36,11 @@ async function buildWorkspaceSchemaIndex(
 		const id = formatExtensionId(ext.id);
 		const shortName = ext.id.name;
 		schemaMap.set(id, schema);
-		if (!schemaMap.has(shortName)) {
+		extMap.set(id, ext);
+		// The short name of an ownerless extension is its full id, so it wins
+		// over an owned extension of the same name, which only borrows the key.
+		if (id !== shortName && !schemaMap.has(shortName)) {
 			schemaMap.set(shortName, schema);
-		}
-
-		if (!extMap.has(id)) {
-			extMap.set(id, ext);
-		}
-		if (!extMap.has(shortName)) {
 			extMap.set(shortName, ext);
 		}
 	}
