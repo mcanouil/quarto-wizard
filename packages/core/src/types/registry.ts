@@ -118,7 +118,7 @@ export interface RawRegistryEntry {
  * @returns Normalised RegistryEntry
  */
 export function parseRegistryEntry(key: string, raw: RawRegistryEntry): RegistryEntry {
-	const latestTag = raw.latestRelease ?? null;
+	const latestTag = raw.latestRelease && raw.latestRelease !== "none" ? raw.latestRelease : null;
 	const latestVersion = latestTag ? latestTag.replace(/^v/, "") : null;
 
 	return {

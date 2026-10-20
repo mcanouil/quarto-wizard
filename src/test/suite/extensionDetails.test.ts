@@ -333,6 +333,23 @@ suite("Extension Details Test Suite", () => {
 		assert.strictEqual(result[1].tag, "1.0.0", "Should keep original tag without 'v' prefix");
 	});
 
+	test("getExtensionsDetails - Should read latestRelease none as an empty tag and version", async () => {
+		globalThis.fetch = async (): Promise<Response> => {
+			return {
+				ok: true,
+				statusText: "OK",
+				json: async () => ({
+					"mcanouil/untagged": { ...mockExtensionData["mcanouil/quarto-github"], latestRelease: "none" },
+				}),
+			} as Response;
+		};
+
+		const result = await getExtensionsDetails(mockContext as unknown as vscode.ExtensionContext);
+
+		assert.strictEqual(result[0].tag, "", "Should carry no tag, so the install uses the default branch");
+		assert.strictEqual(result[0].version, "", "Should carry no version");
+	});
+
 	test("getExtensionsDetails - Should handle template and non-template extensions correctly", async () => {
 		// Create test data with one template and one non-template extension
 		const testData = {
