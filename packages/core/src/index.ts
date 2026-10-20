@@ -20,6 +20,7 @@ export {
 	RepositoryNotFoundError,
 	NetworkError,
 	SamlSsoError,
+	RateLimitError,
 	SecurityError,
 	ManifestError,
 	VersionError,
