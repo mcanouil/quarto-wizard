@@ -1,6 +1,10 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { DiagnosticRanges, validateSingleValue } from "../../providers/yamlDiagnosticsProvider";
+import {
+	DiagnosticRanges,
+	YamlDiagnosticsProvider,
+	validateSingleValue,
+} from "../../providers/yamlDiagnosticsProvider";
 import { getDocumentYaml } from "../../utils/documentScan";
 import type { YamlPathSegment } from "../../utils/yamlAnnotated";
 
@@ -82,5 +86,27 @@ suite("YAML Diagnostic Ranges Test Suite", () => {
 
 	test("Should keep the text of a field that takes a string and a number", () => {
 		assert.deepStrictEqual(validateSingleValue("label", "0b101", { type: ["number", "string"] }), []);
+	});
+
+	test("Should read a top-level binary number as Quarto does", () => {
+		assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", "0b101", { type: "number" }), undefined);
+	});
+
+	test("Should report a top-level non-finite number with the type error", () => {
+		assert.strictEqual(
+			YamlDiagnosticsProvider.typeFinding("count", Infinity, { type: "number" }),
+			'Option "count": expected type "number", got string ".inf".',
+		);
+	});
+
+	test("Should keep the text of a top-level field that takes a string and a number", () => {
+		assert.strictEqual(
+			YamlDiagnosticsProvider.typeFinding("label", "0b101", { type: ["number", "string"] }),
+			undefined,
+		);
+	});
+
+	test("Should accept a quoted decimal string on a top-level number field, as Lua does", () => {
+		assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", "5", { type: "number" }), undefined);
 	});
 });

@@ -346,10 +346,9 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		// Validate each provided value.
-		for (const [key, rawValue] of Object.entries(values)) {
+		for (const [key, value] of Object.entries(values)) {
 			const currentPath = [...parentPath, key];
 			const descriptor = this.findDescriptor(key, fields);
-			const value = descriptor ? readYamlValueForType(rawValue, descriptor.type) : rawValue;
 
 			// A finding about the key points at the key, and one about the value
 			// points at the value. Both come from one walk of the tree.
@@ -381,19 +380,10 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 			}
 
 			// Type check.
-			if (descriptor.type && value !== null && value !== undefined) {
-				const typeError = this.checkType(value, descriptor.type);
-				if (typeError) {
-					const valueStr = typeof value === "string" ? `"${value}"` : String(value);
-					diagnostics.push(
-						new vscode.Diagnostic(
-							range,
-							`Option "${key}": expected type "${formatType(descriptor.type)}", got ${typeError} ${valueStr}.`,
-							vscode.DiagnosticSeverity.Error,
-						),
-					);
-					continue;
-				}
+			const typeFinding = YamlDiagnosticsProvider.typeFinding(key, value, descriptor);
+			if (typeFinding) {
+				diagnostics.push(new vscode.Diagnostic(range, typeFinding, vscode.DiagnosticSeverity.Error));
+				continue;
 			}
 
 			// Value constraint checks (const, enum, numeric range, pattern, string length).
@@ -465,14 +455,36 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 
 	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object", "integer"]);
 
-	private checkType(value: unknown, expectedType: string | string[]): string | undefined {
+	/**
+	 * The type finding for a value written under a key, read as Quarto reads it.
+	 *
+	 * Exported through the class for its own tests, as the provider needs a workspace to run.
+	 *
+	 * @param key - The option name.
+	 * @param rawValue - The value as the extension parsed it.
+	 * @param descriptor - The field descriptor of the option.
+	 */
+	static typeFinding(key: string, rawValue: unknown, descriptor: FieldDescriptor): string | undefined {
+		const value = readYamlValueForType(rawValue, descriptor.type);
+		if (!descriptor.type || value === null || value === undefined) {
+			return undefined;
+		}
+		const typeError = YamlDiagnosticsProvider.checkType(value, descriptor.type);
+		if (!typeError) {
+			return undefined;
+		}
+		const valueStr = typeof value === "string" ? `"${value}"` : String(value);
+		return `Option "${key}": expected type "${formatType(descriptor.type)}", got ${typeError} ${valueStr}.`;
+	}
+
+	private static checkType(value: unknown, expectedType: string | string[]): string | undefined {
 		if (Array.isArray(expectedType)) {
 			const knownTypes = expectedType.filter((t) => YamlDiagnosticsProvider.KNOWN_TYPES.has(t));
 			if (knownTypes.length === 0) {
 				return undefined;
 			}
 			for (const t of knownTypes) {
-				if (this.checkType(value, t) === undefined) {
+				if (YamlDiagnosticsProvider.checkType(value, t) === undefined) {
 					return undefined;
 				}
 			}
