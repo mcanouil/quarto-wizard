@@ -364,7 +364,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(errors, []);
 	});
 
-	test("update all stays quiet when it is cancelled before any install", async () => {
+	test("update all stays quiet when it is cancelled before any install completes", async () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
