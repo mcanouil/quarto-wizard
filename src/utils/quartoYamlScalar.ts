@@ -20,9 +20,6 @@ function readString(text: string): number | string {
 	if (integer) {
 		const [, sign, binary, octal, hex, decimal] = integer;
 		const digits = (binary ?? octal ?? hex ?? decimal).replace(/_/g, "");
-		if (digits === "") {
-			return text;
-		}
 		const radix = binary !== undefined ? 2 : octal !== undefined ? 8 : hex !== undefined ? 16 : 10;
 		const magnitude = parseInt(digits, radix);
 		return readNumber(sign === "-" ? -magnitude : magnitude);
