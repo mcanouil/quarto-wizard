@@ -6,8 +6,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { checkForUpdates, update } from "../../src/operations/update.js";
-import { AuthenticationError, NetworkError, RateLimitError, RepositoryNotFoundError } from "../../src/errors.js";
+import { applyUpdates, checkForUpdates, update, type UpdateInfo } from "../../src/operations/update.js";
+import {
+	AuthenticationError,
+	CancellationError,
+	NetworkError,
+	RateLimitError,
+	RepositoryNotFoundError,
+} from "../../src/errors.js";
 
 vi.mock("../../src/registry/fetcher.js", () => ({
 	fetchRegistry: vi.fn(),
@@ -23,7 +29,16 @@ vi.mock("../../src/github/releases.js", async () => {
 	};
 });
 
+vi.mock("../../src/operations/install.js", async () => {
+	const actual = await vi.importActual<typeof import("../../src/operations/install.js")>(
+		"../../src/operations/install.js",
+	);
+	return { ...actual, install: vi.fn() };
+});
+
 import { fetchRegistry } from "../../src/registry/fetcher.js";
+import { install } from "../../src/operations/install.js";
+import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import { fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 import { resolveVersion } from "../../src/github/resolve.js";
 import type { GitHubRelease, GitHubTag } from "../../src/github/releases.js";
@@ -764,6 +779,70 @@ describe("checkForUpdates", () => {
 			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["fontawesome"]);
 		});
 	});
+
+	describe("cancellation", () => {
+		it("rejects an aborted signal when no extension can be checked", async () => {
+			const controller = new AbortController();
+			controller.abort();
+
+			await expect(checkForUpdates({ projectDirs: [tempDir], signal: controller.signal })).rejects.toBeInstanceOf(
+				CancellationError,
+			);
+		});
+
+		it("sends no request when the signal is already aborted", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			const controller = new AbortController();
+			controller.abort();
+
+			await expect(
+				checkForUpdates({ projectDirs: [tempDir], source: "github", signal: controller.signal }),
+			).rejects.toBeInstanceOf(CancellationError);
+
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(fetchTags).not.toHaveBeenCalled();
+			expect(fetchRegistry).not.toHaveBeenCalled();
+		});
+
+		it("rejects with a cancellation when the signal aborts during a lookup", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			const controller = new AbortController();
+			vi.mocked(fetchTags).mockImplementation(
+				(_owner, _repo, options) =>
+					new Promise((_resolve, reject) => {
+						options?.signal?.addEventListener("abort", () => reject(new CancellationError()), { once: true });
+						controller.abort();
+					}),
+			);
+
+			await expect(
+				checkForUpdates({ projectDirs: [tempDir], source: "github", signal: controller.signal }),
+			).rejects.toBeInstanceOf(CancellationError);
+		});
+
+		it("passes the signal to every GitHub lookup", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			setupExtension("quarto-ext", "lightbox", "1.0.0", "quarto-ext/lightbox@abc1234", "github");
+			const { signal } = new AbortController();
+
+			await checkForUpdates({ projectDirs: [tempDir], source: "github", signal });
+
+			const withSignal = expect.objectContaining({ signal });
+			expect(fetchReleases).toHaveBeenCalledWith("quarto-ext", "fontawesome", withSignal);
+			expect(fetchTags).toHaveBeenCalledWith("quarto-ext", "fontawesome", withSignal);
+			expect(fetchLatestCommit).toHaveBeenCalledWith("quarto-ext", "lightbox", withSignal);
+		});
+
+		it("passes the signal to the registry", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			vi.mocked(fetchRegistry).mockResolvedValue({});
+			const { signal } = new AbortController();
+
+			await checkForUpdates({ projectDirs: [tempDir], signal });
+
+			expect(fetchRegistry).toHaveBeenCalledWith(expect.objectContaining({ signal }));
+		});
+	});
 });
 
 describe("update", () => {
@@ -782,6 +861,51 @@ describe("update", () => {
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("applyUpdates", () => {
+	function pendingUpdate(name: string): UpdateInfo {
+		return {
+			extension: {
+				id: { owner: "quarto-ext", name },
+				manifest: { title: name, version: "1.0.0", source: `quarto-ext/${name}@v1.0.0` },
+			} as InstalledExtension,
+			projectDir: "/project",
+			currentVersion: "1.0.0",
+			latestVersion: "2.0.0",
+			latestRef: "v2.0.0",
+			refKind: "tag",
+			checkedOn: "github",
+			releaseUrl: null,
+			source: `quarto-ext/${name}@v2.0.0`,
+		};
+	}
+
+	it("passes the signal to install and skips the remaining updates at a cancellation", async () => {
+		vi.mocked(install).mockReset();
+		const controller = new AbortController();
+		vi.mocked(install).mockImplementation(async (source, options) => {
+			if (!options.signal) {
+				throw new Error("install ran without the signal");
+			}
+			if (source.type === "github" && source.repo === "fontawesome") {
+				return { extension: pendingUpdate("fontawesome").extension } as Awaited<ReturnType<typeof install>>;
+			}
+			controller.abort();
+			throw new CancellationError();
+		});
+		const updates = ["fontawesome", "lightbox", "iconify"].map(pendingUpdate);
+
+		const result = await applyUpdates(updates, { projectDirs: [], signal: controller.signal });
+
+		expect(install).toHaveBeenCalledTimes(2);
+		expect(result.updated.map((u) => u.extension.id.name)).toEqual(["fontawesome"]);
+		expect(result.failed).toEqual([]);
+		expect(result.skipped).toEqual([
+			{ extension: updates[1].extension, reason: "Operation cancelled by the user." },
+			{ extension: updates[2].extension, reason: "Operation cancelled by the user." },
+		]);
 	});
 });
 

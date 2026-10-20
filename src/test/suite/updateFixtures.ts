@@ -23,6 +23,8 @@ export interface UpdateBoundaryOptions {
 	repositories: Record<string, FakeRepository>;
 	token?: string;
 	registryStatus?: number;
+	/** Receives the URL of every request. */
+	requests?: string[];
 }
 
 const authModule = auth as { getAuthConfig: typeof auth.getAuthConfig };
@@ -94,6 +96,7 @@ export function stubUpdateBoundary(options: UpdateBoundaryOptions): () => void {
 
 	globalThis.fetch = (async (input: string | URL | Request) => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+		options.requests?.push(url);
 		if (url === REGISTRY_URL) {
 			return options.registryStatus
 				? json({ message: "Unavailable" }, options.registryStatus)

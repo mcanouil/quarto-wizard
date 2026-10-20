@@ -25,6 +25,7 @@ import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/la
 import { install, parseInstallSource } from "./install.js";
 import {
 	AuthenticationError,
+	CancellationError,
 	ExtensionError,
 	NetworkError,
 	RateLimitError,
@@ -178,6 +179,9 @@ interface GitHubLookups {
  * the installed version with the latest tag. An update never goes to a lower
  * version.
  *
+ * An aborted `signal` stops the requests and rejects with a
+ * `CancellationError`.
+ *
  * @param options - Check options
  * @returns Available updates and the failures met on the way
  */
@@ -190,6 +194,9 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		repositoryFailures: [],
 	};
 
+	if (registryOptions.signal?.aborted) {
+		throw new CancellationError();
+	}
 	const candidates = await collectCandidates(projectDirs, targetExtension);
 	if (candidates.length === 0) {
 		return result;
@@ -208,7 +215,11 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		}
 	}
 
-	const lookups = createGitHubLookups({ auth: registryOptions.auth, timeout: registryOptions.timeout });
+	const lookups = createGitHubLookups({
+		auth: registryOptions.auth,
+		timeout: registryOptions.timeout,
+		signal: registryOptions.signal,
+	});
 	const repositoryFailures = new Map<string, RepositoryFailure>();
 
 	const updates = await Promise.all(
@@ -483,12 +494,16 @@ function buildCommitUpdate(
 /**
  * Apply updates to extensions.
  *
+ * An aborted `signal` stops the running install. That update and every
+ * update after it go to `skipped`, and the result keeps the updates that
+ * were already installed.
+ *
  * @param updates - Updates to apply
  * @param options - Update options
  * @returns Update result
  */
 export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions): Promise<UpdateResult> {
-	const { auth, onProgress } = options;
+	const { auth, onProgress, signal } = options;
 
 	const result: UpdateResult = {
 		updated: [],
@@ -496,7 +511,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 		failed: [],
 	};
 
-	for (const update of updates) {
+	for (const [index, update] of updates.entries()) {
 		const extName = formatExtensionId(update.extension.id);
 
 		try {
@@ -513,6 +528,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				auth,
 				force: true,
 				sourceType: update.extension.manifest.sourceType,
+				signal,
 				onProgress: (p) => {
 					onProgress?.({
 						extension: extName,
@@ -528,6 +544,10 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				newVersion: update.latestVersion,
 			});
 		} catch (error) {
+			if (isCancellationError(error)) {
+				result.skipped.push(...updates.slice(index).map((u) => ({ extension: u.extension, reason: error.message })));
+				break;
+			}
 			result.failed.push({
 				extension: update.extension,
 				error: getErrorMessage(error),
