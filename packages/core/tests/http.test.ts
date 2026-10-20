@@ -183,6 +183,47 @@ describe("registry http retry behavior", () => {
 		expect((error as RateLimitError).statusCode).toBe(429);
 	});
 
+	it("does not retry a 429 with no requests left", async () => {
+		vi.mocked(proxyFetch).mockImplementation(
+			async () => new Response("Too Many Requests", { status: 429, headers: { "x-ratelimit-remaining": "0" } }),
+		);
+
+		await expect(fetchJson("https://example.com/api", { retries: 3, retryDelay: 1 })).rejects.toBeInstanceOf(
+			RateLimitError,
+		);
+		expect(proxyFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not retry a 429 that asks to retry later", async () => {
+		vi.mocked(proxyFetch).mockImplementation(
+			async () => new Response("Too Many Requests", { status: 429, headers: { "retry-after": "60" } }),
+		);
+
+		await expect(fetchJson("https://example.com/api", { retries: 3, retryDelay: 1 })).rejects.toBeInstanceOf(
+			RateLimitError,
+		);
+		expect(proxyFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not retry a bare 429", async () => {
+		vi.mocked(proxyFetch).mockImplementation(async () => new Response("Too Many Requests", { status: 429 }));
+
+		await expect(fetchJson("https://example.com/api", { retries: 3, retryDelay: 1 })).rejects.toBeInstanceOf(
+			RateLimitError,
+		);
+		expect(proxyFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it("still retries a 503", async () => {
+		vi.mocked(proxyFetch)
+			.mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+
+		const result = await fetchJson("https://example.com/api", { retries: 3, retryDelay: 1 });
+		expect(result).toEqual({ ok: true });
+		expect(proxyFetch).toHaveBeenCalledTimes(2);
+	});
+
 	it("keeps a denied 403 apart from a rate limit", async () => {
 		vi.mocked(proxyFetch).mockResolvedValueOnce(
 			new Response(JSON.stringify({ message: "Resource not accessible by personal access token" }), {

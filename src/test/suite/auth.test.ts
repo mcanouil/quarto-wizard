@@ -1,6 +1,12 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { AuthenticationError, NetworkError, RepositoryNotFoundError, SamlSsoError } from "@quarto-wizard/core";
+import {
+	AuthenticationError,
+	NetworkError,
+	RateLimitError,
+	RepositoryNotFoundError,
+	SamlSsoError,
+} from "@quarto-wizard/core";
 import { disableVSCodeSessionAuth, enableVSCodeSessionAuth, getAuthConfig, handleAuthError } from "../../utils/auth";
 import * as constants from "../../constants";
 import { STORAGE_KEY_USE_VSCODE_GITHUB_SESSION } from "../../constants";
@@ -14,12 +20,14 @@ interface MockLogOutputChannel {
 
 suite("Auth Utils Test Suite", () => {
 	let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
+	let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
 	let originalGetSession: typeof vscode.authentication.getSession;
 	let originalExecuteCommand: typeof vscode.commands.executeCommand;
 	let originalOpenExternal: typeof vscode.env.openExternal;
 	let originalQwLog: MockLogOutputChannel;
 
 	let errorMessages: string[];
+	let warnings: string[];
 	let actionItems: string[][];
 	let getSessionCalled: boolean;
 	let getSessionScopes: string[];
@@ -30,6 +38,7 @@ suite("Auth Utils Test Suite", () => {
 
 	function installMocks(): void {
 		errorMessages = [];
+		warnings = [];
 		actionItems = [];
 		getSessionCalled = false;
 		getSessionScopes = [];
@@ -45,6 +54,13 @@ suite("Auth Utils Test Suite", () => {
 		): Promise<string | undefined> => {
 			errorMessages.push(message);
 			actionItems.push(items);
+			return undefined;
+		};
+
+		(vscode.window as { showWarningMessage: unknown }).showWarningMessage = async (
+			message: string,
+		): Promise<string | undefined> => {
+			warnings.push(message);
 			return undefined;
 		};
 
@@ -102,6 +118,7 @@ suite("Auth Utils Test Suite", () => {
 
 	function restoreMocks(): void {
 		vscode.window.showErrorMessage = originalShowErrorMessage;
+		vscode.window.showWarningMessage = originalShowWarningMessage;
 		vscode.authentication.getSession = originalGetSession;
 		vscode.commands.executeCommand = originalExecuteCommand;
 		vscode.env.openExternal = originalOpenExternal;
@@ -110,6 +127,7 @@ suite("Auth Utils Test Suite", () => {
 
 	setup(() => {
 		originalShowErrorMessage = vscode.window.showErrorMessage;
+		originalShowWarningMessage = vscode.window.showWarningMessage;
 		originalGetSession = vscode.authentication.getSession;
 		originalExecuteCommand = vscode.commands.executeCommand;
 		originalOpenExternal = vscode.env.openExternal;
@@ -439,6 +457,63 @@ suite("Auth Utils Test Suite", () => {
 				true,
 				"Expected the session opt-in flag to be persisted when context is provided",
 			);
+		});
+
+		// A rate limit is not an auth failure: RateLimitError extends NetworkError
+		// with statusCode 403 and its message matches the HTTP 403 fallback.
+		const RATE_LIMIT_SIGN_IN = "GitHub rate limit reached. Sign in to GitHub to raise the limit.";
+		const RATE_LIMIT_LATER = "GitHub rate limit reached. Try again later.";
+		const rateLimit = new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 });
+
+		test("RateLimitError without auth shows the rate limit dialog, not the auth dialog", async () => {
+			const result = await handleAuthError("test", rateLimit, { hadAuth: false });
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(errorMessages, [RATE_LIMIT_SIGN_IN]);
+			assert.deepStrictEqual(actionItems, [["Sign In", "Set Token"]]);
+		});
+
+		test("RateLimitError with auth shows a warning only and returns false", async () => {
+			const result = await handleAuthError("test", rateLimit, { hadAuth: true });
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(errorMessages, []);
+			assert.deepStrictEqual(warnings, [RATE_LIMIT_LATER]);
+		});
+
+		test("Sign In in the rate limit dialog signs in and returns true", async () => {
+			mockSignInAction();
+			(vscode.authentication as { getSession: unknown }).getSession = async () => ({
+				id: "test-session",
+				accessToken: "fake-token",
+				account: { id: "user-1", label: "testuser" },
+				scopes: ["repo"],
+			});
+			const context = makeMockContext();
+			const result = await handleAuthError("test", rateLimit, { context, hadAuth: false });
+			assert.strictEqual(result, true);
+			assert.strictEqual(context.globalState.get(STORAGE_KEY_USE_VSCODE_GITHUB_SESSION), true);
+		});
+
+		test("Set Token in the rate limit dialog runs the set-token command and returns false", async () => {
+			(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async (
+				message: string,
+			): Promise<string | undefined> => {
+				errorMessages.push(message);
+				return "Set Token";
+			};
+			const result = await handleAuthError("test", rateLimit, { hadAuth: false });
+			assert.strictEqual(result, false);
+			assert.deepStrictEqual(executedCommands, ["quartoWizard.setGitHubToken"]);
+		});
+
+		test("a 429 RateLimitError never opens the auth dialog", async () => {
+			const tooMany = new RateLimitError("HTTP 429: too many requests", { statusCode: 429 });
+			await handleAuthError("test", tooMany, { hadAuth: false });
+			assert.strictEqual(errorMessages[0], RATE_LIMIT_SIGN_IN);
+		});
+
+		test("RateLimitError wins over the private-repo not-found dialog", async () => {
+			await handleAuthError("test", rateLimit, { hadAuth: false, offerSessionOnNotFound: true });
+			assert.deepStrictEqual(errorMessages, [RATE_LIMIT_SIGN_IN]);
 		});
 
 		// SAML SSO branch: SamlSsoError must be handled before the generic 401/403

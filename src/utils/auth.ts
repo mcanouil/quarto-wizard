@@ -3,6 +3,7 @@ import {
 	createAuthConfig,
 	AuthenticationError,
 	NetworkError,
+	RateLimitError,
 	RepositoryNotFoundError,
 	SamlSsoError,
 	getErrorMessage,
@@ -154,6 +155,33 @@ export interface HandleAuthErrorOptions {
 }
 
 /**
+ * Signs in to GitHub on behalf of the user.
+ * When a context is available, this goes through {@link enableVSCodeSessionAuth}
+ * so the session opt-in flag is persisted and future calls silently reuse the
+ * session via {@link getAuthConfig}. Without a context, a bare `getSession`
+ * call still lets this single retry succeed.
+ *
+ * @param prefix - Log prefix for messages.
+ * @param context - Extension context, if available.
+ * @returns True if the user signed in.
+ */
+async function signInToGitHub(prefix: string, context?: vscode.ExtensionContext): Promise<boolean> {
+	logMessage(`${prefix} User requested GitHub sign-in.`, "info");
+	if (context) {
+		return enableVSCodeSessionAuth(context);
+	}
+	try {
+		const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
+			createIfNone: true,
+		});
+		return Boolean(session);
+	} catch {
+		logMessage(`${prefix} GitHub sign-in was cancelled or failed.`, "warn");
+		return false;
+	}
+}
+
+/**
  * Checks whether an error indicates an authentication failure and, if so,
  * shows a dialog offering to sign in or set a token.
  *
@@ -214,7 +242,31 @@ export async function handleAuthError(
 		return false;
 	}
 
-	// 0b. Private-repo 404 branch for explicit GitHub install/use entry points.
+	// 0b. A rate limit is not an auth failure. RateLimitError extends NetworkError
+	//     with statusCode 403 or 429, and its message matches the string fallback
+	//     below, so it must return before the not-found and 401/403 checks.
+	//     Signing in only helps when the failing attempt was anonymous.
+	if (error instanceof RateLimitError) {
+		if (hadAuth) {
+			logMessage(`${prefix} GitHub rate limit reached while authenticated.`, "warn");
+			void vscode.window.showWarningMessage("GitHub rate limit reached. Try again later.");
+			return false;
+		}
+		const action = await vscode.window.showErrorMessage(
+			"GitHub rate limit reached. Sign in to GitHub to raise the limit.",
+			"Sign In",
+			"Set Token",
+		);
+		if (action === "Sign In") {
+			return signInToGitHub(prefix, context);
+		}
+		if (action === "Set Token") {
+			await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
+		}
+		return false;
+	}
+
+	// 0c. Private-repo 404 branch for explicit GitHub install/use entry points.
 	//    GitHub returns 404 for private repositories accessed without credentials
 	//    (to avoid leaking their existence), so a "not found" on an unauthenticated
 	//    attempt is ambiguous. Offer the user a chance to sign in.
@@ -284,24 +336,7 @@ export async function handleAuthError(
 			"Set Token",
 		);
 		if (action === "Sign In") {
-			logMessage(`${prefix} User requested GitHub sign-in.`, "info");
-			// When context is available, route through enableVSCodeSessionAuth so
-			// the session opt-in flag is persisted and future calls will silently
-			// reuse the session via getAuthConfig. Without a context, fall back to
-			// a bare getSession call that still allows this single retry to succeed.
-			if (context) {
-				return enableVSCodeSessionAuth(context);
-			}
-			try {
-				const session = await vscode.authentication.getSession("github", GITHUB_SCOPES, {
-					createIfNone: true,
-				});
-				if (session) {
-					return true;
-				}
-			} catch {
-				logMessage(`${prefix} GitHub sign-in was cancelled or failed.`, "warn");
-			}
+			return signInToGitHub(prefix, context);
 		} else if (action === "Set Token") {
 			await vscode.commands.executeCommand("quartoWizard.setGitHubToken");
 		}
