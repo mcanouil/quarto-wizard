@@ -106,10 +106,13 @@ async function detectRateLimitError(response: Response): Promise<RateLimitError 
  * Check if an error is retryable.
  */
 function isRetryableError(error: unknown): boolean {
+	if (error instanceof RateLimitError) {
+		return false;
+	}
 	if (error instanceof NetworkError) {
 		const statusCode = error.statusCode;
 		if (statusCode) {
-			return statusCode >= 500 || statusCode === 429;
+			return statusCode >= 500;
 		}
 		return true;
 	}
