@@ -10,14 +10,18 @@ import { debounce } from "../utils/debounce";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
 import { isRelevantYaml } from "../utils/metadataFilesRegistry";
+import { readYamlValueForType } from "../utils/quartoYamlScalar";
 
 /**
  * Validate a single value against a field descriptor, returning error messages.
  * Used for array item validation where each item is checked independently.
  * The messages name no key, so the caller adds the prefix.
+ *
+ * Exported for its own tests, as the provider needs a workspace to run.
  */
-function validateSingleValue(key: string, value: unknown, descriptor: FieldDescriptor): string[] {
+export function validateSingleValue(key: string, rawValue: unknown, descriptor: FieldDescriptor): string[] {
 	const errors: string[] = [];
+	const value = readYamlValueForType(rawValue, descriptor.type);
 
 	if (value === null || value === undefined) {
 		return errors;
@@ -342,9 +346,10 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		// Validate each provided value.
-		for (const [key, value] of Object.entries(values)) {
+		for (const [key, rawValue] of Object.entries(values)) {
 			const currentPath = [...parentPath, key];
 			const descriptor = this.findDescriptor(key, fields);
+			const value = descriptor ? readYamlValueForType(rawValue, descriptor.type) : rawValue;
 
 			// A finding about the key points at the key, and one about the value
 			// points at the value. Both come from one walk of the tree.
