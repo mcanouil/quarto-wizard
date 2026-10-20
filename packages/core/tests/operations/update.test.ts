@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { checkForUpdates, update } from "../../src/operations/update.js";
-import { AuthenticationError, NetworkError, RepositoryNotFoundError } from "../../src/errors.js";
+import { AuthenticationError, NetworkError, RateLimitError, RepositoryNotFoundError } from "../../src/errors.js";
 
 vi.mock("../../src/registry/fetcher.js", () => ({
 	fetchRegistry: vi.fn(),
@@ -670,10 +670,9 @@ describe("checkForUpdates", () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
 			setupExtension("quarto-ext", "lightbox", "1.0.0", "quarto-ext/lightbox@v1.0.0", "github");
 
-			const forbidden = new NetworkError("HTTP 403: Forbidden", { statusCode: 403 });
 			vi.mocked(fetchReleases).mockImplementation(async (_owner, repo) => {
 				if (repo === "fontawesome") {
-					throw new AuthenticationError("Authentication required for quarto-ext/fontawesome.", { cause: forbidden });
+					throw new RateLimitError("HTTP 403: rate limit exceeded for quarto-ext/fontawesome", { statusCode: 403 });
 				}
 				return [release("v2.0.0")];
 			});
@@ -682,6 +681,42 @@ describe("checkForUpdates", () => {
 
 			expect(result.checkFailure?.kind).toBe("rate-limited");
 			expect(result.checkFailure?.message).toContain("quarto-ext/fontawesome");
+			expect(result.repositoryFailures).toHaveLength(0);
+		});
+
+		it("reports a denied 403 as a repository failure and keeps the other results", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			setupExtension("quarto-ext", "lightbox", "1.0.0", "quarto-ext/lightbox@v1.0.0", "github");
+
+			const forbidden = new NetworkError("HTTP 403: Forbidden", { statusCode: 403 });
+			vi.mocked(fetchReleases).mockImplementation(async (_owner, repo) => {
+				if (repo === "fontawesome") {
+					throw new AuthenticationError("Access denied to quarto-ext/fontawesome.", { cause: forbidden });
+				}
+				return [release("v2.0.0")];
+			});
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
+
+			expect(result.checkFailure).toBeUndefined();
+			expect(result.repositoryFailures).toEqual([
+				{ repository: "quarto-ext/fontawesome", message: "Access denied to quarto-ext/fontawesome." },
+			]);
+			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["lightbox"]);
+		});
+
+		it("reports a 401 as an unauthorised check failure", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
+			setupExtension("quarto-ext", "lightbox", "1.0.0", "quarto-ext/lightbox@v1.0.0", "github");
+
+			const unauthorised = new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 });
+			vi.mocked(fetchReleases).mockRejectedValue(
+				new AuthenticationError("Authentication failed for quarto-ext/fontawesome.", { cause: unauthorised }),
+			);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
+
+			expect(result.checkFailure?.kind).toBe("unauthorised");
 			expect(result.repositoryFailures).toHaveLength(0);
 		});
 

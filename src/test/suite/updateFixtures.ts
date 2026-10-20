@@ -15,6 +15,8 @@ export interface FakeRepository {
 	registryTag?: string;
 	/** HTTP status of every GitHub request for this repository. */
 	githubStatus?: number;
+	/** Response headers that go with `githubStatus`. */
+	githubHeaders?: Record<string, string>;
 }
 
 export interface UpdateBoundaryOptions {
@@ -29,8 +31,8 @@ const detailsModule = extensionDetails as {
 	getCacheTTL: typeof extensionDetails.getCacheTTL;
 };
 
-function json(body: unknown, status = 200): Response {
-	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 }
 
 function registryBody(repositories: Record<string, FakeRepository>): Record<string, unknown> {
@@ -53,7 +55,7 @@ function registryBody(repositories: Record<string, FakeRepository>): Record<stri
 
 function githubResponse(fullName: string, endpoint: string, repository: FakeRepository | undefined): Response {
 	if (repository?.githubStatus) {
-		return json({ message: "Not Found" }, repository.githubStatus);
+		return json({ message: "Not Found" }, repository.githubStatus, repository.githubHeaders);
 	}
 	const tags = repository?.githubTags ?? [];
 	const archive = (tag: string, kind: string) => `https://api.github.com/repos/${fullName}/${kind}/${tag}`;

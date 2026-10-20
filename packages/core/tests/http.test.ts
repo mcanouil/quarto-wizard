@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CancellationError, NetworkError, SamlSsoError } from "../src/errors.js";
-import { fetchJson } from "../src/registry/http.js";
+import { CancellationError, NetworkError, RateLimitError, SamlSsoError } from "../src/errors.js";
+import { fetchJson, fetchJsonPages } from "../src/registry/http.js";
 import { proxyFetch } from "../src/proxy/index.js";
 
 vi.mock("../src/proxy/index.js", () => ({
@@ -144,6 +144,68 @@ describe("registry http retry behavior", () => {
 		expect(mockedProxyFetch).toHaveBeenCalledTimes(1);
 	});
 
+	it("throws RateLimitError for a 403 with no requests left", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Forbidden", { status: 403, headers: { "x-ratelimit-remaining": "0" } }),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+		expect((error as RateLimitError).statusCode).toBe(403);
+	});
+
+	it("throws RateLimitError for a 403 that asks to retry later", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Forbidden", { status: 403, headers: { "retry-after": "60", "x-ratelimit-remaining": "42" } }),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+	});
+
+	it("throws RateLimitError for a 403 whose message names a secondary rate limit", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ message: "You have exceeded a secondary rate limit." }), {
+				status: 403,
+				headers: { "x-ratelimit-remaining": "4999" },
+			}),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+	});
+
+	it("throws RateLimitError for every 429", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(new Response("Too Many Requests", { status: 429 }));
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(RateLimitError);
+		expect((error as RateLimitError).statusCode).toBe(429);
+	});
+
+	it("keeps a denied 403 apart from a rate limit", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ message: "Resource not accessible by personal access token" }), {
+				status: 403,
+				headers: { "x-ratelimit-remaining": "4999" },
+			}),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(NetworkError);
+		expect(error).not.toBeInstanceOf(RateLimitError);
+		expect((error as NetworkError).statusCode).toBe(403);
+	});
+
+	it("does not treat a 500 with rate limit headers as a rate limit", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response("Server Error", { status: 500, headers: { "x-ratelimit-remaining": "0" } }),
+		);
+
+		const error = await fetchJson("https://example.com/api", { retries: 0 }).catch((e: unknown) => e);
+		expect(error).not.toBeInstanceOf(RateLimitError);
+	});
+
 	it("cancels while waiting for retry backoff", async () => {
 		const mockedProxyFetch = vi.mocked(proxyFetch);
 		mockedProxyFetch.mockRejectedValue(new NetworkError("transient error"));
@@ -160,5 +222,78 @@ describe("registry http retry behavior", () => {
 
 		await expect(request).rejects.toBeInstanceOf(CancellationError);
 		expect(mockedProxyFetch).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("fetchJsonPages", () => {
+	const base = "https://api.example.com/items";
+
+	function page(items: number[], next?: string): Response {
+		const headers: Record<string, string> = { "content-type": "application/json" };
+		if (next) {
+			headers.link = `<${next}>; rel="next", <${base}?page=9>; rel="last"`;
+		}
+		return new Response(JSON.stringify(items), { status: 200, headers });
+	}
+
+	beforeEach(() => {
+		vi.resetAllMocks();
+	});
+
+	it("follows the next link and joins every page", async () => {
+		vi.mocked(proxyFetch)
+			.mockResolvedValueOnce(page([1, 2], `${base}?page=2`))
+			.mockResolvedValueOnce(page([3, 4], `${base}?page=3`))
+			.mockResolvedValueOnce(page([5]));
+
+		const items = await fetchJsonPages<number>(base, {}, 5);
+
+		expect(items).toEqual([1, 2, 3, 4, 5]);
+		expect(vi.mocked(proxyFetch).mock.calls.map((call) => call[0])).toEqual([base, `${base}?page=2`, `${base}?page=3`]);
+	});
+
+	it("stops at the page cap and keeps the pages it read", async () => {
+		vi.mocked(proxyFetch)
+			.mockResolvedValueOnce(page([1], `${base}?page=2`))
+			.mockResolvedValueOnce(page([2], `${base}?page=3`))
+			.mockResolvedValueOnce(page([3], `${base}?page=4`));
+
+		const items = await fetchJsonPages<number>(base, {}, 2);
+
+		expect(items).toEqual([1, 2]);
+		expect(proxyFetch).toHaveBeenCalledTimes(2);
+	});
+
+	it("resolves a relative next link against the page it came from", async () => {
+		vi.mocked(proxyFetch)
+			.mockResolvedValueOnce(page([1], "?page=2"))
+			.mockResolvedValueOnce(page([2]));
+
+		const items = await fetchJsonPages<number>(base, {}, 5);
+
+		expect(items).toEqual([1, 2]);
+		expect(vi.mocked(proxyFetch).mock.calls[1]?.[0]).toBe(`${base}?page=2`);
+	});
+
+	it("does not follow a next link to another origin", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(page([1], "https://elsewhere.example.org/items?page=2"));
+
+		const items = await fetchJsonPages<number>(base, {}, 5);
+
+		expect(items).toEqual([1]);
+		expect(proxyFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it("stops when the user cancels between pages", async () => {
+		const controller = new AbortController();
+		vi.mocked(proxyFetch).mockImplementationOnce(async () => {
+			controller.abort();
+			return page([1], `${base}?page=2`);
+		});
+
+		await expect(fetchJsonPages<number>(base, { signal: controller.signal }, 5)).rejects.toBeInstanceOf(
+			CancellationError,
+		);
+		expect(proxyFetch).toHaveBeenCalledTimes(1);
 	});
 });

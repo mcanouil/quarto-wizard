@@ -32,14 +32,10 @@ suite("Async Keyed Cache Test Suite", () => {
 
 	function countingCache(ttlMs?: number): { cache: AsyncKeyedCache<string>; calls: string[] } {
 		const calls: string[] = [];
-		const cache = new AsyncKeyedCache<string>(
-			async (key) => {
-				calls.push(key);
-				return `${key}#${calls.length}`;
-			},
-			"empty",
-			ttlMs,
-		);
+		const cache = new AsyncKeyedCache<string>(async (key) => {
+			calls.push(key);
+			return `${key}#${calls.length}`;
+		}, ttlMs);
 		return { cache, calls };
 	}
 
@@ -67,13 +63,36 @@ suite("Async Keyed Cache Test Suite", () => {
 		assert.deepStrictEqual(calls, ["a", "b"]);
 	});
 
+	for (const value of ["", 0, false, null, undefined]) {
+		test(`Should serve a cached ${String(value) || "empty string"} within the time to live`, async () => {
+			let fetches = 0;
+			const cache = new AsyncKeyedCache<unknown>(async () => {
+				fetches += 1;
+				return value;
+			});
+			assert.strictEqual(await cache.get("a"), value);
+			assert.strictEqual(await cache.get("a"), value);
+			assert.strictEqual(fetches, 1);
+		});
+	}
+
+	test("Should drop only the empty string key on invalidate", async () => {
+		const { cache, calls } = countingCache();
+		await cache.get("");
+		await cache.get("b");
+		cache.invalidate("");
+		await cache.get("");
+		await cache.get("b");
+		assert.deepStrictEqual(calls, ["", "b", ""]);
+	});
+
 	test("Should share one fetch between concurrent callers", async () => {
 		const gate = deferred<string>();
 		let fetches = 0;
 		const cache = new AsyncKeyedCache<string>(() => {
 			fetches += 1;
 			return gate.promise;
-		}, "empty");
+		});
 		const first = cache.get("a");
 		const second = cache.get("a");
 		gate.resolve("value");
@@ -104,7 +123,7 @@ suite("Async Keyed Cache Test Suite", () => {
 	test("Should not store the result of a fetch that an invalidate superseded", async () => {
 		const gate = deferred<string>();
 		const values = [gate.promise, Promise.resolve("fresh")];
-		const cache = new AsyncKeyedCache<string>(() => values.shift() as Promise<string>, "empty");
+		const cache = new AsyncKeyedCache<string>(() => values.shift() as Promise<string>);
 		const stale = cache.get("a");
 		cache.invalidate("a");
 		assert.strictEqual(await cache.get("a"), "fresh");
@@ -121,7 +140,7 @@ suite("Async Keyed Cache Test Suite", () => {
 				throw new Error("network down");
 			}
 			return "recovered";
-		}, "empty");
+		});
 		await assert.rejects(cache.get("a"), /network down/);
 		assert.strictEqual(await cache.get("a"), "recovered");
 		assert.strictEqual(attempts, 2);
@@ -129,7 +148,7 @@ suite("Async Keyed Cache Test Suite", () => {
 
 	test("Should share a failure between concurrent callers", async () => {
 		const gate = deferred<string>();
-		const cache = new AsyncKeyedCache<string>(() => gate.promise, "empty");
+		const cache = new AsyncKeyedCache<string>(() => gate.promise);
 		const first = cache.get("a");
 		const second = cache.get("a");
 		gate.reject(new Error("boom"));

@@ -7,7 +7,7 @@
  * @module registry
  */
 
-import { CancellationError, NetworkError } from "../errors.js";
+import { CancellationError, NetworkError, RateLimitError } from "../errors.js";
 import { proxyFetch } from "../proxy/index.js";
 import { USER_AGENT } from "../constants.js";
 import { detectSamlSsoError } from "../samlSso.js";
@@ -76,6 +76,30 @@ async function fetchWithTimeout(
 		clearTimeout(timeoutId);
 		externalSignal?.removeEventListener("abort", onExternalAbort);
 	}
+}
+
+/**
+ * Detect a GitHub rate limit from a non-ok HTTP response.
+ *
+ * A 429 is always a rate limit. A 403 is a rate limit when no request is
+ * left (`x-ratelimit-remaining: 0`), when the response asks to retry later
+ * (`retry-after`), or when its message names a rate limit, as a secondary
+ * rate limit can come without either header. Any other 403 is denied access.
+ *
+ * @param response - The failing HTTP response
+ * @returns RateLimitError, or undefined when the response is not a rate limit
+ */
+async function detectRateLimitError(response: Response): Promise<RateLimitError | undefined> {
+	const { status, headers } = response;
+	if (status !== 403 && status !== 429) {
+		return undefined;
+	}
+	const rateLimited =
+		status === 429 ||
+		headers.get("x-ratelimit-remaining") === "0" ||
+		headers.has("retry-after") ||
+		/rate limit/i.test(await response.text().catch(() => ""));
+	return rateLimited ? new RateLimitError(`HTTP ${status}: rate limit exceeded`, { statusCode: status }) : undefined;
 }
 
 /**
@@ -160,6 +184,10 @@ async function fetchWithRetry<T>(
 				if (samlError) {
 					throw samlError;
 				}
+				const rateLimitError = await detectRateLimitError(response);
+				if (rateLimitError) {
+					throw rateLimitError;
+				}
 				throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, { statusCode: response.status });
 			}
 
@@ -194,6 +222,54 @@ export async function fetchJson<T>(url: string, options: HttpOptions = {}): Prom
 		(response) => response.json() as Promise<T>,
 		options,
 	);
+}
+
+/**
+ * Read the URL of the next page from a `Link` header.
+ *
+ * A relative link is resolved against the page it came from. A next page on
+ * another origin is ignored, so that the request headers, which can hold a
+ * token, go only to the origin of the first page.
+ */
+function nextPageUrl(response: Response, pageUrl: string, origin: string): string | null {
+	const match = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get("link") ?? "");
+	if (!match) {
+		return null;
+	}
+	const next = new URL(match[1], pageUrl);
+	return next.origin === origin ? next.href : null;
+}
+
+/**
+ * Fetch a JSON list that spans several pages, with timeout and retry support.
+ *
+ * The pages are read in order by following `rel="next"` in the `Link` header.
+ * At most `maxPages` pages are read. When there are more, the items of the pages
+ * read are returned and the rest are ignored, with no error.
+ *
+ * @param url - URL of the first page
+ * @param options - HTTP options, used for each page
+ * @param maxPages - Maximum number of pages to read
+ * @returns Items of every page read, in order
+ */
+export async function fetchJsonPages<T>(url: string, options: HttpOptions, maxPages: number): Promise<T[]> {
+	const origin = new URL(url).origin;
+	const items: T[] = [];
+	let next: string | null = url;
+
+	for (let page = 0; next && page < maxPages; page++) {
+		const pageUrl: string = next;
+		const result: { data: T[]; next: string | null } = await fetchWithRetry(
+			pageUrl,
+			{ Accept: "application/json", "User-Agent": USER_AGENT },
+			async (response) => ({ data: (await response.json()) as T[], next: nextPageUrl(response, pageUrl, origin) }),
+			options,
+		);
+		items.push(...result.data);
+		next = result.next;
+	}
+
+	return items;
 }
 
 /**
