@@ -19,6 +19,7 @@
 ### Bug Fixes
 
 - fix: Discover installed extensions in a stable order on every filesystem. An extension installed without an owner keeps its short name. (#499)
+- fix: Say that the GitHub rate limit was reached when an install or a use hits it, instead of asking to sign in, and stop retrying the request. (#509)
 - fix: Stop a running download when an install or an update is cancelled, and stop Update All without an error when it is cancelled. (#512)
 - fix: Recognise a full commit of 40 characters as a commit pin, and stop offering updates for an extension installed from a subdirectory of a repository, which the installer cannot update.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
