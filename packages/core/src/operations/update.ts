@@ -197,7 +197,8 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 	if (registryOptions.signal?.aborted) {
 		throw new CancellationError();
 	}
-	const candidates = await collectCandidates(projectDirs, targetExtension);
+	const { candidates, failures } = await collectCandidates(projectDirs, targetExtension);
+	result.repositoryFailures = failures;
 	if (candidates.length === 0) {
 		return result;
 	}
@@ -220,7 +221,9 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		timeout: registryOptions.timeout,
 		signal: registryOptions.signal,
 	});
-	const repositoryFailures = new Map<string, RepositoryFailure>();
+	const repositoryFailures = new Map<string, RepositoryFailure>(
+		failures.map((failure) => [failure.repository.toLowerCase(), failure]),
+	);
 
 	const updates = await Promise.all(
 		candidates.map(async (candidate) => {
@@ -258,20 +261,32 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
  * Discover the installed extensions that can be checked, in the order of the
  * project directories.
  */
-async function collectCandidates(projectDirs: string[], target?: ExtensionId): Promise<UpdateCandidate[]> {
+async function collectCandidates(
+	projectDirs: string[],
+	target?: ExtensionId,
+): Promise<{ candidates: UpdateCandidate[]; failures: RepositoryFailure[] }> {
+	const failures: RepositoryFailure[] = [];
 	const perDirectory = await Promise.all(
 		projectDirs.map(async (projectDir) => {
 			let extensions: InstalledExtension[];
 			if (target) {
-				const ext = await findInstalledExtension(projectDir, target);
-				extensions = ext ? [ext] : [];
+				try {
+					const ext = await findInstalledExtension(projectDir, target);
+					extensions = ext ? [ext] : [];
+				} catch (error) {
+					if (!(error instanceof ExtensionError)) {
+						throw error;
+					}
+					failures.push({ repository: formatExtensionId(target), message: error.message });
+					extensions = [];
+				}
 			} else {
 				extensions = await discoverInstalledExtensions(projectDir);
 			}
 			return extensions.map((ext) => toCandidate(ext, projectDir)).filter((c): c is UpdateCandidate => c !== null);
 		}),
 	);
-	return perDirectory.flat();
+	return { candidates: perDirectory.flat(), failures };
 }
 
 function toCandidate(extension: InstalledExtension, projectDir: string): UpdateCandidate | null {

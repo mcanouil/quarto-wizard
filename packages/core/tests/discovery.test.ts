@@ -9,6 +9,7 @@ import {
 	getExtensionsDir,
 	hasExtensionsDir,
 } from "../src/filesystem/discovery.js";
+import { ExtensionError } from "../src/errors.js";
 
 describe("discovery.ts", () => {
 	let tempDir: string;
@@ -200,6 +201,51 @@ describe("discovery.ts", () => {
 
 			expect(ext).not.toBeNull();
 			expect(ext!.id.owner).toBeNull();
+		});
+
+		it("prefers the ownerless extension for a bare name", async () => {
+			createExtension("acme", "demo", "title: Owned\n");
+			const ownerless = createExtension(null, "demo", "title: Ownerless\n");
+
+			const ext = await findInstalledExtension(tempDir, { owner: null, name: "demo" });
+
+			expect(ext!.directory).toBe(ownerless);
+		});
+
+		it("returns the single owned match for a bare name", async () => {
+			createExtension("acme", "demo", "title: Owned\n");
+
+			const ext = await findInstalledExtension(tempDir, { owner: null, name: "demo" });
+
+			expect(ext!.id).toEqual({ owner: "acme", name: "demo" });
+		});
+
+		it("throws for a bare name that two owners share", async () => {
+			createExtension("beta", "demo", "title: Beta\n");
+			createExtension("acme", "demo", "title: Acme\n");
+
+			const error = await findInstalledExtension(tempDir, { owner: null, name: "demo" }).catch((e: unknown) => e);
+
+			expect(error).toBeInstanceOf(ExtensionError);
+			expect((error as ExtensionError).message).toBe('Extension name "demo" is ambiguous: acme/demo, beta/demo.');
+			expect((error as ExtensionError).suggestion).toBe("Use the full owner/name.");
+		});
+
+		it("ignores an ownerless directory without a manifest", async () => {
+			fs.mkdirSync(path.join(tempDir, "_extensions", "demo"), { recursive: true });
+			createExtension("acme", "demo", "title: Acme\n");
+
+			const ext = await findInstalledExtension(tempDir, { owner: null, name: "demo" });
+
+			expect(ext!.id).toEqual({ owner: "acme", name: "demo" });
+		});
+
+		it("returns null when nothing matches a bare name", async () => {
+			createExtension("acme", "other", "title: Other\n");
+
+			const ext = await findInstalledExtension(tempDir, { owner: null, name: "demo" });
+
+			expect(ext).toBeNull();
 		});
 	});
 });
