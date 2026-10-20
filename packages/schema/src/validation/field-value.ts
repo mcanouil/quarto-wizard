@@ -83,10 +83,69 @@ function matchesDeclaredType(value: unknown, type: string | string[] | undefined
 	return known.length === 0 || known.some((name) => matchesTypeName(value, name));
 }
 
+/**
+ * The forms that Lua 5.4 `tonumber` accepts, between the six ASCII spaces of
+ * C `isspace`. `Number()` alone accepts more, such as `0b101`, `0o7` and a
+ * no-break space, and fewer, such as `-0x10` and the hexadecimal float `0x1p4`.
+ */
+const LUA_SPACE = String.raw`[ \t\n\v\f\r]*`;
+const LUA_DECIMAL = new RegExp(String.raw`^${LUA_SPACE}([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)${LUA_SPACE}$`);
+const LUA_HEX = new RegExp(
+	String.raw`^${LUA_SPACE}([+-]?)0[xX](?:([\da-fA-F]+)(?:\.([\da-fA-F]*))?|\.([\da-fA-F]+))(?:[pP]([+-]?\d+))?${LUA_SPACE}$`,
+);
+
+/**
+ * Read text as a number, as Lua 5.4 `tonumber` does.
+ *
+ * A hexadecimal integer wraps at 64 bits, so `0xffffffffffffffff` is -1. A
+ * decimal that overflows is an infinity.
+ *
+ * @returns The number, or `undefined` when Lua answers nil.
+ */
+function luaToNumber(text: string): number | undefined {
+	const decimal = LUA_DECIMAL.exec(text);
+	if (decimal) {
+		return Number(decimal[1]);
+	}
+	const hex = LUA_HEX.exec(text);
+	if (!hex) {
+		return undefined;
+	}
+	const [, sign, whole = "", trailing, bare, exponent] = hex;
+	const fraction = trailing ?? bare;
+	if (fraction === undefined && exponent === undefined) {
+		const wrapped = BigInt.asIntN(64, BigInt(`0x${whole}`) * (sign === "-" ? -1n : 1n));
+		return Number(wrapped);
+	}
+	// The significand is cut to 64 bits, with a sticky bit for what is cut, so
+	// it is rounded once and never overflows. The power is applied in two
+	// halves, so no intermediate overflows or underflows. A significand wider
+	// than 53 bits with a subnormal result is still rounded twice, where
+	// `strtod` rounds once.
+	let significand = BigInt(`0x${whole}${fraction ?? ""}`);
+	const excess = Math.max(significand.toString(2).length - 64, 0);
+	if (excess > 0) {
+		const sticky = significand & ((1n << BigInt(excess)) - 1n) ? 1n : 0n;
+		significand = (significand >> BigInt(excess)) | sticky;
+	}
+	const mantissa = Number(significand);
+	const power = Number(exponent ?? 0) - 4 * (fraction?.length ?? 0) + excess;
+	const signed = sign === "-" ? -1 : 1;
+	if (mantissa === 0 || power === -Infinity) {
+		return 0;
+	}
+	if (power === Infinity) {
+		return signed * Infinity;
+	}
+	const half = Math.trunc(power / 2);
+	return signed * mantissa * 2 ** half * 2 ** (power - half);
+}
+
 function coerceScalar(value: string, name: string): { ok: boolean; value?: unknown } {
 	if (name === "number" || name === "integer") {
-		const number = value.trim() === "" ? NaN : Number(value);
-		if (Number.isFinite(number) && (name === "number" || Number.isInteger(number))) {
+		const number = luaToNumber(value);
+		// An integer is finite, as the Lua type check requires.
+		if (number !== undefined && (name === "number" || Number.isInteger(number))) {
 			return { ok: true, value: number };
 		}
 	} else if (name === "boolean") {

@@ -6,6 +6,7 @@ import {
 	checkForUpdates,
 	formatExtensionId,
 	getErrorMessage,
+	isCancellationError,
 	type AuthConfig,
 	type ExtensionId,
 	type UpdateCheckResult,
@@ -36,12 +37,20 @@ const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
 /**
  * Resolves the latest GitHub tag or commit of each extension, with or without a token, so that an
  * update installs the version that its messages give.
+ *
+ * @returns The check result, or undefined when the user cancelled the check.
  */
 async function checkGitHubUpdates(
 	projectDirs: string[],
 	auth: AuthConfig,
+	token: vscode.CancellationToken,
 	extension?: ExtensionId,
-): Promise<UpdateCheckResult> {
+): Promise<UpdateCheckResult | undefined> {
+	const controller = new AbortController();
+	if (token.isCancellationRequested) {
+		controller.abort();
+	}
+	const cancellation = token.onCancellationRequested(() => controller.abort());
 	try {
 		return await checkForUpdates({
 			projectDirs,
@@ -49,14 +58,20 @@ async function checkGitHubUpdates(
 			source: "github",
 			auth,
 			timeout: REGISTRY_FETCH_TIMEOUT_MS,
+			signal: controller.signal,
 		});
 	} catch (error) {
+		if (isCancellationError(error)) {
+			return undefined;
+		}
 		return {
 			checkedOn: "github",
 			updates: [],
 			repositoryFailures: [],
 			checkFailure: { kind: "network", message: getErrorMessage(error) },
 		};
+	} finally {
+		cancellation.dispose();
 	}
 }
 
@@ -363,9 +378,12 @@ export class ExtensionsInstalled {
 					if (!resolvesTag) {
 						return { installed: await install(source, token) };
 					}
-					const check = await checkGitHubUpdates([item.workspaceFolder], auth, extension.id);
+					const check = await checkGitHubUpdates([item.workspaceFolder], auth, token, extension.id);
+					if (!check || token.isCancellationRequested) {
+						return {};
+					}
 					const update = check.updates[0];
-					if (!update || check.checkFailure || check.repositoryFailures.length > 0 || token.isCancellationRequested) {
+					if (!update || check.checkFailure || check.repositoryFailures.length > 0) {
 						return { check };
 					}
 					return { check, update, installed: await install(update.source, token) };
@@ -518,13 +536,11 @@ export class ExtensionsInstalled {
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.updateAll", async () => {
 				const failureMessage = "Failed to update extensions.";
 				const auth = await getAuthConfig(context);
-				let cancelled = false;
 				const check = await withProgressNotification("Checking for updates ...", async (token) => {
-					const result = await checkGitHubUpdates(this.treeDataProvider.getProjectDirs(), auth);
-					cancelled = token.isCancellationRequested;
-					return result;
+					const result = await checkGitHubUpdates(this.treeDataProvider.getProjectDirs(), auth, token);
+					return token.isCancellationRequested ? undefined : result;
 				});
-				if (cancelled) {
+				if (!check) {
 					return;
 				}
 				if (await reportCheckFailures(check, failureMessage, auth)) {

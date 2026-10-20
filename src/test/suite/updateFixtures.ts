@@ -15,12 +15,16 @@ export interface FakeRepository {
 	registryTag?: string;
 	/** HTTP status of every GitHub request for this repository. */
 	githubStatus?: number;
+	/** Response headers that go with `githubStatus`. */
+	githubHeaders?: Record<string, string>;
 }
 
 export interface UpdateBoundaryOptions {
 	repositories: Record<string, FakeRepository>;
 	token?: string;
 	registryStatus?: number;
+	/** Receives the URL of every request. */
+	requests?: string[];
 }
 
 const authModule = auth as { getAuthConfig: typeof auth.getAuthConfig };
@@ -29,8 +33,8 @@ const detailsModule = extensionDetails as {
 	getCacheTTL: typeof extensionDetails.getCacheTTL;
 };
 
-function json(body: unknown, status = 200): Response {
-	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 }
 
 function registryBody(repositories: Record<string, FakeRepository>): Record<string, unknown> {
@@ -53,7 +57,7 @@ function registryBody(repositories: Record<string, FakeRepository>): Record<stri
 
 function githubResponse(fullName: string, endpoint: string, repository: FakeRepository | undefined): Response {
 	if (repository?.githubStatus) {
-		return json({ message: "Not Found" }, repository.githubStatus);
+		return json({ message: "Not Found" }, repository.githubStatus, repository.githubHeaders);
 	}
 	const tags = repository?.githubTags ?? [];
 	const archive = (tag: string, kind: string) => `https://api.github.com/repos/${fullName}/${kind}/${tag}`;
@@ -92,6 +96,7 @@ export function stubUpdateBoundary(options: UpdateBoundaryOptions): () => void {
 
 	globalThis.fetch = (async (input: string | URL | Request) => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+		options.requests?.push(url);
 		if (url === REGISTRY_URL) {
 			return options.registryStatus
 				? json({ message: "Unavailable" }, options.registryStatus)

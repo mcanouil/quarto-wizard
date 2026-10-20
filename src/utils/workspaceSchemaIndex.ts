@@ -8,19 +8,12 @@ export interface WorkspaceSchemaIndex {
 	extMap: Map<string, InstalledExtension>;
 }
 
-function createEmptyIndex(): WorkspaceSchemaIndex {
-	return { schemaMap: new Map(), extMap: new Map() };
-}
-
 const caches = new Map<SchemaCache, AsyncKeyedCache<WorkspaceSchemaIndex>>();
 
 function ensureCache(schemaCache: SchemaCache): AsyncKeyedCache<WorkspaceSchemaIndex> {
 	let cache = caches.get(schemaCache);
 	if (!cache) {
-		cache = new AsyncKeyedCache(
-			(workspacePath: string) => buildWorkspaceSchemaIndex(workspacePath, schemaCache),
-			createEmptyIndex(),
-		);
+		cache = new AsyncKeyedCache((workspacePath: string) => buildWorkspaceSchemaIndex(workspacePath, schemaCache));
 		caches.set(schemaCache, cache);
 	}
 	return cache;

@@ -3,8 +3,8 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { parseSchemaFile } from "../../src/filesystem/schema.js";
-import { validateFieldValue, type FieldFindingCode } from "../../src/validation/field-value.js";
-import type { ExtensionSchema, FieldDescriptor } from "../../src/types/schema.js";
+import { coerceFieldValue, validateFieldValue, type FieldFindingCode } from "../../src/validation/field-value.js";
+import { typeIncludes, type ExtensionSchema, type FieldDescriptor } from "../../src/types/schema.js";
 
 // `npm run test:lua` writes this file with the Lua validator, then runs this
 // test alone with QW_SCHEMA_CONFORMANCE=1. Without that variable the test
@@ -30,6 +30,8 @@ interface Probe {
 	file: string;
 	location: (string | number)[];
 	value: unknown;
+	// Whether the Lua validator reports the value, once coerced, as the wrong type.
+	wrong_type: boolean;
 	// The Lua encoder writes an empty table as `{}`.
 	findings: LuaFinding[] | Record<string, never>;
 }
@@ -57,6 +59,22 @@ function descriptorAt(schema: ExtensionSchema, location: (string | number)[]): F
 		node = (node as Record<string | number, unknown>)[part];
 	}
 	return node as FieldDescriptor | undefined;
+}
+
+// Text is of the wrong type when it stays text after coercion and the field
+// declares no type that holds text, as the inline attribute diagnostics read
+// it. The Lua validator moves a value with a replacement to the replacement,
+// and so never checks its type against this descriptor.
+function textOfWrongType(coerced: unknown, descriptor: FieldDescriptor): boolean {
+	const { type, deprecated } = descriptor;
+	const forwarded = typeof deprecated === "object" && Boolean(deprecated.replaceWith);
+	return (
+		!forwarded &&
+		typeof coerced === "string" &&
+		type !== undefined &&
+		!typeIncludes(type, "string") &&
+		!typeIncludes(type, "content")
+	);
 }
 
 function luaFindings(probe: Probe): string[] {
@@ -97,7 +115,12 @@ describe.skipIf(!enabled)("field value conformance with the Lua validator (run b
 					continue;
 				}
 				const key = String(probe.location[probe.location.length - 1]);
-				const actual = validateFieldValue(key, probe.value, descriptor)
+				const coerced = coerceFieldValue(probe.value, descriptor.type);
+				if (typeof probe.value === "string" && textOfWrongType(coerced, descriptor) !== probe.wrong_type) {
+					mismatches.push({ location: probe.location, value: probe.value, luaWrongType: probe.wrong_type, coerced });
+					continue;
+				}
+				const actual = validateFieldValue(key, coerced, descriptor)
 					.map((finding) => `${finding.code} ${finding.severity}`)
 					.sort();
 				const expected = luaFindings(probe);

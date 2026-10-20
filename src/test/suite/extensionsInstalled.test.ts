@@ -12,6 +12,7 @@ import * as quarto from "../../utils/coreOperations";
 import { makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
+const RATE_LIMITED = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
 
 const quartoModule = quarto as {
 	installQuartoExtension: typeof quarto.installQuartoExtension;
@@ -41,13 +42,16 @@ suite("Extensions Installed Commands Test Suite", () => {
 	let originalRegisterCommand: typeof vscode.commands.registerCommand;
 	let originalCreateTreeView: typeof vscode.window.createTreeView;
 	let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
+	let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
 	let originalShowInformationMessage: typeof vscode.window.showInformationMessage;
+	let originalWithProgress: typeof vscode.window.withProgress;
 	let originalRefreshAfterAction: typeof QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
 	let originalSetProjectRoots: typeof QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
 
 	let installCalls: InstallCall[];
 	let removeCalls: RemoveCall[];
 	let messages: string[];
+	let errors: string[];
 	let warningActions: string[][];
 	let restoreBoundary: () => void;
 	let subscriptions: vscode.Disposable[];
@@ -71,6 +75,15 @@ suite("Extensions Installed Commands Test Suite", () => {
 		restoreBoundary = stubUpdateBoundary(options);
 	}
 
+	function cancelEveryProgress(): void {
+		const source = new vscode.CancellationTokenSource();
+		source.cancel();
+		subscriptions.push(source);
+		const cancelled = source.token;
+		vscode.window.withProgress = ((_options, task) =>
+			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
+	}
+
 	function runCommand(name: string, ...args: unknown[]): Thenable<unknown> {
 		const id =
 			name === "installExtension" ? "quartoWizard.installExtension" : `quartoWizard.extensionsInstalled.${name}`;
@@ -83,13 +96,16 @@ suite("Extensions Installed Commands Test Suite", () => {
 		originalRegisterCommand = vscode.commands.registerCommand;
 		originalCreateTreeView = vscode.window.createTreeView;
 		originalShowWarningMessage = vscode.window.showWarningMessage;
+		originalShowErrorMessage = vscode.window.showErrorMessage;
 		originalShowInformationMessage = vscode.window.showInformationMessage;
+		originalWithProgress = vscode.window.withProgress;
 		originalRefreshAfterAction = QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
 		originalSetProjectRoots = QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
 
 		installCalls = [];
 		removeCalls = [];
 		messages = [];
+		errors = [];
 		warningActions = [];
 		subscriptions = [];
 		restoreBoundary = stubUpdateBoundary({ repositories: {} });
@@ -116,6 +132,11 @@ suite("Extensions Installed Commands Test Suite", () => {
 			warningActions.push(rest.filter((item): item is string => typeof item === "string"));
 			return "Update All";
 		}) as unknown as typeof vscode.window.showWarningMessage;
+		vscode.window.showErrorMessage = (async (message: string) => {
+			messages.push(message);
+			errors.push(message);
+			return undefined;
+		}) as unknown as typeof vscode.window.showErrorMessage;
 		vscode.window.showInformationMessage = (async (message: string) => {
 			messages.push(message);
 			return undefined;
@@ -151,7 +172,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 		vscode.commands.registerCommand = originalRegisterCommand;
 		vscode.window.createTreeView = originalCreateTreeView;
 		vscode.window.showWarningMessage = originalShowWarningMessage;
+		vscode.window.showErrorMessage = originalShowErrorMessage;
 		vscode.window.showInformationMessage = originalShowInformationMessage;
+		vscode.window.withProgress = originalWithProgress;
 		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = originalRefreshAfterAction;
 		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = originalSetProjectRoots;
 	});
@@ -279,23 +302,33 @@ suite("Extensions Installed Commands Test Suite", () => {
 	});
 
 	test("update all stops without a confirmation when the check is cancelled", async () => {
-		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] } } });
-		const originalWithProgress = vscode.window.withProgress;
-		const cancelled = {
-			isCancellationRequested: true,
-			onCancellationRequested: () => new vscode.Disposable(() => undefined),
-		} as unknown as vscode.CancellationToken;
-		vscode.window.withProgress = ((_options, task) =>
-			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
+		const requests: string[] = [];
+		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] } }, requests });
+		cancelEveryProgress();
 
-		try {
-			await runCommand("updateAll");
-		} finally {
-			vscode.window.withProgress = originalWithProgress;
-		}
+		await runCommand("updateAll");
 
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		assert.deepStrictEqual(requests, []);
 		assert.deepStrictEqual(installCalls, []);
 		assert.deepStrictEqual(messages, []);
+		assert.deepStrictEqual(errors, []);
+	});
+
+	test("update stops quietly when the check is cancelled", async () => {
+		const requests: string[] = [];
+		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.0.0"] } }, requests });
+		cancelEveryProgress();
+
+		await runCommand("update", createItem("acme/registry-demo"));
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		assert.deepStrictEqual(requests, []);
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(messages, []);
+		assert.deepStrictEqual(errors, []);
 	});
 
 	test("update all counts the repositories it could not check in its summary", async () => {
@@ -315,7 +348,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	});
 
 	test("update asks to sign in when the anonymous rate limit stops the check", async () => {
-		stubNetwork({ repositories: { "acme/registry-demo": { githubStatus: 403 } } });
+		stubNetwork({ repositories: { "acme/registry-demo": RATE_LIMITED } });
 
 		await runCommand("update", createItem("acme/registry-demo"));
 
@@ -326,7 +359,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	});
 
 	test("update all does not ask to sign in when the rate limit stops a check with a token", async () => {
-		stubNetwork({ token: "test-token", repositories: { "acme/registry-demo": { githubStatus: 403 } } });
+		stubNetwork({ token: "test-token", repositories: { "acme/registry-demo": RATE_LIMITED } });
 
 		await runCommand("updateAll");
 
@@ -335,6 +368,36 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.ok(messages[0].includes("GitHub rate limit reached."), messages[0]);
 		assert.ok(!/sign in/i.test(messages[0]), messages[0]);
 		assert.deepStrictEqual(warningActions, [["Show Logs"]]);
+	});
+
+	test("update all reports a repository that denies access and keeps the other results", async () => {
+		stubNetwork({
+			token: "test-token",
+			repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 403 } },
+		});
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: "acme/registry-demo@v1.3.0", workspaceFolder: FIXTURE_ROOT, sourceType: "registry" },
+		]);
+		assert.strictEqual(
+			messages[messages.length - 1],
+			"Updated acme/registry-demo to 1.3.0; 1 repository could not be checked.",
+		);
+	});
+
+	test("update all reports a rejected token as a failed check", async () => {
+		stubNetwork({
+			token: "expired-token",
+			repositories: { "acme/registry-demo": { githubStatus: 401 }, "acme/github-demo": { githubStatus: 401 } },
+		});
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.strictEqual(messages.length, 1);
+		assert.ok(messages[0].includes("The update check failed."), messages[0]);
 	});
 
 	test("remove passes the extension id and workspace folder", async () => {

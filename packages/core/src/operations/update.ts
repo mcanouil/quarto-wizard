@@ -25,8 +25,10 @@ import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/la
 import { install, parseInstallSource } from "./install.js";
 import {
 	AuthenticationError,
+	CancellationError,
 	ExtensionError,
 	NetworkError,
+	RateLimitError,
 	SamlSsoError,
 	getErrorMessage,
 	isCancellationError,
@@ -76,7 +78,7 @@ export interface RepositoryFailure {
  */
 export interface UpdateCheckFailure {
 	/** Kind of failure. */
-	kind: "registry-unavailable" | "rate-limited" | "network";
+	kind: "registry-unavailable" | "rate-limited" | "unauthorised" | "network";
 	/** Reason of the failure. */
 	message: string;
 }
@@ -177,6 +179,9 @@ interface GitHubLookups {
  * the installed version with the latest tag. An update never goes to a lower
  * version.
  *
+ * An aborted `signal` stops the requests and rejects with a
+ * `CancellationError`.
+ *
  * @param options - Check options
  * @returns Available updates and the failures met on the way
  */
@@ -189,6 +194,9 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		repositoryFailures: [],
 	};
 
+	if (registryOptions.signal?.aborted) {
+		throw new CancellationError();
+	}
 	const candidates = await collectCandidates(projectDirs, targetExtension);
 	if (candidates.length === 0) {
 		return result;
@@ -207,7 +215,11 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		}
 	}
 
-	const lookups = createGitHubLookups({ auth: registryOptions.auth, timeout: registryOptions.timeout });
+	const lookups = createGitHubLookups({
+		auth: registryOptions.auth,
+		timeout: registryOptions.timeout,
+		signal: registryOptions.signal,
+	});
 	const repositoryFailures = new Map<string, RepositoryFailure>();
 
 	const updates = await Promise.all(
@@ -327,8 +339,11 @@ function checkFailureKind(error: unknown): UpdateCheckFailure["kind"] | null {
 	if (error instanceof SamlSsoError) {
 		return null;
 	}
-	// handleGitHubError turns a 401 or 403 into an AuthenticationError and keeps
-	// the original NetworkError as its cause.
+	if (error instanceof RateLimitError) {
+		return "rate-limited";
+	}
+	// handleGitHubError turns a 401 or a denied 403 into an AuthenticationError
+	// and keeps the original NetworkError as its cause.
 	const networkError =
 		error instanceof NetworkError
 			? error
@@ -336,8 +351,12 @@ function checkFailureKind(error: unknown): UpdateCheckFailure["kind"] | null {
 				? error.cause
 				: null;
 	const status = networkError?.statusCode;
-	if (status === 403 || status === 429) {
+	if (status === 429) {
 		return "rate-limited";
+	}
+	// A rejected token fails every request, so the whole check is unreliable.
+	if (status === 401) {
+		return "unauthorised";
 	}
 	if (networkError && (status === undefined || status >= 500)) {
 		return "network";
@@ -389,9 +408,10 @@ function buildTagUpdate(
 	if (semver.prerelease(latestVersion) !== null && !followsPrereleases) {
 		return null;
 	}
-	// An installed version that is not a version cannot be compared, so the
-	// latest stable tag is offered and the never-downgrade guard does not apply.
-	const isUpdate = currentVersion ? semver.gt(latestVersion, currentVersion) : !isInstalledTag(candidate, latestTag);
+	// An installed version that is not a version is compared on the floor it
+	// gives, and an install that gives no floor is offered the latest stable tag.
+	const floor = currentVersion ?? installedVersionFloor(candidate, installedVersion);
+	const isUpdate = floor ? semver.gt(latestVersion, floor) : !isInstalledTag(candidate, latestTag);
 	if (!isUpdate) {
 		return null;
 	}
@@ -408,17 +428,40 @@ function buildTagUpdate(
 	};
 }
 
+const EXTRA_NUMERIC_PARTS_PATTERN = /^v?(\d+\.\d+\.\d+)(?:\.\d+)+$/;
+
+/**
+ * Version that an update must exceed when the installed version is not a
+ * version, or null when there is none.
+ *
+ * A version with more than three numeric parts, such as the development build
+ * "1.0.0.9000", is ahead of its first three parts, so a tag equal to them is
+ * not newer. Any other installed version gives the version of the tag recorded
+ * in the manifest source, so that an update never goes below that tag.
+ */
+function installedVersionFloor(candidate: UpdateCandidate, installedVersion: string): string | null {
+	const extended = EXTRA_NUMERIC_PARTS_PATTERN.exec(installedVersion.trim());
+	if (extended) {
+		return normaliseVersion(extended[1]);
+	}
+	const ref = recordedRef(candidate);
+	return ref === null ? null : normaliseVersion(ref.replace(/^V/, "v"));
+}
+
 /**
  * Whether the ref recorded in the manifest source is the given tag, ignoring
  * case and one leading "v".
  */
 function isInstalledTag(candidate: UpdateCandidate, tag: string): boolean {
+	const ref = recordedRef(candidate);
+	const comparable = (value: string) => value.toLowerCase().replace(/^v/, "");
+	return ref !== null && comparable(ref) === comparable(tag);
+}
+
+/** Ref recorded in the manifest source, or null when the source has none. */
+function recordedRef(candidate: UpdateCandidate): string | null {
 	const source = candidate.extension.manifest.source ?? "";
-	if (!splitSourceRef(source).hasRef) {
-		return false;
-	}
-	const comparable = (ref: string) => ref.toLowerCase().replace(/^v/, "");
-	return comparable(source.substring(source.lastIndexOf("@") + 1)) === comparable(tag);
+	return splitSourceRef(source).hasRef ? source.substring(source.lastIndexOf("@") + 1) : null;
 }
 
 function buildCommitUpdate(
@@ -451,12 +494,16 @@ function buildCommitUpdate(
 /**
  * Apply updates to extensions.
  *
+ * An aborted `signal` stops the running install. That update and every
+ * update after it go to `skipped`, and the result keeps the updates that
+ * were already installed.
+ *
  * @param updates - Updates to apply
  * @param options - Update options
  * @returns Update result
  */
 export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions): Promise<UpdateResult> {
-	const { auth, onProgress } = options;
+	const { auth, onProgress, signal } = options;
 
 	const result: UpdateResult = {
 		updated: [],
@@ -464,7 +511,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 		failed: [],
 	};
 
-	for (const update of updates) {
+	for (const [index, update] of updates.entries()) {
 		const extName = formatExtensionId(update.extension.id);
 
 		try {
@@ -481,6 +528,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				auth,
 				force: true,
 				sourceType: update.extension.manifest.sourceType,
+				signal,
 				onProgress: (p) => {
 					onProgress?.({
 						extension: extName,
@@ -496,6 +544,10 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				newVersion: update.latestVersion,
 			});
 		} catch (error) {
+			if (isCancellationError(error)) {
+				result.skipped.push(...updates.slice(index).map((u) => ({ extension: u.extension, reason: error.message })));
+				break;
+			}
 			result.failed.push({
 				extension: update.extension,
 				error: getErrorMessage(error),

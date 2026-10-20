@@ -33,6 +33,8 @@ export interface RegistryOptions {
 	auth?: AuthConfig;
 	/** Request timeout in milliseconds. */
 	timeout?: number;
+	/** AbortSignal for cancellation. */
+	signal?: AbortSignal;
 }
 
 /**
@@ -49,6 +51,7 @@ export async function fetchRegistry(options: RegistryOptions = {}): Promise<Regi
 		cacheTtl = DEFAULT_CACHE_TTL,
 		auth,
 		timeout,
+		signal,
 	} = options;
 
 	if (!forceRefresh && cacheDir) {
@@ -63,6 +66,7 @@ export async function fetchRegistry(options: RegistryOptions = {}): Promise<Regi
 	const raw = await fetchJson<Record<string, RawRegistryEntry>>(registryUrl, {
 		headers,
 		timeout,
+		signal,
 	});
 
 	const registry = parseRegistry(raw);
