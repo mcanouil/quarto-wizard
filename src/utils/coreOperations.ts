@@ -169,6 +169,10 @@ async function runWithParsedSourceAndAuthRetry<T>(
 		const source = parseInstallSource(sourceInput);
 		return await run(source, initialAuth);
 	} catch (error) {
+		if (isCancellationError(error)) {
+			logMessage(`${prefix} Operation cancelled by the user.`, "info");
+			return null as T;
+		}
 		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
 		const flags: HandleAuthErrorOptions = {
 			...retryFlags,
@@ -277,8 +281,15 @@ export async function installQuartoExtension(
 
 	const selectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
 
+	const controller = new AbortController();
+	if (cancellationToken?.isCancellationRequested) {
+		controller.abort();
+	}
+	const cancellation = cancellationToken?.onCancellationRequested(() => controller.abort());
+
 	const doInstall = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<boolean | null> => {
 		const result = await install(source, {
+			signal: controller.signal,
 			projectDir: workspaceFolder,
 			force: true,
 			auth: authConfig,
@@ -315,10 +326,14 @@ export async function installQuartoExtension(
 		}
 	};
 
-	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false, {
-		context,
-		offerSessionOnNotFound,
-	});
+	try {
+		return await runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false, {
+			context,
+			offerSessionOnNotFound,
+		});
+	} finally {
+		cancellation?.dispose();
+	}
 }
 
 /**

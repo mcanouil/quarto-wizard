@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
+import { execFileSync } from "child_process";
 import { installQuartoExtension, removeQuartoExtension } from "../../utils/coreOperations";
 
 suite("Quarto Utils Test Suite", () => {
@@ -50,6 +51,129 @@ suite("Quarto Utils Test Suite", () => {
 			const result = await installQuartoExtension(extensionName, testWorkspaceDir);
 
 			assert.strictEqual(typeof result, "boolean");
+		});
+
+		suite("cancellation", () => {
+			const ARCHIVE_URL = "https://api.github.com/repos/acme/demo/zipball/v1.0.0";
+			let originalFetch: typeof globalThis.fetch;
+			let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
+			let source: vscode.CancellationTokenSource;
+			let archiveRequests: (AbortSignal | null | undefined)[];
+			let onArchiveRequest: () => void;
+			let archiveBody: Buffer | undefined;
+
+			function json(body: unknown): Response {
+				return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+			}
+
+			function buildArchive(): Buffer {
+				const archiveDir = fs.mkdtempSync(path.join(os.tmpdir(), "quarto-wizard-archive-"));
+				try {
+					const extensionDir = path.join(archiveDir, "demo-1.0.0", "_extensions", "acme", "demo");
+					fs.mkdirSync(extensionDir, { recursive: true });
+					fs.writeFileSync(
+						path.join(extensionDir, "_extension.yml"),
+						"title: Demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
+					);
+					const zipPath = path.join(archiveDir, "demo.zip");
+					execFileSync("zip", ["-qr", zipPath, "demo-1.0.0"], { cwd: archiveDir });
+					return fs.readFileSync(zipPath);
+				} finally {
+					fs.rmSync(archiveDir, { recursive: true, force: true });
+				}
+			}
+
+			setup(() => {
+				source = new vscode.CancellationTokenSource();
+				archiveRequests = [];
+				onArchiveRequest = () => undefined;
+				archiveBody = undefined;
+				originalFetch = globalThis.fetch;
+				originalShowWarningMessage = vscode.window.showWarningMessage;
+
+				globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+					const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+					if (url.startsWith("https://api.github.com/repos/acme/demo/releases")) {
+						return json([
+							{
+								tag_name: "v1.0.0",
+								name: "v1.0.0",
+								zipball_url: ARCHIVE_URL,
+								tarball_url: "https://api.github.com/repos/acme/demo/tarball/v1.0.0",
+								html_url: "https://github.com/acme/demo/releases/tag/v1.0.0",
+								published_at: "2026-01-01T00:00:00Z",
+								prerelease: false,
+								draft: false,
+							},
+						]);
+					}
+					if (url.startsWith("https://api.github.com/repos/acme/demo/tags")) {
+						return json([]);
+					}
+					if (url === ARCHIVE_URL) {
+						archiveRequests.push(init?.signal);
+						onArchiveRequest();
+						if (archiveBody) {
+							return new Response(new Uint8Array(archiveBody), { status: 200 });
+						}
+						return new Promise<Response>((_resolve, reject) => {
+							init?.signal?.addEventListener("abort", () =>
+								reject(new DOMException("The operation was aborted.", "AbortError")),
+							);
+						});
+					}
+					return new Response(JSON.stringify({ message: "Not Found" }), { status: 404 });
+				}) as typeof globalThis.fetch;
+			});
+
+			teardown(() => {
+				globalThis.fetch = originalFetch;
+				vscode.window.showWarningMessage = originalShowWarningMessage;
+				source.dispose();
+			});
+
+			test("a cancel during the download aborts it and returns null", async () => {
+				const downloadStarted = new Promise<void>((resolve) => {
+					onArchiveRequest = resolve;
+				});
+
+				const pending = installQuartoExtension("acme/demo", testWorkspaceDir, { cancellationToken: source.token });
+				await downloadStarted;
+				source.cancel();
+
+				assert.strictEqual(await pending, null);
+				assert.strictEqual(archiveRequests.length, 1);
+				assert.strictEqual(archiveRequests[0]?.aborted, true);
+			});
+
+			test("a cancel on an already-cancelled token returns null without a download", async () => {
+				source.cancel();
+
+				const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+					cancellationToken: source.token,
+				});
+
+				assert.strictEqual(result, null);
+				assert.strictEqual(archiveRequests.length, 0);
+			});
+
+			test("a cancel during the overwrite prompt returns null", async () => {
+				archiveBody = buildArchive();
+				const installedDir = path.join(testWorkspaceDir, "_extensions", "acme", "demo");
+				fs.mkdirSync(installedDir, { recursive: true });
+				fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: Old\nauthor: Acme\nversion: 0.9.0\n");
+				(vscode.window as { showWarningMessage: unknown }).showWarningMessage = async () => {
+					source.cancel();
+					return undefined;
+				};
+
+				const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+					cancellationToken: source.token,
+				});
+
+				assert.strictEqual(result, null);
+				assert.match(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf8"), /Old/);
+			});
 		});
 	});
 
