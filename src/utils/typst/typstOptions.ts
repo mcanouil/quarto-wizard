@@ -376,7 +376,7 @@ function coerceGlobal(key: string, raw: unknown): TypstOptionValue | undefined {
 		if (typeof value === "number") {
 			return value;
 		}
-		return typeof value === "string" ? luaToNumber(value) : undefined;
+		return luaToNumber(typeof value === "string" ? value : stringify(raw));
 	}
 	if (typeof fallback === "boolean") {
 		return typeof raw === "boolean" ? raw : stringify(raw) === "true";

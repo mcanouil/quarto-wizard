@@ -37,6 +37,7 @@ function readString(text: string): number | string {
  * The two disagree on some numbers: Quarto reads `0b101`, `0o170`, `-0x10` and `1_000` as numbers.
  * It leaves `0B101`, `1:20` and `0x1p4` as text.
  * Quarto hands Lua a non-finite number as the text `.inf`, `-.inf` or `.nan`.
+ * A parsed value does not say whether it was quoted, so a quoted `"0b101"` is read as a number too.
  * Probed on 2026-10-20 with Quarto 99.9.9 against js-yaml 5.5.0.
  *
  * @param value - A scalar, as the extension parsed it.

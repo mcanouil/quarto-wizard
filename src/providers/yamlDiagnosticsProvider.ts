@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { formatType, validateFieldValue, deprecationMessage } from "@quarto-wizard/schema";
+import { formatType, validateFieldValue, deprecationMessage, coerceFieldValue } from "@quarto-wizard/schema";
 import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { getDocumentYaml } from "../utils/documentScan";
@@ -21,7 +21,7 @@ import { readYamlValueForType } from "../utils/quartoYamlScalar";
  */
 export function validateSingleValue(key: string, rawValue: unknown, descriptor: FieldDescriptor): string[] {
 	const errors: string[] = [];
-	const value = readYamlValueForType(rawValue, descriptor.type);
+	const value = coerceFieldValue(readYamlValueForType(rawValue, descriptor.type), descriptor.type);
 
 	if (value === null || value === undefined) {
 		return errors;
@@ -465,7 +465,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 	 * @param descriptor - The field descriptor of the option.
 	 */
 	static typeFinding(key: string, rawValue: unknown, descriptor: FieldDescriptor): string | undefined {
-		const value = readYamlValueForType(rawValue, descriptor.type);
+		const value = coerceFieldValue(readYamlValueForType(rawValue, descriptor.type), descriptor.type);
 		if (!descriptor.type || value === null || value === undefined) {
 			return undefined;
 		}

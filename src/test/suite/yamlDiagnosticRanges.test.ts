@@ -109,4 +109,11 @@ suite("YAML Diagnostic Ranges Test Suite", () => {
 	test("Should accept a quoted decimal string on a top-level number field, as Lua does", () => {
 		assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", "5", { type: "number" }), undefined);
 	});
+
+	test("Should read the remaining text as Lua tonumber does on a number field", () => {
+		for (const text of ["0x1p4", " 300", "0xA.8p0"]) {
+			assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", text, { type: "number" }), undefined, text);
+			assert.deepStrictEqual(validateSingleValue("count", text, { type: "number" }), [], text);
+		}
+	});
 });

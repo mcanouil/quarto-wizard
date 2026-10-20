@@ -193,6 +193,7 @@ suite("Typst Options Test Suite", () => {
 			assert.strictEqual(dpi("-0x10"), -16);
 			assert.strictEqual(dpi("0x1p4"), 16);
 			assert.strictEqual(dpi(" 300"), 300);
+			assert.strictEqual(dpi([300]), 300);
 			for (const rejected of ["1e999", "abc", "\u00a0300", ""]) {
 				assert.ok(!Object.hasOwn(resolveGlobalConfig({ dpi: rejected }, NO_BRAND_READER), "dpi"), rejected);
 			}
