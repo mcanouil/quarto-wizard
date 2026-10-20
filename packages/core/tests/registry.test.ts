@@ -84,6 +84,21 @@ describe("parseRegistryEntry", () => {
 		expect(entry.latestTag).toBe("1.0.0");
 	});
 
+	it("reads latestRelease none as no tag", () => {
+		const raw = {
+			owner: "test",
+			title: "Test",
+			nameWithOwner: "test/test",
+			url: "https://github.com/test/test",
+			latestRelease: "none",
+		};
+
+		const entry = parseRegistryEntry("test/test", raw);
+
+		expect(entry.latestTag).toBeNull();
+		expect(entry.latestVersion).toBeNull();
+	});
+
 	it("handles template extensions", () => {
 		const raw = {
 			owner: "test",

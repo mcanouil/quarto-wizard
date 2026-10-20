@@ -295,5 +295,5 @@ You can adjust these prompts in [Configuration](../reference/configuration.qmd).
 
 ::: {.callout-note}
 Quarto Wizard can only display information provided by extension authors.
-If an author has not provided a description, licence, or version tags, these fields will show "none".
+If an author has not provided a description, licence, or version tags, these fields are left blank.
 :::
