@@ -102,7 +102,7 @@ const LUA_HEX = new RegExp(
  *
  * @returns The number, or `undefined` when Lua answers nil.
  */
-function luaToNumber(text: string): number | undefined {
+export function luaToNumber(text: string): number | undefined {
 	const decimal = LUA_DECIMAL.exec(text);
 	if (decimal) {
 		return Number(decimal[1]);

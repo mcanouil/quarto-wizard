@@ -12,6 +12,8 @@
  * that corrects the filter shows an image the render does not produce.
  */
 
+import { luaToNumber } from "@quarto-wizard/schema";
+import { readYamlScalarAsQuarto } from "../quartoYamlScalar";
 import type { TypstUnit } from "./typstBlocks";
 
 /** Which side of a light and dark pair a colour is read from. */
@@ -367,12 +369,14 @@ function coerceGlobal(key: string, raw: unknown): TypstOptionValue | undefined {
 
 	const fallback = TYPST_DEFAULTS[key];
 	if (typeof fallback === "number") {
-		// `Number("")` and `Number(" ")` are both zero, while `tonumber` upstream
-		// answers nil for either and the key keeps its default. Reading `dpi: ""` as
-		// zero would compile at no resolution at all.
-		const text = stringify(raw).trim();
-		const parsed = text === "" ? Number.NaN : Number(text);
-		return Number.isNaN(parsed) ? undefined : parsed;
+		// `tonumber` upstream sees what Quarto hands Lua, then reads text its own
+		// way: `0x1p4` is 16, `1e999` is `.inf` and so nil, and a no-break space
+		// is not a space. A nil keeps the default, as does `dpi: ""`.
+		const value = readYamlScalarAsQuarto(raw);
+		if (typeof value === "number") {
+			return value;
+		}
+		return typeof value === "string" ? luaToNumber(value) : undefined;
 	}
 	if (typeof fallback === "boolean") {
 		return typeof raw === "boolean" ? raw : stringify(raw) === "true";

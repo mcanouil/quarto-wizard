@@ -187,6 +187,17 @@ suite("Typst Options Test Suite", () => {
 			assert.ok(!Object.hasOwn(resolveGlobalConfig({ dpi: "wide" }, NO_BRAND_READER), "dpi"));
 		});
 
+		test("Should read a numeric key as tonumber does", () => {
+			const dpi = (value: unknown) => resolveGlobalConfig({ dpi: value }, NO_BRAND_READER).dpi;
+			assert.strictEqual(dpi("0b101"), 5);
+			assert.strictEqual(dpi("-0x10"), -16);
+			assert.strictEqual(dpi("0x1p4"), 16);
+			assert.strictEqual(dpi(" 300"), 300);
+			for (const rejected of ["1e999", "abc", "\u00a0300", ""]) {
+				assert.ok(!Object.hasOwn(resolveGlobalConfig({ dpi: rejected }, NO_BRAND_READER), "dpi"), rejected);
+			}
+		});
+
 		test("Should keep the three-way values of echo, code-fold and output", () => {
 			assert.strictEqual(resolveGlobalConfig({ echo: "fenced" }, NO_BRAND_READER).echo, "fenced");
 			assert.strictEqual(resolveGlobalConfig({ "code-fold": "show" }, NO_BRAND_READER)["code-fold"], "show");
