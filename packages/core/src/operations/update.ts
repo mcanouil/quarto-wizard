@@ -397,9 +397,10 @@ function buildTagUpdate(
 	if (semver.prerelease(latestVersion) !== null && !followsPrereleases) {
 		return null;
 	}
-	// An installed version that is not a version cannot be compared, so the
-	// latest stable tag is offered and the never-downgrade guard does not apply.
-	const isUpdate = currentVersion ? semver.gt(latestVersion, currentVersion) : !isInstalledTag(candidate, latestTag);
+	// An installed version that is not a version is compared on the floor it
+	// gives, and an install that gives no floor is offered the latest stable tag.
+	const floor = currentVersion ?? installedVersionFloor(candidate, installedVersion);
+	const isUpdate = floor ? semver.gt(latestVersion, floor) : !isInstalledTag(candidate, latestTag);
 	if (!isUpdate) {
 		return null;
 	}
@@ -416,17 +417,40 @@ function buildTagUpdate(
 	};
 }
 
+const EXTRA_NUMERIC_PARTS_PATTERN = /^v?(\d+\.\d+\.\d+)(?:\.\d+)+$/;
+
+/**
+ * Version that an update must exceed when the installed version is not a
+ * version, or null when there is none.
+ *
+ * A version with more than three numeric parts, such as the development build
+ * "1.0.0.9000", is ahead of its first three parts, so a tag equal to them is
+ * not newer. Any other installed version gives the version of the tag recorded
+ * in the manifest source, so that an update never goes below that tag.
+ */
+function installedVersionFloor(candidate: UpdateCandidate, installedVersion: string): string | null {
+	const extended = EXTRA_NUMERIC_PARTS_PATTERN.exec(installedVersion.trim());
+	if (extended) {
+		return normaliseVersion(extended[1]);
+	}
+	const ref = recordedRef(candidate);
+	return ref === null ? null : normaliseVersion(ref.replace(/^V/, "v"));
+}
+
 /**
  * Whether the ref recorded in the manifest source is the given tag, ignoring
  * case and one leading "v".
  */
 function isInstalledTag(candidate: UpdateCandidate, tag: string): boolean {
+	const ref = recordedRef(candidate);
+	const comparable = (value: string) => value.toLowerCase().replace(/^v/, "");
+	return ref !== null && comparable(ref) === comparable(tag);
+}
+
+/** Ref recorded in the manifest source, or null when the source has none. */
+function recordedRef(candidate: UpdateCandidate): string | null {
 	const source = candidate.extension.manifest.source ?? "";
-	if (!splitSourceRef(source).hasRef) {
-		return false;
-	}
-	const comparable = (ref: string) => ref.toLowerCase().replace(/^v/, "");
-	return comparable(source.substring(source.lastIndexOf("@") + 1)) === comparable(tag);
+	return splitSourceRef(source).hasRef ? source.substring(source.lastIndexOf("@") + 1) : null;
 }
 
 function buildCommitUpdate(

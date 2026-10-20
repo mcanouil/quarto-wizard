@@ -261,6 +261,21 @@ describe("checkForUpdates", () => {
 			expect(found?.source).toBe("quarto-ext/fontawesome@v1.2.0");
 		});
 
+		it("does not offer a registry tag equal to the first three parts of a four-part version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0.9000", "quarto-ext/fontawesome");
+
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "1.0.0",
+					latestTag: "v1.0.0",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates).toHaveLength(0);
+		});
+
 		it("does not offer the installed registry tag again when the installed version is not a version", async () => {
 			setupExtension("quarto-ext", "fontawesome", "dev", "quarto-ext/fontawesome@v1.2.0");
 
@@ -421,6 +436,37 @@ describe("checkForUpdates", () => {
 			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
 
 			expect(result.updates).toHaveLength(0);
+		});
+
+		it("does not offer a tag equal to the first three parts of a four-part version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0.9000", "quarto-ext/fontawesome", "github");
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("v1.0.0"), tag("v0.9.0")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(0);
+		});
+
+		it("does not offer a tag lower than the recorded tag when the installed version is not a version", async () => {
+			setupExtension("quarto-ext", "fontawesome", "dev", "quarto-ext/fontawesome@v1.3.0", "github");
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("v1.2.0"), tag("v1.1.0")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(0);
+		});
+
+		it("does not count a non-numeric fourth part as ahead of the tag", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.2.3.dev0", "quarto-ext/fontawesome@v1.2.0", "github");
+
+			vi.mocked(fetchTags).mockResolvedValue([tag("v1.2.3"), tag("v1.2.0")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(1);
+			expect(result.updates[0]?.latestRef).toBe("v1.2.3");
 		});
 
 		it("offers the latest tag when an unparsable install records an older tag", async () => {
