@@ -163,7 +163,7 @@ async function installQuartoExtensions(
 
 				// Build extension source with optional version tag
 				let extensionSource = selectedExtension.id;
-				if (selectedExtension.tag && selectedExtension.tag !== "none") {
+				if (selectedExtension.tag) {
 					extensionSource = `${selectedExtension.id}@${selectedExtension.tag}`;
 				}
 

@@ -292,12 +292,6 @@ suite("Install Quarto Extension Test Suite", () => {
 				"mcanouil/quarto-github@1.0.1",
 				"Should construct versioned extension source correctly",
 			);
-
-			// Test with "none" version (should not append version)
-			const noneVersion = "none";
-			const extensionSourceNone = noneVersion === "none" ? baseId : `${baseId}@${noneVersion}`;
-
-			assert.strictEqual(extensionSourceNone, baseId, "Should not append version when tag is 'none'");
 		});
 
 		test("Should validate extension metadata structure", () => {
