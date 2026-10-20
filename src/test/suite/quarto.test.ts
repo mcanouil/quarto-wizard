@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
-import { execFileSync } from "child_process";
+import { ZipArchive } from "archiver";
 import { installQuartoExtension, removeQuartoExtension } from "../../utils/coreOperations";
 
 suite("Quarto Utils Test Suite", () => {
@@ -61,12 +61,15 @@ suite("Quarto Utils Test Suite", () => {
 			let archiveRequests: (AbortSignal | null | undefined)[];
 			let onArchiveRequest: () => void;
 			let archiveBody: Buffer | undefined;
+			let requireAuth: boolean;
+			let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
+			let originalGetSession: typeof vscode.authentication.getSession;
 
 			function json(body: unknown): Response {
 				return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 			}
 
-			function buildArchive(): Buffer {
+			async function buildArchive(): Promise<Buffer> {
 				const archiveDir = fs.mkdtempSync(path.join(os.tmpdir(), "quarto-wizard-archive-"));
 				try {
 					const extensionDir = path.join(archiveDir, "demo-1.0.0", "_extensions", "acme", "demo");
@@ -76,7 +79,15 @@ suite("Quarto Utils Test Suite", () => {
 						"title: Demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
 					);
 					const zipPath = path.join(archiveDir, "demo.zip");
-					execFileSync("zip", ["-qr", zipPath, "demo-1.0.0"], { cwd: archiveDir });
+					await new Promise<void>((resolve, reject) => {
+						const output = fs.createWriteStream(zipPath);
+						const archive = new ZipArchive();
+						output.on("close", () => resolve());
+						archive.on("error", reject);
+						archive.pipe(output);
+						archive.directory(path.join(archiveDir, "demo-1.0.0"), "demo-1.0.0");
+						void archive.finalize();
+					});
 					return fs.readFileSync(zipPath);
 				} finally {
 					fs.rmSync(archiveDir, { recursive: true, force: true });
@@ -88,12 +99,19 @@ suite("Quarto Utils Test Suite", () => {
 				archiveRequests = [];
 				onArchiveRequest = () => undefined;
 				archiveBody = undefined;
+				requireAuth = false;
+				originalShowErrorMessage = vscode.window.showErrorMessage;
+				originalGetSession = vscode.authentication.getSession;
 				originalFetch = globalThis.fetch;
 				originalShowWarningMessage = vscode.window.showWarningMessage;
 
 				globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
 					const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 					if (url.startsWith("https://api.github.com/repos/acme/demo/releases")) {
+						const headers = new Headers(init?.headers);
+						if (requireAuth && !headers.has("Authorization")) {
+							return new Response(JSON.stringify({ message: "Requires authentication" }), { status: 401 });
+						}
 						return json([
 							{
 								tag_name: "v1.0.0",
@@ -129,6 +147,8 @@ suite("Quarto Utils Test Suite", () => {
 			teardown(() => {
 				globalThis.fetch = originalFetch;
 				vscode.window.showWarningMessage = originalShowWarningMessage;
+				vscode.window.showErrorMessage = originalShowErrorMessage;
+				(vscode.authentication as { getSession: unknown }).getSession = originalGetSession;
 				source.dispose();
 			});
 
@@ -157,8 +177,43 @@ suite("Quarto Utils Test Suite", () => {
 				assert.strictEqual(archiveRequests.length, 0);
 			});
 
+			function signInOnDemand(onSignIn: () => void): void {
+				(vscode.window as { showErrorMessage: unknown }).showErrorMessage = async () => "Sign In";
+				(vscode.authentication as { getSession: unknown }).getSession = async () => {
+					onSignIn();
+					return { accessToken: "token" } as vscode.AuthenticationSession;
+				};
+			}
+
+			test("a cancel after sign-in returns null without a retry", async () => {
+				requireAuth = true;
+				signInOnDemand(() => source.cancel());
+
+				const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+					cancellationToken: source.token,
+				});
+
+				assert.strictEqual(result, null);
+				assert.strictEqual(archiveRequests.length, 0);
+			});
+
+			test("a cancel during the retry after sign-in returns null", async () => {
+				requireAuth = true;
+				signInOnDemand(() => undefined);
+				const downloadStarted = new Promise<void>((resolve) => {
+					onArchiveRequest = resolve;
+				});
+
+				const pending = installQuartoExtension("acme/demo", testWorkspaceDir, { cancellationToken: source.token });
+				await downloadStarted;
+				source.cancel();
+
+				assert.strictEqual(await pending, null);
+				assert.strictEqual(archiveRequests[0]?.aborted, true);
+			});
+
 			test("a cancel during the overwrite prompt returns null", async () => {
-				archiveBody = buildArchive();
+				archiveBody = await buildArchive();
 				const installedDir = path.join(testWorkspaceDir, "_extensions", "acme", "demo");
 				fs.mkdirSync(installedDir, { recursive: true });
 				fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: Old\nauthor: Acme\nversion: 0.9.0\n");
