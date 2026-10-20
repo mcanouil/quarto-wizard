@@ -67,7 +67,7 @@ export interface UpdateInfo {
  * A repository that could not be checked.
  */
 export interface RepositoryFailure {
-	/** Repository as `owner/repo`. */
+	/** Repository as `owner/repo`, or the extension name when it matches several owners. */
 	repository: string;
 	/** Reason of the failure. */
 	message: string;
@@ -157,7 +157,7 @@ interface UpdateCandidate {
 	base: string;
 	owner: string;
 	repo: string;
-	/** Repository as `owner/repo`. */
+	/** Repository as `owner/repo`, or the extension name when it matches several owners. */
 	fullName: string;
 	/** Seven-character commit when the source is pinned to a commit. */
 	currentCommit: string | null;
@@ -198,7 +198,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		throw new CancellationError();
 	}
 	const { candidates, failures } = await collectCandidates(projectDirs, targetExtension);
-	result.repositoryFailures = failures;
+	result.repositoryFailures = [...failures.values()];
 	if (candidates.length === 0) {
 		return result;
 	}
@@ -221,9 +221,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		timeout: registryOptions.timeout,
 		signal: registryOptions.signal,
 	});
-	const repositoryFailures = new Map<string, RepositoryFailure>(
-		failures.map((failure) => [failure.repository.toLowerCase(), failure]),
-	);
+	const repositoryFailures = new Map(failures);
 
 	const updates = await Promise.all(
 		candidates.map(async (candidate) => {
@@ -264,8 +262,8 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 async function collectCandidates(
 	projectDirs: string[],
 	target?: ExtensionId,
-): Promise<{ candidates: UpdateCandidate[]; failures: RepositoryFailure[] }> {
-	const failures: RepositoryFailure[] = [];
+): Promise<{ candidates: UpdateCandidate[]; failures: Map<string, RepositoryFailure> }> {
+	const failures = new Map<string, RepositoryFailure>();
 	const perDirectory = await Promise.all(
 		projectDirs.map(async (projectDir) => {
 			let extensions: InstalledExtension[];
@@ -277,7 +275,8 @@ async function collectCandidates(
 					if (!(error instanceof ExtensionError)) {
 						throw error;
 					}
-					failures.push({ repository: formatExtensionId(target), message: error.message });
+					const repository = formatExtensionId(target);
+					failures.set(repository.toLowerCase(), { repository, message: error.message });
 					extensions = [];
 				}
 			} else {
