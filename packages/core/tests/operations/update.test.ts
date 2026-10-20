@@ -699,6 +699,23 @@ describe("checkForUpdates", () => {
 			expect(result.repositoryFailures).toHaveLength(0);
 		});
 
+		it("reports a bare target that two owners share as that extension's failure", async () => {
+			setupExtension("acme", "demo", "1.0.0", "acme/demo@v1.0.0", "github");
+			setupExtension("beta", "demo", "1.0.0", "beta/demo@v1.0.0", "github");
+
+			const result = await checkForUpdates({
+				projectDirs: [tempDir],
+				extension: { owner: null, name: "demo" },
+				auth: TOKEN,
+			});
+
+			expect(result.checkFailure).toBeUndefined();
+			expect(result.updates).toEqual([]);
+			expect(result.repositoryFailures).toEqual([
+				{ repository: "demo", message: 'Extension name "demo" is ambiguous: acme/demo, beta/demo.' },
+			]);
+		});
+
 		it("reports a denied 403 as a repository failure and keeps the other results", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
 			setupExtension("quarto-ext", "lightbox", "1.0.0", "quarto-ext/lightbox@v1.0.0", "github");

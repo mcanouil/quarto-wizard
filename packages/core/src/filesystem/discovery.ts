@@ -9,8 +9,9 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ExtensionId } from "../types/extension.js";
+import { formatExtensionId, type ExtensionId } from "../types/extension.js";
 import type { ExtensionManifest } from "../types/manifest.js";
+import { ExtensionError } from "../errors.js";
 import { readManifest } from "./manifest.js";
 import { pathExists } from "./walk.js";
 
@@ -209,9 +210,13 @@ export function discoverInstalledExtensionsSync(
 /**
  * Find a specific installed extension by ID.
  *
+ * A name without an owner matches the ownerless `_extensions/<name>` first,
+ * then the single owned extension of that name.
+ *
  * @param projectDir - Project root directory
  * @param extensionId - Extension ID to find
  * @returns InstalledExtension or null if not found
+ * @throws ExtensionError when a name without an owner matches several owners
  */
 export async function findInstalledExtension(
 	projectDir: string,
@@ -219,7 +224,18 @@ export async function findInstalledExtension(
 ): Promise<InstalledExtension | null> {
 	if (!extensionId.owner) {
 		const extensions = await discoverInstalledExtensions(projectDir);
-		return extensions.find((ext) => ext.id.name === extensionId.name) ?? null;
+		const matches = extensions.filter((ext) => ext.id.name === extensionId.name);
+		const ownerless = matches.find((ext) => ext.id.owner === null);
+		if (ownerless) {
+			return ownerless;
+		}
+		if (matches.length > 1) {
+			throw new ExtensionError(
+				`Extension name "${extensionId.name}" is ambiguous: ${matches.map((ext) => formatExtensionId(ext.id)).join(", ")}.`,
+				{ suggestion: "Use the full owner/name." },
+			);
+		}
+		return matches[0] ?? null;
 	}
 
 	const extPath = path.join(getExtensionsDir(projectDir), extensionId.owner, extensionId.name);
