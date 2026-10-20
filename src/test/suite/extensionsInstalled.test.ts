@@ -84,11 +84,52 @@ suite("Extensions Installed Commands Test Suite", () => {
 			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
 	}
 
+	function cancellableProgress(): { cancel: () => void } {
+		let cancelled = false;
+		const token = {
+			get isCancellationRequested() {
+				return cancelled;
+			},
+			onCancellationRequested: () => new vscode.Disposable(() => undefined),
+		} as vscode.CancellationToken;
+		vscode.window.withProgress = ((_options, task) =>
+			task({ report: () => undefined }, token)) as typeof vscode.window.withProgress;
+		return {
+			cancel: () => {
+				cancelled = true;
+			},
+		};
+	}
+
+	function stubTwoUpdates(): void {
+		stubNetwork({
+			repositories: {
+				"acme/registry-demo": { githubTags: ["v1.3.0"] },
+				"acme/github-demo": { githubTags: ["v1.3.0"] },
+			},
+		});
+	}
+
 	function runCommand(name: string, ...args: unknown[]): Thenable<unknown> {
 		const id =
 			name === "installExtension" ? "quartoWizard.installExtension" : `quartoWizard.extensionsInstalled.${name}`;
 		return vscode.commands.executeCommand(`${COMMAND_PREFIX}${id}`, ...args);
 	}
+
+	// The constructor schedules a discovery that ends in refreshAfterAction, possibly after the test has ended.
+	// The stubs stay in place for the whole suite so that a late call never starts a real check during a later test.
+	suiteSetup(() => {
+		originalRefreshAfterAction = QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
+		originalSetProjectRoots = QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
+		// Both would reach the registry over the network or replace the roots injected below.
+		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = () => undefined;
+		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = () => false;
+	});
+
+	suiteTeardown(() => {
+		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = originalRefreshAfterAction;
+		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = originalSetProjectRoots;
+	});
 
 	setup(async () => {
 		originalInstall = quarto.installQuartoExtension;
@@ -99,8 +140,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 		originalShowErrorMessage = vscode.window.showErrorMessage;
 		originalShowInformationMessage = vscode.window.showInformationMessage;
 		originalWithProgress = vscode.window.withProgress;
-		originalRefreshAfterAction = QuartoExtensionTreeDataProvider.prototype.refreshAfterAction;
-		originalSetProjectRoots = QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
 
 		installCalls = [];
 		removeCalls = [];
@@ -142,10 +181,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 			return undefined;
 		}) as unknown as typeof vscode.window.showInformationMessage;
 
-		// Both would reach the registry over the network or replace the roots injected below.
-		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = () => undefined;
-		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = () => false;
-
 		registerInstallCommands(createContext(), () => undefined);
 		const instance = new ExtensionsInstalled(createContext(), new SchemaCache(), new SnippetCache());
 		provider = (instance as unknown as { treeDataProvider: ProviderInternals }).treeDataProvider;
@@ -175,8 +210,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 		vscode.window.showErrorMessage = originalShowErrorMessage;
 		vscode.window.showInformationMessage = originalShowInformationMessage;
 		vscode.window.withProgress = originalWithProgress;
-		QuartoExtensionTreeDataProvider.prototype.refreshAfterAction = originalRefreshAfterAction;
-		QuartoExtensionTreeDataProvider.prototype.setProjectRoots = originalSetProjectRoots;
 	});
 
 	test("update installs the latest GitHub tag for a registry extension", async () => {
@@ -329,6 +362,72 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(installCalls, []);
 		assert.deepStrictEqual(messages, []);
 		assert.deepStrictEqual(errors, []);
+	});
+
+	test("update all stays quiet when it is cancelled before any install completes", async () => {
+		stubTwoUpdates();
+		const progress = cancellableProgress();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			progress.cancel();
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 1);
+		assert.deepStrictEqual(errors, []);
+		assert.ok(!messages.some((message) => message.startsWith("Updated")), messages.join("\n"));
+	});
+
+	test("update all reports a declined install that is not a cancel", async () => {
+		stubTwoUpdates();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 1);
+		assert.deepStrictEqual(errors, ["Failed to update extensions."]);
+	});
+
+	test("update all reports the updates done before a cancel", async () => {
+		stubTwoUpdates();
+		const progress = cancellableProgress();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			if (installCalls.length === 1) {
+				return true;
+			}
+			progress.cancel();
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 2);
+		assert.deepStrictEqual(errors, []);
+		assert.strictEqual(messages[messages.length - 1], "Updated acme/github-demo to 1.3.0; cancelled before 1 more.");
+	});
+
+	test("update all reports a failed install when it is cancelled afterwards", async () => {
+		stubTwoUpdates();
+		const progress = cancellableProgress();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			if (installCalls.length === 1) {
+				return false;
+			}
+			progress.cancel();
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 2);
+		assert.deepStrictEqual(errors, ["Failed to update extensions."]);
 	});
 
 	test("update all counts the repositories it could not check in its summary", async () => {

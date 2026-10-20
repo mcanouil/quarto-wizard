@@ -125,6 +125,7 @@ async function getFreshAuth(): Promise<AuthConfig> {
  * @param cancellationToken - Optional cancellation token.
  * @param retryFn - The operation to retry, receiving fresh auth.
  * @param fallbackValue - Value to return when retry is not attempted or fails.
+ * @param cancelledValue - Value to return when the user cancels before or during the retry.
  * @returns The result of the retry, or the fallback value.
  */
 async function retryWithFreshAuth<T>(
@@ -134,13 +135,14 @@ async function retryWithFreshAuth<T>(
 	cancellationToken: vscode.CancellationToken | undefined,
 	retryFn: (freshAuth: AuthConfig) => Promise<T>,
 	fallbackValue: T,
+	cancelledValue: T,
 ): Promise<T> {
 	const signedIn = await handleAuthError(prefix, error, flags);
-	if (!signedIn) {
-		return fallbackValue;
-	}
 	if (cancellationToken?.isCancellationRequested) {
 		logMessage(`${prefix} Operation cancelled by the user.`, "info");
+		return cancelledValue;
+	}
+	if (!signedIn) {
 		return fallbackValue;
 	}
 	logMessage(`${prefix} Retrying after successful authentication.`, "info");
@@ -148,6 +150,10 @@ async function retryWithFreshAuth<T>(
 		const freshAuth = await getFreshAuth();
 		return await retryFn(freshAuth);
 	} catch (retryError) {
+		if (isCancellationError(retryError)) {
+			logMessage(`${prefix} Operation cancelled by the user.`, "info");
+			return cancelledValue;
+		}
 		logMessage(`${prefix} Retry failed: ${getErrorMessage(retryError)}.`, "error");
 		return fallbackValue;
 	}
@@ -163,12 +169,17 @@ async function runWithParsedSourceAndAuthRetry<T>(
 	cancellationToken: vscode.CancellationToken | undefined,
 	run: (source: ParsedInstallSource, authConfig?: AuthConfig) => Promise<T>,
 	fallbackValue: T,
+	cancelledValue: T,
 	retryFlags: Omit<HandleAuthErrorOptions, "hadAuth"> = {},
 ): Promise<T> {
 	try {
 		const source = parseInstallSource(sourceInput);
 		return await run(source, initialAuth);
 	} catch (error) {
+		if (isCancellationError(error)) {
+			logMessage(`${prefix} Operation cancelled by the user.`, "info");
+			return cancelledValue;
+		}
 		logMessage(`${prefix} Error: ${getErrorMessage(error)}.`, "error");
 		const flags: HandleAuthErrorOptions = {
 			...retryFlags,
@@ -184,6 +195,7 @@ async function runWithParsedSourceAndAuthRetry<T>(
 				return run(source, freshAuth);
 			},
 			fallbackValue,
+			cancelledValue,
 		);
 	}
 }
@@ -277,8 +289,15 @@ export async function installQuartoExtension(
 
 	const selectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
 
+	const controller = new AbortController();
+	if (cancellationToken?.isCancellationRequested) {
+		controller.abort();
+	}
+	const cancellation = cancellationToken?.onCancellationRequested(() => controller.abort());
+
 	const doInstall = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<boolean | null> => {
 		const result = await install(source, {
+			signal: controller.signal,
 			projectDir: workspaceFolder,
 			force: true,
 			auth: authConfig,
@@ -315,10 +334,14 @@ export async function installQuartoExtension(
 		}
 	};
 
-	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false, {
-		context,
-		offerSessionOnNotFound,
-	});
+	try {
+		return await runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false, null, {
+			context,
+			offerSessionOnNotFound,
+		});
+	} finally {
+		cancellation?.dispose();
+	}
 }
 
 /**
@@ -538,7 +561,7 @@ export async function useQuartoExtension(
 		}
 	};
 
-	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doUse, null, {
+	return runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doUse, null, null, {
 		context,
 		offerSessionOnNotFound,
 	});
@@ -659,6 +682,7 @@ export async function useQuartoBrand(
 			{ hadAuth: Boolean(auth?.githubToken) },
 			cancellationToken,
 			(freshAuth) => doBrand(freshAuth),
+			null,
 			null,
 		);
 	}
