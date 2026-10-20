@@ -84,6 +84,32 @@ suite("Extensions Installed Commands Test Suite", () => {
 			task({ report: () => undefined }, cancelled)) as typeof vscode.window.withProgress;
 	}
 
+	function cancellableProgress(): { cancel: () => void } {
+		let cancelled = false;
+		const token = {
+			get isCancellationRequested() {
+				return cancelled;
+			},
+			onCancellationRequested: () => new vscode.Disposable(() => undefined),
+		} as vscode.CancellationToken;
+		vscode.window.withProgress = ((_options, task) =>
+			task({ report: () => undefined }, token)) as typeof vscode.window.withProgress;
+		return {
+			cancel: () => {
+				cancelled = true;
+			},
+		};
+	}
+
+	function stubTwoUpdates(): void {
+		stubNetwork({
+			repositories: {
+				"acme/registry-demo": { githubTags: ["v1.3.0"] },
+				"acme/github-demo": { githubTags: ["v1.3.0"] },
+			},
+		});
+	}
+
 	function runCommand(name: string, ...args: unknown[]): Thenable<unknown> {
 		const id =
 			name === "installExtension" ? "quartoWizard.installExtension" : `quartoWizard.extensionsInstalled.${name}`;
@@ -336,6 +362,41 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(installCalls, []);
 		assert.deepStrictEqual(messages, []);
 		assert.deepStrictEqual(errors, []);
+	});
+
+	test("update all stays quiet when it is cancelled before any install", async () => {
+		stubTwoUpdates();
+		const progress = cancellableProgress();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			progress.cancel();
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 1);
+		assert.deepStrictEqual(errors, []);
+		assert.ok(!messages.some((message) => message.startsWith("Updated")), messages.join("\n"));
+	});
+
+	test("update all reports the updates done before a cancel", async () => {
+		stubTwoUpdates();
+		const progress = cancellableProgress();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			if (installCalls.length === 1) {
+				return true;
+			}
+			progress.cancel();
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 2);
+		assert.deepStrictEqual(errors, []);
+		assert.strictEqual(messages[messages.length - 1], "Updated acme/github-demo to 1.3.0; cancelled before 1 more.");
 	});
 
 	test("update all counts the repositories it could not check in its summary", async () => {

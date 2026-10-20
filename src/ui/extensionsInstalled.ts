@@ -572,28 +572,31 @@ export class ExtensionsInstalled {
 				const updated: UpdateInfo[] = [];
 				let failedCount = 0;
 
-				await withProgressNotification(`Updating ${updates.length} extension(s) ...`, async (token) => {
-					for (const update of updates) {
-						if (token.isCancellationRequested) {
-							break;
+				const cancelled = await withProgressNotification(
+					`Updating ${updates.length} extension(s) ...`,
+					async (token) => {
+						for (const update of updates) {
+							if (token.isCancellationRequested) {
+								return true;
+							}
+							const result = await installQuartoExtension(update.source, update.projectDir, {
+								auth,
+								skipOverwritePrompt: true,
+								cancellationToken: token,
+								sourceType: getEffectiveSourceType(update.extension.manifest),
+							});
+							if (result === true) {
+								updated.push(update);
+							} else if (result === false) {
+								failedCount++;
+							} else {
+								return true;
+							}
 						}
-						const result = await installQuartoExtension(update.source, update.projectDir, {
-							auth,
-							skipOverwritePrompt: true,
-							cancellationToken: token,
-							sourceType: getEffectiveSourceType(update.extension.manifest),
-						});
-						if (result === true) {
-							updated.push(update);
-						} else if (result === false) {
-							failedCount++;
-						} else {
-							// result === null means cancelled by user, stop processing
-							break;
-						}
-					}
-					return updated.length > 0;
-				});
+						return token.isCancellationRequested;
+					},
+				);
+				const notAttempted = updates.length - updated.length - failedCount;
 
 				if (updated.length > 0) {
 					invalidateProviderCaches();
@@ -603,9 +606,10 @@ export class ExtensionsInstalled {
 					const problems = [
 						...(failedCount > 0 ? [`${failedCount} failed`] : []),
 						...(uncheckedCount > 0 ? [`${uncheckedRepositories} could not be checked`] : []),
+						...(cancelled && notAttempted > 0 ? [`cancelled before ${notAttempted} more`] : []),
 					];
 					vscode.window.showInformationMessage(`Updated ${[versions, ...problems].join("; ")}.`);
-				} else {
+				} else if (!cancelled) {
 					showMessageWithLogs(failureMessage, "error");
 				}
 
