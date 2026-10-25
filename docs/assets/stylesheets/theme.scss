@@ -13,6 +13,13 @@ $border-radius-sm: 0.375rem;
 $border-radius-lg: 0.75rem;
 $enable-smooth-scroll: true;
 
+// Bootstrap adds a translucent box-shadow halo on focus. The FOCUS RING rules
+// draw the only focus indicator, so the halos are off.
+$focus-ring-box-shadow: none;
+$form-select-focus-box-shadow: none;
+$form-range-thumb-focus-box-shadow: none;
+$btn-focus-width: 0;
+
 /*-- scss:functions --*/
 
 // Deterministic pseudo-random star field generator. A Park-Miller (Lehmer)
@@ -222,13 +229,57 @@ body {
   }
 }
 
-a:focus-visible,
-button:focus-visible,
+// ===========================================================================
+// FOCUS RING
+// ===========================================================================
+// One ember outline for every focusable element. The navbar and the footer
+// keep a dark surface in both schemes, so they use the navbar accent.
+//
+// https://github.com/quarto-dev/quarto-cli/pull/15163 adds a two-tone Quarto
+// ring with the same selectors. Its inner tone is --quarto-focus-ring-shadow,
+// which is off here. When a Quarto release includes it, compare these
+// selectors with the ones in that release.
+
+:root {
+  --quarto-focus-ring-shadow: none;
+}
+
+// --mc-focus-ring is set only here. Elsewhere the rules below fall back to
+// var(--mc-ember), which resolves on the element and so follows .quarto-dark.
+.navbar,
+.nav-footer {
+  --mc-focus-ring: var(--mc-navbar-accent);
+}
+
+// The global rule has (0,1,0) specificity. Bootstrap and Quarto remove the
+// outline on the controls below with stronger rules, so these selectors
+// match each of them, and win on order.
+:focus-visible,
 .btn:focus-visible,
-.nav-link:focus-visible {
-  outline: 2px solid var(--mc-ember);
+.btn-close:focus-visible,
+.nav-link:focus-visible,
+.navbar-toggler:focus-visible,
+.accordion-button:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.form-check-input:focus-visible,
+.form-range:focus-visible,
+.sidebar-item .sidebar-item-toggle:focus-visible,
+.sidebar-item button.sidebar-item-text:focus-visible,
+:root mjx-speech:focus-visible {
+  outline: 2px solid var(--mc-focus-ring, var(--mc-ember));
   outline-offset: 2px;
-  border-radius: 2px;
+}
+
+// The visible search field is the form. The input inside it has no border.
+.aa-Form:has(.aa-Input:focus-visible) {
+  outline: 2px solid var(--mc-focus-ring, var(--mc-ember));
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.aa-Form .aa-Input:focus-visible {
+  outline: none;
 }
 
 // ===========================================================================
