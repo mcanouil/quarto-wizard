@@ -8,9 +8,11 @@ import type { AttributeWithSource } from "./elementAttributeCompletionProvider";
 /**
  * A cell option paired with the extension that provides it.
  * `conflicts` holds the sources of the other extensions that declare the same name or alias.
+ * `contested` holds the names and aliases that overlap, so a conflict is reported only on those spellings.
  */
 export interface CellOptionWithSource extends AttributeWithSource {
 	conflicts: string[];
+	contested: string[];
 }
 
 /**
@@ -38,9 +40,14 @@ function optionKeys(name: string, aliases: readonly string[] | undefined): strin
 	return [name, ...(aliases ?? [])];
 }
 
-function addConflict(option: CellOptionWithSource, source: string): void {
+function addConflict(option: CellOptionWithSource, source: string, contested: readonly string[]): void {
 	if (!option.conflicts.includes(source)) {
 		option.conflicts.push(source);
+	}
+	for (const key of contested) {
+		if (!option.contested.includes(key)) {
+			option.contested.push(key);
+		}
 	}
 }
 
@@ -72,7 +79,7 @@ export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptio
 
 			for (const [name, descriptor] of Object.entries(cell.options ?? {})) {
 				const keys = optionKeys(name, descriptor.aliases);
-				const option: CellOptionWithSource = { descriptor, source, conflicts: [] };
+				const option: CellOptionWithSource = { descriptor, source, conflicts: [], contested: [] };
 				let sameName = false;
 
 				for (const earlier of languageOwned) {
@@ -80,11 +87,12 @@ export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptio
 						continue;
 					}
 					const earlierKeys = optionKeys(earlier.name, earlier.option.descriptor.aliases);
-					if (!keys.some((key) => earlierKeys.includes(key))) {
+					const shared = keys.filter((key) => earlierKeys.includes(key));
+					if (shared.length === 0) {
 						continue;
 					}
-					addConflict(earlier.option, source);
-					addConflict(option, earlier.option.source);
+					addConflict(earlier.option, source, shared);
+					addConflict(option, earlier.option.source, shared);
 					if (earlier.name === name) {
 						sameName = true;
 					}

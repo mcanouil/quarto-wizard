@@ -39,6 +39,8 @@ suite("cellOptionSchemas Test Suite", () => {
 			assert.deepStrictEqual(merged.typst.dpi.conflicts, ["B"]);
 			assert.strictEqual(merged.typst.resolution.source, "B");
 			assert.deepStrictEqual(merged.typst.resolution.conflicts, ["A"]);
+			assert.deepStrictEqual(merged.typst.dpi.contested, ["dpi"]);
+			assert.deepStrictEqual(merged.typst.resolution.contested, ["dpi"]);
 		});
 
 		test("merges language keys case-insensitively", () => {

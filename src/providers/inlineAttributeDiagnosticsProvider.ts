@@ -423,7 +423,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			if (!entry) {
 				continue;
 			}
-			if (entry.conflicts.length > 0) {
+			if (entry.conflicts.length > 0 && entry.contested.includes(line.key)) {
 				const names = [entry.source, ...entry.conflicts];
 				const list = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 				report(

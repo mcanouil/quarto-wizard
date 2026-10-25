@@ -993,16 +993,32 @@ suite("Inline Attribute Diagnostics", () => {
 	suite("cell options", () => {
 		const schemas: CellOptionSchemas = {
 			typst: Object.assign(Object.create(null), {
-				dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: [] },
-				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext", conflicts: [] },
-				old: { descriptor: { type: "string", deprecated: { replaceWith: "format" } }, source: "ext", conflicts: [] },
-				must: { descriptor: { type: "string", required: true, aliases: ["need"] }, source: "ext", conflicts: [] },
-				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: [] },
-				shared: { descriptor: { type: "string" }, source: "A", conflicts: ["B"] },
-				triple: { descriptor: { type: "string" }, source: "A", conflicts: ["B", "C"] },
+				dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: [], contested: [] },
+				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext", conflicts: [], contested: [] },
+				old: {
+					descriptor: { type: "string", deprecated: { replaceWith: "format" } },
+					source: "ext",
+					conflicts: [],
+					contested: [],
+				},
+				must: {
+					descriptor: { type: "string", required: true, aliases: ["need"] },
+					source: "ext",
+					conflicts: [],
+					contested: [],
+				},
+				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: [], contested: [] },
+				shared: { descriptor: { type: "string" }, source: "A", conflicts: ["B"], contested: ["shared"] },
+				resolution: {
+					descriptor: { type: "integer", aliases: ["dpi-alias"] },
+					source: "B",
+					conflicts: ["A"],
+					contested: ["dpi-alias"],
+				},
+				triple: { descriptor: { type: "string" }, source: "A", conflicts: ["B", "C"], contested: ["triple"] },
 			}),
 			r: Object.assign(Object.create(null), {
-				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext", conflicts: [] },
+				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext", conflicts: [], contested: [] },
 			}),
 		};
 
@@ -1109,6 +1125,13 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.strictEqual(found[0].message, "`shared` for `{typst}` cells is declared by A and B. A applies.");
 			assert.strictEqual(found[0].range.start.character, 4);
 			assert.strictEqual(found[0].range.end.character, 10);
+		});
+
+		test("an alias-only collision is reported on the contested alias, not on the option name", async () => {
+			assert.deepStrictEqual(await diagnose(cell("must: x\nresolution: 3")), []);
+			const found = await diagnose(cell("must: x\ndpi-alias: 3"));
+			assert.deepStrictEqual(found.map(codeOf), ["schema-cell-option-conflict"]);
+			assert.strictEqual(found[0].message, "`dpi-alias` for `{typst}` cells is declared by B and A. B applies.");
 		});
 
 		test("three sources are all listed", async () => {
