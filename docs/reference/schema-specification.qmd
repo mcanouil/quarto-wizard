@@ -307,7 +307,7 @@ cells:
         description: "Page layout of the cell output."
 ```
 
-A group applies only to comment-pipe options at the top of an executable cell, that is a fence that starts with `{lang}`, such as `{typst}`.
+A group applies only to comment-pipe options at the top of an executable cell, that is a fence whose info string starts with `{lang`, such as `{typst}` or `{r, echo=FALSE}`.
 It never applies to element attributes.
 `{=lang}`, `{.lang}`, and a fence with a bare `lang` are not cells.
 To describe the attributes of a code block, use [`attributes`](#attributes).
@@ -325,9 +325,9 @@ For example, `dpi: "300"` is valid for `type: integer`.
 Quarto Wizard never reports an option that the schema does not declare.
 Quarto options such as `label` and `echo` use the same lines.
 
-If two installed extensions declare the same option for the same language, the extension that Quarto loads first applies.
+If two installed extensions declare the same option for the same language, the first extension that Quarto Wizard finds applies in the editor.
 The option can be a name or an alias.
-Quarto Wizard shows a warning on each line that uses this option.
+Quarto Wizard shows a warning on each line that uses the shared name or alias.
 
 ## Field Descriptor Properties
 
@@ -720,12 +720,17 @@ Then read every Lua source file to discover:
 3. **Format-specific options** read under a format name in metadata.
 4. **Attributes** read from `el.attributes` in Div, Span, or
    CodeBlock filter functions. Group them by CSS class (use `_any` when
-   the attribute applies regardless of class).
-5. **Classes** contributed by the extension's filters. List each CSS
+   the attribute applies regardless of class). Do not list comment-pipe
+   cell options here; they belong in item 5.
+5. **Cell options** read from the comment-pipe lines (`#|`, `//|`) at
+   the start of an executable code cell. Put them under
+   `cells.<language>.options`, one group per language, and never under
+   `attributes`.
+6. **Classes** contributed by the extension's filters. List each CSS
    class name the extension handles, with a short description.
    Look for patterns such as `el.classes:includes("name")`,
    `el.classes:find("name")`, or class-based conditionals.
-6. **Project types** declared or contributed by the extension. If the
+7. **Project types** declared or contributed by the extension. If the
    extension provides a project type, list it under the `projects`
    top-level key.
 

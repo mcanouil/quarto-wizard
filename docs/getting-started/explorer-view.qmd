@@ -108,7 +108,9 @@ If an extension includes schema contributions, the Explorer View shows a `Schema
 - **Shortcodes**.
 - **Formats**.
 - **Projects**.
-- **Element Attributes**.
+- **Attributes**.
+- **Classes**.
+- **Cells**.
 
 If the schema file cannot be parsed, the tree displays `Schema (invalid)` with a warning.
 
