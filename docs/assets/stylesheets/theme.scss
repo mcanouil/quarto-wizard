@@ -257,7 +257,9 @@ body {
 // form, because the input inside it has no border.
 :focus-visible,
 .btn:focus-visible,
+.btn-check:focus-visible + .btn,
 .btn-close:focus-visible,
+.page-link:focus-visible,
 .nav-link:focus-visible,
 .navbar-toggler:focus-visible,
 .accordion-button:focus-visible,
