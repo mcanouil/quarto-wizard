@@ -253,8 +253,7 @@ body {
 
 // The global rule has (0,1,0) specificity. Bootstrap and Quarto remove the
 // outline on the controls below with stronger rules, so these selectors
-// match each of them, and win on order. The visible search field is the
-// form, because the input inside it has no border.
+// match each of them, and win on order.
 :focus-visible,
 .btn:focus-visible,
 .btn-check:focus-visible + .btn,
@@ -269,13 +268,16 @@ body {
 .form-range:focus-visible,
 .sidebar-item .sidebar-item-toggle:focus-visible,
 .sidebar-item button.sidebar-item-text:focus-visible,
-:root mjx-speech:focus-visible,
-.aa-Form:has(.aa-Input:focus-visible) {
+:root mjx-speech:focus-visible {
   outline: 2px solid var(--mc-focus-ring, var(--mc-ember));
   outline-offset: 2px;
 }
 
+// A browser without :has() drops a whole selector list that holds it, so
+// this rule stays apart from the list above.
 .aa-Form:has(.aa-Input:focus-visible) {
+  outline: 2px solid var(--mc-focus-ring, var(--mc-ember));
+  outline-offset: 2px;
   box-shadow: none;
 }
 
