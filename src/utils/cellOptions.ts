@@ -101,6 +101,26 @@ const CELL_INFO = /^\{([A-Za-z0-9_-]+)(?=[\s,}])/;
 const OPTION_KEY = /^([A-Za-z0-9_-]+):(?:\s+(.*))?$/;
 
 /**
+ * The index of the quote that closes the scalar opened at the start of `raw`, or -1.
+ * A double-quoted scalar skips a backslash escape, and a single-quoted one skips a doubled quote.
+ */
+function closingQuote(raw: string): number {
+	const quote = raw[0];
+	for (let index = 1; index < raw.length; index++) {
+		if (quote === '"' && raw[index] === "\\") {
+			index++;
+		} else if (raw[index] === quote) {
+			if (quote === "'" && raw[index + 1] === "'") {
+				index++;
+			} else {
+				return index;
+			}
+		}
+	}
+	return -1;
+}
+
+/**
  * The value without a trailing YAML comment, as Quarto's YAML parse reads it.
  * A `#` that starts the value or follows whitespace opens the comment.
  * A quoted value ends at its closing quote, so a `#` inside the quotes stays.
@@ -108,7 +128,7 @@ const OPTION_KEY = /^([A-Za-z0-9_-]+):(?:\s+(.*))?$/;
 function withoutYamlComment(raw: string): string {
 	let from = 0;
 	if (raw.startsWith('"') || raw.startsWith("'")) {
-		const closing = raw.indexOf(raw[0], 1);
+		const closing = closingQuote(raw);
 		if (closing < 0) {
 			return raw;
 		}
@@ -125,6 +145,14 @@ function withoutYamlComment(raw: string): string {
 export function cellLanguage(info: string): string | undefined {
 	const found = CELL_INFO.exec(info.trim());
 	return found === null ? undefined : found[1].toLowerCase();
+}
+
+/**
+ * The key under which a cell language is looked up in the merged schemas.
+ * Lua matches a language case-insensitively and with a hyphen or an underscore alike, so the key is lower case with hyphens.
+ */
+export function cellLanguageKey(language: string): string {
+	return language.toLowerCase().replaceAll("_", "-");
 }
 
 interface RunLine {

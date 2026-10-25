@@ -22,7 +22,7 @@ import {
 	findKeyValueOffset,
 	findSpacesAroundEquals,
 } from "../utils/inlineAttributeText";
-import { cellLanguage, readCellOptions } from "../utils/cellOptions";
+import { cellLanguage, cellLanguageKey, readCellOptions } from "../utils/cellOptions";
 import { type CellOptionSchemas, collectCellOptionSchemas } from "./cellOptionSchemas";
 import type { FencedBlock } from "../utils/yamlPosition";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
@@ -400,7 +400,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		if (language === undefined) {
 			return;
 		}
-		const options = schemas[language];
+		const options = schemas[cellLanguageKey(language)];
 		if (!options) {
 			return;
 		}

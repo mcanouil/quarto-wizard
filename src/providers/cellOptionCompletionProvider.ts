@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { SchemaCache } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
-import { cellLanguage, cellOptionLineAt, readCellOptions } from "../utils/cellOptions";
+import { cellLanguage, cellLanguageKey, cellOptionLineAt, readCellOptions } from "../utils/cellOptions";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { buildAttributeDoc } from "../utils/schemaDocumentation";
 import type { FencedBlock } from "../utils/yamlPosition";
@@ -48,7 +48,7 @@ async function findCellOptions(
 	language: string,
 ): Promise<Record<string, AttributeWithSource> | undefined> {
 	const schemas = await collectCellOptionSchemas(schemaCache);
-	return schemas[language];
+	return schemas[cellLanguageKey(language)];
 }
 
 /**

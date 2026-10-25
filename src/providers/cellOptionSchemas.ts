@@ -3,6 +3,7 @@ import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { logMessage } from "../utils/log";
+import { cellLanguageKey } from "../utils/cellOptions";
 import type { AttributeWithSource } from "./elementAttributeCompletionProvider";
 
 /**
@@ -15,7 +16,7 @@ export interface CellOptionWithSource extends AttributeWithSource {
 }
 
 /**
- * Merged cell option schemas: lower-cased language to option name to sourced descriptor.
+ * Merged cell option schemas: language key (see `cellLanguageKey`) to option name to sourced descriptor.
  */
 export type CellOptionSchemas = Record<string, Record<string, CellOptionWithSource>>;
 
@@ -70,7 +71,7 @@ export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptio
 			seen.add(id);
 		}
 		for (const [rawLanguage, cell] of Object.entries(schema.cells ?? {})) {
-			const language = rawLanguage.toLowerCase();
+			const language = cellLanguageKey(rawLanguage);
 			const options = (result[language] ??= Object.create(null) as Record<string, CellOptionWithSource>);
 			let languageOwned = owned.get(language);
 			if (languageOwned === undefined) {

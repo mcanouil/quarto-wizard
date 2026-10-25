@@ -1,5 +1,11 @@
 import * as assert from "assert";
-import { cellLanguage, cellOptionLineAt, readCellOptions, type CellOptionLine } from "../../utils/cellOptions";
+import {
+	cellLanguage,
+	cellLanguageKey,
+	cellOptionLineAt,
+	readCellOptions,
+	type CellOptionLine,
+} from "../../utils/cellOptions";
 import { findFencedBlocks } from "../../utils/yamlPosition";
 
 function read(text: string): CellOptionLine[] {
@@ -46,6 +52,16 @@ suite("cellOptions Test Suite", () => {
 			assert.strictEqual(lines[3].value, "x");
 			assert.strictEqual(slice(text, lines[3].valueRange), '"x"');
 			assert.strictEqual(lines[4].value, undefined);
+		});
+
+		test("keeps escaped and doubled quotes inside a quoted value", () => {
+			const text = '```{r}\n#| a: "a \\" # b"\n#| b: \'it\'\'s # x\'\n#| c: "x" # n\n```\n';
+			const lines = read(text);
+			assert.strictEqual(lines[0].value, 'a \\" # b');
+			assert.strictEqual(slice(text, lines[0].valueRange), '"a \\" # b"');
+			assert.strictEqual(lines[1].value, "it''s # x");
+			assert.strictEqual(slice(text, lines[1].valueRange), "'it''s # x'");
+			assert.strictEqual(lines[2].value, "x");
 		});
 
 		test("reads keys and values with document offsets", () => {
@@ -144,6 +160,11 @@ suite("cellOptions Test Suite", () => {
 					["a"],
 				);
 			}
+		});
+
+		test("normalises a language to its lookup key", () => {
+			assert.strictEqual(cellLanguageKey("My_Lang"), "my-lang");
+			assert.strictEqual(cellLanguageKey("typst"), "typst");
 		});
 
 		test("allows whitespace between the prefix and the pipe", () => {

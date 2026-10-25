@@ -287,7 +287,8 @@ classes:
 
 Comment-pipe options of executable code cells.
 Use this section when your extension reads options from the first lines of a cell, such as `//| dpi: 300`.
-Each key is a language name, and it matches without regard to case.
+Each key is a language name.
+It matches without regard to case, and a hyphen matches an underscore.
 A group has an optional `description` and an `options` map.
 Each option is a field descriptor.
 The section works in the same way in v1 and v2 schemas.

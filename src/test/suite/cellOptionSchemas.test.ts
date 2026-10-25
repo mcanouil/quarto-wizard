@@ -1,6 +1,7 @@
 import * as assert from "assert";
 import type { ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
 import { collectCellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
+import { cellLanguageKey } from "../../utils/cellOptions";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { releaseProviderProject, useProviderProject } from "./providerFixtures";
 import { resolveElementAttribute } from "../../providers/elementAttributeCompletionProvider";
@@ -11,6 +12,15 @@ function cells(language: string, options: Record<string, FieldDescriptor>): Exte
 
 suite("cellOptionSchemas Test Suite", () => {
 	suite("mergeCellSchemas", () => {
+		test("matches a language without regard to hyphen or underscore", () => {
+			const merged = mergeCellSchemas([
+				{ source: "A", schema: cells("my-lang", { dpi: { type: "integer" } }) },
+				{ source: "B", schema: cells("My_Lang", { dpi: { type: "integer" } }) },
+			]);
+			assert.deepStrictEqual(Object.keys(merged), ["my-lang"]);
+			assert.deepStrictEqual([...merged["my-lang"].dpi.conflicts.keys()], ["dpi"]);
+		});
+
 		test("keeps the first declaration of a shared option and records the loser", () => {
 			const merged = mergeCellSchemas([
 				{ source: "A", schema: cells("typst", { dpi: { type: "integer", description: "from A" } }) },
@@ -103,7 +113,7 @@ suite("cellOptionSchemas Test Suite", () => {
 			const merged = mergeCellSchemas([
 				{ source: "A", schema: JSON.parse('{"cells":{"__proto__":{"options":{"__proto__":{"type":"string"}}}}}') },
 			]);
-			assert.strictEqual(merged["__proto__"]?.["__proto__"]?.source, "A");
+			assert.strictEqual(merged[cellLanguageKey("__proto__")]?.["__proto__"]?.source, "A");
 		});
 
 		test("ignores schemas without cells", () => {

@@ -1095,6 +1095,18 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.deepStrictEqual(found.map(codeOf), ["schema-type-mismatch"]);
 		});
 
+		test("the language matches without regard to hyphen or underscore", async () => {
+			const hyphenated: CellOptionSchemas = {
+				"my-lang": Object.assign(Object.create(null), {
+					dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: new Map() },
+				}),
+			};
+			for (const language of ["my_lang", "My-Lang"]) {
+				const found = await diagnose(cell("dpi: abc", language, "#"), hyphenated);
+				assert.deepStrictEqual(found.map(codeOf), ["schema-type-mismatch"]);
+			}
+		});
+
 		test("a key with a block value is skipped", async () => {
 			assert.deepStrictEqual(await diagnose("```{typst}\n//| must: x\n//| format:\n//|   - a\n```\n"), []);
 		});
