@@ -173,8 +173,9 @@ function* cellOptionRun(text: string, block: FencedBlock, language: string): Gen
 			return;
 		}
 
-		// Both removals only drop a prefix of the line, so what is left lines up
-		// with the end of the original line.
+		// Offsets are taken from the end of the line. A tab that straddles the
+		// indent leaves synthetic leading spaces in `content`, and such a line
+		// never matches the opening pattern, so it never reaches this point.
 		const contentStart = lineStart + line.length - content.length;
 		const afterOpening = matched[0].length;
 		yield {

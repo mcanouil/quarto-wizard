@@ -1217,6 +1217,34 @@ cells:
   assert_contains(bad_errors, 'typst.format')
 end)
 
+test('validate_cells finds a group by hyphen or underscore spelling', function()
+  local loaded = load_schema([[
+cells:
+  my-lang:
+    options:
+      dpi:
+        type: integer
+]])
+  local _, _, _, merged = schema.validate_cells({ dpi = '300' }, 'my_lang', loaded)
+  assert_eq(merged.dpi, 300, 'the hyphenated group applies')
+end)
+
+test('validate_cells prefers the exact language over a case-insensitive match', function()
+  local loaded = load_schema([[
+cells:
+  Typst:
+    options:
+      dpi:
+        type: string
+  typst:
+    options:
+      dpi:
+        type: integer
+]])
+  local _, _, _, merged = schema.validate_cells({ dpi = '300' }, 'typst', loaded)
+  assert_eq(merged.dpi, 300, 'the exact entry applies')
+end)
+
 test('validate_cells treats an alias and a deprecated option as validate_attributes does', function()
   local loaded = load_schema([[
 cells:

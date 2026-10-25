@@ -162,6 +162,14 @@ suite("cellOptions Test Suite", () => {
 			assert.deepStrictEqual(read("```{c}\n/*| label: a\n```\n"), []);
 		});
 
+		test("ends the run at a line whose tab straddles the fence indent", () => {
+			const text = "  ```{r}\n  #| a: 1\n\t#| b: 2\n  ```\n";
+			assert.deepStrictEqual(
+				read(text).map((line) => line.key),
+				["a"],
+			);
+		});
+
 		test("maps offsets in a cell indented with a tab", () => {
 			const text = "-\titem\n\n\t```{r}\n\t#| dpi: 2\n\tx\n\t```\n";
 			const block = findFencedBlocks(text)[0];

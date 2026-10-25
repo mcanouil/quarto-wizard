@@ -2408,11 +2408,14 @@ function M.validate_cells(options, language, schema, opts)
   opts = opts or {}
   local entry
   if schema and type(schema.cells) == 'table' and type(language) == 'string' then
-    local wanted = language:lower()
-    for key, candidate in pairs(schema.cells) do
-      if type(key) == 'string' and key:lower() == wanted then
-        entry = candidate
-        break
+    entry = _lookup(schema.cells, language)
+    if entry == nil then
+      local wanted = language:lower()
+      for key, candidate in pairs(schema.cells) do
+        if type(key) == 'string' and key:lower() == wanted then
+          entry = candidate
+          break
+        end
       end
     end
   end

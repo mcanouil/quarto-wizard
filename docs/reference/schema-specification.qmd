@@ -326,9 +326,9 @@ For example, `dpi: "300"` is valid for `type: integer`.
 Quarto Wizard never reports an option that the schema does not declare.
 Quarto options such as `label` and `echo` use the same lines.
 
-If two installed extensions declare the same option for the same language, the first extension that Quarto Wizard finds applies in the editor.
-The option can be a name or an alias.
-Quarto Wizard shows a warning on each line that uses the shared name or alias.
+If two installed extensions declare the same option for the same language, a spelling resolves to the extension that declares it as an option name.
+Only when no extension declares it as a name does the first extension that declares it as an alias apply.
+Quarto Wizard shows a warning on each line that uses a shared name or alias.
 
 ## Field Descriptor Properties
 
