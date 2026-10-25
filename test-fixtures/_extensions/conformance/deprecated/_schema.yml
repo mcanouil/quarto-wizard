@@ -41,3 +41,16 @@ options:
     enum: [red, blue]
     deprecated:
       replaceWith: colour
+
+cells:
+  typst:
+    description: "Typst cells."
+    options:
+      dpi:
+        type: integer
+        minimum: 72
+      format:
+        type: string
+        enum: [png, svg]
+      transparent:
+        type: boolean

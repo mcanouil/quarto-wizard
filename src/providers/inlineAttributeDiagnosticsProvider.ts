@@ -22,6 +22,9 @@ import {
 	findKeyValueOffset,
 	findSpacesAroundEquals,
 } from "../utils/inlineAttributeText";
+import { cellLanguage, cellLanguageKey, readCellOptions } from "../utils/cellOptions";
+import { type CellOptionSchemas, collectCellOptionSchemas } from "./cellOptionSchemas";
+import type { FencedBlock } from "../utils/yamlPosition";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 import { debounce } from "../utils/debounce";
@@ -90,6 +93,8 @@ function findInlineReplacement(
  *
  * @param replacement - The replacement of a deprecated attribute, when the
  * attribute list does not write it.
+ * @param noun - What the key names in messages: an attribute of an attribute
+ * list, or an option of a cell.
  * @returns An array of findings (may be empty if valid).
  */
 export function validateInlineValue(
@@ -97,18 +102,19 @@ export function validateInlineValue(
 	value: string,
 	descriptor: FieldDescriptor,
 	replacement?: InlineReplacement,
+	noun: "Attribute" | "Option" = "Attribute",
 ): InlineValidationFinding[] {
 	const coerced = coerceFieldValue(value, descriptor.type);
 	const findings: InlineValidationFinding[] = validateFieldValue(key, coerced, descriptor).map((finding) => ({
 		...finding,
 		message:
-			finding.code === "schema-deprecated" ? `Attribute ${finding.message}` : `Attribute "${key}": ${finding.message}`,
+			finding.code === "schema-deprecated" ? `${noun} ${finding.message}` : `${noun} "${key}": ${finding.message}`,
 	}));
 
 	if (typeof descriptor.deprecated === "object" && descriptor.deprecated.replaceWith) {
 		if (replacement) {
 			findings.push(
-				...validateInlineValue(replacement.key, value, replacement.descriptor).filter(
+				...validateInlineValue(replacement.key, value, replacement.descriptor, undefined, noun).filter(
 					(finding) => finding.code !== "schema-deprecated",
 				),
 			);
@@ -134,7 +140,7 @@ export function validateInlineValue(
 		if (!typeIncludes(descriptor.type, "string")) {
 			if (typeof coerced === "string") {
 				findings.push({
-					message: `Attribute "${key}": expected type "${formatType(descriptor.type)}", got string "${value}".`,
+					message: `${noun} "${key}": expected type "${formatType(descriptor.type)}", got string "${value}".`,
 					severity: "error",
 					code: "schema-type-mismatch",
 				});
@@ -147,7 +153,7 @@ export function validateInlineValue(
 	if (descriptor.const !== undefined) {
 		if (value !== String(descriptor.const)) {
 			findings.push({
-				message: `Attribute "${key}": value must be ${JSON.stringify(descriptor.const)}.`,
+				message: `${noun} "${key}": value must be ${JSON.stringify(descriptor.const)}.`,
 				severity: "error",
 				code: "schema-const",
 			});
@@ -328,9 +334,10 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 
 		// Phase 2: schema-based validation (async).
 		try {
-			const [elementSchemas, shortcodeSchemas] = await Promise.all([
+			const [elementSchemas, shortcodeSchemas, cellSchemas] = await Promise.all([
 				collectElementAttributeSchemas(this.schemaCache),
 				collectShortcodeSchemas(this.schemaCache),
+				collectCellOptionSchemas(this.schemaCache),
 			]);
 
 			// A newer validation was started while we awaited; discard this result.
@@ -361,6 +368,12 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 					}
 				}
 			}
+
+			if (Object.keys(cellSchemas).length > 0) {
+				for (const fenced of codeBlockRanges) {
+					this.validateCellBlock(fenced, text, cellSchemas, document, diagnostics);
+				}
+			}
 		} catch (error) {
 			logMessage(`Inline schema validation error: ${getErrorMessage(error)}.`, "warn");
 		}
@@ -374,6 +387,83 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 		this.diagnosticCollection.set(document.uri, diagnostics);
+	}
+
+	private validateCellBlock(
+		block: FencedBlock,
+		text: string,
+		schemas: CellOptionSchemas,
+		document: vscode.TextDocument,
+		diagnostics: vscode.Diagnostic[],
+	): void {
+		const language = cellLanguage(block.info);
+		if (language === undefined) {
+			return;
+		}
+		const options = schemas[cellLanguageKey(language)];
+		if (!options) {
+			return;
+		}
+		const lines = readCellOptions(text, block, language);
+
+		const report = (range: TextRange, message: string, severity: InlineValidationSeverity, code: string): void => {
+			const diagnostic = new vscode.Diagnostic(
+				new vscode.Range(document.positionAt(range.start), document.positionAt(range.end)),
+				message,
+				toVsSeverity(severity),
+			);
+			diagnostic.code = code;
+			diagnostic.source = "quarto-wizard";
+			diagnostics.push(diagnostic);
+		};
+
+		const written: Record<string, string> = Object.create(null);
+		for (const line of lines) {
+			written[line.key] = line.value ?? "";
+		}
+
+		for (const line of lines) {
+			const entry = resolveElementAttribute(options, line.key);
+			if (!entry) {
+				continue;
+			}
+			const others = entry.conflicts.get(line.key);
+			if (others !== undefined) {
+				const names = [entry.source, ...others];
+				const list = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+				report(
+					line.keyRange,
+					`\`${line.key}\` for \`{${language}}\` cells is declared by ${list}. ${entry.source} applies.`,
+					"warning",
+					"schema-cell-option-conflict",
+				);
+			}
+			if (line.value === undefined || line.valueRange === undefined) {
+				continue;
+			}
+			const findings = validateInlineValue(
+				line.key,
+				line.value,
+				entry.descriptor,
+				findInlineReplacement(entry.descriptor, written, (name) => resolveElementAttribute(options, name)?.descriptor),
+				"Option",
+			);
+			for (const finding of findings) {
+				const keyLevel = finding.code === "schema-deprecated";
+				report(keyLevel ? line.keyRange : line.valueRange, finding.message, finding.severity, finding.code);
+			}
+		}
+
+		for (const [name, { descriptor }] of Object.entries(options)) {
+			if (descriptor.required && ![name, ...(descriptor.aliases ?? [])].some((key) => key in written)) {
+				report(
+					{ start: block.fenceStart, end: block.fenceStart + 1 },
+					`Required option "${name}" is missing.`,
+					"error",
+					"schema-required-missing",
+				);
+			}
+		}
 	}
 
 	private validateElementBlock(

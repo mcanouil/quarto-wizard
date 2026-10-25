@@ -250,10 +250,10 @@ function attributeSortTier(descriptor: FieldDescriptor, origin: GroupOrigin = "a
 /**
  * Resolve an attribute entry by name or alias.
  */
-export function resolveElementAttribute(
-	attributes: Record<string, AttributeWithSource>,
+export function resolveElementAttribute<T extends AttributeWithSource>(
+	attributes: Record<string, T>,
 	key: string,
-): AttributeWithSource | undefined {
+): T | undefined {
 	if (key in attributes) {
 		return attributes[key];
 	}
@@ -339,54 +339,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 		existingAttributes: Record<string, string>,
 		existingClasses: string[],
 	): Promise<vscode.CompletionItem[]> {
-		const items: vscode.CompletionItem[] = [];
-		const occupied = new Set(Object.keys(existingAttributes));
-
-		for (const [attrName, { descriptor, source, groupOrigin }] of Object.entries(attributes)) {
-			// Skip the entire field (canonical + aliases) when any name is already present.
-			const isOccupied = occupied.has(attrName) || descriptor.aliases?.some((a) => occupied.has(a));
-			if (isOccupied) {
-				continue;
-			}
-
-			const item = new vscode.CompletionItem(attrName, vscode.CompletionItemKind.Property);
-			item.insertText = new vscode.SnippetString(`${attrName}=`);
-
-			const docs = buildAttributeDoc(descriptor, source);
-			if (docs) {
-				item.documentation = docs;
-			}
-
-			item.detail = source;
-			const tier = attributeSortTier(descriptor, groupOrigin);
-			item.sortText = `!${tier}_${source}_${attrName}`;
-
-			if (descriptor.deprecated) {
-				item.tags = [vscode.CompletionItemTag.Deprecated];
-			}
-
-			if (hasCompletableValues(descriptor)) {
-				item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
-			}
-
-			items.push(item);
-
-			if (descriptor.aliases) {
-				for (const alias of descriptor.aliases) {
-					const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
-					aliasItem.insertText = new vscode.SnippetString(`${alias}=`);
-					aliasItem.detail = `${source} (alias for ${attrName})`;
-					aliasItem.sortText = `!${attributeSortTier(descriptor, groupOrigin, true)}_${source}_${alias}`;
-					if (docs) {
-						aliasItem.documentation = docs;
-					}
-					if (hasCompletableValues(descriptor)) {
-						aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
-					}
-					items.push(aliasItem);
-				}
-			}
-		}
+		const items = attributeKeyItems(attributes, new Set(Object.keys(existingAttributes)), "=");
 
 		// Include .classname suggestions (class names prefixed with dot), sorted
 		// after attribute suggestions so attributes appear first.
@@ -462,53 +415,126 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			return [];
 		}
 
-		const { descriptor, source } = entry;
-		const items: vscode.CompletionItem[] = [];
-
-		if (descriptor.enum) {
-			for (const value of descriptor.enum) {
-				const label = String(value);
-				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
-				item.detail = source;
-				item.sortText = `!1_${label}`;
-				if (descriptor.description) {
-					item.documentation = new vscode.MarkdownString(descriptor.description);
-				}
-				items.push(item);
-			}
-		}
-
-		if (descriptor.completion?.values) {
-			for (const value of descriptor.completion.values) {
-				if (descriptor.enum?.includes(value)) {
-					continue;
-				}
-				const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
-				item.detail = source;
-				item.sortText = `!1_${value}`;
-				items.push(item);
-			}
-		}
-
-		if (isFilePathDescriptor(descriptor)) {
-			const fileItems = await buildFilePathCompletions(descriptor, documentUri);
-			for (const fileItem of fileItems) {
-				fileItem.detail = source;
-				items.push(fileItem);
-			}
-		}
-
-		if (typeIncludes(descriptor.type, "boolean") && items.length === 0) {
-			for (const label of ["true", "false"]) {
-				const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
-				item.detail = source;
-				item.sortText = `!1_${label}`;
-				items.push(item);
-			}
-		}
-
-		return items;
+		return attributeValueItems(entry, documentUri);
 	}
+}
+
+/**
+ * Build the completion items for the attribute names of one group.
+ * A field is skipped when its name or one of its aliases is in `occupied`.
+ *
+ * @param separator - What the inserted name ends with, such as `=` or `: `.
+ */
+export function attributeKeyItems(
+	attributes: Record<string, AttributeWithSource>,
+	occupied: ReadonlySet<string>,
+	separator: string,
+): vscode.CompletionItem[] {
+	const items: vscode.CompletionItem[] = [];
+
+	for (const [attrName, { descriptor, source, groupOrigin }] of Object.entries(attributes)) {
+		// Skip the entire field (canonical + aliases) when any name is already present.
+		const isOccupied = occupied.has(attrName) || descriptor.aliases?.some((a) => occupied.has(a));
+		if (isOccupied) {
+			continue;
+		}
+
+		const item = new vscode.CompletionItem(attrName, vscode.CompletionItemKind.Property);
+		item.insertText = new vscode.SnippetString(`${attrName}${separator}`);
+
+		const docs = buildAttributeDoc(descriptor, source);
+		if (docs) {
+			item.documentation = docs;
+		}
+
+		item.detail = source;
+		const tier = attributeSortTier(descriptor, groupOrigin);
+		item.sortText = `!${tier}_${source}_${attrName}`;
+
+		if (descriptor.deprecated) {
+			item.tags = [vscode.CompletionItemTag.Deprecated];
+		}
+
+		if (hasCompletableValues(descriptor)) {
+			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+		}
+
+		items.push(item);
+
+		if (descriptor.aliases) {
+			for (const alias of descriptor.aliases) {
+				const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
+				aliasItem.insertText = new vscode.SnippetString(`${alias}${separator}`);
+				aliasItem.detail = `${source} (alias for ${attrName})`;
+				aliasItem.sortText = `!${attributeSortTier(descriptor, groupOrigin, true)}_${source}_${alias}`;
+				if (docs) {
+					aliasItem.documentation = docs;
+				}
+				if (hasCompletableValues(descriptor)) {
+					aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+				}
+				items.push(aliasItem);
+			}
+		}
+	}
+
+	return items;
+}
+
+/**
+ * Build the completion items for the value of one attribute: enum values,
+ * completion hints, file paths, and `true` or `false` for a boolean.
+ */
+export async function attributeValueItems(
+	entry: AttributeWithSource,
+	documentUri: vscode.Uri,
+): Promise<vscode.CompletionItem[]> {
+	const { descriptor, source } = entry;
+	const items: vscode.CompletionItem[] = [];
+
+	if (descriptor.enum) {
+		for (const value of descriptor.enum) {
+			const label = String(value);
+			const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
+			item.detail = source;
+			item.sortText = `!1_${label}`;
+			if (descriptor.description) {
+				item.documentation = new vscode.MarkdownString(descriptor.description);
+			}
+			items.push(item);
+		}
+	}
+
+	if (descriptor.completion?.values) {
+		for (const value of descriptor.completion.values) {
+			if (descriptor.enum?.includes(value)) {
+				continue;
+			}
+			const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
+			item.detail = source;
+			item.sortText = `!1_${value}`;
+			items.push(item);
+		}
+	}
+
+	if (isFilePathDescriptor(descriptor)) {
+		const fileItems = await buildFilePathCompletions(descriptor, documentUri);
+		for (const fileItem of fileItems) {
+			fileItem.detail = source;
+			items.push(fileItem);
+		}
+	}
+
+	if (typeIncludes(descriptor.type, "boolean") && items.length === 0) {
+		for (const label of ["true", "false"]) {
+			const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Value);
+			item.detail = source;
+			item.sortText = `!1_${label}`;
+			items.push(item);
+		}
+	}
+
+	return items;
 }
 
 /**

@@ -38,6 +38,10 @@
 		"classes": {
 			"$ref": "#/$defs/classesMap",
 			"description": "CSS classes contributed by the extension, with optional descriptions."
+		},
+		"cells": {
+			"$ref": "#/$defs/cellsMap",
+			"description": "Comment-pipe cell options grouped by cell language."
 		}
 	},
 	"$defs": {
@@ -194,10 +198,7 @@
 				},
 				"additionalProperties": {
 					"description": "Whether object values may contain keys beyond those in `properties`. Boolean or a nested field descriptor.",
-					"oneOf": [
-						{ "type": "boolean" },
-						{ "$ref": "#/$defs/fieldDescriptor" }
-					]
+					"oneOf": [{ "type": "boolean" }, { "$ref": "#/$defs/fieldDescriptor" }]
 				},
 				"propertyNames": {
 					"type": "string",
@@ -232,11 +233,7 @@
 				"deprecated": {
 					"description": "Whether the field is deprecated.",
 					"x-boolean-property": true,
-					"oneOf": [
-						{ "type": "boolean" },
-						{ "type": "string" },
-						{ "$ref": "#/$defs/deprecatedSpec" }
-					]
+					"oneOf": [{ "type": "boolean" }, { "type": "string" }, { "$ref": "#/$defs/deprecatedSpec" }]
 				},
 				"completion": {
 					"$ref": "#/$defs/completionSpec",
@@ -340,6 +337,26 @@
 			"type": "object",
 			"additionalProperties": {
 				"$ref": "#/$defs/classEntry"
+			}
+		},
+		"cellEntry": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"description": {
+					"type": "string",
+					"description": "Human-readable description of the cell language."
+				},
+				"options": {
+					"$ref": "#/$defs/fieldDescriptorMap",
+					"description": "Comment-pipe options accepted by cells in this language."
+				}
+			}
+		},
+		"cellsMap": {
+			"type": "object",
+			"additionalProperties": {
+				"$ref": "#/$defs/cellEntry"
 			}
 		}
 	}

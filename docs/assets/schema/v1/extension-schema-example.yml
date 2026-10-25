@@ -337,6 +337,20 @@ classes:
     description: "Hides the element from output."
 
 # ---------------------------------------------------------------------------
+# cells
+# ---------------------------------------------------------------------------
+# Comment-pipe options (for example "#| dpi: 300") of code cells, grouped by
+# cell language. Each option is a field descriptor, as in "options".
+cells:
+  typst:
+    description: "Typst cells."
+    options:
+      dpi:
+        type: integer
+        min: 1
+        description: "Resolution of the rendered output."
+
+# ---------------------------------------------------------------------------
 # projects
 # ---------------------------------------------------------------------------
 # Project types contributed by the extension.

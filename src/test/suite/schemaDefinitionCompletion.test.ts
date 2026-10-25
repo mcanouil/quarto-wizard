@@ -90,6 +90,31 @@ suite("Schema Definition Completion Test Suite", () => {
 				assert.strictEqual(result, null);
 			});
 
+			test("['cells'] returns null (user-defined languages)", () => {
+				const result = getSchemaContext(["cells"], false);
+				assert.strictEqual(result, null);
+			});
+
+			test("['cells', 'typst'] returns cell-entry", () => {
+				const result = getSchemaContext(["cells", "typst"], false);
+				assert.deepStrictEqual(result, { kind: "cell-entry" });
+			});
+
+			test("['cells', 'typst', 'options'] returns null (user-defined options)", () => {
+				const result = getSchemaContext(["cells", "typst", "options"], false);
+				assert.strictEqual(result, null);
+			});
+
+			test("['cells', 'typst', 'options', 'dpi'] returns field-descriptor", () => {
+				const result = getSchemaContext(["cells", "typst", "options", "dpi"], false);
+				assert.deepStrictEqual(result, { kind: "field-descriptor", allowName: false });
+			});
+
+			test("['cells', 'typst', 'options', 'dpi', 'type'] with value returns the type values", () => {
+				const result = getSchemaContext(["cells", "typst", "options", "dpi", "type"], true);
+				assert.deepStrictEqual(result, { kind: "value", valueType: "type" });
+			});
+
 			test("['shortcodes'] returns null", () => {
 				const result = getSchemaContext(["shortcodes"], false);
 				assert.strictEqual(result, null);

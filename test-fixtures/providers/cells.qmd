@@ -1,0 +1,49 @@
+# Cells
+
+```{typst}
+//| 
+#let key-cell = 1
+```
+
+```{typst}
+//| format: 
+#let value-cell = 1
+```
+
+```{typst}
+//| dpi: 300
+//| format: png
+#let used-cell = 1
+```
+
+```{typst}
+//| dpi: 2
+//| 
+#let occupied-cell = 1
+```
+
+```{typst}
+//| dpi: 1
+#let after-run = 1
+//| 
+```
+
+```{typst}
+#| 
+#let wrong-prefix = 1
+```
+
+```{.typst}
+//| 
+#let class-block = 1
+```
+
+```typst
+//| 
+#let bare-fence = 1
+```
+
+```{r}
+#| 
+x <- 1
+```

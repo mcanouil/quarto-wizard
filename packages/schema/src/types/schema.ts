@@ -130,6 +130,17 @@ export interface ClassDefinition {
 }
 
 /**
+ * Definition for a cell language contributed by an extension.
+ * Its options are the comment-pipe options (e.g. `#| dpi: 300`) of cells in that language.
+ */
+export interface CellSchema {
+	/** Human-readable description of the cell language. */
+	description?: string;
+	/** Comment-pipe options accepted by cells in this language. */
+	options?: Record<string, FieldDescriptor>;
+}
+
+/**
  * Complete extension schema parsed from a _schema.yml or _schema.json file.
  * All sections are optional and default to empty objects or arrays.
  */
@@ -148,6 +159,8 @@ export interface ExtensionSchema {
 	attributes?: Record<string, Record<string, FieldDescriptor>>;
 	/** CSS classes contributed by the extension. */
 	classes?: Record<string, ClassDefinition>;
+	/** Comment-pipe cell options grouped by cell language (e.g., "r", "python", "typst"). */
+	cells?: Record<string, CellSchema>;
 }
 
 /**
@@ -161,6 +174,7 @@ export interface RawSchema {
 	projects?: unknown[];
 	attributes?: Record<string, unknown>;
 	classes?: Record<string, unknown>;
+	cells?: Record<string, unknown>;
 }
 
 /**
@@ -405,6 +419,25 @@ export function normaliseSchema(raw: RawSchema): ExtensionSchema {
 			}
 		}
 		result.classes = classes;
+	}
+
+	if (raw.cells && typeof raw.cells === "object" && !Array.isArray(raw.cells)) {
+		const cells: Record<string, CellSchema> = {};
+		for (const [language, cellDef] of Object.entries(raw.cells)) {
+			if (cellDef && typeof cellDef === "object" && !Array.isArray(cellDef)) {
+				const rawCell = cellDef as Record<string, unknown>;
+				const cell: CellSchema = {};
+				if (typeof rawCell["description"] === "string") {
+					cell.description = rawCell["description"];
+				}
+				const rawOptions = rawCell["options"];
+				if (rawOptions && typeof rawOptions === "object" && !Array.isArray(rawOptions)) {
+					cell.options = normaliseFieldDescriptorMap(rawOptions as Record<string, unknown>);
+				}
+				cells[language] = cell;
+			}
+		}
+		result.cells = cells;
 	}
 
 	return result;

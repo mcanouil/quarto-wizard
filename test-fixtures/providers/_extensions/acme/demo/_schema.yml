@@ -117,3 +117,29 @@ attributes:
 classes:
   demo-box:
     description: "A demo box."
+
+cells:
+  typst:
+    description: "Typst cells."
+    options:
+      dpi:
+        type: integer
+        description: "Dots per inch."
+      format:
+        type: string
+        description: "Output format."
+        enum:
+          - png
+          - svg
+          - pdf
+      old:
+        type: string
+        description: "Superseded option."
+        deprecated:
+          replaceWith: format
+  r:
+    options:
+      engine-mode:
+        type: string
+        const: fixed
+        description: "Always fixed."

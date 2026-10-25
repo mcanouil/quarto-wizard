@@ -198,7 +198,7 @@ export class SchemaErrorTreeItem extends vscode.TreeItem {
 /**
  * Type of schema section, used to determine children and icons.
  */
-export type SchemaSectionKind = "options" | "shortcodes" | "formats" | "projects" | "attributes" | "classes";
+export type SchemaSectionKind = "options" | "shortcodes" | "formats" | "projects" | "attributes" | "classes" | "cells";
 
 /**
  * Represents a section within the schema (Options, Shortcodes, etc.).
@@ -222,6 +222,7 @@ export class SchemaSectionTreeItem extends vscode.TreeItem {
 			projects: "symbol-property",
 			attributes: "symbol-class",
 			classes: "tag",
+			cells: "symbol-namespace",
 		};
 		this.iconPath = new vscode.ThemeIcon(icons[kind]);
 	}
@@ -297,10 +298,12 @@ export class SchemaFormatTreeItem extends vscode.TreeItem {
 	constructor(
 		label: string,
 		public readonly fields: Record<string, FieldDescriptor>,
+		summary?: string,
 	) {
 		const fieldCount = Object.keys(fields).length;
 		super(label, vscode.TreeItemCollapsibleState.Collapsed);
-		this.description = `${fieldCount} option${fieldCount === 1 ? "" : "s"}`;
+		this.description = summary ?? `${fieldCount} option${fieldCount === 1 ? "" : "s"}`;
+		this.tooltip = summary ?? label;
 		this.iconPath = new vscode.ThemeIcon("symbol-interface");
 	}
 }
@@ -407,6 +410,7 @@ function singularLabel(kind: SchemaSectionKind): string {
 		projects: "project option",
 		attributes: "attribute",
 		classes: "class",
+		cells: "language",
 	};
 	return labels[kind];
 }
@@ -419,6 +423,7 @@ function pluralLabel(kind: SchemaSectionKind): string {
 		projects: "project options",
 		attributes: "attributes",
 		classes: "classes",
+		cells: "languages",
 	};
 	return labels[kind];
 }

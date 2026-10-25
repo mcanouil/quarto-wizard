@@ -262,5 +262,17 @@
 			"description": "Hides the element from output."
 		}
 	},
+	"cells": {
+		"typst": {
+			"description": "Typst cells.",
+			"options": {
+				"dpi": {
+					"type": "integer",
+					"min": 1,
+					"description": "Resolution of the rendered output."
+				}
+			}
+		}
+	},
 	"projects": ["my-website"]
 }

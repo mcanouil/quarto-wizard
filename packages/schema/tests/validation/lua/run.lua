@@ -250,6 +250,11 @@ attributes:
   callout-note:
     fig-alt:
       type: string
+cells:
+  my-lang:
+    options:
+      fig-cap:
+        type: string
 options:
   typst-cache:
     type: string
@@ -259,6 +264,7 @@ options:
   assert_true(loaded.classes['executive-summary'] ~= nil, 'second class name kept verbatim')
   assert_true(loaded.attributes['callout-note'] ~= nil, 'attribute group kept verbatim')
   assert_true(loaded.attributes['callout-note']['fig-alt'] ~= nil, 'attribute kept verbatim')
+  assert_true(loaded.cells['my-lang'].options['fig-cap'] ~= nil, 'cell option kept verbatim')
 
   local _, _, _, merged = schema.validate({}, loaded.options)
   assert_eq(merged['typst-cache'], '.quarto/iconify-svg', 'merged uses the authored spelling')
@@ -1191,6 +1197,139 @@ attributes:
   assert_valid(valid, errors)
 end)
 
+test('validate_cells coerces and checks the options of one cell language', function()
+  local loaded = load_schema([[
+cells:
+  typst:
+    options:
+      format:
+        type: string
+        enum: [png, svg]
+      dpi:
+        type: integer
+]])
+  local valid, errors, _, merged = schema.validate_cells({ dpi = '300' }, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged.dpi, 300, 'a cell option is coerced')
+
+  local bad_valid, bad_errors = schema.validate_cells({ format = 'gif' }, 'typst', loaded)
+  assert_false(bad_valid)
+  assert_contains(bad_errors, 'typst.format')
+end)
+
+test('validate_cells finds a group by hyphen or underscore spelling', function()
+  local loaded = load_schema([[
+cells:
+  my-lang:
+    options:
+      dpi:
+        type: integer
+]])
+  local _, _, _, merged = schema.validate_cells({ dpi = '300' }, 'my_lang', loaded)
+  assert_eq(merged.dpi, 300, 'the hyphenated group applies')
+end)
+
+test('validate_cells prefers the exact language over a case-insensitive match', function()
+  local loaded = load_schema([[
+cells:
+  Typst:
+    options:
+      dpi:
+        type: string
+  typst:
+    options:
+      dpi:
+        type: integer
+]])
+  local _, _, _, merged = schema.validate_cells({ dpi = '300' }, 'typst', loaded)
+  assert_eq(merged.dpi, 300, 'the exact entry applies')
+end)
+
+test('validate_cells treats an alias and a deprecated option as validate_attributes does', function()
+  local loaded = load_schema([[
+cells:
+  typst:
+    options:
+      fig-width:
+        type: number
+        aliases: [width]
+      old:
+        type: string
+        deprecated: true
+attributes:
+  typst:
+    fig-width:
+      type: number
+      aliases: [width]
+    old:
+      type: string
+      deprecated: true
+]])
+  local values = { width = '4', old = 'x' }
+  local _, cell_errors, cell_warnings, cell_merged = schema.validate_cells(values, 'typst', loaded)
+  local _, attr_errors, attr_warnings, attr_merged = schema.validate_attributes(values, 'typst', loaded)
+  assert_eq(cell_merged['fig-width'], 4, 'the alias moves to the declared name')
+  assert_eq(cell_merged['fig-width'], attr_merged['fig-width'])
+  assert_eq(#cell_errors, #attr_errors)
+  assert_eq(#cell_warnings, #attr_warnings)
+  assert_true(#cell_warnings > 0, 'the deprecation is reported')
+end)
+
+test('validate_cells reports a required option that is absent', function()
+  local loaded = load_schema([[
+cells:
+  typst:
+    options:
+      label:
+        type: string
+        required: true
+]])
+  local valid, errors = schema.validate_cells({}, 'typst', loaded)
+  assert_false(valid)
+  assert_contains(errors, 'typst.label')
+end)
+
+test('validate_cells on an undeclared language is a no-op', function()
+  local loaded = load_schema([[
+cells:
+  typst:
+    options:
+      dpi:
+        type: integer
+]])
+  local valid, errors, _, merged = schema.validate_cells({ echo = 'false' }, 'python', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged.echo, 'false', 'the values are returned unchanged')
+
+  local declared_valid, declared_errors = schema.validate_cells({ echo = 'false' }, 'typst', loaded)
+  assert_valid(declared_valid, declared_errors)
+end)
+
+test('validate_cells matches the language case-insensitively', function()
+  local loaded = load_schema([[
+cells:
+  typst:
+    options:
+      dpi:
+        type: integer
+]])
+  local _, _, _, merged = schema.validate_cells({ dpi = '300' }, 'Typst', loaded)
+  assert_eq(merged.dpi, 300, 'the lower-case entry applies to Typst')
+end)
+
+test('validate_attributes does not read the cells section', function()
+  local loaded = load_schema([[
+cells:
+  typst:
+    options:
+      dpi:
+        type: integer
+]])
+  local valid, errors, _, merged = schema.validate_attributes({ dpi = 'abc' }, 'typst', loaded)
+  assert_valid(valid, errors)
+  assert_eq(merged.dpi, 'abc', 'no coercion happens')
+end)
+
 test('S7: validate_format checks one output format', function()
   local loaded = load_schema([[
 formats:
@@ -1468,7 +1607,7 @@ end)
 
 test('every section defaults to an empty table', function()
   local loaded = load_schema('options: {}\n')
-  for _, section in ipairs({ 'options', 'shortcodes', 'formats', 'projects', 'attributes', 'classes' }) do
+  for _, section in ipairs({ 'options', 'shortcodes', 'formats', 'projects', 'attributes', 'classes', 'cells' }) do
     assert_eq(type(loaded[section]), 'table', section .. ' is a table')
   end
 end)

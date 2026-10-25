@@ -80,6 +80,9 @@ function vocabularyKeys(document: unknown): Set<string> {
 		}
 		descriptorMap(entry.attributes, found);
 	}
+	for (const cell of Object.values(asRecord(root.cells))) {
+		descriptorMap(asRecord(cell).options, found);
+	}
 	for (const container of [root.formats, root.attributes]) {
 		for (const group of Object.values(asRecord(container))) {
 			descriptorMap(group, found);

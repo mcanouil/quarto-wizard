@@ -7,6 +7,10 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+### Features
+
+- feat: Add the `cells` section and `validate_cells` for comment-pipe cell options. (#518)
+
 ## 2.2.0
 
 ### Bug Fixes

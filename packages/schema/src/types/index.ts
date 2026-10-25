@@ -3,6 +3,7 @@
  */
 
 export {
+	type CellSchema,
 	type ClassDefinition,
 	type CompletionSpec,
 	type DeprecatedSpec,

@@ -20,6 +20,7 @@ import { SnippetCache } from "@quarto-wizard/snippets";
 import { registerYamlProviders } from "./providers/registerYamlProviders";
 import { registerShortcodeCompletionProvider } from "./providers/shortcodeCompletionProvider";
 import { registerElementAttributeProviders } from "./providers/elementAttributeCompletionProvider";
+import { registerCellOptionProviders } from "./providers/cellOptionCompletionProvider";
 import { registerInlineAttributeDiagnostics } from "./providers/inlineAttributeDiagnosticsProvider";
 import { registerSnippetCompletionProvider } from "./providers/snippetCompletionProvider";
 import { registerTypstPreview } from "./providers/typstPreview";
@@ -168,6 +169,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register element attribute completion and hover providers for Quarto documents
 	registerElementAttributeProviders(context, schemaCache);
+
+	// Register comment-pipe option completion and hover providers for executable cells
+	registerCellOptionProviders(context, schemaCache);
 
 	// Register inline attribute diagnostics for spaces around = and schema validation
 	registerInlineAttributeDiagnostics(context, schemaCache);

@@ -97,6 +97,7 @@ describe("validateSchemaDefinitionStructure", () => {
 			projects: [],
 			attributes: {},
 			classes: {},
+			cells: {},
 		});
 		expect(findings.filter((f) => f.code === "unknown-top-level-key")).toHaveLength(0);
 	});
@@ -799,5 +800,63 @@ describe("validateSchemaDefinition integration", () => {
 			"json",
 		);
 		expect(findings.length).toBeGreaterThan(2);
+	});
+});
+
+describe.each([
+	["v1", "https://m.canouil.dev/quarto-wizard/assets/schema/v1/extension-schema.json"],
+	["v2", "https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json"],
+])("cells validation (%s)", (_name, $schema) => {
+	it("reports a non-object cells section", () => {
+		const findings = validateSchemaDefinitionStructure({ $schema, cells: [] });
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "cells")).toBe(true);
+	});
+
+	it("reports a non-object cell entry", () => {
+		const findings = validateSchemaDefinitionStructure({ $schema, cells: { r: 1 } });
+		expect(findings.some((f) => f.code === "invalid-cell-entry" && f.keyPath === "cells.r")).toBe(true);
+	});
+
+	it("warns about an unknown cell property", () => {
+		const findings = validateSchemaDefinitionStructure({ $schema, cells: { r: { foo: 1 } } });
+		expect(
+			findings.some(
+				(f) => f.code === "unknown-cell-property" && f.severity === "warning" && f.keyPath === "cells.r.foo",
+			),
+		).toBe(true);
+	});
+
+	it("reports a non-string cell description", () => {
+		const findings = validateSchemaDefinitionStructure({ $schema, cells: { r: { description: 1 } } });
+		expect(findings.some((f) => f.code === "invalid-cell-description" && f.keyPath === "cells.r.description")).toBe(
+			true,
+		);
+	});
+
+	it("reports a non-object options map", () => {
+		const findings = validateSchemaDefinitionStructure({ $schema, cells: { r: { options: [] } } });
+		expect(findings.some((f) => f.code === "invalid-section-type" && f.keyPath === "cells.r.options")).toBe(true);
+	});
+
+	it("validates cell options like an options field", () => {
+		const cellFindings = validateSchemaDefinitionStructure({
+			$schema,
+			cells: { r: { options: { dpi: { type: "integr" } } } },
+		});
+		const optionFindings = validateSchemaDefinitionStructure({
+			$schema,
+			options: { dpi: { type: "integr" } },
+		});
+		expect(optionFindings.length).toBeGreaterThan(0);
+		expect(cellFindings.map((f) => ({ ...f, keyPath: f.keyPath?.replace("cells.r.", "") }))).toEqual(optionFindings);
+		expect(cellFindings.every((f) => f.keyPath?.startsWith("cells.r.options.dpi"))).toBe(true);
+	});
+
+	it("accepts a valid cell", () => {
+		const findings = validateSchemaDefinitionStructure({
+			$schema,
+			cells: { typst: { description: "d", options: { dpi: { type: "integer" } } } },
+		});
+		expect(findings).toEqual([]);
 	});
 });
