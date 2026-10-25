@@ -12,6 +12,8 @@ import {
 	InlineAttributeDiagnosticsProvider,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
+import type { CellOptionSchemas } from "../../providers/cellOptionSchemas";
+import { getDocumentFencedBlocks } from "../../utils/documentScan";
 import type { ElementAttributeSchemas } from "../../providers/elementAttributeCompletionProvider";
 import type { FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
 
@@ -985,6 +987,137 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("a missing replacement takes the value", async () => {
 			assert.deepStrictEqual(await codesFor('[text]{.cls old="abc"}\n'), ["schema-deprecated", "schema-type-mismatch"]);
+		});
+	});
+
+	suite("cell options", () => {
+		const schemas: CellOptionSchemas = {
+			typst: Object.assign(Object.create(null), {
+				dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: [] },
+				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext", conflicts: [] },
+				old: { descriptor: { type: "string", deprecated: { replaceWith: "format" } }, source: "ext", conflicts: [] },
+				must: { descriptor: { type: "string", required: true, aliases: ["need"] }, source: "ext", conflicts: [] },
+				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: [] },
+				shared: { descriptor: { type: "string" }, source: "A", conflicts: ["B"] },
+				triple: { descriptor: { type: "string" }, source: "A", conflicts: ["B", "C"] },
+			}),
+			r: Object.assign(Object.create(null), {
+				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext", conflicts: [] },
+			}),
+		};
+
+		async function diagnose(content: string, cellSchemas = schemas): Promise<vscode.Diagnostic[]> {
+			const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
+			const provider = new InlineAttributeDiagnosticsProvider({} as SchemaCache);
+			try {
+				const diagnostics: vscode.Diagnostic[] = [];
+				const text = document.getText();
+				for (const block of getDocumentFencedBlocks(document, text)) {
+					(provider as unknown as { validateCellBlock: (...args: unknown[]) => void }).validateCellBlock(
+						block,
+						text,
+						cellSchemas,
+						document,
+						diagnostics,
+					);
+				}
+				return diagnostics;
+			} finally {
+				provider.dispose();
+			}
+		}
+
+		const codeOf = (diagnostic: vscode.Diagnostic) =>
+			typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code;
+		const cell = (lines: string, language = "typst", prefix = "//") =>
+			`\`\`\`{${language}}\n${lines
+				.split("\n")
+				.map((line) => `${prefix}| ${line}`)
+				.join("\n")}\n\`\`\`\n`;
+
+		test("a type mismatch is reported on the value", async () => {
+			const [diagnostic, ...rest] = await diagnose(cell("must: x\ndpi: abc"));
+			assert.strictEqual(rest.length, 0);
+			assert.strictEqual(codeOf(diagnostic), "schema-type-mismatch");
+			assert.ok(diagnostic.message.startsWith('Option "dpi"'));
+			assert.strictEqual(diagnostic.source, "quarto-wizard");
+			assert.strictEqual(diagnostic.range.start.line, 2);
+			assert.strictEqual(diagnostic.range.start.character, 9);
+		});
+
+		test("a quoted number is valid", async () => {
+			assert.deepStrictEqual(await diagnose(cell('must: x\ndpi: "300"')), []);
+		});
+
+		test("an enum value outside the list is reported", async () => {
+			const found = await diagnose(cell("must: x\nformat: gif"));
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(codeOf(found[0]), "schema-enum");
+		});
+
+		test("a deprecated option is reported on the key", async () => {
+			const found = await diagnose(cell("must: x\nold: svg"));
+			const deprecated = found.find((diagnostic) => codeOf(diagnostic) === "schema-deprecated");
+			assert.ok(deprecated);
+			assert.strictEqual(deprecated.range.start.character, 4);
+			assert.strictEqual(deprecated.range.end.character, 7);
+		});
+
+		test("a const mismatch is reported", async () => {
+			const found = await diagnose(cell("engine-mode: other", "r", "#"));
+			assert.deepStrictEqual(found.map(codeOf), ["schema-const"]);
+		});
+
+		test("undeclared options are never reported", async () => {
+			assert.deepStrictEqual(await diagnose(cell("label: fig-x\necho: false\nmust: x")), []);
+		});
+
+		test("attribute groups do not reach cells", async () => {
+			const found = await diagnose('```{.typst filename="Keisen" include="assets/x.typ"}\ncode\n```\n');
+			assert.deepStrictEqual(found, []);
+		});
+
+		test("the language matches case-insensitively", async () => {
+			const found = await diagnose(cell("must: x\ndpi: abc", "Typst"));
+			assert.deepStrictEqual(found.map(codeOf), ["schema-type-mismatch"]);
+		});
+
+		test("a key with a block value is skipped", async () => {
+			assert.deepStrictEqual(await diagnose("```{typst}\n//| must: x\n//| format:\n//|   - a\n```\n"), []);
+		});
+
+		test("a missing required option is reported on the fence line, empty or unclosed", async () => {
+			for (const content of ["```{typst}\n```\n", "```{typst}\n//| dpi: 3\n"]) {
+				const found = await diagnose(content);
+				assert.deepStrictEqual(found.map(codeOf), ["schema-required-missing"]);
+				assert.strictEqual(found[0].message, 'Required option "must" is missing.');
+				assert.strictEqual(found[0].severity, vscode.DiagnosticSeverity.Error);
+				assert.strictEqual(found[0].range.start.line, 0);
+				assert.strictEqual(found[0].range.start.character, 0);
+			}
+		});
+
+		test("an alias counts as the required option", async () => {
+			assert.deepStrictEqual(await diagnose(cell("need: x")), []);
+		});
+
+		test("a conflicting option in use is reported once on the key", async () => {
+			const found = await diagnose(cell("must: x\nshared: a"));
+			assert.strictEqual(found.length, 1);
+			assert.strictEqual(codeOf(found[0]), "schema-cell-option-conflict");
+			assert.strictEqual(found[0].severity, vscode.DiagnosticSeverity.Warning);
+			assert.strictEqual(found[0].message, "`shared` for `{typst}` cells is declared by A and B. A applies.");
+			assert.strictEqual(found[0].range.start.character, 4);
+			assert.strictEqual(found[0].range.end.character, 10);
+		});
+
+		test("three sources are all listed", async () => {
+			const found = await diagnose(cell("must: x\ntriple: a"));
+			assert.strictEqual(found[0].message, "`triple` for `{typst}` cells is declared by A, B and C. A applies.");
+		});
+
+		test("a conflicting option not in use is not reported", async () => {
+			assert.deepStrictEqual(await diagnose(cell("must: x")), []);
 		});
 	});
 });
