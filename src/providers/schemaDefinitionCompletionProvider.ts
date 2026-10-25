@@ -34,6 +34,7 @@ export type SchemaContext =
 	| { kind: "field-descriptor"; allowName?: boolean }
 	| { kind: "shortcode-entry" }
 	| { kind: "class-entry" }
+	| { kind: "cell-entry" }
 	| { kind: "value"; valueType: "type" | "boolean" | "schema-uri" }
 	| null;
 
@@ -113,6 +114,20 @@ export function getSchemaContext(keyPath: string[], isValuePosition: boolean): S
 			return { kind: "class-entry" };
 		}
 		return null;
+	}
+
+	// "cells" section.
+	if (first === "cells") {
+		if (keyPath.length === 1) {
+			return null; // Children are language names.
+		}
+		if (keyPath.length === 2) {
+			return { kind: "cell-entry" };
+		}
+		if (keyPath[2] !== "options" || keyPath.length === 3) {
+			return null; // Children of options are user-defined option names.
+		}
+		return resolveFieldDescriptorContext(keyPath.slice(4));
 	}
 
 	// "shortcodes" section.
@@ -247,6 +262,8 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 				return this.completeShortcodeEntryKeys(existingKeys);
 			case "class-entry":
 				return this.completeClassEntryKeys(existingKeys);
+			case "cell-entry":
+				return this.completeCellEntryKeys(existingKeys);
 			case "value":
 				return this.completeValues(context.valueType);
 		}
@@ -375,6 +392,27 @@ export class SchemaDefinitionCompletionProvider implements vscode.CompletionItem
 			const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
 			item.detail = doc;
 			item.insertText = `${key}: `;
+			items.push(item);
+		}
+
+		return items;
+	}
+
+	private completeCellEntryKeys(existingKeys: Set<string>): vscode.CompletionItem[] {
+		const items: vscode.CompletionItem[] = [];
+
+		const cellEntryKeys: Record<string, string> = {
+			description: "Human-readable description of the cells.",
+			options: "Cell options, declared by name.",
+		};
+
+		for (const [key, doc] of Object.entries(cellEntryKeys)) {
+			if (existingKeys.has(key)) {
+				continue;
+			}
+			const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
+			item.detail = doc;
+			item.insertText = key === "options" ? new vscode.SnippetString(`${key}:\n  $0`) : `${key}: `;
 			items.push(item);
 		}
 
