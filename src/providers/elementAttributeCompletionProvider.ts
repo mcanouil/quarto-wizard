@@ -250,10 +250,10 @@ function attributeSortTier(descriptor: FieldDescriptor, origin: GroupOrigin = "a
 /**
  * Resolve an attribute entry by name or alias.
  */
-export function resolveElementAttribute(
-	attributes: Record<string, AttributeWithSource>,
+export function resolveElementAttribute<T extends AttributeWithSource>(
+	attributes: Record<string, T>,
 	key: string,
-): AttributeWithSource | undefined {
+): T | undefined {
 	if (key in attributes) {
 		return attributes[key];
 	}

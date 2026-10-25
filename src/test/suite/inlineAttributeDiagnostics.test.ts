@@ -993,32 +993,29 @@ suite("Inline Attribute Diagnostics", () => {
 	suite("cell options", () => {
 		const schemas: CellOptionSchemas = {
 			typst: Object.assign(Object.create(null), {
-				dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: [], contested: [] },
-				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext", conflicts: [], contested: [] },
+				dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: new Map() },
+				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext", conflicts: new Map() },
 				old: {
 					descriptor: { type: "string", deprecated: { replaceWith: "format" } },
 					source: "ext",
-					conflicts: [],
-					contested: [],
+					conflicts: new Map(),
 				},
 				must: {
 					descriptor: { type: "string", required: true, aliases: ["need"] },
 					source: "ext",
-					conflicts: [],
-					contested: [],
+					conflicts: new Map(),
 				},
-				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: [], contested: [] },
-				shared: { descriptor: { type: "string" }, source: "A", conflicts: ["B"], contested: ["shared"] },
+				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: new Map() },
+				shared: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["shared", ["B"]]]) },
 				resolution: {
 					descriptor: { type: "integer", aliases: ["dpi-alias"] },
 					source: "B",
-					conflicts: ["A"],
-					contested: ["dpi-alias"],
+					conflicts: new Map([["dpi-alias", ["A"]]]),
 				},
-				triple: { descriptor: { type: "string" }, source: "A", conflicts: ["B", "C"], contested: ["triple"] },
+				triple: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["triple", ["B", "C"]]]) },
 			}),
 			r: Object.assign(Object.create(null), {
-				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext", conflicts: [], contested: [] },
+				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext", conflicts: new Map() },
 			}),
 		};
 
@@ -1137,6 +1134,24 @@ suite("Inline Attribute Diagnostics", () => {
 		test("three sources are all listed", async () => {
 			const found = await diagnose(cell("must: x\ntriple: a"));
 			assert.strictEqual(found[0].message, "`triple` for `{typst}` cells is declared by A, B and C. A applies.");
+		});
+
+		test("a mixed three-way conflict names only the sources of the written spelling", async () => {
+			const mixed: CellOptionSchemas = {
+				typst: Object.assign(Object.create(null), {
+					x: {
+						descriptor: { type: "string", aliases: ["y"] },
+						source: "A",
+						conflicts: new Map([
+							["x", ["B"]],
+							["y", ["C"]],
+						]),
+					},
+					z: { descriptor: { type: "string", aliases: ["y"] }, source: "C", conflicts: new Map([["y", ["A"]]]) },
+				}),
+			};
+			const found = await diagnose(cell("y: a"), mixed);
+			assert.strictEqual(found[0].message, "`y` for `{typst}` cells is declared by A and C. A applies.");
 		});
 
 		test("a conflicting option not in use is not reported", async () => {

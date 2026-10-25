@@ -23,7 +23,7 @@ import {
 	findSpacesAroundEquals,
 } from "../utils/inlineAttributeText";
 import { cellLanguage, readCellOptions } from "../utils/cellOptions";
-import { type CellOptionSchemas, type CellOptionWithSource, collectCellOptionSchemas } from "./cellOptionSchemas";
+import { type CellOptionSchemas, collectCellOptionSchemas } from "./cellOptionSchemas";
 import type { FencedBlock } from "../utils/yamlPosition";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
@@ -369,8 +369,10 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 				}
 			}
 
-			for (const fenced of codeBlockRanges) {
-				this.validateCellBlock(fenced, text, cellSchemas, document, diagnostics);
+			if (Object.keys(cellSchemas).length > 0) {
+				for (const fenced of codeBlockRanges) {
+					this.validateCellBlock(fenced, text, cellSchemas, document, diagnostics);
+				}
 			}
 		} catch (error) {
 			logMessage(`Inline schema validation error: ${getErrorMessage(error)}.`, "warn");
@@ -395,8 +397,11 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		diagnostics: vscode.Diagnostic[],
 	): void {
 		const language = cellLanguage(block.info);
-		const options = language === undefined ? undefined : schemas[language];
-		if (language === undefined || options === undefined) {
+		if (language === undefined) {
+			return;
+		}
+		const options = schemas[language];
+		if (!options) {
 			return;
 		}
 		const lines = readCellOptions(text, block, language);
@@ -404,10 +409,12 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 
-		const toRange = (range: TextRange): vscode.Range =>
-			new vscode.Range(document.positionAt(range.start), document.positionAt(range.end));
 		const report = (range: TextRange, message: string, severity: InlineValidationSeverity, code: string): void => {
-			const diagnostic = new vscode.Diagnostic(toRange(range), message, toVsSeverity(severity));
+			const diagnostic = new vscode.Diagnostic(
+				new vscode.Range(document.positionAt(range.start), document.positionAt(range.end)),
+				message,
+				toVsSeverity(severity),
+			);
 			diagnostic.code = code;
 			diagnostic.source = "quarto-wizard";
 			diagnostics.push(diagnostic);
@@ -419,12 +426,13 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		for (const line of lines) {
-			const entry = resolveElementAttribute(options, line.key) as CellOptionWithSource | undefined;
+			const entry = resolveElementAttribute(options, line.key);
 			if (!entry) {
 				continue;
 			}
-			if (entry.conflicts.length > 0 && entry.contested.includes(line.key)) {
-				const names = [entry.source, ...entry.conflicts];
+			const others = entry.conflicts.get(line.key);
+			if (others !== undefined) {
+				const names = [entry.source, ...others];
 				const list = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 				report(
 					line.keyRange,

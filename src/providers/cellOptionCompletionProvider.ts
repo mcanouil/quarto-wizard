@@ -20,19 +20,13 @@ const KEY_CONTEXT = /^[A-Za-z0-9_-]*$/;
 interface CellContext {
 	block: FencedBlock;
 	language: string;
-	options: Record<string, AttributeWithSource>;
 }
 
 /**
- * The executable cell that holds the offset and has a `cells` group for its language.
+ * The executable cell that holds the offset.
  * The body of a block starts after its opening fence line, so the info string is never inside it.
  */
-async function findCell(
-	schemaCache: SchemaCache,
-	document: vscode.TextDocument,
-	text: string,
-	offset: number,
-): Promise<CellContext | undefined> {
+function findCell(document: vscode.TextDocument, text: string, offset: number): CellContext | undefined {
 	const block = getDocumentFencedBlocks(document, text).find(
 		(candidate) => offset >= candidate.start && offset <= candidate.end,
 	);
@@ -43,9 +37,18 @@ async function findCell(
 	if (!language) {
 		return undefined;
 	}
+	return { block, language };
+}
+
+/**
+ * The merged cell options of the installed extensions for a language, if any extension declares a `cells` group for it.
+ */
+async function findCellOptions(
+	schemaCache: SchemaCache,
+	language: string,
+): Promise<Record<string, AttributeWithSource> | undefined> {
 	const schemas = await collectCellOptionSchemas(schemaCache);
-	const options = schemas[language];
-	return options ? { block, language, options } : undefined;
+	return schemas[language];
 }
 
 /**
@@ -70,18 +73,19 @@ export class CellOptionCompletionProvider implements vscode.CompletionItemProvid
 				return null;
 			}
 
-			const cell = await findCell(this.schemaCache, document, text, offset);
-			if (!cell) {
+			const cell = findCell(document, text, offset);
+			const line = cell && cellOptionLineAt(text, cell.block, cell.language, offset);
+			if (!cell || !line) {
 				return null;
 			}
-			const line = cellOptionLineAt(text, cell.block, cell.language, offset);
-			if (!line) {
+			const options = await findCellOptions(this.schemaCache, cell.language);
+			if (!options) {
 				return null;
 			}
 
 			const value = VALUE_CONTEXT.exec(line.typed);
 			if (value) {
-				const entry = resolveElementAttribute(cell.options, value[1]);
+				const entry = resolveElementAttribute(options, value[1]);
 				return entry ? await attributeValueItems(entry, document.uri) : null;
 			}
 			if (!KEY_CONTEXT.test(line.typed)) {
@@ -94,7 +98,7 @@ export class CellOptionCompletionProvider implements vscode.CompletionItemProvid
 					occupied.add(option.key);
 				}
 			}
-			return attributeKeyItems(cell.options, occupied, ": ");
+			return attributeKeyItems(options, occupied, ": ");
 		} catch (error) {
 			logMessage(`Cell option completion error: ${getErrorMessage(error)}.`, "warn");
 			return null;
@@ -113,7 +117,7 @@ export class CellOptionHoverProvider implements vscode.HoverProvider {
 			const text = document.getText();
 			const offset = document.offsetAt(position);
 
-			const cell = await findCell(this.schemaCache, document, text, offset);
+			const cell = findCell(document, text, offset);
 			if (!cell) {
 				return null;
 			}
@@ -124,7 +128,11 @@ export class CellOptionHoverProvider implements vscode.HoverProvider {
 						offset >= candidate.valueRange.start &&
 						offset <= candidate.valueRange.end),
 			);
-			const entry = option && resolveElementAttribute(cell.options, option.key);
+			if (!option) {
+				return null;
+			}
+			const options = await findCellOptions(this.schemaCache, cell.language);
+			const entry = options && resolveElementAttribute(options, option.key);
 			const docs = entry && buildAttributeDoc(entry.descriptor, entry.source);
 			return docs ? new vscode.Hover(docs) : null;
 		} catch (error) {
@@ -144,13 +152,7 @@ export function registerCellOptionProviders(context: vscode.ExtensionContext, sc
 	const selector: vscode.DocumentSelector = { language: "quarto" };
 
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(
-			selector,
-			new CellOptionCompletionProvider(schemaCache),
-			" ",
-			":",
-			"|",
-		),
+		vscode.languages.registerCompletionItemProvider(selector, new CellOptionCompletionProvider(schemaCache), " ", "|"),
 		vscode.languages.registerHoverProvider(selector, new CellOptionHoverProvider(schemaCache)),
 	);
 

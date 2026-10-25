@@ -82,6 +82,17 @@ function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const openingRegExps = new Map<string, RegExp>();
+
+function openingRegExp(language: string, open: string): RegExp {
+	let opening = openingRegExps.get(language);
+	if (opening === undefined) {
+		opening = new RegExp(`^${escapeRegExp(open)}\\s*\\| ?`);
+		openingRegExps.set(language, opening);
+	}
+	return opening;
+}
+
 const CELL_INFO = /^\{([A-Za-z0-9_-]+)(?=[\s,}])/;
 
 const OPTION_KEY = /^([A-Za-z0-9_-]+):(?:\s+(.*))?$/;
@@ -140,7 +151,7 @@ function* cellOptionRun(text: string, block: FencedBlock, language: string): Gen
 	}
 	const prefix = CELL_COMMENT_PREFIXES[language];
 	const [open, close] = typeof prefix === "string" ? [prefix, undefined] : prefix;
-	const opening = new RegExp(`^${escapeRegExp(open)}\\s*\\| ?`);
+	const opening = openingRegExp(language, open);
 
 	const closing = closingFenceRegExp(block.fence);
 	let lineStart = block.start;

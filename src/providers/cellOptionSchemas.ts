@@ -7,12 +7,11 @@ import type { AttributeWithSource } from "./elementAttributeCompletionProvider";
 
 /**
  * A cell option paired with the extension that provides it.
- * `conflicts` holds the sources of the other extensions that declare the same name or alias.
- * `contested` holds the names and aliases that overlap, so a conflict is reported only on those spellings.
+ * `conflicts` maps each contested name or alias to the sources of the other extensions that declare that spelling,
+ * so a conflict is reported only on the spellings that overlap.
  */
 export interface CellOptionWithSource extends AttributeWithSource {
-	conflicts: string[];
-	contested: string[];
+	conflicts: Map<string, string[]>;
 }
 
 /**
@@ -41,13 +40,12 @@ function optionKeys(name: string, aliases: readonly string[] | undefined): strin
 }
 
 function addConflict(option: CellOptionWithSource, source: string, contested: readonly string[]): void {
-	if (!option.conflicts.includes(source)) {
-		option.conflicts.push(source);
-	}
 	for (const key of contested) {
-		if (!option.contested.includes(key)) {
-			option.contested.push(key);
+		const sources = option.conflicts.get(key) ?? [];
+		if (!sources.includes(source)) {
+			sources.push(source);
 		}
+		option.conflicts.set(key, sources);
 	}
 }
 
@@ -74,12 +72,15 @@ export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptio
 		for (const [rawLanguage, cell] of Object.entries(schema.cells ?? {})) {
 			const language = rawLanguage.toLowerCase();
 			const options = (result[language] ??= Object.create(null) as Record<string, CellOptionWithSource>);
-			const languageOwned = owned.get(language) ?? [];
-			owned.set(language, languageOwned);
+			let languageOwned = owned.get(language);
+			if (languageOwned === undefined) {
+				languageOwned = [];
+				owned.set(language, languageOwned);
+			}
 
 			for (const [name, descriptor] of Object.entries(cell.options ?? {})) {
 				const keys = optionKeys(name, descriptor.aliases);
-				const option: CellOptionWithSource = { descriptor, source, conflicts: [], contested: [] };
+				const option: CellOptionWithSource = { descriptor, source, conflicts: new Map() };
 				let sameName = false;
 
 				for (const earlier of languageOwned) {

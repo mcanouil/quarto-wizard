@@ -18,7 +18,7 @@ suite("cellOptionSchemas Test Suite", () => {
 			]);
 			assert.strictEqual(merged.typst.dpi.source, "A");
 			assert.strictEqual(merged.typst.dpi.descriptor.description, "from A");
-			assert.deepStrictEqual(merged.typst.dpi.conflicts, ["B"]);
+			assert.deepStrictEqual(merged.typst.dpi.conflicts, new Map([["dpi", ["B"]]]));
 		});
 
 		test("does not conflict an extension with itself", () => {
@@ -27,7 +27,7 @@ suite("cellOptionSchemas Test Suite", () => {
 				{ source: "A", id: "acme/demo", schema },
 				{ source: "A", id: "acme/demo", schema },
 			]);
-			assert.deepStrictEqual(merged.typst.dpi.conflicts, []);
+			assert.deepStrictEqual(merged.typst.dpi.conflicts, new Map());
 		});
 
 		test("treats an alias of a later option as a conflict and keeps both", () => {
@@ -36,11 +36,25 @@ suite("cellOptionSchemas Test Suite", () => {
 				{ source: "B", schema: cells("typst", { resolution: { type: "integer", aliases: ["dpi"] } }) },
 			]);
 			assert.strictEqual(merged.typst.dpi.source, "A");
-			assert.deepStrictEqual(merged.typst.dpi.conflicts, ["B"]);
+			assert.deepStrictEqual(merged.typst.dpi.conflicts, new Map([["dpi", ["B"]]]));
 			assert.strictEqual(merged.typst.resolution.source, "B");
-			assert.deepStrictEqual(merged.typst.resolution.conflicts, ["A"]);
-			assert.deepStrictEqual(merged.typst.dpi.contested, ["dpi"]);
-			assert.deepStrictEqual(merged.typst.resolution.contested, ["dpi"]);
+			assert.deepStrictEqual(merged.typst.resolution.conflicts, new Map([["dpi", ["A"]]]));
+		});
+
+		test("records only the sources that declare each contested spelling", () => {
+			const merged = mergeCellSchemas([
+				{ source: "A", schema: cells("typst", { x: { type: "string", aliases: ["y"] } }) },
+				{ source: "B", schema: cells("typst", { x: { type: "string" } }) },
+				{ source: "C", schema: cells("typst", { z: { type: "string", aliases: ["y"] } }) },
+			]);
+			assert.deepStrictEqual(
+				merged.typst.x.conflicts,
+				new Map([
+					["x", ["B"]],
+					["y", ["C"]],
+				]),
+			);
+			assert.deepStrictEqual(merged.typst.z.conflicts, new Map([["y", ["A"]]]));
 		});
 
 		test("merges language keys case-insensitively", () => {
@@ -57,8 +71,8 @@ suite("cellOptionSchemas Test Suite", () => {
 				{ source: "A", schema: cells("typst", { dpi: { type: "integer" } }) },
 				{ source: "B", schema: cells("typst", { fit: { type: "boolean" } }) },
 			]);
-			assert.deepStrictEqual(merged.typst.dpi.conflicts, []);
-			assert.deepStrictEqual(merged.typst.fit.conflicts, []);
+			assert.deepStrictEqual(merged.typst.dpi.conflicts, new Map());
+			assert.deepStrictEqual(merged.typst.fit.conflicts, new Map());
 		});
 
 		test("does not report a conflict between options of one extension", () => {
@@ -68,7 +82,7 @@ suite("cellOptionSchemas Test Suite", () => {
 					schema: cells("typst", { dpi: { type: "integer" }, resolution: { type: "integer", aliases: ["dpi"] } }),
 				},
 			]);
-			assert.deepStrictEqual(merged.typst.dpi.conflicts, []);
+			assert.deepStrictEqual(merged.typst.dpi.conflicts, new Map());
 		});
 
 		test("does not resolve names from Object.prototype", () => {
@@ -110,7 +124,7 @@ suite("cellOptionSchemas Test Suite", () => {
 			const schemas = await collectCellOptionSchemas(new SchemaCache());
 			assert.ok(schemas.typst, JSON.stringify(Object.keys(schemas)));
 			for (const option of Object.values(schemas.typst)) {
-				assert.deepStrictEqual(option.conflicts, []);
+				assert.deepStrictEqual(option.conflicts, new Map());
 			}
 		});
 	});
