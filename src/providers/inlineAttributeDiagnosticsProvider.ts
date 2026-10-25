@@ -444,7 +444,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 				"Option",
 			);
 			for (const finding of findings) {
-				const keyLevel = finding.code === "schema-deprecated" || finding.code === "schema-required-missing";
+				const keyLevel = finding.code === "schema-deprecated";
 				report(keyLevel ? line.keyRange : line.valueRange, finding.message, finding.severity, finding.code);
 			}
 		}
