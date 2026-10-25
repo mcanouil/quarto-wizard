@@ -116,5 +116,55 @@ suite("cellOptions Test Suite", () => {
 			const text = "```{foo}\n#| a: 1\n```\n";
 			assert.strictEqual(readCellOptions(text, findFencedBlocks(text)[0], "foo"), undefined);
 		});
+
+		test("does not resolve an inherited name as a language", () => {
+			const text = "```{constructor}\n#| a: 1\n```\n";
+			const block = findFencedBlocks(text)[0];
+			assert.strictEqual(readCellOptions(text, block, "constructor"), undefined);
+			assert.strictEqual(readCellOptions(text, block, "__proto__"), undefined);
+			const language = cellLanguage(block.info);
+			assert.ok(language !== undefined);
+			assert.strictEqual(readCellOptions(text, block, language), undefined);
+		});
+
+		test("allows whitespace between the prefix and the pipe", () => {
+			const text = "```{r}\n# | label: a\n```\n";
+			const lines = read(text);
+			assert.strictEqual(lines?.[0].key, "label");
+			assert.strictEqual(slice(text, lines?.[0].keyRange), "label");
+			assert.strictEqual(slice(text, lines?.[0].valueRange), "a");
+		});
+
+		test("does not read a line with a margin before the prefix", () => {
+			assert.deepStrictEqual(read("```{r}\n  #| label: a\n```\n"), []);
+		});
+
+		test("does not read an unclosed paired comment", () => {
+			assert.deepStrictEqual(read("```{c}\n/*| label: a\n```\n"), []);
+		});
+
+		test("maps offsets in a cell indented with a tab", () => {
+			const text = "-\titem\n\n\t```{r}\n\t#| dpi: 2\n\tx\n\t```\n";
+			const block = findFencedBlocks(text)[0];
+			const lines = readCellOptions(text, block, "r");
+			assert.ok(lines);
+			assert.strictEqual(lines.length, 1);
+			assert.strictEqual(slice(text, lines[0].keyRange), "dpi");
+			assert.strictEqual(slice(text, lines[0].valueRange), "2");
+		});
+
+		test("treats a pipe line without a space after the colon as no option", () => {
+			assert.deepStrictEqual(
+				read("```{r}\n#|key:value\n#| dpi: 2\n```\n")?.map((l) => l.key),
+				["dpi"],
+			);
+		});
+
+		test("reads a pipe line without a space after the pipe", () => {
+			const text = "```{r}\n#|key: value\n```\n";
+			const lines = read(text);
+			assert.strictEqual(slice(text, lines?.[0].keyRange), "key");
+			assert.strictEqual(slice(text, lines?.[0].valueRange), "value");
+		});
 	});
 });

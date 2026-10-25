@@ -78,9 +78,13 @@ export interface CellOptionLine {
 	valueRange: TextRange | undefined;
 }
 
+function escapeRegExp(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const CELL_INFO = /^\{([A-Za-z0-9_-]+)(?=[\s,}])/;
 
-const OPTION_KEY = /^ ?([A-Za-z0-9_-]+):(?:\s+(.*))?$/;
+const OPTION_KEY = /^([A-Za-z0-9_-]+):(?:\s+(.*))?$/;
 
 /**
  * The lower-cased language of an executable cell, or undefined for any other
@@ -95,19 +99,19 @@ export function cellLanguage(info: string): string | undefined {
  * The leading comment-pipe option lines of a cell, with document offsets.
  *
  * The run ends at the first line that does not start with the language's
- * prefix and a pipe. A prefixed line without a `key:` at its start, such as a
+ * prefix, optional whitespace, a pipe and an optional space, as in quarto-cli. A prefixed line without a `key:` at its start, such as a
  * YAML list item or an indented continuation, stays in the run and is skipped,
  * as is a key whose value is empty on its line.
  *
  * @returns undefined when the language has no comment prefix.
  */
 export function readCellOptions(text: string, block: FencedBlock, language: string): CellOptionLine[] | undefined {
-	const prefix = CELL_COMMENT_PREFIXES[language];
-	if (prefix === undefined) {
+	if (!Object.hasOwn(CELL_COMMENT_PREFIXES, language)) {
 		return undefined;
 	}
+	const prefix = CELL_COMMENT_PREFIXES[language];
 	const [open, close] = typeof prefix === "string" ? [prefix, undefined] : prefix;
-	const opening = `${open}|`;
+	const opening = new RegExp(`^${escapeRegExp(open)}\\s*\\| ?`);
 
 	const closing = closingFenceRegExp(block.fence);
 	const options: CellOptionLine[] = [];
@@ -123,15 +127,15 @@ export function readCellOptions(text: string, block: FencedBlock, language: stri
 			break;
 		}
 		const content = removeIndentColumns(unquoted.content, block.indent, unquoted.column);
-		const margin = content.length - content.trimStart().length;
-		if (!content.startsWith(opening, margin)) {
+		const matched = opening.exec(content);
+		if (matched === null || (close !== undefined && !content.trimEnd().endsWith(close))) {
 			break;
 		}
 
 		// Both removals only drop a prefix of the line, so what is left lines up
 		// with the end of the original line.
 		const contentStart = lineStart + line.length - content.length;
-		const afterOpening = margin + opening.length;
+		const afterOpening = matched[0].length;
 		const found = OPTION_KEY.exec(content.slice(afterOpening));
 		if (found !== null) {
 			const keyStart = contentStart + afterOpening + found[0].indexOf(found[1]);
