@@ -87,6 +87,24 @@ const CELL_INFO = /^\{([A-Za-z0-9_-]+)(?=[\s,}])/;
 const OPTION_KEY = /^([A-Za-z0-9_-]+):(?:\s+(.*))?$/;
 
 /**
+ * The value without a trailing YAML comment, as Quarto's YAML parse reads it.
+ * A `#` that starts the value or follows whitespace opens the comment.
+ * A quoted value ends at its closing quote, so a `#` inside the quotes stays.
+ */
+function withoutYamlComment(raw: string): string {
+	let from = 0;
+	if (raw.startsWith('"') || raw.startsWith("'")) {
+		const closing = raw.indexOf(raw[0], 1);
+		if (closing < 0) {
+			return raw;
+		}
+		from = closing + 1;
+	}
+	const comment = /(^|\s)#/.exec(raw.slice(from));
+	return comment === null ? raw : raw.slice(0, from + comment.index).trimEnd();
+}
+
+/**
  * The lower-cased language of an executable cell, or undefined for any other
  * fence. `{=lang}`, `{.lang}` and a bare `lang` are not cells.
  */
@@ -210,7 +228,7 @@ export function readCellOptions(text: string, block: FencedBlock, language: stri
 		if (close !== undefined && raw.trimEnd().endsWith(close)) {
 			raw = raw.trimEnd().slice(0, -close.length);
 		}
-		raw = raw.trim();
+		raw = withoutYamlComment(raw.trim());
 		let value: string | undefined;
 		let valueRange: TextRange | undefined;
 		if (raw !== "") {

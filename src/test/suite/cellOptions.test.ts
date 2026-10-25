@@ -34,6 +34,20 @@ suite("cellOptions Test Suite", () => {
 	});
 
 	suite("readCellOptions", () => {
+		test("strips a trailing YAML comment from an unquoted value", () => {
+			const text =
+				'```{r}\n#| dpi: 300 # note\n#| title: "a # b"\n#| url: a#b\n#| quoted: "x" # n\n#| empty: # n\nx\n```\n';
+			const lines = read(text);
+			assert.ok(lines);
+			assert.strictEqual(lines[0].value, "300");
+			assert.strictEqual(slice(text, lines[0].valueRange), "300");
+			assert.strictEqual(lines[1].value, "a # b");
+			assert.strictEqual(lines[2].value, "a#b");
+			assert.strictEqual(lines[3].value, "x");
+			assert.strictEqual(slice(text, lines[3].valueRange), '"x"');
+			assert.strictEqual(lines[4].value, undefined);
+		});
+
 		test("reads keys and values with document offsets", () => {
 			const text = '```{r}\n#| label: fig-a\n#| dpi: "300"\nplot()\n```\n';
 			const lines = read(text);
