@@ -95,26 +95,36 @@ export function cellLanguage(info: string): string | undefined {
 	return found === null ? undefined : found[1].toLowerCase();
 }
 
+interface RunLine {
+	lineStart: number;
+	lineEnd: number;
+	/** Offset of the first character after the prefix, the pipe and the optional space. */
+	afterOpening: number;
+	/** The line from the prefix on, with blockquote markers and indent removed. */
+	content: string;
+	/** Offset of the first character of `content`. */
+	contentStart: number;
+	/** The closing token of a paired prefix, such as `*\/`. */
+	close: string | undefined;
+	/** What follows the opening, up to the end of the line. */
+	rest: string;
+}
+
 /**
- * The leading comment-pipe option lines of a cell, with document offsets.
- *
- * The run ends at the first line that does not start with the language's
- * prefix, optional whitespace, a pipe and an optional space, as in quarto-cli. A prefixed line without a `key:` at its start, such as a
- * YAML list item or an indented continuation, stays in the run and is skipped,
- * as is a key whose value is empty on its line.
- *
- * @returns undefined when the language has no comment prefix.
+ * The prefixed lines at the start of a cell, up to the first line that is not
+ * an option line. The run ends at the first line that does not start with the
+ * language's prefix, optional whitespace, a pipe and an optional space, as in
+ * quarto-cli.
  */
-export function readCellOptions(text: string, block: FencedBlock, language: string): CellOptionLine[] | undefined {
+function* cellOptionRun(text: string, block: FencedBlock, language: string): Generator<RunLine> {
 	if (!Object.hasOwn(CELL_COMMENT_PREFIXES, language)) {
-		return undefined;
+		return;
 	}
 	const prefix = CELL_COMMENT_PREFIXES[language];
 	const [open, close] = typeof prefix === "string" ? [prefix, undefined] : prefix;
 	const opening = new RegExp(`^${escapeRegExp(open)}\\s*\\| ?`);
 
 	const closing = closingFenceRegExp(block.fence);
-	const options: CellOptionLine[] = [];
 	let lineStart = block.start;
 
 	while (lineStart < block.end && lineStart < text.length) {
@@ -124,43 +134,97 @@ export function readCellOptions(text: string, block: FencedBlock, language: stri
 
 		const unquoted = stripBlockquoteMarkers(line, block.quoteDepth);
 		if (closing.test(unquoted.content)) {
-			break;
+			return;
 		}
 		const content = removeIndentColumns(unquoted.content, block.indent, unquoted.column);
 		const matched = opening.exec(content);
 		if (matched === null || (close !== undefined && !content.trimEnd().endsWith(close))) {
-			break;
+			return;
 		}
 
 		// Both removals only drop a prefix of the line, so what is left lines up
 		// with the end of the original line.
 		const contentStart = lineStart + line.length - content.length;
 		const afterOpening = matched[0].length;
-		const found = OPTION_KEY.exec(content.slice(afterOpening));
-		if (found !== null) {
-			const keyStart = contentStart + afterOpening + found[0].indexOf(found[1]);
-			let raw = found[2] ?? "";
-			if (close !== undefined && raw.trimEnd().endsWith(close)) {
-				raw = raw.trimEnd().slice(0, -close.length);
-			}
-			raw = raw.trim();
-			let value: string | undefined;
-			let valueRange: TextRange | undefined;
-			if (raw !== "") {
-				const valueStart =
-					contentStart + afterOpening + found[0].length - (found[2] ?? "").length + (found[2] ?? "").indexOf(raw);
-				value = quotedValue(raw) ?? raw;
-				valueRange = { start: valueStart, end: valueStart + raw.length };
-			}
-			options.push({
-				key: found[1],
-				value,
-				keyRange: { start: keyStart, end: keyStart + found[1].length },
-				valueRange,
-			});
-		}
+		yield {
+			lineStart,
+			lineEnd: lineStart + line.length,
+			afterOpening,
+			content,
+			contentStart,
+			close,
+			rest: content.slice(afterOpening),
+		};
 
 		lineStart = lineEnd + 1;
+	}
+}
+
+/**
+ * Where an offset sits on an option line of a cell, or undefined when the
+ * offset is outside the leading option run or before the end of the prefix.
+ *
+ * @returns `typed`, the text between the prefix and the offset, and `start`,
+ * the offset at which that text begins.
+ */
+export function cellOptionLineAt(
+	text: string,
+	block: FencedBlock,
+	language: string,
+	offset: number,
+): { typed: string; start: number } | undefined {
+	for (const run of cellOptionRun(text, block, language)) {
+		if (offset < run.lineStart || offset > run.lineEnd) {
+			continue;
+		}
+		const start = run.contentStart + run.afterOpening;
+		if (offset < start) {
+			return undefined;
+		}
+		return { typed: run.content.slice(run.afterOpening, offset - run.contentStart), start };
+	}
+	return undefined;
+}
+
+/**
+ * The leading comment-pipe option lines of a cell, with document offsets.
+ *
+ * A prefixed line without a `key:` at its start, such as a YAML list item or an
+ * indented continuation, stays in the run and is skipped, as is a key whose
+ * value is empty on its line.
+ *
+ * @returns undefined when the language has no comment prefix.
+ */
+export function readCellOptions(text: string, block: FencedBlock, language: string): CellOptionLine[] | undefined {
+	if (!Object.hasOwn(CELL_COMMENT_PREFIXES, language)) {
+		return undefined;
+	}
+	const options: CellOptionLine[] = [];
+	for (const { contentStart, afterOpening, close, rest } of cellOptionRun(text, block, language)) {
+		const found = OPTION_KEY.exec(rest);
+		if (found === null) {
+			continue;
+		}
+		const keyStart = contentStart + afterOpening + found[0].indexOf(found[1]);
+		let raw = found[2] ?? "";
+		if (close !== undefined && raw.trimEnd().endsWith(close)) {
+			raw = raw.trimEnd().slice(0, -close.length);
+		}
+		raw = raw.trim();
+		let value: string | undefined;
+		let valueRange: TextRange | undefined;
+		if (raw !== "") {
+			const valueStart =
+				contentStart + afterOpening + found[0].length - (found[2] ?? "").length + (found[2] ?? "").indexOf(raw);
+			value = quotedValue(raw) ?? raw;
+			valueRange = { start: valueStart, end: valueStart + raw.length };
+		}
+		options.push({
+			key: found[1],
+			value,
+			keyRange: { start: keyStart, end: keyStart + found[1].length },
+			valueRange,
+		});
 	}
 	return options;
 }

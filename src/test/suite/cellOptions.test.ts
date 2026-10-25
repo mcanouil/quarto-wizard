@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { cellLanguage, readCellOptions, type CellOptionLine } from "../../utils/cellOptions";
+import { cellLanguage, cellOptionLineAt, readCellOptions, type CellOptionLine } from "../../utils/cellOptions";
 import { findFencedBlocks } from "../../utils/yamlPosition";
 
 function read(text: string): CellOptionLine[] | undefined {
@@ -165,6 +165,36 @@ suite("cellOptions Test Suite", () => {
 			const lines = read(text);
 			assert.strictEqual(slice(text, lines?.[0].keyRange), "key");
 			assert.strictEqual(slice(text, lines?.[0].valueRange), "value");
+		});
+	});
+
+	suite("cellOptionLineAt", () => {
+		const text = "```{typst}\n//| dpi: 3\n//| \n#let a = 1\n//| \n```\n";
+		const block = findFencedBlocks(text)[0];
+
+		test("gives the text typed after the prefix on an option line", () => {
+			const offset = text.indexOf("dpi: 3") + 3;
+			assert.deepStrictEqual(cellOptionLineAt(text, block, "typst", offset), {
+				typed: "dpi",
+				start: text.indexOf("dpi: 3"),
+			});
+		});
+
+		test("gives an empty text right after the prefix", () => {
+			const offset = text.indexOf("//| \n#let") + 4;
+			assert.strictEqual(cellOptionLineAt(text, block, "typst", offset)?.typed, "");
+		});
+
+		test("is undefined inside the prefix", () => {
+			assert.strictEqual(cellOptionLineAt(text, block, "typst", text.indexOf("//| dpi") + 2), undefined);
+		});
+
+		test("is undefined after the option run", () => {
+			assert.strictEqual(cellOptionLineAt(text, block, "typst", text.lastIndexOf("//| ") + 4), undefined);
+		});
+
+		test("is undefined for a language with another prefix", () => {
+			assert.strictEqual(cellOptionLineAt(text, block, "r", text.indexOf("dpi")), undefined);
 		});
 	});
 });
