@@ -1,5 +1,5 @@
 import type { ExtensionSchema, SchemaCache } from "@quarto-wizard/schema";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { logMessage } from "../utils/log";
@@ -17,6 +17,16 @@ export interface CellOptionWithSource extends AttributeWithSource {
  * Merged cell option schemas: lower-cased language to option name to sourced descriptor.
  */
 export type CellOptionSchemas = Record<string, Record<string, CellOptionWithSource>>;
+
+/**
+ * The `cells` source of one installed extension.
+ * `id` identifies the extension, so one installed in several project roots counts once.
+ */
+export interface CellSchemaEntry {
+	source: string;
+	schema: ExtensionSchema;
+	id?: string;
+}
 
 interface OwnedOption {
 	name: string;
@@ -39,13 +49,21 @@ function addConflict(option: CellOptionWithSource, source: string): void {
  *
  * The first extension to declare an option name or alias for a language wins.
  * Every extension that declares an overlapping name or alias is recorded in `conflicts`.
+ * An entry whose `id` repeats an earlier one is skipped.
  * Maps have no prototype, so a language or option named `constructor` is an ordinary key.
  */
-export function mergeCellSchemas(entries: readonly { source: string; schema: ExtensionSchema }[]): CellOptionSchemas {
+export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptionSchemas {
 	const result: CellOptionSchemas = Object.create(null);
 	const owned = new Map<string, OwnedOption[]>();
+	const seen = new Set<string>();
 
-	entries.forEach(({ source, schema }, owner) => {
+	entries.forEach(({ source, schema, id }, owner) => {
+		if (id !== undefined) {
+			if (seen.has(id)) {
+				return;
+			}
+			seen.add(id);
+		}
 		for (const [rawLanguage, cell] of Object.entries(schema.cells ?? {})) {
 			const language = rawLanguage.toLowerCase();
 			const options = (result[language] ??= Object.create(null) as Record<string, CellOptionWithSource>);
@@ -99,12 +117,12 @@ export async function collectCellOptionSchemas(schemaCache: SchemaCache): Promis
 		}),
 	);
 
-	const entries: { source: string; schema: ExtensionSchema }[] = [];
+	const entries: CellSchemaEntry[] = [];
 	for (const extensions of perRoot) {
 		for (const ext of extensions) {
 			const schema: ExtensionSchema | null = schemaCache.get(ext.directory);
 			if (schema?.cells) {
-				entries.push({ source: ext.manifest.title || ext.id.name, schema });
+				entries.push({ source: ext.manifest.title || ext.id.name, schema, id: formatExtensionId(ext.id) });
 			}
 		}
 	}

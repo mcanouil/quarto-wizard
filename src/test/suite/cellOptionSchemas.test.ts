@@ -1,6 +1,8 @@
 import * as assert from "assert";
 import type { ExtensionSchema, FieldDescriptor } from "@quarto-wizard/schema";
-import { mergeCellSchemas } from "../../providers/cellOptionSchemas";
+import { collectCellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
+import { SchemaCache } from "@quarto-wizard/schema";
+import { releaseProviderProject, useProviderProject } from "./providerFixtures";
 import { resolveElementAttribute } from "../../providers/elementAttributeCompletionProvider";
 
 function cells(language: string, options: Record<string, FieldDescriptor>): ExtensionSchema {
@@ -17,6 +19,15 @@ suite("cellOptionSchemas Test Suite", () => {
 			assert.strictEqual(merged.typst.dpi.source, "A");
 			assert.strictEqual(merged.typst.dpi.descriptor.description, "from A");
 			assert.deepStrictEqual(merged.typst.dpi.conflicts, ["B"]);
+		});
+
+		test("does not conflict an extension with itself", () => {
+			const schema = cells("typst", { dpi: { type: "integer" } });
+			const merged = mergeCellSchemas([
+				{ source: "A", id: "acme/demo", schema },
+				{ source: "A", id: "acme/demo", schema },
+			]);
+			assert.deepStrictEqual(merged.typst.dpi.conflicts, []);
 		});
 
 		test("treats an alias of a later option as a conflict and keeps both", () => {
@@ -81,6 +92,24 @@ suite("cellOptionSchemas Test Suite", () => {
 
 		test("ignores schemas without cells", () => {
 			assert.deepStrictEqual(Object.keys(mergeCellSchemas([{ source: "A", schema: {} }])), []);
+		});
+	});
+
+	suite("collectCellOptionSchemas", () => {
+		setup(() => {
+			useProviderProject();
+		});
+
+		teardown(() => {
+			releaseProviderProject();
+		});
+
+		test("returns the options of the installed extension without conflicts", async () => {
+			const schemas = await collectCellOptionSchemas(new SchemaCache());
+			assert.ok(schemas.typst, JSON.stringify(Object.keys(schemas)));
+			for (const option of Object.values(schemas.typst)) {
+				assert.deepStrictEqual(option.conflicts, []);
+			}
 		});
 	});
 });
