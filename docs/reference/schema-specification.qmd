@@ -315,6 +315,7 @@ A code-cell extension must put its comment-pipe options under `cells`, not under
 
 The option prefix is the comment characters of the language, followed by `|`, as Quarto defines them.
 For example, the prefix is `#|` for `r`, `python`, and `julia`, `//|` for `typst` and `ojs`, and `%%|` for `mermaid`.
+A language without comment characters of its own in Quarto uses `#|`, as Quarto does.
 The options are the lines at the start of the cell that begin with this prefix.
 
 Quarto Wizard completes the names of the declared options and shows their documentation on hover.

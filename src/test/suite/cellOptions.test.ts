@@ -2,7 +2,7 @@ import * as assert from "assert";
 import { cellLanguage, cellOptionLineAt, readCellOptions, type CellOptionLine } from "../../utils/cellOptions";
 import { findFencedBlocks } from "../../utils/yamlPosition";
 
-function read(text: string): CellOptionLine[] | undefined {
+function read(text: string): CellOptionLine[] {
 	const block = findFencedBlocks(text)[0];
 	const language = cellLanguage(block.info);
 	assert.ok(language !== undefined, "the fixture must open a cell");
@@ -126,19 +126,24 @@ suite("cellOptions Test Suite", () => {
 			assert.strictEqual(lines[0].valueRange, undefined);
 		});
 
-		test("returns undefined for a language without a prefix", () => {
-			const text = "```{foo}\n#| a: 1\n```\n";
-			assert.strictEqual(readCellOptions(text, findFencedBlocks(text)[0], "foo"), undefined);
+		test("reads hash-pipe lines of a language without comment characters", () => {
+			const text = "```{elixir}\n#| dpi: 2\n```\n";
+			const lines = read(text);
+			assert.deepStrictEqual(
+				lines.map((line) => [line.key, line.value]),
+				[["dpi", "2"]],
+			);
 		});
 
-		test("does not resolve an inherited name as a language", () => {
+		test("does not resolve an inherited name as a language prefix", () => {
 			const text = "```{constructor}\n#| a: 1\n```\n";
 			const block = findFencedBlocks(text)[0];
-			assert.strictEqual(readCellOptions(text, block, "constructor"), undefined);
-			assert.strictEqual(readCellOptions(text, block, "__proto__"), undefined);
-			const language = cellLanguage(block.info);
-			assert.ok(language !== undefined);
-			assert.strictEqual(readCellOptions(text, block, language), undefined);
+			for (const language of ["constructor", "__proto__", "foo"]) {
+				assert.deepStrictEqual(
+					readCellOptions(text, block, language).map((line) => line.key),
+					["a"],
+				);
+			}
 		});
 
 		test("allows whitespace between the prefix and the pipe", () => {

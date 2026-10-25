@@ -405,8 +405,8 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			case "classes":
 				return this.classItems(schema.classes ?? {});
 			case "cells":
-				return this.formatItems(
-					Object.fromEntries(Object.entries(schema.cells ?? {}).map(([lang, cell]) => [lang, cell.options ?? {}])),
+				return Object.entries(schema.cells ?? {}).map(
+					([lang, cell]) => new SchemaFormatTreeItem(lang, cell.options ?? {}, cell.description),
 				);
 		}
 	}

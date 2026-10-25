@@ -405,9 +405,6 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 		const lines = readCellOptions(text, block, language);
-		if (lines === undefined) {
-			return;
-		}
 
 		const report = (range: TextRange, message: string, severity: InlineValidationSeverity, code: string): void => {
 			const diagnostic = new vscode.Diagnostic(

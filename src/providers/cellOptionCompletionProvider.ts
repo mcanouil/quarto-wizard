@@ -93,7 +93,7 @@ export class CellOptionCompletionProvider implements vscode.CompletionItemProvid
 			}
 
 			const occupied = new Set<string>();
-			for (const option of readCellOptions(text, cell.block, cell.language) ?? []) {
+			for (const option of readCellOptions(text, cell.block, cell.language)) {
 				if (option.keyRange.start < line.start || option.keyRange.start > offset) {
 					occupied.add(option.key);
 				}
@@ -121,7 +121,7 @@ export class CellOptionHoverProvider implements vscode.HoverProvider {
 			if (!cell) {
 				return null;
 			}
-			const option = (readCellOptions(text, cell.block, cell.language) ?? []).find(
+			const option = readCellOptions(text, cell.block, cell.language).find(
 				(candidate) =>
 					(offset >= candidate.keyRange.start && offset <= candidate.keyRange.end) ||
 					(candidate.valueRange !== undefined &&

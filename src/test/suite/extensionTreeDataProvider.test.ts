@@ -272,6 +272,37 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		);
 	});
 
+	test("a cells language shows its description and lists its options as children", async () => {
+		const provider = createProvider();
+		const schema = {
+			cells: {
+				typst: { description: "Typst cells.", options: { dpi: { type: "integer" as const } } },
+				julia: {},
+			},
+		};
+
+		const sections = await provider.getChildren(new SchemaTreeItem("/tmp/ext", schema));
+		assert.ok(Array.isArray(sections));
+		const languages = await provider.getChildren(sections[0]);
+		assert.ok(Array.isArray(languages));
+		assert.deepStrictEqual(
+			languages.map((language) => language.label),
+			["typst", "julia"],
+		);
+		assert.ok(String(languages[0].tooltip).includes("Typst cells."));
+		assert.ok(String(languages[0].description).includes("Typst cells."));
+
+		const options = await provider.getChildren(languages[0]);
+		assert.ok(Array.isArray(options));
+		assert.deepStrictEqual(
+			options.map((option) => option.label),
+			["dpi"],
+		);
+
+		const none = await provider.getChildren(languages[1]);
+		assert.deepStrictEqual(none, []);
+	});
+
 	suite("Update check", () => {
 		let restoreBoundary: (() => void) | undefined;
 

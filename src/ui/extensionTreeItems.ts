@@ -298,10 +298,12 @@ export class SchemaFormatTreeItem extends vscode.TreeItem {
 	constructor(
 		label: string,
 		public readonly fields: Record<string, FieldDescriptor>,
+		summary?: string,
 	) {
 		const fieldCount = Object.keys(fields).length;
 		super(label, vscode.TreeItemCollapsibleState.Collapsed);
-		this.description = `${fieldCount} option${fieldCount === 1 ? "" : "s"}`;
+		this.description = summary ?? `${fieldCount} option${fieldCount === 1 ? "" : "s"}`;
+		this.tooltip = summary ?? label;
 		this.iconPath = new vscode.ThemeIcon("symbol-interface");
 	}
 }

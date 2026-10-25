@@ -82,13 +82,16 @@ function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** The comment characters Quarto uses for a language that has none of its own. */
+const DEFAULT_COMMENT_PREFIX = "#";
+
 const openingRegExps = new Map<string, RegExp>();
 
-function openingRegExp(language: string, open: string): RegExp {
-	let opening = openingRegExps.get(language);
+function openingRegExp(open: string): RegExp {
+	let opening = openingRegExps.get(open);
 	if (opening === undefined) {
 		opening = new RegExp(`^${escapeRegExp(open)}\\s*\\| ?`);
-		openingRegExps.set(language, opening);
+		openingRegExps.set(open, opening);
 	}
 	return opening;
 }
@@ -146,12 +149,11 @@ interface RunLine {
  * quarto-cli.
  */
 function* cellOptionRun(text: string, block: FencedBlock, language: string): Generator<RunLine> {
-	if (!Object.hasOwn(CELL_COMMENT_PREFIXES, language)) {
-		return;
-	}
-	const prefix = CELL_COMMENT_PREFIXES[language];
+	const prefix = Object.hasOwn(CELL_COMMENT_PREFIXES, language)
+		? CELL_COMMENT_PREFIXES[language]
+		: DEFAULT_COMMENT_PREFIX;
 	const [open, close] = typeof prefix === "string" ? [prefix, undefined] : prefix;
-	const opening = openingRegExp(language, open);
+	const opening = openingRegExp(open);
 
 	const closing = closingFenceRegExp(block.fence);
 	let lineStart = block.start;
@@ -221,13 +223,8 @@ export function cellOptionLineAt(
  * A prefixed line without a `key:` at its start, such as a YAML list item or an
  * indented continuation, stays in the run and is skipped, as is a key whose
  * value is empty on its line.
- *
- * @returns undefined when the language has no comment prefix.
  */
-export function readCellOptions(text: string, block: FencedBlock, language: string): CellOptionLine[] | undefined {
-	if (!Object.hasOwn(CELL_COMMENT_PREFIXES, language)) {
-		return undefined;
-	}
+export function readCellOptions(text: string, block: FencedBlock, language: string): CellOptionLine[] {
 	const options: CellOptionLine[] = [];
 	for (const { contentStart, afterOpening, close, rest } of cellOptionRun(text, block, language)) {
 		const found = OPTION_KEY.exec(rest);
