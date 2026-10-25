@@ -81,7 +81,7 @@ rewrite kebab-case keyword names to their camelCase equivalents and replace `min
 
 ## Top-level Structure
 
-The schema has six optional top-level sections.
+The schema has seven optional top-level sections.
 An extension may define any combination of these.
 
 ```yaml
@@ -123,6 +123,14 @@ attributes:
 classes:
   <class-name>:
     description: <string>
+
+# Comment-pipe options of executable code cells, one entry per language.
+# Used in: a {lang} cell with lines such as #| name: value
+cells:
+  <language>:
+    description: <string>
+    options:
+      <option-name>: <field-descriptor>
 ```
 
 ### options
@@ -275,9 +283,55 @@ classes:
     description: "Renders a note-style callout block."
 ```
 
+### cells
+
+Comment-pipe options of executable code cells.
+Use this section when your extension reads options from the first lines of a cell, such as `//| dpi: 300`.
+Each key is a language name, and it matches without regard to case.
+A group has an optional `description` and an `options` map.
+Each option is a field descriptor.
+The section works in the same way in v1 and v2 schemas.
+
+```yaml
+cells:
+  typst:
+    description: "Options for Typst cells."
+    options:
+      dpi:
+        type: integer
+        min: 72
+        description: "Resolution of the rendered image."
+      layout:
+        type: string
+        enum: [wide, narrow]
+        description: "Page layout of the cell output."
+```
+
+A group applies only to comment-pipe options at the top of an executable cell, that is a fence that starts with `{lang}`, such as `{typst}`.
+It never applies to element attributes.
+`{=lang}`, `{.lang}`, and a fence with a bare `lang` are not cells.
+To describe the attributes of a code block, use [`attributes`](#attributes).
+A code-cell extension must put its comment-pipe options under `cells`, not under `attributes.<lang>`.
+
+The option prefix is the comment characters of the language, followed by `|`, as Quarto defines them.
+For example, the prefix is `#|` for `r`, `python`, and `julia`, `//|` for `typst` and `ojs`, and `%%|` for `mermaid`.
+The options are the lines at the start of the cell that begin with this prefix.
+
+Quarto Wizard completes the names of the declared options and shows their documentation on hover.
+It also checks the values of the declared options.
+A value is read as text and converted in the same way as the Lua validator converts it.
+For example, `dpi: "300"` is valid for `type: integer`.
+
+Quarto Wizard never reports an option that the schema does not declare.
+Quarto options such as `label` and `echo` use the same lines.
+
+If two installed extensions declare the same option for the same language, the extension that Quarto loads first applies.
+The option can be a name or an alias.
+Quarto Wizard shows a warning on each line that uses this option.
+
 ## Field Descriptor Properties
 
-Every option, argument, or attribute is described by the same set of properties.
+Every option, argument, attribute, or cell option is described by the same set of properties.
 All properties are optional.
 
 ### Type and Value Constraints
@@ -538,6 +592,35 @@ attributes:
       completion:
         type: color
 ```
+
+### Cell options
+
+A code-cell extension that reads comment-pipe options.
+
+```{.yaml filename="_schema.yml"}
+cells:
+  typst:
+    description: "Options for Typst cells."
+    options:
+      dpi:
+        type: integer
+        min: 72
+        description: "Resolution of the rendered image."
+      transparent:
+        type: boolean
+        default: false
+        description: "Render the image with a transparent background."
+```
+
+In a `{typst}` cell, write the options on the first lines:
+
+````markdown
+```{typst}
+//| dpi: 300
+//| transparent: true
+#set page(width: auto)
+```
+````
 
 ### Combined extension
 

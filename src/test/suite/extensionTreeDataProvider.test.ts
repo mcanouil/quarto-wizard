@@ -7,6 +7,8 @@ import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvi
 import {
 	ExtensionTreeItem,
 	ProjectGroupTreeItem,
+	SchemaFormatTreeItem,
+	SchemaTreeItem,
 	WorkspaceFolderTreeItem,
 	type TreeItemType,
 } from "../../ui/extensionTreeItems";
@@ -243,6 +245,33 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		assert.strictEqual(top[0].label, "repoA");
 		assert.strictEqual(top[1].label, "repoB");
 	});
+	test("a cells section lists each language with its options", async () => {
+		const provider = createProvider();
+		const schema = { cells: { typst: { options: { dpi: { type: "integer" as const } } } } };
+
+		const sections = await provider.getChildren(new SchemaTreeItem("/tmp/ext", schema));
+		assert.ok(Array.isArray(sections));
+		assert.deepStrictEqual(
+			sections.map((section) => section.label),
+			["Cells"],
+		);
+
+		const languages = await provider.getChildren(sections[0]);
+		assert.ok(Array.isArray(languages));
+		assert.deepStrictEqual(
+			languages.map((language) => language.label),
+			["typst"],
+		);
+		assert.ok(languages[0] instanceof SchemaFormatTreeItem);
+
+		const options = await provider.getChildren(languages[0]);
+		assert.ok(Array.isArray(options));
+		assert.deepStrictEqual(
+			options.map((option) => option.label),
+			["dpi"],
+		);
+	});
+
 	suite("Update check", () => {
 		let restoreBoundary: (() => void) | undefined;
 

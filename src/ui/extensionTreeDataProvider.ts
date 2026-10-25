@@ -379,6 +379,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		if (schema.classes && Object.keys(schema.classes).length > 0) {
 			sections.push(new SchemaSectionTreeItem("Classes", "classes", schema, Object.keys(schema.classes).length));
 		}
+		if (schema.cells && Object.keys(schema.cells).length > 0) {
+			sections.push(new SchemaSectionTreeItem("Cells", "cells", schema, Object.keys(schema.cells).length));
+		}
 
 		return sections;
 	}
@@ -401,6 +404,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				return this.formatItems(schema.attributes ?? {});
 			case "classes":
 				return this.classItems(schema.classes ?? {});
+			case "cells":
+				return this.formatItems(
+					Object.fromEntries(Object.entries(schema.cells ?? {}).map(([lang, cell]) => [lang, cell.options ?? {}])),
+				);
 		}
 	}
 
