@@ -196,5 +196,17 @@
 		"panel": { "description": "A styled panel container." },
 		"hidden": { "description": "Hides the element from output." }
 	},
+	"cells": {
+		"typst": {
+			"description": "Typst cells.",
+			"options": {
+				"dpi": {
+					"type": "integer",
+					"minimum": 1,
+					"description": "Resolution of the rendered output."
+				}
+			}
+		}
+	},
 	"projects": ["my-website"]
 }

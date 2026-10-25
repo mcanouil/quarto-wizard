@@ -504,6 +504,23 @@ options:
 		expect(schema.options!["fadeInAndOut"].type).toEqual(["number", "boolean"]);
 		expect(schema.options!["fadeInAndOut"].default).toBe(100);
 	});
+
+	it("parses a cells section and normalises its option descriptors", () => {
+		const yamlContent = `
+cells:
+  typst:
+    description: "d"
+    options:
+      dpi:
+        type: integer
+        min: 1
+`;
+
+		const schema = parseSchemaContent(yamlContent);
+
+		expect(schema.cells!["typst"].description).toBe("d");
+		expect(schema.cells!["typst"].options!["dpi"].min).toBe(1);
+	});
 });
 
 describe("typeIncludes", () => {

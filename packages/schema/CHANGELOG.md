@@ -7,6 +7,10 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+### Features
+
+- feat: Add a top-level `cells` section to both meta-schemas, to declare the comment-pipe options of code cells by cell language.
+
 ## 2.2.0
 
 ### Bug Fixes

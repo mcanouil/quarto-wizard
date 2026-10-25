@@ -27,7 +27,16 @@ describe("SCHEMA_META_SCHEMA structure", () => {
 
 describe("ALLOWED_TOP_LEVEL_KEYS", () => {
 	it("contains exactly the expected keys", () => {
-		const expected = new Set(["$schema", "options", "shortcodes", "formats", "projects", "attributes", "classes"]);
+		const expected = new Set([
+			"$schema",
+			"options",
+			"shortcodes",
+			"formats",
+			"projects",
+			"attributes",
+			"classes",
+			"cells",
+		]);
 		expect(ALLOWED_TOP_LEVEL_KEYS).toEqual(expected);
 	});
 });

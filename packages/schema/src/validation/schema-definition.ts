@@ -244,6 +244,15 @@ export function validateSchemaDefinitionStructure(parsed: unknown): SchemaDefini
 		}
 	}
 
+	const cells = root["cells"];
+	if (cells !== undefined) {
+		if (isPlainObject(cells)) {
+			validateCellsMap(cells as Record<string, unknown>, ctx);
+		} else {
+			findings.push(sectionTypeError("cells", '"cells" must be an object.'));
+		}
+	}
+
 	if (root["shortcodes"] !== undefined) {
 		if (isPlainObject(root["shortcodes"])) {
 			validateShortcodeSchemaMap(root["shortcodes"] as Record<string, unknown>, "shortcodes", ctx);
@@ -296,6 +305,52 @@ function validateClassesMap(classes: Record<string, unknown>, ctx: ValidationCon
 				code: "invalid-class-description",
 				keyPath: `${classPath}.description`,
 			});
+		}
+	}
+}
+
+const ALLOWED_CELL_ENTRY_KEYS = new Set(["description", "options"]);
+
+function validateCellsMap(cells: Record<string, unknown>, ctx: ValidationContext): void {
+	for (const [language, cellValue] of Object.entries(cells)) {
+		const cellPath = `cells.${language}`;
+		if (!isPlainObject(cellValue)) {
+			ctx.findings.push({
+				message: `Cell entry "${language}" must be an object.`,
+				severity: "error",
+				code: "invalid-cell-entry",
+				keyPath: cellPath,
+			});
+			continue;
+		}
+		const cellObj = cellValue as Record<string, unknown>;
+		for (const key of Object.keys(cellObj)) {
+			if (!ALLOWED_CELL_ENTRY_KEYS.has(key)) {
+				ctx.findings.push({
+					message: `Unknown cell property "${key}".`,
+					severity: "warning",
+					code: "unknown-cell-property",
+					keyPath: `${cellPath}.${key}`,
+				});
+			}
+		}
+		const desc = cellObj["description"];
+		if (desc !== undefined && typeof desc !== "string") {
+			ctx.findings.push({
+				message: `Cell "${language}" description must be a string.`,
+				severity: "error",
+				code: "invalid-cell-description",
+				keyPath: `${cellPath}.description`,
+			});
+		}
+		const options = cellObj["options"];
+		if (options !== undefined) {
+			const optionsPath = `${cellPath}.options`;
+			if (isPlainObject(options)) {
+				validateFieldDescriptorMap(options as Record<string, unknown>, optionsPath, ctx);
+			} else {
+				ctx.findings.push(sectionTypeError(optionsPath, `"${optionsPath}" must be an object.`));
+			}
 		}
 	}
 }
