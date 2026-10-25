@@ -288,6 +288,11 @@ local function probe_schema(file, loaded)
   for group, descriptors in pairs(loaded.attributes) do
     probe_map(file, { 'attributes', group }, descriptors)
   end
+  for lang, entry in pairs(loaded.cells) do
+    if type(entry) == 'table' then
+      probe_map(file, { 'cells', lang, 'options' }, entry.options)
+    end
+  end
   for name, entry in pairs(loaded.shortcodes) do
     if type(entry) == 'table' then
       probe_map(file, { 'shortcodes', name, 'attributes' }, entry.attributes)
@@ -338,6 +343,12 @@ for _, path in ipairs(find_schemas()) do
 
     for group, descriptors in pairs(loaded.attributes) do
       check_map(path, 'attribute of ' .. group, descriptors)
+    end
+
+    for lang, entry in pairs(loaded.cells) do
+      if type(entry) == 'table' then
+        check_map(path, 'cell option of ' .. lang, entry.options)
+      end
     end
 
     for name, entry in pairs(loaded.shortcodes) do
