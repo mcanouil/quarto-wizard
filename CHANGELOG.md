@@ -13,9 +13,9 @@
 
 ### New Features
 
+- feat: Add a `cells` schema section for comment-pipe cell options, with completion, hover and diagnostics in executable cells. (#518)
 - feat: Show where the update check looked, in a message at the top of the Extensions Installed view and in the tooltip and details of each extension. Update and Update All now check GitHub when you click them, and install the tag that their messages name.
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
-- feat: Add a `cells` schema section for comment-pipe cell options, with completion, hover and diagnostics in executable cells.
 
 ### Bug Fixes
 
