@@ -1,4 +1,5 @@
 import { quotedValue } from "./typst/typstBlocks";
+import { normaliseCellLanguage } from "@quarto-wizard/schema";
 import {
 	closingFenceRegExp,
 	removeIndentColumns,
@@ -152,7 +153,7 @@ export function cellLanguage(info: string): string | undefined {
  * Lua matches a language case-insensitively and with a hyphen or an underscore alike, so the key is lower case with hyphens.
  */
 export function cellLanguageKey(language: string): string {
-	return language.toLowerCase().replaceAll("_", "-");
+	return normaliseCellLanguage(language);
 }
 
 interface RunLine {

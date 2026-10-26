@@ -9,6 +9,7 @@
  */
 
 import * as yaml from "js-yaml";
+import { normaliseCellLanguage } from "./cell-language.js";
 import { allowedSetsFor, ALLOWED_TYPES } from "./schema-derived.js";
 import { FIELD_ALIAS_PAIRS, isSupportedSchemaUri, resolveSchemaVersion, type SchemaVersion } from "../types/schema.js";
 
@@ -315,7 +316,7 @@ function validateCellsMap(cells: Record<string, unknown>, ctx: ValidationContext
 	const firstSpelling = new Map<string, string>();
 	for (const [language, cellValue] of Object.entries(cells)) {
 		const cellPath = `cells.${language}`;
-		const languageKey = language.toLowerCase().replaceAll("_", "-");
+		const languageKey = normaliseCellLanguage(language);
 		const earlier = firstSpelling.get(languageKey);
 		if (earlier === undefined) {
 			firstSpelling.set(languageKey, language);

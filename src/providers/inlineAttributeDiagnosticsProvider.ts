@@ -27,7 +27,7 @@ import { type CellOptionSchemas, collectCellOptionSchemas } from "./cellOptionSc
 import type { FencedBlock } from "../utils/yamlPosition";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
-import { spellingsOf } from "../utils/fieldLookup";
+import { descriptorsOf, isRequiredPresent, isWrittenAs, replaceWithOf } from "../utils/fieldLookup";
 import { debounce } from "../utils/debounce";
 
 // ---------------------------------------------------------------------------
@@ -75,52 +75,10 @@ function findInlineReplacement(
 		return undefined;
 	}
 	const names = [key, ...(replacement.aliases ?? [])];
-	if (names.some((name) => name in written)) {
+	if (names.some((name) => isWrittenAs(written, name))) {
 		return undefined;
 	}
 	return { key, descriptor: replacement };
-}
-
-function replaceWithOf(descriptor: FieldDescriptor): string | undefined {
-	return typeof descriptor.deprecated === "object" && descriptor.deprecated !== null
-		? descriptor.deprecated.replaceWith
-		: undefined;
-}
-
-/**
- * Tell whether a required field is present, as the Lua validator counts it.
- * The field is present when it is written under its name or an alias, in
- * either hyphen or underscore spelling, or when a deprecated field that
- * names it exactly in `replaceWith` is written, because the value moves to it.
- * A required field that is itself deprecated with `replaceWith` is never
- * present, because the validator clears it.
- *
- * @param name - The declared name of the required field.
- * @param descriptor - The descriptor of the required field.
- * @param written - The names written in the document.
- * @param descriptors - Every descriptor that applies, by declared name.
- */
-export function isRequiredPresent(
-	name: string,
-	descriptor: FieldDescriptor,
-	written: Record<string, unknown>,
-	descriptors: Record<string, FieldDescriptor>,
-): boolean {
-	const isWritten = (candidate: string): boolean =>
-		spellingsOf(candidate).some((spelling) => Object.hasOwn(written, spelling));
-	if (descriptor.default !== undefined) {
-		return true;
-	}
-	if (replaceWithOf(descriptor) === undefined && [name, ...(descriptor.aliases ?? [])].some(isWritten)) {
-		return true;
-	}
-	return Object.entries(descriptors).some(
-		([other, candidate]) => replaceWithOf(candidate) === name && [other, ...(candidate.aliases ?? [])].some(isWritten),
-	);
-}
-
-function descriptorsOf(entries: Record<string, { descriptor: FieldDescriptor }>): Record<string, FieldDescriptor> {
-	return Object.fromEntries(Object.entries(entries).map(([name, { descriptor }]) => [name, descriptor]));
 }
 
 /**

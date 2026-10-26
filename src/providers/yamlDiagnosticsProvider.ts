@@ -6,7 +6,7 @@ import { getDocumentYaml } from "../utils/documentScan";
 import type { AnnotatedYaml, YamlPathSegment } from "../utils/yamlAnnotated";
 import type { TextRange } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
-import { isRequiredPresent } from "./inlineAttributeDiagnosticsProvider";
+import { findFieldDescriptor, isRequiredPresent } from "../utils/fieldLookup";
 import { debounce } from "../utils/debounce";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
@@ -349,7 +349,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 		// Validate each provided value.
 		for (const [key, value] of Object.entries(values)) {
 			const currentPath = [...parentPath, key];
-			const descriptor = this.findDescriptor(key, fields);
+			const descriptor = findFieldDescriptor(fields, key);
 
 			// A finding about the key points at the key, and one about the value
 			// points at the value. Both come from one walk of the tree.
@@ -437,21 +437,6 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 				this.validateFields(value as Record<string, unknown>, descriptor.properties, currentPath, where, diagnostics);
 			}
 		}
-	}
-
-	private findDescriptor(key: string, fields: Record<string, FieldDescriptor>): FieldDescriptor | undefined {
-		if (fields[key]) {
-			return fields[key];
-		}
-
-		// Check aliases.
-		for (const [, descriptor] of Object.entries(fields)) {
-			if (descriptor.aliases && descriptor.aliases.includes(key)) {
-				return descriptor;
-			}
-		}
-
-		return undefined;
 	}
 
 	private static readonly KNOWN_TYPES = new Set(["string", "number", "boolean", "array", "object", "integer"]);

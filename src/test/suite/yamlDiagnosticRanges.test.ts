@@ -150,6 +150,26 @@ suite("YAML required options", () => {
 		assert.deepStrictEqual(await missing("fig_width", required), []);
 	});
 
+	test("Should validate a value written with the other separator against the declared option", async () => {
+		const document = await documentOf("opts:\n  fig_width: abc\n");
+		const annotated = getDocumentYaml(document, document.getText());
+		const provider = new YamlDiagnosticsProvider({} as SchemaCache);
+		try {
+			const diagnostics: vscode.Diagnostic[] = [];
+			(provider as unknown as { validateFields: (...args: unknown[]) => void }).validateFields(
+				{ fig_width: "abc" },
+				{ "fig-width": { type: "number" } },
+				["opts"],
+				new DiagnosticRanges(document, annotated!),
+				diagnostics,
+			);
+			assert.strictEqual(diagnostics.length, 1);
+			assert.ok(!diagnostics[0].message.includes("Unknown"), diagnostics[0].message);
+		} finally {
+			provider.dispose();
+		}
+	});
+
 	test("Should report a required option that is not written", async () => {
 		assert.deepStrictEqual(await missing("other", required), ['Required option "fig-width" is missing.']);
 	});

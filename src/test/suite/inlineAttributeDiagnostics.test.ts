@@ -8,9 +8,9 @@ import {
 	extractBlocks,
 } from "../../utils/inlineAttributeText";
 import * as vscode from "vscode";
+import { isRequiredPresent } from "../../utils/fieldLookup";
 import {
 	InlineAttributeDiagnosticsProvider,
-	isRequiredPresent,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
 import { type CellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
@@ -1066,6 +1066,16 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.deepStrictEqual(validateInlineValue("x", "1", nulled), []);
 			});
 
+			test("a required field with a default is not present when it is cleared by replaceWith", () => {
+				const cleared: FieldDescriptor = {
+					type: "number",
+					required: true,
+					default: 1,
+					deprecated: { replaceWith: "new" },
+				};
+				assert.ok(!isRequiredPresent("old", cleared, { old: "1" }, { old: cleared, new: { type: "number" } }));
+			});
+
 			test("a missing field is absent", () => {
 				assert.ok(!isRequiredPresent("fig-width", target, { other: 1 }, descriptors));
 				assert.ok(!isRequiredPresent("fig-width", target, {}, descriptors));
@@ -1196,6 +1206,28 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.deepStrictEqual(await run(write(assign("other"))), ["schema-required-missing"]);
 			});
 		}
+
+		test("a replacement written with the other separator is not forwarded to", async () => {
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument('[text]{.cls old="abc" fig_width="2"}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					{
+						cls: {
+							"fig-width": { descriptor: target, source: "ext" },
+							old: { descriptor: descriptors.old, source: "ext" },
+						},
+					},
+					document,
+					diagnostics,
+					[],
+					false,
+				);
+			});
+			assert.deepStrictEqual(codes(diagnostics), ["schema-deprecated"]);
+		});
 
 		test("an element does not flag the underscore spelling as unknown", async () => {
 			const diagnostics: vscode.Diagnostic[] = [];

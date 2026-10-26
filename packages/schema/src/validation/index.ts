@@ -27,3 +27,5 @@ export {
 export { validateFieldValue, deprecationMessage, coerceFieldValue, luaToNumber } from "./field-value.js";
 
 export type { FieldFindingCode, FieldFinding } from "./field-value.js";
+
+export { normaliseCellLanguage } from "./cell-language.js";
