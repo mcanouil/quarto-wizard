@@ -14,6 +14,7 @@ import {
 	attributeKeyItems,
 	attributeValueItems,
 	mergeApplicableAttributes,
+	mergeAttributeSchemas,
 } from "../../providers/elementAttributeCompletionProvider";
 
 function extension(source: string, descriptors: Record<string, FieldDescriptor>): ExtensionDeclarations {
@@ -243,6 +244,16 @@ suite("Completion and hover across extensions", () => {
 		assert.ok(docs.includes("A") && docs.includes("B"));
 	});
 
+	test("builds an alias item only from the names that are not occupied", () => {
+		const a = extension("A", { x: { type: "string", aliases: ["y"] } });
+		const b = extension("B", { z: { type: "string", enum: ["p", "q"], aliases: ["y"] } });
+		const y = attributeKeyItems(combineDeclarations([a, b]), new Set(["z"]), ": ").find((item) => item.label === "y");
+		assert.ok(y);
+		assert.strictEqual(y.detail, "A (alias for x)");
+		assert.strictEqual(y.command, undefined);
+		assert.ok(!(y.documentation as vscode.MarkdownString).value.includes("B"));
+	});
+
 	test("skips a name when an alias of any declaration is present", () => {
 		assert.deepStrictEqual(attributeKeyItems(applicable, new Set(["inc"]), ": "), []);
 	});
@@ -329,5 +340,23 @@ suite("Completion and hover across extensions", () => {
 		);
 		const text = buildDeclarationsDoc(declarations)?.value ?? "";
 		assert.ok(text.includes("**inc**") && text.includes("**tr**"), text);
+	});
+});
+
+suite("mergeAttributeSchemas", () => {
+	test("merges copies of one extension, the first copy winning per field", () => {
+		const merged = mergeAttributeSchemas([
+			schema("A", { Div: { dpi: { type: "integer", description: "first" } } }, "acme/A"),
+			schema("A", { Div: { dpi: { type: "string" }, extra: { type: "string" } } }, "acme/A"),
+		]);
+		assert.strictEqual(merged.length, 1);
+		assert.strictEqual(merged[0].groups.Div.dpi.description, "first");
+		assert.strictEqual(merged[0].groups.Div.dpi.type, "integer");
+		assert.ok("extra" in merged[0].groups.Div);
+		const items = attributeKeyItems(mergeApplicableAttributes(merged, [], [], "Div"), new Set(), ": ");
+		assert.deepStrictEqual(
+			items.map((item) => item.detail),
+			["A", "A"],
+		);
 	});
 });

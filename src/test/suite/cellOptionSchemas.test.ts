@@ -50,12 +50,14 @@ suite("cellOptionSchemas Test Suite", () => {
 			assert.strictEqual(merged.typst.byExtension.length, 1);
 		});
 
-		test("skips an entry whose id repeats an earlier one, whatever it declares", () => {
+		test("merges copies of one extension, the first copy winning per option", () => {
 			const merged = mergeCellSchemas([
-				{ source: "A", id: "acme/demo", schema: cells("typst", { dpi: { type: "integer" } }) },
-				{ source: "A", id: "acme/demo", schema: cells("typst", { dpi: { type: "integer" }, z: { type: "string" } }) },
+				{ source: "A", id: "acme/demo", schema: cells("typst", { dpi: { type: "integer", description: "first" } }) },
+				{ source: "A", id: "acme/demo", schema: cells("typst", { dpi: { type: "string" }, z: { type: "string" } }) },
 			]);
-			assert.strictEqual(merged.typst.byName.z, undefined);
+			assert.strictEqual(merged.typst.byExtension.length, 1);
+			assert.strictEqual(merged.typst.byName.dpi[0].descriptor.description, "first");
+			assert.strictEqual(merged.typst.byName.z.length, 1);
 		});
 
 		test("counts entries without an id separately", () => {

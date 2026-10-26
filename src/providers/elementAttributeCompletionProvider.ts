@@ -48,12 +48,32 @@ export interface ClassWithSource {
 export type ClassDefinitions = Record<string, ClassWithSource>;
 
 /**
+ * Merge the copies of one extension, which share a `sourceId`, into one source.
+ * The first copy wins for an attribute it declares, and a later copy adds only the attributes the earlier ones lack.
+ */
+export function mergeAttributeSchemas(entries: readonly ExtensionAttributeSchema[]): ExtensionAttributeSchema[] {
+	const bySourceId = new Map<string, ExtensionAttributeSchema>();
+	for (const { source, sourceId, groups } of entries) {
+		const merged = bySourceId.get(sourceId) ?? { source, sourceId, groups: {} };
+		bySourceId.set(sourceId, merged);
+		for (const [group, attributes] of Object.entries(groups)) {
+			const target = Object.hasOwn(merged.groups, group) ? merged.groups[group] : (merged.groups[group] = {});
+			for (const [name, descriptor] of Object.entries(attributes)) {
+				if (!Object.hasOwn(target, name)) {
+					target[name] = descriptor;
+				}
+			}
+		}
+	}
+	return [...bySourceId.values()];
+}
+
+/**
  * Collect the element attribute schemas of all installed extensions in the workspace, in discovery order.
- * An extension installed in several project roots is collected once.
+ * An extension installed in several project roots is one source, as `mergeAttributeSchemas` merges it.
  */
 export async function collectElementAttributeSchemas(schemaCache: SchemaCache): Promise<ExtensionAttributeSchema[]> {
 	const result: ExtensionAttributeSchema[] = [];
-	const seen = new Set<string>();
 	const roots = await ensureProjectRoots();
 	const perRoot = await Promise.all(
 		roots.map(async (root) => {
@@ -76,16 +96,15 @@ export async function collectElementAttributeSchemas(schemaCache: SchemaCache): 
 				continue;
 			}
 
-			const sourceId = formatExtensionId(ext.id);
-			if (seen.has(sourceId)) {
-				continue;
-			}
-			seen.add(sourceId);
-			result.push({ source: ext.manifest.title || ext.id.name, sourceId, groups: schema.attributes });
+			result.push({
+				source: ext.manifest.title || ext.id.name,
+				sourceId: formatExtensionId(ext.id),
+				groups: schema.attributes,
+			});
 		}
 	}
 
-	return result;
+	return mergeAttributeSchemas(result);
 }
 
 /**
@@ -437,7 +456,7 @@ export function attributeKeyItems(
 	separator: string,
 ): vscode.CompletionItem[] {
 	const items: vscode.CompletionItem[] = [];
-	const aliasEntries = new Map<string, string[]>();
+	const aliasEntries = new Map<string, { details: string[]; declarations: AttributeDeclaration[] }>();
 
 	for (const [attrName, declarations] of Object.entries(applicable.byName)) {
 		// An alias of another extension that equals this name folds into this item.
@@ -473,34 +492,34 @@ export function attributeKeyItems(
 
 		items.push(item);
 
-		for (const { source, descriptor } of declarations) {
-			for (const alias of descriptor.aliases ?? []) {
+		for (const declaration of declarations) {
+			for (const alias of declaration.descriptor.aliases ?? []) {
 				if (alias in applicable.byName) {
 					continue;
 				}
-				const entries = aliasEntries.get(alias) ?? [];
-				const entry = `${source} (alias for ${attrName})`;
-				if (!entries.includes(entry)) {
-					entries.push(entry);
+				const entry = aliasEntries.get(alias) ?? { details: [], declarations: [] };
+				const detail = `${declaration.source} (alias for ${attrName})`;
+				if (!entry.details.includes(detail)) {
+					entry.details.push(detail);
 				}
-				aliasEntries.set(alias, entries);
+				entry.declarations.push(declaration);
+				aliasEntries.set(alias, entry);
 			}
 		}
 	}
 
-	for (const [alias, entries] of aliasEntries) {
-		const resolved = resolveDeclarations(applicable, alias);
-		const sources = [...new Set(resolved.map(({ source }) => source))].join(", ");
-		const docs = buildDeclarationsDoc(resolved);
+	for (const [alias, { details, declarations }] of aliasEntries) {
+		const sources = [...new Set(declarations.map(({ source }) => source))].join(", ");
+		const docs = buildDeclarationsDoc(declarations);
 
 		const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 		aliasItem.insertText = new vscode.SnippetString(`${alias}${separator}`);
-		aliasItem.detail = entries.join(", ");
-		aliasItem.sortText = `!${lowestTier(resolved, true)}_${sources}_${alias}`;
+		aliasItem.detail = details.join(", ");
+		aliasItem.sortText = `!${lowestTier(declarations, true)}_${sources}_${alias}`;
 		if (docs) {
 			aliasItem.documentation = docs;
 		}
-		if (resolved.some(({ descriptor }) => hasCompletableValues(descriptor))) {
+		if (declarations.some(({ descriptor }) => hasCompletableValues(descriptor))) {
 			aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 		}
 		items.push(aliasItem);
