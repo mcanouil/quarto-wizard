@@ -88,11 +88,19 @@ function spellingsOf(name: string): string[] {
 	return [name, name.replace(/-/g, "_"), name.replace(/_/g, "-")];
 }
 
+function replaceWithOf(descriptor: FieldDescriptor): string | undefined {
+	return typeof descriptor.deprecated === "object" && descriptor.deprecated !== null
+		? descriptor.deprecated.replaceWith
+		: undefined;
+}
+
 /**
  * Tell whether a required field is present, as the Lua validator counts it.
  * The field is present when it is written under its name or an alias, in
  * either hyphen or underscore spelling, or when a deprecated field that
- * names it in `replaceWith` is written, because the value moves to it.
+ * names it exactly in `replaceWith` is written, because the value moves to it.
+ * A required field that is itself deprecated with `replaceWith` is never
+ * present, because the validator clears it.
  *
  * @param name - The declared name of the required field.
  * @param descriptor - The descriptor of the required field.
@@ -106,17 +114,14 @@ export function isRequiredPresent(
 	descriptors: Record<string, FieldDescriptor>,
 ): boolean {
 	const isWritten = (candidate: string): boolean =>
-		spellingsOf(candidate).some((spelling) => (written instanceof Set ? written.has(spelling) : spelling in written));
-	if ([name, ...(descriptor.aliases ?? [])].some(isWritten)) {
+		spellingsOf(candidate).some((spelling) =>
+			written instanceof Set ? written.has(spelling) : Object.hasOwn(written, spelling),
+		);
+	if (replaceWithOf(descriptor) === undefined && [name, ...(descriptor.aliases ?? [])].some(isWritten)) {
 		return true;
 	}
-	const targets = new Set(spellingsOf(name));
 	return Object.entries(descriptors).some(
-		([other, candidate]) =>
-			typeof candidate.deprecated === "object" &&
-			candidate.deprecated.replaceWith !== undefined &&
-			targets.has(candidate.deprecated.replaceWith) &&
-			[other, ...(candidate.aliases ?? [])].some(isWritten),
+		([other, candidate]) => replaceWithOf(candidate) === name && [other, ...(candidate.aliases ?? [])].some(isWritten),
 	);
 }
 

@@ -1014,6 +1014,44 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.ok(isRequiredPresent("fig-width", target, new Set(["old"]), descriptors));
 			});
 
+			test("a deprecated field without replaceWith does not satisfy another required field", () => {
+				const plain: Record<string, FieldDescriptor> = { ...descriptors, old: { type: "number", deprecated: "gone" } };
+				assert.ok(!isRequiredPresent("fig-width", target, new Set(["old"]), plain));
+			});
+
+			test("an alias of a deprecated field satisfies its replacement", () => {
+				const aliased: Record<string, FieldDescriptor> = {
+					...descriptors,
+					old: { type: "number", aliases: ["o"], deprecated: { replaceWith: "fig-width" } },
+				};
+				assert.ok(isRequiredPresent("fig-width", target, new Set(["o"]), aliased));
+			});
+
+			test("only the exact replaceWith spelling names the replacement", () => {
+				const variant: Record<string, FieldDescriptor> = {
+					...descriptors,
+					old: { type: "number", deprecated: { replaceWith: "fig_width" } },
+				};
+				assert.ok(!isRequiredPresent("fig-width", target, new Set(["old"]), variant));
+				const exact: Record<string, FieldDescriptor> = {
+					underscored: { type: "number", required: true },
+					old: { type: "number", deprecated: { replaceWith: "underscored" } },
+				};
+				assert.ok(isRequiredPresent("underscored", exact.underscored, new Set(["old"]), exact));
+			});
+
+			test("a required field that is itself deprecated with replaceWith is never present", () => {
+				const both: FieldDescriptor = { type: "number", required: true, deprecated: { replaceWith: "new" } };
+				assert.ok(!isRequiredPresent("old", both, new Set(["old"]), { old: both, new: { type: "number" } }));
+			});
+
+			test("names inherited by a plain object are not written", () => {
+				for (const inherited of ["constructor", "toString"]) {
+					const hostile: FieldDescriptor = { type: "number", required: true, aliases: [inherited] };
+					assert.ok(!isRequiredPresent("fig-width", hostile, {}, { "fig-width": hostile }));
+				}
+			});
+
 			test("a missing field is absent", () => {
 				assert.ok(!isRequiredPresent("fig-width", target, new Set(["other"]), descriptors));
 				assert.ok(!isRequiredPresent("fig-width", target, {}, descriptors));
@@ -1123,6 +1161,35 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.deepStrictEqual(await run(write(assign("other"))), ["schema-required-missing"]);
 			});
 		}
+
+		test("an element and a shortcode count the hyphen spelling of an underscored required attribute", async () => {
+			const underscored: Record<string, FieldDescriptor> = { fig_width: target };
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument('[text]{.cls fig-width="1"}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					{ cls: { fig_width: { descriptor: target, source: "ext" } } },
+					document,
+					diagnostics,
+					[],
+					false,
+				);
+			});
+			await inDocument('{{< demo fig-width="1" >}}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateShortcodeBlock: (...args: unknown[]) => void }).validateShortcodeBlock(
+					block,
+					document.getText(),
+					new Map<string, ShortcodeSchema>([["demo", { attributes: underscored }]]),
+					document,
+					diagnostics,
+					[],
+				);
+			});
+			assert.deepStrictEqual(codes(diagnostics), []);
+		});
 
 		test("a cell counts the hyphen spelling of an underscored required option", async () => {
 			const underscored: CellOptionSchemas = {
