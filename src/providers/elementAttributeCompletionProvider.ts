@@ -1,4 +1,3 @@
-import { findDeclaredField } from "../utils/fieldLookup";
 import * as vscode from "vscode";
 import type { FieldDescriptor, SchemaCache, ExtensionSchema } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
@@ -6,26 +5,18 @@ import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
-import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../utils/schemaDocumentation";
+import { getWordAtOffset, hasCompletableValues, buildDeclarationsDoc } from "../utils/schemaDocumentation";
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
 import {
 	type ApplicableDeclarations,
+	type AttributeDeclaration,
 	type ExtensionDeclarations,
 	type GroupOrigin,
 	combineDeclarations,
+	resolveDeclarations,
 } from "./attributeDeclarations";
-
-/**
- * A field descriptor paired with the name of the extension that provides it.
- */
-export interface AttributeWithSource {
-	descriptor: FieldDescriptor;
-	source: string;
-	/** Set during merging to indicate which group category matched. */
-	groupOrigin?: GroupOrigin;
-}
 
 /**
  * The `attributes` section of one installed extension: group name to attribute name to descriptor.
@@ -244,17 +235,6 @@ function mergeGroup(
 }
 
 /**
- * The first declaration of each applicable name, for the callers that still read one declaration per name.
- */
-export function firstDeclarations(applicable: ApplicableDeclarations): Record<string, AttributeWithSource> {
-	const result: Record<string, AttributeWithSource> = Object.create(null);
-	for (const [name, [first]] of Object.entries(applicable.byName)) {
-		result[name] = first;
-	}
-	return result;
-}
-
-/**
  * Compute a single-character sort tier for an attribute.
  *
  * Lower values sort first (top of the completion menu):
@@ -281,16 +261,6 @@ function attributeSortTier(descriptor: FieldDescriptor, origin: GroupOrigin = "a
 		case "any":
 			return req ? "4" : "5";
 	}
-}
-
-/**
- * Resolve an attribute entry by name or alias.
- */
-export function resolveElementAttribute<T extends AttributeWithSource>(
-	attributes: Record<string, T>,
-	key: string,
-): T | undefined {
-	return findDeclaredField(attributes, key);
 }
 
 /**
@@ -339,10 +309,8 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 				return null;
 			}
 
-			const applicable = firstDeclarations(
-				mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType),
-			);
-			if (Object.keys(applicable).length === 0) {
+			const applicable = mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType);
+			if (Object.keys(applicable.byName).length === 0) {
 				return null;
 			}
 
@@ -363,7 +331,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 	}
 
 	private async completeAttributeKey(
-		attributes: Record<string, AttributeWithSource>,
+		attributes: ApplicableDeclarations,
 		existingAttributes: Record<string, string>,
 		existingClasses: string[],
 	): Promise<vscode.CompletionItem[]> {
@@ -430,7 +398,7 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 	}
 
 	private async completeAttributeValue(
-		attributes: Record<string, AttributeWithSource>,
+		applicable: ApplicableDeclarations,
 		attributeKey: string | undefined,
 		documentUri: vscode.Uri,
 	): Promise<vscode.CompletionItem[]> {
@@ -438,71 +406,86 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			return [];
 		}
 
-		const entry = resolveElementAttribute(attributes, attributeKey);
-		if (!entry) {
+		const declarations = resolveDeclarations(applicable, attributeKey);
+		if (declarations.length === 0) {
 			return [];
 		}
 
-		return attributeValueItems(entry, documentUri);
+		return attributeValueItems(declarations, documentUri);
 	}
 }
 
 /**
- * Build the completion items for the attribute names of one group.
+ * Build the completion items for the attribute names of the applicable declarations.
+ * A name has one item whose detail lists every declaring extension.
  * A field is skipped when its name or one of its aliases is in `occupied`.
  *
  * @param separator - What the inserted name ends with, such as `=` or `: `.
  */
 export function attributeKeyItems(
-	attributes: Record<string, AttributeWithSource>,
+	applicable: ApplicableDeclarations,
 	occupied: ReadonlySet<string>,
 	separator: string,
 ): vscode.CompletionItem[] {
 	const items: vscode.CompletionItem[] = [];
+	const aliasLabels = new Set<string>();
 
-	for (const [attrName, { descriptor, source, groupOrigin }] of Object.entries(attributes)) {
+	for (const [attrName, declarations] of Object.entries(applicable.byName)) {
 		// Skip the entire field (canonical + aliases) when any name is already present.
-		const isOccupied = occupied.has(attrName) || descriptor.aliases?.some((a) => occupied.has(a));
+		const isOccupied =
+			occupied.has(attrName) || declarations.some(({ descriptor }) => descriptor.aliases?.some((a) => occupied.has(a)));
 		if (isOccupied) {
 			continue;
 		}
 
+		const sources = declarations.map(({ source }) => source).join(", ");
+		const tier = declarations
+			.map(({ descriptor, groupOrigin }) => attributeSortTier(descriptor, groupOrigin))
+			.reduce((lowest, candidate) => (candidate < lowest ? candidate : lowest));
+		const completable = declarations.some(({ descriptor }) => hasCompletableValues(descriptor));
+		const docs = buildDeclarationsDoc(declarations);
+
 		const item = new vscode.CompletionItem(attrName, vscode.CompletionItemKind.Property);
 		item.insertText = new vscode.SnippetString(`${attrName}${separator}`);
-
-		const docs = buildAttributeDoc(descriptor, source);
 		if (docs) {
 			item.documentation = docs;
 		}
+		item.detail = sources;
+		item.sortText = `!${tier}_${sources}_${attrName}`;
 
-		item.detail = source;
-		const tier = attributeSortTier(descriptor, groupOrigin);
-		item.sortText = `!${tier}_${source}_${attrName}`;
-
-		if (descriptor.deprecated) {
+		if (declarations.every(({ descriptor }) => descriptor.deprecated)) {
 			item.tags = [vscode.CompletionItemTag.Deprecated];
 		}
 
-		if (hasCompletableValues(descriptor)) {
+		if (completable) {
 			item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
 		}
 
 		items.push(item);
 
-		if (descriptor.aliases) {
-			for (const alias of descriptor.aliases) {
-				const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
-				aliasItem.insertText = new vscode.SnippetString(`${alias}${separator}`);
-				aliasItem.detail = `${source} (alias for ${attrName})`;
-				aliasItem.sortText = `!${attributeSortTier(descriptor, groupOrigin, true)}_${source}_${alias}`;
-				if (docs) {
-					aliasItem.documentation = docs;
-				}
-				if (hasCompletableValues(descriptor)) {
-					aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
-				}
-				items.push(aliasItem);
+		const aliases = new Set(declarations.flatMap(({ descriptor }) => descriptor.aliases ?? []));
+		for (const alias of aliases) {
+			if (aliasLabels.has(alias)) {
+				continue;
 			}
+			aliasLabels.add(alias);
+			const declaring = declarations.filter(({ descriptor }) => descriptor.aliases?.includes(alias));
+			const aliasSources = declaring.map(({ source }) => source).join(", ");
+			const aliasTier = declaring
+				.map(({ descriptor, groupOrigin }) => attributeSortTier(descriptor, groupOrigin, true))
+				.reduce((lowest, candidate) => (candidate < lowest ? candidate : lowest));
+
+			const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
+			aliasItem.insertText = new vscode.SnippetString(`${alias}${separator}`);
+			aliasItem.detail = `${aliasSources} (alias for ${attrName})`;
+			aliasItem.sortText = `!${aliasTier}_${aliasSources}_${alias}`;
+			if (docs) {
+				aliasItem.documentation = docs;
+			}
+			if (completable) {
+				aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+			}
+			items.push(aliasItem);
 		}
 	}
 
@@ -512,12 +495,35 @@ export function attributeKeyItems(
 /**
  * Build the completion items for the value of one attribute: enum values,
  * completion hints, file paths, and `true` or `false` for a boolean.
+ * The items of every declaration are combined, and a value that several declare is offered once.
  */
 export async function attributeValueItems(
-	entry: AttributeWithSource,
+	declarations: readonly AttributeDeclaration[],
 	documentUri: vscode.Uri,
 ): Promise<vscode.CompletionItem[]> {
-	const { descriptor, source } = entry;
+	const items: vscode.CompletionItem[] = [];
+	const byLabel = new Map<string, vscode.CompletionItem>();
+
+	for (const declaration of declarations) {
+		for (const item of await declarationValueItems(declaration, documentUri)) {
+			const label = typeof item.label === "string" ? item.label : item.label.label;
+			const seen = byLabel.get(label);
+			if (seen) {
+				seen.detail = `${seen.detail}, ${declaration.source}`;
+				continue;
+			}
+			byLabel.set(label, item);
+			items.push(item);
+		}
+	}
+
+	return items;
+}
+
+async function declarationValueItems(
+	{ descriptor, source }: AttributeDeclaration,
+	documentUri: vscode.Uri,
+): Promise<vscode.CompletionItem[]> {
 	const items: vscode.CompletionItem[] = [];
 
 	if (descriptor.enum) {
@@ -630,10 +636,8 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 				return null;
 			}
 
-			const applicable = firstDeclarations(
-				mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType),
-			);
-			if (Object.keys(applicable).length === 0) {
+			const applicable = mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType);
+			if (Object.keys(applicable.byName).length === 0) {
 				return null;
 			}
 
@@ -648,11 +652,7 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 
 			switch (parsed.cursorContext) {
 				case "attributeKey": {
-					const entry = resolveElementAttribute(applicable, word);
-					if (!entry) {
-						return null;
-					}
-					const docs = buildAttributeDoc(entry.descriptor, entry.source);
+					const docs = buildDeclarationsDoc(resolveDeclarations(applicable, word));
 					if (!docs) {
 						return null;
 					}
@@ -663,11 +663,7 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 					if (!parsed.currentAttributeKey) {
 						return null;
 					}
-					const entry = resolveElementAttribute(applicable, parsed.currentAttributeKey);
-					if (!entry) {
-						return null;
-					}
-					const docs = buildAttributeDoc(entry.descriptor, entry.source);
+					const docs = buildDeclarationsDoc(resolveDeclarations(applicable, parsed.currentAttributeKey));
 					if (!docs) {
 						return null;
 					}

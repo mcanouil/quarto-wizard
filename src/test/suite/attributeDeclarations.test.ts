@@ -1,4 +1,5 @@
 import * as assert from "assert";
+import * as vscode from "vscode";
 import type { FieldDescriptor } from "@quarto-wizard/schema";
 import {
 	type ExtensionDeclarations,
@@ -6,8 +7,11 @@ import {
 	formatSources,
 	resolveDeclarations,
 } from "../../providers/attributeDeclarations";
+import { buildAttributeDoc, buildDeclarationsDoc } from "../../utils/schemaDocumentation";
 import {
 	type ExtensionAttributeSchema,
+	attributeKeyItems,
+	attributeValueItems,
 	mergeApplicableAttributes,
 } from "../../providers/elementAttributeCompletionProvider";
 
@@ -177,5 +181,55 @@ suite("attributeDeclarations Test Suite", () => {
 			assert.strictEqual(formatSources(["A", "B"]), "A and B");
 			assert.strictEqual(formatSources(["A", "B", "C"]), "A, B and C");
 		});
+	});
+});
+
+suite("Completion and hover across extensions", () => {
+	const inc = extension("inc", { include: { type: "string", enum: ["a", "b"], description: "From inc." } });
+	const tr = extension("tr", { include: { type: "boolean", enum: ["b", "c"], aliases: ["inc"] } });
+	const applicable = combineDeclarations([inc, tr]);
+
+	test("offers one key item whose detail lists every source", () => {
+		const items = attributeKeyItems(applicable, new Set(), ": ");
+		const include = items.filter((item) => item.label === "include");
+		assert.strictEqual(include.length, 1);
+		assert.strictEqual(include[0].detail, "inc, tr");
+		assert.strictEqual(include[0].sortText, "!5_inc, tr_include");
+		assert.deepStrictEqual(
+			items.map((item) => item.label),
+			["include", "inc"],
+		);
+		assert.strictEqual(items[1].detail, "tr (alias for include)");
+	});
+
+	test("skips a name when an alias of any declaration is present", () => {
+		assert.deepStrictEqual(attributeKeyItems(applicable, new Set(["inc"]), ": "), []);
+	});
+
+	test("keeps the output of a single source", () => {
+		const items = attributeKeyItems(combineDeclarations([inc]), new Set(), "=");
+		assert.strictEqual(items[0].detail, "inc");
+		assert.strictEqual(items[0].sortText, "!5_inc_include");
+	});
+
+	test("offers the union of the values once", async () => {
+		const items = await attributeValueItems(applicable.byName.include, vscode.Uri.file("/tmp/x.qmd"));
+		assert.deepStrictEqual(
+			items.map((item) => item.label),
+			["a", "b", "c"],
+		);
+		assert.strictEqual(items[1].detail, "inc, tr");
+	});
+
+	test("documents each source", () => {
+		const text = buildDeclarationsDoc(applicable.byName.include)?.value ?? "";
+		assert.ok(text.includes("**inc**"), text);
+		assert.ok(text.includes("**tr**"), text);
+		assert.ok(text.includes("Type: `string`") && text.includes("Type: `boolean`"), text);
+	});
+
+	test("renders a single declaration as buildAttributeDoc does", () => {
+		const [only] = applicable.byName.include;
+		assert.strictEqual(buildDeclarationsDoc([only])?.value, buildAttributeDoc(only.descriptor, only.source)?.value);
 	});
 });
