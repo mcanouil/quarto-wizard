@@ -110,13 +110,11 @@ function replaceWithOf(descriptor: FieldDescriptor): string | undefined {
 export function isRequiredPresent(
 	name: string,
 	descriptor: FieldDescriptor,
-	written: ReadonlySet<string> | Record<string, unknown>,
+	written: Record<string, unknown>,
 	descriptors: Record<string, FieldDescriptor>,
 ): boolean {
 	const isWritten = (candidate: string): boolean =>
-		spellingsOf(candidate).some((spelling) =>
-			written instanceof Set ? written.has(spelling) : Object.hasOwn(written, spelling),
-		);
+		spellingsOf(candidate).some((spelling) => Object.hasOwn(written, spelling));
 	if (replaceWithOf(descriptor) === undefined && [name, ...(descriptor.aliases ?? [])].some(isWritten)) {
 		return true;
 	}
@@ -540,20 +538,18 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		// Validate required attributes.
 		const applicableDescriptors = descriptorsOf(applicable);
 		for (const [attrName, descriptor] of Object.entries(applicableDescriptors)) {
-			if (descriptor.required) {
-				if (!isRequiredPresent(attrName, descriptor, parsed.attributes, applicableDescriptors)) {
-					const startPos = document.positionAt(block.matchStart);
-					const endPos = document.positionAt(block.matchStart + 1);
-					const range = new vscode.Range(startPos, endPos);
-					const diagnostic = new vscode.Diagnostic(
-						range,
-						`Required attribute "${attrName}" is missing.`,
-						vscode.DiagnosticSeverity.Error,
-					);
-					diagnostic.code = "schema-required-missing";
-					diagnostic.source = "quarto-wizard";
-					diagnostics.push(diagnostic);
-				}
+			if (descriptor.required && !isRequiredPresent(attrName, descriptor, parsed.attributes, applicableDescriptors)) {
+				const startPos = document.positionAt(block.matchStart);
+				const endPos = document.positionAt(block.matchStart + 1);
+				const range = new vscode.Range(startPos, endPos);
+				const diagnostic = new vscode.Diagnostic(
+					range,
+					`Required attribute "${attrName}" is missing.`,
+					vscode.DiagnosticSeverity.Error,
+				);
+				diagnostic.code = "schema-required-missing";
+				diagnostic.source = "quarto-wizard";
+				diagnostics.push(diagnostic);
 			}
 		}
 
@@ -649,20 +645,18 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		if (schema.attributes) {
 			// Validate required attributes.
 			for (const [attrName, descriptor] of Object.entries(schema.attributes)) {
-				if (descriptor.required) {
-					if (!isRequiredPresent(attrName, descriptor, parsed.attributes, schema.attributes)) {
-						const startPos = document.positionAt(block.matchStart);
-						const endPos = document.positionAt(block.matchStart + 3);
-						const range = new vscode.Range(startPos, endPos);
-						const diagnostic = new vscode.Diagnostic(
-							range,
-							`Required attribute "${attrName}" is missing.`,
-							vscode.DiagnosticSeverity.Error,
-						);
-						diagnostic.code = "schema-required-missing";
-						diagnostic.source = "quarto-wizard";
-						diagnostics.push(diagnostic);
-					}
+				if (descriptor.required && !isRequiredPresent(attrName, descriptor, parsed.attributes, schema.attributes)) {
+					const startPos = document.positionAt(block.matchStart);
+					const endPos = document.positionAt(block.matchStart + 3);
+					const range = new vscode.Range(startPos, endPos);
+					const diagnostic = new vscode.Diagnostic(
+						range,
+						`Required attribute "${attrName}" is missing.`,
+						vscode.DiagnosticSeverity.Error,
+					);
+					diagnostic.code = "schema-required-missing";
+					diagnostic.source = "quarto-wizard";
+					diagnostics.push(diagnostic);
 				}
 			}
 

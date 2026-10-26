@@ -1001,7 +1001,7 @@ suite("Inline Attribute Diagnostics", () => {
 		suite("isRequiredPresent", () => {
 			test("a name, an alias or a variant spelling is present", () => {
 				for (const written of ["fig-width", "w", "fig_width"]) {
-					assert.ok(isRequiredPresent("fig-width", target, new Set([written]), descriptors), written);
+					assert.ok(isRequiredPresent("fig-width", target, { [written]: 1 }, descriptors), written);
 				}
 			});
 
@@ -1011,12 +1011,12 @@ suite("Inline Attribute Diagnostics", () => {
 			});
 
 			test("a written deprecated field satisfies its replacement", () => {
-				assert.ok(isRequiredPresent("fig-width", target, new Set(["old"]), descriptors));
+				assert.ok(isRequiredPresent("fig-width", target, { old: 1 }, descriptors));
 			});
 
 			test("a deprecated field without replaceWith does not satisfy another required field", () => {
 				const plain: Record<string, FieldDescriptor> = { ...descriptors, old: { type: "number", deprecated: "gone" } };
-				assert.ok(!isRequiredPresent("fig-width", target, new Set(["old"]), plain));
+				assert.ok(!isRequiredPresent("fig-width", target, { old: 1 }, plain));
 			});
 
 			test("an alias of a deprecated field satisfies its replacement", () => {
@@ -1024,7 +1024,7 @@ suite("Inline Attribute Diagnostics", () => {
 					...descriptors,
 					old: { type: "number", aliases: ["o"], deprecated: { replaceWith: "fig-width" } },
 				};
-				assert.ok(isRequiredPresent("fig-width", target, new Set(["o"]), aliased));
+				assert.ok(isRequiredPresent("fig-width", target, { o: 1 }, aliased));
 			});
 
 			test("only the exact replaceWith spelling names the replacement", () => {
@@ -1032,17 +1032,17 @@ suite("Inline Attribute Diagnostics", () => {
 					...descriptors,
 					old: { type: "number", deprecated: { replaceWith: "fig_width" } },
 				};
-				assert.ok(!isRequiredPresent("fig-width", target, new Set(["old"]), variant));
+				assert.ok(!isRequiredPresent("fig-width", target, { old: 1 }, variant));
 				const exact: Record<string, FieldDescriptor> = {
 					underscored: { type: "number", required: true },
 					old: { type: "number", deprecated: { replaceWith: "underscored" } },
 				};
-				assert.ok(isRequiredPresent("underscored", exact.underscored, new Set(["old"]), exact));
+				assert.ok(isRequiredPresent("underscored", exact.underscored, { old: 1 }, exact));
 			});
 
 			test("a required field that is itself deprecated with replaceWith is never present", () => {
 				const both: FieldDescriptor = { type: "number", required: true, deprecated: { replaceWith: "new" } };
-				assert.ok(!isRequiredPresent("old", both, new Set(["old"]), { old: both, new: { type: "number" } }));
+				assert.ok(!isRequiredPresent("old", both, { old: 1 }, { old: both, new: { type: "number" } }));
 			});
 
 			test("names inherited by a plain object are not written", () => {
@@ -1053,7 +1053,7 @@ suite("Inline Attribute Diagnostics", () => {
 			});
 
 			test("a missing field is absent", () => {
-				assert.ok(!isRequiredPresent("fig-width", target, new Set(["other"]), descriptors));
+				assert.ok(!isRequiredPresent("fig-width", target, { other: 1 }, descriptors));
 				assert.ok(!isRequiredPresent("fig-width", target, {}, descriptors));
 			});
 		});
