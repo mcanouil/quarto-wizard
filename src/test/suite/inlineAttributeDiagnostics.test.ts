@@ -14,7 +14,7 @@ import {
 	validateDeclaredValue,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
-import type { CellOptionSchemas } from "../../providers/cellOptionSchemas";
+import { type CellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
 import { type ExtensionDeclarations, combineDeclarations } from "../../providers/attributeDeclarations";
 import { getDocumentFencedBlocks } from "../../utils/documentScan";
 import type { ExtensionAttributeSchema } from "../../providers/elementAttributeCompletionProvider";
@@ -1509,15 +1509,18 @@ suite("Inline Attribute Diagnostics", () => {
 			origins: Object.fromEntries(Object.keys(descriptors).map((name) => [name, "any"])),
 		});
 
+		const typstCells = (...extensions: ExtensionDeclarations[]): CellOptionSchemas => ({
+			typst: combineDeclarations(extensions),
+		});
+
 		async function cell(
 			lines: string,
-			extensions: ExtensionDeclarations[] = [extension("inc", inc), extension("tr", tr)],
+			schemas: CellOptionSchemas = typstCells(extension("inc", inc), extension("tr", tr)),
 		): Promise<string[]> {
 			const content = `\`\`\`{typst}\n${lines
 				.split("\n")
 				.map((line) => `//| ${line}`)
 				.join("\n")}\n\`\`\`\n`;
-			const schemas: CellOptionSchemas = { typst: combineDeclarations(extensions) };
 			return withProvider(content, (provider, document) => {
 				const diagnostics: vscode.Diagnostic[] = [];
 				const text = document.getText();
@@ -1538,7 +1541,9 @@ suite("Inline Attribute Diagnostics", () => {
 
 			test("one declaration keeps the message", () => {
 				assert.deepStrictEqual(
-					validateDeclaredValue("x", "abc", [declaration("a", { type: "number" })], "Attribute").map((f) => f.message),
+					validateDeclaredValue("x", "abc", [declaration("a", { type: "number" })], "Attribute", () => undefined).map(
+						(f) => f.message,
+					),
 					['Attribute "x": expected type "number", got string "abc".'],
 				);
 			});
@@ -1551,6 +1556,7 @@ suite("Inline Attribute Diagnostics", () => {
 						"abc",
 						[declaration("a", number), declaration("b", number), declaration("c", number)],
 						"Option",
+						() => undefined,
 					).map((f) => f.message),
 					['a, b and c: Option "x": expected type "number", got string "abc".'],
 				);
@@ -1590,6 +1596,22 @@ suite("Inline Attribute Diagnostics", () => {
 				];
 				assert.deepStrictEqual(await element('width="3"', schemas), [
 					'schema-required-missing tr: Required attribute "engine" is missing.',
+				]);
+			});
+
+			test("a required attribute of both extensions is reported once with both names", async () => {
+				const schemas: ExtensionAttributeSchema[] = [
+					{ source: "inc", sourceId: "inc", groups: { CodeBlock: { ...inc, ...engine } } },
+					{ source: "tr", sourceId: "tr", groups: { typst: { ...tr, ...engine } } },
+				];
+				assert.deepStrictEqual(await element('width="3"', schemas), [
+					'schema-required-missing inc and tr: Required attribute "engine" is missing.',
+				]);
+			});
+
+			test("a bare word declared only by the second extension needs a value", async () => {
+				assert.deepStrictEqual(await element("resolution"), [
+					'schema-bare-attribute Attribute "resolution" requires a value assignment. Use resolution="value".',
 				]);
 			});
 
@@ -1651,9 +1673,39 @@ suite("Inline Attribute Diagnostics", () => {
 			});
 
 			test("a required option of one extension names that extension", async () => {
-				assert.deepStrictEqual(await cell("width: 3", [extension("inc", inc), extension("tr", { ...tr, ...engine })]), [
-					'schema-required-missing tr: Required option "engine" is missing.',
+				assert.deepStrictEqual(
+					await cell("width: 3", typstCells(extension("inc", inc), extension("tr", { ...tr, ...engine }))),
+					['schema-required-missing tr: Required option "engine" is missing.'],
+				);
+			});
+
+			test("a required option of both extensions is reported once with both names", async () => {
+				assert.deepStrictEqual(
+					await cell(
+						"width: 3",
+						typstCells(extension("inc", { ...inc, ...engine }), extension("tr", { ...tr, ...engine })),
+					),
+					['schema-required-missing inc and tr: Required option "engine" is missing.'],
+				);
+			});
+
+			test("an extension that lists the language without options does not count", async () => {
+				const schemas = mergeCellSchemas([
+					{ source: "A", id: "a", schema: { cells: { typst: { options: { req: { required: true } } } } } },
+					{ source: "B", id: "b", schema: { cells: { typst: {} } } },
 				]);
+				assert.deepStrictEqual(await cell("other: 1", schemas), [
+					'schema-required-missing Required option "req" is missing.',
+				]);
+			});
+
+			test("a replacement is looked up in the declaring extension", async () => {
+				const schemas = typstCells(
+					extension("tr", { new: { type: "string" } }),
+					extension("inc", { old: { deprecated: { replaceWith: "new" } }, new: { type: "number" } }),
+				);
+				const codes = (await cell("old: abc", schemas)).map((line) => line.split(" ")[0]);
+				assert.deepStrictEqual(codes, ["schema-deprecated", "schema-type-mismatch"]);
 			});
 
 			test("an alias in one extension and a name in another are both checked", async () => {

@@ -211,7 +211,7 @@ export function validateDeclaredValue(
 	value: string,
 	declarations: readonly AttributeDeclaration[],
 	noun: "Attribute" | "Option",
-	replacementOf: (declaration: AttributeDeclaration) => InlineReplacement | undefined = () => undefined,
+	replacementOf: (declaration: AttributeDeclaration) => InlineReplacement | undefined,
 ): InlineValidationFinding[] {
 	const perSource = declarations.map((declaration) => ({
 		source: declaration.source,
