@@ -13,7 +13,7 @@ import {
 	isRequiredPresent,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
-import type { CellOptionSchemas } from "../../providers/cellOptionSchemas";
+import { type CellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
 import { getDocumentFencedBlocks } from "../../utils/documentScan";
 import type { ElementAttributeSchemas } from "../../providers/elementAttributeCompletionProvider";
 import type { FieldDescriptor, SchemaCache, ShortcodeSchema } from "@quarto-wizard/schema";
@@ -1164,11 +1164,6 @@ suite("Inline Attribute Diagnostics", () => {
 				},
 				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: new Map() },
 				shared: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["shared", ["B"]]]) },
-				resolution: {
-					descriptor: { type: "integer", aliases: ["dpi-alias"] },
-					source: "B",
-					conflicts: new Map([["dpi-alias", ["A"]]]),
-				},
 				triple: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["triple", ["B", "C"]]]) },
 			}),
 			r: Object.assign(Object.create(null), {
@@ -1293,11 +1288,18 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.strictEqual(found[0].range.end.character, 10);
 		});
 
-		test("an alias-only collision is reported on the contested alias, not on the option name", async () => {
-			assert.deepStrictEqual(await diagnose(cell("must: x\nresolution: 3")), []);
-			const found = await diagnose(cell("must: x\ndpi-alias: 3"));
+		test("an alias-only collision from the real merge is reported on the contested alias only", async () => {
+			const merged = mergeCellSchemas([
+				{ source: "A", schema: { cells: { typst: { options: { dpi: { type: "integer" } } } } } },
+				{
+					source: "B",
+					schema: { cells: { typst: { options: { resolution: { type: "integer", aliases: ["dpi"] } } } } },
+				},
+			]);
+			const found = await diagnose(cell("dpi: 1"), merged);
 			assert.deepStrictEqual(found.map(codeOf), ["schema-cell-option-conflict"]);
-			assert.strictEqual(found[0].message, "`dpi-alias` for `{typst}` cells is declared by B and A. B applies.");
+			assert.strictEqual(found[0].message, "`dpi` for `{typst}` cells is declared by A and B. A applies.");
+			assert.deepStrictEqual(await diagnose(cell("resolution: 1"), merged), []);
 		});
 
 		test("three sources are all listed", async () => {
