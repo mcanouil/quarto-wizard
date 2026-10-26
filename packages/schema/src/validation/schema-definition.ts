@@ -312,8 +312,21 @@ function validateClassesMap(classes: Record<string, unknown>, ctx: ValidationCon
 const ALLOWED_CELL_ENTRY_KEYS = new Set(["description", "options"]);
 
 function validateCellsMap(cells: Record<string, unknown>, ctx: ValidationContext): void {
+	const firstSpelling = new Map<string, string>();
 	for (const [language, cellValue] of Object.entries(cells)) {
 		const cellPath = `cells.${language}`;
+		const languageKey = language.toLowerCase().replaceAll("_", "-");
+		const earlier = firstSpelling.get(languageKey);
+		if (earlier === undefined) {
+			firstSpelling.set(languageKey, language);
+		} else {
+			ctx.findings.push({
+				message: `Cell language "${language}" repeats "${earlier}"; language keys ignore case and treat "-" and "_" alike.`,
+				severity: "warning",
+				code: "duplicate-cell-language",
+				keyPath: cellPath,
+			});
+		}
 		if (!isPlainObject(cellValue)) {
 			ctx.findings.push({
 				message: `Cell entry "${language}" must be an object.`,
