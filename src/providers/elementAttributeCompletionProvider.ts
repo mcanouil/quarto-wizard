@@ -264,6 +264,15 @@ function attributeSortTier(descriptor: FieldDescriptor, origin: GroupOrigin = "a
 }
 
 /**
+ * The sort tier of the declaration that ranks first.
+ */
+function lowestTier(declarations: readonly AttributeDeclaration[], isAlias: boolean): string {
+	return declarations
+		.map(({ descriptor, groupOrigin }) => attributeSortTier(descriptor, groupOrigin, isAlias))
+		.reduce((lowest, candidate) => (candidate < lowest ? candidate : lowest));
+}
+
+/**
  * Provides autocompletion for Pandoc element attributes ({.class attr=value}).
  *
  * Completion is offered in two contexts:
@@ -451,9 +460,7 @@ export function attributeKeyItems(
 		const sources = [
 			...new Set([...declarations.map(({ source }) => source), ...(aliasSourcesOfName.get(attrName) ?? [])]),
 		].join(", ");
-		const tier = declarations
-			.map(({ descriptor, groupOrigin }) => attributeSortTier(descriptor, groupOrigin))
-			.reduce((lowest, candidate) => (candidate < lowest ? candidate : lowest));
+		const tier = lowestTier(declarations, false);
 		const completable = declarations.some(({ descriptor }) => hasCompletableValues(descriptor));
 		const docs = buildDeclarationsDoc(declarations);
 
@@ -484,9 +491,7 @@ export function attributeKeyItems(
 			aliasLabels.add(alias);
 			const declaring = declarations.filter(({ descriptor }) => descriptor.aliases?.includes(alias));
 			const aliasSources = declaring.map(({ source }) => source).join(", ");
-			const aliasTier = declaring
-				.map(({ descriptor, groupOrigin }) => attributeSortTier(descriptor, groupOrigin, true))
-				.reduce((lowest, candidate) => (candidate < lowest ? candidate : lowest));
+			const aliasTier = lowestTier(declaring, true);
 
 			const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
 			aliasItem.insertText = new vscode.SnippetString(`${alias}${separator}`);
