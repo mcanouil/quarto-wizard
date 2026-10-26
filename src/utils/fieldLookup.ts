@@ -8,18 +8,26 @@ export function spellingsOf(name: string): string[] {
 	return [name, name.replace(/-/g, "_"), name.replace(/_/g, "-")];
 }
 
+function findName<T>(
+	entries: Record<string, T>,
+	key: string,
+	aliasesOf: (entry: T) => readonly string[] | undefined,
+): string | undefined {
+	const spellings = spellingsOf(key);
+	const declared = spellings.find((spelling) => Object.hasOwn(entries, spelling));
+	if (declared !== undefined) {
+		return declared;
+	}
+	return Object.keys(entries).find((name) => aliasesOf(entries[name])?.some((alias) => spellings.includes(alias)));
+}
+
 function findByName<T>(
 	entries: Record<string, T>,
 	key: string,
 	aliasesOf: (entry: T) => readonly string[] | undefined,
 ): T | undefined {
-	const spellings = spellingsOf(key);
-	for (const spelling of spellings) {
-		if (Object.hasOwn(entries, spelling)) {
-			return entries[spelling];
-		}
-	}
-	return Object.values(entries).find((entry) => aliasesOf(entry)?.some((alias) => spellings.includes(alias)));
+	const name = findName(entries, key, aliasesOf);
+	return name === undefined ? undefined : entries[name];
 }
 
 /**
@@ -32,6 +40,14 @@ export function findDeclaredField<T extends { descriptor: FieldDescriptor }>(
 	key: string,
 ): T | undefined {
 	return findByName(entries, key, (entry) => entry.descriptor.aliases);
+}
+
+/**
+ * Find the declared name of the descriptor that declares a written key, as
+ * `findDeclaredField` does.
+ */
+export function findDeclaredName(fields: Record<string, FieldDescriptor>, key: string): string | undefined {
+	return findName(fields, key, (descriptor) => descriptor.aliases);
 }
 
 /**

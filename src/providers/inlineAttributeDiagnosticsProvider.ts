@@ -5,8 +5,9 @@ import { parseAttributeAtPosition } from "../utils/elementAttributeParser";
 import type { TextRange } from "../utils/yamlPosition";
 import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import {
-	type ElementAttributeSchemas,
+	type ExtensionAttributeSchema,
 	collectElementAttributeSchemas,
+	firstDeclarations,
 	mergeApplicableAttributes,
 	resolveElementAttribute,
 } from "./elementAttributeCompletionProvider";
@@ -346,7 +347,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 				return;
 			}
 
-			const hasElementSchemas = Object.keys(elementSchemas).length > 0;
+			const hasElementSchemas = elementSchemas.length > 0;
 			const hasShortcodeSchemas = shortcodeSchemas.size > 0;
 
 			if (hasElementSchemas || hasShortcodeSchemas) {
@@ -471,7 +472,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 	private validateElementBlock(
 		block: BlockMatch,
 		text: string,
-		schemas: ElementAttributeSchemas,
+		schemas: readonly ExtensionAttributeSchema[],
 		document: vscode.TextDocument,
 		diagnostics: vscode.Diagnostic[],
 		codeBlockRanges: readonly TextRange[],
@@ -484,7 +485,9 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 
-		const applicable = mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType);
+		const applicable = firstDeclarations(
+			mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType),
+		);
 		if (Object.keys(applicable).length === 0) {
 			return;
 		}

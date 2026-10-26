@@ -2,7 +2,7 @@ import { findDeclaredField } from "../utils/fieldLookup";
 import * as vscode from "vscode";
 import type { FieldDescriptor, SchemaCache, ExtensionSchema } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { parseAttributeAtPosition, type PandocElementType } from "../utils/elementAttributeParser";
@@ -10,14 +10,12 @@ import { getWordAtOffset, hasCompletableValues, buildAttributeDoc } from "../uti
 import { isFilePathDescriptor, buildFilePathCompletions } from "../utils/filePathCompletion";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
-
-/**
- * Which category of group key matched the element.
- * - `classOrId`: a class or ID-prefix group (e.g. `"modal"`, `"panel"`).
- * - `elementType`: a Pandoc element-type group (`Div`, `Span`, `Code`, `Header`, `CodeBlock`).
- * - `any`: the catch-all `_any` group.
- */
-export type GroupOrigin = "classOrId" | "elementType" | "any";
+import {
+	type ApplicableDeclarations,
+	type ExtensionDeclarations,
+	type GroupOrigin,
+	combineDeclarations,
+} from "./attributeDeclarations";
 
 /**
  * A field descriptor paired with the name of the extension that provides it.
@@ -30,9 +28,14 @@ export interface AttributeWithSource {
 }
 
 /**
- * Merged element attribute schemas: group name to attribute name to sourced descriptor.
+ * The `attributes` section of one installed extension: group name to attribute name to descriptor.
+ * `sourceId` identifies the extension, so one installed in several project roots counts once.
  */
-export type ElementAttributeSchemas = Record<string, Record<string, AttributeWithSource>>;
+export interface ExtensionAttributeSchema {
+	source: string;
+	sourceId: string;
+	groups: Record<string, Record<string, FieldDescriptor>>;
+}
 
 /**
  * Group names reserved for Pandoc element types and the catch-all group.
@@ -54,10 +57,12 @@ export interface ClassWithSource {
 export type ClassDefinitions = Record<string, ClassWithSource>;
 
 /**
- * Collect element attribute schemas from all installed extensions in the workspace.
+ * Collect the element attribute schemas of all installed extensions in the workspace, in discovery order.
+ * An extension installed in several project roots is collected once.
  */
-export async function collectElementAttributeSchemas(schemaCache: SchemaCache): Promise<ElementAttributeSchemas> {
-	const result: ElementAttributeSchemas = {};
+export async function collectElementAttributeSchemas(schemaCache: SchemaCache): Promise<ExtensionAttributeSchema[]> {
+	const result: ExtensionAttributeSchema[] = [];
+	const seen = new Set<string>();
 	const roots = await ensureProjectRoots();
 	const perRoot = await Promise.all(
 		roots.map(async (root) => {
@@ -80,18 +85,12 @@ export async function collectElementAttributeSchemas(schemaCache: SchemaCache): 
 				continue;
 			}
 
-			const source = ext.manifest.title || ext.id.name;
-
-			for (const [groupName, groupAttrs] of Object.entries(schema.attributes)) {
-				if (!result[groupName]) {
-					result[groupName] = {};
-				}
-				for (const [attrName, descriptor] of Object.entries(groupAttrs)) {
-					if (!(attrName in result[groupName])) {
-						result[groupName][attrName] = { descriptor, source };
-					}
-				}
+			const sourceId = formatExtensionId(ext.id);
+			if (seen.has(sourceId)) {
+				continue;
 			}
+			seen.add(sourceId);
+			result.push({ source: ext.manifest.title || ext.id.name, sourceId, groups: schema.attributes });
 		}
 	}
 
@@ -161,62 +160,98 @@ export async function collectClassDefinitions(schemaCache: SchemaCache): Promise
  * first hyphen, e.g. "modal" from "modal-example") are matched against
  * group keys so that extensions using ID-prefix conventions (like
  * `modal-*` divs) get their attributes resolved.
+ *
+ * Inside one extension the most specific group wins.  The declarations
+ * of different extensions are kept side by side.
  */
 export function mergeApplicableAttributes(
-	schemas: ElementAttributeSchemas,
+	schemas: readonly ExtensionAttributeSchema[],
 	classes: string[],
 	ids: string[],
 	elementType: PandocElementType,
-): Record<string, AttributeWithSource> {
-	const merged: Record<string, AttributeWithSource> = {};
+): ApplicableDeclarations {
+	const perExtension = schemas
+		.map((schema) => mergeExtensionGroups(schema, classes, ids, elementType))
+		.filter((ext) => Object.keys(ext.descriptors).length > 0);
+	return combineDeclarations(perExtension);
+}
+
+/**
+ * Merge the applicable groups of one extension.
+ */
+function mergeExtensionGroups(
+	schema: ExtensionAttributeSchema,
+	classes: string[],
+	ids: string[],
+	elementType: PandocElementType,
+): ExtensionDeclarations {
+	const merged: ExtensionDeclarations = {
+		source: schema.source,
+		sourceId: schema.sourceId,
+		descriptors: Object.create(null),
+		origins: Object.create(null),
+	};
+	const { groups } = schema;
 
 	// Include groups matching extracted classes.
 	for (const cls of classes) {
-		mergeGroup(schemas, cls, merged, "classOrId");
+		mergeGroup(groups, cls, merged, "classOrId");
 	}
 
 	// Include groups matching ID prefixes (text before the first hyphen).
 	for (const id of ids) {
 		const hyphenIndex = id.indexOf("-");
 		if (hyphenIndex > 0) {
-			mergeGroup(schemas, id.substring(0, hyphenIndex), merged, "classOrId");
+			mergeGroup(groups, id.substring(0, hyphenIndex), merged, "classOrId");
 		}
 	}
 
 	// Include groups matching the Pandoc element type (Div, Span, Code, Header).
-	mergeGroup(schemas, elementType, merged, "elementType");
+	mergeGroup(groups, elementType, merged, "elementType");
 	// Also match CodeBlock for Code elements (common schema convention).
 	if (elementType.toLowerCase() === "code") {
-		mergeGroup(schemas, "CodeBlock", merged, "elementType");
+		mergeGroup(groups, "CodeBlock", merged, "elementType");
 	}
 
 	// Include _any last so specific groups take precedence, and tag entries
 	// so they sort after specific-group attributes.
-	mergeGroup(schemas, "_any", merged, "any");
+	mergeGroup(groups, "_any", merged, "any");
 
 	return merged;
 }
 
 /**
- * Merge a single group into the merged attribute map (first-write wins).
+ * Merge a single group of one extension into its merged fields (first-write wins).
  */
 function mergeGroup(
-	schemas: ElementAttributeSchemas,
+	groups: Record<string, Record<string, FieldDescriptor>>,
 	groupKey: string,
-	merged: Record<string, AttributeWithSource>,
+	merged: ExtensionDeclarations,
 	origin: GroupOrigin,
 ): void {
 	const lowerKey = groupKey.toLowerCase();
-	for (const schemaKey of Object.keys(schemas)) {
+	for (const schemaKey of Object.keys(groups)) {
 		if (schemaKey.toLowerCase() !== lowerKey) {
 			continue;
 		}
-		for (const [attrName, entry] of Object.entries(schemas[schemaKey])) {
-			if (!(attrName in merged)) {
-				merged[attrName] = { ...entry, groupOrigin: origin };
+		for (const [attrName, descriptor] of Object.entries(groups[schemaKey])) {
+			if (!Object.hasOwn(merged.descriptors, attrName)) {
+				merged.descriptors[attrName] = descriptor;
+				merged.origins[attrName] = origin;
 			}
 		}
 	}
+}
+
+/**
+ * The first declaration of each applicable name, for the callers that still read one declaration per name.
+ */
+export function firstDeclarations(applicable: ApplicableDeclarations): Record<string, AttributeWithSource> {
+	const result: Record<string, AttributeWithSource> = Object.create(null);
+	for (const [name, [first]] of Object.entries(applicable.byName)) {
+		result[name] = first;
+	}
+	return result;
 }
 
 /**
@@ -300,11 +335,13 @@ export class ElementAttributeCompletionProvider implements vscode.CompletionItem
 			}
 
 			const schemas = await collectElementAttributeSchemas(this.schemaCache);
-			if (Object.keys(schemas).length === 0) {
+			if (schemas.length === 0) {
 				return null;
 			}
 
-			const applicable = mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType);
+			const applicable = firstDeclarations(
+				mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType),
+			);
 			if (Object.keys(applicable).length === 0) {
 				return null;
 			}
@@ -574,25 +611,28 @@ export class ElementAttributeHoverProvider implements vscode.HoverProvider {
 				// Check whether this class has attributes defined in the attribute schemas.
 				const schemas = await collectElementAttributeSchemas(this.schemaCache);
 				const lowerWord = word.toLowerCase();
-				for (const schemaKey of Object.keys(schemas)) {
-					if (schemaKey.toLowerCase() === lowerWord) {
-						const attrNames = Object.keys(schemas[schemaKey]);
-						if (attrNames.length > 0) {
-							parts.push(`Attributes: ${attrNames.map((n) => `\`${n}\``).join(", ")}`);
-						}
-						break;
+				const attrNames = new Set<string>();
+				for (const { groups } of schemas) {
+					const schemaKey = Object.keys(groups).find((key) => key.toLowerCase() === lowerWord);
+					for (const name of schemaKey === undefined ? [] : Object.keys(groups[schemaKey])) {
+						attrNames.add(name);
 					}
+				}
+				if (attrNames.size > 0) {
+					parts.push(`Attributes: ${[...attrNames].map((n) => `\`${n}\``).join(", ")}`);
 				}
 
 				return new vscode.Hover(new vscode.MarkdownString(parts.join("\n\n")));
 			}
 
 			const schemas = await collectElementAttributeSchemas(this.schemaCache);
-			if (Object.keys(schemas).length === 0) {
+			if (schemas.length === 0) {
 				return null;
 			}
 
-			const applicable = mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType);
+			const applicable = firstDeclarations(
+				mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType),
+			);
 			if (Object.keys(applicable).length === 0) {
 				return null;
 			}

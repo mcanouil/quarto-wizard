@@ -15,7 +15,7 @@ import {
 } from "../../providers/inlineAttributeDiagnosticsProvider";
 import { type CellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
 import { getDocumentFencedBlocks } from "../../utils/documentScan";
-import type { ElementAttributeSchemas } from "../../providers/elementAttributeCompletionProvider";
+import type { ExtensionAttributeSchema } from "../../providers/elementAttributeCompletionProvider";
 import type { FieldDescriptor, SchemaCache, ShortcodeSchema } from "@quarto-wizard/schema";
 
 suite("Inline Attribute Diagnostics", () => {
@@ -956,12 +956,18 @@ suite("Inline Attribute Diagnostics", () => {
 	});
 
 	suite("replaceWith in an attribute list", () => {
-		const schemas: ElementAttributeSchemas = {
-			cls: {
-				old: { descriptor: { type: "number", deprecated: { replaceWith: "new" } }, source: "ext" },
-				new: { descriptor: { type: "number", aliases: ["n"] }, source: "ext" },
+		const schemas: ExtensionAttributeSchema[] = [
+			{
+				source: "ext",
+				sourceId: "ext",
+				groups: {
+					cls: {
+						old: { type: "number", deprecated: { replaceWith: "new" } },
+						new: { type: "number", aliases: ["n"] },
+					},
+				},
 			},
-		};
+		];
 
 		async function codesFor(content: string): Promise<(string | number | undefined)[]> {
 			const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
@@ -1137,12 +1143,9 @@ suite("Inline Attribute Diagnostics", () => {
 		}
 
 		async function elementCodes(attributes: string): Promise<(string | number | undefined)[]> {
-			const schemas: ElementAttributeSchemas = {
-				cls: {
-					"fig-width": { descriptor: required(), source: "ext" },
-					old: { descriptor: descriptors.old, source: "ext" },
-				},
-			};
+			const schemas: ExtensionAttributeSchema[] = [
+				{ source: "ext", sourceId: "ext", groups: { cls: { "fig-width": required(), old: descriptors.old } } },
+			];
 			const diagnostics: vscode.Diagnostic[] = [];
 			await inDocument(`[text]{.cls ${attributes}}\n`, (provider, document) => {
 				const [block] = extractBlocks(document.getText());
@@ -1224,12 +1227,7 @@ suite("Inline Attribute Diagnostics", () => {
 				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
 					block,
 					document.getText(),
-					{
-						cls: {
-							"fig-width": { descriptor: target, source: "ext" },
-							old: { descriptor: descriptors.old, source: "ext" },
-						},
-					},
+					[{ source: "ext", sourceId: "ext", groups: { cls: { "fig-width": target, old: descriptors.old } } }],
 					document,
 					diagnostics,
 					[],
@@ -1246,7 +1244,7 @@ suite("Inline Attribute Diagnostics", () => {
 				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
 					block,
 					document.getText(),
-					{ cls: { "fig-width": { descriptor: target, source: "ext" } } },
+					[{ source: "ext", sourceId: "ext", groups: { cls: { "fig-width": target } } }],
 					document,
 					diagnostics,
 					[],
@@ -1264,7 +1262,7 @@ suite("Inline Attribute Diagnostics", () => {
 				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
 					block,
 					document.getText(),
-					{ cls: { fig_width: { descriptor: target, source: "ext" } } },
+					[{ source: "ext", sourceId: "ext", groups: { cls: { fig_width: target } } }],
 					document,
 					diagnostics,
 					[],
