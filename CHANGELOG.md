@@ -27,6 +27,7 @@
 - fix: Read numeric Typst options in the preview as the Typst filter does, so values such as `-0x10` or `1_000` give the same result as a render. (#513)
 - fix: Recognise a full commit of 40 characters as a commit pin, and stop offering updates for an extension installed from a subdirectory of a repository, which the installer cannot update.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
+- fix: Accept a required attribute or option written with `_` for `-`, through an alias, through a deprecated name, or filled by its default, as the Lua validator does.
 
 ### Documentation
 

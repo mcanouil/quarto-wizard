@@ -1076,6 +1076,16 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.ok(!isRequiredPresent("old", cleared, { old: "1" }, { old: cleared, new: { type: "number" } }));
 			});
 
+			test("a required field with a default and replaceWith is present when it is not written", () => {
+				const cleared: FieldDescriptor = {
+					type: "number",
+					required: true,
+					default: 1,
+					deprecated: { replaceWith: "new" },
+				};
+				assert.ok(isRequiredPresent("old", cleared, {}, { old: cleared, new: { type: "number" } }));
+			});
+
 			test("a missing field is absent", () => {
 				assert.ok(!isRequiredPresent("fig-width", target, { other: 1 }, descriptors));
 				assert.ok(!isRequiredPresent("fig-width", target, {}, descriptors));
