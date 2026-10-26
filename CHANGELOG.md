@@ -26,9 +26,9 @@
 - fix: Stop a running download when an install or an update is cancelled, and stop Update All without an error when it is cancelled. (#512)
 - fix: Read numeric Typst options in the preview as the Typst filter does, so values such as `-0x10` or `1_000` give the same result as a render. (#513)
 - fix: Accept a required attribute or option written with `_` for `-`, through an alias, through a deprecated name, or filled by its default, as the Lua validator does. (#519)
+- fix: Check an attribute or a cell option against every extension that declares it, and name the extension when more than one declares it. (#520)
 - fix: Recognise a full commit of 40 characters as a commit pin, and stop offering updates for an extension installed from a subdirectory of a repository, which the installer cannot update.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
-- fix: Check an attribute or a cell option against every extension that declares it, and name the extension when more than one declares it.
 
 ### Documentation
 
