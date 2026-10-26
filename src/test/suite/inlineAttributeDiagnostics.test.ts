@@ -10,12 +10,13 @@ import {
 import * as vscode from "vscode";
 import {
 	InlineAttributeDiagnosticsProvider,
+	isRequiredPresent,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
 import type { CellOptionSchemas } from "../../providers/cellOptionSchemas";
 import { getDocumentFencedBlocks } from "../../utils/documentScan";
 import type { ElementAttributeSchemas } from "../../providers/elementAttributeCompletionProvider";
-import type { FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
+import type { FieldDescriptor, SchemaCache, ShortcodeSchema } from "@quarto-wizard/schema";
 
 suite("Inline Attribute Diagnostics", () => {
 	suite("findSpacesAroundEquals", () => {
@@ -987,6 +988,162 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("a missing replacement takes the value", async () => {
 			assert.deepStrictEqual(await codesFor('[text]{.cls old="abc"}\n'), ["schema-deprecated", "schema-type-mismatch"]);
+		});
+	});
+
+	suite("required options", () => {
+		const target: FieldDescriptor = { type: "number", required: true, aliases: ["w"] };
+		const descriptors: Record<string, FieldDescriptor> = {
+			"fig-width": target,
+			old: { type: "number", deprecated: { replaceWith: "fig-width" } },
+		};
+
+		suite("isRequiredPresent", () => {
+			test("a name, an alias or a variant spelling is present", () => {
+				for (const written of ["fig-width", "w", "fig_width"]) {
+					assert.ok(isRequiredPresent("fig-width", target, new Set([written]), descriptors), written);
+				}
+			});
+
+			test("an underscored declaration is satisfied by the hyphenated spelling", () => {
+				const underscored: FieldDescriptor = { type: "number", required: true };
+				assert.ok(isRequiredPresent("fig_width", underscored, { "fig-width": "1" }, { fig_width: underscored }));
+			});
+
+			test("a written deprecated field satisfies its replacement", () => {
+				assert.ok(isRequiredPresent("fig-width", target, new Set(["old"]), descriptors));
+			});
+
+			test("a missing field is absent", () => {
+				assert.ok(!isRequiredPresent("fig-width", target, new Set(["other"]), descriptors));
+				assert.ok(!isRequiredPresent("fig-width", target, {}, descriptors));
+			});
+		});
+
+		const codes = (diagnostics: vscode.Diagnostic[]) =>
+			diagnostics.map((diagnostic) => (typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code));
+
+		async function inDocument(content: string, run: (provider: unknown, document: vscode.TextDocument) => void) {
+			const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
+			const provider = new InlineAttributeDiagnosticsProvider({} as SchemaCache);
+			try {
+				run(provider, document);
+			} finally {
+				provider.dispose();
+			}
+		}
+
+		async function cellCodes(lines: string): Promise<(string | number | undefined)[]> {
+			const content = `\`\`\`{typst}\n${lines
+				.split("\n")
+				.filter((line) => line !== "")
+				.map((line) => `//| ${line}`)
+				.join("\n")}\n\`\`\`\n`;
+			const schemas: CellOptionSchemas = {
+				typst: Object.assign(Object.create(null), {
+					"fig-width": { descriptor: target, source: "ext", conflicts: new Map() },
+					old: { descriptor: descriptors.old, source: "ext", conflicts: new Map() },
+				}),
+			};
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument(content, (provider, document) => {
+				const text = document.getText();
+				for (const block of getDocumentFencedBlocks(document, text)) {
+					(provider as { validateCellBlock: (...args: unknown[]) => void }).validateCellBlock(
+						block,
+						text,
+						schemas,
+						document,
+						diagnostics,
+					);
+				}
+			});
+			return codes(diagnostics).filter((code) => code === "schema-required-missing");
+		}
+
+		async function elementCodes(attributes: string): Promise<(string | number | undefined)[]> {
+			const schemas: ElementAttributeSchemas = {
+				cls: {
+					"fig-width": { descriptor: target, source: "ext" },
+					old: { descriptor: descriptors.old, source: "ext" },
+				},
+			};
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument(`[text]{.cls ${attributes}}\n`, (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					schemas,
+					document,
+					diagnostics,
+					[],
+					false,
+				);
+			});
+			return codes(diagnostics).filter((code) => code === "schema-required-missing");
+		}
+
+		async function shortcodeCodes(attributes: string): Promise<(string | number | undefined)[]> {
+			const schemas = new Map<string, ShortcodeSchema>([["demo", { attributes: descriptors }]]);
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument(`{{< demo ${attributes} >}}\n`, (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateShortcodeBlock: (...args: unknown[]) => void }).validateShortcodeBlock(
+					block,
+					document.getText(),
+					schemas,
+					document,
+					diagnostics,
+					[],
+				);
+			});
+			return codes(diagnostics).filter((code) => code === "schema-required-missing");
+		}
+
+		const surfaces: [string, (written: string) => Promise<(string | number | undefined)[]>, string][] = [
+			["a cell", cellCodes, "\n"],
+			["an element", elementCodes, " "],
+			["a shortcode", shortcodeCodes, " "],
+		];
+
+		for (const [surface, run, separator] of surfaces) {
+			const write = (...pairs: string[]) => pairs.join(separator);
+			const assign = (name: string) => (surface === "a cell" ? `${name}: 1` : `${name}="1"`);
+
+			test(`${surface} counts the underscore spelling of a required option`, async () => {
+				assert.deepStrictEqual(await run(write(assign("fig_width"))), []);
+			});
+
+			test(`${surface} counts a deprecated option that names the required one`, async () => {
+				assert.deepStrictEqual(await run(write(assign("old"))), []);
+			});
+
+			test(`${surface} still reports a missing required option`, async () => {
+				assert.deepStrictEqual(await run(write(assign("other"))), ["schema-required-missing"]);
+			});
+		}
+
+		test("a cell counts the hyphen spelling of an underscored required option", async () => {
+			const underscored: CellOptionSchemas = {
+				typst: Object.assign(Object.create(null), {
+					fig_width: { descriptor: target, source: "ext", conflicts: new Map() },
+				}),
+			};
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument("```{typst}\n//| fig-width: 1\n```\n", (provider, document) => {
+				const text = document.getText();
+				for (const block of getDocumentFencedBlocks(document, text)) {
+					(provider as { validateCellBlock: (...args: unknown[]) => void }).validateCellBlock(
+						block,
+						text,
+						underscored,
+						document,
+						diagnostics,
+					);
+				}
+			});
+			assert.deepStrictEqual(codes(diagnostics), []);
 		});
 	});
 

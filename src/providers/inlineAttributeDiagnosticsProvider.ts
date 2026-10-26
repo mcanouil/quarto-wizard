@@ -81,6 +81,50 @@ function findInlineReplacement(
 }
 
 /**
+ * The spellings the Lua validator reads for a name: the name itself, then its
+ * underscored and hyphenated variants.
+ */
+function spellingsOf(name: string): string[] {
+	return [name, name.replace(/-/g, "_"), name.replace(/_/g, "-")];
+}
+
+/**
+ * Tell whether a required field is present, as the Lua validator counts it.
+ * The field is present when it is written under its name or an alias, in
+ * either hyphen or underscore spelling, or when a deprecated field that
+ * names it in `replaceWith` is written, because the value moves to it.
+ *
+ * @param name - The declared name of the required field.
+ * @param descriptor - The descriptor of the required field.
+ * @param written - The names written in the document.
+ * @param descriptors - Every descriptor that applies, by declared name.
+ */
+export function isRequiredPresent(
+	name: string,
+	descriptor: FieldDescriptor,
+	written: ReadonlySet<string> | Record<string, unknown>,
+	descriptors: Record<string, FieldDescriptor>,
+): boolean {
+	const isWritten = (candidate: string): boolean =>
+		spellingsOf(candidate).some((spelling) => (written instanceof Set ? written.has(spelling) : spelling in written));
+	if ([name, ...(descriptor.aliases ?? [])].some(isWritten)) {
+		return true;
+	}
+	const targets = new Set(spellingsOf(name));
+	return Object.entries(descriptors).some(
+		([other, candidate]) =>
+			typeof candidate.deprecated === "object" &&
+			candidate.deprecated.replaceWith !== undefined &&
+			targets.has(candidate.deprecated.replaceWith) &&
+			[other, ...(candidate.aliases ?? [])].some(isWritten),
+	);
+}
+
+function descriptorsOf(entries: Record<string, { descriptor: FieldDescriptor }>): Record<string, FieldDescriptor> {
+	return Object.fromEntries(Object.entries(entries).map(([name, { descriptor }]) => [name, descriptor]));
+}
+
+/**
  * Validate a single inline attribute value against a field descriptor.
  *
  * All inline values are strings, so type checking requires coercion.
@@ -454,8 +498,9 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			}
 		}
 
-		for (const [name, { descriptor }] of Object.entries(options)) {
-			if (descriptor.required && ![name, ...(descriptor.aliases ?? [])].some((key) => key in written)) {
+		const descriptors = descriptorsOf(options);
+		for (const [name, descriptor] of Object.entries(descriptors)) {
+			if (descriptor.required && !isRequiredPresent(name, descriptor, written, descriptors)) {
 				report(
 					{ start: block.fenceStart, end: block.fenceStart + 1 },
 					`Required option "${name}" is missing.`,
@@ -488,11 +533,10 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		// Validate required attributes.
-		for (const [attrName, { descriptor }] of Object.entries(applicable)) {
-			if (descriptor.required && !(attrName in parsed.attributes)) {
-				// Check aliases too.
-				const aliasPresent = descriptor.aliases?.some((a) => a in parsed.attributes);
-				if (!aliasPresent) {
+		const applicableDescriptors = descriptorsOf(applicable);
+		for (const [attrName, descriptor] of Object.entries(applicableDescriptors)) {
+			if (descriptor.required) {
+				if (!isRequiredPresent(attrName, descriptor, parsed.attributes, applicableDescriptors)) {
 					const startPos = document.positionAt(block.matchStart);
 					const endPos = document.positionAt(block.matchStart + 1);
 					const range = new vscode.Range(startPos, endPos);
@@ -600,9 +644,8 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		if (schema.attributes) {
 			// Validate required attributes.
 			for (const [attrName, descriptor] of Object.entries(schema.attributes)) {
-				if (descriptor.required && !(attrName in parsed.attributes)) {
-					const aliasPresent = descriptor.aliases?.some((a) => a in parsed.attributes);
-					if (!aliasPresent) {
+				if (descriptor.required) {
+					if (!isRequiredPresent(attrName, descriptor, parsed.attributes, schema.attributes)) {
 						const startPos = document.positionAt(block.matchStart);
 						const endPos = document.positionAt(block.matchStart + 3);
 						const range = new vscode.Range(startPos, endPos);
