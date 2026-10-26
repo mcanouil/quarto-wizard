@@ -10,6 +10,7 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 ### Features
 
 - feat: Add the `cells` section and `validate_cells` for comment-pipe cell options. (#518)
+- feat: Warn when a `cells` section declares one language twice. (#519)
 
 ## 2.2.0
 

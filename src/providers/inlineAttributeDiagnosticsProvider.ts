@@ -27,6 +27,7 @@ import { type CellOptionSchemas, collectCellOptionSchemas } from "./cellOptionSc
 import type { FencedBlock } from "../utils/yamlPosition";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
+import { descriptorsOf, isRequiredPresent, isWrittenAs, replaceWithOf } from "../utils/fieldLookup";
 import { debounce } from "../utils/debounce";
 
 // ---------------------------------------------------------------------------
@@ -65,7 +66,7 @@ function findInlineReplacement(
 	written: Record<string, string>,
 	resolve: (name: string) => FieldDescriptor | undefined,
 ): InlineReplacement | undefined {
-	const key = typeof descriptor.deprecated === "object" ? descriptor.deprecated.replaceWith : undefined;
+	const key = replaceWithOf(descriptor);
 	if (!key) {
 		return undefined;
 	}
@@ -74,7 +75,7 @@ function findInlineReplacement(
 		return undefined;
 	}
 	const names = [key, ...(replacement.aliases ?? [])];
-	if (names.some((name) => name in written)) {
+	if (names.some((name) => isWrittenAs(written, name))) {
 		return undefined;
 	}
 	return { key, descriptor: replacement };
@@ -111,7 +112,7 @@ export function validateInlineValue(
 			finding.code === "schema-deprecated" ? `${noun} ${finding.message}` : `${noun} "${key}": ${finding.message}`,
 	}));
 
-	if (typeof descriptor.deprecated === "object" && descriptor.deprecated.replaceWith) {
+	if (replaceWithOf(descriptor)) {
 		if (replacement) {
 			findings.push(
 				...validateInlineValue(replacement.key, value, replacement.descriptor, undefined, noun).filter(
@@ -454,8 +455,9 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			}
 		}
 
-		for (const [name, { descriptor }] of Object.entries(options)) {
-			if (descriptor.required && ![name, ...(descriptor.aliases ?? [])].some((key) => key in written)) {
+		const descriptors = descriptorsOf(options);
+		for (const [name, descriptor] of Object.entries(descriptors)) {
+			if (descriptor.required && !isRequiredPresent(name, descriptor, written, descriptors)) {
 				report(
 					{ start: block.fenceStart, end: block.fenceStart + 1 },
 					`Required option "${name}" is missing.`,
@@ -488,23 +490,20 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		// Validate required attributes.
-		for (const [attrName, { descriptor }] of Object.entries(applicable)) {
-			if (descriptor.required && !(attrName in parsed.attributes)) {
-				// Check aliases too.
-				const aliasPresent = descriptor.aliases?.some((a) => a in parsed.attributes);
-				if (!aliasPresent) {
-					const startPos = document.positionAt(block.matchStart);
-					const endPos = document.positionAt(block.matchStart + 1);
-					const range = new vscode.Range(startPos, endPos);
-					const diagnostic = new vscode.Diagnostic(
-						range,
-						`Required attribute "${attrName}" is missing.`,
-						vscode.DiagnosticSeverity.Error,
-					);
-					diagnostic.code = "schema-required-missing";
-					diagnostic.source = "quarto-wizard";
-					diagnostics.push(diagnostic);
-				}
+		const applicableDescriptors = descriptorsOf(applicable);
+		for (const [attrName, descriptor] of Object.entries(applicableDescriptors)) {
+			if (descriptor.required && !isRequiredPresent(attrName, descriptor, parsed.attributes, applicableDescriptors)) {
+				const startPos = document.positionAt(block.matchStart);
+				const endPos = document.positionAt(block.matchStart + 1);
+				const range = new vscode.Range(startPos, endPos);
+				const diagnostic = new vscode.Diagnostic(
+					range,
+					`Required attribute "${attrName}" is missing.`,
+					vscode.DiagnosticSeverity.Error,
+				);
+				diagnostic.code = "schema-required-missing";
+				diagnostic.source = "quarto-wizard";
+				diagnostics.push(diagnostic);
 			}
 		}
 
@@ -600,21 +599,18 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		if (schema.attributes) {
 			// Validate required attributes.
 			for (const [attrName, descriptor] of Object.entries(schema.attributes)) {
-				if (descriptor.required && !(attrName in parsed.attributes)) {
-					const aliasPresent = descriptor.aliases?.some((a) => a in parsed.attributes);
-					if (!aliasPresent) {
-						const startPos = document.positionAt(block.matchStart);
-						const endPos = document.positionAt(block.matchStart + 3);
-						const range = new vscode.Range(startPos, endPos);
-						const diagnostic = new vscode.Diagnostic(
-							range,
-							`Required attribute "${attrName}" is missing.`,
-							vscode.DiagnosticSeverity.Error,
-						);
-						diagnostic.code = "schema-required-missing";
-						diagnostic.source = "quarto-wizard";
-						diagnostics.push(diagnostic);
-					}
+				if (descriptor.required && !isRequiredPresent(attrName, descriptor, parsed.attributes, schema.attributes)) {
+					const startPos = document.positionAt(block.matchStart);
+					const endPos = document.positionAt(block.matchStart + 3);
+					const range = new vscode.Range(startPos, endPos);
+					const diagnostic = new vscode.Diagnostic(
+						range,
+						`Required attribute "${attrName}" is missing.`,
+						vscode.DiagnosticSeverity.Error,
+					);
+					diagnostic.code = "schema-required-missing";
+					diagnostic.source = "quarto-wizard";
+					diagnostics.push(diagnostic);
 				}
 			}
 

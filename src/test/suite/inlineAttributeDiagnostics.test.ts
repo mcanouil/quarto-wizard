@@ -8,14 +8,15 @@ import {
 	extractBlocks,
 } from "../../utils/inlineAttributeText";
 import * as vscode from "vscode";
+import { isRequiredPresent } from "../../utils/fieldLookup";
 import {
 	InlineAttributeDiagnosticsProvider,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
-import type { CellOptionSchemas } from "../../providers/cellOptionSchemas";
+import { type CellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
 import { getDocumentFencedBlocks } from "../../utils/documentScan";
 import type { ElementAttributeSchemas } from "../../providers/elementAttributeCompletionProvider";
-import type { FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
+import type { FieldDescriptor, SchemaCache, ShortcodeSchema } from "@quarto-wizard/schema";
 
 suite("Inline Attribute Diagnostics", () => {
 	suite("findSpacesAroundEquals", () => {
@@ -990,6 +991,323 @@ suite("Inline Attribute Diagnostics", () => {
 		});
 	});
 
+	suite("required options", () => {
+		const target: FieldDescriptor = { type: "number", required: true, aliases: ["w"] };
+		const descriptors: Record<string, FieldDescriptor> = {
+			"fig-width": target,
+			old: { type: "number", deprecated: { replaceWith: "fig-width" } },
+		};
+
+		suite("isRequiredPresent", () => {
+			test("a name, an alias or a variant spelling is present", () => {
+				for (const written of ["fig-width", "w", "fig_width"]) {
+					assert.ok(isRequiredPresent("fig-width", target, { [written]: 1 }, descriptors), written);
+				}
+			});
+
+			test("an underscored declaration is satisfied by the hyphenated spelling", () => {
+				const underscored: FieldDescriptor = { type: "number", required: true };
+				assert.ok(isRequiredPresent("fig_width", underscored, { "fig-width": "1" }, { fig_width: underscored }));
+			});
+
+			test("a written deprecated field satisfies its replacement", () => {
+				assert.ok(isRequiredPresent("fig-width", target, { old: 1 }, descriptors));
+			});
+
+			test("a deprecated field without replaceWith does not satisfy another required field", () => {
+				const plain: Record<string, FieldDescriptor> = { ...descriptors, old: { type: "number", deprecated: "gone" } };
+				assert.ok(!isRequiredPresent("fig-width", target, { old: 1 }, plain));
+			});
+
+			test("an alias of a deprecated field satisfies its replacement", () => {
+				const aliased: Record<string, FieldDescriptor> = {
+					...descriptors,
+					old: { type: "number", aliases: ["o"], deprecated: { replaceWith: "fig-width" } },
+				};
+				assert.ok(isRequiredPresent("fig-width", target, { o: 1 }, aliased));
+			});
+
+			test("only the exact replaceWith spelling names the replacement", () => {
+				const variant: Record<string, FieldDescriptor> = {
+					...descriptors,
+					old: { type: "number", deprecated: { replaceWith: "fig_width" } },
+				};
+				assert.ok(!isRequiredPresent("fig-width", target, { old: 1 }, variant));
+				const exact: Record<string, FieldDescriptor> = {
+					underscored: { type: "number", required: true },
+					old: { type: "number", deprecated: { replaceWith: "underscored" } },
+				};
+				assert.ok(isRequiredPresent("underscored", exact.underscored, { old: 1 }, exact));
+			});
+
+			test("a required field that is itself deprecated with replaceWith is never present", () => {
+				const both: FieldDescriptor = { type: "number", required: true, deprecated: { replaceWith: "new" } };
+				assert.ok(!isRequiredPresent("old", both, { old: 1 }, { old: both, new: { type: "number" } }));
+			});
+
+			test("names inherited by a plain object are not written", () => {
+				for (const inherited of ["constructor", "toString"]) {
+					const hostile: FieldDescriptor = { type: "number", required: true, aliases: [inherited] };
+					assert.ok(!isRequiredPresent("fig-width", hostile, {}, { "fig-width": hostile }));
+				}
+			});
+
+			test("a required field with a default is present", () => {
+				const defaulted: FieldDescriptor = { type: "number", required: true, default: 1 };
+				assert.ok(isRequiredPresent("fig-width", defaulted, {}, { "fig-width": defaulted }));
+			});
+
+			test("a descriptor with deprecated null validates normally", () => {
+				const nulled = { type: "number", deprecated: null } as unknown as FieldDescriptor;
+				assert.deepStrictEqual(
+					validateInlineValue("x", "abc", nulled).map((finding) => finding.code),
+					["schema-type-mismatch"],
+				);
+				assert.deepStrictEqual(validateInlineValue("x", "1", nulled), []);
+			});
+
+			test("a required field with a default is not present when it is cleared by replaceWith", () => {
+				const cleared: FieldDescriptor = {
+					type: "number",
+					required: true,
+					default: 1,
+					deprecated: { replaceWith: "new" },
+				};
+				assert.ok(!isRequiredPresent("old", cleared, { old: "1" }, { old: cleared, new: { type: "number" } }));
+			});
+
+			test("a required field with a default and replaceWith is present when it is not written", () => {
+				const cleared: FieldDescriptor = {
+					type: "number",
+					required: true,
+					default: 1,
+					deprecated: { replaceWith: "new" },
+				};
+				assert.ok(isRequiredPresent("old", cleared, {}, { old: cleared, new: { type: "number" } }));
+			});
+
+			test("a missing field is absent", () => {
+				assert.ok(!isRequiredPresent("fig-width", target, { other: 1 }, descriptors));
+				assert.ok(!isRequiredPresent("fig-width", target, {}, descriptors));
+			});
+		});
+
+		let defaulted = false;
+		const required = (): FieldDescriptor => (defaulted ? { ...target, default: 1 } : target);
+
+		const codes = (diagnostics: vscode.Diagnostic[]) =>
+			diagnostics.map((diagnostic) => (typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code));
+
+		async function inDocument(content: string, run: (provider: unknown, document: vscode.TextDocument) => void) {
+			const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
+			const provider = new InlineAttributeDiagnosticsProvider({} as SchemaCache);
+			try {
+				run(provider, document);
+			} finally {
+				provider.dispose();
+			}
+		}
+
+		async function cellCodes(lines: string): Promise<(string | number | undefined)[]> {
+			const content = `\`\`\`{typst}\n${lines
+				.split("\n")
+				.filter((line) => line !== "")
+				.map((line) => `//| ${line}`)
+				.join("\n")}\n\`\`\`\n`;
+			const schemas: CellOptionSchemas = {
+				typst: Object.assign(Object.create(null), {
+					"fig-width": { descriptor: required(), source: "ext", conflicts: new Map() },
+					old: { descriptor: descriptors.old, source: "ext", conflicts: new Map() },
+				}),
+			};
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument(content, (provider, document) => {
+				const text = document.getText();
+				for (const block of getDocumentFencedBlocks(document, text)) {
+					(provider as { validateCellBlock: (...args: unknown[]) => void }).validateCellBlock(
+						block,
+						text,
+						schemas,
+						document,
+						diagnostics,
+					);
+				}
+			});
+			return codes(diagnostics);
+		}
+
+		async function elementCodes(attributes: string): Promise<(string | number | undefined)[]> {
+			const schemas: ElementAttributeSchemas = {
+				cls: {
+					"fig-width": { descriptor: required(), source: "ext" },
+					old: { descriptor: descriptors.old, source: "ext" },
+				},
+			};
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument(`[text]{.cls ${attributes}}\n`, (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					schemas,
+					document,
+					diagnostics,
+					[],
+					false,
+				);
+			});
+			return codes(diagnostics);
+		}
+
+		async function shortcodeCodes(attributes: string): Promise<(string | number | undefined)[]> {
+			const schemas = new Map<string, ShortcodeSchema>([
+				["demo", { attributes: { ...descriptors, "fig-width": required() } }],
+			]);
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument(`{{< demo ${attributes} >}}\n`, (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateShortcodeBlock: (...args: unknown[]) => void }).validateShortcodeBlock(
+					block,
+					document.getText(),
+					schemas,
+					document,
+					diagnostics,
+					[],
+				);
+			});
+			return codes(diagnostics);
+		}
+
+		const surfaces: [string, (written: string) => Promise<(string | number | undefined)[]>, string][] = [
+			["a cell", cellCodes, "\n"],
+			["an element", elementCodes, " "],
+			["a shortcode", shortcodeCodes, " "],
+		];
+
+		for (const [surface, runAll, separator] of surfaces) {
+			const run = async (written: string) =>
+				(await runAll(written)).filter((code) => code === "schema-required-missing");
+			const write = (...pairs: string[]) => pairs.join(separator);
+			const assign = (name: string) => (surface === "a cell" ? `${name}: 1` : `${name}="1"`);
+
+			test(`${surface} validates the underscore spelling against the declared option`, async () => {
+				const assignAbc = surface === "a cell" ? "fig_width: abc" : 'fig_width="abc"';
+				assert.deepStrictEqual(await runAll(assignAbc), ["schema-type-mismatch"]);
+			});
+
+			test(`${surface} counts the underscore spelling of a required option`, async () => {
+				assert.deepStrictEqual(await run(write(assign("fig_width"))), []);
+			});
+
+			test(`${surface} counts a deprecated option that names the required one`, async () => {
+				assert.deepStrictEqual(await run(write(assign("old"))), []);
+			});
+
+			test(`${surface} counts a required option that has a default`, async () => {
+				defaulted = true;
+				try {
+					assert.deepStrictEqual(await run(write(assign("other"))), []);
+				} finally {
+					defaulted = false;
+				}
+			});
+
+			test(`${surface} still reports a missing required option`, async () => {
+				assert.deepStrictEqual(await run(write(assign("other"))), ["schema-required-missing"]);
+			});
+		}
+
+		test("a replacement written with the other separator is not forwarded to", async () => {
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument('[text]{.cls old="abc" fig_width="2"}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					{
+						cls: {
+							"fig-width": { descriptor: target, source: "ext" },
+							old: { descriptor: descriptors.old, source: "ext" },
+						},
+					},
+					document,
+					diagnostics,
+					[],
+					false,
+				);
+			});
+			assert.deepStrictEqual(codes(diagnostics), ["schema-deprecated"]);
+		});
+
+		test("an element does not flag the underscore spelling as unknown", async () => {
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument('[text]{.cls fig_width="1"}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					{ cls: { "fig-width": { descriptor: target, source: "ext" } } },
+					document,
+					diagnostics,
+					[],
+					true,
+				);
+			});
+			assert.deepStrictEqual(codes(diagnostics), []);
+		});
+
+		test("an element and a shortcode count the hyphen spelling of an underscored required attribute", async () => {
+			const underscored: Record<string, FieldDescriptor> = { fig_width: target };
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument('[text]{.cls fig-width="1"}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					{ cls: { fig_width: { descriptor: target, source: "ext" } } },
+					document,
+					diagnostics,
+					[],
+					false,
+				);
+			});
+			await inDocument('{{< demo fig-width="1" >}}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateShortcodeBlock: (...args: unknown[]) => void }).validateShortcodeBlock(
+					block,
+					document.getText(),
+					new Map<string, ShortcodeSchema>([["demo", { attributes: underscored }]]),
+					document,
+					diagnostics,
+					[],
+				);
+			});
+			assert.deepStrictEqual(codes(diagnostics), []);
+		});
+
+		test("a cell counts the hyphen spelling of an underscored required option", async () => {
+			const underscored: CellOptionSchemas = {
+				typst: Object.assign(Object.create(null), {
+					fig_width: { descriptor: target, source: "ext", conflicts: new Map() },
+				}),
+			};
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument("```{typst}\n//| fig-width: 1\n```\n", (provider, document) => {
+				const text = document.getText();
+				for (const block of getDocumentFencedBlocks(document, text)) {
+					(provider as { validateCellBlock: (...args: unknown[]) => void }).validateCellBlock(
+						block,
+						text,
+						underscored,
+						document,
+						diagnostics,
+					);
+				}
+			});
+			assert.deepStrictEqual(codes(diagnostics), []);
+		});
+	});
+
 	suite("cell options", () => {
 		const schemas: CellOptionSchemas = {
 			typst: Object.assign(Object.create(null), {
@@ -1007,11 +1325,6 @@ suite("Inline Attribute Diagnostics", () => {
 				},
 				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: new Map() },
 				shared: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["shared", ["B"]]]) },
-				resolution: {
-					descriptor: { type: "integer", aliases: ["dpi-alias"] },
-					source: "B",
-					conflicts: new Map([["dpi-alias", ["A"]]]),
-				},
 				triple: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["triple", ["B", "C"]]]) },
 			}),
 			r: Object.assign(Object.create(null), {
@@ -1136,11 +1449,18 @@ suite("Inline Attribute Diagnostics", () => {
 			assert.strictEqual(found[0].range.end.character, 10);
 		});
 
-		test("an alias-only collision is reported on the contested alias, not on the option name", async () => {
-			assert.deepStrictEqual(await diagnose(cell("must: x\nresolution: 3")), []);
-			const found = await diagnose(cell("must: x\ndpi-alias: 3"));
+		test("an alias-only collision from the real merge is reported on the contested alias only", async () => {
+			const merged = mergeCellSchemas([
+				{ source: "A", schema: { cells: { typst: { options: { dpi: { type: "integer" } } } } } },
+				{
+					source: "B",
+					schema: { cells: { typst: { options: { resolution: { type: "integer", aliases: ["dpi"] } } } } },
+				},
+			]);
+			const found = await diagnose(cell("dpi: 1"), merged);
 			assert.deepStrictEqual(found.map(codeOf), ["schema-cell-option-conflict"]);
-			assert.strictEqual(found[0].message, "`dpi-alias` for `{typst}` cells is declared by B and A. B applies.");
+			assert.strictEqual(found[0].message, "`dpi` for `{typst}` cells is declared by A and B. A applies.");
+			assert.deepStrictEqual(await diagnose(cell("resolution: 1"), merged), []);
 		});
 
 		test("three sources are all listed", async () => {

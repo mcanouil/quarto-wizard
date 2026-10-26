@@ -859,4 +859,24 @@ describe.each([
 		});
 		expect(findings).toEqual([]);
 	});
+
+	it.each([
+		["Typst", "typst"],
+		["my-lang", "my_lang"],
+	])("warns when %s and %s name one language", (first, second) => {
+		const findings = validateSchemaDefinitionStructure({ $schema, cells: { [first]: {}, [second]: {} } });
+		expect(findings).toEqual([
+			{
+				message: `Cell language "${second}" repeats "${first}"; language keys ignore case and treat "-" and "_" alike.`,
+				severity: "warning",
+				code: "duplicate-cell-language",
+				keyPath: `cells.${second}`,
+			},
+		]);
+	});
+
+	it("accepts distinct cell languages", () => {
+		const findings = validateSchemaDefinitionStructure({ $schema, cells: { typst: {}, r: {}, "my-lang": {} } });
+		expect(findings).toEqual([]);
+	});
 });
