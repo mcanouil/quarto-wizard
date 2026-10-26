@@ -438,18 +438,10 @@ export function attributeKeyItems(
 ): vscode.CompletionItem[] {
 	const items: vscode.CompletionItem[] = [];
 	const aliasLabels = new Set<string>();
-	const aliasSourcesOfName = new Map<string, string[]>();
-	for (const declarations of Object.values(applicable.byName)) {
-		for (const { source, descriptor } of declarations) {
-			for (const alias of descriptor.aliases ?? []) {
-				if (alias in applicable.byName) {
-					aliasSourcesOfName.set(alias, [...(aliasSourcesOfName.get(alias) ?? []), source]);
-				}
-			}
-		}
-	}
 
 	for (const [attrName, declarations] of Object.entries(applicable.byName)) {
+		// An alias of another extension that equals this name folds into this item.
+		const resolved = resolveDeclarations(applicable, attrName);
 		// Skip the entire field (canonical + aliases) when any name is already present.
 		const isOccupied =
 			occupied.has(attrName) || declarations.some(({ descriptor }) => descriptor.aliases?.some((a) => occupied.has(a)));
@@ -457,12 +449,10 @@ export function attributeKeyItems(
 			continue;
 		}
 
-		const sources = [
-			...new Set([...declarations.map(({ source }) => source), ...(aliasSourcesOfName.get(attrName) ?? [])]),
-		].join(", ");
-		const tier = lowestTier(declarations, false);
-		const completable = declarations.some(({ descriptor }) => hasCompletableValues(descriptor));
-		const docs = buildDeclarationsDoc(declarations);
+		const sources = [...new Set(resolved.map(({ source }) => source))].join(", ");
+		const tier = lowestTier(resolved, false);
+		const completable = resolved.some(({ descriptor }) => hasCompletableValues(descriptor));
+		const docs = buildDeclarationsDoc(resolved);
 
 		const item = new vscode.CompletionItem(attrName, vscode.CompletionItemKind.Property);
 		item.insertText = new vscode.SnippetString(`${attrName}${separator}`);
@@ -473,7 +463,7 @@ export function attributeKeyItems(
 		item.sortText = `!${tier}_${sources}_${attrName}`;
 
 		// The tag shows only when every declaring extension deprecates the field.
-		if (declarations.every(({ descriptor }) => descriptor.deprecated)) {
+		if (resolved.every(({ descriptor }) => descriptor.deprecated)) {
 			item.tags = [vscode.CompletionItemTag.Deprecated];
 		}
 

@@ -213,6 +213,16 @@ suite("Completion and hover across extensions", () => {
 		assert.strictEqual(items.filter((item) => item.label === "resolution").length, 1);
 	});
 
+	test("draws the documentation and the value trigger of a folded item from every source", () => {
+		const a = extension("A", { dpi: { type: "integer" } });
+		const b = extension("B", { resolution: { type: "integer", enum: [72, 150, 300], aliases: ["dpi"] } });
+		const dpi = attributeKeyItems(combineDeclarations([a, b]), new Set(), ": ").find((item) => item.label === "dpi");
+		assert.ok(dpi);
+		const docs = (dpi.documentation as vscode.MarkdownString).value;
+		assert.ok(docs.includes("A") && docs.includes("B"));
+		assert.strictEqual(dpi.command?.command, "editor.action.triggerSuggest");
+	});
+
 	test("skips a name when an alias of any declaration is present", () => {
 		assert.deepStrictEqual(attributeKeyItems(applicable, new Set(["inc"]), ": "), []);
 	});
