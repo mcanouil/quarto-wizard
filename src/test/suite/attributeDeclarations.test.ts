@@ -203,6 +203,16 @@ suite("Completion and hover across extensions", () => {
 		assert.strictEqual(items[1].detail, "tr (alias for include)");
 	});
 
+	test("folds an alias that equals another declared name into that item", () => {
+		const a = extension("A", { dpi: { type: "integer" } });
+		const b = extension("B", { resolution: { type: "integer", aliases: ["dpi"] } });
+		const items = attributeKeyItems(combineDeclarations([a, b]), new Set(), ": ");
+		const dpi = items.filter((item) => item.label === "dpi");
+		assert.strictEqual(dpi.length, 1);
+		assert.strictEqual(dpi[0].detail, "A, B");
+		assert.strictEqual(items.filter((item) => item.label === "resolution").length, 1);
+	});
+
 	test("skips a name when an alias of any declaration is present", () => {
 		assert.deepStrictEqual(attributeKeyItems(applicable, new Set(["inc"]), ": "), []);
 	});

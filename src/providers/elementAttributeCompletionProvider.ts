@@ -429,6 +429,16 @@ export function attributeKeyItems(
 ): vscode.CompletionItem[] {
 	const items: vscode.CompletionItem[] = [];
 	const aliasLabels = new Set<string>();
+	const aliasSourcesOfName = new Map<string, string[]>();
+	for (const declarations of Object.values(applicable.byName)) {
+		for (const { source, descriptor } of declarations) {
+			for (const alias of descriptor.aliases ?? []) {
+				if (alias in applicable.byName) {
+					aliasSourcesOfName.set(alias, [...(aliasSourcesOfName.get(alias) ?? []), source]);
+				}
+			}
+		}
+	}
 
 	for (const [attrName, declarations] of Object.entries(applicable.byName)) {
 		// Skip the entire field (canonical + aliases) when any name is already present.
@@ -438,7 +448,9 @@ export function attributeKeyItems(
 			continue;
 		}
 
-		const sources = declarations.map(({ source }) => source).join(", ");
+		const sources = [
+			...new Set([...declarations.map(({ source }) => source), ...(aliasSourcesOfName.get(attrName) ?? [])]),
+		].join(", ");
 		const tier = declarations
 			.map(({ descriptor, groupOrigin }) => attributeSortTier(descriptor, groupOrigin))
 			.reduce((lowest, candidate) => (candidate < lowest ? candidate : lowest));
@@ -466,7 +478,7 @@ export function attributeKeyItems(
 
 		const aliases = new Set(declarations.flatMap(({ descriptor }) => descriptor.aliases ?? []));
 		for (const alias of aliases) {
-			if (aliasLabels.has(alias)) {
+			if (aliasLabels.has(alias) || alias in applicable.byName) {
 				continue;
 			}
 			aliasLabels.add(alias);

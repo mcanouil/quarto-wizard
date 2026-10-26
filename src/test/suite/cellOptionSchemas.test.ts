@@ -50,6 +50,14 @@ suite("cellOptionSchemas Test Suite", () => {
 			assert.strictEqual(merged.typst.byExtension.length, 1);
 		});
 
+		test("skips an entry whose id repeats an earlier one, whatever it declares", () => {
+			const merged = mergeCellSchemas([
+				{ source: "A", id: "acme/demo", schema: cells("typst", { dpi: { type: "integer" } }) },
+				{ source: "A", id: "acme/demo", schema: cells("typst", { dpi: { type: "integer" }, z: { type: "string" } }) },
+			]);
+			assert.strictEqual(merged.typst.byName.z, undefined);
+		});
+
 		test("counts entries without an id separately", () => {
 			const schema = cells("typst", { dpi: { type: "integer" } });
 			const merged = mergeCellSchemas([

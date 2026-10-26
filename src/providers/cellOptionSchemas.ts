@@ -26,15 +26,21 @@ export interface CellSchemaEntry {
  *
  * Every extension that declares an option for a language keeps its declaration.
  * A language listed without options is skipped.
- * An entry whose `id` repeats an earlier one is skipped.
+ * An entry whose `id` repeats an earlier one is skipped entirely, so the first copy wins.
  * Maps have no prototype, so a language or option named `constructor` is an ordinary key.
  */
 export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptionSchemas {
 	const perLanguage = new Map<string, Map<string, ExtensionDeclarations>>();
 
+	const seenIds = new Set<string>();
+
 	entries.forEach(({ source, schema, id }, index) => {
 		// An entry without an id has no identity to share, so its position keeps it apart from the others.
 		const sourceId = id ?? `#${index}`;
+		if (seenIds.has(sourceId)) {
+			return;
+		}
+		seenIds.add(sourceId);
 		for (const [rawLanguage, cell] of Object.entries(schema.cells ?? {})) {
 			if (Object.keys(cell.options ?? {}).length === 0) {
 				continue;
