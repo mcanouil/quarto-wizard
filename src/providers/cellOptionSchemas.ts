@@ -1,24 +1,20 @@
-import type { ExtensionSchema, SchemaCache } from "@quarto-wizard/schema";
+import type { ExtensionSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
 import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { logMessage } from "../utils/log";
 import { cellLanguageKey } from "../utils/cellOptions";
-import type { AttributeWithSource } from "./elementAttributeCompletionProvider";
+import {
+	type ApplicableDeclarations,
+	type ExtensionDeclarations,
+	type GroupOrigin,
+	combineDeclarations,
+} from "./attributeDeclarations";
 
 /**
- * A cell option paired with the extension that provides it.
- * `conflicts` maps each contested name or alias to the sources of the other extensions that declare that spelling,
- * so a conflict is reported only on the spellings that overlap.
+ * Merged cell option schemas: language key (see `cellLanguageKey`) to the declarations of every extension.
  */
-export interface CellOptionWithSource extends AttributeWithSource {
-	conflicts: Map<string, string[]>;
-}
-
-/**
- * Merged cell option schemas: language key (see `cellLanguageKey`) to option name to sourced descriptor.
- */
-export type CellOptionSchemas = Record<string, Record<string, CellOptionWithSource>>;
+export type CellOptionSchemas = Record<string, ApplicableDeclarations>;
 
 /**
  * The `cells` source of one installed extension.
@@ -30,84 +26,36 @@ export interface CellSchemaEntry {
 	id?: string;
 }
 
-interface OwnedOption {
-	name: string;
-	option: CellOptionWithSource;
-	owner: number;
-}
-
-function optionKeys(name: string, aliases: readonly string[] | undefined): string[] {
-	return [name, ...(aliases ?? [])];
-}
-
-function addConflict(option: CellOptionWithSource, source: string, contested: readonly string[]): void {
-	for (const key of contested) {
-		const sources = option.conflicts.get(key) ?? [];
-		if (!sources.includes(source)) {
-			sources.push(source);
-		}
-		option.conflicts.set(key, sources);
-	}
-}
-
 /**
  * Merge the `cells` sections of several extension schemas, in load order.
  *
- * The first extension to declare an option name or alias for a language wins.
- * Every extension that declares an overlapping name or alias is recorded in `conflicts`.
+ * Every extension that declares an option for a language keeps its declaration.
  * An entry whose `id` repeats an earlier one is skipped.
  * Maps have no prototype, so a language or option named `constructor` is an ordinary key.
  */
 export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptionSchemas {
-	const result: CellOptionSchemas = Object.create(null);
-	const owned = new Map<string, OwnedOption[]>();
-	const seen = new Set<string>();
+	const perLanguage = new Map<string, ExtensionDeclarations[]>();
 
-	entries.forEach(({ source, schema, id }, owner) => {
-		if (id !== undefined) {
-			if (seen.has(id)) {
-				return;
-			}
-			seen.add(id);
-		}
+	entries.forEach(({ source, schema, id }, index) => {
+		const sourceId = id ?? `#${index}`;
 		for (const [rawLanguage, cell] of Object.entries(schema.cells ?? {})) {
 			const language = cellLanguageKey(rawLanguage);
-			const options = (result[language] ??= Object.create(null) as Record<string, CellOptionWithSource>);
-			let languageOwned = owned.get(language);
-			if (languageOwned === undefined) {
-				languageOwned = [];
-				owned.set(language, languageOwned);
-			}
-
+			const descriptors: Record<string, FieldDescriptor> = Object.create(null);
+			const origins: Record<string, GroupOrigin> = Object.create(null);
 			for (const [name, descriptor] of Object.entries(cell.options ?? {})) {
-				const keys = optionKeys(name, descriptor.aliases);
-				const option: CellOptionWithSource = { descriptor, source, conflicts: new Map() };
-				let sameName = false;
-
-				for (const earlier of languageOwned) {
-					if (earlier.owner === owner) {
-						continue;
-					}
-					const earlierKeys = optionKeys(earlier.name, earlier.option.descriptor.aliases);
-					const shared = keys.filter((key) => earlierKeys.includes(key));
-					if (shared.length === 0) {
-						continue;
-					}
-					addConflict(earlier.option, source, shared);
-					addConflict(option, earlier.option.source, shared);
-					if (earlier.name === name) {
-						sameName = true;
-					}
-				}
-
-				if (!sameName) {
-					options[name] = option;
-					languageOwned.push({ name, option, owner });
-				}
+				descriptors[name] = descriptor;
+				origins[name] = "any";
 			}
+			const declarations = perLanguage.get(language) ?? [];
+			declarations.push({ source, sourceId, descriptors, origins });
+			perLanguage.set(language, declarations);
 		}
 	});
 
+	const result: CellOptionSchemas = Object.create(null);
+	for (const [language, declarations] of perLanguage) {
+		result[language] = combineDeclarations(declarations);
+	}
 	return result;
 }
 

@@ -10,6 +10,7 @@ import { collectCellOptionSchemas } from "./cellOptionSchemas";
 import {
 	attributeKeyItems,
 	attributeValueItems,
+	firstDeclarations,
 	resolveElementAttribute,
 	type AttributeWithSource,
 } from "./elementAttributeCompletionProvider";
@@ -48,7 +49,8 @@ async function findCellOptions(
 	language: string,
 ): Promise<Record<string, AttributeWithSource> | undefined> {
 	const schemas = await collectCellOptionSchemas(schemaCache);
-	return schemas[cellLanguageKey(language)];
+	const declarations = schemas[cellLanguageKey(language)];
+	return declarations === undefined ? undefined : firstDeclarations(declarations);
 }
 
 /**

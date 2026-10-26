@@ -13,10 +13,29 @@ import {
 	InlineAttributeDiagnosticsProvider,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
-import { type CellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
+import type { CellOptionSchemas } from "../../providers/cellOptionSchemas";
+import { type ExtensionDeclarations, combineDeclarations } from "../../providers/attributeDeclarations";
 import { getDocumentFencedBlocks } from "../../utils/documentScan";
 import type { ExtensionAttributeSchema } from "../../providers/elementAttributeCompletionProvider";
 import type { FieldDescriptor, SchemaCache, ShortcodeSchema } from "@quarto-wizard/schema";
+
+function cellOptions(
+	options: Record<string, { descriptor: FieldDescriptor; source: string }>,
+): CellOptionSchemas[string] {
+	const bySource = new Map<string, ExtensionDeclarations>();
+	for (const [name, { descriptor, source }] of Object.entries(options)) {
+		const ext = bySource.get(source) ?? {
+			source,
+			sourceId: source,
+			descriptors: Object.create(null),
+			origins: Object.create(null),
+		};
+		ext.descriptors[name] = descriptor;
+		ext.origins[name] = "any";
+		bySource.set(source, ext);
+	}
+	return combineDeclarations([...bySource.values()]);
+}
 
 suite("Inline Attribute Diagnostics", () => {
 	suite("findSpacesAroundEquals", () => {
@@ -1121,9 +1140,9 @@ suite("Inline Attribute Diagnostics", () => {
 				.map((line) => `//| ${line}`)
 				.join("\n")}\n\`\`\`\n`;
 			const schemas: CellOptionSchemas = {
-				typst: Object.assign(Object.create(null), {
-					"fig-width": { descriptor: required(), source: "ext", conflicts: new Map() },
-					old: { descriptor: descriptors.old, source: "ext", conflicts: new Map() },
+				typst: cellOptions({
+					"fig-width": { descriptor: required(), source: "ext" },
+					old: { descriptor: descriptors.old, source: "ext" },
 				}),
 			};
 			const diagnostics: vscode.Diagnostic[] = [];
@@ -1285,8 +1304,8 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("a cell counts the hyphen spelling of an underscored required option", async () => {
 			const underscored: CellOptionSchemas = {
-				typst: Object.assign(Object.create(null), {
-					fig_width: { descriptor: target, source: "ext", conflicts: new Map() },
+				typst: cellOptions({
+					fig_width: { descriptor: target, source: "ext" },
 				}),
 			};
 			const diagnostics: vscode.Diagnostic[] = [];
@@ -1308,25 +1327,21 @@ suite("Inline Attribute Diagnostics", () => {
 
 	suite("cell options", () => {
 		const schemas: CellOptionSchemas = {
-			typst: Object.assign(Object.create(null), {
-				dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: new Map() },
-				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext", conflicts: new Map() },
+			typst: cellOptions({
+				dpi: { descriptor: { type: "integer" }, source: "ext" },
+				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext" },
 				old: {
 					descriptor: { type: "string", deprecated: { replaceWith: "format" } },
 					source: "ext",
-					conflicts: new Map(),
 				},
 				must: {
 					descriptor: { type: "string", required: true, aliases: ["need"] },
 					source: "ext",
-					conflicts: new Map(),
 				},
-				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: new Map() },
-				shared: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["shared", ["B"]]]) },
-				triple: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["triple", ["B", "C"]]]) },
+				include: { descriptor: { type: "boolean" }, source: "ext" },
 			}),
-			r: Object.assign(Object.create(null), {
-				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext", conflicts: new Map() },
+			r: cellOptions({
+				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext" },
 			}),
 		};
 
@@ -1408,8 +1423,8 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("the language matches without regard to hyphen or underscore", async () => {
 			const hyphenated: CellOptionSchemas = {
-				"my-lang": Object.assign(Object.create(null), {
-					dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: new Map() },
+				"my-lang": cellOptions({
+					dpi: { descriptor: { type: "integer" }, source: "ext" },
 				}),
 			};
 			for (const language of ["my_lang", "My-Lang"]) {
@@ -1435,57 +1450,6 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("an alias counts as the required option", async () => {
 			assert.deepStrictEqual(await diagnose(cell("need: x")), []);
-		});
-
-		test("a conflicting option in use is reported once on the key", async () => {
-			const found = await diagnose(cell("must: x\nshared: a"));
-			assert.strictEqual(found.length, 1);
-			assert.strictEqual(codeOf(found[0]), "schema-cell-option-conflict");
-			assert.strictEqual(found[0].severity, vscode.DiagnosticSeverity.Warning);
-			assert.strictEqual(found[0].message, "`shared` for `{typst}` cells is declared by A and B. A applies.");
-			assert.strictEqual(found[0].range.start.character, 4);
-			assert.strictEqual(found[0].range.end.character, 10);
-		});
-
-		test("an alias-only collision from the real merge is reported on the contested alias only", async () => {
-			const merged = mergeCellSchemas([
-				{ source: "A", schema: { cells: { typst: { options: { dpi: { type: "integer" } } } } } },
-				{
-					source: "B",
-					schema: { cells: { typst: { options: { resolution: { type: "integer", aliases: ["dpi"] } } } } },
-				},
-			]);
-			const found = await diagnose(cell("dpi: 1"), merged);
-			assert.deepStrictEqual(found.map(codeOf), ["schema-cell-option-conflict"]);
-			assert.strictEqual(found[0].message, "`dpi` for `{typst}` cells is declared by A and B. A applies.");
-			assert.deepStrictEqual(await diagnose(cell("resolution: 1"), merged), []);
-		});
-
-		test("three sources are all listed", async () => {
-			const found = await diagnose(cell("must: x\ntriple: a"));
-			assert.strictEqual(found[0].message, "`triple` for `{typst}` cells is declared by A, B and C. A applies.");
-		});
-
-		test("a mixed three-way conflict names only the sources of the written spelling", async () => {
-			const mixed: CellOptionSchemas = {
-				typst: Object.assign(Object.create(null), {
-					x: {
-						descriptor: { type: "string", aliases: ["y"] },
-						source: "A",
-						conflicts: new Map([
-							["x", ["B"]],
-							["y", ["C"]],
-						]),
-					},
-					z: { descriptor: { type: "string", aliases: ["y"] }, source: "C", conflicts: new Map([["y", ["A"]]]) },
-				}),
-			};
-			const found = await diagnose(cell("y: a"), mixed);
-			assert.strictEqual(found[0].message, "`y` for `{typst}` cells is declared by A and C. A applies.");
-		});
-
-		test("a conflicting option not in use is not reported", async () => {
-			assert.deepStrictEqual(await diagnose(cell("must: x")), []);
 		});
 	});
 });

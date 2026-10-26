@@ -402,10 +402,11 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		if (language === undefined) {
 			return;
 		}
-		const options = schemas[cellLanguageKey(language)];
-		if (!options) {
+		const declarations = schemas[cellLanguageKey(language)];
+		if (!declarations) {
 			return;
 		}
+		const options = firstDeclarations(declarations);
 		const lines = readCellOptions(text, block, language);
 
 		const report = (range: TextRange, message: string, severity: InlineValidationSeverity, code: string): void => {
@@ -428,17 +429,6 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			const entry = resolveElementAttribute(options, line.key);
 			if (!entry) {
 				continue;
-			}
-			const others = entry.conflicts.get(line.key);
-			if (others !== undefined) {
-				const names = [entry.source, ...others];
-				const list = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-				report(
-					line.keyRange,
-					`\`${line.key}\` for \`{${language}}\` cells is declared by ${list}. ${entry.source} applies.`,
-					"warning",
-					"schema-cell-option-conflict",
-				);
 			}
 			if (line.value === undefined || line.valueRange === undefined) {
 				continue;
