@@ -8,6 +8,7 @@ import {
 	resolveDeclarations,
 } from "../../providers/attributeDeclarations";
 import { buildAttributeDoc, buildDeclarationsDoc } from "../../utils/schemaDocumentation";
+import { mergeCellSchemas } from "../../providers/cellOptionSchemas";
 import {
 	type ExtensionAttributeSchema,
 	attributeKeyItems,
@@ -231,5 +232,62 @@ suite("Completion and hover across extensions", () => {
 	test("renders a single declaration as buildAttributeDoc does", () => {
 		const [only] = applicable.byName.include;
 		assert.strictEqual(buildDeclarationsDoc([only])?.value, buildAttributeDoc(only.descriptor, only.source)?.value);
+	});
+
+	test("lists one source when two roots hold the same extension", () => {
+		const groups = { _any: { include: { type: "string" } } } as const;
+		const roots = mergeApplicableAttributes(
+			[schema("inc", { ...groups }, "acme/inc"), schema("inc", { ...groups }, "acme/inc")],
+			[],
+			[],
+			"Div",
+		);
+		const items = attributeKeyItems(roots, new Set(), "=");
+		assert.strictEqual(items.length, 1);
+		assert.strictEqual(items[0].detail, "inc");
+	});
+
+	test("lists a source once when it repeats a value", async () => {
+		const repeated = combineDeclarations([
+			extension("inc", { mode: { type: "string", enum: [1, "1"] } }),
+			extension("tr", { mode: { type: "string", enum: ["1"] } }),
+		]);
+		const items = await attributeValueItems(repeated.byName.mode, vscode.Uri.file("/tmp/x.qmd"));
+		assert.deepStrictEqual(
+			items.map((item) => [item.label, item.detail]),
+			[["1", "inc, tr"]],
+		);
+	});
+
+	test("tags a field as deprecated only when every declaration is", () => {
+		const tag = (second: boolean) =>
+			attributeKeyItems(
+				combineDeclarations([
+					extension("inc", { old: { type: "string", deprecated: true } }),
+					extension("tr", { old: { type: "string", deprecated: second } }),
+				]),
+				new Set(),
+				"=",
+			)[0].tags;
+		assert.deepStrictEqual(tag(true), [vscode.CompletionItemTag.Deprecated]);
+		assert.strictEqual(tag(false), undefined);
+	});
+
+	test("shows every source of a typst cell", async () => {
+		const merged = mergeCellSchemas([
+			{ source: "inc", schema: { cells: { typst: { options: { include: inc.descriptors.include } } } } },
+			{ source: "tr", schema: { cells: { typst: { options: { include: tr.descriptors.include } } } } },
+		]);
+		const items = attributeKeyItems(merged.typst, new Set(), ": ");
+		assert.strictEqual(items.filter((item) => item.label === "include").length, 1);
+		assert.strictEqual(items[0].detail, "inc, tr");
+		const declarations = resolveDeclarations(merged.typst, "include");
+		const values = await attributeValueItems(declarations, vscode.Uri.file("/tmp/x.qmd"));
+		assert.deepStrictEqual(
+			values.map((item) => item.label),
+			["a", "b", "c"],
+		);
+		const text = buildDeclarationsDoc(declarations)?.value ?? "";
+		assert.ok(text.includes("**inc**") && text.includes("**tr**"), text);
 	});
 });

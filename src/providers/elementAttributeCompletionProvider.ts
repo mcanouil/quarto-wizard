@@ -453,6 +453,7 @@ export function attributeKeyItems(
 		item.detail = sources;
 		item.sortText = `!${tier}_${sources}_${attrName}`;
 
+		// The tag shows only when every declaring extension deprecates the field.
 		if (declarations.every(({ descriptor }) => descriptor.deprecated)) {
 			item.tags = [vscode.CompletionItemTag.Deprecated];
 		}
@@ -509,7 +510,9 @@ export async function attributeValueItems(
 			const label = typeof item.label === "string" ? item.label : item.label.label;
 			const seen = byLabel.get(label);
 			if (seen) {
-				seen.detail = `${seen.detail}, ${declaration.source}`;
+				if (!String(seen.detail).split(", ").includes(declaration.source)) {
+					seen.detail = `${seen.detail}, ${declaration.source}`;
+				}
 				continue;
 			}
 			byLabel.set(label, item);
