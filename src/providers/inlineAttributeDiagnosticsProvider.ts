@@ -7,10 +7,14 @@ import { parseShortcodeAtPosition } from "../utils/shortcodeParser";
 import {
 	type ExtensionAttributeSchema,
 	collectElementAttributeSchemas,
-	firstDeclarations,
 	mergeApplicableAttributes,
-	resolveElementAttribute,
 } from "./elementAttributeCompletionProvider";
+import {
+	type ApplicableDeclarations,
+	type AttributeDeclaration,
+	formatSources,
+	resolveDeclarations,
+} from "./attributeDeclarations";
 import { collectShortcodeSchemas, resolveShortcodeAttribute } from "./shortcodeCompletionProvider";
 import { getErrorMessage } from "@quarto-wizard/core";
 import {
@@ -28,7 +32,7 @@ import { type CellOptionSchemas, collectCellOptionSchemas } from "./cellOptionSc
 import type { FencedBlock } from "../utils/yamlPosition";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
-import { descriptorsOf, isRequiredPresent, isWrittenAs, replaceWithOf } from "../utils/fieldLookup";
+import { findFieldDescriptor, isRequiredPresent, isWrittenAs, replaceWithOf } from "../utils/fieldLookup";
 import { debounce } from "../utils/debounce";
 
 // ---------------------------------------------------------------------------
@@ -163,6 +167,97 @@ export function validateInlineValue(
 	}
 
 	return findings;
+}
+
+/**
+ * The findings of one extension.
+ */
+interface SourceFindings {
+	source: string;
+	findings: InlineValidationFinding[];
+}
+
+/**
+ * Combine the findings of several extensions.
+ * A finding with the same code and message from several extensions is kept once.
+ * When `named` is set, each message starts with the extensions that gave it.
+ */
+function combineFindings(perSource: readonly SourceFindings[], named: boolean): InlineValidationFinding[] {
+	const combined = new Map<string, { finding: InlineValidationFinding; sources: string[] }>();
+	for (const { source, findings } of perSource) {
+		for (const finding of findings) {
+			const id = `${finding.code}\u0000${finding.message}`;
+			const entry = combined.get(id);
+			if (!entry) {
+				combined.set(id, { finding, sources: [source] });
+			} else if (!entry.sources.includes(source)) {
+				entry.sources.push(source);
+			}
+		}
+	}
+	return [...combined.values()].map(({ finding, sources }) =>
+		named ? { ...finding, message: `${formatSources(sources)}: ${finding.message}` } : finding,
+	);
+}
+
+/**
+ * Validate a written value against the declaration of each extension that declares its key.
+ * A message names the extensions only when two or more declare the key.
+ *
+ * @param replacementOf - The replacement of a deprecated declaration, looked up in the extension that declares it.
+ */
+export function validateDeclaredValue(
+	key: string,
+	value: string,
+	declarations: readonly AttributeDeclaration[],
+	noun: "Attribute" | "Option",
+	replacementOf: (declaration: AttributeDeclaration) => InlineReplacement | undefined = () => undefined,
+): InlineValidationFinding[] {
+	const perSource = declarations.map((declaration) => ({
+		source: declaration.source,
+		findings: validateInlineValue(key, value, declaration.descriptor, replacementOf(declaration), noun),
+	}));
+	return combineFindings(perSource, declarations.length > 1);
+}
+
+/**
+ * Find the replacement of a deprecated declaration among the fields of its own extension.
+ */
+function replacementIn(
+	applicable: ApplicableDeclarations,
+	written: Record<string, string>,
+): (declaration: AttributeDeclaration) => InlineReplacement | undefined {
+	return (declaration) => {
+		const ext = applicable.byExtension.find((candidate) => candidate.sourceId === declaration.sourceId);
+		return (
+			ext &&
+			findInlineReplacement(declaration.descriptor, written, (name) => findFieldDescriptor(ext.descriptors, name))
+		);
+	};
+}
+
+/**
+ * Find the required fields that each extension declares and that are missing.
+ * A message names the extensions only when two or more apply.
+ */
+function findMissingRequired(
+	applicable: ApplicableDeclarations,
+	written: Record<string, string>,
+	noun: "attribute" | "option",
+): InlineValidationFinding[] {
+	const perSource = applicable.byExtension.map((ext) => ({
+		source: ext.source,
+		findings: Object.entries(ext.descriptors)
+			.filter(
+				([name, descriptor]) => descriptor.required && !isRequiredPresent(name, descriptor, written, ext.descriptors),
+			)
+			.map(([name]): InlineValidationFinding => ({
+				message: `Required ${noun} "${name}" is missing.`,
+				severity: "error",
+				code: "schema-required-missing",
+			})),
+	}));
+	return combineFindings(perSource, applicable.byExtension.length > 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -406,7 +501,6 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		if (!declarations) {
 			return;
 		}
-		const options = firstDeclarations(declarations);
 		const lines = readCellOptions(text, block, language);
 
 		const report = (range: TextRange, message: string, severity: InlineValidationSeverity, code: string): void => {
@@ -426,19 +520,15 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		}
 
 		for (const line of lines) {
-			const entry = resolveElementAttribute(options, line.key);
-			if (!entry) {
-				continue;
-			}
 			if (line.value === undefined || line.valueRange === undefined) {
 				continue;
 			}
-			const findings = validateInlineValue(
+			const findings = validateDeclaredValue(
 				line.key,
 				line.value,
-				entry.descriptor,
-				findInlineReplacement(entry.descriptor, written, (name) => resolveElementAttribute(options, name)?.descriptor),
+				resolveDeclarations(declarations, line.key),
 				"Option",
+				replacementIn(declarations, written),
 			);
 			for (const finding of findings) {
 				const keyLevel = finding.code === "schema-deprecated";
@@ -446,16 +536,8 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			}
 		}
 
-		const descriptors = descriptorsOf(options);
-		for (const [name, descriptor] of Object.entries(descriptors)) {
-			if (descriptor.required && !isRequiredPresent(name, descriptor, written, descriptors)) {
-				report(
-					{ start: block.fenceStart, end: block.fenceStart + 1 },
-					`Required option "${name}" is missing.`,
-					"error",
-					"schema-required-missing",
-				);
-			}
+		for (const finding of findMissingRequired(declarations, written, "option")) {
+			report({ start: block.fenceStart, end: block.fenceStart + 1 }, finding.message, finding.severity, finding.code);
 		}
 	}
 
@@ -475,35 +557,24 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 			return;
 		}
 
-		const applicable = firstDeclarations(
-			mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType),
-		);
-		if (Object.keys(applicable).length === 0) {
+		const applicable = mergeApplicableAttributes(schemas, parsed.classes, parsed.ids, parsed.elementType);
+		if (applicable.byExtension.length === 0) {
 			return;
 		}
 
 		// Validate required attributes.
-		const applicableDescriptors = descriptorsOf(applicable);
-		for (const [attrName, descriptor] of Object.entries(applicableDescriptors)) {
-			if (descriptor.required && !isRequiredPresent(attrName, descriptor, parsed.attributes, applicableDescriptors)) {
-				const startPos = document.positionAt(block.matchStart);
-				const endPos = document.positionAt(block.matchStart + 1);
-				const range = new vscode.Range(startPos, endPos);
-				const diagnostic = new vscode.Diagnostic(
-					range,
-					`Required attribute "${attrName}" is missing.`,
-					vscode.DiagnosticSeverity.Error,
-				);
-				diagnostic.code = "schema-required-missing";
-				diagnostic.source = "quarto-wizard";
-				diagnostics.push(diagnostic);
-			}
+		for (const finding of findMissingRequired(applicable, parsed.attributes, "attribute")) {
+			const range = new vscode.Range(document.positionAt(block.matchStart), document.positionAt(block.matchStart + 1));
+			const diagnostic = new vscode.Diagnostic(range, finding.message, toVsSeverity(finding.severity));
+			diagnostic.code = finding.code;
+			diagnostic.source = "quarto-wizard";
+			diagnostics.push(diagnostic);
 		}
 
 		// Validate each attribute value.
 		for (const [key, value] of Object.entries(parsed.attributes)) {
-			const entry = resolveElementAttribute(applicable, key);
-			if (!entry) {
+			const declarations = resolveDeclarations(applicable, key);
+			if (declarations.length === 0) {
 				if (!reportUnknown) {
 					continue;
 				}
@@ -525,15 +596,12 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 				continue;
 			}
 
-			const findings = validateInlineValue(
+			const findings = validateDeclaredValue(
 				key,
 				value,
-				entry.descriptor,
-				findInlineReplacement(
-					entry.descriptor,
-					parsed.attributes,
-					(name) => resolveElementAttribute(applicable, name)?.descriptor,
-				),
+				declarations,
+				"Attribute",
+				replacementIn(applicable, parsed.attributes),
 			);
 			if (findings.length === 0) {
 				continue;
@@ -550,8 +618,7 @@ export class InlineAttributeDiagnosticsProvider implements vscode.Disposable {
 		// Validate bare words that match known attribute names.
 		const bareWords = extractBareWords(block.content);
 		for (const bw of bareWords) {
-			const entry = resolveElementAttribute(applicable, bw.word);
-			if (!entry) {
+			if (resolveDeclarations(applicable, bw.word).length === 0) {
 				continue;
 			}
 			const absStart = block.contentOffset + bw.start;
