@@ -6,6 +6,7 @@ import { getDocumentYaml } from "../utils/documentScan";
 import type { AnnotatedYaml, YamlPathSegment } from "../utils/yamlAnnotated";
 import type { TextRange } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
+import { isRequiredPresent } from "./inlineAttributeDiagnosticsProvider";
 import { debounce } from "../utils/debounce";
 import { getWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
 import { findOwningProjectRoot } from "../utils/projectRootsRegistry";
@@ -333,7 +334,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 	): void {
 		// Check for required fields that are missing.
 		for (const [key, descriptor] of Object.entries(fields)) {
-			if (descriptor.required && !(key in values)) {
+			if (descriptor.required && !isRequiredPresent(key, descriptor, values, fields)) {
 				// The option is not written, so the parent that should hold it is the
 				// only place to point at.
 				const parentRange = where.key(parentPath);

@@ -315,7 +315,7 @@ export function validateFieldValue(key: string, value: unknown, descriptor: Fiel
 
 	// The Lua validator moves a value with a replacement to the replacement,
 	// and so never holds it to this descriptor.
-	const forwarded = typeof descriptor.deprecated === "object" && Boolean(descriptor.deprecated.replaceWith);
+	const forwarded = typeof descriptor.deprecated === "object" && Boolean(descriptor.deprecated?.replaceWith);
 
 	if (
 		forwarded ||

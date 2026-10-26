@@ -27,6 +27,7 @@ import { type CellOptionSchemas, collectCellOptionSchemas } from "./cellOptionSc
 import type { FencedBlock } from "../utils/yamlPosition";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
 import { logMessage } from "../utils/log";
+import { spellingsOf } from "../utils/fieldLookup";
 import { debounce } from "../utils/debounce";
 
 // ---------------------------------------------------------------------------
@@ -65,7 +66,7 @@ function findInlineReplacement(
 	written: Record<string, string>,
 	resolve: (name: string) => FieldDescriptor | undefined,
 ): InlineReplacement | undefined {
-	const key = typeof descriptor.deprecated === "object" ? descriptor.deprecated.replaceWith : undefined;
+	const key = replaceWithOf(descriptor);
 	if (!key) {
 		return undefined;
 	}
@@ -78,14 +79,6 @@ function findInlineReplacement(
 		return undefined;
 	}
 	return { key, descriptor: replacement };
-}
-
-/**
- * The spellings the Lua validator reads for a name: the name itself, then its
- * underscored and hyphenated variants.
- */
-function spellingsOf(name: string): string[] {
-	return [name, name.replace(/-/g, "_"), name.replace(/_/g, "-")];
 }
 
 function replaceWithOf(descriptor: FieldDescriptor): string | undefined {
@@ -115,6 +108,9 @@ export function isRequiredPresent(
 ): boolean {
 	const isWritten = (candidate: string): boolean =>
 		spellingsOf(candidate).some((spelling) => Object.hasOwn(written, spelling));
+	if (descriptor.default !== undefined) {
+		return true;
+	}
 	if (replaceWithOf(descriptor) === undefined && [name, ...(descriptor.aliases ?? [])].some(isWritten)) {
 		return true;
 	}
@@ -158,7 +154,7 @@ export function validateInlineValue(
 			finding.code === "schema-deprecated" ? `${noun} ${finding.message}` : `${noun} "${key}": ${finding.message}`,
 	}));
 
-	if (typeof descriptor.deprecated === "object" && descriptor.deprecated.replaceWith) {
+	if (replaceWithOf(descriptor)) {
 		if (replacement) {
 			findings.push(
 				...validateInlineValue(replacement.key, value, replacement.descriptor, undefined, noun).filter(

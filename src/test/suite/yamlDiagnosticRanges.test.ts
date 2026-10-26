@@ -6,6 +6,7 @@ import {
 	validateSingleValue,
 } from "../../providers/yamlDiagnosticsProvider";
 import { getDocumentYaml } from "../../utils/documentScan";
+import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
 import type { YamlPathSegment } from "../../utils/yamlAnnotated";
 
 /** A document held in memory, the way the preview suites build one. */
@@ -115,5 +116,41 @@ suite("YAML Diagnostic Ranges Test Suite", () => {
 			assert.strictEqual(YamlDiagnosticsProvider.typeFinding("count", text, { type: "number" }), undefined, text);
 			assert.deepStrictEqual(validateSingleValue("count", text, { type: "number" }), [], text);
 		}
+	});
+});
+
+suite("YAML required options", () => {
+	async function missing(written: string, fields: Record<string, FieldDescriptor>): Promise<string[]> {
+		const document = await documentOf(`opts:\n  ${written}: 1\n`);
+		const annotated = getDocumentYaml(document, document.getText());
+		assert.notStrictEqual(annotated, undefined);
+		const provider = new YamlDiagnosticsProvider({} as SchemaCache);
+		try {
+			const diagnostics: vscode.Diagnostic[] = [];
+			(provider as unknown as { validateFields: (...args: unknown[]) => void }).validateFields(
+				{ [written]: 1 },
+				fields,
+				["opts"],
+				new DiagnosticRanges(document, annotated!),
+				diagnostics,
+			);
+			return diagnostics.map((diagnostic) => diagnostic.message).filter((message) => message.includes("missing"));
+		} finally {
+			provider.dispose();
+		}
+	}
+
+	const required: Record<string, FieldDescriptor> = { "fig-width": { type: "number", required: true, aliases: ["w"] } };
+
+	test("Should not report a required option written as an alias", async () => {
+		assert.deepStrictEqual(await missing("w", required), []);
+	});
+
+	test("Should not report a required option written with the other separator", async () => {
+		assert.deepStrictEqual(await missing("fig_width", required), []);
+	});
+
+	test("Should report a required option that is not written", async () => {
+		assert.deepStrictEqual(await missing("other", required), ['Required option "fig-width" is missing.']);
 	});
 });

@@ -1,3 +1,4 @@
+import { findDeclaredField } from "../utils/fieldLookup";
 import type { ShortcodeSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
@@ -464,17 +465,10 @@ export function resolveShortcodeAttribute(schema: ShortcodeSchema, key: string):
 		return undefined;
 	}
 
-	if (key in schema.attributes) {
-		return schema.attributes[key];
-	}
-
-	for (const descriptor of Object.values(schema.attributes)) {
-		if (descriptor.aliases?.includes(key)) {
-			return descriptor;
-		}
-	}
-
-	return undefined;
+	const entries = Object.fromEntries(
+		Object.entries(schema.attributes).map(([name, descriptor]) => [name, { descriptor }]),
+	);
+	return findDeclaredField(entries, key)?.descriptor;
 }
 
 /**

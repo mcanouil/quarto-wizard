@@ -1,3 +1,4 @@
+import { findDeclaredField } from "../utils/fieldLookup";
 import * as vscode from "vscode";
 import type { FieldDescriptor, SchemaCache, ExtensionSchema } from "@quarto-wizard/schema";
 import { typeIncludes } from "@quarto-wizard/schema";
@@ -254,17 +255,7 @@ export function resolveElementAttribute<T extends AttributeWithSource>(
 	attributes: Record<string, T>,
 	key: string,
 ): T | undefined {
-	if (key in attributes) {
-		return attributes[key];
-	}
-
-	for (const entry of Object.values(attributes)) {
-		if (entry.descriptor.aliases?.includes(key)) {
-			return entry;
-		}
-	}
-
-	return undefined;
+	return findDeclaredField(attributes, key);
 }
 
 /**

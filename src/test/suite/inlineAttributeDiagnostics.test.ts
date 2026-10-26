@@ -1052,11 +1052,28 @@ suite("Inline Attribute Diagnostics", () => {
 				}
 			});
 
+			test("a required field with a default is present", () => {
+				const defaulted: FieldDescriptor = { type: "number", required: true, default: 1 };
+				assert.ok(isRequiredPresent("fig-width", defaulted, {}, { "fig-width": defaulted }));
+			});
+
+			test("a descriptor with deprecated null validates normally", () => {
+				const nulled = { type: "number", deprecated: null } as unknown as FieldDescriptor;
+				assert.deepStrictEqual(
+					validateInlineValue("x", "abc", nulled).map((finding) => finding.code),
+					["schema-type-mismatch"],
+				);
+				assert.deepStrictEqual(validateInlineValue("x", "1", nulled), []);
+			});
+
 			test("a missing field is absent", () => {
 				assert.ok(!isRequiredPresent("fig-width", target, { other: 1 }, descriptors));
 				assert.ok(!isRequiredPresent("fig-width", target, {}, descriptors));
 			});
 		});
+
+		let defaulted = false;
+		const required = (): FieldDescriptor => (defaulted ? { ...target, default: 1 } : target);
 
 		const codes = (diagnostics: vscode.Diagnostic[]) =>
 			diagnostics.map((diagnostic) => (typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code));
@@ -1079,7 +1096,7 @@ suite("Inline Attribute Diagnostics", () => {
 				.join("\n")}\n\`\`\`\n`;
 			const schemas: CellOptionSchemas = {
 				typst: Object.assign(Object.create(null), {
-					"fig-width": { descriptor: target, source: "ext", conflicts: new Map() },
+					"fig-width": { descriptor: required(), source: "ext", conflicts: new Map() },
 					old: { descriptor: descriptors.old, source: "ext", conflicts: new Map() },
 				}),
 			};
@@ -1096,13 +1113,13 @@ suite("Inline Attribute Diagnostics", () => {
 					);
 				}
 			});
-			return codes(diagnostics).filter((code) => code === "schema-required-missing");
+			return codes(diagnostics);
 		}
 
 		async function elementCodes(attributes: string): Promise<(string | number | undefined)[]> {
 			const schemas: ElementAttributeSchemas = {
 				cls: {
-					"fig-width": { descriptor: target, source: "ext" },
+					"fig-width": { descriptor: required(), source: "ext" },
 					old: { descriptor: descriptors.old, source: "ext" },
 				},
 			};
@@ -1119,11 +1136,13 @@ suite("Inline Attribute Diagnostics", () => {
 					false,
 				);
 			});
-			return codes(diagnostics).filter((code) => code === "schema-required-missing");
+			return codes(diagnostics);
 		}
 
 		async function shortcodeCodes(attributes: string): Promise<(string | number | undefined)[]> {
-			const schemas = new Map<string, ShortcodeSchema>([["demo", { attributes: descriptors }]]);
+			const schemas = new Map<string, ShortcodeSchema>([
+				["demo", { attributes: { ...descriptors, "fig-width": required() } }],
+			]);
 			const diagnostics: vscode.Diagnostic[] = [];
 			await inDocument(`{{< demo ${attributes} >}}\n`, (provider, document) => {
 				const [block] = extractBlocks(document.getText());
@@ -1136,7 +1155,7 @@ suite("Inline Attribute Diagnostics", () => {
 					[],
 				);
 			});
-			return codes(diagnostics).filter((code) => code === "schema-required-missing");
+			return codes(diagnostics);
 		}
 
 		const surfaces: [string, (written: string) => Promise<(string | number | undefined)[]>, string][] = [
@@ -1145,9 +1164,16 @@ suite("Inline Attribute Diagnostics", () => {
 			["a shortcode", shortcodeCodes, " "],
 		];
 
-		for (const [surface, run, separator] of surfaces) {
+		for (const [surface, runAll, separator] of surfaces) {
+			const run = async (written: string) =>
+				(await runAll(written)).filter((code) => code === "schema-required-missing");
 			const write = (...pairs: string[]) => pairs.join(separator);
 			const assign = (name: string) => (surface === "a cell" ? `${name}: 1` : `${name}="1"`);
+
+			test(`${surface} validates the underscore spelling against the declared option`, async () => {
+				const assignAbc = surface === "a cell" ? "fig_width: abc" : 'fig_width="abc"';
+				assert.deepStrictEqual(await runAll(assignAbc), ["schema-type-mismatch"]);
+			});
 
 			test(`${surface} counts the underscore spelling of a required option`, async () => {
 				assert.deepStrictEqual(await run(write(assign("fig_width"))), []);
@@ -1157,10 +1183,36 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.deepStrictEqual(await run(write(assign("old"))), []);
 			});
 
+			test(`${surface} counts a required option that has a default`, async () => {
+				defaulted = true;
+				try {
+					assert.deepStrictEqual(await run(write(assign("other"))), []);
+				} finally {
+					defaulted = false;
+				}
+			});
+
 			test(`${surface} still reports a missing required option`, async () => {
 				assert.deepStrictEqual(await run(write(assign("other"))), ["schema-required-missing"]);
 			});
 		}
+
+		test("an element does not flag the underscore spelling as unknown", async () => {
+			const diagnostics: vscode.Diagnostic[] = [];
+			await inDocument('[text]{.cls fig_width="1"}\n', (provider, document) => {
+				const [block] = extractBlocks(document.getText());
+				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
+					block,
+					document.getText(),
+					{ cls: { "fig-width": { descriptor: target, source: "ext" } } },
+					document,
+					diagnostics,
+					[],
+					true,
+				);
+			});
+			assert.deepStrictEqual(codes(diagnostics), []);
+		});
 
 		test("an element and a shortcode count the hyphen spelling of an underscored required attribute", async () => {
 			const underscored: Record<string, FieldDescriptor> = { fig_width: target };
