@@ -1,15 +1,10 @@
-import type { ExtensionSchema, FieldDescriptor, SchemaCache } from "@quarto-wizard/schema";
+import type { ExtensionSchema, SchemaCache } from "@quarto-wizard/schema";
 import { formatExtensionId, getErrorMessage } from "@quarto-wizard/core";
 import { getInstalledExtensionsCached } from "../utils/installedExtensionsCache";
 import { ensureProjectRoots } from "../utils/projectRootsRegistry";
 import { logMessage } from "../utils/log";
 import { cellLanguageKey } from "../utils/cellOptions";
-import {
-	type ApplicableDeclarations,
-	type ExtensionDeclarations,
-	type GroupOrigin,
-	combineDeclarations,
-} from "./attributeDeclarations";
+import { type ApplicableDeclarations, type ExtensionDeclarations, combineDeclarations } from "./attributeDeclarations";
 
 /**
  * Merged cell option schemas: language key (see `cellLanguageKey`) to the declarations of every extension.
@@ -34,27 +29,35 @@ export interface CellSchemaEntry {
  * Maps have no prototype, so a language or option named `constructor` is an ordinary key.
  */
 export function mergeCellSchemas(entries: readonly CellSchemaEntry[]): CellOptionSchemas {
-	const perLanguage = new Map<string, ExtensionDeclarations[]>();
+	const perLanguage = new Map<string, Map<string, ExtensionDeclarations>>();
 
 	entries.forEach(({ source, schema, id }, index) => {
+		// An entry without an id has no identity to share, so its position keeps it apart from the others.
 		const sourceId = id ?? `#${index}`;
 		for (const [rawLanguage, cell] of Object.entries(schema.cells ?? {})) {
 			const language = cellLanguageKey(rawLanguage);
-			const descriptors: Record<string, FieldDescriptor> = Object.create(null);
-			const origins: Record<string, GroupOrigin> = Object.create(null);
+			const extensions = perLanguage.get(language) ?? new Map<string, ExtensionDeclarations>();
+			perLanguage.set(language, extensions);
+			const declarations = extensions.get(sourceId) ?? {
+				source,
+				sourceId,
+				descriptors: Object.create(null),
+				origins: Object.create(null),
+			};
+			extensions.set(sourceId, declarations);
 			for (const [name, descriptor] of Object.entries(cell.options ?? {})) {
-				descriptors[name] = descriptor;
-				origins[name] = "any";
+				if (name in declarations.descriptors) {
+					continue;
+				}
+				declarations.descriptors[name] = descriptor;
+				declarations.origins[name] = "any";
 			}
-			const declarations = perLanguage.get(language) ?? [];
-			declarations.push({ source, sourceId, descriptors, origins });
-			perLanguage.set(language, declarations);
 		}
 	});
 
 	const result: CellOptionSchemas = Object.create(null);
-	for (const [language, declarations] of perLanguage) {
-		result[language] = combineDeclarations(declarations);
+	for (const [language, extensions] of perLanguage) {
+		result[language] = combineDeclarations([...extensions.values()]);
 	}
 	return result;
 }

@@ -88,6 +88,23 @@ suite("cellOptionSchemas Test Suite", () => {
 			assert.deepStrictEqual(Object.keys(merged.typst.byName).sort(), ["dpi", "fit"]);
 		});
 
+		test("merges the options of one extension that spells a language two ways", () => {
+			const merged = mergeCellSchemas([
+				{
+					source: "A",
+					schema: {
+						cells: {
+							Typst: { options: { a: { type: "string" }, c: { type: "string", description: "first" } } },
+							typst: { options: { b: { type: "string" }, c: { type: "string", description: "second" } } },
+						},
+					},
+				},
+			]);
+			assert.deepStrictEqual(Object.keys(merged.typst.byName).sort(), ["a", "b", "c"]);
+			assert.strictEqual(merged.typst.byName.c.length, 1);
+			assert.strictEqual(merged.typst.byName.c[0].descriptor.description, "first");
+		});
+
 		test("does not resolve names from Object.prototype", () => {
 			const merged = mergeCellSchemas([
 				{ source: "A", schema: cells("constructor", { toString: { type: "string" } }) },
