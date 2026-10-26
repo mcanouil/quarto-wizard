@@ -223,6 +223,26 @@ suite("Completion and hover across extensions", () => {
 		assert.strictEqual(dpi.command?.command, "editor.action.triggerSuggest");
 	});
 
+	test("builds an alias item from the declarations that resolve the alias itself", () => {
+		const a = extension("A", { dpi: { type: "integer", aliases: ["ppi"] } });
+		const b = extension("B", { resolution: { type: "integer", enum: [72, 150, 300], aliases: ["dpi"] } });
+		const ppi = attributeKeyItems(combineDeclarations([a, b]), new Set(), ": ").find((item) => item.label === "ppi");
+		assert.ok(ppi);
+		assert.strictEqual(ppi.detail, "A (alias for dpi)");
+		assert.strictEqual(ppi.command, undefined);
+		assert.ok(!(ppi.documentation as vscode.MarkdownString).value.includes("B"));
+	});
+
+	test("emits one item for an alias that several names share", () => {
+		const a = extension("A", { x: { type: "string", aliases: ["y"] } });
+		const b = extension("B", { z: { type: "string", aliases: ["y"] } });
+		const y = attributeKeyItems(combineDeclarations([a, b]), new Set(), ": ").filter((item) => item.label === "y");
+		assert.strictEqual(y.length, 1);
+		assert.strictEqual(y[0].detail, "A (alias for x), B (alias for z)");
+		const docs = (y[0].documentation as vscode.MarkdownString).value;
+		assert.ok(docs.includes("A") && docs.includes("B"));
+	});
+
 	test("skips a name when an alias of any declaration is present", () => {
 		assert.deepStrictEqual(attributeKeyItems(applicable, new Set(["inc"]), ": "), []);
 	});

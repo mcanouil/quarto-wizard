@@ -437,7 +437,7 @@ export function attributeKeyItems(
 	separator: string,
 ): vscode.CompletionItem[] {
 	const items: vscode.CompletionItem[] = [];
-	const aliasLabels = new Set<string>();
+	const aliasEntries = new Map<string, string[]>();
 
 	for (const [attrName, declarations] of Object.entries(applicable.byName)) {
 		// An alias of another extension that equals this name folds into this item.
@@ -473,28 +473,37 @@ export function attributeKeyItems(
 
 		items.push(item);
 
-		const aliases = new Set(declarations.flatMap(({ descriptor }) => descriptor.aliases ?? []));
-		for (const alias of aliases) {
-			if (aliasLabels.has(alias) || alias in applicable.byName) {
-				continue;
+		for (const { source, descriptor } of declarations) {
+			for (const alias of descriptor.aliases ?? []) {
+				if (alias in applicable.byName) {
+					continue;
+				}
+				const entries = aliasEntries.get(alias) ?? [];
+				const entry = `${source} (alias for ${attrName})`;
+				if (!entries.includes(entry)) {
+					entries.push(entry);
+				}
+				aliasEntries.set(alias, entries);
 			}
-			aliasLabels.add(alias);
-			const declaring = declarations.filter(({ descriptor }) => descriptor.aliases?.includes(alias));
-			const aliasSources = declaring.map(({ source }) => source).join(", ");
-			const aliasTier = lowestTier(declaring, true);
-
-			const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
-			aliasItem.insertText = new vscode.SnippetString(`${alias}${separator}`);
-			aliasItem.detail = `${aliasSources} (alias for ${attrName})`;
-			aliasItem.sortText = `!${aliasTier}_${aliasSources}_${alias}`;
-			if (docs) {
-				aliasItem.documentation = docs;
-			}
-			if (completable) {
-				aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
-			}
-			items.push(aliasItem);
 		}
+	}
+
+	for (const [alias, entries] of aliasEntries) {
+		const resolved = resolveDeclarations(applicable, alias);
+		const sources = [...new Set(resolved.map(({ source }) => source))].join(", ");
+		const docs = buildDeclarationsDoc(resolved);
+
+		const aliasItem = new vscode.CompletionItem(alias, vscode.CompletionItemKind.Property);
+		aliasItem.insertText = new vscode.SnippetString(`${alias}${separator}`);
+		aliasItem.detail = entries.join(", ");
+		aliasItem.sortText = `!${lowestTier(resolved, true)}_${sources}_${alias}`;
+		if (docs) {
+			aliasItem.documentation = docs;
+		}
+		if (resolved.some(({ descriptor }) => hasCompletableValues(descriptor))) {
+			aliasItem.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+		}
+		items.push(aliasItem);
 	}
 
 	return items;
