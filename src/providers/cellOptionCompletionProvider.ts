@@ -3,16 +3,12 @@ import type { SchemaCache } from "@quarto-wizard/schema";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { cellLanguage, cellLanguageKey, cellOptionLineAt, readCellOptions } from "../utils/cellOptions";
 import { getDocumentFencedBlocks } from "../utils/documentScan";
-import { buildAttributeDoc } from "../utils/schemaDocumentation";
+import { buildDeclarationsDoc } from "../utils/schemaDocumentation";
 import type { FencedBlock } from "../utils/yamlPosition";
 import { logMessage } from "../utils/log";
 import { collectCellOptionSchemas } from "./cellOptionSchemas";
-import {
-	attributeKeyItems,
-	attributeValueItems,
-	resolveElementAttribute,
-	type AttributeWithSource,
-} from "./elementAttributeCompletionProvider";
+import { attributeKeyItems, attributeValueItems } from "./elementAttributeCompletionProvider";
+import { resolveDeclarations, type ApplicableDeclarations } from "./attributeDeclarations";
 
 const VALUE_CONTEXT = /^([A-Za-z0-9_-]+):\s+/;
 const KEY_CONTEXT = /^[A-Za-z0-9_-]*$/;
@@ -46,7 +42,7 @@ function findCell(document: vscode.TextDocument, text: string, offset: number): 
 async function findCellOptions(
 	schemaCache: SchemaCache,
 	language: string,
-): Promise<Record<string, AttributeWithSource> | undefined> {
+): Promise<ApplicableDeclarations | undefined> {
 	const schemas = await collectCellOptionSchemas(schemaCache);
 	return schemas[cellLanguageKey(language)];
 }
@@ -85,8 +81,8 @@ export class CellOptionCompletionProvider implements vscode.CompletionItemProvid
 
 			const value = VALUE_CONTEXT.exec(line.typed);
 			if (value) {
-				const entry = resolveElementAttribute(options, value[1]);
-				return entry ? await attributeValueItems(entry, document.uri) : null;
+				const declarations = resolveDeclarations(options, value[1]);
+				return declarations.length > 0 ? await attributeValueItems(declarations, document.uri) : null;
 			}
 			if (!KEY_CONTEXT.test(line.typed)) {
 				return null;
@@ -132,8 +128,7 @@ export class CellOptionHoverProvider implements vscode.HoverProvider {
 				return null;
 			}
 			const options = await findCellOptions(this.schemaCache, cell.language);
-			const entry = options && resolveElementAttribute(options, option.key);
-			const docs = entry && buildAttributeDoc(entry.descriptor, entry.source);
+			const docs = options && buildDeclarationsDoc(resolveDeclarations(options, option.key));
 			return docs ? new vscode.Hover(docs) : null;
 		} catch (error) {
 			logMessage(`Cell option hover error: ${getErrorMessage(error)}.`, "warn");

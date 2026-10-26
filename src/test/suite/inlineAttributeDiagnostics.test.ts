@@ -11,12 +11,32 @@ import * as vscode from "vscode";
 import { isRequiredPresent } from "../../utils/fieldLookup";
 import {
 	InlineAttributeDiagnosticsProvider,
+	validateDeclaredValue,
 	validateInlineValue,
 } from "../../providers/inlineAttributeDiagnosticsProvider";
 import { type CellOptionSchemas, mergeCellSchemas } from "../../providers/cellOptionSchemas";
+import { type ExtensionDeclarations, combineDeclarations } from "../../providers/attributeDeclarations";
 import { getDocumentFencedBlocks } from "../../utils/documentScan";
-import type { ElementAttributeSchemas } from "../../providers/elementAttributeCompletionProvider";
+import type { ExtensionAttributeSchema } from "../../providers/elementAttributeCompletionProvider";
 import type { FieldDescriptor, SchemaCache, ShortcodeSchema } from "@quarto-wizard/schema";
+
+function cellOptions(
+	options: Record<string, { descriptor: FieldDescriptor; source: string }>,
+): CellOptionSchemas[string] {
+	const bySource = new Map<string, ExtensionDeclarations>();
+	for (const [name, { descriptor, source }] of Object.entries(options)) {
+		const ext = bySource.get(source) ?? {
+			source,
+			sourceId: source,
+			descriptors: Object.create(null),
+			origins: Object.create(null),
+		};
+		ext.descriptors[name] = descriptor;
+		ext.origins[name] = "any";
+		bySource.set(source, ext);
+	}
+	return combineDeclarations([...bySource.values()]);
+}
 
 suite("Inline Attribute Diagnostics", () => {
 	suite("findSpacesAroundEquals", () => {
@@ -956,12 +976,18 @@ suite("Inline Attribute Diagnostics", () => {
 	});
 
 	suite("replaceWith in an attribute list", () => {
-		const schemas: ElementAttributeSchemas = {
-			cls: {
-				old: { descriptor: { type: "number", deprecated: { replaceWith: "new" } }, source: "ext" },
-				new: { descriptor: { type: "number", aliases: ["n"] }, source: "ext" },
+		const schemas: ExtensionAttributeSchema[] = [
+			{
+				source: "ext",
+				sourceId: "ext",
+				groups: {
+					cls: {
+						old: { type: "number", deprecated: { replaceWith: "new" } },
+						new: { type: "number", aliases: ["n"] },
+					},
+				},
 			},
-		};
+		];
 
 		async function codesFor(content: string): Promise<(string | number | undefined)[]> {
 			const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
@@ -1115,9 +1141,9 @@ suite("Inline Attribute Diagnostics", () => {
 				.map((line) => `//| ${line}`)
 				.join("\n")}\n\`\`\`\n`;
 			const schemas: CellOptionSchemas = {
-				typst: Object.assign(Object.create(null), {
-					"fig-width": { descriptor: required(), source: "ext", conflicts: new Map() },
-					old: { descriptor: descriptors.old, source: "ext", conflicts: new Map() },
+				typst: cellOptions({
+					"fig-width": { descriptor: required(), source: "ext" },
+					old: { descriptor: descriptors.old, source: "ext" },
 				}),
 			};
 			const diagnostics: vscode.Diagnostic[] = [];
@@ -1137,12 +1163,9 @@ suite("Inline Attribute Diagnostics", () => {
 		}
 
 		async function elementCodes(attributes: string): Promise<(string | number | undefined)[]> {
-			const schemas: ElementAttributeSchemas = {
-				cls: {
-					"fig-width": { descriptor: required(), source: "ext" },
-					old: { descriptor: descriptors.old, source: "ext" },
-				},
-			};
+			const schemas: ExtensionAttributeSchema[] = [
+				{ source: "ext", sourceId: "ext", groups: { cls: { "fig-width": required(), old: descriptors.old } } },
+			];
 			const diagnostics: vscode.Diagnostic[] = [];
 			await inDocument(`[text]{.cls ${attributes}}\n`, (provider, document) => {
 				const [block] = extractBlocks(document.getText());
@@ -1224,12 +1247,7 @@ suite("Inline Attribute Diagnostics", () => {
 				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
 					block,
 					document.getText(),
-					{
-						cls: {
-							"fig-width": { descriptor: target, source: "ext" },
-							old: { descriptor: descriptors.old, source: "ext" },
-						},
-					},
+					[{ source: "ext", sourceId: "ext", groups: { cls: { "fig-width": target, old: descriptors.old } } }],
 					document,
 					diagnostics,
 					[],
@@ -1246,7 +1264,7 @@ suite("Inline Attribute Diagnostics", () => {
 				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
 					block,
 					document.getText(),
-					{ cls: { "fig-width": { descriptor: target, source: "ext" } } },
+					[{ source: "ext", sourceId: "ext", groups: { cls: { "fig-width": target } } }],
 					document,
 					diagnostics,
 					[],
@@ -1264,7 +1282,7 @@ suite("Inline Attribute Diagnostics", () => {
 				(provider as { validateElementBlock: (...args: unknown[]) => void }).validateElementBlock(
 					block,
 					document.getText(),
-					{ cls: { fig_width: { descriptor: target, source: "ext" } } },
+					[{ source: "ext", sourceId: "ext", groups: { cls: { fig_width: target } } }],
 					document,
 					diagnostics,
 					[],
@@ -1287,8 +1305,8 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("a cell counts the hyphen spelling of an underscored required option", async () => {
 			const underscored: CellOptionSchemas = {
-				typst: Object.assign(Object.create(null), {
-					fig_width: { descriptor: target, source: "ext", conflicts: new Map() },
+				typst: cellOptions({
+					fig_width: { descriptor: target, source: "ext" },
 				}),
 			};
 			const diagnostics: vscode.Diagnostic[] = [];
@@ -1310,25 +1328,21 @@ suite("Inline Attribute Diagnostics", () => {
 
 	suite("cell options", () => {
 		const schemas: CellOptionSchemas = {
-			typst: Object.assign(Object.create(null), {
-				dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: new Map() },
-				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext", conflicts: new Map() },
+			typst: cellOptions({
+				dpi: { descriptor: { type: "integer" }, source: "ext" },
+				format: { descriptor: { type: "string", enum: ["svg", "png"] }, source: "ext" },
 				old: {
 					descriptor: { type: "string", deprecated: { replaceWith: "format" } },
 					source: "ext",
-					conflicts: new Map(),
 				},
 				must: {
 					descriptor: { type: "string", required: true, aliases: ["need"] },
 					source: "ext",
-					conflicts: new Map(),
 				},
-				include: { descriptor: { type: "boolean" }, source: "ext", conflicts: new Map() },
-				shared: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["shared", ["B"]]]) },
-				triple: { descriptor: { type: "string" }, source: "A", conflicts: new Map([["triple", ["B", "C"]]]) },
+				include: { descriptor: { type: "boolean" }, source: "ext" },
 			}),
-			r: Object.assign(Object.create(null), {
-				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext", conflicts: new Map() },
+			r: cellOptions({
+				"engine-mode": { descriptor: { type: "string", const: "fast" }, source: "ext" },
 			}),
 		};
 
@@ -1410,8 +1424,8 @@ suite("Inline Attribute Diagnostics", () => {
 
 		test("the language matches without regard to hyphen or underscore", async () => {
 			const hyphenated: CellOptionSchemas = {
-				"my-lang": Object.assign(Object.create(null), {
-					dpi: { descriptor: { type: "integer" }, source: "ext", conflicts: new Map() },
+				"my-lang": cellOptions({
+					dpi: { descriptor: { type: "integer" }, source: "ext" },
 				}),
 			};
 			for (const language of ["my_lang", "My-Lang"]) {
@@ -1438,56 +1452,267 @@ suite("Inline Attribute Diagnostics", () => {
 		test("an alias counts as the required option", async () => {
 			assert.deepStrictEqual(await diagnose(cell("need: x")), []);
 		});
+	});
 
-		test("a conflicting option in use is reported once on the key", async () => {
-			const found = await diagnose(cell("must: x\nshared: a"));
-			assert.strictEqual(found.length, 1);
-			assert.strictEqual(codeOf(found[0]), "schema-cell-option-conflict");
-			assert.strictEqual(found[0].severity, vscode.DiagnosticSeverity.Warning);
-			assert.strictEqual(found[0].message, "`shared` for `{typst}` cells is declared by A and B. A applies.");
-			assert.strictEqual(found[0].range.start.character, 4);
-			assert.strictEqual(found[0].range.end.character, 10);
+	suite("declarations of several extensions", () => {
+		const codeOf = (diagnostic: vscode.Diagnostic) =>
+			typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code;
+		const summary = (diagnostics: vscode.Diagnostic[]) =>
+			diagnostics.map((diagnostic) => `${codeOf(diagnostic)} ${diagnostic.message}`);
+
+		const inc: Record<string, FieldDescriptor> = {
+			include: { type: "string", pattern: "\\.typ$" },
+			width: { type: "number" },
+			caption: { type: "number" },
+			dpi: { type: "integer" },
+		};
+		const tr: Record<string, FieldDescriptor> = {
+			include: { type: "boolean" },
+			width: { type: "number" },
+			resolution: { type: "integer", aliases: ["dpi"] },
+		};
+		const engine: Record<string, FieldDescriptor> = { engine: { type: "string", required: true } };
+
+		async function withProvider<T>(
+			content: string,
+			run: (provider: Record<string, (...args: unknown[]) => void>, document: vscode.TextDocument) => T,
+		): Promise<T> {
+			const document = await vscode.workspace.openTextDocument({ language: "markdown", content });
+			const provider = new InlineAttributeDiagnosticsProvider({} as SchemaCache);
+			try {
+				return run(provider as unknown as Record<string, (...args: unknown[]) => void>, document);
+			} finally {
+				provider.dispose();
+			}
+		}
+
+		async function element(
+			attributes: string,
+			schemas: ExtensionAttributeSchema[] = [
+				{ source: "inc", sourceId: "inc", groups: { CodeBlock: inc } },
+				{ source: "tr", sourceId: "tr", groups: { typst: tr } },
+			],
+			reportUnknown = false,
+		): Promise<string[]> {
+			return withProvider(`\`code\`{.typst ${attributes}}\n`, (provider, document) => {
+				const diagnostics: vscode.Diagnostic[] = [];
+				const [block] = extractBlocks(document.getText());
+				provider.validateElementBlock(block, document.getText(), schemas, document, diagnostics, [], reportUnknown);
+				return summary(diagnostics);
+			});
+		}
+
+		const extension = (source: string, descriptors: Record<string, FieldDescriptor>): ExtensionDeclarations => ({
+			source,
+			sourceId: source,
+			descriptors: Object.assign(Object.create(null), descriptors),
+			origins: Object.fromEntries(Object.keys(descriptors).map((name) => [name, "any"])),
 		});
 
-		test("an alias-only collision from the real merge is reported on the contested alias only", async () => {
-			const merged = mergeCellSchemas([
-				{ source: "A", schema: { cells: { typst: { options: { dpi: { type: "integer" } } } } } },
-				{
-					source: "B",
-					schema: { cells: { typst: { options: { resolution: { type: "integer", aliases: ["dpi"] } } } } },
-				},
-			]);
-			const found = await diagnose(cell("dpi: 1"), merged);
-			assert.deepStrictEqual(found.map(codeOf), ["schema-cell-option-conflict"]);
-			assert.strictEqual(found[0].message, "`dpi` for `{typst}` cells is declared by A and B. A applies.");
-			assert.deepStrictEqual(await diagnose(cell("resolution: 1"), merged), []);
+		const typstCells = (...extensions: ExtensionDeclarations[]): CellOptionSchemas => ({
+			typst: combineDeclarations(extensions),
 		});
 
-		test("three sources are all listed", async () => {
-			const found = await diagnose(cell("must: x\ntriple: a"));
-			assert.strictEqual(found[0].message, "`triple` for `{typst}` cells is declared by A, B and C. A applies.");
+		async function cell(
+			lines: string,
+			schemas: CellOptionSchemas = typstCells(extension("inc", inc), extension("tr", tr)),
+		): Promise<string[]> {
+			const content = `\`\`\`{typst}\n${lines
+				.split("\n")
+				.map((line) => `//| ${line}`)
+				.join("\n")}\n\`\`\`\n`;
+			return withProvider(content, (provider, document) => {
+				const diagnostics: vscode.Diagnostic[] = [];
+				const text = document.getText();
+				for (const block of getDocumentFencedBlocks(document, text)) {
+					provider.validateCellBlock(block, text, schemas, document, diagnostics);
+				}
+				return summary(diagnostics);
+			});
+		}
+
+		suite("validateDeclaredValue", () => {
+			const declaration = (source: string, descriptor: FieldDescriptor) => ({
+				descriptor,
+				source,
+				sourceId: source,
+				groupOrigin: "any" as const,
+			});
+
+			test("one declaration keeps the message", () => {
+				assert.deepStrictEqual(
+					validateDeclaredValue("x", "abc", [declaration("a", { type: "number" })], "Attribute", () => undefined).map(
+						(f) => f.message,
+					),
+					['Attribute "x": expected type "number", got string "abc".'],
+				);
+			});
+
+			test("three extensions with the same finding are joined once", () => {
+				const number: FieldDescriptor = { type: "number" };
+				assert.deepStrictEqual(
+					validateDeclaredValue(
+						"x",
+						"abc",
+						[declaration("a", number), declaration("b", number), declaration("c", number)],
+						"Option",
+						() => undefined,
+					).map((f) => f.message),
+					['a, b and c: Option "x": expected type "number", got string "abc".'],
+				);
+			});
 		});
 
-		test("a mixed three-way conflict names only the sources of the written spelling", async () => {
-			const mixed: CellOptionSchemas = {
-				typst: Object.assign(Object.create(null), {
-					x: {
-						descriptor: { type: "string", aliases: ["y"] },
-						source: "A",
-						conflicts: new Map([
-							["x", ["B"]],
-							["y", ["C"]],
-						]),
+		suite("an element", () => {
+			test("a value only one extension rejects names that extension", async () => {
+				assert.deepStrictEqual(await element('include="x.typ"'), [
+					'schema-type-mismatch tr: Attribute "include": expected type "boolean", got string "x.typ".',
+				]);
+				const [finding, ...rest] = await element("include=true");
+				assert.strictEqual(rest.length, 0);
+				assert.ok(finding.startsWith("schema-pattern inc: "), finding);
+			});
+
+			test("a value every extension accepts gives no diagnostic", async () => {
+				assert.deepStrictEqual(await element('width="3"'), []);
+			});
+
+			test("the same finding from two extensions is reported once with both names", async () => {
+				assert.deepStrictEqual(await element('width="abc"'), [
+					'schema-type-mismatch inc and tr: Attribute "width": expected type "number", got string "abc".',
+				]);
+			});
+
+			test("a single declaring extension keeps the message", async () => {
+				assert.deepStrictEqual(await element('caption="abc"'), [
+					'schema-type-mismatch Attribute "caption": expected type "number", got string "abc".',
+				]);
+			});
+
+			test("a required attribute of one extension names that extension", async () => {
+				const schemas: ExtensionAttributeSchema[] = [
+					{ source: "inc", sourceId: "inc", groups: { CodeBlock: inc } },
+					{ source: "tr", sourceId: "tr", groups: { typst: { ...tr, ...engine } } },
+				];
+				assert.deepStrictEqual(await element('width="3"', schemas), [
+					'schema-required-missing tr: Required attribute "engine" is missing.',
+				]);
+			});
+
+			test("a required attribute of both extensions is reported once with both names", async () => {
+				const schemas: ExtensionAttributeSchema[] = [
+					{ source: "inc", sourceId: "inc", groups: { CodeBlock: { ...inc, ...engine } } },
+					{ source: "tr", sourceId: "tr", groups: { typst: { ...tr, ...engine } } },
+				];
+				assert.deepStrictEqual(await element('width="3"', schemas), [
+					'schema-required-missing inc and tr: Required attribute "engine" is missing.',
+				]);
+			});
+
+			test("a bare word declared only by the second extension needs a value", async () => {
+				assert.deepStrictEqual(await element("resolution"), [
+					'schema-bare-attribute Attribute "resolution" requires a value assignment. Use resolution="value".',
+				]);
+			});
+
+			test("a replacement is looked up in the declaring extension", async () => {
+				const schemas: ExtensionAttributeSchema[] = [
+					{ source: "tr", sourceId: "tr", groups: { typst: { new: { type: "string" } } } },
+					{
+						source: "inc",
+						sourceId: "inc",
+						groups: { CodeBlock: { old: { deprecated: { replaceWith: "new" } }, new: { type: "number" } } },
 					},
-					z: { descriptor: { type: "string", aliases: ["y"] }, source: "C", conflicts: new Map([["y", ["A"]]]) },
-				}),
-			};
-			const found = await diagnose(cell("y: a"), mixed);
-			assert.strictEqual(found[0].message, "`y` for `{typst}` cells is declared by A and C. A applies.");
+				];
+				const codes = (await element('old="abc"', schemas)).map((line) => line.split(" ")[0]);
+				assert.deepStrictEqual(codes, ["schema-deprecated", "schema-type-mismatch"]);
+			});
+
+			test("an alias in one extension and a name in another are both checked", async () => {
+				assert.deepStrictEqual(await element('dpi="abc"'), [
+					'schema-type-mismatch inc and tr: Attribute "dpi": expected type "integer", got string "abc".',
+				]);
+			});
+
+			test("an unknown spelling is reported, an alias of one extension is not", async () => {
+				const schemas: ExtensionAttributeSchema[] = [
+					{ source: "inc", sourceId: "inc", groups: { CodeBlock: { width: { type: "number" } } } },
+					{ source: "tr", sourceId: "tr", groups: { typst: tr } },
+				];
+				assert.deepStrictEqual(await element('nope="1"', schemas, true), [
+					'schema-unknown-attribute Unknown attribute "nope".',
+				]);
+				assert.deepStrictEqual(await element('dpi="3"', schemas, true), []);
+			});
 		});
 
-		test("a conflicting option not in use is not reported", async () => {
-			assert.deepStrictEqual(await diagnose(cell("must: x")), []);
+		suite("a cell", () => {
+			test("a value only one extension rejects names that extension", async () => {
+				assert.deepStrictEqual(await cell("include: x.typ"), [
+					'schema-type-mismatch tr: Option "include": expected type "boolean", got string "x.typ".',
+				]);
+				const [finding, ...rest] = await cell("include: true");
+				assert.strictEqual(rest.length, 0);
+				assert.ok(finding.startsWith("schema-pattern inc: "), finding);
+			});
+
+			test("a value every extension accepts gives no diagnostic", async () => {
+				assert.deepStrictEqual(await cell("width: 3"), []);
+			});
+
+			test("the same finding from two extensions is reported once with both names", async () => {
+				assert.deepStrictEqual(await cell("width: abc"), [
+					'schema-type-mismatch inc and tr: Option "width": expected type "number", got string "abc".',
+				]);
+			});
+
+			test("a single declaring extension keeps the message", async () => {
+				assert.deepStrictEqual(await cell("caption: abc"), [
+					'schema-type-mismatch Option "caption": expected type "number", got string "abc".',
+				]);
+			});
+
+			test("a required option of one extension names that extension", async () => {
+				assert.deepStrictEqual(
+					await cell("width: 3", typstCells(extension("inc", inc), extension("tr", { ...tr, ...engine }))),
+					['schema-required-missing tr: Required option "engine" is missing.'],
+				);
+			});
+
+			test("a required option of both extensions is reported once with both names", async () => {
+				assert.deepStrictEqual(
+					await cell(
+						"width: 3",
+						typstCells(extension("inc", { ...inc, ...engine }), extension("tr", { ...tr, ...engine })),
+					),
+					['schema-required-missing inc and tr: Required option "engine" is missing.'],
+				);
+			});
+
+			test("an extension that lists the language without options does not count", async () => {
+				const schemas = mergeCellSchemas([
+					{ source: "A", id: "a", schema: { cells: { typst: { options: { req: { required: true } } } } } },
+					{ source: "B", id: "b", schema: { cells: { typst: {} } } },
+				]);
+				assert.deepStrictEqual(await cell("other: 1", schemas), [
+					'schema-required-missing Required option "req" is missing.',
+				]);
+			});
+
+			test("a replacement is looked up in the declaring extension", async () => {
+				const schemas = typstCells(
+					extension("tr", { new: { type: "string" } }),
+					extension("inc", { old: { deprecated: { replaceWith: "new" } }, new: { type: "number" } }),
+				);
+				const codes = (await cell("old: abc", schemas)).map((line) => line.split(" ")[0]);
+				assert.deepStrictEqual(codes, ["schema-deprecated", "schema-type-mismatch"]);
+			});
+
+			test("an alias in one extension and a name in another are both checked", async () => {
+				assert.deepStrictEqual(await cell("dpi: abc"), [
+					'schema-type-mismatch inc and tr: Option "dpi": expected type "integer", got string "abc".',
+				]);
+			});
 		});
 	});
 });

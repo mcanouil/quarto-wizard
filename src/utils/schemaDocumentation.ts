@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { FieldDescriptor, DeprecatedSpec } from "@quarto-wizard/schema";
 import { typeIncludes, formatType } from "@quarto-wizard/schema";
+import type { AttributeDeclaration } from "../providers/attributeDeclarations";
 
 /**
  * Extract the word at a given offset in the text.
@@ -75,6 +76,17 @@ export function buildAttributeDoc(descriptor: FieldDescriptor, source?: string):
 	}
 
 	return new vscode.MarkdownString(parts.join("\n\n"));
+}
+
+/**
+ * Build the documentation of a field from every extension that declares it.
+ * Each declaration has its own section, separated by a rule, and a single declaration renders as {@link buildAttributeDoc} does.
+ */
+export function buildDeclarationsDoc(declarations: readonly AttributeDeclaration[]): vscode.MarkdownString | undefined {
+	const sections = declarations
+		.map(({ descriptor, source }) => buildAttributeDoc(descriptor, source)?.value)
+		.filter((value): value is string => value !== undefined);
+	return sections.length === 0 ? undefined : new vscode.MarkdownString(sections.join("\n\n---\n\n"));
 }
 
 /**

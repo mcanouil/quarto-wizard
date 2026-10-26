@@ -8,46 +8,34 @@ export function spellingsOf(name: string): string[] {
 	return [name, name.replace(/-/g, "_"), name.replace(/_/g, "-")];
 }
 
-function findByName<T>(
+function findName<T>(
 	entries: Record<string, T>,
 	key: string,
 	aliasesOf: (entry: T) => readonly string[] | undefined,
-): T | undefined {
+): string | undefined {
 	const spellings = spellingsOf(key);
-	for (const spelling of spellings) {
-		if (Object.hasOwn(entries, spelling)) {
-			return entries[spelling];
-		}
+	const declared = spellings.find((spelling) => Object.hasOwn(entries, spelling));
+	if (declared !== undefined) {
+		return declared;
 	}
-	return Object.values(entries).find((entry) => aliasesOf(entry)?.some((alias) => spellings.includes(alias)));
+	return Object.keys(entries).find((name) => aliasesOf(entries[name])?.some((alias) => spellings.includes(alias)));
 }
 
 /**
- * Find the entry that declares a written key, in the order of the Lua
- * validator: a declared name first, then an alias, each tried in its three
- * spellings.
+ * Find the declared name of the descriptor that declares a written key, in the
+ * order of the Lua validator: a declared name first, then an alias, each tried
+ * in its three spellings.
  */
-export function findDeclaredField<T extends { descriptor: FieldDescriptor }>(
-	entries: Record<string, T>,
-	key: string,
-): T | undefined {
-	return findByName(entries, key, (entry) => entry.descriptor.aliases);
+export function findDeclaredName(fields: Record<string, FieldDescriptor>, key: string): string | undefined {
+	return findName(fields, key, (descriptor) => descriptor.aliases);
 }
 
 /**
- * Find the descriptor that declares a written key, as `findDeclaredField` does.
+ * Find the descriptor that declares a written key, as `findDeclaredName` does.
  */
 export function findFieldDescriptor(fields: Record<string, FieldDescriptor>, key: string): FieldDescriptor | undefined {
-	return findByName(fields, key, (descriptor) => descriptor.aliases);
-}
-
-/**
- * The descriptors of a map of entries that carry one, by declared name.
- */
-export function descriptorsOf(
-	entries: Record<string, { descriptor: FieldDescriptor }>,
-): Record<string, FieldDescriptor> {
-	return Object.fromEntries(Object.entries(entries).map(([name, { descriptor }]) => [name, descriptor]));
+	const name = findDeclaredName(fields, key);
+	return name === undefined ? undefined : fields[name];
 }
 
 /**

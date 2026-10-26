@@ -240,6 +240,18 @@ Group key matching is case-insensitive: `div` matches `Div`, `codeblock` matches
 
 Use `_any` for attributes accepted on any element regardless of class.
 
+Inside one extension, the most specific group applies.
+The order is class, then ID prefix, then element type, then `_any`.
+
+If two installed extensions declare the same attribute for an element, each of them checks the written value.
+Each failure is its own diagnostic.
+A diagnostic names the extension when two or more extensions declare that attribute name or alias.
+A missing required attribute is named when two or more extensions apply to the element.
+Identical findings from several extensions appear once, with all the names.
+Completion shows one item per attribute name with every source, and hover shows one section per extension.
+An extension that is installed in several projects counts once.
+Its copies merge: the first copy wins for a name it declares, and a later copy adds the names the first lacks.
+
 ```yaml
 attributes:
   _any:
@@ -327,9 +339,14 @@ For example, `dpi: "300"` is valid for `type: integer`.
 Quarto Wizard never reports an option that the schema does not declare.
 Quarto options such as `label` and `echo` use the same lines.
 
-If two installed extensions declare the same option for the same language, a spelling resolves to the extension that declares it as an option name.
-Only when no extension declares it as a name does the first extension that declares it as an alias apply.
-Quarto Wizard shows a warning on each line that uses a shared name or alias.
+If two installed extensions declare the same option for the same language, each of them checks the written value.
+Each failure is its own diagnostic.
+A diagnostic names the extension when two or more extensions declare that option name or alias.
+A missing required option is named when two or more extensions apply to the cell.
+Identical findings from several extensions appear once, with all the names.
+Completion shows one item per option name with every source, and hover shows one section per extension.
+An extension that is installed in several projects counts once.
+Its copies merge: the first copy wins for a name it declares, and a later copy adds the names the first lacks.
 
 ## Field Descriptor Properties
 
