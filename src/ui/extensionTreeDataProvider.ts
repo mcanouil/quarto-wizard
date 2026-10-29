@@ -121,6 +121,13 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	/**
+	 * Gets every detected project root, hidden and embedded ones included.
+	 */
+	getProjectRoots(): readonly QuartoProjectRoot[] {
+		return this.projectRoots;
+	}
+
+	/**
 	 * Gets the project root at a path, or `undefined` when no root is there.
 	 */
 	getProjectRoot(fsPath: string): QuartoProjectRoot | undefined {

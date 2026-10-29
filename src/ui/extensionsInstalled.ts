@@ -31,6 +31,7 @@ import { debounce } from "../utils/debounce";
 import { ProjectVisibility } from "../utils/projectVisibility";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
+import { DetectedProjectsProvider, registerDetectedProjectsView } from "./detectedProjectsView";
 
 const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
 
@@ -150,6 +151,11 @@ export class ExtensionsInstalled {
 			showCollapseAll: true,
 		});
 		context.subscriptions.push(visibility.onDidChange(() => this.treeDataProvider.updateBadge(view)));
+		const detectedProjects = new DetectedProjectsProvider(visibility, (fsPath) =>
+			this.treeDataProvider.getProjectCounts(fsPath),
+		);
+		context.subscriptions.push(this.treeDataProvider.onDidChangeCounts(() => detectedProjects.refresh()));
+		registerDetectedProjectsView(context, detectedProjects, visibility, () => this.treeDataProvider.getProjectRoots());
 		const invalidateProviderCaches = (cacheKey?: string) => {
 			invalidateInstalledExtensionsCache(cacheKey);
 			invalidateWorkspaceSchemaIndex(cacheKey);
@@ -179,7 +185,9 @@ export class ExtensionsInstalled {
 				if (!roots) {
 					return false;
 				}
-				return this.treeDataProvider.setProjectRoots(roots);
+				const changed = this.treeDataProvider.setProjectRoots(roots);
+				detectedProjects.setRoots(roots);
+				return changed;
 			} catch (error) {
 				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
 				return false;

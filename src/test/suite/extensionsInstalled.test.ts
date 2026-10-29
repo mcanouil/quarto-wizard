@@ -164,6 +164,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			originalRegisterCommand(`${COMMAND_PREFIX}${command}`, callback)) as typeof vscode.commands.registerCommand;
 		vscode.window.createTreeView = (() => ({
 			onDidChangeVisibility: () => new vscode.Disposable(() => undefined),
+			onDidChangeCheckboxState: () => new vscode.Disposable(() => undefined),
 			dispose: () => undefined,
 		})) as unknown as typeof vscode.window.createTreeView;
 		vscode.window.showWarningMessage = (async (message: string, ...rest: unknown[]) => {
