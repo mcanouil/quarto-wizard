@@ -96,7 +96,7 @@ function projectDescription(root: QuartoProjectRoot, counts: { extensions: numbe
 	if (root.quartoIgnored) {
 		parts.push(".quartoignore");
 	}
-	if (root.embeddedIn) {
+	if (root.kind === "embedded") {
 		parts.push("embedded");
 	}
 	return parts.join(" · ");

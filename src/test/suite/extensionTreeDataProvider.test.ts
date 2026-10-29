@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
+import type { EmbeddingParent } from "@quarto-wizard/core";
 import { SnippetCache } from "@quarto-wizard/snippets";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
 import {
@@ -17,7 +18,7 @@ import {
 import type { InstalledExtension } from "../../utils/extensions";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ProjectVisibility } from "../../utils/projectVisibility";
-import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
+import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 
 suite("Extension Tree Data Provider Test Suite", () => {
@@ -502,9 +503,9 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			return dir;
 		}
 
-		function rootAt(dir: string, embeddedIn?: QuartoProjectRoot["embeddedIn"]): QuartoProjectRoot {
-			const root = makeRoot(makeFolder(path.basename(dir), dir));
-			return embeddedIn ? { ...root, embeddedIn } : root;
+		function rootAt(dir: string, embeddedIn?: EmbeddingParent): QuartoProjectRoot {
+			const folder = makeFolder(path.basename(dir), dir);
+			return embeddedIn ? makeEmbeddedRoot(folder, embeddedIn) : makeRoot(folder);
 		}
 
 		async function check(
@@ -733,10 +734,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		});
 
 		test("setProjectRoots reports a change when only the embedding parent id changes", () => {
-			const root = {
-				...makeRoot(makeFolder("repo", path.resolve(path.sep, "tmp", "repo")), "docs"),
-				embeddedIn: { id: { owner: "acme", name: "parent" } },
-			};
+			const folder = makeFolder("repo", path.resolve(path.sep, "tmp", "repo"));
+			const root = makeEmbeddedRoot(folder, { id: { owner: "acme", name: "parent" } }, "docs");
 			const provider = new QuartoExtensionTreeDataProvider(
 				[root],
 				new SchemaCache(),
@@ -745,15 +744,46 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			);
 
 			assert.strictEqual(
-				provider.setProjectRoots([{ ...root, embeddedIn: { id: { owner: "acme", name: "parent" } } }]),
+				provider.setProjectRoots([makeEmbeddedRoot(folder, { id: { owner: "acme", name: "parent" } }, "docs")]),
 				false,
 			);
 			assert.strictEqual(
-				provider.setProjectRoots([{ ...root, embeddedIn: { id: { owner: "other", name: "parent" } } }]),
+				provider.setProjectRoots([makeEmbeddedRoot(folder, { id: { owner: "other", name: "parent" } }, "docs")]),
 				true,
 			);
 			assert.strictEqual(
-				provider.setProjectRoots([{ ...root, embeddedIn: { id: { owner: "other", name: "renamed" } } }]),
+				provider.setProjectRoots([makeEmbeddedRoot(folder, { id: { owner: "other", name: "renamed" } }, "docs")]),
+				true,
+			);
+		});
+
+		test("setProjectRoots reports a change when a parent gains a source", () => {
+			const folder = makeFolder("repo", path.resolve(path.sep, "tmp", "repo"));
+			const id = { owner: "acme", name: "parent" };
+			const provider = new QuartoExtensionTreeDataProvider(
+				[makeEmbeddedRoot(folder, { id }, "docs")],
+				new SchemaCache(),
+				new SnippetCache(),
+				createVisibility(),
+			);
+
+			assert.strictEqual(
+				provider.setProjectRoots([makeEmbeddedRoot(folder, { id, source: "acme/parent@v1.0.0" }, "docs")]),
+				true,
+			);
+		});
+
+		test("setProjectRoots reports a change when a project becomes embedded", () => {
+			const folder = makeFolder("repo", path.resolve(path.sep, "tmp", "repo"));
+			const provider = new QuartoExtensionTreeDataProvider(
+				[makeRoot(folder, "docs")],
+				new SchemaCache(),
+				new SnippetCache(),
+				createVisibility(),
+			);
+
+			assert.strictEqual(
+				provider.setProjectRoots([makeEmbeddedRoot(folder, { id: { owner: "acme", name: "parent" } }, "docs")]),
 				true,
 			);
 		});

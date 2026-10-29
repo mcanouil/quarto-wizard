@@ -13,7 +13,7 @@ import {
 import * as discovery from "../../utils/quartoProjectDiscovery";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ProjectVisibility } from "../../utils/projectVisibility";
-import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
+import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 import { Stubs } from "./stubs";
 
 suite("Project Roots Registry Test Suite", () => {
@@ -24,10 +24,7 @@ suite("Project Roots Registry Test Suite", () => {
 	const nestedADeep = makeRoot(workspace, "subA", "deeper");
 	const nestedB = makeRoot(workspace, "subB");
 	const workspaceRoot = makeRoot(workspace);
-	const embeddedParent: QuartoProjectRoot = {
-		...makeRoot(workspace, "_extensions", "astek"),
-		embeddedIn: { id: { owner: null, name: "astek" } },
-	};
+	const embeddedParent = makeEmbeddedRoot(workspace, { id: { owner: null, name: "astek" } }, "_extensions", "astek");
 
 	const stubs = new Stubs();
 	let originalWorkspaceFoldersDescriptor: PropertyDescriptor | undefined;

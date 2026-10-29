@@ -233,7 +233,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	private toTreeItem(node: ProjectTreeNode): ProjectFolderItem {
 		if (node.kind === "project") {
-			return new WorkspaceFolderTreeItem(node.label, node.root.fsPath, node.root.embeddedIn?.source !== undefined);
+			return new WorkspaceFolderTreeItem(node.label, node.root.fsPath, node.root.readOnly);
 		}
 		const children = node.children.map((child) => this.toTreeItem(child));
 		return new ProjectGroupTreeItem(node.label, node.fsPath, children);
@@ -610,7 +610,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	 * The extensions of an installed embedded parent ship with it, so they are never updated on their own.
 	 */
 	private updatableRoots(): QuartoProjectRoot[] {
-		return this.projectRoots.filter((root) => !root.embeddedIn?.source);
+		return this.projectRoots.filter((root) => !root.readOnly);
 	}
 
 	/**
@@ -779,14 +779,13 @@ function embeddingOf(
 	root: QuartoProjectRoot,
 	extension: InstalledExtension | undefined,
 ): ExtensionEmbedding | undefined {
-	const parent = root.embeddedIn;
-	if (!parent || !extension) {
+	if (root.kind !== "embedded" || !extension) {
 		return undefined;
 	}
-	if (formatExtensionId(extension.id) === formatExtensionId(parent.id)) {
+	if (formatExtensionId(extension.id) === formatExtensionId(root.embeddedIn.id)) {
 		return "self";
 	}
-	return parent.source ? "read-only" : undefined;
+	return root.readOnly ? "read-only" : undefined;
 }
 
 function sameProjectRoots(a: readonly QuartoProjectRoot[], b: readonly QuartoProjectRoot[]): boolean {
@@ -798,8 +797,17 @@ function sameProjectRoots(a: readonly QuartoProjectRoot[], b: readonly QuartoPro
 			root.fsPath === b[i].fsPath &&
 			root.relativePath === b[i].relativePath &&
 			root.quartoIgnored === b[i].quartoIgnored &&
-			root.embeddedIn?.source === b[i].embeddedIn?.source &&
-			root.embeddedIn?.id.owner === b[i].embeddedIn?.id.owner &&
-			root.embeddedIn?.id.name === b[i].embeddedIn?.id.name,
+			sameEmbedding(root, b[i]),
+	);
+}
+
+function sameEmbedding(a: QuartoProjectRoot, b: QuartoProjectRoot): boolean {
+	if (a.kind === "project" || b.kind === "project") {
+		return a.kind === b.kind;
+	}
+	return (
+		a.embeddedIn.source === b.embeddedIn.source &&
+		a.embeddedIn.id.owner === b.embeddedIn.id.owner &&
+		a.embeddedIn.id.name === b.embeddedIn.id.name
 	);
 }

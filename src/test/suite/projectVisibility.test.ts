@@ -2,7 +2,7 @@ import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
 import { ProjectVisibility, defaultVisibility, resolveVisibility, visibilityKey } from "../../utils/projectVisibility";
-import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
+import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 
 suite("Project Visibility Test Suite", () => {
 	const root = path.resolve("workspace-a");
@@ -15,18 +15,12 @@ suite("Project Visibility Test Suite", () => {
 		});
 
 		test("hides an embedded project that has a source", () => {
-			const embedded = {
-				...makeRoot(folderA, "docs"),
-				embeddedIn: { id: { name: "ext" }, source: "owner/ext" },
-			} as ReturnType<typeof makeRoot>;
+			const embedded = makeEmbeddedRoot(folderA, { id: { owner: null, name: "ext" }, source: "owner/ext" }, "docs");
 			assert.strictEqual(defaultVisibility(embedded), false);
 		});
 
 		test("shows an embedded project without a source", () => {
-			const embedded = {
-				...makeRoot(folderA, "docs"),
-				embeddedIn: { id: { name: "ext" } },
-			} as ReturnType<typeof makeRoot>;
+			const embedded = makeEmbeddedRoot(folderA, { id: { owner: null, name: "ext" } }, "docs");
 			assert.strictEqual(defaultVisibility(embedded), true);
 		});
 

@@ -1,16 +1,27 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
-import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
+import type { EmbeddingParent } from "@quarto-wizard/core";
+import { buildRoot, type EmbeddedExtensionRoot, type OwningProjectRoot } from "../../utils/quartoProjectDiscovery";
 
 export function makeFolder(name: string, fsPath: string, index = 0): vscode.WorkspaceFolder {
 	return { uri: vscode.Uri.file(fsPath), name, index };
 }
 
-export function makeRoot(folder: vscode.WorkspaceFolder, ...subPath: string[]): QuartoProjectRoot {
+function rootPaths(folder: vscode.WorkspaceFolder, subPath: string[]): [string, string] {
 	const fsPath = subPath.length === 0 ? folder.uri.fsPath : path.join(folder.uri.fsPath, ...subPath);
-	const relative = subPath.join("/");
-	const label = relative.length === 0 ? folder.name : `${folder.name}/${relative}`;
-	return { fsPath, workspaceFolder: folder, label, relativePath: relative || ".", quartoIgnored: false };
+	return [fsPath, subPath.join("/") || "."];
+}
+
+export function makeRoot(folder: vscode.WorkspaceFolder, ...subPath: string[]): OwningProjectRoot {
+	return buildRoot(folder, ...rootPaths(folder, subPath), false);
+}
+
+export function makeEmbeddedRoot(
+	folder: vscode.WorkspaceFolder,
+	embeddedIn: EmbeddingParent,
+	...subPath: string[]
+): EmbeddedExtensionRoot {
+	return buildRoot(folder, ...rootPaths(folder, subPath), false, embeddedIn);
 }
 
 export class FakeMemento implements vscode.Memento {
