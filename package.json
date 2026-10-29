@@ -769,6 +769,18 @@
 					"title": "Registry URL",
 					"description": "Custom registry URL."
 				},
+				"quartoWizard.projectVisibility": {
+					"order": 13,
+					"scope": "resource",
+					"type": "object",
+					"additionalProperties": {
+						"type": "boolean"
+					},
+					"default": {},
+					"markdownDescription": "Which detected Quarto projects the extension shows. Each key is a folder path relative to the workspace folder, with `.` for the folder itself. A value of `false` hides that project and `true` shows it. Projects that are not listed use their default: hidden when `.quartoignore` excludes them or when they come from an installed extension with a source.",
+					"title": "Project Visibility",
+					"description": "Show or hide detected Quarto projects."
+				},
 				"quartoWizard.lint.unknownAttributes": {
 					"order": 12,
 					"scope": "resource",

@@ -238,6 +238,7 @@ Here is an example `settings.json` with all Quarto Wizard settings:
   "quartoWizard.cache.ttlMinutes": 30,
   "quartoWizard.registry.url": "https://m.canouil.dev/quarto-extensions/extensions.json",
   "quartoWizard.lint.unknownAttributes": false,
+  "quartoWizard.projectVisibility": {},
   "quartoWizard.typstPreview.foreground": "auto",
   "quartoWizard.typstPreview.background": "auto",
   "quartoWizard.typstPreview.timeoutMs": 20000,
