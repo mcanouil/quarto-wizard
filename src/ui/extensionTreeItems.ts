@@ -29,12 +29,12 @@ export function describeCheckSource(source: UpdateCheckSource): string {
 /**
  * Commands that a folder row allows, in the order they appear in its `contextValue`.
  * Each menu entry in `package.json` matches one capability with a regex on `viewItem`.
- * Inline reinstall also needs `update` to be absent, because update takes its place.
  */
 type FolderCapability = "install" | "template" | "removeMultiple" | "hide";
 
 /**
  * Commands that an extension row allows, in the order they appear in its `contextValue`.
+ * Inline reinstall also needs `update` to be absent, because update takes its place.
  */
 type ExtensionCapability = "update" | "reinstall" | "remove" | "openSource" | "reveal";
 

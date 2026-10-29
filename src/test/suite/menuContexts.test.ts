@@ -265,7 +265,8 @@ suite("Menu Contexts Test Suite", () => {
 
 		assert.ok(removeEntries.length > 0);
 		for (const entry of removeEntries) {
-			assert.strictEqual(evaluateViewItem(entry.when, "quartoExtensionWorkspaceFolder:removeMultiple"), false);
+			assert.strictEqual(evaluateViewItem(entry.when, "quartoExtensionItem:removeMultiple"), false);
+			assert.strictEqual(evaluateViewItem(entry.when, "quartoExtensionItem:removeMultiple:reveal"), false);
 		}
 	});
 
