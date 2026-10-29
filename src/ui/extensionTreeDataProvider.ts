@@ -797,7 +797,6 @@ function sameProjectRoots(a: readonly QuartoProjectRoot[], b: readonly QuartoPro
 			root.fsPath === b[i].fsPath &&
 			root.relativePath === b[i].relativePath &&
 			root.quartoIgnored === b[i].quartoIgnored &&
-			root.readOnly === b[i].readOnly &&
 			sameEmbedding(root, b[i]),
 	);
 }

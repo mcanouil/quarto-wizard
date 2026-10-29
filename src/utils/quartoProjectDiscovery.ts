@@ -203,7 +203,28 @@ function compareRelativePaths(a: QuartoProjectRoot, b: QuartoProjectRoot): numbe
 	return a.relativePath < b.relativePath ? -1 : 1;
 }
 
-function buildRoot(
+/** Builds a root, and decides once whether it is read-only. */
+export function buildRoot(
+	folder: vscode.WorkspaceFolder,
+	fsPath: string,
+	relativePath: string,
+	quartoIgnored: boolean,
+): OwningProjectRoot;
+export function buildRoot(
+	folder: vscode.WorkspaceFolder,
+	fsPath: string,
+	relativePath: string,
+	quartoIgnored: boolean,
+	embeddedIn: EmbeddingParent,
+): EmbeddedExtensionRoot;
+export function buildRoot(
+	folder: vscode.WorkspaceFolder,
+	fsPath: string,
+	relativePath: string,
+	quartoIgnored: boolean,
+	embeddedIn?: EmbeddingParent,
+): QuartoProjectRoot;
+export function buildRoot(
 	folder: vscode.WorkspaceFolder,
 	fsPath: string,
 	relativePath: string,

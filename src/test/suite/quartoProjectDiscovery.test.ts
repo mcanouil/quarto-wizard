@@ -120,8 +120,8 @@ suite("Quarto Project Discovery Test Suite", () => {
 			],
 		);
 		assert.strictEqual(roots[0].kind, "project");
-		assert.strictEqual(roots[1].kind, "embedded");
-		assert.deepStrictEqual(roots[1].kind === "embedded" ? roots[1].embeddedIn : undefined, {
+		assert.ok(roots[1].kind === "embedded");
+		assert.deepStrictEqual(roots[1].embeddedIn, {
 			id: { owner: null, name: "astek" },
 			source: undefined,
 		});

@@ -151,14 +151,14 @@ export async function findOwningProjectRoot(documentUri: vscode.Uri): Promise<st
  * owning root.
  */
 export function findOwningProjectRootSync(documentFsPath: string): string | undefined {
-	return pickDeepestOwningRoot(currentRoots.filter(isOwningRoot), documentFsPath);
+	return pickDeepestOwningRoot(currentRoots, documentFsPath);
 }
 
-function pickDeepestOwningRoot(roots: readonly OwningProjectRoot[], fsPath: string): string | undefined {
+function pickDeepestOwningRoot(roots: readonly QuartoProjectRoot[], fsPath: string): string | undefined {
 	let best: string | undefined;
 	let bestLength = -1;
 	for (const root of roots) {
-		if (!isInside(root.fsPath, fsPath)) {
+		if (!isOwningRoot(root) || !isInside(root.fsPath, fsPath)) {
 			continue;
 		}
 		if (root.fsPath.length > bestLength) {
