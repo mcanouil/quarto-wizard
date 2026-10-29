@@ -49,6 +49,16 @@
 		},
 		{
 			"kind": "wait",
+			"text": "sample-project/packs/pair",
+			"timeout": 30000
+		},
+		{
+			"kind": "click",
+			"text": "sample-project",
+			"part": "quickinput"
+		},
+		{
+			"kind": "wait",
 			"text": "Select Extension(s) to Install",
 			"timeout": 30000
 		}

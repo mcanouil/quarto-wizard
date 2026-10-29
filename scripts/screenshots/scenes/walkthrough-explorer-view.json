@@ -25,6 +25,11 @@
 			"timeout": 30000
 		},
 		{
+			"kind": "click",
+			"text": "Detected Projects",
+			"part": "sidebar"
+		},
+		{
 			"kind": "sidebarWidth",
 			"width": 620
 		},
@@ -40,12 +45,13 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 27
+				"y": 55
 			},
 			"target": {
 				"action": "Update All"
 			},
-			"control": [0.52, 2.6]
+			"control": [0.25, -1.4],
+			"end": "top"
 		},
 		{
 			"text": "Use a template",
@@ -53,7 +59,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 77
+				"y": 133
 			},
 			"target": {
 				"action": "Use Template"
@@ -66,7 +72,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 127
+				"y": 183
 			},
 			"target": {
 				"action": "Install Extensions"
@@ -79,7 +85,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 187
+				"y": 243
 			},
 			"target": {
 				"text": "Updates checked against"
@@ -92,7 +98,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 247
+				"y": 303
 			},
 			"target": {
 				"row": "mcanouil/iconify",
@@ -106,7 +112,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 341
+				"y": 397
 			},
 			"target": {
 				"text": "Latest:"
@@ -119,7 +125,7 @@
 			"at": {
 				"part": "sidebar",
 				"x": 190,
-				"y": 488
+				"y": 544
 			},
 			"from": "top",
 			"target": {

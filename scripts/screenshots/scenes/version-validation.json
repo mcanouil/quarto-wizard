@@ -34,6 +34,16 @@
 		},
 		{
 			"kind": "wait",
+			"text": "sample-project/packs/old",
+			"timeout": 30000
+		},
+		{
+			"kind": "click",
+			"text": "sample-project",
+			"part": "quickinput"
+		},
+		{
+			"kind": "wait",
 			"selector": ".monaco-dialog-box",
 			"timeout": 60000
 		}

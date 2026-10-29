@@ -71,6 +71,9 @@ function validateLabel(label, where) {
 	if (label.side !== undefined && label.side !== "top") {
 		fail('side must be "top".');
 	}
+	if (label.end !== undefined && label.end !== "top") {
+		fail('end must be "top".');
+	}
 	if (label.highlight && !target) {
 		fail("a highlight needs a target.");
 	}

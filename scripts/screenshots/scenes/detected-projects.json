@@ -1,0 +1,40 @@
+{
+	"name": "detected-projects",
+	"frame": ["activitybar", "sidebar"],
+	"height": 178,
+	"steps": [
+		{
+			"kind": "write",
+			"file": "docs/_quarto.yml",
+			"content": "project:\n  type: default\n"
+		},
+		{
+			"kind": "write",
+			"file": "archive/_quarto.yml",
+			"content": "project:\n  type: default\n"
+		},
+		{
+			"kind": "write",
+			"file": ".quartoignore",
+			"content": "archive\n"
+		},
+		{
+			"kind": "command",
+			"title": "Quarto Wizard: Focus on Extensions Installed View"
+		},
+		{
+			"kind": "wait",
+			"text": "Updates checked against",
+			"timeout": 60000
+		},
+		{
+			"kind": "wait",
+			"text": "archive",
+			"timeout": 60000
+		},
+		{
+			"kind": "sidebarWidth",
+			"width": 500
+		}
+	]
+}

@@ -189,6 +189,9 @@ export function install([arrowPathSource, unionBoxesSource]) {
 				start = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height + 4 };
 				end = { x: box.x + box.width / 2, y: box.y - 10 };
 			}
+			if (label.end === "top") {
+				end = { x: box.x + box.width / 2, y: box.y - 6 };
+			}
 
 			const marker = document.createElementNS(svgNs, "marker");
 			marker.setAttribute("id", `qw-head-${index}`);

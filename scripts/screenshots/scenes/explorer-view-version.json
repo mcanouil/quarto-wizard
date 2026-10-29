@@ -27,6 +27,11 @@
 			"timeout": 60000
 		},
 		{
+			"kind": "click",
+			"text": "Detected Projects",
+			"part": "sidebar"
+		},
+		{
 			"kind": "sidebarWidth",
 			"width": 500
 		},

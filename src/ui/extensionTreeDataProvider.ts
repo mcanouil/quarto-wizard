@@ -41,6 +41,7 @@ import {
 	type ExtensionEmbedding,
 	describeCheckSource,
 } from "./extensionTreeItems";
+import { pluralise } from "../utils/pluralise";
 
 /**
  * Context key that tells the view title which action goes with the view message.
@@ -734,7 +735,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			totalUpdates > 0
 				? {
 						value: totalUpdates,
-						tooltip: `${totalUpdates} update${totalUpdates === 1 ? "" : "s"} available`,
+						tooltip: `${pluralise(totalUpdates, "update")} available`,
 					}
 				: undefined;
 	}

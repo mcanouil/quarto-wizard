@@ -10,6 +10,7 @@ import {
 	getEffectiveSourceType,
 	type InstalledExtension,
 } from "../utils/extensions";
+import { pluralise } from "../utils/pluralise";
 
 export type ExtensionCompatibilityStatus = "compatible" | "incompatible" | "not-specified" | "unknown";
 
@@ -273,7 +274,7 @@ export class SchemaSectionTreeItem extends vscode.TreeItem {
 		fieldCount: number,
 	) {
 		super(label, vscode.TreeItemCollapsibleState.Collapsed);
-		this.description = `${fieldCount} ${fieldCount === 1 ? singularLabel(kind) : pluralLabel(kind)}`;
+		this.description = pluralise(fieldCount, singularLabel(kind), pluralLabel(kind));
 
 		const icons: Record<SchemaSectionKind, string> = {
 			options: "symbol-field",
@@ -337,10 +338,10 @@ export class SchemaShortcodeTreeItem extends vscode.TreeItem {
 
 		const parts: string[] = [];
 		if (argCount > 0) {
-			parts.push(`${argCount} arg${argCount === 1 ? "" : "s"}`);
+			parts.push(pluralise(argCount, "arg"));
 		}
 		if (attrCount > 0) {
-			parts.push(`${attrCount} attr${attrCount === 1 ? "" : "s"}`);
+			parts.push(pluralise(attrCount, "attr"));
 		}
 		this.description = parts.join(", ");
 
@@ -362,7 +363,7 @@ export class SchemaFormatTreeItem extends vscode.TreeItem {
 	) {
 		const fieldCount = Object.keys(fields).length;
 		super(label, vscode.TreeItemCollapsibleState.Collapsed);
-		this.description = summary ?? `${fieldCount} option${fieldCount === 1 ? "" : "s"}`;
+		this.description = summary ?? pluralise(fieldCount, "option");
 		this.tooltip = summary ?? label;
 		this.iconPath = new vscode.ThemeIcon("symbol-interface");
 	}
@@ -395,7 +396,7 @@ export class SnippetsTreeItem extends vscode.TreeItem {
 		const count = Object.keys(snippets).length;
 		super("Snippets", vscode.TreeItemCollapsibleState.Collapsed);
 		this.iconPath = new vscode.ThemeIcon("symbol-snippet");
-		this.description = `${count} snippet${count === 1 ? "" : "s"}`;
+		this.description = pluralise(count, "snippet");
 		this.tooltip = "Extension-provided code snippets";
 	}
 }

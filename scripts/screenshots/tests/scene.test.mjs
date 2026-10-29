@@ -161,6 +161,20 @@ test("loadScenes rejects a label side other than top", () => {
 	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*side/);
 });
 
+test("loadScenes accepts a label that ends above its target", () => {
+	const directory = writeScenes({
+		"a.json": { ...minimal("a"), labels: [label({ end: "top", target: { action: "x" } })] },
+	});
+	assert.equal(loadScenes(directory)[0].labels[0].end, "top");
+});
+
+test("loadScenes rejects a label end other than top", () => {
+	const directory = writeScenes({
+		"a.json": { ...minimal("a"), labels: [label({ end: "bottom", target: { text: "x" } })] },
+	});
+	assert.throws(() => loadScenes(directory), /a\.json.*labels\[0\].*end/);
+});
+
 test("loadScenes loads the development build unless a scene opts out", () => {
 	const directory = writeScenes({ "a.json": minimal("a"), "b.json": { ...minimal("b"), development: false } });
 	assert.deepEqual(
