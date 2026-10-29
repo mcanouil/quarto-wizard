@@ -33,32 +33,30 @@
 	],
 	"labels": [
 		{
+			"text": "Update all",
+			"colour": "#9be38a",
+			"at": {
+				"part": "editor",
+				"x": 48,
+				"y": 83
+			},
+			"target": {
+				"action": "Update All"
+			},
+			"control": [0.52, 2.6]
+		},
+		{
 			"text": "Use a template",
 			"colour": "#f4a261",
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 27
+				"y": 133
 			},
 			"target": {
 				"action": "Use Template"
 			},
-			"control": [0, 0],
-			"side": "top"
-		},
-		{
-			"text": "Update all",
-			"colour": "#9be38a",
-			"at": {
-				"part": "editor",
-				"x": 340,
-				"y": 27
-			},
-			"target": {
-				"action": "Update All"
-			},
-			"control": [0, 0.6],
-			"side": "top"
+			"control": [0.17, 0.0]
 		},
 		{
 			"text": "Install extensions",
@@ -66,7 +64,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 127
+				"y": 183
 			},
 			"target": {
 				"action": "Install Extensions"
@@ -79,7 +77,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 187
+				"y": 243
 			},
 			"target": {
 				"text": "Updates checked against"
@@ -92,7 +90,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 247
+				"y": 303
 			},
 			"target": {
 				"row": "mcanouil/iconify",
@@ -106,7 +104,7 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 341
+				"y": 397
 			},
 			"target": {
 				"text": "Latest:"
@@ -119,7 +117,7 @@
 			"at": {
 				"part": "sidebar",
 				"x": 190,
-				"y": 488
+				"y": 544
 			},
 			"from": "top",
 			"target": {
