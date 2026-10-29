@@ -129,7 +129,7 @@ const HIDE = "quartoWizard.extensionsInstalled.hideProject";
 const MENU_STATES: { name: string; contextValue: string; menus: [string, string][] }[] = [
 	{
 		name: "extension with a GitHub or registry source",
-		contextValue: "quartoExtensionItem",
+		contextValue: "quartoExtensionItem:update:reinstall:remove:openSource:reveal",
 		menus: [
 			[UPDATE, "inline@3"],
 			[REMOVE, "inline@4"],
@@ -143,7 +143,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension with another source",
-		contextValue: "quartoExtensionItemUpToDate",
+		contextValue: "quartoExtensionItem:reinstall:remove:openSource:reveal",
 		menus: [
 			[REINSTALL, "inline@3"],
 			[REMOVE, "inline@4"],
@@ -156,7 +156,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension without a source",
-		contextValue: "quartoExtensionItemNoSource",
+		contextValue: "quartoExtensionItem:remove:reveal",
 		menus: [
 			[REMOVE, "inline@4"],
 			[REMOVE, "navigation@2"],
@@ -165,7 +165,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension of an installed embedded parent",
-		contextValue: "quartoExtensionItemEmbedded",
+		contextValue: "quartoExtensionItem:openSource:reveal",
 		menus: [
 			[OPEN_SOURCE, "inline@5"],
 			[OPEN_SOURCE, "navigation@3"],
@@ -174,12 +174,12 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension that embeds itself",
-		contextValue: "quartoExtensionItemSelfEmbedded",
+		contextValue: "quartoExtensionItem:reveal",
 		menus: [[REVEAL, "navigation@4"]],
 	},
 	{
 		name: "project folder",
-		contextValue: "quartoExtensionWorkspaceFolder",
+		contextValue: "quartoExtensionWorkspaceFolder:install:template:removeMultiple:hide",
 		menus: [
 			[INSTALL, "inline@1"],
 			[TEMPLATE, "inline@2"],
@@ -190,7 +190,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "folder of an installed embedded parent",
-		contextValue: "quartoExtensionEmbeddedFolder",
+		contextValue: "quartoExtensionWorkspaceFolder:hide",
 		menus: [
 			[HIDE, "inline@4"],
 			[HIDE, "navigation@5"],
@@ -212,6 +212,15 @@ suite("Menu Contexts Test Suite", () => {
 			assert.deepStrictEqual(sortMenus(shown), sortMenus(state.menus));
 		});
 	}
+
+	test("remove does not match removeMultiple", () => {
+		const removeEntries = itemMenus().filter((entry) => entry.command === REMOVE);
+
+		assert.ok(removeEntries.length > 0);
+		for (const entry of removeEntries) {
+			assert.strictEqual(evaluateViewItem(entry.when, "quartoExtensionWorkspaceFolder:removeMultiple"), false);
+		}
+	});
 
 	test("the evaluator rejects unknown syntax", () => {
 		assert.throws(() => evaluateViewItem("viewItem in someList", "quartoExtensionItem"), /Unsupported when syntax/);

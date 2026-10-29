@@ -27,6 +27,61 @@ export function describeCheckSource(source: UpdateCheckSource): string {
 }
 
 /**
+ * Commands that a tree item allows, in the order they appear in its `contextValue`.
+ * Each menu entry in `package.json` matches one capability with a regex on `viewItem`.
+ */
+const CAPABILITIES = [
+	"install",
+	"template",
+	"removeMultiple",
+	"hide",
+	"update",
+	"reinstall",
+	"remove",
+	"openSource",
+	"reveal",
+] as const;
+
+export type TreeItemCapability = (typeof CAPABILITIES)[number];
+
+/**
+ * Builds a `contextValue` of the form `<base>:<capability>:<capability>`.
+ */
+export function contextValueOf(
+	base: "quartoExtensionItem" | "quartoExtensionWorkspaceFolder",
+	capabilities: readonly TreeItemCapability[],
+): string {
+	return (
+		base +
+		CAPABILITIES.filter((capability) => capabilities.includes(capability))
+			.map((capability) => `:${capability}`)
+			.join("")
+	);
+}
+
+/**
+ * Commands that an installed extension allows, from its source and how its parent embeds it.
+ */
+function extensionCapabilities(
+	sourceType: SourceType | undefined,
+	embedding: ExtensionEmbedding | undefined,
+): TreeItemCapability[] {
+	if (embedding === "self") {
+		return ["reveal"];
+	}
+	if (embedding === "read-only") {
+		return ["openSource", "reveal"];
+	}
+	if (!sourceType) {
+		return ["remove", "reveal"];
+	}
+	if (sourceType === "github" || sourceType === "registry") {
+		return ["update", "reinstall", "remove", "openSource", "reveal"];
+	}
+	return ["reinstall", "remove", "openSource", "reveal"];
+}
+
+/**
  * Represents a tree item for a workspace folder.
  */
 export class WorkspaceFolderTreeItem extends vscode.TreeItem {
@@ -39,7 +94,10 @@ export class WorkspaceFolderTreeItem extends vscode.TreeItem {
 	) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
 		// The folder of an installed embedded parent ships with that parent, so nothing installs into it.
-		this.contextValue = readOnly ? "quartoExtensionEmbeddedFolder" : "quartoExtensionWorkspaceFolder";
+		this.contextValue = contextValueOf(
+			"quartoExtensionWorkspaceFolder",
+			readOnly ? ["hide"] : ["install", "template", "removeMultiple", "hide"],
+		);
 		this.iconPath = new vscode.ThemeIcon("folder");
 		this.tooltip = folderPath;
 		this.workspaceFolder = folderPath;
@@ -102,20 +160,9 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		// Set context value based on source type for VS Code context menus
 		const sourceType = extension ? getEffectiveSourceType(extension.manifest) : undefined;
 
-		let contextValue: string;
-		if (!extension) {
-			contextValue = "quartoExtensionItemDetails";
-		} else if (embedding === "self") {
-			contextValue = "quartoExtensionItemSelfEmbedded";
-		} else if (embedding === "read-only") {
-			contextValue = "quartoExtensionItemEmbedded";
-		} else if (!sourceType) {
-			contextValue = "quartoExtensionItemNoSource";
-		} else if (sourceType === "github" || sourceType === "registry") {
-			contextValue = "quartoExtensionItem";
-		} else {
-			contextValue = "quartoExtensionItemUpToDate";
-		}
+		const contextValue = extension
+			? contextValueOf("quartoExtensionItem", extensionCapabilities(sourceType, embedding))
+			: "quartoExtensionItemDetails";
 
 		const updateNotes: string[] = [];
 		if (update) {
