@@ -1,6 +1,9 @@
 import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
+import * as vscode from "vscode";
+import type { InstalledExtension, SourceType } from "@quarto-wizard/core";
+import { ExtensionTreeItem, WorkspaceFolderTreeItem, type ExtensionEmbedding } from "../../ui/extensionTreeItems";
 
 const VIEW = "quartoWizard.extensionsInstalled";
 
@@ -113,7 +116,7 @@ const ITEM_MENUS: readonly MenuEntry[] = (
 	JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../package.json"), "utf8")).contributes.menus[
 		"view/item/context"
 	] as MenuEntry[]
-).filter((entry) => entry.when.startsWith(`view == ${VIEW} && `));
+).filter((entry) => entry.when.includes(`view == ${VIEW}`));
 
 const UPDATE = "quartoWizard.extensionsInstalled.update";
 const REINSTALL = "quartoWizard.extensionsInstalled.reinstall";
@@ -125,10 +128,38 @@ const TEMPLATE = "quartoWizard.useTemplate";
 const REMOVE_MULTIPLE = "quartoWizard.extensionsInstalled.removeMultiple";
 const HIDE = "quartoWizard.extensionsInstalled.hideProject";
 
+function extensionItem(sourceType?: SourceType, embedding?: ExtensionEmbedding): vscode.TreeItem {
+	const extension: InstalledExtension = {
+		id: { owner: "acme", name: "demo" },
+		manifest: {
+			title: "Demo",
+			author: "Acme",
+			version: "1.0.0",
+			contributes: {},
+			...(sourceType ? { source: "acme/demo@v1.0.0", sourceType } : {}),
+		},
+		manifestPath: path.join("acme", "demo", "_extension.yml"),
+		directory: path.join("acme", "demo"),
+	};
+	return new ExtensionTreeItem(
+		"acme/demo",
+		vscode.TreeItemCollapsibleState.None,
+		"workspace",
+		extension,
+		undefined,
+		undefined,
+		undefined,
+		undefined,
+		false,
+		embedding,
+	);
+}
+
 /** The menus of each tree-item state, as `package.json` shows them. */
-const MENU_STATES: { name: string; contextValue: string; menus: [string, string][] }[] = [
+const MENU_STATES: { name: string; item: () => vscode.TreeItem; contextValue: string; menus: [string, string][] }[] = [
 	{
 		name: "extension with a GitHub or registry source",
+		item: () => extensionItem("github"),
 		contextValue: "quartoExtensionItem:update:reinstall:remove:openSource:reveal",
 		menus: [
 			[UPDATE, "inline@3"],
@@ -143,6 +174,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension with another source",
+		item: () => extensionItem("url"),
 		contextValue: "quartoExtensionItem:reinstall:remove:openSource:reveal",
 		menus: [
 			[REINSTALL, "inline@3"],
@@ -156,6 +188,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension without a source",
+		item: () => extensionItem(),
 		contextValue: "quartoExtensionItem:remove:reveal",
 		menus: [
 			[REMOVE, "inline@4"],
@@ -165,6 +198,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension of an installed embedded parent",
+		item: () => extensionItem("github", "read-only"),
 		contextValue: "quartoExtensionItem:openSource:reveal",
 		menus: [
 			[OPEN_SOURCE, "inline@5"],
@@ -174,11 +208,13 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "extension that embeds itself",
+		item: () => extensionItem("github", "self"),
 		contextValue: "quartoExtensionItem:reveal",
 		menus: [[REVEAL, "navigation@4"]],
 	},
 	{
 		name: "project folder",
+		item: () => new WorkspaceFolderTreeItem("project", "project"),
 		contextValue: "quartoExtensionWorkspaceFolder:install:template:removeMultiple:hide",
 		menus: [
 			[INSTALL, "inline@1"],
@@ -190,6 +226,7 @@ const MENU_STATES: { name: string; contextValue: string; menus: [string, string]
 	},
 	{
 		name: "folder of an installed embedded parent",
+		item: () => new WorkspaceFolderTreeItem("parent", "parent", true),
 		contextValue: "quartoExtensionWorkspaceFolder:hide",
 		menus: [
 			[HIDE, "inline@4"],
@@ -210,6 +247,12 @@ suite("Menu Contexts Test Suite", () => {
 			);
 
 			assert.deepStrictEqual(sortMenus(shown), sortMenus(state.menus));
+		});
+	}
+
+	for (const state of MENU_STATES) {
+		test(`the ${state.name} builds its context value`, () => {
+			assert.strictEqual(state.item().contextValue, state.contextValue);
 		});
 	}
 
