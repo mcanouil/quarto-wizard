@@ -40,30 +40,32 @@
 	],
 	"labels": [
 		{
-			"text": "Update all",
-			"colour": "#9be38a",
+			"text": "Use a template",
+			"colour": "#f4a261",
 			"at": {
 				"part": "editor",
 				"x": 48,
 				"y": 27
 			},
 			"target": {
-				"action": "Update All"
-			},
-			"control": [0.52, 2.6]
-		},
-		{
-			"text": "Use a template",
-			"colour": "#f4a261",
-			"at": {
-				"part": "editor",
-				"x": 48,
-				"y": 77
-			},
-			"target": {
 				"action": "Use Template"
 			},
-			"control": [0.17, 0.0]
+			"control": [0, 0],
+			"side": "top"
+		},
+		{
+			"text": "Update all",
+			"colour": "#9be38a",
+			"at": {
+				"part": "editor",
+				"x": 340,
+				"y": 27
+			},
+			"target": {
+				"action": "Update All"
+			},
+			"control": [0, 0.6],
+			"side": "top"
 		},
 		{
 			"text": "Install extensions",
