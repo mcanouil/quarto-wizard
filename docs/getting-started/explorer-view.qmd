@@ -81,8 +81,8 @@ Completion, diagnostics and the install picker still use the extensions of a hid
 A project starts hidden in these cases:
 
 - A `.quartoignore` file of the workspace folder matches the project.
-- The project is an extension that an installed extension holds in its own `_extensions/`.
-  Its parent has a `source` in its `_extension.yml`.
+- The project is an installed extension that holds other extensions in its own `_extensions/`.
+  Its `_extension.yml` has a `source`.
 
 To change what is shown:
 

@@ -104,8 +104,16 @@ suite("Project Visibility Test Suite", () => {
 			assert.strictEqual(nested.fsPath, path.join(folderA.uri.fsPath, "docs", "sub"));
 			await store.setVisible([nested], false);
 			await store.saveToWorkspaceSettings([nested, makeRoot(folderA)]);
-			assert.deepStrictEqual(stored, { "docs/sub": false, ".": true });
+			assert.deepStrictEqual(stored, { "docs/sub": false });
 			assert.strictEqual(updates[0].target, vscode.ConfigurationTarget.WorkspaceFolder);
+		});
+
+		test("saveToWorkspaceSettings leaves out a root that keeps its default", async () => {
+			const ignored = { ...makeRoot(folderA, "notes"), quartoIgnored: true };
+			const shownIgnored = { ...makeRoot(folderA, "kept"), quartoIgnored: true };
+			await store.setVisible([shownIgnored], true);
+			await store.saveToWorkspaceSettings([ignored, shownIgnored]);
+			assert.deepStrictEqual(stored, { kept: true });
 		});
 
 		test("saveToWorkspaceSettings clears the overrides it saved", async () => {

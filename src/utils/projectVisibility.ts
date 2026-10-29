@@ -58,7 +58,7 @@ export class ProjectVisibility implements vscode.Disposable {
 	}
 
 	/**
-	 * Writes the effective visibility of the given roots to the settings of their workspace folder, then clears their overrides.
+	 * Writes the visibility of the given roots that differs from their default to the settings of their workspace folder, then clears their overrides.
 	 * The setting is replaced, so keys for projects that no longer exist are dropped.
 	 */
 	async saveToWorkspaceSettings(roots: readonly QuartoProjectRoot[]): Promise<void> {
@@ -72,7 +72,10 @@ export class ProjectVisibility implements vscode.Disposable {
 			const folder = folderRoots[0].workspaceFolder;
 			const effective: Record<string, boolean> = {};
 			for (const root of folderRoots) {
-				effective[root.relativePath] = this.isVisible(root);
+				const visible = this.isVisible(root);
+				if (visible !== defaultVisibility(root)) {
+					effective[root.relativePath] = visible;
+				}
 			}
 			await vscode.workspace
 				.getConfiguration(CONFIGURATION_SECTION, folder.uri)

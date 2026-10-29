@@ -13,7 +13,8 @@ import {
 } from "../../utils/projectRootsRegistry";
 import * as discovery from "../../utils/quartoProjectDiscovery";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
-import { makeFolder, makeRoot } from "./projectFixtures";
+import { ProjectVisibility } from "../../utils/projectVisibility";
+import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
 import { Stubs } from "./stubs";
 
 suite("Project Roots Registry Test Suite", () => {
@@ -51,6 +52,22 @@ suite("Project Roots Registry Test Suite", () => {
 		const owning = await findOwningProjectRoot(document);
 
 		assert.strictEqual(owning, nestedADeep.fsPath);
+	});
+
+	test("a hidden project still owns its documents", async () => {
+		setProjectRoots([nestedA, nestedADeep]);
+		const visibility = new ProjectVisibility(new FakeMemento());
+		try {
+			await visibility.setVisible([nestedADeep], false);
+			assert.strictEqual(visibility.isVisible(nestedADeep), false);
+
+			const document = path.join(nestedADeep.fsPath, "doc.qmd");
+			assert.strictEqual(findOwningProjectRootSync(document), nestedADeep.fsPath);
+			assert.strictEqual(await findOwningProjectRoot(vscode.Uri.file(document)), nestedADeep.fsPath);
+			assert.deepStrictEqual(await ensureProjectRoots(), [nestedA, nestedADeep]);
+		} finally {
+			visibility.dispose();
+		}
 	});
 
 	test("findOwningProjectRoot returns the only matching root when others are siblings", async () => {

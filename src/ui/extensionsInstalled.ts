@@ -150,7 +150,7 @@ export class ExtensionsInstalled {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,
 		});
-		context.subscriptions.push(visibility.onDidChange(() => this.treeDataProvider.updateBadge(view)));
+		context.subscriptions.push(visibility.onDidChange(() => this.treeDataProvider.updateViewState(view)));
 		const detectedProjects = new DetectedProjectsProvider(visibility, (fsPath) =>
 			this.treeDataProvider.getProjectCounts(fsPath),
 		);

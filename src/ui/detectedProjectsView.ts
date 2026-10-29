@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
+import { getErrorMessage } from "@quarto-wizard/core";
+import { logMessage, showMessageWithLogs } from "../utils/log";
 import type { ProjectVisibility } from "../utils/projectVisibility";
 
 const VIEW_ID = "quartoWizard.detectedProjects";
@@ -23,6 +25,38 @@ export type DetectedProjectNode = FolderNode | ProjectNode;
 
 function pluralise(count: number, singular: string): string {
 	return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+function describeProjects(roots: readonly QuartoProjectRoot[]): string {
+	return roots.map((root) => root.label).join(", ");
+}
+
+async function reportFailure(operation: string, roots: readonly QuartoProjectRoot[], error: unknown): Promise<void> {
+	const message = `Failed to ${operation} for ${describeProjects(roots)}: ${getErrorMessage(error)}.`;
+	logMessage(message, "error");
+	await showMessageWithLogs(message, "error");
+}
+
+async function setVisibleReporting(
+	visibility: ProjectVisibility,
+	roots: readonly QuartoProjectRoot[],
+	visible: boolean,
+): Promise<void> {
+	try {
+		await visibility.setVisible(roots, visible);
+	} catch (error) {
+		await reportFailure(visible ? "show projects" : "hide projects", roots, error);
+	}
+}
+
+async function saveReporting(visibility: ProjectVisibility, roots: readonly QuartoProjectRoot[]): Promise<void> {
+	try {
+		await visibility.saveToWorkspaceSettings(roots);
+	} catch (error) {
+		await reportFailure("save project visibility to the workspace settings", roots, error);
+		return;
+	}
+	await showMessageWithLogs("Project visibility saved to the workspace settings.", "info");
 }
 
 function projectName(root: QuartoProjectRoot): string {
@@ -130,10 +164,10 @@ function showProjectPicker(visibility: ProjectVisibility, roots: readonly Quarto
 		const toHide = roots.filter((root) => !selected.has(root) && visibility.isVisible(root));
 		void (async () => {
 			if (toShow.length > 0) {
-				await visibility.setVisible(toShow, true);
+				await setVisibleReporting(visibility, toShow, true);
 			}
 			if (toHide.length > 0) {
-				await visibility.setVisible(toHide, false);
+				await setVisibleReporting(visibility, toHide, false);
 			}
 		})();
 	});
@@ -161,11 +195,11 @@ export function registerDetectedProjectsView(
 		view.onDidChangeCheckboxState(async (event) => {
 			for (const [node, state] of event.items) {
 				if (node.kind === "project") {
-					await visibility.setVisible([node.root], state === vscode.TreeItemCheckboxState.Checked);
+					await setVisibleReporting(visibility, [node.root], state === vscode.TreeItemCheckboxState.Checked);
 				}
 			}
 		}),
 		vscode.commands.registerCommand(SELECT_COMMAND, () => showProjectPicker(visibility, getRoots())),
-		vscode.commands.registerCommand(SAVE_COMMAND, () => visibility.saveToWorkspaceSettings(getRoots())),
+		vscode.commands.registerCommand(SAVE_COMMAND, () => saveReporting(visibility, getRoots())),
 	);
 }

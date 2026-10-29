@@ -531,6 +531,22 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			return item;
 		}
 
+		test("view message says every project is hidden, and clears when one is shown again", async () => {
+			const only = rootAt(projectWith("acme/demo"));
+			const visibility = createVisibility();
+			const { provider, view } = await check([only], { repositories: {} }, visibility);
+			assert.notStrictEqual(view.message, "All detected projects are hidden. Tick them in the Detected Projects view.");
+
+			await visibility.setVisible([only], false);
+			provider.updateViewState(view);
+			assert.strictEqual(view.message, "All detected projects are hidden. Tick them in the Detected Projects view.");
+			assert.deepStrictEqual(await provider.getChildren(), []);
+
+			await visibility.setVisible([only], true);
+			provider.updateViewState(view);
+			assert.notStrictEqual(view.message, "All detected projects are hidden. Tick them in the Detected Projects view.");
+		});
+
 		test("hidden roots are absent from the tree", async () => {
 			const shown = rootAt(projectWith("acme/demo"));
 			const hidden = rootAt(projectWith("acme/demo"));

@@ -521,6 +521,11 @@
 					"group": "inline@4"
 				},
 				{
+					"command": "quartoWizard.extensionsInstalled.hideProject",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionWorkspaceFolder || viewItem == quartoExtensionEmbeddedFolder)",
+					"group": "project@1"
+				},
+				{
 					"command": "quartoWizard.extensionsInstalled.update",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
 					"group": "inline@3"

@@ -51,7 +51,7 @@ export interface DiscoveredProject {
 export interface ProjectDiscoveryOptions {
 	/** Minimatch globs, matched against the relative path with `{ dot: true }`. */
 	excludePatterns?: readonly string[];
-	/** Stops the walk and returns no project when aborted. */
+	/** Checked before the walk starts. The walk is synchronous, so an already aborted signal gives an empty result. */
 	signal?: AbortSignal;
 }
 

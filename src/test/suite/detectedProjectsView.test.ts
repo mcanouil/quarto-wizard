@@ -21,16 +21,29 @@ suite("Detected Projects View Test Suite", () => {
 		onDidChange: visibilityChanged.event,
 		isVisible: (root: QuartoProjectRoot) => !hidden.has(root.fsPath),
 		setVisible: async (roots: readonly QuartoProjectRoot[], visible: boolean) => {
+			if (failure) {
+				throw failure;
+			}
 			setVisibleCalls.push({ roots, visible });
 		},
 		saveToWorkspaceSettings: async (roots: readonly QuartoProjectRoot[]) => {
+			if (failure) {
+				throw failure;
+			}
 			savedRoots.push(roots);
 		},
 	} as unknown as ProjectVisibility;
 	const counts = (fsPath: string) =>
 		fsPath === makeRoot(folderA, "docs").fsPath ? { extensions: 3, updates: 1 } : { extensions: 0, updates: 0 };
 
+	let failure: Error | undefined;
+	let errorMessages: string[];
+	let infoMessages: string[];
+
 	setup(() => {
+		failure = undefined;
+		errorMessages = [];
+		infoMessages = [];
 		hidden.clear();
 		setVisibleCalls.length = 0;
 		savedRoots.length = 0;
@@ -124,6 +137,14 @@ suite("Detected Projects View Test Suite", () => {
 				onDidChangeCheckboxState: checkboxEvents.event,
 				dispose: () => undefined,
 			}));
+			stubs.replace(vscode.window, "showErrorMessage", async (message: string) => {
+				errorMessages.push(message);
+				return undefined;
+			});
+			stubs.replace(vscode.window, "showInformationMessage", async (message: string) => {
+				infoMessages.push(message);
+				return undefined;
+			});
 			stubs.replace(vscode.commands, "registerCommand", (id: string, handler: () => unknown) => {
 				commandHandlers.set(id, handler);
 				return { dispose: () => undefined };
@@ -196,6 +217,59 @@ suite("Detected Projects View Test Suite", () => {
 			await commandHandlers.get("quartoWizard.detectedProjects.saveToSettings")?.();
 
 			assert.deepStrictEqual(savedRoots, [roots]);
+			assert.deepStrictEqual(infoMessages, ["Project visibility saved to the workspace settings."]);
+		});
+
+		test("a failed checkbox change reports an error naming the project", async () => {
+			const root = makeRoot(folderA, "docs");
+			const provider = register([root]);
+			provider.setRoots([root]);
+			failure = new Error("disk full");
+			checkboxEvents.fire({ items: [[provider.getChildren()[0], vscode.TreeItemCheckboxState.Unchecked]] });
+			await new Promise((resolve) => setImmediate(resolve));
+
+			assert.deepStrictEqual(errorMessages, ["Failed to hide projects for a/docs: disk full."]);
+		});
+
+		test("a failed picker selection reports an error naming the projects", async () => {
+			const hiddenRoot = makeRoot(folderA, "notes");
+			hidden.add(hiddenRoot.fsPath);
+			register([hiddenRoot]);
+			type PickItem = vscode.QuickPickItem & { root: QuartoProjectRoot };
+			let acceptListener: () => void = () => undefined;
+			const picker = {
+				items: [] as PickItem[],
+				selectedItems: [] as PickItem[],
+				onDidAccept: (listener: () => void) => {
+					acceptListener = listener;
+				},
+				onDidHide: () => undefined,
+				show: () => undefined,
+				hide: () => undefined,
+				dispose: () => undefined,
+			};
+			stubs.replace(vscode.window, "createQuickPick", () => picker);
+			commandHandlers.get("quartoWizard.detectedProjects.select")?.();
+			picker.selectedItems = picker.items;
+			failure = new Error("disk full");
+			acceptListener();
+			for (let tick = 0; tick < 5; tick++) {
+				await new Promise((resolve) => setImmediate(resolve));
+			}
+
+			assert.deepStrictEqual(errorMessages, ["Failed to show projects for a/notes: disk full."]);
+		});
+
+		test("a failed save reports an error and no success message", async () => {
+			const roots = [makeRoot(folderA, "docs")];
+			register(roots);
+			failure = new Error("read-only settings");
+			await commandHandlers.get("quartoWizard.detectedProjects.saveToSettings")?.();
+
+			assert.deepStrictEqual(errorMessages, [
+				"Failed to save project visibility to the workspace settings for a/docs: read-only settings.",
+			]);
+			assert.deepStrictEqual(infoMessages, []);
 		});
 	});
 });

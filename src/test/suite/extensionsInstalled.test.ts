@@ -1,4 +1,6 @@
 import * as assert from "assert";
+import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
@@ -586,7 +588,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(messages, ['Extension "acme/registry-demo" embeds itself, so it has no update.']);
 	});
 
-	test("update all skips a hidden project", async () => {
+	test("update all skips a hidden project and still checks a visible one", async () => {
 		const requests: string[] = [];
 		stubNetwork({
 			requests,
@@ -595,18 +597,33 @@ suite("Extensions Installed Commands Test Suite", () => {
 				"acme/github-demo": { githubTags: ["v1.3.0"] },
 			},
 		});
-		const otherPath = path.join(FIXTURE_ROOT, "_extensions");
-		provider.projectRoots = [
-			makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
-			makeRoot(makeFolder("other", otherPath, 1)),
-		];
-		await runCommand("hideProject", new WorkspaceFolderTreeItem("treeCommands", FIXTURE_ROOT));
+		const visiblePath = fs.mkdtempSync(path.join(os.tmpdir(), "qw-update-all-"));
+		try {
+			const extensionDir = path.join(visiblePath, "_extensions", "acme", "github-demo");
+			fs.mkdirSync(extensionDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extensionDir, "_extension.yml"),
+				"title: GitHub demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\nsource: acme/github-demo@v1.0.0\nsource-type: github\n",
+			);
+			provider.projectRoots = [
+				makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+				makeRoot(makeFolder("visible", visiblePath, 1)),
+			];
+			await runCommand("hideProject", new WorkspaceFolderTreeItem("treeCommands", FIXTURE_ROOT));
 
-		await runCommand("updateAll");
+			await runCommand("updateAll");
 
-		assert.deepStrictEqual(installCalls, []);
-		assert.ok(!requests.some((url) => url.includes("/acme/")), requests.join("\n"));
-		assert.deepStrictEqual(messages, ["All extensions are up to date."]);
+			assert.deepStrictEqual(installCalls, [
+				{ source: "acme/github-demo@v1.3.0", workspaceFolder: visiblePath, sourceType: "github" },
+			]);
+			assert.ok(
+				requests.some((url) => url.includes("/acme/github-demo")),
+				requests.join("\n"),
+			);
+			assert.ok(!requests.some((url) => url.includes("/acme/registry-demo")), requests.join("\n"));
+		} finally {
+			fs.rmSync(visiblePath, { recursive: true, force: true });
+		}
 	});
 
 	test("hideProject hides the folder", async () => {

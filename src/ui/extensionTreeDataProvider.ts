@@ -55,6 +55,8 @@ const UPDATE_CHECK_MESSAGES = {
 
 type UpdateCheckState = keyof typeof UPDATE_CHECK_MESSAGES;
 
+const ALL_PROJECTS_HIDDEN_MESSAGE = "All detected projects are hidden. Tick them in the Detected Projects view.";
+
 /**
  * Provides data for the Quarto extensions tree view.
  */
@@ -81,6 +83,8 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	private pendingCheck: Promise<number> | null = null;
 
 	private readonly visibilityListener: vscode.Disposable;
+
+	private updateCheckMessage: string | undefined;
 
 	constructor(
 		private projectRoots: readonly QuartoProjectRoot[],
@@ -114,6 +118,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			this.projectTreeCache = buildProjectTree(this.visibleRoots());
 		}
 		return this.projectTreeCache;
+	}
+
+	private allProjectsHidden(): boolean {
+		return this.projectRoots.length > 0 && this.visibleRoots().length === 0;
 	}
 
 	private visibleRoots(): QuartoProjectRoot[] {
@@ -700,8 +708,8 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			await vscode.commands.executeCommand("setContext", UPDATE_CHECK_CONTEXT_KEY, hasExtensions ? state : undefined);
 
 			if (view) {
-				view.message = hasExtensions ? UPDATE_CHECK_MESSAGES[state] : undefined;
-				this.updateBadge(view);
+				this.updateCheckMessage = hasExtensions ? UPDATE_CHECK_MESSAGES[state] : undefined;
+				this.updateViewState(view);
 			}
 
 			return totalUpdates;
@@ -724,9 +732,12 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	/**
-	 * Sets the badge of the view to the number of updates of the shown projects.
+	 * Sets the badge and the message of the view.
+	 * The badge counts the updates of the shown projects.
+	 * The message says that every project is hidden, or else reports the state of the update check.
 	 */
-	updateBadge(view: vscode.TreeView<TreeItemType>): void {
+	updateViewState(view: vscode.TreeView<TreeItemType>): void {
+		view.message = this.allProjectsHidden() ? ALL_PROJECTS_HIDDEN_MESSAGE : this.updateCheckMessage;
 		const totalUpdates = this.visibleUpdates().length;
 		view.badge =
 			totalUpdates > 0
