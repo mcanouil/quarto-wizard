@@ -112,11 +112,9 @@ function evaluateViewItem(when: string, contextValue: string): boolean {
 	return result;
 }
 
-const ITEM_MENUS: readonly MenuEntry[] = (
-	JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../package.json"), "utf8")).contributes.menus[
-		"view/item/context"
-	] as MenuEntry[]
-).filter((entry) => entry.when.includes(`view == ${VIEW}`));
+const ITEM_MENUS: readonly MenuEntry[] = JSON.parse(
+	fs.readFileSync(path.resolve(__dirname, "../../../package.json"), "utf8"),
+).contributes.menus["view/item/context"];
 
 const UPDATE = "quartoWizard.extensionsInstalled.update";
 const REINSTALL = "quartoWizard.extensionsInstalled.reinstall";
@@ -211,6 +209,12 @@ const MENU_STATES: { name: string; item: () => vscode.TreeItem; contextValue: st
 		item: () => extensionItem("github", "self"),
 		contextValue: "quartoExtensionItem:reveal",
 		menus: [[REVEAL, "navigation@4"]],
+	},
+	{
+		name: "detail row",
+		item: () => new ExtensionTreeItem("detail", vscode.TreeItemCollapsibleState.None, "workspace"),
+		contextValue: "quartoExtensionItemDetails",
+		menus: [],
 	},
 	{
 		name: "project folder",
