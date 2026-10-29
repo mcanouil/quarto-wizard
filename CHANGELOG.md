@@ -34,6 +34,7 @@
 - fix: Recognise a full commit of 40 characters as a commit pin, and stop offering updates for an extension installed from a subdirectory of a repository, which the installer cannot update.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
 - fix: Use the singular or the plural that a count needs in messages, so "1 extension" and "2 extensions" replace "extension(s)".
+- fix: Keep a Typst preview brand switch or reload that was still compiling when the cursor moved outside every block. The switch was dropped, and the panel kept the other side.
 
 ### Documentation
 

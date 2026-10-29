@@ -426,7 +426,13 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Preview the block under the cursor again, because something changed. */
 	refresh(): void {
-		this.compile(cursorTarget(), "background");
+		const target = cursorTarget();
+		// A cursor outside every block has nothing to compile. Starting a request
+		// for it would still supersede the one in flight, which then publishes
+		// nothing, so a brand switch or a reload asked a moment earlier was lost.
+		if (target !== undefined && this.hasBlockAt(target)) {
+			this.compile(target, "background");
+		}
 	}
 
 	/**
@@ -459,10 +465,7 @@ export class TypstPreviewController implements vscode.Disposable {
 		// The block is what makes the command mean something, and the cursor can sit
 		// in a document that has none. Asking here rather than leaving it to the
 		// compile is what keeps the promise above true.
-		if (
-			target === undefined ||
-			blockAtOffset(this.blocksOf(target.document), target.document.offsetAt(target.position)) === undefined
-		) {
+		if (target === undefined || !this.hasBlockAt(target)) {
 			this.options.show(NO_BLOCK_MESSAGE);
 			return;
 		}
@@ -496,6 +499,11 @@ export class TypstPreviewController implements vscode.Disposable {
 		// would disagree with the image on screen until something else compiled.
 		this.brandModeOverride = otherBrandMode(shown.brandMode);
 		this.compile(target, "asked");
+	}
+
+	/** Whether the position of a target sits in one of the blocks of its document. */
+	private hasBlockAt(target: PreviewTarget): boolean {
+		return blockAtOffset(this.blocksOf(target.document), target.document.offsetAt(target.position)) !== undefined;
 	}
 
 	/**

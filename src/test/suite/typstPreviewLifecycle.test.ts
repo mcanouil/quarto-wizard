@@ -692,6 +692,27 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should keep a brand switch when the cursor sits outside every block", async () => {
+		// A cursor that names no block has nothing to compile. Starting a request
+		// for it anyway made the switch in flight stale, and the request that
+		// replaced it published nothing, so the switch was lost.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+		// A file, because the cursor path does not preview an untitled document, and
+		// a cursor on its title line, above the block.
+		const elsewhere = await plainFile();
+		await vscode.window.showTextDocument(elsewhere, { selection: new vscode.Range(0, 0, 0, 0) });
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		controller.refresh();
+
+		assert.strictEqual((await switched)?.brandMode, first?.brandMode === "dark" ? "light" : "dark");
+		controller.dispose();
+	});
+
 	test("Should refuse to switch the brand mode of a block that has none", async () => {
 		// Only a cell resolves colours against a brand. A plain block carries the
 		// preview's own header, so there is no other side to show.
