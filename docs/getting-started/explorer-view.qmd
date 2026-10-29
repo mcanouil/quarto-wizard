@@ -76,7 +76,8 @@ The editor settings `files.exclude` and `search.exclude` hide folders from this 
 ## Detected Projects
 
 The Detected Projects view sits above the Extensions Installed view.
-It starts collapsed. Click its title to open it.
+It starts collapsed.
+Click its title to open it.
 It lists each project that Quarto Wizard found, with a checkbox.
 Only the projects with a tick appear in the Extensions Installed view.
 

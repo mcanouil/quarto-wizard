@@ -84,6 +84,15 @@ export function install([arrowPathSource, unionBoxesSource]) {
 	 * defaults to the sidebar. With `item`, a text stands for its menu item. `menu` is the box of the
 	 * n-th menu of a context menu and its submenus (a negative n counts from the last).
 	 */
+	const findRow = (root, text) =>
+		[...root.querySelectorAll(".monaco-list-row")].find((el) => el.textContent.includes(text));
+
+	/** Whether the sidebar row that `findTarget` resolves for `text` is expanded. */
+	const isExpanded = (text) => {
+		const root = partElement("sidebar");
+		return root ? findRow(root, text)?.getAttribute("aria-expanded") === "true" : false;
+	};
+
 	const findTarget = (target) => {
 		if (target.badge) {
 			const item = byLabel(document.querySelector(".part.activitybar"), target.badge)?.closest(".action-item");
@@ -105,7 +114,7 @@ export function install([arrowPathSource, unionBoxesSource]) {
 		}
 		const action = target.action ?? target.label;
 		if (target.row) {
-			const row = [...root.querySelectorAll(".monaco-list-row")].find((el) => el.textContent.includes(target.row));
+			const row = findRow(root, target.row);
 			return row && action ? toBox(byLabel(row, action)?.getBoundingClientRect()) : toBox(row?.getBoundingClientRect());
 		}
 		return action ? toBox(byLabel(root, action)?.getBoundingClientRect()) : null;
@@ -220,5 +229,5 @@ export function install([arrowPathSource, unionBoxesSource]) {
 		return missing;
 	};
 
-	window.qwShot = { partBoxes, findTarget, drawLabels, currentTheme };
+	window.qwShot = { partBoxes, findTarget, isExpanded, drawLabels, currentTheme };
 }

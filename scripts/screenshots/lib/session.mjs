@@ -210,15 +210,7 @@ async function selectPaletteEntry(page, title) {
 
 const find = (page, target) => page.evaluate((t) => window.qwShot.findTarget(t), target);
 
-/** Whether the first tree row that holds `row` is expanded. */
-const isExpanded = (page, row) =>
-	page.evaluate(
-		(wanted) =>
-			[...document.querySelectorAll(".monaco-list-row")]
-				.find((el) => el.textContent.includes(wanted))
-				?.getAttribute("aria-expanded") === "true",
-		row,
-	);
+const isExpanded = (page, row) => page.evaluate((text) => window.qwShot.isExpanded(text), row);
 
 async function runStep(page, step) {
 	switch (step.kind) {
