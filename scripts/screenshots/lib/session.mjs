@@ -210,6 +210,16 @@ async function selectPaletteEntry(page, title) {
 
 const find = (page, target) => page.evaluate((t) => window.qwShot.findTarget(t), target);
 
+/** Whether the first tree row that holds `row` is expanded. */
+const isExpanded = (page, row) =>
+	page.evaluate(
+		(wanted) =>
+			[...document.querySelectorAll(".monaco-list-row")]
+				.find((el) => el.textContent.includes(wanted))
+				?.getAttribute("aria-expanded") === "true",
+		row,
+	);
+
 async function runStep(page, step) {
 	switch (step.kind) {
 		case "command":
@@ -247,7 +257,11 @@ async function runStep(page, step) {
 		case "expand": {
 			const box = await poll("target not found", () => find(page, { row: step.row }), 10000);
 			await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-			await page.keyboard.press("ArrowRight");
+			await sleep(300);
+			// A click can already expand the row, and ArrowRight would then move the focus to its first child.
+			if (!(await isExpanded(page, step.row))) {
+				await page.keyboard.press("ArrowRight");
+			}
 			await sleep(1500);
 			return;
 		}

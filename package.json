@@ -755,7 +755,7 @@
 					"name": "Detected Projects",
 					"icon": "assets/logo/logo.svg",
 					"contextualTitle": "Quarto Wizard Detected Projects",
-					"visibility": "visible",
+					"visibility": "collapsed",
 					"when": "workspaceFolderCount >= 1"
 				},
 				{
