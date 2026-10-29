@@ -234,7 +234,7 @@ export function buildRoot(
 	const label = relativePath === "." ? folder.name : `${folder.name}/${relativePath}`;
 	const base = { fsPath, workspaceFolder: folder, label, relativePath, quartoIgnored };
 	if (embeddedIn) {
-		return { ...base, kind: "embedded", embeddedIn, readOnly: embeddedIn.source !== undefined };
+		return { ...base, kind: "embedded", embeddedIn, readOnly: Boolean(embeddedIn.source) };
 	}
 	return { ...base, kind: "project", readOnly: false };
 }

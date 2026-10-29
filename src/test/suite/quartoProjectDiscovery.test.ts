@@ -5,6 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import {
 	buildExcludeGlob,
+	buildRoot,
 	collectExcludePatterns,
 	discoverQuartoProjectRoots,
 } from "../../utils/quartoProjectDiscovery";
@@ -151,6 +152,17 @@ suite("Quarto Project Discovery Test Suite", () => {
 				["_extensions/local", "embedded", false],
 				["site", "project", false],
 			],
+		);
+	});
+
+	test("an empty manifest source leaves an embedded parent writable", () => {
+		const folder = makeFolder("workspace", tempDir);
+		const id = { owner: "acme", name: "parent" };
+
+		assert.strictEqual(buildRoot(folder, tempDir, ".", false, { id, source: "" }).readOnly, false);
+		assert.strictEqual(
+			buildRoot(folder, tempDir, ".", false, { id, source: null as unknown as string }).readOnly,
+			false,
 		);
 	});
 
