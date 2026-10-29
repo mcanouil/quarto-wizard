@@ -17,7 +17,6 @@ import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/coreOperations";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { getAuthConfig } from "../utils/auth";
-import { getAutoProjectDetection } from "../utils/extensionDetails";
 import { getEffectiveSourceType, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
@@ -29,10 +28,14 @@ import {
 	refreshProjectRoots as rediscoverProjectRoots,
 } from "../utils/projectRootsRegistry";
 import { debounce } from "../utils/debounce";
+import { ProjectVisibility } from "../utils/projectVisibility";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
+import { DetectedProjectsProvider, registerDetectedProjectsView, runReporting } from "./detectedProjectsView";
 
 const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
+
+const QUARTO_IGNORE_GLOB = "**/.quartoignore";
 
 /**
  * Resolves the latest GitHub tag or commit of each extension, with or without a token, so that an
@@ -139,12 +142,22 @@ export class ExtensionsInstalled {
 
 		// Project roots are discovered asynchronously; start with an empty set so the view can
 		// render immediately, then update once discovery completes.
-		this.treeDataProvider = new QuartoExtensionTreeDataProvider([], schemaCache, snippetCache);
+		const visibility = new ProjectVisibility(context.workspaceState);
+		context.subscriptions.push(visibility);
+		this.treeDataProvider = new QuartoExtensionTreeDataProvider([], schemaCache, snippetCache, visibility);
 		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,
 		});
+		context.subscriptions.push(visibility.onDidChange(() => this.treeDataProvider.updateViewState(view)));
+		const detectedProjects = new DetectedProjectsProvider(
+			visibility,
+			(fsPath) => this.treeDataProvider.getProjectCounts(fsPath),
+			() => this.treeDataProvider.getProjectRoots(),
+		);
+		context.subscriptions.push(this.treeDataProvider.onDidChangeCounts(() => detectedProjects.refresh()));
+		registerDetectedProjectsView(context, detectedProjects, visibility, () => this.treeDataProvider.getProjectRoots());
 		const invalidateProviderCaches = (cacheKey?: string) => {
 			invalidateInstalledExtensionsCache(cacheKey);
 			invalidateWorkspaceSchemaIndex(cacheKey);
@@ -174,7 +187,9 @@ export class ExtensionsInstalled {
 				if (!roots) {
 					return false;
 				}
-				return this.treeDataProvider.setProjectRoots(roots);
+				const changed = this.treeDataProvider.setProjectRoots(roots);
+				detectedProjects.refresh();
+				return changed;
 			} catch (error) {
 				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
 				return false;
@@ -217,10 +232,6 @@ export class ExtensionsInstalled {
 					invalidateMetadataFiles();
 					invalidateProjectRoots();
 					refreshProjectRoots();
-					return;
-				}
-				if (event.affectsConfiguration("quartoWizard.autoProjectDetection")) {
-					refreshProjectRoots();
 				}
 			}),
 		);
@@ -241,21 +252,16 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(projectFileWatcher.onDidDelete(onProjectFileChanged));
 		context.subscriptions.push(projectFileWatcher);
 
-		// `openEditors` mode walks parents of open documents; refresh when the doc set changes.
-		// Filter to real files so output channels and untitled buffers don't queue work.
-		// The other modes do not read the open documents, and a recursive scan on every
-		// editor event is expensive, so the trigger is confined to `openEditors`.
-		const onEditorChanged = (document: vscode.TextDocument) => {
-			if (document.uri.scheme !== "file" || document.isUntitled) {
-				return;
-			}
-			if (getAutoProjectDetection() !== "openEditors") {
-				return;
-			}
+		// The default visibility of a project reads `.quartoignore`, which discovery marks on each root.
+		const quartoIgnoreWatcher = vscode.workspace.createFileSystemWatcher(QUARTO_IGNORE_GLOB);
+		const onQuartoIgnoreChanged = () => {
+			invalidateProjectRoots();
 			refreshProjectRoots();
 		};
-		context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(onEditorChanged));
-		context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(onEditorChanged));
+		context.subscriptions.push(quartoIgnoreWatcher.onDidCreate(onQuartoIgnoreChanged));
+		context.subscriptions.push(quartoIgnoreWatcher.onDidChange(onQuartoIgnoreChanged));
+		context.subscriptions.push(quartoIgnoreWatcher.onDidDelete(onQuartoIgnoreChanged));
+		context.subscriptions.push(quartoIgnoreWatcher);
 
 		// Create/delete also re-runs discovery so installing the first extension in a folder
 		// promotes it into the detected roots without a manual refresh.
@@ -303,6 +309,23 @@ export class ExtensionsInstalled {
 				invalidateProviderCaches();
 				refreshAll();
 			}),
+		);
+
+		/**
+		 * Hides a project from the view for the current user.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.hideProject",
+				async (item: WorkspaceFolderTreeItem) => {
+					const root = this.treeDataProvider.getProjectRoot(item.folderPath);
+					if (!root) {
+						logMessage(`Cannot hide "${item.label}": no detected project at ${item.folderPath}.`, "warn");
+						return;
+					}
+					await runReporting("hide the project", [root], () => visibility.setVisible([root], false));
+				},
+			),
 		);
 
 		// Open Source command (branches on effective source type)
@@ -546,7 +569,9 @@ export class ExtensionsInstalled {
 				if (await reportCheckFailures(check, failureMessage, auth)) {
 					return;
 				}
-				const updates = check.updates;
+				const updates = check.updates.filter(
+					(update) => !this.treeDataProvider.isSelfEmbedded(update.projectDir, update.extension),
+				);
 				const uncheckedCount = check.repositoryFailures.length;
 				const uncheckedRepositories = `${uncheckedCount} ${uncheckedCount === 1 ? "repository" : "repositories"}`;
 

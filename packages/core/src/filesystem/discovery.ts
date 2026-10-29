@@ -97,7 +97,7 @@ export async function discoverInstalledExtensions(
  * between machines. A fixed order makes the first match of a shared name the
  * same everywhere.
  */
-function readDirectorySorted(directory: string): fs.Dirent[] {
+export function readDirectorySorted(directory: string): fs.Dirent[] {
 	return fs
 		.readdirSync(directory, { withFileTypes: true })
 		.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));

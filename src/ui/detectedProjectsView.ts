@@ -1,0 +1,231 @@
+import * as vscode from "vscode";
+import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
+import { getErrorMessage } from "@quarto-wizard/core";
+import { logMessage, showMessageWithLogs } from "../utils/log";
+import type { ProjectVisibility } from "../utils/projectVisibility";
+
+const VIEW_ID = "quartoWizard.detectedProjects";
+const SELECT_COMMAND = "quartoWizard.detectedProjects.select";
+const SAVE_COMMAND = "quartoWizard.detectedProjects.saveToSettings";
+
+type ProjectCounts = (fsPath: string) => { extensions: number; updates: number };
+
+interface FolderNode {
+	readonly kind: "folder";
+	readonly folder: vscode.WorkspaceFolder;
+	readonly roots: readonly QuartoProjectRoot[];
+}
+
+interface ProjectNode {
+	readonly kind: "project";
+	readonly root: QuartoProjectRoot;
+}
+
+export type DetectedProjectNode = FolderNode | ProjectNode;
+
+function pluralise(count: number, singular: string): string {
+	return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+function describeProjects(roots: readonly QuartoProjectRoot[]): string {
+	return roots.map((root) => root.label).join(", ");
+}
+
+/**
+ * Runs an operation on projects and reports a failure that names them, in the log and in a notification.
+ *
+ * @returns Whether the operation succeeded.
+ */
+export async function runReporting(
+	operation: string,
+	roots: readonly QuartoProjectRoot[],
+	action: () => Promise<void>,
+): Promise<boolean> {
+	try {
+		await action();
+		return true;
+	} catch (error) {
+		const message = `Failed to ${operation} for ${describeProjects(roots)}: ${getErrorMessage(error)}.`;
+		logMessage(message, "error");
+		void showMessageWithLogs(message, "error");
+		return false;
+	}
+}
+
+function setVisibleReporting(
+	visibility: ProjectVisibility,
+	roots: readonly QuartoProjectRoot[],
+	visible: boolean,
+): Promise<boolean> {
+	return runReporting(visible ? "show projects" : "hide projects", roots, () => visibility.setVisible(roots, visible));
+}
+
+async function applyVisibility(
+	provider: DetectedProjectsProvider,
+	visibility: ProjectVisibility,
+	toShow: readonly QuartoProjectRoot[],
+	toHide: readonly QuartoProjectRoot[],
+): Promise<void> {
+	const results: boolean[] = [];
+	if (toShow.length > 0) {
+		results.push(await setVisibleReporting(visibility, toShow, true));
+	}
+	if (toHide.length > 0) {
+		results.push(await setVisibleReporting(visibility, toHide, false));
+	}
+	if (results.includes(false)) {
+		provider.refresh();
+	}
+}
+
+async function saveReporting(visibility: ProjectVisibility, roots: readonly QuartoProjectRoot[]): Promise<void> {
+	const saved = await runReporting("save project visibility to the workspace settings", roots, () =>
+		visibility.saveToWorkspaceSettings(roots),
+	);
+	if (saved) {
+		await showMessageWithLogs("Project visibility saved to the workspace settings.", "info");
+	}
+}
+
+function projectName(root: QuartoProjectRoot): string {
+	return root.relativePath === "." ? root.workspaceFolder.name : root.relativePath;
+}
+
+function projectDescription(root: QuartoProjectRoot, counts: { extensions: number; updates: number }): string {
+	const parts = [pluralise(counts.extensions, "extension"), pluralise(counts.updates, "update")];
+	if (root.quartoIgnored) {
+		parts.push(".quartoignore");
+	}
+	if (root.embeddedIn) {
+		parts.push("embedded");
+	}
+	return parts.join(" · ");
+}
+
+/**
+ * Lists every detected Quarto project with a checkbox that shows or hides it in the Extensions Installed view.
+ */
+export class DetectedProjectsProvider implements vscode.TreeDataProvider<DetectedProjectNode> {
+	private readonly emitter = new vscode.EventEmitter<void>();
+
+	readonly onDidChangeTreeData: vscode.Event<void> = this.emitter.event;
+
+	constructor(
+		private readonly visibility: ProjectVisibility,
+		private readonly counts: ProjectCounts,
+		private readonly roots: () => readonly QuartoProjectRoot[],
+		private readonly workspaceFolders: () => readonly vscode.WorkspaceFolder[] = () =>
+			vscode.workspace.workspaceFolders ?? [],
+	) {}
+
+	refresh(): void {
+		this.emitter.fire();
+	}
+
+	getChildren(element?: DetectedProjectNode): DetectedProjectNode[] {
+		if (element?.kind === "project") {
+			return [];
+		}
+		if (element) {
+			return element.roots.map((root) => ({ kind: "project", root }));
+		}
+		const roots = this.roots();
+		const workspaceFolders = this.workspaceFolders();
+		if (workspaceFolders.length > 1) {
+			return workspaceFolders.map((folder) => ({
+				kind: "folder",
+				folder,
+				roots: roots.filter((root) => root.workspaceFolder.uri.toString() === folder.uri.toString()),
+			}));
+		}
+		return roots.map((root) => ({ kind: "project", root }));
+	}
+
+	getTreeItem(element: DetectedProjectNode): vscode.TreeItem {
+		if (element.kind === "folder") {
+			const item = new vscode.TreeItem(element.folder.name, vscode.TreeItemCollapsibleState.Expanded);
+			item.iconPath = new vscode.ThemeIcon("root-folder");
+			return item;
+		}
+		const { root } = element;
+		const item = new vscode.TreeItem(projectName(root), vscode.TreeItemCollapsibleState.None);
+		item.id = `${root.workspaceFolder.uri.toString()}#${root.relativePath}`;
+		item.description = projectDescription(root, this.counts(root.fsPath));
+		item.tooltip = root.fsPath;
+		item.checkboxState = this.visibility.isVisible(root)
+			? vscode.TreeItemCheckboxState.Checked
+			: vscode.TreeItemCheckboxState.Unchecked;
+		return item;
+	}
+
+	dispose(): void {
+		this.emitter.dispose();
+	}
+}
+
+interface ProjectPickItem extends vscode.QuickPickItem {
+	readonly root: QuartoProjectRoot;
+}
+
+function showProjectPicker(
+	provider: DetectedProjectsProvider,
+	visibility: ProjectVisibility,
+	roots: readonly QuartoProjectRoot[],
+): void {
+	const items: ProjectPickItem[] = roots.map((root) => ({
+		label: projectName(root),
+		description: root.workspaceFolder.name,
+		detail: root.fsPath,
+		root,
+	}));
+	const picker = vscode.window.createQuickPick<ProjectPickItem>();
+	picker.canSelectMany = true;
+	picker.title = "Select Projects to Show";
+	picker.placeholder = "Tick the projects to show in the Extensions Installed view";
+	picker.matchOnDescription = true;
+	picker.items = items;
+	picker.selectedItems = items.filter((item) => visibility.isVisible(item.root));
+	picker.onDidAccept(() => {
+		const selected = new Set(picker.selectedItems.map((item) => item.root));
+		picker.hide();
+		const toShow = roots.filter((root) => selected.has(root) && !visibility.isVisible(root));
+		const toHide = roots.filter((root) => !selected.has(root) && visibility.isVisible(root));
+		void (async () => {
+			await applyVisibility(provider, visibility, toShow, toHide);
+		})();
+	});
+	picker.onDidHide(() => picker.dispose());
+	picker.show();
+}
+
+/**
+ * Registers the Detected Projects view, its checkbox handling, and its commands.
+ */
+export function registerDetectedProjectsView(
+	context: vscode.ExtensionContext,
+	provider: DetectedProjectsProvider,
+	visibility: ProjectVisibility,
+	getRoots: () => readonly QuartoProjectRoot[],
+): void {
+	const view = vscode.window.createTreeView(VIEW_ID, {
+		treeDataProvider: provider,
+		manageCheckboxStateManually: true,
+	});
+	context.subscriptions.push(
+		view,
+		provider,
+		visibility.onDidChange(() => provider.refresh()),
+		view.onDidChangeCheckboxState(async (event) => {
+			const toShow: QuartoProjectRoot[] = [];
+			const toHide: QuartoProjectRoot[] = [];
+			for (const [node, state] of event.items) {
+				if (node.kind === "project") {
+					(state === vscode.TreeItemCheckboxState.Checked ? toShow : toHide).push(node.root);
+				}
+			}
+			await applyVisibility(provider, visibility, toShow, toHide);
+		}),
+		vscode.commands.registerCommand(SELECT_COMMAND, () => showProjectPicker(provider, visibility, getRoots())),
+		vscode.commands.registerCommand(SAVE_COMMAND, () => saveReporting(visibility, getRoots())),
+	);
+}

@@ -35,6 +35,7 @@ interface MutableNode {
  * Each workspace folder owns its own subtree (rooted at the workspace folder name).
  * Single-child chains are collapsed by joining labels with `/`, so a project that
  * does not share its parent with any sibling renders as a single flat label.
+ * A project that holds sub-projects becomes a group whose first child is the project itself.
  */
 export function buildProjectTree(roots: readonly QuartoProjectRoot[]): ProjectTreeNode[] {
 	if (roots.length === 0) {
@@ -112,6 +113,11 @@ function collapseAndConvert(node: MutableNode): ProjectTreeNode {
 
 	if (node.project && childNodes.length === 0) {
 		return { kind: "project", label: node.label, root: node.project };
+	}
+
+	if (node.project) {
+		const ownLeaf: ProjectLeafNode = { kind: "project", label: node.label, root: node.project };
+		return { kind: "group", label: node.label, fsPath: node.fsPath, children: [ownLeaf, ...childNodes] };
 	}
 
 	return { kind: "group", label: node.label, fsPath: node.fsPath, children: childNodes };

@@ -37,3 +37,11 @@ export {
 } from "./walk.js";
 
 export { QUARTOIGNORE_FILENAME, readQuartoIgnore, isQuartoIgnored, quartoIgnoreGlobs } from "./quartoignore.js";
+
+export {
+	PROJECT_FOLDER_MAX_DEPTH,
+	type EmbeddingParent,
+	type DiscoveredProject,
+	type ProjectDiscoveryOptions,
+	discoverProjectDirs,
+} from "./projects.js";

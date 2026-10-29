@@ -55,7 +55,7 @@ fig-alt='{{< meta alt-text.explorer-view >}}'
 
 The Explorer View displays:
 
-- **Project roots**: Each detected Quarto project root that can contain extensions, starting with the workspace folder itself.
+- **Project roots**: Each shown Quarto project that can contain extensions, starting with the workspace folder itself.
 - **Installed extensions**: Extensions found in the `_extensions` directory.
 - **Extension details**: Metadata rows such as title, author, version, `quarto-required`, compatibility, contributes (filters, shortcodes, formats, etc.), repository, and source.
 - **Schema contributions**: A `Schema` node when the extension provides a valid `_schema.yml`, `_schema.yaml`, or `_schema.json`.
@@ -64,10 +64,48 @@ The Explorer View displays:
 - **Action buttons**: Quick access to common operations.
 
 ::: {.callout-note}
-When the workspace folder itself holds at least one installed extension in `_extensions/`, it is the only root shown, and no subfolder is listed as a separate target.
-Paths matched by the workspace folder's `.quartoignore` are never detected as roots either, so listing `docs` there keeps a documentation website out of the view.
-See [Auto Project Detection](../reference/configuration.qmd#auto-project-detection) for the scanning modes.
+Quarto Wizard finds the workspace folder and each subfolder, down to two levels, that holds a `_quarto.yml` file, a `_quarto.yaml` file or installed extensions.
+It also finds each extension that holds other extensions in its own `_extensions/`.
+The editor settings `files.exclude` and `search.exclude` hide folders from this search.
 :::
+
+## Detected Projects
+
+The Detected Projects view sits above the Extensions Installed view.
+It lists each project that Quarto Wizard found, with a checkbox.
+Only the projects with a tick appear in the Extensions Installed view.
+
+A hidden project does not count in the update badge, and Update All does not update it.
+Completion, diagnostics and the install picker still use the extensions of a hidden project.
+A hidden project stays available as an install target.
+
+A project starts hidden in these cases:
+
+- A `.quartoignore` file of the workspace folder matches the project.
+- The project is an installed extension that holds other extensions in its own `_extensions/`.
+  Its `_extension.yml` has a `source`.
+
+To change what is shown:
+
+- Tick or clear a checkbox in the Detected Projects view.
+- Run `Quarto Wizard: Select Projects to Show` to choose from a list.
+- Right-click a project in the Extensions Installed view, then select **Hide Project**.
+
+Your choices stay on your machine and do not change the workspace files.
+To share them, select **Save to Workspace Settings**.
+This command writes the `quartoWizard.projectVisibility` setting.
+See the [Configuration Reference](../reference/configuration.qmd) for the format.
+
+## Embedded Extensions
+
+An extension can hold other extensions in its own `_extensions/`.
+Quarto Wizard shows these extensions as projects too.
+
+- If the parent extension is installed, the embedded extensions are read-only.
+  Quarto Wizard does not update or remove them.
+  Update the parent extension instead.
+- If you develop the parent extension locally, the embedded extensions update as usual.
+- If an extension embeds itself, the tree shows an error icon with the description `embeds itself`, and offers no update for it.
 
 ## Extension Status Indicators
 
@@ -170,6 +208,13 @@ For each installed extension, you can:
 - **Remove**: Delete the extension from the `_extensions` directory.
 - **Open Source**: View the extension's GitHub repository (if source is available).
 - **Reveal in Explorer View**: Open the extension folder in the file explorer.
+
+### Project Actions
+
+For each project row, you can:
+
+- **Hide Project**: Remove the project from the Extensions Installed view.
+  Use the Detected Projects view to show it again.
 
 ### Snippet Actions
 

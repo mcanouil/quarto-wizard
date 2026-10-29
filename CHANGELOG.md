@@ -10,12 +10,15 @@
 - refactor: Remove the `projectDir` and `crossSource` options of `update()` and `applyUpdates()` in `@quarto-wizard/core`. Both now take `projectDirs`, and each update installs in the project directory that its `UpdateInfo` names.
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
+- feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
 
 ### New Features
 
 - feat: Add a `cells` schema section for comment-pipe cell options, with completion, hover and diagnostics in executable cells. (#518)
 - feat: Show where the update check looked, in a message at the top of the Extensions Installed view and in the tooltip and details of each extension. Update and Update All now check GitHub when you click them, and install the tag that their messages name.
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
+- feat: Add a Detected Projects view to show or hide projects, with the `quartoWizard.projectVisibility` setting to share the choice. Extensions that hold other extensions now appear as projects, and those of an installed parent are read-only.
+- feat: Add `discoverProjectDirs()` to `@quarto-wizard/core`, which finds Quarto projects and extensions that embed other extensions.
 
 ### Bug Fixes
 

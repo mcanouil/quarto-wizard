@@ -35,9 +35,11 @@ export class WorkspaceFolderTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly label: string,
 		public readonly folderPath: string,
+		readOnly = false,
 	) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
-		this.contextValue = "quartoExtensionWorkspaceFolder";
+		// The folder of an installed embedded parent ships with that parent, so nothing installs into it.
+		this.contextValue = readOnly ? "quartoExtensionEmbeddedFolder" : "quartoExtensionWorkspaceFolder";
 		this.iconPath = new vscode.ThemeIcon("folder");
 		this.tooltip = folderPath;
 		this.workspaceFolder = folderPath;
@@ -67,6 +69,12 @@ export class ProjectGroupTreeItem extends vscode.TreeItem {
 export type ProjectFolderItem = WorkspaceFolderTreeItem | ProjectGroupTreeItem;
 
 /**
+ * How an extension relates to the extension that embeds it.
+ * `self`: the extension embeds itself. `read-only`: the extension ships with an installed parent.
+ */
+export type ExtensionEmbedding = "self" | "read-only";
+
+/**
  * Represents a tree item for a Quarto extension.
  */
 export class ExtensionTreeItem extends vscode.TreeItem {
@@ -85,6 +93,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		hasIssue?: boolean,
 		compatibilityWarningMessage?: string,
 		public readonly updateCheckFailed = false,
+		embedding?: ExtensionEmbedding,
 	) {
 		super(label, collapsibleState);
 		const needsUpdate = update !== undefined;
@@ -96,6 +105,10 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		let contextValue: string;
 		if (!extension) {
 			contextValue = "quartoExtensionItemDetails";
+		} else if (embedding === "self") {
+			contextValue = "quartoExtensionItemSelfEmbedded";
+		} else if (embedding === "read-only") {
+			contextValue = "quartoExtensionItemEmbedded";
 		} else if (!sourceType) {
 			contextValue = "quartoExtensionItemNoSource";
 		} else if (sourceType === "github" || sourceType === "registry") {
@@ -111,7 +124,9 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		if (updateCheckFailed) {
 			updateNotes.push("The update check of this extension failed.");
 		}
-		if (sourceType === "github" || sourceType === "registry") {
+		if (embedding === "read-only") {
+			updateNotes.push("Ships with the extension that embeds it, so it cannot be changed here.");
+		} else if (!embedding && (sourceType === "github" || sourceType === "registry")) {
 			updateNotes.push(
 				extractCommitFromSource(extension?.manifest.source ?? "") !== null
 					? "Update installs the latest commit of the default branch."
@@ -124,6 +139,9 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		let tooltipText = `${this.label}`;
 		if (updateNotes.length > 0) {
 			tooltipText += `\n\n${updateNotes.join("\n")}`;
+		}
+		if (embedding === "self") {
+			warnings.push("This extension embeds a copy of itself");
 		}
 		if (hasIssue) {
 			warnings.push("Could not parse extension manifest");
@@ -138,13 +156,19 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			tooltipText += `\n\n${warnings.join("\n")}`;
 		}
 		this.tooltip = tooltipText;
-		this.description = this.extension
-			? `${this.extension.manifest.version}${needsUpdate ? ` (latest: ${update.latestVersion})` : ""}`
-			: "";
+		if (embedding === "self") {
+			this.description = "embeds itself";
+		} else {
+			this.description = this.extension
+				? `${this.extension.manifest.version}${needsUpdate ? ` (latest: ${update.latestVersion})` : ""}`
+				: "";
+		}
 		this.contextValue = contextValue;
 
-		// Show warning icon if there are issues preventing full functionality
-		if (hasIssue || noSource || compatibilityWarningMessage) {
+		if (embedding === "self") {
+			this.iconPath = new vscode.ThemeIcon("error", new vscode.ThemeColor("problemsErrorIcon.foreground"));
+		} else if (hasIssue || noSource || compatibilityWarningMessage) {
+			// Show warning icon if there are issues preventing full functionality
 			this.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("problemsWarningIcon.foreground"));
 		} else if (icon) {
 			this.iconPath = new vscode.ThemeIcon(icon);

@@ -1,15 +1,18 @@
 import * as assert from "assert";
+import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
 import { registerInstallCommands } from "../../commands/installQuartoExtension";
+import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/coreOperations";
-import { makeFolder, makeRoot } from "./projectFixtures";
+import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
 const RATE_LIMITED = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
@@ -31,7 +34,6 @@ interface RemoveCall {
 }
 
 interface ProviderInternals {
-	projectRoots: unknown;
 	cache: Record<string, FolderCache>;
 	pendingRefresh: Promise<void> | null;
 }
@@ -63,6 +65,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			subscriptions,
 			secrets: { get: async () => undefined },
 			globalState: { get: () => undefined },
+			workspaceState: new FakeMemento(),
 		} as unknown as vscode.ExtensionContext;
 	}
 
@@ -108,6 +111,11 @@ suite("Extensions Installed Commands Test Suite", () => {
 				"acme/github-demo": { githubTags: ["v1.3.0"] },
 			},
 		});
+	}
+
+	// The suite replaces the prototype method with a no-op, so the injected roots go through the original.
+	function setRoots(roots: readonly QuartoProjectRoot[]): void {
+		originalSetProjectRoots.call(provider, roots);
 	}
 
 	function runCommand(name: string, ...args: unknown[]): Thenable<unknown> {
@@ -163,6 +171,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			originalRegisterCommand(`${COMMAND_PREFIX}${command}`, callback)) as typeof vscode.commands.registerCommand;
 		vscode.window.createTreeView = (() => ({
 			onDidChangeVisibility: () => new vscode.Disposable(() => undefined),
+			onDidChangeCheckboxState: () => new vscode.Disposable(() => undefined),
 			dispose: () => undefined,
 		})) as unknown as typeof vscode.window.createTreeView;
 		vscode.window.showWarningMessage = (async (message: string, ...rest: unknown[]) => {
@@ -187,7 +196,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		await provider.pendingRefresh;
 
 		extensions = await getInstalledExtensionsRecord(FIXTURE_ROOT);
-		provider.projectRoots = [makeRoot(makeFolder("treeCommands", FIXTURE_ROOT))];
+		setRoots([makeRoot(makeFolder("treeCommands", FIXTURE_ROOT))]);
 		provider.cache[FIXTURE_ROOT] = {
 			extensions,
 			updates: {},
@@ -535,5 +544,87 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(installCalls, [
 			{ source: localSource, workspaceFolder: FIXTURE_ROOT, sourceType: undefined },
 		]);
+	});
+
+	test("update all skips the extensions of an installed embedded parent", async () => {
+		stubTwoUpdates();
+		setRoots([
+			{
+				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+				embeddedIn: { id: { owner: "acme", name: "parent" }, source: "acme/parent@v1.0.0" },
+			},
+		]);
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(messages, ["All extensions are up to date."]);
+	});
+
+	test("update all skips a self-embedded extension", async () => {
+		stubTwoUpdates();
+		setRoots([
+			{
+				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+				embeddedIn: { id: { owner: "acme", name: "registry-demo" } },
+			},
+		]);
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: "acme/github-demo@v1.3.0", workspaceFolder: FIXTURE_ROOT, sourceType: "github" },
+		]);
+		assert.ok(!messages[0].includes("acme/registry-demo"), messages[0]);
+	});
+
+	test("update all skips a hidden project and still checks a visible one", async () => {
+		const requests: string[] = [];
+		stubNetwork({
+			requests,
+			repositories: {
+				"acme/registry-demo": { githubTags: ["v1.3.0"] },
+				"acme/github-demo": { githubTags: ["v1.3.0"] },
+			},
+		});
+		const visiblePath = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-update-all-"))).fsPath;
+		try {
+			const extensionDir = path.join(visiblePath, "_extensions", "acme", "github-demo");
+			fs.mkdirSync(extensionDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extensionDir, "_extension.yml"),
+				"title: GitHub demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\nsource: acme/github-demo@v1.0.0\nsource-type: github\n",
+			);
+			setRoots([makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)), makeRoot(makeFolder("visible", visiblePath, 1))]);
+			await runCommand("hideProject", new WorkspaceFolderTreeItem("treeCommands", FIXTURE_ROOT));
+
+			await runCommand("updateAll");
+
+			assert.deepStrictEqual(installCalls, [
+				{ source: "acme/github-demo@v1.3.0", workspaceFolder: visiblePath, sourceType: "github" },
+			]);
+			assert.ok(
+				requests.some((url) => url.includes("/acme/github-demo")),
+				requests.join("\n"),
+			);
+			assert.ok(!requests.some((url) => url.includes("/acme/registry-demo")), requests.join("\n"));
+		} finally {
+			fs.rmSync(visiblePath, { recursive: true, force: true });
+		}
+	});
+
+	test("hideProject hides the folder", async () => {
+		const tree = provider as unknown as QuartoExtensionTreeDataProvider;
+		const otherPath = path.join(FIXTURE_ROOT, "_extensions");
+		setRoots([makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)), makeRoot(makeFolder("other", otherPath, 1))]);
+		assert.strictEqual((await tree.getChildren()).length, 2);
+
+		await runCommand("hideProject", new WorkspaceFolderTreeItem("other", otherPath));
+
+		const top = await tree.getChildren();
+		assert.deepStrictEqual(
+			top.map((item) => (item as WorkspaceFolderTreeItem).folderPath),
+			[FIXTURE_ROOT],
+		);
 	});
 });

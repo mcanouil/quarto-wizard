@@ -82,6 +82,57 @@ suite("Project Tree Builder Test Suite", () => {
 		}
 	});
 
+	test("Workspace-root project with one sub-project keeps its own leaf first", () => {
+		const folder = makeFolder("myrepo", path.resolve(path.sep, "tmp", "myrepo"));
+		const own = makeRoot(folder);
+		const docs = makeRoot(folder, "docs");
+		const tree = buildProjectTree([own, docs]);
+		assert.strictEqual(tree.length, 1);
+		expectGroup(tree[0], "myrepo", 2);
+		if (tree[0].kind === "group") {
+			assert.strictEqual(tree[0].fsPath, folder.uri.fsPath);
+			expectProject(tree[0].children[0], "myrepo");
+			if (tree[0].children[0].kind === "project") {
+				assert.strictEqual(tree[0].children[0].root, own);
+			}
+			expectProject(tree[0].children[1], "docs");
+		}
+	});
+
+	test("Workspace-root project with several sub-projects keeps its own leaf first", () => {
+		const folder = makeFolder("myrepo", path.resolve(path.sep, "tmp", "myrepo"));
+		const own = makeRoot(folder);
+		const tree = buildProjectTree([
+			own,
+			makeRoot(folder, "docs", "A"),
+			makeRoot(folder, "docs", "B"),
+			makeRoot(folder, "site"),
+		]);
+		assert.strictEqual(tree.length, 1);
+		expectGroup(tree[0], "myrepo", 3);
+		if (tree[0].kind === "group") {
+			expectProject(tree[0].children[0], "myrepo");
+			if (tree[0].children[0].kind === "project") {
+				assert.strictEqual(tree[0].children[0].root, own);
+			}
+			expectGroup(tree[0].children[1], "docs", 2);
+			expectProject(tree[0].children[2], "site");
+		}
+	});
+
+	test("Nested project with one sub-project is not collapsed into its parent", () => {
+		const folder = makeFolder("myrepo", path.resolve(path.sep, "tmp", "myrepo"));
+		const ext = makeRoot(folder, "_extensions", "x");
+		const child = makeRoot(folder, "_extensions", "x", "sub");
+		const tree = buildProjectTree([ext, child]);
+		assert.strictEqual(tree.length, 1);
+		expectGroup(tree[0], "myrepo/_extensions/x", 2);
+		if (tree[0].kind === "group") {
+			expectProject(tree[0].children[0], "x");
+			expectProject(tree[0].children[1], "sub");
+		}
+	});
+
 	test("Multiple workspaces with one project each remain flat", () => {
 		const repoA = makeFolder("repoA", path.resolve(path.sep, "tmp", "repoA"));
 		const repoB = makeFolder("repoB", path.resolve(path.sep, "tmp", "repoB"));

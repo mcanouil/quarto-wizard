@@ -272,6 +272,30 @@
 				"description": "Select and remove multiple extensions at once."
 			},
 			{
+				"command": "quartoWizard.extensionsInstalled.hideProject",
+				"title": "Hide Project",
+				"shortTitle": "Hide",
+				"icon": "$(eye-closed)",
+				"category": "Quarto Wizard",
+				"description": "Hide the project from the Extensions Installed view."
+			},
+			{
+				"command": "quartoWizard.detectedProjects.select",
+				"title": "Select Projects to Show",
+				"shortTitle": "Select Projects",
+				"icon": "$(eye)",
+				"category": "Quarto Wizard",
+				"description": "Choose which detected projects the Extensions Installed view shows."
+			},
+			{
+				"command": "quartoWizard.detectedProjects.saveToSettings",
+				"title": "Save to Workspace Settings",
+				"shortTitle": "Save",
+				"icon": "$(save)",
+				"category": "Quarto Wizard",
+				"description": "Save the current project visibility to the workspace settings."
+			},
+			{
 				"command": "quartoWizard.extensionsInstalled.insertSnippet",
 				"title": "Insert Snippet",
 				"shortTitle": "Insert",
@@ -435,6 +459,16 @@
 			],
 			"view/title": [
 				{
+					"command": "quartoWizard.detectedProjects.select",
+					"when": "view == quartoWizard.detectedProjects",
+					"group": "navigation"
+				},
+				{
+					"command": "quartoWizard.detectedProjects.saveToSettings",
+					"when": "view == quartoWizard.detectedProjects",
+					"group": "1_save"
+				},
+				{
 					"command": "quartoWizard.installExtension",
 					"when": "view == quartoWizard.extensionsInstalled",
 					"group": "navigation@1"
@@ -482,6 +516,16 @@
 					"group": "inline@3"
 				},
 				{
+					"command": "quartoWizard.extensionsInstalled.hideProject",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionWorkspaceFolder || viewItem == quartoExtensionEmbeddedFolder)",
+					"group": "inline@4"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.hideProject",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionWorkspaceFolder || viewItem == quartoExtensionEmbeddedFolder)",
+					"group": "navigation@5"
+				},
+				{
 					"command": "quartoWizard.extensionsInstalled.update",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
 					"group": "inline@3"
@@ -498,7 +542,7 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemEmbedded)",
 					"group": "inline@5"
 				},
 				{
@@ -518,12 +562,12 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemEmbedded)",
 					"group": "navigation@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource || viewItem == quartoExtensionItemEmbedded || viewItem == quartoExtensionItemSelfEmbedded)",
 					"group": "navigation@4"
 				},
 				{
@@ -572,6 +616,10 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.insertSnippet",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.hideProject",
 					"when": "false"
 				}
 			]
@@ -701,6 +749,15 @@
 		"views": {
 			"quarto-wizard-explorer": [
 				{
+					"id": "quartoWizard.detectedProjects",
+					"type": "tree",
+					"name": "Detected Projects",
+					"icon": "assets/logo/logo.svg",
+					"contextualTitle": "Quarto Wizard Detected Projects",
+					"visibility": "visible",
+					"when": "workspaceFolderCount >= 1"
+				},
+				{
 					"id": "quartoWizard.extensionsInstalled",
 					"type": "tree",
 					"name": "Extensions Installed",
@@ -748,30 +805,6 @@
 					"title": "Confirm Installation",
 					"description": "Prompt before installing."
 				},
-				"quartoWizard.autoProjectDetection": {
-					"order": 4,
-					"scope": "resource",
-					"type": [
-						"boolean",
-						"string"
-					],
-					"enum": [
-						true,
-						false,
-						"subFolders",
-						"openEditors"
-					],
-					"enumDescriptions": [
-						"Scan recursively through all nested subfolders of the workspace folder.",
-						"Disable automatic Quarto project scanning.",
-						"Scan direct subfolders of the workspace folder only.",
-						"Scan parent folders of open files."
-					],
-					"default": "subFolders",
-					"markdownDescription": "Configures when Quarto project roots should be automatically detected. A folder qualifies when it contains `_quarto.yml`/`_quarto.yaml`, **or** an `_extensions/` directory with at least one installed extension. Detected roots are used by the Extensions Installed view and by every command that needs a target folder (Install, Use Template, Use Brand, ...). The default `subFolders` only inspects direct children of the workspace folder; set the value to `true` for a recursive scan, or `openEditors` to walk up from the parent folders of open files. Two rules apply whatever the value: when the workspace folder itself has a populated `_extensions/` directory, it is the only root and no sub-folder is detected; and paths matched by the workspace folder's `.quartoignore` are never detected.",
-					"title": "Auto Project Detection",
-					"description": "When to auto-detect Quarto projects."
-				},
 				"quartoWizard.cache.ttlMinutes": {
 					"order": 10,
 					"scope": "resource",
@@ -792,6 +825,18 @@
 					"markdownDescription": "URL to the Quarto extensions registry JSON file. Change this to use a custom registry. See [`RawRegistryEntry`](https://m.canouil.dev/quarto-wizard/api/core/types.html#rawregistryentry) in the API reference for the expected JSON schema.",
 					"title": "Registry URL",
 					"description": "Custom registry URL."
+				},
+				"quartoWizard.projectVisibility": {
+					"order": 13,
+					"scope": "resource",
+					"type": "object",
+					"additionalProperties": {
+						"type": "boolean"
+					},
+					"default": {},
+					"markdownDescription": "Which detected Quarto projects the extension shows. Each key is a folder path relative to the workspace folder, with `.` for the folder itself. A value of `false` hides that project and `true` shows it. Projects that are not listed use their default: hidden when `.quartoignore` excludes them or when they come from an installed extension with a source.",
+					"title": "Project Visibility",
+					"description": "Show or hide detected Quarto projects."
 				},
 				"quartoWizard.lint.unknownAttributes": {
 					"order": 12,
