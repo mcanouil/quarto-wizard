@@ -269,6 +269,23 @@ suite("Detected Projects View Test Suite", () => {
 			assert.strictEqual(refreshes, 1);
 		});
 
+		test("a failed checkbox change refreshes the rows while the error is still open", async () => {
+			stubs.replace(vscode.window, "showErrorMessage", (message: string) => {
+				errorMessages.push(message);
+				return new Promise<undefined>(() => undefined);
+			});
+			const root = makeRoot(folderA, "docs");
+			const provider = register([root]);
+			let refreshes = 0;
+			subscriptions.push(provider.onDidChangeTreeData(() => refreshes++));
+			failure = new Error("disk full");
+			checkboxEvents.fire({ items: [[provider.getChildren()[0], vscode.TreeItemCheckboxState.Unchecked]] });
+			await new Promise((resolve) => setImmediate(resolve));
+
+			assert.strictEqual(refreshes, 1);
+			assert.strictEqual(errorMessages.length, 1);
+		});
+
 		test("a failed picker selection refreshes the rows", async () => {
 			const hiddenRoot = makeRoot(folderA, "notes");
 			hidden.add(hiddenRoot.fsPath);

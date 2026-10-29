@@ -81,7 +81,7 @@ URL to the Quarto extensions registry JSON file. Change this to use a custom reg
 }
 ```
 
-## Project Visibility
+## Project Settings
 
 ### Project Visibility
 

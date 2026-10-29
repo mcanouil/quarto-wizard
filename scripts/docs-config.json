@@ -132,8 +132,8 @@
 			"prefix": "quartoWizard.registry."
 		},
 		{
-			"id": "project-visibility",
-			"title": "Project Visibility",
+			"id": "project-settings",
+			"title": "Project Settings",
 			"prefix": "quartoWizard.projectVisibility"
 		},
 		{

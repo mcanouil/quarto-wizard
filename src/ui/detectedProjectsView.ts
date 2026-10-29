@@ -47,7 +47,7 @@ export async function runReporting(
 	} catch (error) {
 		const message = `Failed to ${operation} for ${describeProjects(roots)}: ${getErrorMessage(error)}.`;
 		logMessage(message, "error");
-		await showMessageWithLogs(message, "error");
+		void showMessageWithLogs(message, "error");
 		return false;
 	}
 }
