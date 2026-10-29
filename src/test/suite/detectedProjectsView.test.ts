@@ -257,6 +257,49 @@ suite("Detected Projects View Test Suite", () => {
 			assert.deepStrictEqual(errorMessages, ["Failed to hide projects for a/docs: disk full."]);
 		});
 
+		test("a failed checkbox change refreshes the rows", async () => {
+			const root = makeRoot(folderA, "docs");
+			const provider = register([root]);
+			let refreshes = 0;
+			subscriptions.push(provider.onDidChangeTreeData(() => refreshes++));
+			failure = new Error("disk full");
+			checkboxEvents.fire({ items: [[provider.getChildren()[0], vscode.TreeItemCheckboxState.Unchecked]] });
+			await new Promise((resolve) => setImmediate(resolve));
+
+			assert.strictEqual(refreshes, 1);
+		});
+
+		test("a failed picker selection refreshes the rows", async () => {
+			const hiddenRoot = makeRoot(folderA, "notes");
+			hidden.add(hiddenRoot.fsPath);
+			const provider = register([hiddenRoot]);
+			let refreshes = 0;
+			subscriptions.push(provider.onDidChangeTreeData(() => refreshes++));
+			type PickItem = vscode.QuickPickItem & { root: QuartoProjectRoot };
+			let acceptListener: () => void = () => undefined;
+			const picker = {
+				items: [] as PickItem[],
+				selectedItems: [] as PickItem[],
+				onDidAccept: (listener: () => void) => {
+					acceptListener = listener;
+				},
+				onDidHide: () => undefined,
+				show: () => undefined,
+				hide: () => undefined,
+				dispose: () => undefined,
+			};
+			stubs.replace(vscode.window, "createQuickPick", () => picker);
+			commandHandlers.get("quartoWizard.detectedProjects.select")?.();
+			picker.selectedItems = picker.items;
+			failure = new Error("disk full");
+			acceptListener();
+			for (let tick = 0; tick < 5; tick++) {
+				await new Promise((resolve) => setImmediate(resolve));
+			}
+
+			assert.strictEqual(refreshes, 1);
+		});
+
 		test("a failed picker selection reports an error naming the projects", async () => {
 			const hiddenRoot = makeRoot(folderA, "notes");
 			hidden.add(hiddenRoot.fsPath);

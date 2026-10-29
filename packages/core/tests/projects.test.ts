@@ -104,7 +104,7 @@ describe("projects.ts", () => {
 
 	it("skips symbolic links and unreadable folders", () => {
 		write("_quarto.yml");
-		fs.symlinkSync(".", path.join(tempDir, "loop"));
+		fs.symlinkSync(tempDir, path.join(tempDir, "loop"), "junction");
 		const locked = path.join(tempDir, "locked");
 		fs.mkdirSync(locked);
 		if (process.platform !== "win32") {

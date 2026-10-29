@@ -60,6 +60,24 @@ function setVisibleReporting(
 	return runReporting(visible ? "show projects" : "hide projects", roots, () => visibility.setVisible(roots, visible));
 }
 
+async function applyVisibility(
+	provider: DetectedProjectsProvider,
+	visibility: ProjectVisibility,
+	toShow: readonly QuartoProjectRoot[],
+	toHide: readonly QuartoProjectRoot[],
+): Promise<void> {
+	const results: boolean[] = [];
+	if (toShow.length > 0) {
+		results.push(await setVisibleReporting(visibility, toShow, true));
+	}
+	if (toHide.length > 0) {
+		results.push(await setVisibleReporting(visibility, toHide, false));
+	}
+	if (results.includes(false)) {
+		provider.refresh();
+	}
+}
+
 async function saveReporting(visibility: ProjectVisibility, roots: readonly QuartoProjectRoot[]): Promise<void> {
 	const saved = await runReporting("save project visibility to the workspace settings", roots, () =>
 		visibility.saveToWorkspaceSettings(roots),
@@ -149,7 +167,11 @@ interface ProjectPickItem extends vscode.QuickPickItem {
 	readonly root: QuartoProjectRoot;
 }
 
-function showProjectPicker(visibility: ProjectVisibility, roots: readonly QuartoProjectRoot[]): void {
+function showProjectPicker(
+	provider: DetectedProjectsProvider,
+	visibility: ProjectVisibility,
+	roots: readonly QuartoProjectRoot[],
+): void {
 	const items: ProjectPickItem[] = roots.map((root) => ({
 		label: projectName(root),
 		description: root.workspaceFolder.name,
@@ -169,12 +191,7 @@ function showProjectPicker(visibility: ProjectVisibility, roots: readonly Quarto
 		const toShow = roots.filter((root) => selected.has(root) && !visibility.isVisible(root));
 		const toHide = roots.filter((root) => !selected.has(root) && visibility.isVisible(root));
 		void (async () => {
-			if (toShow.length > 0) {
-				await setVisibleReporting(visibility, toShow, true);
-			}
-			if (toHide.length > 0) {
-				await setVisibleReporting(visibility, toHide, false);
-			}
+			await applyVisibility(provider, visibility, toShow, toHide);
 		})();
 	});
 	picker.onDidHide(() => picker.dispose());
@@ -206,14 +223,9 @@ export function registerDetectedProjectsView(
 					(state === vscode.TreeItemCheckboxState.Checked ? toShow : toHide).push(node.root);
 				}
 			}
-			if (toShow.length > 0) {
-				await setVisibleReporting(visibility, toShow, true);
-			}
-			if (toHide.length > 0) {
-				await setVisibleReporting(visibility, toHide, false);
-			}
+			await applyVisibility(provider, visibility, toShow, toHide);
 		}),
-		vscode.commands.registerCommand(SELECT_COMMAND, () => showProjectPicker(visibility, getRoots())),
+		vscode.commands.registerCommand(SELECT_COMMAND, () => showProjectPicker(provider, visibility, getRoots())),
 		vscode.commands.registerCommand(SAVE_COMMAND, () => saveReporting(visibility, getRoots())),
 	);
 }
