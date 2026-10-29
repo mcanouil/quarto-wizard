@@ -8,7 +8,7 @@ export const REPOSITORY_ROOT = path.resolve(__dirname, "../../..");
 export interface PackageJson {
 	contributes: {
 		commands: { command: string }[];
-		menus: Record<string, { command: string; when: string; group: string }[]>;
+		menus: { "view/item/context": { command: string; when: string; group: string }[] };
 		walkthroughs: { steps: { id: string; media: { image?: string; markdown?: string } }[] }[];
 	};
 }
