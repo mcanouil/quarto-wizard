@@ -104,7 +104,7 @@ Quarto Wizard shows these extensions as projects too.
   Quarto Wizard does not update or remove them.
   Update the parent extension instead.
 - If you develop the parent extension locally, the embedded extensions update as usual.
-- If an extension embeds itself, the tree shows a warning and offers no update for it.
+- If an extension embeds itself, the tree shows an error icon with the description `embeds itself`, and offers no update for it.
 
 ## Extension Status Indicators
 

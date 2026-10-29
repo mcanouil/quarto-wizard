@@ -889,12 +889,12 @@ function generateReferenceIndex(pkg) {
 	const configLines = ["| Setting | Default | Description |", "|---------|---------|-------------|"];
 	const sortedProps = Object.entries(properties).sort(([, a], [, b]) => (a.order || 99) - (b.order || 99));
 	for (const [key, prop] of sortedProps) {
-		// An array default is rendered as JSON, so `["panel"]` reads as the list it
-		// is rather than as the bare word a template literal would flatten it to.
+		// An array or object default is rendered as JSON, so `["panel"]` or `{}` reads
+		// as the value it is rather than as the text a template literal would flatten it to.
 		const defaultVal =
 			key === "quartoWizard.registry.url"
 				? "[see docs](configuration.qmd#registry-url)"
-				: `\`${Array.isArray(prop.default) ? JSON.stringify(prop.default) : prop.default}\``;
+				: `\`${typeof prop.default === "object" && prop.default !== null ? JSON.stringify(prop.default) : prop.default}\``;
 		configLines.push(`| \`${key}\` | ${defaultVal} | ${generateSettingQuickDesc(prop)} |`);
 	}
 
@@ -1160,15 +1160,7 @@ function generateChangelog() {
 
 	const content = readFileSync(changelogMdPath, "utf-8");
 	const lines = content.split("\n");
-	const output = [
-		"---",
-		'title: "Changelog"',
-		'extensions:',
-		'  gitlink:',
-		'    enabled: true',
-		"---",
-		""
-	];
+	const output = ["---", 'title: "Changelog"', "extensions:", "  gitlink:", "    enabled: true", "---", ""];
 
 	let currentMajor = null;
 	let currentMinor = null;
