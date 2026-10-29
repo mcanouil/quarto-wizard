@@ -503,72 +503,72 @@
 			"view/item/context": [
 				{
 					"command": "quartoWizard.installExtension",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionWorkspaceFolder(:[^:]+)*:install(:|$)/",
 					"group": "inline@1"
 				},
 				{
 					"command": "quartoWizard.useTemplate",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionWorkspaceFolder(:[^:]+)*:template(:|$)/",
 					"group": "inline@2"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.removeMultiple",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionWorkspaceFolder(:[^:]+)*:removeMultiple(:|$)/",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.hideProject",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionWorkspaceFolder || viewItem == quartoExtensionEmbeddedFolder)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionWorkspaceFolder(:[^:]+)*:hide(:|$)/",
 					"group": "inline@4"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.hideProject",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionWorkspaceFolder || viewItem == quartoExtensionEmbeddedFolder)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionWorkspaceFolder(:[^:]+)*:hide(:|$)/",
 					"group": "navigation@5"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:update(:|$)/",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItemUpToDate",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:reinstall(:|$)/ && !(viewItem =~ /^quartoExtensionItem(:[^:]+)*:update(:|$)/)",
 					"group": "inline@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:remove(:|$)/",
 					"group": "inline@4"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemEmbedded)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:openSource(:|$)/",
 					"group": "inline@5"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionItem",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:update(:|$)/",
 					"group": "navigation@1"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:reinstall(:|$)/",
 					"group": "navigation@1"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.remove",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:remove(:|$)/",
 					"group": "navigation@2"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemEmbedded)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:openSource(:|$)/",
 					"group": "navigation@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
-					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionItem || viewItem == quartoExtensionItemUpToDate || viewItem == quartoExtensionItemNoSource || viewItem == quartoExtensionItemEmbedded || viewItem == quartoExtensionItemSelfEmbedded)",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:reveal(:|$)/",
 					"group": "navigation@4"
 				},
 				{

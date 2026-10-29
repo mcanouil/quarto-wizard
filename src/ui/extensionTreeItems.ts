@@ -27,6 +27,57 @@ export function describeCheckSource(source: UpdateCheckSource): string {
 }
 
 /**
+ * Commands that a folder row allows, in the order they appear in its `contextValue`.
+ * Each menu entry in `package.json` matches one capability with a regex on `viewItem`.
+ */
+type FolderCapability = "install" | "template" | "removeMultiple" | "hide";
+
+/**
+ * Commands that an extension row allows, in the order they appear in its `contextValue`.
+ * Inline reinstall also needs `update` to be absent, because update takes its place.
+ */
+type ExtensionCapability = "update" | "reinstall" | "remove" | "openSource" | "reveal";
+
+/**
+ * Builds a `contextValue` of the form `<base>:<capability>:<capability>`.
+ */
+function contextValueOf(base: "quartoExtensionWorkspaceFolder", capabilities: readonly FolderCapability[]): string;
+function contextValueOf(base: "quartoExtensionItem", capabilities: readonly ExtensionCapability[]): string;
+function contextValueOf(base: string, capabilities: readonly string[]): string {
+	return [base, ...capabilities].join(":");
+}
+
+/**
+ * Commands that a folder row allows.
+ * The folder of an installed embedded parent ships with that parent, so nothing installs into it.
+ */
+function folderCapabilities(readOnly: boolean): FolderCapability[] {
+	return readOnly ? ["hide"] : ["install", "template", "removeMultiple", "hide"];
+}
+
+/**
+ * Commands that an installed extension allows, from its source and how its parent embeds it.
+ */
+function extensionCapabilities(
+	sourceType: SourceType | undefined,
+	embedding: ExtensionEmbedding | undefined,
+): ExtensionCapability[] {
+	if (embedding === "self") {
+		return ["reveal"];
+	}
+	if (embedding === "read-only") {
+		return ["openSource", "reveal"];
+	}
+	if (!sourceType) {
+		return ["remove", "reveal"];
+	}
+	if (sourceType === "github" || sourceType === "registry") {
+		return ["update", "reinstall", "remove", "openSource", "reveal"];
+	}
+	return ["reinstall", "remove", "openSource", "reveal"];
+}
+
+/**
  * Represents a tree item for a workspace folder.
  */
 export class WorkspaceFolderTreeItem extends vscode.TreeItem {
@@ -38,8 +89,7 @@ export class WorkspaceFolderTreeItem extends vscode.TreeItem {
 		readOnly = false,
 	) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
-		// The folder of an installed embedded parent ships with that parent, so nothing installs into it.
-		this.contextValue = readOnly ? "quartoExtensionEmbeddedFolder" : "quartoExtensionWorkspaceFolder";
+		this.contextValue = contextValueOf("quartoExtensionWorkspaceFolder", folderCapabilities(readOnly));
 		this.iconPath = new vscode.ThemeIcon("folder");
 		this.tooltip = folderPath;
 		this.workspaceFolder = folderPath;
@@ -99,23 +149,9 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		const needsUpdate = update !== undefined;
 		const noSource = extension && !extension.manifest.source;
 
-		// Set context value based on source type for VS Code context menus
 		const sourceType = extension ? getEffectiveSourceType(extension.manifest) : undefined;
-
-		let contextValue: string;
-		if (!extension) {
-			contextValue = "quartoExtensionItemDetails";
-		} else if (embedding === "self") {
-			contextValue = "quartoExtensionItemSelfEmbedded";
-		} else if (embedding === "read-only") {
-			contextValue = "quartoExtensionItemEmbedded";
-		} else if (!sourceType) {
-			contextValue = "quartoExtensionItemNoSource";
-		} else if (sourceType === "github" || sourceType === "registry") {
-			contextValue = "quartoExtensionItem";
-		} else {
-			contextValue = "quartoExtensionItemUpToDate";
-		}
+		const capabilities = extension ? extensionCapabilities(sourceType, embedding) : [];
+		const contextValue = extension ? contextValueOf("quartoExtensionItem", capabilities) : "quartoExtensionItemDetails";
 
 		const updateNotes: string[] = [];
 		if (update) {
@@ -126,7 +162,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		}
 		if (embedding === "read-only") {
 			updateNotes.push("Ships with the extension that embeds it, so it cannot be changed here.");
-		} else if (!embedding && (sourceType === "github" || sourceType === "registry")) {
+		} else if (capabilities.includes("update")) {
 			updateNotes.push(
 				extractCommitFromSource(extension?.manifest.source ?? "") !== null
 					? "Update installs the latest commit of the default branch."

@@ -644,7 +644,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			);
 			assert.ok(!requests.some((url) => url.includes("/acme/child/")), requests.join("\n"));
 			const item = await itemIn(provider, embedded, "acme/child");
-			assert.strictEqual(item.contextValue, "quartoExtensionItemEmbedded");
+			assert.strictEqual(item.contextValue, "quartoExtensionItem:openSource:reveal");
 			assert.strictEqual(item.update, undefined);
 			assert.deepStrictEqual(provider.getProjectCounts(embedded.fsPath), { extensions: 1, updates: 0 });
 		});
@@ -657,7 +657,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			});
 
 			const item = await itemIn(provider, embedded, "acme/child");
-			assert.strictEqual(item.contextValue, "quartoExtensionItem");
+			assert.strictEqual(item.contextValue, "quartoExtensionItem:update:reinstall:remove:openSource:reveal");
 			assert.strictEqual(item.update?.latestVersion, "2.0.0");
 			assert.strictEqual(view.badge?.value, 1);
 		});
@@ -670,7 +670,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			});
 
 			const item = await itemIn(provider, embedded, "acme/self-demo");
-			assert.strictEqual(item.contextValue, "quartoExtensionItemSelfEmbedded");
+			assert.strictEqual(item.contextValue, "quartoExtensionItem:reveal");
 			assert.strictEqual(item.description, "embeds itself");
 			assert.strictEqual((item.iconPath as vscode.ThemeIcon).id, "error");
 			assert.strictEqual(view.badge, undefined);
@@ -698,8 +698,8 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.deepStrictEqual(
 				rows.map((row) => [row.folderPath, row.contextValue]),
 				[
-					[installed.fsPath, "quartoExtensionEmbeddedFolder"],
-					[local.fsPath, "quartoExtensionWorkspaceFolder"],
+					[installed.fsPath, "quartoExtensionWorkspaceFolder:hide"],
+					[local.fsPath, "quartoExtensionWorkspaceFolder:install:template:removeMultiple:hide"],
 				],
 			);
 		});
