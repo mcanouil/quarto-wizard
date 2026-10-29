@@ -32,6 +32,7 @@ import { ProjectVisibility } from "../utils/projectVisibility";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 import { DetectedProjectsProvider, registerDetectedProjectsView, runReporting } from "./detectedProjectsView";
+import { pluralise } from "../utils/pluralise";
 
 const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
 
@@ -573,7 +574,7 @@ export class ExtensionsInstalled {
 					(update) => !this.treeDataProvider.isSelfEmbedded(update.projectDir, update.extension),
 				);
 				const uncheckedCount = check.repositoryFailures.length;
-				const uncheckedRepositories = `${uncheckedCount} ${uncheckedCount === 1 ? "repository" : "repositories"}`;
+				const uncheckedRepositories = pluralise(uncheckedCount, "repository", "repositories");
 
 				if (updates.length === 0) {
 					if (uncheckedCount > 0) {

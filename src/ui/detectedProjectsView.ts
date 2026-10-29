@@ -3,6 +3,7 @@ import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
 import { getErrorMessage } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import type { ProjectVisibility } from "../utils/projectVisibility";
+import { pluralise } from "../utils/pluralise";
 
 const VIEW_ID = "quartoWizard.detectedProjects";
 const SELECT_COMMAND = "quartoWizard.detectedProjects.select";
@@ -22,10 +23,6 @@ interface ProjectNode {
 }
 
 export type DetectedProjectNode = FolderNode | ProjectNode;
-
-function pluralise(count: number, singular: string): string {
-	return `${count} ${singular}${count === 1 ? "" : "s"}`;
-}
 
 function describeProjects(roots: readonly QuartoProjectRoot[]): string {
 	return roots.map((root) => root.label).join(", ");
