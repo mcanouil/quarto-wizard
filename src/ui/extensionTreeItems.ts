@@ -274,7 +274,7 @@ export class SchemaSectionTreeItem extends vscode.TreeItem {
 		fieldCount: number,
 	) {
 		super(label, vscode.TreeItemCollapsibleState.Collapsed);
-		this.description = `${fieldCount} ${fieldCount === 1 ? singularLabel(kind) : pluralLabel(kind)}`;
+		this.description = pluralise(fieldCount, singularLabel(kind), pluralLabel(kind));
 
 		const icons: Record<SchemaSectionKind, string> = {
 			options: "symbol-field",
