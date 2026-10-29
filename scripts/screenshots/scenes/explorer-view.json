@@ -38,12 +38,13 @@
 			"at": {
 				"part": "editor",
 				"x": 48,
-				"y": 83
+				"y": 55
 			},
 			"target": {
 				"action": "Update All"
 			},
-			"control": [0.52, 2.6]
+			"control": [0.25, -1.4],
+			"end": "top"
 		},
 		{
 			"text": "Use a template",
