@@ -64,9 +64,9 @@ The Explorer View displays:
 - **Action buttons**: Quick access to common operations.
 
 ::: {.callout-note}
-When the workspace folder itself holds at least one installed extension in `_extensions/`, it is the only root shown, and no subfolder is listed as a separate target.
-Paths matched by the workspace folder's `.quartoignore` are never detected as roots either, so listing `docs` there keeps a documentation website out of the view.
-See [Auto Project Detection](../reference/configuration.qmd#auto-project-detection) for the scanning modes.
+Quarto Wizard shows the workspace folder and each subfolder, down to two levels, that holds a `_quarto.yml` file or installed extensions.
+It also shows each extension that holds other extensions in its own `_extensions/`.
+The editor settings `files.exclude` and `search.exclude` hide folders from this search.
 :::
 
 ## Extension Status Indicators

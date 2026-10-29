@@ -81,19 +81,22 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 
 ### Extensions Install in the Wrong Folder
 
-**Symptoms**: A subfolder is not offered as an install target, or extensions land at the workspace root instead of the subproject you expected.
+**Symptoms**: A subfolder is not offered as an install target, or extensions land in a folder that you did not expect.
 
 **Causes**:
 
-- The workspace folder itself holds at least one installed extension in `_extensions/`, which makes it the only target.
-- The subfolder is matched by the workspace folder's `.quartoignore`.
-- `quartoWizard.autoProjectDetection` is set to `false`, or to a mode that does not reach the folder.
+- The subfolder is more than two levels below the workspace folder.
+  Quarto Wizard does not look deeper.
+- `files.exclude` or `search.exclude` matches the subfolder.
+- The subfolder has no `_quarto.yml`, no `_quarto.yaml` and no installed extension.
+- The subfolder is an extension that holds other extensions in its own `_extensions/`.
+  Quarto Wizard shows this extension, but never installs into it.
 
 **Solutions**:
 
-1. Review [Auto Project Detection](../reference/configuration.qmd#auto-project-detection) and pick the scanning mode that matches your layout.
-2. Remove the entry from `.quartoignore` if the folder should be a target after all.
-3. In an extension development repository, keep the vendored copy (for example `docs/_extensions/`) out of the way by leaving the root `_extensions/` populated, which is the intended behaviour.
+1. If the subfolder is too deep, open it as a workspace folder.
+2. Remove the matching entry from `files.exclude` or `search.exclude`.
+3. Add a `_quarto.yml` file to the subfolder.
 
 ### GitHub Rate Limiting
 

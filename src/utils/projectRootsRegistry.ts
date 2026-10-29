@@ -23,10 +23,17 @@ let inFlight: Promise<readonly QuartoProjectRoot[] | undefined> | undefined;
 let inFlightCancellation: vscode.CancellationTokenSource | undefined;
 
 /**
- * Returns the cached snapshot, running discovery once if needed.
- * Concurrent callers share a single in-flight promise.
+ * Returns the roots that can own a document or receive an install, running
+ * discovery once if needed. Concurrent callers share a single in-flight promise.
+ *
+ * Extensions that embed other extensions are left out: they show in the views,
+ * through {@link getAllProjectRoots}, but are never owning roots or install targets.
  */
 export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]> {
+	return (await ensureAllProjectRoots()).filter(isOwningRoot);
+}
+
+async function ensureAllProjectRoots(): Promise<readonly QuartoProjectRoot[]> {
 	if (initialised) {
 		return currentRoots;
 	}
@@ -50,11 +57,24 @@ export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]
 }
 
 /**
+ * Returns the current snapshot, extensions that embed other extensions included.
+ * Does not run discovery.
+ */
+export function getAllProjectRoots(): readonly QuartoProjectRoot[] {
+	return currentRoots;
+}
+
+function isOwningRoot(root: QuartoProjectRoot): boolean {
+	return root.embeddedIn === undefined;
+}
+
+/**
  * Runs discovery and writes the snapshot. Cancels the discovery this call
  * supersedes, so only one set of file scans is ever running.
  *
- * @returns The discovered roots, or `undefined` when a newer call superseded
- *          this one, which leaves the snapshot to that newer call.
+ * @returns Every discovered root, extensions that embed other extensions included,
+ *          or `undefined` when a newer call superseded this one, which leaves the
+ *          snapshot to that newer call.
  */
 export function refreshProjectRoots(): Promise<readonly QuartoProjectRoot[] | undefined> {
 	cancelInFlightDiscovery();
@@ -121,8 +141,8 @@ export function invalidateProjectRoots(): void {
 
 /**
  * Returns the deepest discovered project root that contains
- * `documentUri`. Returns undefined for non-file URIs or documents
- * outside every known root.
+ * `documentUri`, skipping extensions that embed other extensions.
+ * Returns undefined for non-file URIs or documents outside every known root.
  */
 export async function findOwningProjectRoot(documentUri: vscode.Uri): Promise<string | undefined> {
 	if (documentUri.scheme !== "file") {
@@ -145,7 +165,7 @@ function pickDeepestOwningRoot(roots: readonly QuartoProjectRoot[], fsPath: stri
 	let best: string | undefined;
 	let bestLength = -1;
 	for (const root of roots) {
-		if (!isInside(root.fsPath, fsPath)) {
+		if (!isOwningRoot(root) || !isInside(root.fsPath, fsPath)) {
 			continue;
 		}
 		if (root.fsPath.length > bestLength) {

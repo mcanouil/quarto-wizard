@@ -6,11 +6,15 @@ import {
 	ensureProjectRoots,
 	findOwningProjectRoot,
 	findOwningProjectRootSync,
+	getAllProjectRoots,
 	invalidateProjectRoots,
 	refreshProjectRoots,
 	setProjectRoots,
 } from "../../utils/projectRootsRegistry";
+import * as discovery from "../../utils/quartoProjectDiscovery";
+import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { makeFolder, makeRoot } from "./projectFixtures";
+import { Stubs } from "./stubs";
 
 suite("Project Roots Registry Test Suite", () => {
 	const tmpRoot = vscode.Uri.file(os.tmpdir()).fsPath;
@@ -19,18 +23,22 @@ suite("Project Roots Registry Test Suite", () => {
 	const nestedA = makeRoot(workspace, "subA");
 	const nestedADeep = makeRoot(workspace, "subA", "deeper");
 	const nestedB = makeRoot(workspace, "subB");
+	const workspaceRoot = makeRoot(workspace);
+	const embeddedParent: QuartoProjectRoot = {
+		...makeRoot(workspace, "_extensions", "astek"),
+		embeddedIn: { id: { owner: null, name: "astek" } },
+	};
 
-	let originalFindFiles: typeof vscode.workspace.findFiles;
+	const stubs = new Stubs();
 	let originalWorkspaceFoldersDescriptor: PropertyDescriptor | undefined;
 
 	setup(() => {
-		originalFindFiles = vscode.workspace.findFiles;
 		originalWorkspaceFoldersDescriptor = Object.getOwnPropertyDescriptor(vscode.workspace, "workspaceFolders");
 	});
 
 	teardown(() => {
 		invalidateProjectRoots();
-		vscode.workspace.findFiles = originalFindFiles;
+		stubs.restore();
 		if (originalWorkspaceFoldersDescriptor) {
 			Object.defineProperty(vscode.workspace, "workspaceFolders", originalWorkspaceFoldersDescriptor);
 		}
@@ -98,7 +106,49 @@ suite("Project Roots Registry Test Suite", () => {
 		assert.strictEqual(findOwningProjectRootSync(path.join(nestedA.fsPath, "doc.qmd")), undefined);
 	});
 
-	/** Resolves once `predicate` holds, so a test can wait for a scan to start. */
+	test("findOwningProjectRootSync skips embedded roots", () => {
+		setProjectRoots([workspaceRoot, embeddedParent]);
+
+		const filter = path.join(embeddedParent.fsPath, "astek.lua");
+
+		assert.strictEqual(findOwningProjectRootSync(filter), workspaceRoot.fsPath);
+	});
+
+	test("findOwningProjectRoot skips embedded roots", async () => {
+		setProjectRoots([workspaceRoot, embeddedParent]);
+
+		const filter = vscode.Uri.file(path.join(embeddedParent.fsPath, "astek.lua"));
+
+		assert.strictEqual(await findOwningProjectRoot(filter), workspaceRoot.fsPath);
+	});
+
+	test("ensureProjectRoots excludes embedded roots", async () => {
+		setProjectRoots([workspaceRoot, embeddedParent]);
+
+		const roots = await ensureProjectRoots();
+
+		assert.deepStrictEqual(roots, [workspaceRoot]);
+	});
+
+	test("getAllProjectRoots includes embedded roots", () => {
+		setProjectRoots([workspaceRoot, embeddedParent]);
+
+		assert.deepStrictEqual(getAllProjectRoots(), [workspaceRoot, embeddedParent]);
+	});
+
+	test("refreshProjectRoots returns embedded roots", async () => {
+		Object.defineProperty(vscode.workspace, "workspaceFolders", {
+			get: () => [workspace],
+			configurable: true,
+		});
+		stubs.replace(discovery, "discoverQuartoProjectRoots", async () => [workspaceRoot, embeddedParent]);
+
+		const roots = await refreshProjectRoots();
+
+		assert.deepStrictEqual(roots, [workspaceRoot, embeddedParent]);
+	});
+
+	/** Resolves once `predicate` holds, so a test can wait for a discovery to start. */
 	async function waitFor(predicate: () => boolean): Promise<void> {
 		for (let attempt = 0; attempt < 200; attempt += 1) {
 			if (predicate()) {
@@ -106,37 +156,46 @@ suite("Project Roots Registry Test Suite", () => {
 			}
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		}
-		assert.fail("timed out waiting for the scans to start");
+		assert.fail("timed out waiting for the discoveries to start");
 	}
 
-	test("ensureProjectRoots joins an in-flight refresh rather than cancelling it", async () => {
-		invalidateProjectRoots();
+	/** A discovery that waits for its gate, and records the token it was given. */
+	interface HeldDiscovery {
+		token: vscode.CancellationToken | undefined;
+		release: () => void;
+	}
 
+	/** Holds every discovery open until the test releases it. */
+	function holdDiscoveries(result: readonly QuartoProjectRoot[] = [workspaceRoot]): HeldDiscovery[] {
 		Object.defineProperty(vscode.workspace, "workspaceFolders", {
 			get: () => [workspace],
 			configurable: true,
 		});
+		const held: HeldDiscovery[] = [];
+		stubs.replace(
+			discovery,
+			"discoverQuartoProjectRoots",
+			(_folders: readonly vscode.WorkspaceFolder[], token?: vscode.CancellationToken) =>
+				new Promise<QuartoProjectRoot[]>((resolve) => {
+					held.push({ token, release: () => resolve([...result]) });
+				}),
+		);
+		return held;
+	}
 
-		let scans = 0;
-		let releaseFindFiles: () => void = () => undefined;
-		const blockUntil = new Promise<void>((resolve) => {
-			releaseFindFiles = resolve;
-		});
-		vscode.workspace.findFiles = (() => {
-			scans += 1;
-			return blockUntil.then(() => [] as vscode.Uri[]);
-		}) as typeof vscode.workspace.findFiles;
+	test("ensureProjectRoots joins an in-flight refresh rather than cancelling it", async () => {
+		invalidateProjectRoots();
+		const held = holdDiscoveries();
 
 		// The tree view refreshes on activation while a provider asks for the roots.
 		const refreshed = refreshProjectRoots();
 		const ensured = ensureProjectRoots();
-		await waitFor(() => scans >= 2);
-		releaseFindFiles();
+		await waitFor(() => held.length >= 1);
+		held[0].release();
 		const [refreshedRoots, ensuredRoots] = await Promise.all([refreshed, ensured]);
 
-		// One discovery runs two scans. A second discovery would cancel the first,
-		// and the tree view would render nothing.
-		assert.strictEqual(scans, 2);
+		// A second discovery would cancel the first, and the tree view would render nothing.
+		assert.strictEqual(held.length, 1);
 		assert.ok(refreshedRoots, "the refresh must not report itself superseded");
 		assert.deepStrictEqual(
 			ensuredRoots.map((root) => root.fsPath),
@@ -146,33 +205,18 @@ suite("Project Roots Registry Test Suite", () => {
 
 	test("ensureProjectRoots waits for the discovery that superseded the one it joined", async () => {
 		invalidateProjectRoots();
+		const held = holdDiscoveries();
 
-		Object.defineProperty(vscode.workspace, "workspaceFolders", {
-			get: () => [workspace],
-			configurable: true,
-		});
-
-		let scans = 0;
-		const gates: (() => void)[] = [];
-		vscode.workspace.findFiles = (() => {
-			scans += 1;
-			return new Promise<vscode.Uri[]>((resolve) => {
-				gates.push(() => resolve([]));
-			});
-		}) as typeof vscode.workspace.findFiles;
-
-		// A provider asks for the roots, then a watcher event supersedes that scan.
+		// A provider asks for the roots, then a watcher event supersedes that discovery.
 		const ensured = ensureProjectRoots();
-		await waitFor(() => scans >= 2);
+		await waitFor(() => held.length >= 1);
 		const refreshed = refreshProjectRoots();
-		await waitFor(() => scans >= 4);
+		await waitFor(() => held.length >= 2);
 
-		// The superseded scans answer first, while the snapshot is still empty.
-		gates[0]();
-		gates[1]();
+		// The superseded discovery answers first, while the snapshot is still empty.
+		held[0].release();
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		gates[2]();
-		gates[3]();
+		held[1].release();
 
 		const [ensuredRoots, refreshedRoots] = await Promise.all([ensured, refreshed]);
 
@@ -186,74 +230,42 @@ suite("Project Roots Registry Test Suite", () => {
 
 	test("a superseded discovery leaves the in-flight promise of the newer one alone", async () => {
 		invalidateProjectRoots();
-
-		Object.defineProperty(vscode.workspace, "workspaceFolders", {
-			get: () => [workspace],
-			configurable: true,
-		});
-
-		let scans = 0;
-		const gates: (() => void)[] = [];
-		vscode.workspace.findFiles = (() => {
-			scans += 1;
-			return new Promise<vscode.Uri[]>((resolve) => {
-				gates.push(() => resolve([]));
-			});
-		}) as typeof vscode.workspace.findFiles;
+		const held = holdDiscoveries();
 
 		const first = ensureProjectRoots();
-		await waitFor(() => scans >= 2);
+		await waitFor(() => held.length >= 1);
 		invalidateProjectRoots();
 		const second = ensureProjectRoots();
-		await waitFor(() => scans >= 4);
+		await waitFor(() => held.length >= 2);
 
 		// The superseded discovery settles while the newer one is still in flight.
-		gates[0]();
-		gates[1]();
+		held[0].release();
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		// Its `finally` must leave the newer discovery in place for this caller to join.
 		const third = ensureProjectRoots();
-		gates[2]();
-		gates[3]();
+		held[1].release();
 		await Promise.all([first, second, third]);
 
-		assert.strictEqual(scans, 4);
+		assert.strictEqual(held.length, 2);
 	});
 
-	test("invalidateProjectRoots cancels the scan an in-flight discovery started", async () => {
+	test("invalidateProjectRoots cancels the token an in-flight discovery holds", async () => {
 		invalidateProjectRoots();
-
-		Object.defineProperty(vscode.workspace, "workspaceFolders", {
-			get: () => [workspace],
-			configurable: true,
-		});
-
-		const tokens: (vscode.CancellationToken | undefined)[] = [];
-		let releaseFindFiles: () => void = () => undefined;
-		const blockUntil = new Promise<void>((resolve) => {
-			releaseFindFiles = resolve;
-		});
-		vscode.workspace.findFiles = ((
-			_include: vscode.GlobPattern,
-			_exclude?: vscode.GlobPattern | null,
-			_maxResults?: number,
-			token?: vscode.CancellationToken,
-		) => {
-			tokens.push(token);
-			return blockUntil.then(() => [] as vscode.Uri[]);
-		}) as typeof vscode.workspace.findFiles;
+		const held = holdDiscoveries();
 
 		const pending = ensureProjectRoots();
-		await waitFor(() => tokens.length >= 2);
+		await waitFor(() => held.length >= 1);
 		invalidateProjectRoots();
-		releaseFindFiles();
-		const roots = await pending;
-
-		assert.ok(tokens[0], "discovery must pass a cancellation token to findFiles");
-		assert.strictEqual(tokens[0]?.isCancellationRequested, true);
+		held[0].release();
 		// Nothing replaced the cancelled discovery, and the debounced refresh of the
 		// tree view is 500 ms away, so the caller must run one of its own.
+		await waitFor(() => held.length >= 2);
+		held[1].release();
+		const roots = await pending;
+
+		assert.ok(held[0].token, "discovery must receive a cancellation token");
+		assert.strictEqual(held[0].token?.isCancellationRequested, true);
 		assert.deepStrictEqual(
 			roots.map((root) => root.fsPath),
 			[workspaceFsPath],
@@ -263,24 +275,14 @@ suite("Project Roots Registry Test Suite", () => {
 	test("setProjectRoots wins over an older in-flight ensureProjectRoots discovery", async () => {
 		// Force `ensureProjectRoots` down the discovery branch by leaving state uninitialised.
 		invalidateProjectRoots();
-
-		Object.defineProperty(vscode.workspace, "workspaceFolders", {
-			get: () => [workspace],
-			configurable: true,
-		});
-
-		// Hold discovery open: returning no files means the workspace folder root falls back
-		// to itself, so without the race fix the `.then` would set `currentRoots` to a
-		// fallback `[workspaceRoot]` snapshot — clobbering whatever `setProjectRoots` wrote.
-		let releaseFindFiles: () => void = () => undefined;
-		const blockUntil = new Promise<void>((resolve) => {
-			releaseFindFiles = resolve;
-		});
-		vscode.workspace.findFiles = (() => blockUntil.then(() => [] as vscode.Uri[])) as typeof vscode.workspace.findFiles;
+		// Without the race fix, the held discovery would write `[workspaceRoot]` over
+		// whatever `setProjectRoots` wrote.
+		const held = holdDiscoveries();
 
 		const pending = ensureProjectRoots();
+		await waitFor(() => held.length >= 1);
 		setProjectRoots([nestedADeep]);
-		releaseFindFiles();
+		held[0].release();
 		const resolved = await pending;
 
 		assert.deepStrictEqual(

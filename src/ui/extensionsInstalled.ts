@@ -17,7 +17,6 @@ import { logMessage, showMessageWithLogs } from "../utils/log";
 import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/coreOperations";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { getAuthConfig } from "../utils/auth";
-import { getAutoProjectDetection } from "../utils/extensionDetails";
 import { getEffectiveSourceType, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
 import { invalidateWorkspaceSchemaIndex } from "../utils/workspaceSchemaIndex";
@@ -217,10 +216,6 @@ export class ExtensionsInstalled {
 					invalidateMetadataFiles();
 					invalidateProjectRoots();
 					refreshProjectRoots();
-					return;
-				}
-				if (event.affectsConfiguration("quartoWizard.autoProjectDetection")) {
-					refreshProjectRoots();
 				}
 			}),
 		);
@@ -240,22 +235,6 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(projectFileWatcher.onDidCreate(onProjectFileChanged));
 		context.subscriptions.push(projectFileWatcher.onDidDelete(onProjectFileChanged));
 		context.subscriptions.push(projectFileWatcher);
-
-		// `openEditors` mode walks parents of open documents; refresh when the doc set changes.
-		// Filter to real files so output channels and untitled buffers don't queue work.
-		// The other modes do not read the open documents, and a recursive scan on every
-		// editor event is expensive, so the trigger is confined to `openEditors`.
-		const onEditorChanged = (document: vscode.TextDocument) => {
-			if (document.uri.scheme !== "file" || document.isUntitled) {
-				return;
-			}
-			if (getAutoProjectDetection() !== "openEditors") {
-				return;
-			}
-			refreshProjectRoots();
-		};
-		context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(onEditorChanged));
-		context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(onEditorChanged));
 
 		// Create/delete also re-runs discovery so installing the first extension in a folder
 		// promotes it into the detected roots without a manual refresh.

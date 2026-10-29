@@ -10,5 +10,5 @@ export function makeRoot(folder: vscode.WorkspaceFolder, ...subPath: string[]): 
 	const fsPath = subPath.length === 0 ? folder.uri.fsPath : path.join(folder.uri.fsPath, ...subPath);
 	const relative = subPath.join("/");
 	const label = relative.length === 0 ? folder.name : `${folder.name}/${relative}`;
-	return { fsPath, workspaceFolder: folder, label };
+	return { fsPath, workspaceFolder: folder, label, relativePath: relative || ".", quartoIgnored: false };
 }
