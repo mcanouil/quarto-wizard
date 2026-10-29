@@ -1,8 +1,8 @@
 import * as assert from "assert";
-import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import type { InstalledExtension, SourceType } from "@quarto-wizard/core";
+import { readPackageJson } from "./packageFixtures";
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type ExtensionEmbedding } from "../../ui/extensionTreeItems";
 
 const VIEW = "quartoWizard.extensionsInstalled";
@@ -112,9 +112,7 @@ function evaluateViewItem(when: string, contextValue: string): boolean {
 	return result;
 }
 
-const ITEM_MENUS: readonly MenuEntry[] = JSON.parse(
-	fs.readFileSync(path.resolve(__dirname, "../../../package.json"), "utf8"),
-).contributes.menus["view/item/context"];
+const ITEM_MENUS: readonly MenuEntry[] = readPackageJson().contributes.menus["view/item/context"];
 
 const UPDATE = "quartoWizard.extensionsInstalled.update";
 const REINSTALL = "quartoWizard.extensionsInstalled.reinstall";
