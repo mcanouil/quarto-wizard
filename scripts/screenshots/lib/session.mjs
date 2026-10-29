@@ -249,9 +249,13 @@ async function runStep(page, step) {
 		case "expand": {
 			const box = await poll("target not found", () => find(page, { row: step.row }), 10000);
 			await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-			await sleep(300);
 			// A click can already expand the row, and ArrowRight would then move the focus to its first child.
-			if (!(await isExpanded(page, step.row))) {
+			// The tree sets aria-expanded when it renders the row again, so wait for it before deciding.
+			const expanded = await poll("row did not expand", () => isExpanded(page, step.row), 1500).then(
+				() => true,
+				() => false,
+			);
+			if (!expanded) {
 				await page.keyboard.press("ArrowRight");
 			}
 			await sleep(1500);
