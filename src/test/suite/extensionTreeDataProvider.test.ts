@@ -660,6 +660,33 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.deepStrictEqual(provider.getProjectCounts(embedded.fsPath), { extensions: 1, updates: 0 });
 		});
 
+		test("the row of an installed embedded parent is read-only", async () => {
+			const installed = rootAt(projectWith("acme/child"), {
+				id: { owner: "acme", name: "parent" },
+				source: "acme/parent@v1.0.0",
+			});
+			const local = rootAt(projectWith("acme/child"), { id: { owner: "acme", name: "parent" } });
+			const visibility = createVisibility();
+			await visibility.setVisible([installed], true);
+			const provider = new QuartoExtensionTreeDataProvider(
+				[installed, local],
+				new SchemaCache(),
+				new SnippetCache(),
+				visibility,
+			);
+			await waitForInitialRefresh(provider);
+
+			const rows = (await provider.getChildren()) as WorkspaceFolderTreeItem[];
+
+			assert.deepStrictEqual(
+				rows.map((row) => [row.folderPath, row.contextValue]),
+				[
+					[installed.fsPath, "quartoExtensionEmbeddedFolder"],
+					[local.fsPath, "quartoExtensionWorkspaceFolder"],
+				],
+			);
+		});
+
 		test("setProjectRoots reports a change when only quartoIgnored changes", () => {
 			const root = makeRoot(makeFolder("repo", path.resolve(path.sep, "tmp", "repo")), "docs");
 			const provider = new QuartoExtensionTreeDataProvider(

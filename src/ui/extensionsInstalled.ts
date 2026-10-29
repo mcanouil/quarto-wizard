@@ -377,6 +377,10 @@ export class ExtensionsInstalled {
 					);
 					return;
 				}
+				if (this.treeDataProvider.isSelfEmbedded(item.workspaceFolder, extension)) {
+					vscode.window.showInformationMessage(`Extension "${item.label}" embeds itself, so it has no update.`);
+					return;
+				}
 				const failureMessage = `Failed to update extension "${item.label}".`;
 				const resolvesTag = item.effectiveSourceType === "github" || item.effectiveSourceType === "registry";
 				const auth = await getAuthConfig(context);
@@ -559,7 +563,9 @@ export class ExtensionsInstalled {
 				if (await reportCheckFailures(check, failureMessage, auth)) {
 					return;
 				}
-				const updates = check.updates;
+				const updates = check.updates.filter(
+					(update) => !this.treeDataProvider.isSelfEmbedded(update.projectDir, update.extension),
+				);
 				const uncheckedCount = check.repositoryFailures.length;
 				const uncheckedRepositories = `${uncheckedCount} ${uncheckedCount === 1 ? "repository" : "repositories"}`;
 

@@ -491,7 +491,7 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.hideProject",
-					"when": "view == quartoWizard.extensionsInstalled && viewItem == quartoExtensionWorkspaceFolder",
+					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionWorkspaceFolder || viewItem == quartoExtensionEmbeddedFolder)",
 					"group": "inline@4"
 				},
 				{

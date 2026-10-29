@@ -35,9 +35,11 @@ export class WorkspaceFolderTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly label: string,
 		public readonly folderPath: string,
+		readOnly = false,
 	) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
-		this.contextValue = "quartoExtensionWorkspaceFolder";
+		// The folder of an installed embedded parent ships with that parent, so nothing installs into it.
+		this.contextValue = readOnly ? "quartoExtensionEmbeddedFolder" : "quartoExtensionWorkspaceFolder";
 		this.iconPath = new vscode.ThemeIcon("folder");
 		this.tooltip = folderPath;
 		this.workspaceFolder = folderPath;

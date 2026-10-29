@@ -553,6 +553,61 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(messages, ["All extensions are up to date."]);
 	});
 
+	test("update all skips a self-embedded extension", async () => {
+		stubTwoUpdates();
+		provider.projectRoots = [
+			{
+				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+				embeddedIn: { id: { owner: "acme", name: "registry-demo" } },
+			},
+		];
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, [
+			{ source: "acme/github-demo@v1.3.0", workspaceFolder: FIXTURE_ROOT, sourceType: "github" },
+		]);
+		assert.ok(!messages[0].includes("acme/registry-demo"), messages[0]);
+	});
+
+	test("update skips a self-embedded extension", async () => {
+		stubTwoUpdates();
+		provider.projectRoots = [
+			{
+				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+				embeddedIn: { id: { owner: "acme", name: "registry-demo" } },
+			},
+		];
+
+		await runCommand("update", createItem("acme/registry-demo"));
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(messages, ['Extension "acme/registry-demo" embeds itself, so it has no update.']);
+	});
+
+	test("update all skips a hidden project", async () => {
+		const requests: string[] = [];
+		stubNetwork({
+			requests,
+			repositories: {
+				"acme/registry-demo": { githubTags: ["v1.3.0"] },
+				"acme/github-demo": { githubTags: ["v1.3.0"] },
+			},
+		});
+		const otherPath = path.join(FIXTURE_ROOT, "_extensions");
+		provider.projectRoots = [
+			makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+			makeRoot(makeFolder("other", otherPath, 1)),
+		];
+		await runCommand("hideProject", new WorkspaceFolderTreeItem("treeCommands", FIXTURE_ROOT));
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.ok(!requests.some((url) => url.includes("/acme/")), requests.join("\n"));
+		assert.deepStrictEqual(messages, ["All extensions are up to date."]);
+	});
+
 	test("hideProject hides the folder", async () => {
 		const tree = provider as unknown as QuartoExtensionTreeDataProvider;
 		const otherPath = path.join(FIXTURE_ROOT, "_extensions");

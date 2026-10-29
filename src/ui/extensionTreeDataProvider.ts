@@ -228,7 +228,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	private toTreeItem(node: ProjectTreeNode): ProjectFolderItem {
 		if (node.kind === "project") {
-			return new WorkspaceFolderTreeItem(node.label, node.root.fsPath);
+			return new WorkspaceFolderTreeItem(node.label, node.root.fsPath, node.root.embeddedIn?.source !== undefined);
 		}
 		const children = node.children.map((child) => this.toTreeItem(child));
 		return new ProjectGroupTreeItem(node.label, node.fsPath, children);
@@ -591,13 +591,29 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	/**
-	 * Gets the paths of the Quarto project roots whose extensions can be updated.
-	 * The extensions of an installed embedded parent ship with it, so they are never updated on their own.
+	 * Gets the paths of the shown Quarto project roots whose extensions can be updated.
 	 *
 	 * @returns Array of project directory paths.
 	 */
 	getProjectDirs(): string[] {
-		return this.projectRoots.filter((root) => !root.embeddedIn?.source).map((root) => root.fsPath);
+		return this.updatableRoots()
+			.filter((root) => this.visibility.isVisible(root))
+			.map((root) => root.fsPath);
+	}
+
+	/**
+	 * The extensions of an installed embedded parent ship with it, so they are never updated on their own.
+	 */
+	private updatableRoots(): QuartoProjectRoot[] {
+		return this.projectRoots.filter((root) => !root.embeddedIn?.source);
+	}
+
+	/**
+	 * Whether an installed extension is a copy of the extension that embeds it, which has no update.
+	 */
+	isSelfEmbedded(projectDir: string, extension: InstalledExtension): boolean {
+		const root = this.getProjectRoot(projectDir);
+		return root !== undefined && embeddingOf(root, extension) === "self";
 	}
 
 	/**
@@ -631,7 +647,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 		const doCheck = async (): Promise<number> => {
 			const auth = await getAuthConfig(context);
-			const projectDirs = this.getProjectDirs().filter((dir) => this.cache[dir]);
+			const projectDirs = this.updatableRoots()
+				.map((root) => root.fsPath)
+				.filter((dir) => this.cache[dir]);
 
 			let result: UpdateCheckResult | undefined;
 			try {
