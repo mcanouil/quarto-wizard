@@ -1,5 +1,11 @@
 import * as vscode from "vscode";
-import { discoverQuartoProjectRoots, isInside, type QuartoProjectRoot } from "./quartoProjectDiscovery";
+import {
+	discoverQuartoProjectRoots,
+	isInside,
+	isOwningRoot,
+	type OwningProjectRoot,
+	type QuartoProjectRoot,
+} from "./quartoProjectDiscovery";
 
 /**
  * Singleton registry of discovered Quarto project roots. Shared source of
@@ -29,7 +35,7 @@ let inFlightCancellation: vscode.CancellationTokenSource | undefined;
  * Extensions that embed other extensions are left out: they show in the views,
  * but are never owning roots or install targets.
  */
-export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]> {
+export async function ensureProjectRoots(): Promise<readonly OwningProjectRoot[]> {
 	return (await ensureAllProjectRoots()).filter(isOwningRoot);
 }
 
@@ -54,10 +60,6 @@ async function ensureAllProjectRoots(): Promise<readonly QuartoProjectRoot[]> {
 		pending = inFlight ?? refreshProjectRoots();
 	}
 	return currentRoots;
-}
-
-function isOwningRoot(root: QuartoProjectRoot): boolean {
-	return root.embeddedIn === undefined;
 }
 
 /**
@@ -132,8 +134,7 @@ export function invalidateProjectRoots(): void {
 }
 
 /**
- * Returns the deepest discovered project root that contains
- * `documentUri`, skipping extensions that embed other extensions.
+ * Returns the deepest owning project root that contains `documentUri`.
  * Returns undefined for non-file URIs or documents outside every known root.
  */
 export async function findOwningProjectRoot(documentUri: vscode.Uri): Promise<string | undefined> {
@@ -147,17 +148,17 @@ export async function findOwningProjectRoot(documentUri: vscode.Uri): Promise<st
 /**
  * Synchronous best-effort lookup against the current snapshot. Returns
  * undefined when the snapshot is empty or the path is outside every
- * root.
+ * owning root.
  */
 export function findOwningProjectRootSync(documentFsPath: string): string | undefined {
-	return pickDeepestOwningRoot(currentRoots, documentFsPath);
+	return pickDeepestOwningRoot(currentRoots.filter(isOwningRoot), documentFsPath);
 }
 
-function pickDeepestOwningRoot(roots: readonly QuartoProjectRoot[], fsPath: string): string | undefined {
+function pickDeepestOwningRoot(roots: readonly OwningProjectRoot[], fsPath: string): string | undefined {
 	let best: string | undefined;
 	let bestLength = -1;
 	for (const root of roots) {
-		if (!isOwningRoot(root) || !isInside(root.fsPath, fsPath)) {
+		if (!isInside(root.fsPath, fsPath)) {
 			continue;
 		}
 		if (root.fsPath.length > bestLength) {

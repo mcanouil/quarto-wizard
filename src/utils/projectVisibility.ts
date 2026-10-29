@@ -13,7 +13,7 @@ type VisibilityMap = Readonly<Record<string, boolean>>;
  * A project that `.quartoignore` excludes, or that an installed extension ships from a source, is hidden.
  */
 export function defaultVisibility(root: QuartoProjectRoot): boolean {
-	return !root.quartoIgnored && !root.embeddedIn?.source;
+	return !root.quartoIgnored && !root.readOnly;
 }
 
 /** Visibility of a project: a per-user override, then the workspace setting, then the default. */

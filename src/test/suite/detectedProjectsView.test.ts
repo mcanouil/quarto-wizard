@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { DetectedProjectsProvider, registerDetectedProjectsView } from "../../ui/detectedProjectsView";
 import type { ProjectVisibility } from "../../utils/projectVisibility";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
-import { makeFolder, makeRoot } from "./projectFixtures";
+import { makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 import { Stubs } from "./stubs";
 
 type Node = Parameters<DetectedProjectsProvider["getTreeItem"]>[0];
@@ -78,11 +78,7 @@ suite("Detected Projects View Test Suite", () => {
 
 	test("row description gives the counts and the tags", () => {
 		const plain = makeRoot(folderA, "docs");
-		const tagged = {
-			...makeRoot(folderA, "other"),
-			quartoIgnored: true,
-			embeddedIn: { id: { name: "ext" } },
-		} as QuartoProjectRoot;
+		const tagged = { ...makeEmbeddedRoot(folderA, { id: { owner: null, name: "ext" } }, "other"), quartoIgnored: true };
 		const provider = new DetectedProjectsProvider(visibility, counts, () => [plain, tagged]);
 
 		assert.strictEqual(projectItem(provider, plain).description, "3 extensions · 1 update");

@@ -88,9 +88,9 @@ function hasBareComma(pattern: string): boolean {
 }
 
 /**
- * A discovered Quarto project root.
+ * The fields that every discovered root carries.
  */
-export interface QuartoProjectRoot {
+interface ProjectRootBase {
 	/**
 	 * Absolute path to the project root directory (containing `_quarto.{yml,yaml}` and/or
 	 * an `_extensions/` directory with at least one installed extension).
@@ -114,11 +114,38 @@ export interface QuartoProjectRoot {
 	 * Whether the `.quartoignore` of the workspace folder matches the root.
 	 */
 	quartoIgnored: boolean;
+}
+
+/**
+ * A Quarto project: it can own a document and receive an install.
+ */
+export interface OwningProjectRoot extends ProjectRootBase {
+	kind: "project";
+	readOnly: false;
+}
+
+/**
+ * An extension that embeds other extensions.
+ * It shows in the views, but never owns a document and never receives an install.
+ */
+export interface EmbeddedExtensionRoot extends ProjectRootBase {
+	kind: "embedded";
+	embeddedIn: EmbeddingParent;
 	/**
-	 * Set when the root is an extension that embeds other extensions.
-	 * Such a root is never the owning root of a document, nor an install target.
+	 * True when the parent was installed from a source.
+	 * Its extensions ship with it, so they are never updated, and nothing installs into it.
 	 */
-	embeddedIn?: EmbeddingParent;
+	readOnly: boolean;
+}
+
+/**
+ * A discovered Quarto project root.
+ */
+export type QuartoProjectRoot = OwningProjectRoot | EmbeddedExtensionRoot;
+
+/** Whether a root can own a document or receive an install. */
+export function isOwningRoot(root: QuartoProjectRoot): root is OwningProjectRoot {
+	return root.kind === "project";
 }
 
 /**
@@ -184,11 +211,11 @@ function buildRoot(
 	embeddedIn?: EmbeddingParent,
 ): QuartoProjectRoot {
 	const label = relativePath === "." ? folder.name : `${folder.name}/${relativePath}`;
-	const root: QuartoProjectRoot = { fsPath, workspaceFolder: folder, label, relativePath, quartoIgnored };
+	const base = { fsPath, workspaceFolder: folder, label, relativePath, quartoIgnored };
 	if (embeddedIn) {
-		root.embeddedIn = embeddedIn;
+		return { ...base, kind: "embedded", embeddedIn, readOnly: embeddedIn.source !== undefined };
 	}
-	return root;
+	return { ...base, kind: "project", readOnly: false };
 }
 
 /** Whether a URI names a file that is there. */

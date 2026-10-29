@@ -86,7 +86,7 @@ suite("Quarto Project Discovery Test Suite", () => {
 		for (const root of roots) {
 			assert.strictEqual(root.workspaceFolder, folder);
 			assert.strictEqual(root.quartoIgnored, false);
-			assert.strictEqual(root.embeddedIn, undefined);
+			assert.strictEqual(root.kind, "project");
 		}
 	});
 
@@ -119,8 +119,39 @@ suite("Quarto Project Discovery Test Suite", () => {
 				{ fsPath: parent, label: "workspace/_extensions/astek", relativePath: "_extensions/astek" },
 			],
 		);
-		assert.strictEqual(roots[0].embeddedIn, undefined);
-		assert.deepStrictEqual(roots[1].embeddedIn, { id: { owner: null, name: "astek" }, source: undefined });
+		assert.strictEqual(roots[0].kind, "project");
+		assert.strictEqual(roots[1].kind, "embedded");
+		assert.deepStrictEqual(roots[1].kind === "embedded" ? roots[1].embeddedIn : undefined, {
+			id: { owner: null, name: "astek" },
+			source: undefined,
+		});
+	});
+
+	test("sets kind and readOnly for each root", async () => {
+		writeQuartoYml(path.join(tempDir, "site"));
+		const local = path.join(tempDir, "_extensions", "local");
+		writeExtension(local, "local");
+		writeExtension(path.join(local, "_extensions", "acme", "child"), "child");
+		const installed = path.join(tempDir, "_extensions", "acme", "installed");
+		fs.mkdirSync(installed, { recursive: true });
+		fs.writeFileSync(
+			path.join(installed, "_extension.yml"),
+			"title: installed\nversion: 1.0.0\nsource: acme/installed@v1.0.0\n",
+			"utf8",
+		);
+		writeExtension(path.join(installed, "_extensions", "acme", "child"), "child");
+
+		const roots = await discoverQuartoProjectRoots([makeFolder("workspace", tempDir)]);
+
+		assert.deepStrictEqual(
+			roots.map((root) => [root.relativePath, root.kind, root.readOnly]),
+			[
+				[".", "project", false],
+				["_extensions/acme/installed", "embedded", true],
+				["_extensions/local", "embedded", false],
+				["site", "project", false],
+			],
+		);
 	});
 
 	test("returns nested projects without the root", async () => {

@@ -12,7 +12,7 @@ import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvi
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/coreOperations";
-import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
+import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
 const RATE_LIMITED = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
@@ -549,10 +549,10 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all skips the extensions of an installed embedded parent", async () => {
 		stubTwoUpdates();
 		setRoots([
-			{
-				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
-				embeddedIn: { id: { owner: "acme", name: "parent" }, source: "acme/parent@v1.0.0" },
-			},
+			makeEmbeddedRoot(makeFolder("treeCommands", FIXTURE_ROOT), {
+				id: { owner: "acme", name: "parent" },
+				source: "acme/parent@v1.0.0",
+			}),
 		]);
 
 		await runCommand("updateAll");
@@ -564,10 +564,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all skips a self-embedded extension", async () => {
 		stubTwoUpdates();
 		setRoots([
-			{
-				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
-				embeddedIn: { id: { owner: "acme", name: "registry-demo" } },
-			},
+			makeEmbeddedRoot(makeFolder("treeCommands", FIXTURE_ROOT), { id: { owner: "acme", name: "registry-demo" } }),
 		]);
 
 		await runCommand("updateAll");
