@@ -523,7 +523,7 @@
 				{
 					"command": "quartoWizard.extensionsInstalled.hideProject",
 					"when": "view == quartoWizard.extensionsInstalled && (viewItem == quartoExtensionWorkspaceFolder || viewItem == quartoExtensionEmbeddedFolder)",
-					"group": "project@1"
+					"group": "navigation@5"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.update",

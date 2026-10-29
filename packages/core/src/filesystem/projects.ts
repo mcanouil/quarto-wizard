@@ -12,7 +12,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { minimatch } from "minimatch";
 import type { ExtensionId } from "../types/extension.js";
-import { EXTENSIONS_DIR, discoverInstalledExtensionsSync, readDirectorySorted } from "./discovery.js";
+import {
+	EXTENSIONS_DIR,
+	type InstalledExtension,
+	discoverInstalledExtensionsSync,
+	readDirectorySorted,
+} from "./discovery.js";
 import { toRelativePosixPath } from "./walk.js";
 
 /** Deepest folder level searched for projects, where the scan root is level 0. */
@@ -69,8 +74,8 @@ function hasQuartoConfig(directory: string): boolean {
 	return QUARTO_CONFIG_FILENAMES.some((filename) => fs.existsSync(path.join(directory, filename)));
 }
 
-function findEmbeddingParents(rootDir: string, projectDir: string): DiscoveredProject[] {
-	return discoverInstalledExtensionsSync(projectDir)
+function findEmbeddingParents(rootDir: string, installed: readonly InstalledExtension[]): DiscoveredProject[] {
+	return installed
 		.filter((extension) => discoverInstalledExtensionsSync(extension.directory).length > 0)
 		.map((extension) => ({
 			directory: extension.directory,
@@ -108,9 +113,10 @@ export function discoverProjectDirs(rootDir: string, options: ProjectDiscoveryOp
 
 			const relativePath = toRelativePosixPath(rootDir, directory) || ".";
 			const configured = hasQuartoConfig(directory);
-			if (configured || discoverInstalledExtensionsSync(directory).length > 0) {
+			const installed = discoverInstalledExtensionsSync(directory);
+			if (configured || installed.length > 0) {
 				projects.push({ directory, relativePath, hasQuartoConfig: configured });
-				projects.push(...findEmbeddingParents(rootDir, directory));
+				projects.push(...findEmbeddingParents(rootDir, installed));
 			}
 
 			if (depth === PROJECT_FOLDER_MAX_DEPTH) {

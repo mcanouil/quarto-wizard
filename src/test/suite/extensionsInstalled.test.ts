@@ -563,7 +563,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 	test("update all skips a self-embedded extension", async () => {
 		stubTwoUpdates();
-		setRoots([]);
 		setRoots([
 			{
 				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),

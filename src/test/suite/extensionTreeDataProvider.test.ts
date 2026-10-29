@@ -703,6 +703,61 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			);
 		});
 
+		test("the root project row still lists its extensions when a sub-project exists", async () => {
+			const dir = projectWith("acme/demo");
+			fs.mkdirSync(path.join(dir, "docs"));
+			fs.writeFileSync(path.join(dir, "docs", "_quarto.yml"), "project:\n  type: default\n");
+			const own = rootAt(dir);
+			const docs = makeRoot(own.workspaceFolder, "docs");
+			const provider = new QuartoExtensionTreeDataProvider(
+				[own, docs],
+				new SchemaCache(),
+				new SnippetCache(),
+				createVisibility(),
+			);
+			await waitForInitialRefresh(provider);
+
+			const top = await provider.getChildren();
+			assert.strictEqual(top.length, 1);
+			assert.ok(top[0] instanceof ProjectGroupTreeItem);
+			const rows = (await provider.getChildren(top[0])) as WorkspaceFolderTreeItem[];
+			assert.deepStrictEqual(
+				rows.map((row) => row.folderPath),
+				[own.fsPath, docs.fsPath],
+			);
+			const items = await provider.getChildren(rows[0]);
+			assert.deepStrictEqual(
+				items.map((item) => item.label),
+				["acme/demo"],
+			);
+		});
+
+		test("setProjectRoots reports a change when only the embedding parent id changes", () => {
+			const root = {
+				...makeRoot(makeFolder("repo", path.resolve(path.sep, "tmp", "repo")), "docs"),
+				embeddedIn: { id: { owner: "acme", name: "parent" } },
+			};
+			const provider = new QuartoExtensionTreeDataProvider(
+				[root],
+				new SchemaCache(),
+				new SnippetCache(),
+				createVisibility(),
+			);
+
+			assert.strictEqual(
+				provider.setProjectRoots([{ ...root, embeddedIn: { id: { owner: "acme", name: "parent" } } }]),
+				false,
+			);
+			assert.strictEqual(
+				provider.setProjectRoots([{ ...root, embeddedIn: { id: { owner: "other", name: "parent" } } }]),
+				true,
+			);
+			assert.strictEqual(
+				provider.setProjectRoots([{ ...root, embeddedIn: { id: { owner: "other", name: "renamed" } } }]),
+				true,
+			);
+		});
+
 		test("setProjectRoots reports a change when only quartoIgnored changes", () => {
 			const root = makeRoot(makeFolder("repo", path.resolve(path.sep, "tmp", "repo")), "docs");
 			const provider = new QuartoExtensionTreeDataProvider(

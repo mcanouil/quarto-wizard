@@ -91,15 +91,12 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 - The subfolder has no `_quarto.yml`, no `_quarto.yaml` and no installed extension.
 - The subfolder is an extension that holds other extensions in its own `_extensions/`.
   Quarto Wizard shows this extension, but never installs into it.
-- A `.quartoignore` file matches the subfolder.
-  Quarto Wizard finds it, but hides it at first.
 
 **Solutions**:
 
 1. If the subfolder is too deep, open it as a workspace folder.
 2. Remove the matching entry from `files.exclude` or `search.exclude`.
 3. Add a `_quarto.yml` file to the subfolder.
-4. Open the Detected Projects view and tick the subfolder.
 
 ### GitHub Rate Limiting
 

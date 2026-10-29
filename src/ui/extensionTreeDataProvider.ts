@@ -798,6 +798,8 @@ function sameProjectRoots(a: readonly QuartoProjectRoot[], b: readonly QuartoPro
 			root.fsPath === b[i].fsPath &&
 			root.relativePath === b[i].relativePath &&
 			root.quartoIgnored === b[i].quartoIgnored &&
-			root.embeddedIn?.source === b[i].embeddedIn?.source,
+			root.embeddedIn?.source === b[i].embeddedIn?.source &&
+			root.embeddedIn?.id.owner === b[i].embeddedIn?.id.owner &&
+			root.embeddedIn?.id.name === b[i].embeddedIn?.id.name,
 	);
 }

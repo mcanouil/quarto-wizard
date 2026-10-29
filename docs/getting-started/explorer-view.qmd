@@ -77,6 +77,7 @@ Only the projects with a tick appear in the Extensions Installed view.
 
 A hidden project does not count in the update badge, and Update All does not update it.
 Completion, diagnostics and the install picker still use the extensions of a hidden project.
+A hidden project stays available as an install target.
 
 A project starts hidden in these cases:
 
