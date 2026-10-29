@@ -17,6 +17,7 @@ website:
                 - api/core/filesystem.qmd
                 - api/core/github.qmd
                 - api/core/operations.qmd
+                - api/core/pluralise.qmd
                 - api/core/proxy.qmd
                 - api/core/registry.qmd
                 - api/core/samlSso.qmd

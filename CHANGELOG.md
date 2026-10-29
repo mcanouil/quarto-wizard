@@ -19,6 +19,7 @@
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 - feat: Add a Detected Projects view, collapsed by default, to show or hide projects, with the `quartoWizard.projectVisibility` setting to share the choice. Extensions that hold other extensions now appear as projects, and those of an installed parent are read-only.
 - feat: Add `discoverProjectDirs()` to `@quarto-wizard/core`, which finds Quarto projects and extensions that embed other extensions.
+- feat: Add `pluralise()` to `@quarto-wizard/core`, which writes a count with the singular or the plural of its noun.
 
 ### Bug Fixes
 
