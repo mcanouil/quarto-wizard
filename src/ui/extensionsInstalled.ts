@@ -7,6 +7,7 @@ import {
 	formatExtensionId,
 	getErrorMessage,
 	isCancellationError,
+	pluralise,
 	type AuthConfig,
 	type ExtensionId,
 	type UpdateCheckResult,
@@ -32,7 +33,6 @@ import { ProjectVisibility } from "../utils/projectVisibility";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 import { DetectedProjectsProvider, registerDetectedProjectsView, runReporting } from "./detectedProjectsView";
-import { pluralise } from "../utils/pluralise";
 
 const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
 
@@ -586,7 +586,7 @@ export class ExtensionsInstalled {
 				}
 
 				const confirm = await vscode.window.showWarningMessage(
-					`Update ${updates.length} extension(s) to their latest versions?`,
+					`Update ${pluralise(updates.length, "extension")} to ${updates.length === 1 ? "its latest version" : "their latest versions"}?`,
 					{ modal: true, detail: updates.map(describeUpdate).join("\n") },
 					"Update All",
 				);
@@ -599,7 +599,7 @@ export class ExtensionsInstalled {
 				let failedCount = 0;
 
 				const cancelled = await withProgressNotification(
-					`Updating ${updates.length} extension(s) ...`,
+					`Updating ${pluralise(updates.length, "extension")} ...`,
 					async (token) => {
 						for (const update of updates) {
 							if (token.isCancellationRequested) {
@@ -698,7 +698,7 @@ export class ExtensionsInstalled {
 					}
 
 					const confirm = await vscode.window.showWarningMessage(
-						`Remove ${selected.length} extension(s)? This cannot be undone.`,
+						`Remove ${pluralise(selected.length, "extension")}? This cannot be undone.`,
 						{ modal: true },
 						"Remove",
 					);
@@ -709,7 +709,7 @@ export class ExtensionsInstalled {
 
 					const extensionNames = selected.map((s) => s.label);
 					const result = await withProgressNotification(
-						`Removing ${extensionNames.length} extension(s) ...`,
+						`Removing ${pluralise(extensionNames.length, "extension")} ...`,
 						async () => {
 							return removeQuartoExtensions(extensionNames, item.workspaceFolder);
 						},
@@ -718,7 +718,7 @@ export class ExtensionsInstalled {
 					if (result.successCount > 0) {
 						invalidateProviderCaches(item.workspaceFolder);
 						vscode.window.showInformationMessage(
-							`Successfully removed ${result.successCount} extension(s)${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
+							`Successfully removed ${pluralise(result.successCount, "extension")}${result.failedExtensions.length > 0 ? `, ${result.failedExtensions.length} failed` : ""}.`,
 						);
 					} else {
 						showMessageWithLogs("Failed to remove extensions.", "error");

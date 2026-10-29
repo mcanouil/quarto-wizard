@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { minimatch } from "minimatch";
 import { logMessage } from "../utils/log";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { getErrorMessage, pluralise } from "@quarto-wizard/core";
 import type { FileSelectionResult } from "@quarto-wizard/core";
 
 /**
@@ -475,7 +475,7 @@ export function createFileSelectionCallback(): (
 					if (selectedExisting.length > 0) {
 						const existingList = selectedExisting.map((f) => `  - ${f}`).join("\n");
 						const result = await vscode.window.showWarningMessage(
-							`The following ${selectedExisting.length} file(s) already exist:\n${existingList}\n\nOverwrite them?`,
+							`The following ${pluralise(selectedExisting.length, "file")} already ${selectedExisting.length === 1 ? "exists" : "exist"}:\n${existingList}\n\nOverwrite ${selectedExisting.length === 1 ? "it" : "them"}?`,
 							{ modal: true },
 							"Yes, Overwrite",
 							"No, Skip Existing",

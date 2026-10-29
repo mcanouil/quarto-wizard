@@ -13,6 +13,7 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import type { AuthConfig } from "../types/auth.js";
 import { ExtensionError, getErrorMessage } from "../errors.js";
+import { pluralise } from "../pluralise.js";
 import { parseInstallSource, formatInstallSource, type InstallSource } from "./install.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import { extractArchive, cleanupExtraction } from "../archive/extract.js";
@@ -707,7 +708,7 @@ export async function useBrand(source: string | InstallSource, options: UseBrand
 			} else {
 				onProgress?.({
 					phase: "copying",
-					message: `${existingFileSet.size} existing file(s) will be skipped (no overwrite callback provided).`,
+					message: `${pluralise(existingFileSet.size, "existing file")} will be skipped (no overwrite callback provided).`,
 				});
 			}
 		}

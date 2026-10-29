@@ -10,6 +10,7 @@ import {
 	createAuthConfig,
 	CancellationError,
 	isCancellationError,
+	pluralise,
 	type UseResult,
 	type UseBrandResult,
 	type UseBrandOptions,
@@ -320,7 +321,7 @@ export async function installQuartoExtension(
 			if (result.additionalInstallFailures && result.additionalInstallFailures.length > 0) {
 				const failed = result.additionalInstallFailures.map((f) => formatExtensionId(f.extensionId)).join(", ");
 				logMessage(
-					`${prefix} Installed, but failed to install ${result.additionalInstallFailures.length} additional extension(s): ${failed}.`,
+					`${prefix} Installed, but failed to install ${pluralise(result.additionalInstallFailures.length, "additional extension")}: ${failed}.`,
 					"warn",
 				);
 			} else {
@@ -402,7 +403,7 @@ export async function removeQuartoExtensions(
 	workspaceFolder: string,
 ): Promise<BatchRemoveResult> {
 	const prefix = `[batch-remove]`;
-	logMessage(`${prefix} Removing ${extensions.length} extension(s): ${extensions.join(", ")}.`, "info");
+	logMessage(`${prefix} Removing ${pluralise(extensions.length, "extension")}: ${extensions.join(", ")}.`, "info");
 
 	if (!workspaceFolder) {
 		logMessage(`${prefix} No workspace folder specified.`, "error");
@@ -425,7 +426,7 @@ export async function removeQuartoExtensions(
 		const failedExtensions = results.filter(isRemoveError).map((r) => formatExtensionId(r.extensionId));
 
 		if (successCount > 0) {
-			logMessage(`${prefix} Successfully removed ${successCount} extension(s).`, "info");
+			logMessage(`${prefix} Successfully removed ${pluralise(successCount, "extension")}.`, "info");
 		}
 		if (failedExtensions.length > 0) {
 			logMessage(`${prefix} Failed to remove: ${failedExtensions.join(", ")}.`, "error");
@@ -544,12 +545,12 @@ export async function useQuartoExtension(
 			logMessage(`${prefix} Successfully installed template.`, "info");
 
 			if (result.templateFiles.length > 0) {
-				logMessage(`${prefix} Copied ${result.templateFiles.length} template file(s):`, "info");
+				logMessage(`${prefix} Copied ${pluralise(result.templateFiles.length, "template file")}:`, "info");
 				result.templateFiles.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 			}
 
 			if (result.skippedFiles.length > 0) {
-				logMessage(`${prefix} Skipped ${result.skippedFiles.length} existing file(s):`, "info");
+				logMessage(`${prefix} Skipped ${pluralise(result.skippedFiles.length, "existing file")}:`, "info");
 				result.skippedFiles.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 			}
 
@@ -613,7 +614,7 @@ export async function useQuartoBrand(
 				throw new CancellationError();
 			}
 			const fileList = files.map((f) => `  - ${f}`).join("\n");
-			const message = `${files.length} extra file(s) in _brand/ not present in the brand source:\n${fileList}\n\nRemove them?`;
+			const message = `${pluralise(files.length, "extra file")} in _brand/ not present in the brand source:\n${fileList}\n\nRemove ${files.length === 1 ? "it" : "them"}?`;
 			const action = await vscode.window.showWarningMessage(message, { modal: true }, "Remove", "Keep");
 			return action === "Remove";
 		},
@@ -632,19 +633,19 @@ export async function useQuartoBrand(
 	function logBrandResult(result: UseBrandResult): void {
 		logMessage(`${prefix} Brand applied successfully.`, "info");
 		if (result.created.length > 0) {
-			logMessage(`${prefix} Created ${result.created.length} file(s):`, "info");
+			logMessage(`${prefix} Created ${pluralise(result.created.length, "file")}:`, "info");
 			result.created.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 		}
 		if (result.overwritten.length > 0) {
-			logMessage(`${prefix} Overwritten ${result.overwritten.length} file(s):`, "info");
+			logMessage(`${prefix} Overwritten ${pluralise(result.overwritten.length, "file")}:`, "info");
 			result.overwritten.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 		}
 		if (result.skipped.length > 0) {
-			logMessage(`${prefix} Skipped ${result.skipped.length} file(s):`, "info");
+			logMessage(`${prefix} Skipped ${pluralise(result.skipped.length, "file")}:`, "info");
 			result.skipped.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 		}
 		if (result.cleaned.length > 0) {
-			logMessage(`${prefix} Removed ${result.cleaned.length} extra file(s):`, "info");
+			logMessage(`${prefix} Removed ${pluralise(result.cleaned.length, "extra file")}:`, "info");
 			result.cleaned.forEach((file) => logMessage(`${prefix}   - ${file}`, "info"));
 		}
 	}

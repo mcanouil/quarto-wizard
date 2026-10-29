@@ -49,3 +49,6 @@ export * from "./operations/index.js";
 
 // Proxy exports
 export * from "./proxy/index.js";
+
+// Text exports
+export { pluralise } from "./pluralise.js";

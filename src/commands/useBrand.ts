@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { pluralise } from "@quarto-wizard/core";
 import { getShowLogsLink, logMessage, showMessageWithLogs } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
 import { useQuartoBrand } from "../utils/coreOperations";
@@ -60,9 +61,9 @@ async function useBrandFromSource(
 				const totalFiles = result.created.length + result.overwritten.length;
 				let message: string;
 				if (totalFiles === 0 && result.skipped.length > 0) {
-					message = `Brand files skipped, overwrite declined (${result.skipped.length} existing file(s) in _brand/).`;
+					message = `Brand files skipped, overwrite declined (${pluralise(result.skipped.length, "existing file")} in _brand/).`;
 				} else {
-					message = `Brand applied successfully (${totalFiles} file(s) in _brand/).`;
+					message = `Brand applied successfully (${pluralise(totalFiles, "file")} in _brand/).`;
 				}
 				logMessage(message, "info");
 				showMessageWithLogs(message, "info");

@@ -1,6 +1,12 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
-import { extractCommitFromSource, type SourceType, type UpdateCheckSource, type UpdateInfo } from "@quarto-wizard/core";
+import {
+	extractCommitFromSource,
+	pluralise,
+	type SourceType,
+	type UpdateCheckSource,
+	type UpdateInfo,
+} from "@quarto-wizard/core";
 import { formatType } from "@quarto-wizard/schema";
 import type { SnippetCollection, SnippetDefinition, SnippetExtensionId } from "@quarto-wizard/snippets";
 import { qualifySnippetPrefix } from "@quarto-wizard/snippets";
@@ -10,7 +16,6 @@ import {
 	getEffectiveSourceType,
 	type InstalledExtension,
 } from "../utils/extensions";
-import { pluralise } from "../utils/pluralise";
 
 export type ExtensionCompatibilityStatus = "compatible" | "incompatible" | "not-specified" | "unknown";
 

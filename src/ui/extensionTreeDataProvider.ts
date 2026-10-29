@@ -2,7 +2,13 @@ import * as vscode from "vscode";
 import type { SchemaCache, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import type { SnippetCache } from "@quarto-wizard/snippets";
 import { snippetNamespace } from "@quarto-wizard/snippets";
-import { checkForUpdates, formatExtensionId, getErrorMessage, type UpdateCheckResult } from "@quarto-wizard/core";
+import {
+	checkForUpdates,
+	formatExtensionId,
+	getErrorMessage,
+	pluralise,
+	type UpdateCheckResult,
+} from "@quarto-wizard/core";
 import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { debounce } from "../utils/debounce";
 import { logMessage } from "../utils/log";
@@ -41,7 +47,6 @@ import {
 	type ExtensionEmbedding,
 	describeCheckSource,
 } from "./extensionTreeItems";
-import { pluralise } from "../utils/pluralise";
 
 /**
  * Context key that tells the view title which action goes with the view message.

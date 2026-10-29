@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { validateSchemaDefinition } from "@quarto-wizard/schema";
 import type { SchemaDefinitionFinding, SchemaDefinitionSeverity } from "@quarto-wizard/schema";
+import { pluralise } from "@quarto-wizard/core";
 import { getDocumentYaml } from "../utils/documentScan";
 import type { AnnotatedYaml, YamlPathSegment } from "../utils/yamlAnnotated";
 import { debounce } from "../utils/debounce";
@@ -130,7 +131,7 @@ export class SchemaDiagnosticsProvider implements vscode.Disposable {
 		const diagnostics = findings.map((finding) => this.findingToDiagnostic(finding, document, lines, annotated));
 
 		this.diagnosticCollection.set(document.uri, diagnostics);
-		logMessage(`Schema definition diagnostics: ${diagnostics.length} issue(s) in ${baseName}.`, "debug");
+		logMessage(`Schema definition diagnostics: ${pluralise(diagnostics.length, "issue")} in ${baseName}.`, "debug");
 	}
 
 	private findingToDiagnostic(
