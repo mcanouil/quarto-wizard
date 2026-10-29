@@ -587,7 +587,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 				"acme/github-demo": { githubTags: ["v1.3.0"] },
 			},
 		});
-		const visiblePath = fs.mkdtempSync(path.join(os.tmpdir(), "qw-update-all-"));
+		const visiblePath = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-update-all-"))).fsPath;
 		try {
 			const extensionDir = path.join(visiblePath, "_extensions", "acme", "github-demo");
 			fs.mkdirSync(extensionDir, { recursive: true });
