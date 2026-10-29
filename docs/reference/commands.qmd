@@ -180,6 +180,24 @@ Open the extension's source (GitHub, URL, registry, or local folder).
 
 Open the extension's folder in the file explorer.
 
+### Hide Project
+
+**Command**: `Quarto Wizard: Hide Project`
+
+Hide the project from the Extensions Installed view.
+
+### Select Projects to Show
+
+**Command**: `Quarto Wizard: Select Projects to Show`
+
+Choose which detected projects the Extensions Installed view shows.
+
+### Save to Workspace Settings
+
+**Command**: `Quarto Wizard: Save to Workspace Settings`
+
+Save the current project visibility to the workspace settings.
+
 ## Keyboard Shortcuts
 
 By default, Quarto Wizard does not define keyboard shortcuts.
@@ -248,3 +266,6 @@ For scripting or keybinding purposes, here are the internal command identifiers:
 | Remove Multiple Extensions   | `quartoWizard.extensionsInstalled.removeMultiple`   |
 | Open Extension Source        | `quartoWizard.extensionsInstalled.openSource`       |
 | Reveal in Explorer View      | `quartoWizard.extensionsInstalled.revealInExplorer` |
+| Hide Project                 | `quartoWizard.extensionsInstalled.hideProject`      |
+| Select Projects to Show      | `quartoWizard.detectedProjects.select`              |
+| Save to Workspace Settings   | `quartoWizard.detectedProjects.saveToSettings`      |

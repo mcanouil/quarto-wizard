@@ -108,7 +108,10 @@
 				"quartoWizard.extensionsInstalled.remove",
 				"quartoWizard.extensionsInstalled.removeMultiple",
 				"quartoWizard.extensionsInstalled.openSource",
-				"quartoWizard.extensionsInstalled.revealInExplorer"
+				"quartoWizard.extensionsInstalled.revealInExplorer",
+				"quartoWizard.extensionsInstalled.hideProject",
+				"quartoWizard.detectedProjects.select",
+				"quartoWizard.detectedProjects.saveToSettings"
 			]
 		}
 	],
@@ -127,6 +130,11 @@
 			"id": "registry",
 			"title": "Registry Settings",
 			"prefix": "quartoWizard.registry."
+		},
+		{
+			"id": "project-visibility",
+			"title": "Project Visibility",
+			"prefix": "quartoWizard.projectVisibility"
 		},
 		{
 			"id": "lint",
