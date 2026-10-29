@@ -78,12 +78,7 @@ export function install([arrowPathSource, unionBoxesSource]) {
 		return item ? (toBox(found.element.closest(".action-item")?.getBoundingClientRect()) ?? found.box) : found.box;
 	};
 
-	/**
-	 * Target forms: `badge` (activity bar item), `row` with `action`, `action` or `label` (aria-label
-	 * prefix), and `text` (a string, or a list whose boxes are joined); `part` names where to look and
-	 * defaults to the sidebar. With `item`, a text stands for its menu item. `menu` is the box of the
-	 * n-th menu of a context menu and its submenus (a negative n counts from the last).
-	 */
+	/** The first tree row under `root` that holds `text`. */
 	const findRow = (root, text) =>
 		[...root.querySelectorAll(".monaco-list-row")].find((el) => el.textContent.includes(text));
 
@@ -93,6 +88,12 @@ export function install([arrowPathSource, unionBoxesSource]) {
 		return root ? findRow(root, text)?.getAttribute("aria-expanded") === "true" : false;
 	};
 
+	/**
+	 * Target forms: `badge` (activity bar item), `row` with `action`, `action` or `label` (aria-label
+	 * prefix), and `text` (a string, or a list whose boxes are joined); `part` names where to look and
+	 * defaults to the sidebar. With `item`, a text stands for its menu item. `menu` is the box of the
+	 * n-th menu of a context menu and its submenus (a negative n counts from the last).
+	 */
 	const findTarget = (target) => {
 		if (target.badge) {
 			const item = byLabel(document.querySelector(".part.activitybar"), target.badge)?.closest(".action-item");
