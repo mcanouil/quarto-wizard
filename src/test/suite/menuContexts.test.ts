@@ -2,16 +2,12 @@ import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
 import type { InstalledExtension, SourceType } from "@quarto-wizard/core";
-import { readPackageJson } from "./packageFixtures";
+import { readPackageJson, type PackageJson } from "./packageFixtures";
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type ExtensionEmbedding } from "../../ui/extensionTreeItems";
 
 const VIEW = "quartoWizard.extensionsInstalled";
 
-interface MenuEntry {
-	command: string;
-	when: string;
-	group: string;
-}
+type MenuEntry = PackageJson["contributes"]["menus"]["view/item/context"][number];
 
 type Token =
 	| { type: "op"; value: "(" | ")" | "&&" | "||" | "!" | "==" | "=~" }
