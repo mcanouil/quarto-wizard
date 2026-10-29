@@ -27,36 +27,31 @@ export function describeCheckSource(source: UpdateCheckSource): string {
 }
 
 /**
- * Commands that a tree item allows, in the order they appear in its `contextValue`.
+ * Commands that a folder row allows, in the order they appear in its `contextValue`.
  * Each menu entry in `package.json` matches one capability with a regex on `viewItem`.
  */
-const CAPABILITIES = [
-	"install",
-	"template",
-	"removeMultiple",
-	"hide",
-	"update",
-	"reinstall",
-	"remove",
-	"openSource",
-	"reveal",
-] as const;
+type FolderCapability = "install" | "template" | "removeMultiple" | "hide";
 
-export type TreeItemCapability = (typeof CAPABILITIES)[number];
+/**
+ * Commands that an extension row allows, in the order they appear in its `contextValue`.
+ */
+type ExtensionCapability = "update" | "reinstall" | "remove" | "openSource" | "reveal";
 
 /**
  * Builds a `contextValue` of the form `<base>:<capability>:<capability>`.
  */
-export function contextValueOf(
-	base: "quartoExtensionItem" | "quartoExtensionWorkspaceFolder",
-	capabilities: readonly TreeItemCapability[],
-): string {
-	return (
-		base +
-		CAPABILITIES.filter((capability) => capabilities.includes(capability))
-			.map((capability) => `:${capability}`)
-			.join("")
-	);
+function contextValueOf(base: "quartoExtensionWorkspaceFolder", capabilities: readonly FolderCapability[]): string;
+function contextValueOf(base: "quartoExtensionItem", capabilities: readonly ExtensionCapability[]): string;
+function contextValueOf(base: string, capabilities: readonly string[]): string {
+	return [base, ...capabilities].join(":");
+}
+
+/**
+ * Commands that a folder row allows.
+ * The folder of an installed embedded parent ships with that parent, so nothing installs into it.
+ */
+function folderCapabilities(readOnly: boolean): FolderCapability[] {
+	return readOnly ? ["hide"] : ["install", "template", "removeMultiple", "hide"];
 }
 
 /**
@@ -65,7 +60,7 @@ export function contextValueOf(
 function extensionCapabilities(
 	sourceType: SourceType | undefined,
 	embedding: ExtensionEmbedding | undefined,
-): TreeItemCapability[] {
+): ExtensionCapability[] {
 	if (embedding === "self") {
 		return ["reveal"];
 	}
@@ -93,11 +88,7 @@ export class WorkspaceFolderTreeItem extends vscode.TreeItem {
 		readOnly = false,
 	) {
 		super(label, vscode.TreeItemCollapsibleState.Expanded);
-		// The folder of an installed embedded parent ships with that parent, so nothing installs into it.
-		this.contextValue = contextValueOf(
-			"quartoExtensionWorkspaceFolder",
-			readOnly ? ["hide"] : ["install", "template", "removeMultiple", "hide"],
-		);
+		this.contextValue = contextValueOf("quartoExtensionWorkspaceFolder", folderCapabilities(readOnly));
 		this.iconPath = new vscode.ThemeIcon("folder");
 		this.tooltip = folderPath;
 		this.workspaceFolder = folderPath;
@@ -157,12 +148,9 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		const needsUpdate = update !== undefined;
 		const noSource = extension && !extension.manifest.source;
 
-		// Set context value based on source type for VS Code context menus
 		const sourceType = extension ? getEffectiveSourceType(extension.manifest) : undefined;
-
-		const contextValue = extension
-			? contextValueOf("quartoExtensionItem", extensionCapabilities(sourceType, embedding))
-			: "quartoExtensionItemDetails";
+		const capabilities = extension ? extensionCapabilities(sourceType, embedding) : [];
+		const contextValue = extension ? contextValueOf("quartoExtensionItem", capabilities) : "quartoExtensionItemDetails";
 
 		const updateNotes: string[] = [];
 		if (update) {
@@ -173,7 +161,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		}
 		if (embedding === "read-only") {
 			updateNotes.push("Ships with the extension that embeds it, so it cannot be changed here.");
-		} else if (!embedding && (sourceType === "github" || sourceType === "registry")) {
+		} else if (capabilities.includes("update")) {
 			updateNotes.push(
 				extractCommitFromSource(extension?.manifest.source ?? "") !== null
 					? "Update installs the latest commit of the default branch."

@@ -15,6 +15,10 @@ type Token =
 	| { type: "word"; value: string }
 	| { type: "regex"; value: RegExp };
 
+function fail(when: string): never {
+	throw new Error(`Unsupported when syntax: ${when}`);
+}
+
 function tokenise(when: string): Token[] {
 	const tokens: Token[] = [];
 	let index = 0;
@@ -43,7 +47,7 @@ function tokenise(when: string): Token[] {
 			index += word[0].length;
 			continue;
 		}
-		throw new Error(`Unsupported when syntax: ${when}`);
+		fail(when);
 	}
 	return tokens;
 }
@@ -56,9 +60,6 @@ function evaluateViewItem(when: string, contextValue: string): boolean {
 	const tokens = tokenise(when);
 	let position = 0;
 	const context: Record<string, string> = { view: VIEW, viewItem: contextValue };
-	const fail = (): never => {
-		throw new Error(`Unsupported when syntax: ${when}`);
-	};
 	const peek = (): Token | undefined => tokens[position];
 	const isOp = (value: string): boolean => peek()?.type === "op" && peek()?.value === value;
 
@@ -86,7 +87,7 @@ function evaluateViewItem(when: string, contextValue: string): boolean {
 		if (isOp("(")) {
 			position += 1;
 			const value = parseOr();
-			if (!isOp(")")) fail();
+			if (!isOp(")")) fail(when);
 			position += 1;
 			return value;
 		}
@@ -96,24 +97,23 @@ function evaluateViewItem(when: string, contextValue: string): boolean {
 		const key = tokens[position++];
 		const operator = tokens[position++];
 		const operand = tokens[position++];
-		if (key?.type !== "word" || !(key.value in context) || operator?.type !== "op") fail();
-		const actual = context[(key as { value: string }).value];
+		if (key?.type !== "word" || !(key.value in context) || operator?.type !== "op") fail(when);
+		const actual = context[key.value];
 		if (operator.value === "==" && operand?.type === "word") return actual === operand.value;
 		if (operator.value === "=~" && operand?.type === "regex") return operand.value.test(actual);
-		return fail();
+		return fail(when);
 	};
 
 	const result = parseOr();
-	if (position !== tokens.length) fail();
+	if (position !== tokens.length) fail(when);
 	return result;
 }
 
-function itemMenus(): MenuEntry[] {
-	const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../package.json"), "utf8"));
-	return (pkg.contributes.menus["view/item/context"] as MenuEntry[]).filter((entry) =>
-		entry.when.startsWith(`view == ${VIEW} && `),
-	);
-}
+const ITEM_MENUS: readonly MenuEntry[] = (
+	JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../package.json"), "utf8")).contributes.menus[
+		"view/item/context"
+	] as MenuEntry[]
+).filter((entry) => entry.when.startsWith(`view == ${VIEW} && `));
 
 const UPDATE = "quartoWizard.extensionsInstalled.update";
 const REINSTALL = "quartoWizard.extensionsInstalled.reinstall";
@@ -205,16 +205,16 @@ function sortMenus(menus: [string, string][]): [string, string][] {
 suite("Menu Contexts Test Suite", () => {
 	for (const state of MENU_STATES) {
 		test(`the ${state.name} shows its menus`, () => {
-			const shown = itemMenus()
-				.filter((entry) => evaluateViewItem(entry.when, state.contextValue))
-				.map((entry): [string, string] => [entry.command, entry.group]);
+			const shown = ITEM_MENUS.filter((entry) => evaluateViewItem(entry.when, state.contextValue)).map(
+				(entry): [string, string] => [entry.command, entry.group],
+			);
 
 			assert.deepStrictEqual(sortMenus(shown), sortMenus(state.menus));
 		});
 	}
 
 	test("remove does not match removeMultiple", () => {
-		const removeEntries = itemMenus().filter((entry) => entry.command === REMOVE);
+		const removeEntries = ITEM_MENUS.filter((entry) => entry.command === REMOVE);
 
 		assert.ok(removeEntries.length > 0);
 		for (const entry of removeEntries) {
