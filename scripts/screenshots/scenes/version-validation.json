@@ -38,8 +38,9 @@
 			"timeout": 30000
 		},
 		{
-			"kind": "key",
-			"key": "Enter"
+			"kind": "click",
+			"text": "sample-project",
+			"part": "quickinput"
 		},
 		{
 			"kind": "wait",
