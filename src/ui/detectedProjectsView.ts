@@ -52,6 +52,8 @@ export class DetectedProjectsProvider implements vscode.TreeDataProvider<Detecte
 	constructor(
 		private readonly visibility: ProjectVisibility,
 		private readonly counts: ProjectCounts,
+		private readonly workspaceFolders: () => readonly vscode.WorkspaceFolder[] = () =>
+			vscode.workspace.workspaceFolders ?? [],
 	) {}
 
 	setRoots(roots: readonly QuartoProjectRoot[]): void {
@@ -70,18 +72,13 @@ export class DetectedProjectsProvider implements vscode.TreeDataProvider<Detecte
 		if (element) {
 			return element.roots.map((root) => ({ kind: "project", root }));
 		}
-		const folders = new Map<string, FolderNode>();
-		for (const root of this.roots) {
-			const key = root.workspaceFolder.uri.toString();
-			const existing = folders.get(key);
-			folders.set(key, {
+		const workspaceFolders = this.workspaceFolders();
+		if (workspaceFolders.length > 1) {
+			return workspaceFolders.map((folder) => ({
 				kind: "folder",
-				folder: root.workspaceFolder,
-				roots: [...(existing?.roots ?? []), root],
-			});
-		}
-		if (folders.size > 1) {
-			return [...folders.values()];
+				folder,
+				roots: this.roots.filter((root) => root.workspaceFolder.uri.toString() === folder.uri.toString()),
+			}));
 		}
 		return this.roots.map((root) => ({ kind: "project", root }));
 	}

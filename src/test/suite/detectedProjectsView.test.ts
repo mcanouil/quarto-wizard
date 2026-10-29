@@ -83,13 +83,14 @@ suite("Detected Projects View Test Suite", () => {
 	});
 
 	test("rows are grouped by workspace folder only in a multi-root workspace", () => {
-		const provider = new DetectedProjectsProvider(visibility, counts);
 		const inA = makeRoot(folderA, "docs");
 		const inB = makeRoot(folderB, "docs");
 
-		provider.setRoots([inA]);
-		assert.ok(provider.getChildren().every((node) => node.kind === "project"));
+		const single = new DetectedProjectsProvider(visibility, counts, () => [folderA]);
+		single.setRoots([inA]);
+		assert.ok(single.getChildren().every((node) => node.kind === "project"));
 
+		const provider = new DetectedProjectsProvider(visibility, counts, () => [folderA, folderB]);
 		provider.setRoots([inA, inB]);
 		const folders = provider.getChildren();
 		assert.deepStrictEqual(
@@ -101,6 +102,15 @@ suite("Detected Projects View Test Suite", () => {
 			rows.map((node) => node.kind === "project" && node.root),
 			[inB],
 		);
+	});
+
+	test("a workspace folder without projects keeps its node", () => {
+		const provider = new DetectedProjectsProvider(visibility, counts, () => [folderA, folderB]);
+		provider.setRoots([makeRoot(folderA, "docs")]);
+
+		const folders = provider.getChildren();
+		assert.strictEqual(folders.length, 2);
+		assert.deepStrictEqual(provider.getChildren(folders[1]), []);
 	});
 
 	suite("registered view", () => {
