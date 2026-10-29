@@ -27,7 +27,7 @@ let inFlightCancellation: vscode.CancellationTokenSource | undefined;
  * discovery once if needed. Concurrent callers share a single in-flight promise.
  *
  * Extensions that embed other extensions are left out: they show in the views,
- * through {@link getAllProjectRoots}, but are never owning roots or install targets.
+ * but are never owning roots or install targets.
  */
 export async function ensureProjectRoots(): Promise<readonly QuartoProjectRoot[]> {
 	return (await ensureAllProjectRoots()).filter(isOwningRoot);
@@ -53,14 +53,6 @@ async function ensureAllProjectRoots(): Promise<readonly QuartoProjectRoot[]> {
 		// tree view is debounced, and the empty snapshot would report no project.
 		pending = inFlight ?? refreshProjectRoots();
 	}
-	return currentRoots;
-}
-
-/**
- * Returns the current snapshot, extensions that embed other extensions included.
- * Does not run discovery.
- */
-export function getAllProjectRoots(): readonly QuartoProjectRoot[] {
 	return currentRoots;
 }
 

@@ -31,7 +31,7 @@ import { debounce } from "../utils/debounce";
 import { ProjectVisibility } from "../utils/projectVisibility";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
-import { DetectedProjectsProvider, registerDetectedProjectsView } from "./detectedProjectsView";
+import { DetectedProjectsProvider, registerDetectedProjectsView, runReporting } from "./detectedProjectsView";
 
 const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
 
@@ -151,8 +151,10 @@ export class ExtensionsInstalled {
 			showCollapseAll: true,
 		});
 		context.subscriptions.push(visibility.onDidChange(() => this.treeDataProvider.updateViewState(view)));
-		const detectedProjects = new DetectedProjectsProvider(visibility, (fsPath) =>
-			this.treeDataProvider.getProjectCounts(fsPath),
+		const detectedProjects = new DetectedProjectsProvider(
+			visibility,
+			(fsPath) => this.treeDataProvider.getProjectCounts(fsPath),
+			() => this.treeDataProvider.getProjectRoots(),
 		);
 		context.subscriptions.push(this.treeDataProvider.onDidChangeCounts(() => detectedProjects.refresh()));
 		registerDetectedProjectsView(context, detectedProjects, visibility, () => this.treeDataProvider.getProjectRoots());
@@ -186,7 +188,7 @@ export class ExtensionsInstalled {
 					return false;
 				}
 				const changed = this.treeDataProvider.setProjectRoots(roots);
-				detectedProjects.setRoots(roots);
+				detectedProjects.refresh();
 				return changed;
 			} catch (error) {
 				logMessage(`Failed to discover Quarto project roots: ${getErrorMessage(error)}.`, "error");
@@ -321,7 +323,7 @@ export class ExtensionsInstalled {
 						logMessage(`Cannot hide "${item.label}": no detected project at ${item.folderPath}.`, "warn");
 						return;
 					}
-					await visibility.setVisible([root], false);
+					await runReporting("hide the project", [root], () => visibility.setVisible([root], false));
 				},
 			),
 		);
@@ -383,10 +385,6 @@ export class ExtensionsInstalled {
 						`Failed to update extension "${item.label}". Source not found in extension manifest.`,
 						"error",
 					);
-					return;
-				}
-				if (this.treeDataProvider.isSelfEmbedded(item.workspaceFolder, extension)) {
-					vscode.window.showInformationMessage(`Extension "${item.label}" embeds itself, so it has no update.`);
 					return;
 				}
 				const failureMessage = `Failed to update extension "${item.label}".`;

@@ -60,8 +60,7 @@ suite("Detected Projects View Test Suite", () => {
 		const shown = makeRoot(folderA, "docs");
 		const hiddenRoot = makeRoot(folderA, "notes");
 		hidden.add(hiddenRoot.fsPath);
-		const provider = new DetectedProjectsProvider(visibility, counts);
-		provider.setRoots([shown, hiddenRoot]);
+		const provider = new DetectedProjectsProvider(visibility, counts, () => [shown, hiddenRoot]);
 
 		assert.strictEqual(provider.getChildren().length, 2);
 		assert.strictEqual(projectItem(provider, shown).checkboxState, vscode.TreeItemCheckboxState.Checked);
@@ -69,24 +68,22 @@ suite("Detected Projects View Test Suite", () => {
 	});
 
 	test("row label shows the folder name for the workspace root", () => {
-		const provider = new DetectedProjectsProvider(visibility, counts);
 		const top = makeRoot(folderA);
 		const nested = makeRoot(folderA, "docs");
-		provider.setRoots([top, nested]);
+		const provider = new DetectedProjectsProvider(visibility, counts, () => [top, nested]);
 
 		assert.strictEqual(projectItem(provider, top).label, "a");
 		assert.strictEqual(projectItem(provider, nested).label, "docs");
 	});
 
 	test("row description gives the counts and the tags", () => {
-		const provider = new DetectedProjectsProvider(visibility, counts);
 		const plain = makeRoot(folderA, "docs");
 		const tagged = {
 			...makeRoot(folderA, "other"),
 			quartoIgnored: true,
 			embeddedIn: { id: { name: "ext" } },
 		} as QuartoProjectRoot;
-		provider.setRoots([plain, tagged]);
+		const provider = new DetectedProjectsProvider(visibility, counts, () => [plain, tagged]);
 
 		assert.strictEqual(projectItem(provider, plain).description, "3 extensions · 1 update");
 		assert.strictEqual(
@@ -99,12 +96,20 @@ suite("Detected Projects View Test Suite", () => {
 		const inA = makeRoot(folderA, "docs");
 		const inB = makeRoot(folderB, "docs");
 
-		const single = new DetectedProjectsProvider(visibility, counts, () => [folderA]);
-		single.setRoots([inA]);
+		const single = new DetectedProjectsProvider(
+			visibility,
+			counts,
+			() => [inA],
+			() => [folderA],
+		);
 		assert.ok(single.getChildren().every((node) => node.kind === "project"));
 
-		const provider = new DetectedProjectsProvider(visibility, counts, () => [folderA, folderB]);
-		provider.setRoots([inA, inB]);
+		const provider = new DetectedProjectsProvider(
+			visibility,
+			counts,
+			() => [inA, inB],
+			() => [folderA, folderB],
+		);
 		const folders = provider.getChildren();
 		assert.deepStrictEqual(
 			folders.map((node) => provider.getTreeItem(node).label),
@@ -118,8 +123,12 @@ suite("Detected Projects View Test Suite", () => {
 	});
 
 	test("a workspace folder without projects keeps its node", () => {
-		const provider = new DetectedProjectsProvider(visibility, counts, () => [folderA, folderB]);
-		provider.setRoots([makeRoot(folderA, "docs")]);
+		const provider = new DetectedProjectsProvider(
+			visibility,
+			counts,
+			() => [makeRoot(folderA, "docs")],
+			() => [folderA, folderB],
+		);
 
 		const folders = provider.getChildren();
 		assert.strictEqual(folders.length, 2);
@@ -152,7 +161,7 @@ suite("Detected Projects View Test Suite", () => {
 		});
 
 		function register(roots: readonly QuartoProjectRoot[]): DetectedProjectsProvider {
-			const provider = new DetectedProjectsProvider(visibility, counts);
+			const provider = new DetectedProjectsProvider(visibility, counts, () => roots);
 			registerDetectedProjectsView({ subscriptions } as vscode.ExtensionContext, provider, visibility, () => roots);
 			return provider;
 		}
@@ -166,12 +175,30 @@ suite("Detected Projects View Test Suite", () => {
 		test("unticking a checkbox hides the project", async () => {
 			const root = makeRoot(folderA, "docs");
 			const provider = register([root]);
-			provider.setRoots([root]);
 			const node = provider.getChildren()[0];
 			checkboxEvents.fire({ items: [[node, vscode.TreeItemCheckboxState.Unchecked]] });
 			await new Promise((resolve) => setImmediate(resolve));
 
 			assert.deepStrictEqual(setVisibleCalls, [{ roots: [root], visible: false }]);
+		});
+
+		test("changed checkboxes are applied in one call per state", async () => {
+			const roots = [makeRoot(folderA, "docs"), makeRoot(folderA, "notes"), makeRoot(folderA, "talks")];
+			const provider = register(roots);
+			const [first, second, third] = provider.getChildren();
+			checkboxEvents.fire({
+				items: [
+					[first, vscode.TreeItemCheckboxState.Unchecked],
+					[second, vscode.TreeItemCheckboxState.Checked],
+					[third, vscode.TreeItemCheckboxState.Unchecked],
+				],
+			});
+			await new Promise((resolve) => setImmediate(resolve));
+
+			assert.deepStrictEqual(setVisibleCalls, [
+				{ roots: [roots[1]], visible: true },
+				{ roots: [roots[0], roots[2]], visible: false },
+			]);
 		});
 
 		test("the picker preselects visible roots and applies the selection", async () => {
@@ -223,7 +250,6 @@ suite("Detected Projects View Test Suite", () => {
 		test("a failed checkbox change reports an error naming the project", async () => {
 			const root = makeRoot(folderA, "docs");
 			const provider = register([root]);
-			provider.setRoots([root]);
 			failure = new Error("disk full");
 			checkboxEvents.fire({ items: [[provider.getChildren()[0], vscode.TreeItemCheckboxState.Unchecked]] });
 			await new Promise((resolve) => setImmediate(resolve));

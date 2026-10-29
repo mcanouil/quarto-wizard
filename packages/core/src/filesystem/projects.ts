@@ -12,7 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { minimatch } from "minimatch";
 import type { ExtensionId } from "../types/extension.js";
-import { EXTENSIONS_DIR, discoverInstalledExtensionsSync } from "./discovery.js";
+import { EXTENSIONS_DIR, discoverInstalledExtensionsSync, readDirectorySorted } from "./discovery.js";
 import { toRelativePosixPath } from "./walk.js";
 
 /** Deepest folder level searched for projects, where the scan root is level 0. */
@@ -57,11 +57,9 @@ export interface ProjectDiscoveryOptions {
 
 function listSubdirectories(directory: string): string[] {
 	try {
-		return fs
-			.readdirSync(directory, { withFileTypes: true })
+		return readDirectorySorted(directory)
 			.filter((entry) => entry.isDirectory() && !entry.isSymbolicLink() && !SKIPPED_DIRECTORIES.has(entry.name))
-			.map((entry) => entry.name)
-			.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+			.map((entry) => entry.name);
 	} catch {
 		return [];
 	}

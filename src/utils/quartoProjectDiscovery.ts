@@ -138,44 +138,32 @@ export async function discoverQuartoProjectRoots(
 	token?: vscode.CancellationToken,
 ): Promise<QuartoProjectRoot[]> {
 	const results: QuartoProjectRoot[] = [];
-	const controller = new AbortController();
-	const subscription = token?.onCancellationRequested(() => controller.abort());
-	try {
-		for (const folder of workspaceFolders) {
-			// A cancelled token fires its listeners on a later tick, too late for a walk
-			// that runs to its end in this one.
-			if (token?.isCancellationRequested) {
-				controller.abort();
-			}
-			if (controller.signal.aborted) {
-				break;
-			}
-			const folderPath = folder.uri.fsPath;
-			const discovered = discoverProjectDirs(folderPath, {
-				excludePatterns: collectExcludePatterns(folder.uri),
-				signal: controller.signal,
-			});
-			if (controller.signal.aborted) {
-				break;
-			}
-			if (discovered.length === 0) {
-				results.push(buildRoot(folder, folderPath, ".", false));
-				continue;
-			}
-			const ignorePatterns = readQuartoIgnore(folderPath);
-			const roots = discovered.map((project) =>
-				buildRoot(
-					folder,
-					project.directory,
-					project.relativePath,
-					isQuartoIgnored(ignorePatterns, project.relativePath),
-					project.embeddedIn,
-				),
-			);
-			results.push(...roots.sort(compareRelativePaths));
+	for (const folder of workspaceFolders) {
+		if (token?.isCancellationRequested) {
+			break;
 		}
-	} finally {
-		subscription?.dispose();
+		const folderPath = folder.uri.fsPath;
+		const discovered = discoverProjectDirs(folderPath, {
+			excludePatterns: collectExcludePatterns(folder.uri),
+		});
+		if (token?.isCancellationRequested) {
+			break;
+		}
+		if (discovered.length === 0) {
+			results.push(buildRoot(folder, folderPath, ".", false));
+			continue;
+		}
+		const ignorePatterns = readQuartoIgnore(folderPath);
+		const roots = discovered.map((project) =>
+			buildRoot(
+				folder,
+				project.directory,
+				project.relativePath,
+				isQuartoIgnored(ignorePatterns, project.relativePath),
+				project.embeddedIn,
+			),
+		);
+		results.push(...roots.sort(compareRelativePaths));
 	}
 	return results;
 }

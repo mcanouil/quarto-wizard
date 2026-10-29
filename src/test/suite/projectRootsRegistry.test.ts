@@ -6,7 +6,6 @@ import {
 	ensureProjectRoots,
 	findOwningProjectRoot,
 	findOwningProjectRootSync,
-	getAllProjectRoots,
 	invalidateProjectRoots,
 	refreshProjectRoots,
 	setProjectRoots,
@@ -145,12 +144,6 @@ suite("Project Roots Registry Test Suite", () => {
 		const roots = await ensureProjectRoots();
 
 		assert.deepStrictEqual(roots, [workspaceRoot]);
-	});
-
-	test("getAllProjectRoots includes embedded roots", () => {
-		setProjectRoots([workspaceRoot, embeddedParent]);
-
-		assert.deepStrictEqual(getAllProjectRoots(), [workspaceRoot, embeddedParent]);
 	});
 
 	test("refreshProjectRoots returns embedded roots", async () => {

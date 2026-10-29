@@ -33,12 +33,15 @@ export function visibilityKey(root: QuartoProjectRoot): string {
 export class ProjectVisibility implements vscode.Disposable {
 	private readonly emitter = new vscode.EventEmitter<void>();
 	private readonly configurationListener: vscode.Disposable;
+	private settingCache = new Map<string, VisibilityMap>();
+	private overridesCache: VisibilityMap | undefined;
 
 	readonly onDidChange: vscode.Event<void> = this.emitter.event;
 
 	constructor(private readonly workspaceState: vscode.Memento) {
 		this.configurationListener = vscode.workspace.onDidChangeConfiguration((event) => {
 			if (event.affectsConfiguration(`${CONFIGURATION_SECTION}.${PROJECT_VISIBILITY_SETTING}`)) {
+				this.clearCaches();
 				this.emitter.fire();
 			}
 		});
@@ -49,12 +52,11 @@ export class ProjectVisibility implements vscode.Disposable {
 	}
 
 	async setVisible(roots: readonly QuartoProjectRoot[], visible: boolean): Promise<void> {
-		const overrides = { ...this.readOverrides() };
-		for (const root of roots) {
-			overrides[visibilityKey(root)] = visible;
-		}
-		await this.workspaceState.update(OVERRIDES_KEY, overrides);
-		this.emitter.fire();
+		await this.writeOverrides((overrides) => {
+			for (const root of roots) {
+				overrides[visibilityKey(root)] = visible;
+			}
+		});
 	}
 
 	/**
@@ -68,26 +70,27 @@ export class ProjectVisibility implements vscode.Disposable {
 			byFolder.set(key, [...(byFolder.get(key) ?? []), root]);
 		}
 
-		for (const folderRoots of byFolder.values()) {
-			const folder = folderRoots[0].workspaceFolder;
-			const effective: Record<string, boolean> = {};
-			for (const root of folderRoots) {
-				const visible = this.isVisible(root);
-				if (visible !== defaultVisibility(root)) {
-					effective[root.relativePath] = visible;
+		await Promise.all(
+			[...byFolder.values()].map((folderRoots) => {
+				const folder = folderRoots[0].workspaceFolder;
+				const effective: Record<string, boolean> = {};
+				for (const root of folderRoots) {
+					const visible = this.isVisible(root);
+					if (visible !== defaultVisibility(root)) {
+						effective[root.relativePath] = visible;
+					}
 				}
-			}
-			await vscode.workspace
-				.getConfiguration(CONFIGURATION_SECTION, folder.uri)
-				.update(PROJECT_VISIBILITY_SETTING, effective, vscode.ConfigurationTarget.WorkspaceFolder);
-		}
+				return vscode.workspace
+					.getConfiguration(CONFIGURATION_SECTION, folder.uri)
+					.update(PROJECT_VISIBILITY_SETTING, effective, vscode.ConfigurationTarget.WorkspaceFolder);
+			}),
+		);
 
-		const overrides = { ...this.readOverrides() };
-		for (const root of roots) {
-			delete overrides[visibilityKey(root)];
-		}
-		await this.workspaceState.update(OVERRIDES_KEY, overrides);
-		this.emitter.fire();
+		await this.writeOverrides((overrides) => {
+			for (const root of roots) {
+				delete overrides[visibilityKey(root)];
+			}
+		});
 	}
 
 	dispose(): void {
@@ -95,15 +98,35 @@ export class ProjectVisibility implements vscode.Disposable {
 		this.emitter.dispose();
 	}
 
+	private async writeOverrides(mutate: (overrides: Record<string, boolean>) => void): Promise<void> {
+		const overrides = { ...this.readOverrides() };
+		mutate(overrides);
+		this.clearCaches();
+		await this.workspaceState.update(OVERRIDES_KEY, overrides);
+		this.clearCaches();
+		this.emitter.fire();
+	}
+
+	private clearCaches(): void {
+		this.settingCache.clear();
+		this.overridesCache = undefined;
+	}
+
 	private readSetting(folder: vscode.WorkspaceFolder): VisibilityMap {
-		return (
-			vscode.workspace
-				.getConfiguration(CONFIGURATION_SECTION, folder.uri)
-				.get<VisibilityMap>(PROJECT_VISIBILITY_SETTING) ?? {}
-		);
+		const key = folder.uri.toString();
+		let setting = this.settingCache.get(key);
+		if (!setting) {
+			setting =
+				vscode.workspace
+					.getConfiguration(CONFIGURATION_SECTION, folder.uri)
+					.get<VisibilityMap>(PROJECT_VISIBILITY_SETTING) ?? {};
+			this.settingCache.set(key, setting);
+		}
+		return setting;
 	}
 
 	private readOverrides(): VisibilityMap {
-		return this.workspaceState.get<VisibilityMap>(OVERRIDES_KEY) ?? {};
+		this.overridesCache ??= this.workspaceState.get<VisibilityMap>(OVERRIDES_KEY) ?? {};
+		return this.overridesCache;
 	}
 }

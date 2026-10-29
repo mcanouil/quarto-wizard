@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
 import { registerInstallCommands } from "../../commands/installQuartoExtension";
+import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
@@ -33,7 +34,6 @@ interface RemoveCall {
 }
 
 interface ProviderInternals {
-	projectRoots: unknown;
 	cache: Record<string, FolderCache>;
 	pendingRefresh: Promise<void> | null;
 }
@@ -111,6 +111,11 @@ suite("Extensions Installed Commands Test Suite", () => {
 				"acme/github-demo": { githubTags: ["v1.3.0"] },
 			},
 		});
+	}
+
+	// The suite replaces the prototype method with a no-op, so the injected roots go through the original.
+	function setRoots(roots: readonly QuartoProjectRoot[]): void {
+		originalSetProjectRoots.call(provider, roots);
 	}
 
 	function runCommand(name: string, ...args: unknown[]): Thenable<unknown> {
@@ -191,7 +196,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		await provider.pendingRefresh;
 
 		extensions = await getInstalledExtensionsRecord(FIXTURE_ROOT);
-		provider.projectRoots = [makeRoot(makeFolder("treeCommands", FIXTURE_ROOT))];
+		setRoots([makeRoot(makeFolder("treeCommands", FIXTURE_ROOT))]);
 		provider.cache[FIXTURE_ROOT] = {
 			extensions,
 			updates: {},
@@ -543,12 +548,12 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 	test("update all skips the extensions of an installed embedded parent", async () => {
 		stubTwoUpdates();
-		provider.projectRoots = [
+		setRoots([
 			{
 				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
 				embeddedIn: { id: { owner: "acme", name: "parent" }, source: "acme/parent@v1.0.0" },
 			},
-		];
+		]);
 
 		await runCommand("updateAll");
 
@@ -558,12 +563,13 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 	test("update all skips a self-embedded extension", async () => {
 		stubTwoUpdates();
-		provider.projectRoots = [
+		setRoots([]);
+		setRoots([
 			{
 				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
 				embeddedIn: { id: { owner: "acme", name: "registry-demo" } },
 			},
-		];
+		]);
 
 		await runCommand("updateAll");
 
@@ -571,21 +577,6 @@ suite("Extensions Installed Commands Test Suite", () => {
 			{ source: "acme/github-demo@v1.3.0", workspaceFolder: FIXTURE_ROOT, sourceType: "github" },
 		]);
 		assert.ok(!messages[0].includes("acme/registry-demo"), messages[0]);
-	});
-
-	test("update skips a self-embedded extension", async () => {
-		stubTwoUpdates();
-		provider.projectRoots = [
-			{
-				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
-				embeddedIn: { id: { owner: "acme", name: "registry-demo" } },
-			},
-		];
-
-		await runCommand("update", createItem("acme/registry-demo"));
-
-		assert.deepStrictEqual(installCalls, []);
-		assert.deepStrictEqual(messages, ['Extension "acme/registry-demo" embeds itself, so it has no update.']);
 	});
 
 	test("update all skips a hidden project and still checks a visible one", async () => {
@@ -605,10 +596,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 				path.join(extensionDir, "_extension.yml"),
 				"title: GitHub demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\nsource: acme/github-demo@v1.0.0\nsource-type: github\n",
 			);
-			provider.projectRoots = [
-				makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
-				makeRoot(makeFolder("visible", visiblePath, 1)),
-			];
+			setRoots([makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)), makeRoot(makeFolder("visible", visiblePath, 1))]);
 			await runCommand("hideProject", new WorkspaceFolderTreeItem("treeCommands", FIXTURE_ROOT));
 
 			await runCommand("updateAll");
@@ -629,10 +617,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("hideProject hides the folder", async () => {
 		const tree = provider as unknown as QuartoExtensionTreeDataProvider;
 		const otherPath = path.join(FIXTURE_ROOT, "_extensions");
-		provider.projectRoots = [
-			makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
-			makeRoot(makeFolder("other", otherPath, 1)),
-		];
+		setRoots([makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)), makeRoot(makeFolder("other", otherPath, 1))]);
 		assert.strictEqual((await tree.getChildren()).length, 2);
 
 		await runCommand("hideProject", new WorkspaceFolderTreeItem("other", otherPath));

@@ -31,32 +31,42 @@ function describeProjects(roots: readonly QuartoProjectRoot[]): string {
 	return roots.map((root) => root.label).join(", ");
 }
 
-async function reportFailure(operation: string, roots: readonly QuartoProjectRoot[], error: unknown): Promise<void> {
-	const message = `Failed to ${operation} for ${describeProjects(roots)}: ${getErrorMessage(error)}.`;
-	logMessage(message, "error");
-	await showMessageWithLogs(message, "error");
+/**
+ * Runs an operation on projects and reports a failure that names them, in the log and in a notification.
+ *
+ * @returns Whether the operation succeeded.
+ */
+export async function runReporting(
+	operation: string,
+	roots: readonly QuartoProjectRoot[],
+	action: () => Promise<void>,
+): Promise<boolean> {
+	try {
+		await action();
+		return true;
+	} catch (error) {
+		const message = `Failed to ${operation} for ${describeProjects(roots)}: ${getErrorMessage(error)}.`;
+		logMessage(message, "error");
+		await showMessageWithLogs(message, "error");
+		return false;
+	}
 }
 
-async function setVisibleReporting(
+function setVisibleReporting(
 	visibility: ProjectVisibility,
 	roots: readonly QuartoProjectRoot[],
 	visible: boolean,
-): Promise<void> {
-	try {
-		await visibility.setVisible(roots, visible);
-	} catch (error) {
-		await reportFailure(visible ? "show projects" : "hide projects", roots, error);
-	}
+): Promise<boolean> {
+	return runReporting(visible ? "show projects" : "hide projects", roots, () => visibility.setVisible(roots, visible));
 }
 
 async function saveReporting(visibility: ProjectVisibility, roots: readonly QuartoProjectRoot[]): Promise<void> {
-	try {
-		await visibility.saveToWorkspaceSettings(roots);
-	} catch (error) {
-		await reportFailure("save project visibility to the workspace settings", roots, error);
-		return;
+	const saved = await runReporting("save project visibility to the workspace settings", roots, () =>
+		visibility.saveToWorkspaceSettings(roots),
+	);
+	if (saved) {
+		await showMessageWithLogs("Project visibility saved to the workspace settings.", "info");
 	}
-	await showMessageWithLogs("Project visibility saved to the workspace settings.", "info");
 }
 
 function projectName(root: QuartoProjectRoot): string {
@@ -79,21 +89,16 @@ function projectDescription(root: QuartoProjectRoot, counts: { extensions: numbe
  */
 export class DetectedProjectsProvider implements vscode.TreeDataProvider<DetectedProjectNode> {
 	private readonly emitter = new vscode.EventEmitter<void>();
-	private roots: readonly QuartoProjectRoot[] = [];
 
 	readonly onDidChangeTreeData: vscode.Event<void> = this.emitter.event;
 
 	constructor(
 		private readonly visibility: ProjectVisibility,
 		private readonly counts: ProjectCounts,
+		private readonly roots: () => readonly QuartoProjectRoot[],
 		private readonly workspaceFolders: () => readonly vscode.WorkspaceFolder[] = () =>
 			vscode.workspace.workspaceFolders ?? [],
 	) {}
-
-	setRoots(roots: readonly QuartoProjectRoot[]): void {
-		this.roots = roots;
-		this.emitter.fire();
-	}
 
 	refresh(): void {
 		this.emitter.fire();
@@ -106,15 +111,16 @@ export class DetectedProjectsProvider implements vscode.TreeDataProvider<Detecte
 		if (element) {
 			return element.roots.map((root) => ({ kind: "project", root }));
 		}
+		const roots = this.roots();
 		const workspaceFolders = this.workspaceFolders();
 		if (workspaceFolders.length > 1) {
 			return workspaceFolders.map((folder) => ({
 				kind: "folder",
 				folder,
-				roots: this.roots.filter((root) => root.workspaceFolder.uri.toString() === folder.uri.toString()),
+				roots: roots.filter((root) => root.workspaceFolder.uri.toString() === folder.uri.toString()),
 			}));
 		}
-		return this.roots.map((root) => ({ kind: "project", root }));
+		return roots.map((root) => ({ kind: "project", root }));
 	}
 
 	getTreeItem(element: DetectedProjectNode): vscode.TreeItem {
@@ -193,10 +199,18 @@ export function registerDetectedProjectsView(
 		provider,
 		visibility.onDidChange(() => provider.refresh()),
 		view.onDidChangeCheckboxState(async (event) => {
+			const toShow: QuartoProjectRoot[] = [];
+			const toHide: QuartoProjectRoot[] = [];
 			for (const [node, state] of event.items) {
 				if (node.kind === "project") {
-					await setVisibleReporting(visibility, [node.root], state === vscode.TreeItemCheckboxState.Checked);
+					(state === vscode.TreeItemCheckboxState.Checked ? toShow : toHide).push(node.root);
 				}
+			}
+			if (toShow.length > 0) {
+				await setVisibleReporting(visibility, toShow, true);
+			}
+			if (toHide.length > 0) {
+				await setVisibleReporting(visibility, toHide, false);
 			}
 		}),
 		vscode.commands.registerCommand(SELECT_COMMAND, () => showProjectPicker(visibility, getRoots())),

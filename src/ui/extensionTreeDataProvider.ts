@@ -86,12 +86,15 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	private updateCheckMessage: string | undefined;
 
+	private projectRootsByPath: Map<string, QuartoProjectRoot>;
+
 	constructor(
 		private projectRoots: readonly QuartoProjectRoot[],
 		private schemaCache: SchemaCache,
 		private snippetCache: SnippetCache,
 		private readonly visibility: ProjectVisibility,
 	) {
+		this.projectRootsByPath = new Map(projectRoots.map((root) => [root.fsPath, root]));
 		this.visibilityListener = visibility.onDidChange(() => {
 			this.projectTreeCache = null;
 			this._onDidChangeTreeData.fire();
@@ -109,6 +112,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			return false;
 		}
 		this.projectRoots = projectRoots;
+		this.projectRootsByPath = new Map(projectRoots.map((root) => [root.fsPath, root]));
 		this.projectTreeCache = null;
 		return true;
 	}
@@ -120,8 +124,8 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		return this.projectTreeCache;
 	}
 
-	private allProjectsHidden(): boolean {
-		return this.projectRoots.length > 0 && this.visibleRoots().length === 0;
+	private allProjectsHidden(visibleRoots: readonly QuartoProjectRoot[] = this.visibleRoots()): boolean {
+		return this.projectRoots.length > 0 && visibleRoots.length === 0;
 	}
 
 	private visibleRoots(): QuartoProjectRoot[] {
@@ -139,7 +143,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	 * Gets the project root at a path, or `undefined` when no root is there.
 	 */
 	getProjectRoot(fsPath: string): QuartoProjectRoot | undefined {
-		return this.projectRoots.find((root) => root.fsPath === fsPath);
+		return this.projectRootsByPath.get(fsPath);
 	}
 
 	/**
@@ -149,22 +153,8 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	getProjectCounts(fsPath: string): { extensions: number; updates: number } {
 		return {
 			extensions: Object.keys(this.cache[fsPath]?.extensions ?? {}).length,
-			updates: this.reportedUpdates(fsPath).length,
+			updates: Object.keys(this.cache[fsPath]?.updates ?? {}).length,
 		};
-	}
-
-	/**
-	 * Lists the extensions of a project that have an update, leaving out a self-embedded extension.
-	 */
-	private reportedUpdates(fsPath: string): string[] {
-		const folderCache = this.cache[fsPath];
-		if (!folderCache) {
-			return [];
-		}
-		const root = this.getProjectRoot(fsPath);
-		return Object.keys(folderCache.updates).filter(
-			(extId) => !root || embeddingOf(root, folderCache.extensions[extId]) !== "self",
-		);
 	}
 
 	dispose(): void {
@@ -276,7 +266,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				workspacePath,
 				folderCache.extensions[ext],
 				"package",
-				embedding === "self" ? undefined : folderCache.updates[ext],
+				folderCache.updates[ext],
 				folderCache.parseErrors.has(ext),
 				compatibilityWarning,
 				folderCache.updateCheckFailures.has(ext),
@@ -725,9 +715,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	/**
 	 * Names each update of a shown project, as `<project label>/<extension id>`.
 	 */
-	private visibleUpdates(): string[] {
-		return this.visibleRoots().flatMap((root) =>
-			this.reportedUpdates(root.fsPath).map((extId) => `${root.label}/${extId}`),
+	private visibleUpdates(visibleRoots: readonly QuartoProjectRoot[] = this.visibleRoots()): string[] {
+		return visibleRoots.flatMap((root) =>
+			Object.keys(this.cache[root.fsPath]?.updates ?? {}).map((extId) => `${root.label}/${extId}`),
 		);
 	}
 
@@ -737,8 +727,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	 * The message says that every project is hidden, or else reports the state of the update check.
 	 */
 	updateViewState(view: vscode.TreeView<TreeItemType>): void {
-		view.message = this.allProjectsHidden() ? ALL_PROJECTS_HIDDEN_MESSAGE : this.updateCheckMessage;
-		const totalUpdates = this.visibleUpdates().length;
+		const visibleRoots = this.visibleRoots();
+		view.message = this.allProjectsHidden(visibleRoots) ? ALL_PROJECTS_HIDDEN_MESSAGE : this.updateCheckMessage;
+		const totalUpdates = this.visibleUpdates(visibleRoots).length;
 		view.badge =
 			totalUpdates > 0
 				? {
@@ -770,7 +761,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		}
 		for (const update of result.updates) {
 			const folderCache = this.cache[update.projectDir];
-			if (folderCache) {
+			const root = this.getProjectRoot(update.projectDir);
+			// A self-embedded extension has no update, so none is stored for it.
+			if (folderCache && !(root && embeddingOf(root, update.extension) === "self")) {
 				folderCache.updates[formatExtensionId(update.extension.id)] = update;
 			}
 		}
