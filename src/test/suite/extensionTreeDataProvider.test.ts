@@ -1,4 +1,6 @@
 import * as assert from "assert";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
@@ -13,12 +15,18 @@ import {
 	type TreeItemType,
 } from "../../ui/extensionTreeItems";
 import type { InstalledExtension } from "../../utils/extensions";
-import { makeFolder, makeRoot } from "./projectFixtures";
+import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
+import { ProjectVisibility } from "../../utils/projectVisibility";
+import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 
 suite("Extension Tree Data Provider Test Suite", () => {
+	function createVisibility(): ProjectVisibility {
+		return new ProjectVisibility(new FakeMemento());
+	}
+
 	function createProvider(): QuartoExtensionTreeDataProvider {
-		return new QuartoExtensionTreeDataProvider([], new SchemaCache(), new SnippetCache());
+		return new QuartoExtensionTreeDataProvider([], new SchemaCache(), new SnippetCache(), createVisibility());
 	}
 
 	async function waitForInitialRefresh(provider: QuartoExtensionTreeDataProvider): Promise<void> {
@@ -173,7 +181,12 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		const folder = makeFolder("repo", path.resolve(path.sep, "tmp", "repo"));
 		const a = makeRoot(folder, "docs", "A");
 		const b = makeRoot(folder, "docs", "B");
-		const provider = new QuartoExtensionTreeDataProvider([a, b], new SchemaCache(), new SnippetCache());
+		const provider = new QuartoExtensionTreeDataProvider(
+			[a, b],
+			new SchemaCache(),
+			new SnippetCache(),
+			createVisibility(),
+		);
 		await waitForInitialRefresh(provider);
 
 		const top = await provider.getChildren();
@@ -196,7 +209,12 @@ suite("Extension Tree Data Provider Test Suite", () => {
 	test("Single sub-project stays flat as a WorkspaceFolderTreeItem", async () => {
 		const folder = makeFolder("repo", path.resolve(path.sep, "tmp", "repo"));
 		const sub = makeRoot(folder, "docs", "only");
-		const provider = new QuartoExtensionTreeDataProvider([sub], new SchemaCache(), new SnippetCache());
+		const provider = new QuartoExtensionTreeDataProvider(
+			[sub],
+			new SchemaCache(),
+			new SnippetCache(),
+			createVisibility(),
+		);
 		await waitForInitialRefresh(provider);
 
 		(
@@ -235,6 +253,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			[makeRoot(repoA), makeRoot(repoB)],
 			new SchemaCache(),
 			new SnippetCache(),
+			createVisibility(),
 		);
 		await waitForInitialRefresh(provider);
 
@@ -319,6 +338,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 				[makeRoot(makeFolder("treeCommands", TREE_COMMANDS_ROOT))],
 				new SchemaCache(),
 				new SnippetCache(),
+				createVisibility(),
 			);
 			await waitForInitialRefresh(provider);
 			const view = { message: undefined, badge: undefined } as unknown as vscode.TreeView<TreeItemType>;
@@ -432,6 +452,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 				[makeRoot(makeFolder("treeCommands", TREE_COMMANDS_ROOT))],
 				new SchemaCache(),
 				new SnippetCache(),
+				createVisibility(),
 			);
 			await waitForInitialRefresh(provider);
 			const stubbedFetch = globalThis.fetch;
@@ -451,6 +472,205 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			// inspect() returns an object for any key; a key that no extension contributes has no default.
 			const inspected = vscode.workspace.getConfiguration("quartoWizard").inspect("update.crossSource");
 			assert.strictEqual(inspected?.defaultValue, undefined);
+		});
+	});
+	suite("Visibility and embedding", () => {
+		let restoreBoundary: (() => void) | undefined;
+		let tempDirs: string[] = [];
+
+		teardown(() => {
+			restoreBoundary?.();
+			restoreBoundary = undefined;
+			for (const dir of tempDirs) {
+				fs.rmSync(dir, { recursive: true, force: true });
+			}
+			tempDirs = [];
+		});
+
+		/** Creates a project folder that holds one GitHub extension for each identifier. */
+		function projectWith(...ids: string[]): string {
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-tree-"));
+			tempDirs.push(dir);
+			for (const id of ids) {
+				const extensionDir = path.join(dir, "_extensions", ...id.split("/"));
+				fs.mkdirSync(extensionDir, { recursive: true });
+				fs.writeFileSync(
+					path.join(extensionDir, "_extension.yml"),
+					`title: ${id}\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\nsource: ${id}@v1.0.0\nsource-type: github\n`,
+				);
+			}
+			return dir;
+		}
+
+		function rootAt(dir: string, embeddedIn?: QuartoProjectRoot["embeddedIn"]): QuartoProjectRoot {
+			const root = makeRoot(makeFolder(path.basename(dir), dir));
+			return embeddedIn ? { ...root, embeddedIn } : root;
+		}
+
+		async function check(
+			roots: QuartoProjectRoot[],
+			options: UpdateBoundaryOptions,
+			visibility = createVisibility(),
+		): Promise<{ provider: QuartoExtensionTreeDataProvider; view: vscode.TreeView<TreeItemType> }> {
+			restoreBoundary = stubUpdateBoundary({ token: "test-token", ...options });
+			const provider = new QuartoExtensionTreeDataProvider(roots, new SchemaCache(), new SnippetCache(), visibility);
+			await waitForInitialRefresh(provider);
+			const view = { message: undefined, badge: undefined } as unknown as vscode.TreeView<TreeItemType>;
+			await provider.checkUpdate({} as vscode.ExtensionContext, view);
+			return { provider, view };
+		}
+
+		async function itemIn(
+			provider: QuartoExtensionTreeDataProvider,
+			root: QuartoProjectRoot,
+			id: string,
+		): Promise<ExtensionTreeItem> {
+			const items = await provider.getChildren(new WorkspaceFolderTreeItem(root.label, root.fsPath));
+			const item = items.find((candidate) => candidate.label === id);
+			assert.ok(item instanceof ExtensionTreeItem, `no tree item for ${id}`);
+			return item;
+		}
+
+		test("hidden roots are absent from the tree", async () => {
+			const shown = rootAt(projectWith("acme/demo"));
+			const hidden = rootAt(projectWith("acme/demo"));
+			const visibility = createVisibility();
+			await visibility.setVisible([hidden], false);
+			const provider = new QuartoExtensionTreeDataProvider(
+				[shown, hidden],
+				new SchemaCache(),
+				new SnippetCache(),
+				visibility,
+			);
+			await waitForInitialRefresh(provider);
+
+			const top = await provider.getChildren();
+
+			assert.deepStrictEqual(
+				top.map((item) => (item as WorkspaceFolderTreeItem).folderPath),
+				[shown.fsPath],
+			);
+		});
+
+		test("hiding a root removes it from the tree", async () => {
+			const shown = rootAt(projectWith("acme/demo"));
+			const hidden = rootAt(projectWith("acme/demo"));
+			const visibility = createVisibility();
+			const provider = new QuartoExtensionTreeDataProvider(
+				[shown, hidden],
+				new SchemaCache(),
+				new SnippetCache(),
+				visibility,
+			);
+			await waitForInitialRefresh(provider);
+			assert.strictEqual((await provider.getChildren()).length, 2);
+
+			await visibility.setVisible([hidden], false);
+
+			assert.deepStrictEqual(
+				(await provider.getChildren()).map((item) => (item as WorkspaceFolderTreeItem).folderPath),
+				[shown.fsPath],
+			);
+		});
+
+		test("badge counts updates of visible roots only", async () => {
+			const shown = rootAt(projectWith("acme/demo"));
+			const hidden = rootAt(projectWith("acme/demo"));
+			const visibility = createVisibility();
+			await visibility.setVisible([hidden], false);
+
+			const { provider, view } = await check(
+				[shown, hidden],
+				{ repositories: { "acme/demo": { githubTags: ["v2.0.0"] } } },
+				visibility,
+			);
+
+			assert.strictEqual(view.badge?.value, 1);
+			assert.deepStrictEqual(provider.getProjectCounts(hidden.fsPath), { extensions: 1, updates: 1 });
+			assert.deepStrictEqual(provider.getProjectCounts(shown.fsPath), { extensions: 1, updates: 1 });
+		});
+
+		test("a check fires onDidChangeCounts", async () => {
+			restoreBoundary = stubUpdateBoundary({ token: "test-token", repositories: {} });
+			const provider = new QuartoExtensionTreeDataProvider(
+				[rootAt(projectWith("acme/demo"))],
+				new SchemaCache(),
+				new SnippetCache(),
+				createVisibility(),
+			);
+			await waitForInitialRefresh(provider);
+			let fired = 0;
+			const listener = provider.onDidChangeCounts(() => fired++);
+
+			await provider.checkUpdate({} as vscode.ExtensionContext);
+			listener.dispose();
+
+			assert.ok(fired > 0);
+		});
+
+		test("children of an installed embedded parent are read-only and not checked for updates", async () => {
+			const embedded = rootAt(projectWith("acme/child"), {
+				id: { owner: "acme", name: "parent" },
+				source: "acme/parent@v1.0.0",
+			});
+			const plain = rootAt(projectWith("acme/other"));
+			const requests: string[] = [];
+
+			const { provider } = await check([embedded, plain], {
+				requests,
+				repositories: { "acme/child": { githubTags: ["v2.0.0"] }, "acme/other": { githubTags: ["v2.0.0"] } },
+			});
+
+			assert.ok(
+				requests.some((url) => url.includes("/acme/other/")),
+				requests.join("\n"),
+			);
+			assert.ok(!requests.some((url) => url.includes("/acme/child/")), requests.join("\n"));
+			const item = await itemIn(provider, embedded, "acme/child");
+			assert.strictEqual(item.contextValue, "quartoExtensionItemEmbedded");
+			assert.strictEqual(item.update, undefined);
+			assert.deepStrictEqual(provider.getProjectCounts(embedded.fsPath), { extensions: 1, updates: 0 });
+		});
+
+		test("children of a locally developed parent are updatable", async () => {
+			const embedded = rootAt(projectWith("acme/child"), { id: { owner: "acme", name: "parent" } });
+
+			const { provider, view } = await check([embedded], {
+				repositories: { "acme/child": { githubTags: ["v2.0.0"] } },
+			});
+
+			const item = await itemIn(provider, embedded, "acme/child");
+			assert.strictEqual(item.contextValue, "quartoExtensionItem");
+			assert.strictEqual(item.update?.latestVersion, "2.0.0");
+			assert.strictEqual(view.badge?.value, 1);
+		});
+
+		test("a self-embedded child is flagged", async () => {
+			const embedded = rootAt(projectWith("acme/self-demo"), { id: { owner: "acme", name: "self-demo" } });
+
+			const { provider, view } = await check([embedded], {
+				repositories: { "acme/self-demo": { githubTags: ["v2.0.0"] } },
+			});
+
+			const item = await itemIn(provider, embedded, "acme/self-demo");
+			assert.strictEqual(item.contextValue, "quartoExtensionItemSelfEmbedded");
+			assert.strictEqual(item.description, "embeds itself");
+			assert.strictEqual((item.iconPath as vscode.ThemeIcon).id, "error");
+			assert.strictEqual(view.badge, undefined);
+			assert.deepStrictEqual(provider.getProjectCounts(embedded.fsPath), { extensions: 1, updates: 0 });
+		});
+
+		test("setProjectRoots reports a change when only quartoIgnored changes", () => {
+			const root = makeRoot(makeFolder("repo", path.resolve(path.sep, "tmp", "repo")), "docs");
+			const provider = new QuartoExtensionTreeDataProvider(
+				[root],
+				new SchemaCache(),
+				new SnippetCache(),
+				createVisibility(),
+			);
+
+			assert.strictEqual(provider.setProjectRoots([{ ...root }]), false);
+			assert.strictEqual(provider.setProjectRoots([{ ...root, quartoIgnored: true }]), true);
 		});
 	});
 });

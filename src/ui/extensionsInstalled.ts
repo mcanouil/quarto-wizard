@@ -28,10 +28,13 @@ import {
 	refreshProjectRoots as rediscoverProjectRoots,
 } from "../utils/projectRootsRegistry";
 import { debounce } from "../utils/debounce";
+import { ProjectVisibility } from "../utils/projectVisibility";
 import { WorkspaceFolderTreeItem, ExtensionTreeItem, SnippetItemTreeItem } from "./extensionTreeItems";
 import { QuartoExtensionTreeDataProvider } from "./extensionTreeDataProvider";
 
 const PROJECT_ROOTS_REFRESH_DEBOUNCE_MS = 500;
+
+const QUARTO_IGNORE_GLOB = "**/.quartoignore";
 
 /**
  * Resolves the latest GitHub tag or commit of each extension, with or without a token, so that an
@@ -138,12 +141,15 @@ export class ExtensionsInstalled {
 
 		// Project roots are discovered asynchronously; start with an empty set so the view can
 		// render immediately, then update once discovery completes.
-		this.treeDataProvider = new QuartoExtensionTreeDataProvider([], schemaCache, snippetCache);
+		const visibility = new ProjectVisibility(context.workspaceState);
+		context.subscriptions.push(visibility);
+		this.treeDataProvider = new QuartoExtensionTreeDataProvider([], schemaCache, snippetCache, visibility);
 		context.subscriptions.push(this.treeDataProvider);
 		const view = vscode.window.createTreeView("quartoWizard.extensionsInstalled", {
 			treeDataProvider: this.treeDataProvider,
 			showCollapseAll: true,
 		});
+		context.subscriptions.push(visibility.onDidChange(() => this.treeDataProvider.updateBadge(view)));
 		const invalidateProviderCaches = (cacheKey?: string) => {
 			invalidateInstalledExtensionsCache(cacheKey);
 			invalidateWorkspaceSchemaIndex(cacheKey);
@@ -236,6 +242,17 @@ export class ExtensionsInstalled {
 		context.subscriptions.push(projectFileWatcher.onDidDelete(onProjectFileChanged));
 		context.subscriptions.push(projectFileWatcher);
 
+		// The default visibility of a project reads `.quartoignore`, which discovery marks on each root.
+		const quartoIgnoreWatcher = vscode.workspace.createFileSystemWatcher(QUARTO_IGNORE_GLOB);
+		const onQuartoIgnoreChanged = () => {
+			invalidateProjectRoots();
+			refreshProjectRoots();
+		};
+		context.subscriptions.push(quartoIgnoreWatcher.onDidCreate(onQuartoIgnoreChanged));
+		context.subscriptions.push(quartoIgnoreWatcher.onDidChange(onQuartoIgnoreChanged));
+		context.subscriptions.push(quartoIgnoreWatcher.onDidDelete(onQuartoIgnoreChanged));
+		context.subscriptions.push(quartoIgnoreWatcher);
+
 		// Create/delete also re-runs discovery so installing the first extension in a folder
 		// promotes it into the detected roots without a manual refresh.
 		const extensionWatcher = vscode.workspace.createFileSystemWatcher(EXTENSION_MANIFEST_GLOB);
@@ -282,6 +299,23 @@ export class ExtensionsInstalled {
 				invalidateProviderCaches();
 				refreshAll();
 			}),
+		);
+
+		/**
+		 * Hides a project from the view for the current user.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.hideProject",
+				async (item: WorkspaceFolderTreeItem) => {
+					const root = this.treeDataProvider.getProjectRoot(item.folderPath);
+					if (!root) {
+						logMessage(`Cannot hide "${item.label}": no detected project at ${item.folderPath}.`, "warn");
+						return;
+					}
+					await visibility.setVisible([root], false);
+				},
+			),
 		);
 
 		// Open Source command (branches on effective source type)

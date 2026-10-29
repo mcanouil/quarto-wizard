@@ -9,7 +9,7 @@ import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvi
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/coreOperations";
-import { makeFolder, makeRoot } from "./projectFixtures";
+import { FakeMemento, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
 const RATE_LIMITED = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
@@ -63,6 +63,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			subscriptions,
 			secrets: { get: async () => undefined },
 			globalState: { get: () => undefined },
+			workspaceState: new FakeMemento(),
 		} as unknown as vscode.ExtensionContext;
 	}
 
@@ -535,5 +536,38 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.deepStrictEqual(installCalls, [
 			{ source: localSource, workspaceFolder: FIXTURE_ROOT, sourceType: undefined },
 		]);
+	});
+
+	test("update all skips the extensions of an installed embedded parent", async () => {
+		stubTwoUpdates();
+		provider.projectRoots = [
+			{
+				...makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+				embeddedIn: { id: { owner: "acme", name: "parent" }, source: "acme/parent@v1.0.0" },
+			},
+		];
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(messages, ["All extensions are up to date."]);
+	});
+
+	test("hideProject hides the folder", async () => {
+		const tree = provider as unknown as QuartoExtensionTreeDataProvider;
+		const otherPath = path.join(FIXTURE_ROOT, "_extensions");
+		provider.projectRoots = [
+			makeRoot(makeFolder("treeCommands", FIXTURE_ROOT)),
+			makeRoot(makeFolder("other", otherPath, 1)),
+		];
+		assert.strictEqual((await tree.getChildren()).length, 2);
+
+		await runCommand("hideProject", new WorkspaceFolderTreeItem("other", otherPath));
+
+		const top = await tree.getChildren();
+		assert.deepStrictEqual(
+			top.map((item) => (item as WorkspaceFolderTreeItem).folderPath),
+			[FIXTURE_ROOT],
+		);
 	});
 });

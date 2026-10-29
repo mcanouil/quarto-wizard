@@ -11,9 +11,11 @@ import {
 	getExtensionContributes,
 	getEffectiveSourceType,
 	getExtensionRepository,
+	type InstalledExtension,
 } from "../utils/extensions";
 import { getCacheTTL, getRegistryUrl } from "../utils/extensionDetails";
 import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
+import type { ProjectVisibility } from "../utils/projectVisibility";
 import { getAuthConfig } from "../utils/auth";
 import { getQuartoVersionInfo, type QuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "../utils/versionValidation";
@@ -36,6 +38,7 @@ import {
 	type TreeItemType,
 	type FolderCache,
 	type ExtensionCompatibility,
+	type ExtensionEmbedding,
 	describeCheckSource,
 } from "./extensionTreeItems";
 
@@ -61,6 +64,10 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	>();
 	readonly onDidChangeTreeData: vscode.Event<TreeItemType | undefined | void> = this._onDidChangeTreeData.event;
 
+	private readonly _onDidChangeCounts = new vscode.EventEmitter<void>();
+	/** Fires when the extension or update counts of any project can have changed. */
+	readonly onDidChangeCounts: vscode.Event<void> = this._onDidChangeCounts.event;
+
 	// Consolidated cache for extension data per workspace folder
 	private cache: Record<string, FolderCache> = {};
 
@@ -73,11 +80,18 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	// Guard against concurrent update-check operations
 	private pendingCheck: Promise<number> | null = null;
 
+	private readonly visibilityListener: vscode.Disposable;
+
 	constructor(
 		private projectRoots: readonly QuartoProjectRoot[],
 		private schemaCache: SchemaCache,
 		private snippetCache: SnippetCache,
+		private readonly visibility: ProjectVisibility,
 	) {
+		this.visibilityListener = visibility.onDidChange(() => {
+			this.projectTreeCache = null;
+			this._onDidChangeTreeData.fire();
+		});
 		this.refreshAllExtensionsData();
 	}
 
@@ -97,14 +111,52 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 	private getProjectTree(): ProjectTreeNode[] {
 		if (!this.projectTreeCache) {
-			this.projectTreeCache = buildProjectTree(this.projectRoots);
+			this.projectTreeCache = buildProjectTree(this.visibleRoots());
 		}
 		return this.projectTreeCache;
 	}
 
+	private visibleRoots(): QuartoProjectRoot[] {
+		return this.projectRoots.filter((root) => this.visibility.isVisible(root));
+	}
+
+	/**
+	 * Gets the project root at a path, or `undefined` when no root is there.
+	 */
+	getProjectRoot(fsPath: string): QuartoProjectRoot | undefined {
+		return this.projectRoots.find((root) => root.fsPath === fsPath);
+	}
+
+	/**
+	 * Counts the installed extensions of a project and the updates that the view reports for it.
+	 * A hidden project is counted too.
+	 */
+	getProjectCounts(fsPath: string): { extensions: number; updates: number } {
+		return {
+			extensions: Object.keys(this.cache[fsPath]?.extensions ?? {}).length,
+			updates: this.reportedUpdates(fsPath).length,
+		};
+	}
+
+	/**
+	 * Lists the extensions of a project that have an update, leaving out a self-embedded extension.
+	 */
+	private reportedUpdates(fsPath: string): string[] {
+		const folderCache = this.cache[fsPath];
+		if (!folderCache) {
+			return [];
+		}
+		const root = this.getProjectRoot(fsPath);
+		return Object.keys(folderCache.updates).filter(
+			(extId) => !root || embeddingOf(root, folderCache.extensions[extId]) !== "self",
+		);
+	}
+
 	dispose(): void {
 		this.refresh.cancel();
+		this.visibilityListener.dispose();
 		this._onDidChangeTreeData.dispose();
+		this._onDidChangeCounts.dispose();
 	}
 
 	getTreeItem(element: TreeItemType): vscode.TreeItem {
@@ -163,8 +215,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	private getWorkspaceFolderItems(): ProjectFolderItem[] {
-		if (this.projectRoots.length === 1) {
-			const only = this.projectRoots[0];
+		const visibleRoots = this.visibleRoots();
+		if (visibleRoots.length === 1) {
+			const only = visibleRoots[0];
 			const folderCache = this.cache[only.fsPath];
 			if (!folderCache || Object.keys(folderCache.extensions).length === 0) {
 				return [];
@@ -195,7 +248,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			];
 		}
 
+		const root = this.getProjectRoot(workspacePath);
 		return Object.keys(folderCache.extensions).map((ext) => {
+			const embedding = root ? embeddingOf(root, folderCache.extensions[ext]) : undefined;
 			const compatibilityWarning =
 				folderCache.compatibility[ext]?.status === "incompatible"
 					? folderCache.compatibility[ext].warningMessage
@@ -206,10 +261,11 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				workspacePath,
 				folderCache.extensions[ext],
 				"package",
-				folderCache.updates[ext],
+				embedding === "self" ? undefined : folderCache.updates[ext],
 				folderCache.parseErrors.has(ext),
 				compatibilityWarning,
 				folderCache.updateCheckFailures.has(ext),
+				embedding,
 			);
 		});
 	}
@@ -524,6 +580,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 			}
 
 			this.cache = newCache;
+			this._onDidChangeCounts.fire();
 		};
 
 		this.pendingRefresh = doRefresh().finally(() => {
@@ -534,12 +591,13 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 
 	/**
-	 * Gets the paths of the Quarto project roots shown in the view.
+	 * Gets the paths of the Quarto project roots whose extensions can be updated.
+	 * The extensions of an installed embedded parent ship with it, so they are never updated on their own.
 	 *
 	 * @returns Array of project directory paths.
 	 */
 	getProjectDirs(): string[] {
-		return this.projectRoots.map((root) => root.fsPath);
+		return this.projectRoots.filter((root) => !root.embeddedIn?.source).map((root) => root.fsPath);
 	}
 
 	/**
@@ -573,7 +631,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 		const doCheck = async (): Promise<number> => {
 			const auth = await getAuthConfig(context);
-			const projectDirs = this.projectRoots.map((root) => root.fsPath).filter((dir) => this.cache[dir]);
+			const projectDirs = this.getProjectDirs().filter((dir) => this.cache[dir]);
 
 			let result: UpdateCheckResult | undefined;
 			try {
@@ -603,13 +661,9 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				this.storeUpdates(projectDirs, result);
 				state = result.checkedOn;
 			}
+			this._onDidChangeCounts.fire();
 
-			const updatesAvailable: string[] = [];
-			for (const root of this.projectRoots) {
-				for (const extId of Object.keys(this.cache[root.fsPath]?.updates ?? {})) {
-					updatesAvailable.push(`${root.label}/${extId}`);
-				}
-			}
+			const updatesAvailable = this.visibleUpdates();
 			const totalUpdates = updatesAvailable.length;
 
 			if (updatesAvailable.length > 0 && !silent) {
@@ -622,13 +676,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 
 			if (view) {
 				view.message = hasExtensions ? UPDATE_CHECK_MESSAGES[state] : undefined;
-				view.badge =
-					totalUpdates > 0
-						? {
-								value: totalUpdates,
-								tooltip: `${totalUpdates} update${totalUpdates === 1 ? "" : "s"} available`,
-							}
-						: undefined;
+				this.updateBadge(view);
 			}
 
 			return totalUpdates;
@@ -639,6 +687,29 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 		});
 
 		return this.pendingCheck;
+	}
+
+	/**
+	 * Names each update of a shown project, as `<project label>/<extension id>`.
+	 */
+	private visibleUpdates(): string[] {
+		return this.visibleRoots().flatMap((root) =>
+			this.reportedUpdates(root.fsPath).map((extId) => `${root.label}/${extId}`),
+		);
+	}
+
+	/**
+	 * Sets the badge of the view to the number of updates of the shown projects.
+	 */
+	updateBadge(view: vscode.TreeView<TreeItemType>): void {
+		const totalUpdates = this.visibleUpdates().length;
+		view.badge =
+			totalUpdates > 0
+				? {
+						value: totalUpdates,
+						tooltip: `${totalUpdates} update${totalUpdates === 1 ? "" : "s"} available`,
+					}
+				: undefined;
 	}
 
 	/**
@@ -670,14 +741,34 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 	}
 }
 
+/**
+ * Tells how an extension relates to the extension that embeds it, when its project is an embedding parent.
+ * An extension that has the identifier of its parent embeds itself.
+ * The other extensions of an installed parent ship with it, so they are read-only.
+ */
+function embeddingOf(
+	root: QuartoProjectRoot,
+	extension: InstalledExtension | undefined,
+): ExtensionEmbedding | undefined {
+	const parent = root.embeddedIn;
+	if (!parent || !extension) {
+		return undefined;
+	}
+	if (formatExtensionId(extension.id) === formatExtensionId(parent.id)) {
+		return "self";
+	}
+	return parent.source ? "read-only" : undefined;
+}
+
 function sameProjectRoots(a: readonly QuartoProjectRoot[], b: readonly QuartoProjectRoot[]): boolean {
 	if (a.length !== b.length) {
 		return false;
 	}
-	for (let i = 0; i < a.length; i++) {
-		if (a[i].fsPath !== b[i].fsPath) {
-			return false;
-		}
-	}
-	return true;
+	return a.every(
+		(root, i) =>
+			root.fsPath === b[i].fsPath &&
+			root.relativePath === b[i].relativePath &&
+			root.quartoIgnored === b[i].quartoIgnored &&
+			root.embeddedIn?.source === b[i].embeddedIn?.source,
+	);
 }
