@@ -34,6 +34,15 @@
 		},
 		{
 			"kind": "wait",
+			"text": "sample-project/packs/old",
+			"timeout": 30000
+		},
+		{
+			"kind": "key",
+			"key": "Enter"
+		},
+		{
+			"kind": "wait",
 			"selector": ".monaco-dialog-box",
 			"timeout": 60000
 		}

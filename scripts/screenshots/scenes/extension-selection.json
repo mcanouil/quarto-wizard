@@ -49,6 +49,15 @@
 		},
 		{
 			"kind": "wait",
+			"text": "sample-project/packs/pair",
+			"timeout": 30000
+		},
+		{
+			"kind": "key",
+			"key": "Enter"
+		},
+		{
+			"kind": "wait",
 			"text": "Select Extension(s) to Install",
 			"timeout": 30000
 		}

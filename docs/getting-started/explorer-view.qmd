@@ -21,6 +21,10 @@ alt-text:
     The Quarto Wizard view next to an open file named report.qmd.
     The Snippets node of mcanouil/iconify is expanded and lists three snippets: Icon, Icon with size, and Icon with style.
     Each snippet shows its prefix.
+  detected-projects: |
+    The Detected Projects view of Quarto Wizard with three projects.
+    sample-project and docs have a tick, and each shows its number of extensions and updates.
+    archive has no tick, and its description ends with .quartoignore.
   editor-context: |
     The editor context menu in a Quarto document.
     A box marks the Quarto Wizard entry, and a second box with the label Quarto Wizard commands marks its open submenu.
@@ -74,6 +78,21 @@ The editor settings `files.exclude` and `search.exclude` hide folders from this 
 The Detected Projects view sits above the Extensions Installed view.
 It lists each project that Quarto Wizard found, with a checkbox.
 Only the projects with a tick appear in the Extensions Installed view.
+
+::: {style="text-align: center;"}
+![](images/detected-projects-dark.png "Detected Projects View"){
+.dark-content .lightbox
+.img-fluid .img-thumbnail .rounded-3 .border-light
+fig-align="center" group="quarto-wizard-dark"
+fig-alt='{{< meta alt-text.detected-projects >}}'
+}
+![](images/detected-projects-light.png "Detected Projects View"){
+.light-content .lightbox
+.img-fluid .img-thumbnail .rounded-3 .border-light
+fig-align="center" group="quarto-wizard-light"
+fig-alt='{{< meta alt-text.detected-projects >}}'
+}
+:::
 
 A hidden project does not count in the update badge, and Update All does not update it.
 Completion, diagnostics and the install picker still use the extensions of a hidden project.
