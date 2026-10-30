@@ -89,6 +89,16 @@ describe("parseInstallSource", () => {
 			});
 		});
 
+		it("drops . segments", () => {
+			expect(parseInstallSource("owner/repo/a/./b")).toMatchObject({ subdirectory: "a/b" });
+			expect(parseInstallSource("owner/repo/.")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				version: { type: "latest" },
+			});
+		});
+
 		it("refuses .. in a subdirectory", () => {
 			expect(() => parseInstallSource("owner/repo/a/../b")).toThrow(/Invalid subdirectory/);
 		});
@@ -274,6 +284,11 @@ describe("normaliseSubdirectory", () => {
 
 	it("drops empty segments and a trailing slash", () => {
 		expect(normaliseSubdirectory("a//b/")).toBe("a/b");
+	});
+
+	it("drops . segments", () => {
+		expect(normaliseSubdirectory("a/./b")).toBe("a/b");
+		expect(normaliseSubdirectory(".")).toBe("");
 	});
 });
 

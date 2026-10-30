@@ -27,6 +27,7 @@ export {
 	inferSourceType,
 	normaliseManifest,
 	parseGitHubLocator,
+	tryParseGitHubLocator,
 	splitSourceRef,
 } from "./manifest.js";
 

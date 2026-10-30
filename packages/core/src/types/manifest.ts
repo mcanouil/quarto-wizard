@@ -9,6 +9,7 @@
 
 import type { ExtensionType } from "./extension.js";
 import { normaliseSubdirectory } from "../archive/security.js";
+import { ExtensionError } from "../errors.js";
 
 /**
  * Contributions an extension can provide to Quarto.
@@ -195,6 +196,23 @@ export function parseGitHubLocator(base: string): GitHubLocator | null {
 		return null;
 	}
 	return subdirectory ? { owner, repo, subdirectory } : { owner, repo };
+}
+
+/**
+ * Parse the base of a GitHub source like `parseGitHubLocator`, without throwing.
+ *
+ * @param base - Source without its ref (e.g. `owner/repo/sub/dir`)
+ * @returns The locator, or null when the source names no repository or a subdirectory that could leave it
+ */
+export function tryParseGitHubLocator(base: string): GitHubLocator | null {
+	try {
+		return parseGitHubLocator(base);
+	} catch (error) {
+		if (error instanceof ExtensionError) {
+			return null;
+		}
+		throw error;
+	}
 }
 
 /**

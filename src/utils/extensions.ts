@@ -8,10 +8,8 @@ import {
 	type InstalledExtension,
 	type SourceType,
 	getErrorMessage,
-	parseGitHubLocator,
 	splitSourceRef,
-	ExtensionError,
-	type GitHubLocator,
+	tryParseGitHubLocator,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
@@ -20,21 +18,6 @@ export function getSourceBase(source: string, sourceType?: SourceType): string {
 		return splitSourceRef(source).base;
 	}
 	return source;
-}
-
-/**
- * Repository and subdirectory of a GitHub source base, or null when the base
- * names no repository or a subdirectory that could leave it.
- */
-function toGitHubLocator(base: string): GitHubLocator | null {
-	try {
-		return parseGitHubLocator(base);
-	} catch (error) {
-		if (error instanceof ExtensionError) {
-			return null;
-		}
-		throw error;
-	}
 }
 
 export function resolveLocalSourcePath(sourcePath: string, workspaceFolder: string): string {
@@ -115,7 +98,7 @@ export function getExtensionRepository(ext: InstalledExtension): string | undefi
 	}
 	const type = getEffectiveSourceType(ext.manifest);
 	if (type === "github" || type === "registry") {
-		const locator = toGitHubLocator(getSourceBase(source, type));
+		const locator = tryParseGitHubLocator(getSourceBase(source, type));
 		return locator ? `${locator.owner}/${locator.repo}` : undefined;
 	}
 	return undefined;
@@ -135,7 +118,7 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 	const type = getEffectiveSourceType(ext.manifest);
 	const base = getSourceBase(source, type);
 	if (type === "github" || type === "registry") {
-		const locator = toGitHubLocator(base);
+		const locator = tryParseGitHubLocator(base);
 		if (!locator?.subdirectory) {
 			return `https://github.com/${base}`;
 		}

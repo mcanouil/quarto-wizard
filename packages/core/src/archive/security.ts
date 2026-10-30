@@ -42,7 +42,7 @@ export function checkPathTraversal(filePath: string): void {
 /**
  * Normalise a repository subdirectory given in an install source.
  *
- * Drops empty segments and a trailing slash.
+ * Drops empty and "." segments and a trailing slash.
  * Refuses a subdirectory that could leave the repository, before any request is made.
  *
  * @param input - Subdirectory as written (e.g., "sub/dir/")
@@ -56,7 +56,10 @@ export function normaliseSubdirectory(input: string): string {
 			suggestion: 'Use a relative path with "/" separators and without ".." segments',
 		});
 	}
-	return input.split("/").filter(Boolean).join("/");
+	return input
+		.split("/")
+		.filter((segment) => segment !== "" && segment !== ".")
+		.join("/");
 }
 
 /**

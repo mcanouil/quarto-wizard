@@ -865,6 +865,83 @@ describe("checkForUpdates", () => {
 				);
 			});
 
+			it("reads the manifest under the _extensions folder of the subdirectory", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) =>
+					filePath === "b/_extensions/y/_extension.yml" ? "title: Y\nversion: 1.1.0\n" : null,
+				);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("1.1.0");
+				expect(result.updates[0]?.latestRef).toBe("v3.0.0");
+				const paths = vi.mocked(fetchRawFile).mock.calls.map((call) => call[3]);
+				expect(paths).toEqual(["b/_extension.yml", "b/_extension.yaml", "b/_extensions/y/_extension.yml"]);
+			});
+
+			it("reads the manifest under the owner folder of the subdirectory _extensions folder", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) =>
+					filePath === "b/_extensions/quarto-ext/y/_extension.yaml" ? "title: Y\nversion: 1.1.0\n" : null,
+				);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("1.1.0");
+			});
+
+			it("reads each extension manifest when two extensions come from the same subdirectory", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+				setupExtension("quarto-ext", "z", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) => {
+					if (filePath === "b/_extensions/y/_extension.yml") {
+						return "title: Y\nversion: 1.1.0\n";
+					}
+					if (filePath === "b/_extensions/z/_extension.yml") {
+						return "title: Z\nversion: 1.2.0\n";
+					}
+					return null;
+				});
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				const byName = Object.fromEntries(result.updates.map((u) => [u.extension.id.name, u.latestVersion]));
+				expect(byName).toEqual({ y: "1.1.0", z: "1.2.0" });
+			});
+
+			it("reports the subdirectory manifest version when the installed version is not a version", async () => {
+				setupExtension("quarto-ext", "sub", "1.0.0.9000", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 2.0.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("2.0.0");
+				expect(result.updates[0]?.latestRef).toBe("v3.0.0");
+			});
+
+			it("reports GitHub as the check source when every candidate is a subdirectory source", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+				expect(fetchRegistry).not.toHaveBeenCalled();
+				expect(result.checkedOn).toBe("github");
+			});
+
 			it("keeps the subdirectory in UpdateInfo.source", async () => {
 				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
 

@@ -14,9 +14,8 @@ import { formatExtensionId } from "../types/extension.js";
 import {
 	formatGitHubLocator,
 	getEffectiveSourceType,
-	parseGitHubLocator,
 	splitSourceRef,
-	type GitHubLocator,
+	tryParseGitHubLocator,
 } from "../types/manifest.js";
 import {
 	discoverInstalledExtensions,
@@ -238,6 +237,8 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 			result.checkFailure = { kind: "registry-unavailable", message: getErrorMessage(error) };
 			return result;
 		}
+	} else {
+		result.checkedOn = "github";
 	}
 
 	const lookups = createGitHubLookups({
@@ -324,7 +325,7 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 	}
 
 	const { base } = splitSourceRef(source);
-	const locator = toLocator(base);
+	const locator = tryParseGitHubLocator(base);
 	if (!locator) {
 		return null;
 	}
@@ -340,18 +341,17 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 }
 
 /**
- * Repository and subdirectory of a source base, or null when the source names
- * no repository or a subdirectory that could leave it, so it cannot be checked.
+ * Paths where the manifest of a subdirectory source can be, in the order they are tried:
+ * the subdirectory itself, then the folder of the installed extension under the
+ * `_extensions` folder of the subdirectory, without and with its owner.
  */
-function toLocator(base: string): GitHubLocator | null {
-	try {
-		return parseGitHubLocator(base);
-	} catch (error) {
-		if (error instanceof ExtensionError) {
-			return null;
-		}
-		throw error;
+function subdirectoryManifestPaths(candidate: UpdateCandidate): string[] {
+	const { owner, name } = candidate.extension.id;
+	const directories = [candidate.subdirectory, `${candidate.subdirectory}/_extensions/${name}`];
+	if (owner) {
+		directories.push(`${candidate.subdirectory}/_extensions/${owner}/${name}`);
 	}
+	return directories.flatMap((directory) => MANIFEST_FILENAMES.map((filename) => `${directory}/${filename}`));
 }
 
 function createGitHubLookups(options: GitHubOptions): GitHubLookups {
@@ -381,10 +381,10 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 		},
 		subdirectoryVersion(candidate, ref) {
 			const repository = candidate.fullName.toLowerCase();
-			return once(`${repository}@${ref}:${candidate.subdirectory}`, async () => {
+			const extensionId = formatExtensionId(candidate.extension.id);
+			return once(`${repository}@${ref}:${candidate.subdirectory}#${extensionId}`, async () => {
 				try {
-					for (const filename of MANIFEST_FILENAMES) {
-						const filePath = `${candidate.subdirectory}/${filename}`;
+					for (const filePath of subdirectoryManifestPaths(candidate)) {
 						const content = await fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options);
 						if (content !== null) {
 							return manifestVersion(content, filePath);
@@ -553,7 +553,7 @@ async function buildSubdirectoryUpdate(
 	}
 	return makeUpdate(candidate, {
 		currentVersion: currentVersion ?? installedVersion,
-		latestVersion: comparable ? latestVersion : latest.version,
+		latestVersion: latestVersion ?? latest.version,
 		latestRef: latest.tagName,
 		refKind: "tag",
 		checkedOn: "github",

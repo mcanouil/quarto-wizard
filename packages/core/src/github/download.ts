@@ -81,7 +81,7 @@ export async function downloadGitHubArchive(
 		downloadDir,
 		defaultBranch,
 		latestCommit,
-		path,
+		path: subdirectory,
 		signal,
 	} = options;
 
@@ -95,7 +95,7 @@ export async function downloadGitHubArchive(
 		timeout,
 		defaultBranch,
 		latestCommit,
-		path,
+		path: subdirectory,
 		signal,
 	});
 

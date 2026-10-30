@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { normaliseManifest, getExtensionTypes, inferSourceType } from "../src/types/manifest.js";
+import { normaliseManifest, getExtensionTypes, inferSourceType, tryParseGitHubLocator } from "../src/types/manifest.js";
 import {
 	parseManifestContent,
 	parseManifestFile,
@@ -592,5 +592,23 @@ describe("inferSourceType", () => {
 		const elapsed = Date.now() - start;
 		expect(result).toBeUndefined();
 		expect(elapsed).toBeLessThan(500);
+	});
+});
+
+describe("tryParseGitHubLocator", () => {
+	it("returns the repository and subdirectory", () => {
+		expect(tryParseGitHubLocator("owner/repo/sub/dir")).toEqual({
+			owner: "owner",
+			repo: "repo",
+			subdirectory: "sub/dir",
+		});
+	});
+
+	it("returns null for a subdirectory that could leave the repository", () => {
+		expect(tryParseGitHubLocator("owner/repo/a/../b")).toBeNull();
+	});
+
+	it("returns null when the repository is missing", () => {
+		expect(tryParseGitHubLocator("owner")).toBeNull();
 	});
 });
