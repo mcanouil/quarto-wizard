@@ -9,7 +9,7 @@
  */
 
 import * as path from "node:path";
-import { SecurityError } from "../errors.js";
+import { ExtensionError, SecurityError } from "../errors.js";
 
 /** Default maximum extraction size: 100 MB. */
 export const DEFAULT_MAX_SIZE = 100 * 1024 * 1024;
@@ -37,6 +37,26 @@ export function checkPathTraversal(filePath: string): void {
 	if (segments.some((segment) => segment === "..")) {
 		throw new SecurityError(`Path traversal detected in archive: "${filePath}"`);
 	}
+}
+
+/**
+ * Normalise a repository subdirectory given in an install source.
+ *
+ * Drops empty segments and a trailing slash.
+ * Refuses a subdirectory that could leave the repository, before any request is made.
+ *
+ * @param input - Subdirectory as written (e.g., "sub/dir/")
+ * @returns Subdirectory with single slashes between segments (e.g., "sub/dir")
+ * @throws ExtensionError with code "INVALID_SUBDIRECTORY" for a ".." segment, a leading "/" or a "\\"
+ */
+export function normaliseSubdirectory(input: string): string {
+	if (input.startsWith("/") || input.includes("\\") || input.split("/").includes("..")) {
+		throw new ExtensionError(`Invalid subdirectory: "${input}"`, {
+			code: "INVALID_SUBDIRECTORY",
+			suggestion: 'Use a relative path with "/" separators and without ".." segments',
+		});
+	}
+	return input.split("/").filter(Boolean).join("/");
 }
 
 /**

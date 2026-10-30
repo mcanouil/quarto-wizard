@@ -13,6 +13,7 @@ import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest, SourceType } from "../types/manifest.js";
 import { parseExtensionRef } from "../types/extension.js";
+import { normaliseSubdirectory } from "../archive/security.js";
 import { ExtensionError, getErrorMessage } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
 import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
@@ -31,7 +32,7 @@ import { lookupRegistryEntry } from "../registry/search.js";
  * Source for extension installation.
  */
 export type InstallSource =
-	| { type: "github"; owner: string; repo: string; version: VersionSpec }
+	| { type: "github"; owner: string; repo: string; subdirectory?: string; version: VersionSpec }
 	| { type: "url"; url: string }
 	| { type: "local"; path: string };
 
@@ -238,7 +239,13 @@ export function parseInstallSource(
 		return { type: "local", path: input };
 	}
 
-	const ref = parseExtensionRef(input);
+	const trimmed = input.trim();
+	const atIndex = trimmed.lastIndexOf("@");
+	const locator = atIndex > 0 ? trimmed.substring(0, atIndex) : trimmed;
+	const refSuffix = atIndex > 0 ? trimmed.substring(atIndex) : "";
+	const [owner, repo, ...subdirectorySegments] = locator.split("/");
+	const subdirectory = normaliseSubdirectory(subdirectorySegments.filter(Boolean).join("/"));
+	const ref = parseExtensionRef(repo === undefined ? input : `${owner}/${repo}${refSuffix}`);
 
 	if (!ref.id.owner) {
 		throw new ExtensionError(`Invalid extension reference: "${input}"`, {
@@ -250,8 +257,14 @@ export function parseInstallSource(
 		type: "github",
 		owner: ref.id.owner,
 		repo: ref.id.name,
+		...(subdirectory ? { subdirectory } : {}),
 		version: ref.version,
 	};
+}
+
+function formatGitHubLocator(source: { owner: string; repo: string; subdirectory?: string }): string {
+	const base = `${source.owner}/${source.repo}`;
+	return source.subdirectory ? `${base}/${source.subdirectory}` : base;
 }
 
 /**
@@ -260,7 +273,7 @@ export function parseInstallSource(
 export function formatInstallSource(source: InstallSource): string {
 	switch (source.type) {
 		case "github": {
-			const base = `${source.owner}/${source.repo}`;
+			const base = formatGitHubLocator(source);
 			if (source.version.type === "latest") {
 				return base;
 			}
@@ -671,7 +684,7 @@ export async function selectExtensionsFromSource(
  */
 function formatSourceString(source: InstallSource, tagName?: string, commitSha?: string): string {
 	if (source.type === "github") {
-		const base = `${source.owner}/${source.repo}`;
+		const base = formatGitHubLocator(source);
 		// If we resolved to a commit (no releases), use short commit format
 		if (commitSha) {
 			return `${base}@${commitSha}`;

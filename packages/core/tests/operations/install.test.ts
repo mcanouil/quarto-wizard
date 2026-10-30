@@ -8,6 +8,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { parseInstallSource, formatInstallSource, type InstallSource } from "../../src/operations/install.js";
 // Internal exports for testing only
+import { normaliseSubdirectory } from "../../src/archive/security.js";
 import { resolveExtensionId } from "../../src/operations/internal.js";
 
 describe("parseInstallSource", () => {
@@ -40,6 +41,50 @@ describe("parseInstallSource", () => {
 				repo: "fontawesome",
 				version: { type: "branch", branch: "main" },
 			});
+		});
+
+		it("parses owner/repo/sub/dir@v1 with its subdirectory", () => {
+			expect(parseInstallSource("owner/repo/sub/dir@v1")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				subdirectory: "sub/dir",
+				version: { type: "tag", tag: "v1" },
+			});
+		});
+
+		it("parses a ref that contains a slash", () => {
+			expect(parseInstallSource("owner/repo/sub@feature/x")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				subdirectory: "sub",
+				version: { type: "branch", branch: "feature/x" },
+			});
+		});
+
+		it("drops a trailing slash and empty segments", () => {
+			expect(parseInstallSource("owner/repo//sub/")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				subdirectory: "sub",
+				version: { type: "latest" },
+			});
+		});
+
+		it("refuses .. in a subdirectory", () => {
+			expect(() => parseInstallSource("owner/repo/a/../b")).toThrow(/Invalid subdirectory/);
+		});
+
+		it("refuses a backslash in a subdirectory", () => {
+			expect(() => parseInstallSource("owner/repo/a\\b")).toThrow(/Invalid subdirectory/);
+		});
+
+		it("leaves owner/repo without a subdirectory unchanged", () => {
+			const result = parseInstallSource("owner/repo");
+			expect(result).toEqual({ type: "github", owner: "owner", repo: "repo", version: { type: "latest" } });
+			expect(result).not.toHaveProperty("subdirectory");
 		});
 
 		it("should throw for invalid format without owner", () => {
@@ -201,7 +246,27 @@ describe("parseInstallSource", () => {
 	});
 });
 
+describe("normaliseSubdirectory", () => {
+	it("refuses a leading slash", () => {
+		expect(() => normaliseSubdirectory("/sub")).toThrow(expect.objectContaining({ code: "INVALID_SUBDIRECTORY" }));
+	});
+
+	it("refuses .. and a backslash with the subdirectory error code", () => {
+		expect(() => normaliseSubdirectory("a/../b")).toThrow(expect.objectContaining({ code: "INVALID_SUBDIRECTORY" }));
+		expect(() => normaliseSubdirectory("a\\b")).toThrow(expect.objectContaining({ code: "INVALID_SUBDIRECTORY" }));
+	});
+
+	it("drops empty segments and a trailing slash", () => {
+		expect(normaliseSubdirectory("a//b/")).toBe("a/b");
+	});
+});
+
 describe("formatInstallSource", () => {
+	it("round-trips a subdirectory source", () => {
+		const input = "owner/repo/sub/dir@v1";
+		expect(formatInstallSource(parseInstallSource(input))).toBe(input);
+	});
+
 	it("should format GitHub source without version", () => {
 		const source: InstallSource = {
 			type: "github",

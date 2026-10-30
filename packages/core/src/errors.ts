@@ -54,8 +54,8 @@ export class QuartoWizardError extends Error {
  * Error related to extension operations (install, update, remove).
  */
 export class ExtensionError extends QuartoWizardError {
-	constructor(message: string, options?: QuartoWizardErrorOptions) {
-		super(message, "EXTENSION_ERROR", options);
+	constructor(message: string, options?: QuartoWizardErrorOptions & { code?: string }) {
+		super(message, options?.code ?? "EXTENSION_ERROR", options);
 		this.name = "ExtensionError";
 	}
 }
