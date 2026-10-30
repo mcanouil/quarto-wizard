@@ -579,6 +579,31 @@ describe("checkForUpdates", () => {
 				expect(result.updates).toHaveLength(0);
 			});
 
+			it("offers no prerelease manifest version to a stable install", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0-beta.1\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalled();
+				expect(result.updates).toHaveLength(0);
+			});
+
+			it("offers a prerelease manifest version to a prerelease install", async () => {
+				setupExtension("quarto-ext", "sub", "0.4.0-alpha.1", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0-beta.1\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("0.4.0-beta.1");
+				expect(result.updates[0]?.latestRef).toBe("v2.0.0");
+			});
+
 			it("falls back to the recorded ref when the raw manifest has no version", async () => {
 				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
 				setupExtension("quarto-ext", "other", "0.3.0", "quarto-ext/current/other@v2.0.0", "github");

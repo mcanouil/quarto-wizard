@@ -524,6 +524,11 @@ async function buildSubdirectoryUpdate(
 	const installedVersion = candidate.extension.manifest.version;
 	const currentVersion = normaliseVersion(installedVersion);
 	const latestVersion = await lookups.subdirectoryVersion(candidate, latest?.tagName ?? "HEAD");
+	// Prereleases qualify only for a prerelease install, as in buildTagUpdate.
+	const followsPrereleases = currentVersion !== null && semver.prerelease(currentVersion) !== null;
+	if (latestVersion !== null && semver.prerelease(latestVersion) !== null && !followsPrereleases) {
+		return null;
+	}
 	const comparable = currentVersion !== null && latestVersion !== null;
 	if (comparable && !semver.gt(latestVersion, currentVersion)) {
 		return null;
