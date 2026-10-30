@@ -192,6 +192,17 @@ describe("fetchLatestCommit", () => {
 		expect(fetchJson.mock.calls[0]?.[0]).toBe("https://api.github.com/repos/owner/repo/commits?per_page=1");
 	});
 
+	it("keeps only the commits that change a path", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockResolvedValueOnce([{ sha: "def5678901234" }]);
+
+		await fetchLatestCommit("owner", "repo", { path: "sub/dir" });
+
+		expect(fetchJson.mock.calls[0]?.[0]).toBe(
+			"https://api.github.com/repos/owner/repo/commits?per_page=1&path=sub%2Fdir",
+		);
+	});
+
 	it("returns null for a repository without commits", async () => {
 		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockResolvedValueOnce([]);
 

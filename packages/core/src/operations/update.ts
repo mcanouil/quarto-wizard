@@ -21,12 +21,16 @@ import type { Registry, RegistryEntry } from "../types/registry.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 import { lookupRegistryEntry } from "../registry/search.js";
 import { fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
+import { fetchRawFile } from "../github/raw.js";
+import { MANIFEST_FILENAMES, parseManifestContent } from "../filesystem/manifest.js";
+import { normaliseSubdirectory } from "../archive/security.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { install, parseInstallSource } from "./install.js";
 import {
 	AuthenticationError,
 	CancellationError,
 	ExtensionError,
+	ManifestError,
 	NetworkError,
 	RateLimitError,
 	SamlSsoError,
@@ -59,7 +63,7 @@ export interface UpdateInfo {
 	checkedOn: UpdateCheckSource;
 	/** URL to the release, or to the repository when there is no release. */
 	releaseUrl: string | null;
-	/** Source to install, as `owner/repo@<latestRef>`. */
+	/** Source to install, as `owner/repo@<latestRef>` or `owner/repo/<subdirectory>@<latestRef>`. */
 	source: string;
 }
 
@@ -161,6 +165,8 @@ interface UpdateCandidate {
 	fullName: string;
 	/** Seven-character commit when the source is pinned to a commit. */
 	currentCommit: string | null;
+	/** Repository subdirectory the extension was installed from, or null for the repository root. */
+	subdirectory: string | null;
 }
 
 /**
@@ -170,6 +176,8 @@ interface UpdateCandidate {
 interface GitHubLookups {
 	latestTag(candidate: UpdateCandidate): Promise<LatestTag | null>;
 	latestCommit(candidate: UpdateCandidate): Promise<string | null>;
+	/** Normalised version in the manifest of the candidate subdirectory at a ref, or null when there is none. */
+	subdirectoryVersion(candidate: UpdateCandidate, ref: string): Promise<string | null>;
 }
 
 /**
@@ -178,6 +186,11 @@ interface GitHubLookups {
  * A source pinned to a commit compares commits; every other source compares
  * the installed version with the latest tag. An update never goes to a lower
  * version.
+ *
+ * A source with a repository subdirectory is always checked on GitHub. Its
+ * installed version is compared with the version in the subdirectory manifest
+ * at the latest tag, because the tags of a repository that holds several
+ * extensions need not follow the version of any one of them.
  *
  * An aborted `signal` stops the requests and rejects with a
  * `CancellationError`.
@@ -204,7 +217,8 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 	}
 
 	let registry: Registry | null = null;
-	if (!useGitHub) {
+	// No registry entry matches a subdirectory source.
+	if (!useGitHub && candidates.some((candidate) => candidate.subdirectory === null)) {
 		try {
 			registry = await fetchRegistry(registryOptions);
 		} catch (error) {
@@ -225,7 +239,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 
 	const updates = await Promise.all(
 		candidates.map(async (candidate) => {
-			const entry = registry ? lookupRegistryEntry(registry, candidate.base) : null;
+			const entry = registry && candidate.subdirectory === null ? lookupRegistryEntry(registry, candidate.base) : null;
 			if (entry) {
 				return buildRegistryUpdate(candidate, entry);
 			}
@@ -299,11 +313,13 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 		return null;
 	}
 
-	// The installer only accepts owner/repo, so a source with a subdirectory cannot be updated
-	// without installing the repository root in place of the recorded extension.
 	const { base } = splitSourceRef(source);
-	const [owner, repo, ...subdirectory] = base.split("/");
-	if (!owner || !repo || subdirectory.length > 0) {
+	const [owner, repo, ...segments] = base.split("/");
+	if (!owner || !repo) {
+		return null;
+	}
+	const subdirectory = toSubdirectory(segments.join("/"));
+	if (subdirectory === undefined) {
 		return null;
 	}
 
@@ -315,7 +331,24 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 		repo,
 		fullName: `${owner}/${repo}`,
 		currentCommit: extractCommitFromSource(source),
+		subdirectory,
 	};
+}
+
+/**
+ * Subdirectory recorded in a source, null for the repository root, or
+ * undefined when the recorded subdirectory could leave the repository and the
+ * source cannot be checked.
+ */
+function toSubdirectory(recorded: string): string | null | undefined {
+	try {
+		return normaliseSubdirectory(recorded) || null;
+	} catch (error) {
+		if (error instanceof ExtensionError) {
+			return undefined;
+		}
+		throw error;
+	}
 }
 
 function createGitHubLookups(options: GitHubOptions): GitHubLookups {
@@ -339,10 +372,44 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 			return once(key, () => resolveLatestTag(candidate.owner, candidate.repo, { ...options, currentVersion }));
 		},
 		latestCommit(candidate) {
-			const key = `${candidate.fullName.toLowerCase()}#commit`;
-			return once(key, () => fetchLatestCommit(candidate.owner, candidate.repo, options));
+			const { subdirectory } = candidate;
+			const repository = candidate.fullName.toLowerCase();
+			if (subdirectory === null) {
+				return once(`${repository}#commit`, () => fetchLatestCommit(candidate.owner, candidate.repo, options));
+			}
+			return once(`${repository}:${subdirectory}`, () =>
+				fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory }),
+			);
+		},
+		subdirectoryVersion(candidate, ref) {
+			const repository = candidate.fullName.toLowerCase();
+			return once(`${repository}@${ref}:${candidate.subdirectory}`, async () => {
+				for (const filename of MANIFEST_FILENAMES) {
+					const filePath = `${candidate.subdirectory}/${filename}`;
+					const content = await fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options);
+					if (content !== null) {
+						return manifestVersion(content, filePath);
+					}
+				}
+				return null;
+			});
 		},
 	};
+}
+
+/**
+ * Normalised version of a manifest, or null when the manifest cannot be
+ * parsed or has no version.
+ */
+function manifestVersion(content: string, sourcePath: string): string | null {
+	try {
+		return normaliseVersion(parseManifestContent(content, sourcePath).version);
+	} catch (error) {
+		if (error instanceof ManifestError) {
+			return null;
+		}
+		throw error;
+	}
 }
 
 /**
@@ -399,10 +466,84 @@ async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLook
 		return buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
 	}
 	const latest = await lookups.latestTag(candidate);
+	if (candidate.subdirectory !== null) {
+		return buildSubdirectoryUpdate(candidate, latest, lookups, htmlUrl);
+	}
 	if (!latest) {
 		return null;
 	}
 	return buildTagUpdate(candidate, latest.tagName, latest.releaseUrl ?? htmlUrl, "github");
+}
+
+/**
+ * Compare a subdirectory source with the version in its manifest at the
+ * latest tag, or at the default branch when the repository has no version
+ * tag. When that manifest gives no version, the latest tag is compared with
+ * the ref recorded in the source instead.
+ */
+async function buildSubdirectoryUpdate(
+	candidate: UpdateCandidate,
+	latest: LatestTag | null,
+	lookups: GitHubLookups,
+	htmlUrl: string,
+): Promise<UpdateInfo | null> {
+	const installedVersion = candidate.extension.manifest.version;
+	const currentVersion = normaliseVersion(installedVersion);
+	const latestVersion = await lookups.subdirectoryVersion(candidate, latest?.tagName ?? "HEAD");
+	const comparable = currentVersion !== null && latestVersion !== null;
+	if (comparable && !semver.gt(latestVersion, currentVersion)) {
+		return null;
+	}
+
+	if (!latest) {
+		if (!comparable) {
+			return null;
+		}
+		// The default branch is installed pinned to its latest commit, as a first install would.
+		const latestCommit = await lookups.latestCommit(candidate);
+		if (!latestCommit) {
+			return null;
+		}
+		const latestRef = latestCommit.substring(0, 7).toLowerCase();
+		return {
+			extension: candidate.extension,
+			projectDir: candidate.projectDir,
+			currentVersion,
+			latestVersion,
+			latestRef,
+			refKind: "commit",
+			checkedOn: "github",
+			releaseUrl: htmlUrl,
+			source: `${sourceBase(candidate)}@${latestRef}`,
+		};
+	}
+
+	if (!comparable && !isNewerThanRecordedRef(candidate, latest)) {
+		return null;
+	}
+	return {
+		extension: candidate.extension,
+		projectDir: candidate.projectDir,
+		currentVersion: currentVersion ?? installedVersion,
+		latestVersion: comparable ? latestVersion : latest.version,
+		latestRef: latest.tagName,
+		refKind: "tag",
+		checkedOn: "github",
+		releaseUrl: latest.releaseUrl ?? htmlUrl,
+		source: `${sourceBase(candidate)}@${latest.tagName}`,
+	};
+}
+
+/** Whether the latest tag is newer than the ref recorded in the manifest source. */
+function isNewerThanRecordedRef(candidate: UpdateCandidate, latest: LatestTag): boolean {
+	const ref = recordedRef(candidate);
+	const recordedVersion = ref === null ? null : normaliseVersion(ref.replace(/^V/, "v"));
+	return recordedVersion ? semver.gt(latest.version, recordedVersion) : !isInstalledTag(candidate, latest.tagName);
+}
+
+/** Source without its ref, as `owner/repo` or `owner/repo/<subdirectory>`. */
+function sourceBase(candidate: UpdateCandidate): string {
+	return candidate.subdirectory === null ? candidate.fullName : `${candidate.fullName}/${candidate.subdirectory}`;
 }
 
 function buildTagUpdate(
@@ -438,7 +579,7 @@ function buildTagUpdate(
 		refKind: "tag",
 		checkedOn,
 		releaseUrl,
-		source: `${candidate.fullName}@${latestTag}`,
+		source: `${sourceBase(candidate)}@${latestTag}`,
 	};
 }
 
@@ -501,7 +642,7 @@ function buildCommitUpdate(
 		refKind: "commit",
 		checkedOn,
 		releaseUrl,
-		source: `${candidate.fullName}@${latestRef}`,
+		source: `${sourceBase(candidate)}@${latestRef}`,
 	};
 }
 

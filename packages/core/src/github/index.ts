@@ -11,6 +11,8 @@ export {
 	fetchLatestCommit,
 } from "./releases.js";
 
+export { fetchRawFile } from "./raw.js";
+
 export { type ResolvedVersion, type ResolveVersionOptions, resolveVersion } from "./resolve.js";
 
 export { type LatestTag, type ResolveLatestTagOptions, normaliseVersion, resolveLatestTag } from "./latest.js";
