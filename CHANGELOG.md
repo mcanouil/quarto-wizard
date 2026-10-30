@@ -19,6 +19,7 @@
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 - feat: Add a Detected Projects view, collapsed by default, to show or hide projects, with the `quartoWizard.projectVisibility` setting to share the choice. Extensions that hold other extensions now appear as projects, and those of an installed parent are read-only.
 - feat: Add `discoverProjectDirs()` to `@quarto-wizard/core`, which finds Quarto projects and extensions that embed other extensions.
+- feat: Add `pluralise()` to `@quarto-wizard/core`, which writes a count with the singular or the plural of its noun.
 
 ### Bug Fixes
 
@@ -32,6 +33,7 @@
 - fix: Check an attribute or a cell option against every extension that declares it, and name the extension when more than one declares it. (#520)
 - fix: Recognise a full commit of 40 characters as a commit pin, and stop offering updates for an extension installed from a subdirectory of a repository, which the installer cannot update.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
+- fix: Use the singular or the plural that a count needs in messages, so "1 extension" and "2 extensions" replace "extension(s)".
 
 ### Documentation
 

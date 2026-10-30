@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { pluralise } from "@quarto-wizard/core";
 import { STORAGE_KEY_RECENTLY_INSTALLED, STORAGE_KEY_RECENTLY_USED } from "../constants";
 import { getShowLogsLink, logMessage, showMessageWithLogs } from "../utils/log";
 import { checkInternetConnection } from "../utils/network";
@@ -211,7 +212,7 @@ async function installQuartoExtensions(
 			});
 
 			if (installedExtensions.length > 0) {
-				logMessage(`Successfully ${actionPast} extension${installedExtensions.length > 1 ? "s" : ""}:`, "info");
+				logMessage(`Successfully ${actionPast} ${pluralise(installedExtensions.length, "extension")}:`, "info");
 				for (const ext of installedExtensions) {
 					logMessage(` - ${ext}`, "info");
 				}
@@ -219,7 +220,7 @@ async function installQuartoExtensions(
 
 			if (failedExtensions.length > 0) {
 				logMessage(
-					`Failed to ${template ? "use" : "install"} extension${failedExtensions.length > 1 ? "s" : ""}:`,
+					`Failed to ${template ? "use" : "install"} ${pluralise(failedExtensions.length, "extension")}:`,
 					"error",
 				);
 				for (const ext of failedExtensions) {
@@ -227,20 +228,15 @@ async function installQuartoExtensions(
 				}
 				const message = [
 					"The following extension",
-					failedExtensions.length > 1 ? "s were" : " was",
+					failedExtensions.length === 1 ? " was" : "s were",
 					` not ${actionPast}, try ${template ? "using" : "installing"} `,
-					failedExtensions.length > 1 ? "them" : "it",
+					failedExtensions.length === 1 ? "it" : "them",
 					` manually with \`quarto ${template ? "use" : "add"} <extension>\`:`,
 				].join("");
 				showMessageWithLogs(`${message} ${failedExtensions.join(", ")}.`, "error");
 			} else if (installedCount > 0) {
 				// Only show success message if at least one extension was processed
-				const message = [
-					installedCount,
-					" extension",
-					installedCount > 1 ? "s" : "",
-					` ${actionPast} successfully.`,
-				].join("");
+				const message = `${pluralise(installedCount, "extension")} ${actionPast} successfully.`;
 				logMessage(message, "info");
 				showMessageWithLogs(message, "info");
 			}

@@ -99,7 +99,7 @@ suite("Use Brand Command Test Suite", () => {
 		assert.strictEqual(brandCalls[0].folder, WORKSPACE);
 		assert.strictEqual(brandCalls[0].options.auth, AUTH);
 		assert.strictEqual(brandCalls[0].options.cancellationToken, tokenSource.token);
-		assert.deepStrictEqual(information, ["Brand applied successfully (3 file(s) in _brand/)."]);
+		assert.deepStrictEqual(information, ["Brand applied successfully (3 files in _brand/)."]);
 		assert.deepStrictEqual(warnings, []);
 	});
 
@@ -134,7 +134,7 @@ suite("Use Brand Command Test Suite", () => {
 	test("Should say that files were skipped when every overwrite was declined", async () => {
 		brandResult = { created: [], overwritten: [], skipped: ["x", "y"] };
 		await useBrandCommand(context);
-		assert.deepStrictEqual(information, ["Brand files skipped, overwrite declined (2 existing file(s) in _brand/)."]);
+		assert.deepStrictEqual(information, ["Brand files skipped, overwrite declined (2 existing files in _brand/)."]);
 	});
 
 	test("Should warn, and point to the logs, when the operation fails", async () => {

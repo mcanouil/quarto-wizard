@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { formatType, validateFieldValue, deprecationMessage, coerceFieldValue } from "@quarto-wizard/schema";
 import type { SchemaCache, FieldDescriptor } from "@quarto-wizard/schema";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { getErrorMessage, pluralise } from "@quarto-wizard/core";
 import { getDocumentYaml } from "../utils/documentScan";
 import type { AnnotatedYaml, YamlPathSegment } from "../utils/yamlAnnotated";
 import type { TextRange } from "../utils/yamlPosition";
@@ -400,7 +400,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 					diagnostics.push(
 						new vscode.Diagnostic(
 							range,
-							`Option "${key}": array has ${value.length} item(s), minimum is ${descriptor.minItems}.`,
+							`Option "${key}": array has ${pluralise(value.length, "item")}, minimum is ${descriptor.minItems}.`,
 							vscode.DiagnosticSeverity.Error,
 						),
 					);
@@ -409,7 +409,7 @@ export class YamlDiagnosticsProvider implements vscode.Disposable {
 					diagnostics.push(
 						new vscode.Diagnostic(
 							range,
-							`Option "${key}": array has ${value.length} item(s), maximum is ${descriptor.maxItems}.`,
+							`Option "${key}": array has ${pluralise(value.length, "item")}, maximum is ${descriptor.maxItems}.`,
 							vscode.DiagnosticSeverity.Error,
 						),
 					);

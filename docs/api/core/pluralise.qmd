@@ -1,0 +1,37 @@
+---
+title: "Pluralise"
+---
+
+## Pluralise
+
+### Functions
+
+- [pluralise](pluralise.qmd#symbol-function-pluralise)
+
+## pluralise {#symbol-function-pluralise}
+
+```{.ts filename="TypeScript"}
+function pluralise(
+   count,
+   singular,
+   plural?
+): string;
+```
+
+Defined in: [packages/core/src/pluralise.ts:9](https://github.com/mcanouil/quarto-wizard/blob/2b7aeb007c7b0fe072983205ddf5e1ebf8a97ac6/packages/core/src/pluralise.ts#L9)
+
+Writes a count with its noun, in the singular for one and in the plural otherwise.
+
+### Parameters
+
+| Parameter  | Type     | Description                                                        |
+| ---------- | -------- | ------------------------------------------------------------------ |
+| `count`    | `number` | The number of items.                                               |
+| `singular` | `string` | The noun for one item.                                             |
+| `plural?`  | `string` | The noun for any other count, the singular with an `s` by default. |
+
+### Returns
+
+`string`
+
+The count and the noun, for example `2 extensions`.

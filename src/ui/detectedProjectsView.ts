@@ -1,9 +1,8 @@
 import * as vscode from "vscode";
 import type { QuartoProjectRoot } from "../utils/quartoProjectDiscovery";
-import { getErrorMessage } from "@quarto-wizard/core";
+import { getErrorMessage, pluralise } from "@quarto-wizard/core";
 import { logMessage, showMessageWithLogs } from "../utils/log";
 import type { ProjectVisibility } from "../utils/projectVisibility";
-import { pluralise } from "../utils/pluralise";
 
 const VIEW_ID = "quartoWizard.detectedProjects";
 const SELECT_COMMAND = "quartoWizard.detectedProjects.select";
