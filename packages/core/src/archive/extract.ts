@@ -195,8 +195,9 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
 		}
 	}
 
-	// Fallback: use last directory name, which is the extension's own folder when the
-	// search started at the extension itself (a subdirectory source naming it)
+	// Fallback: use the last directory name. When the search root itself holds the manifest,
+	// the relative path is empty and the name comes from the search root, for example a
+	// subdirectory source that names the extension folder or a local extension folder.
 	return { owner: null, name: relativePath === "" ? path.basename(extensionPath) : parts[parts.length - 1] };
 }
 
