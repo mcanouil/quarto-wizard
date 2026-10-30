@@ -317,8 +317,13 @@ export class TypstPreviewController implements vscode.Disposable {
 	private compiler: TypstCompilerLike | undefined;
 	/** What the compiler was built for, so it is replaced when that changes. */
 	private compilerKey: string | undefined;
-	/** Rises with every request, so a result that arrives out of order is dropped. */
+	/**
+	 * Rises with every request that has something to publish, so a result that
+	 * arrives out of order is dropped.
+	 */
 	private requestVersion = 0;
+	/** Rises with every request that starts, whether or not it has anything to publish. */
+	private requestStarts = 0;
 	private result: TypstPreviewResult | undefined;
 	/**
 	 * The preview the reader is following, which is not always the last compile.
@@ -426,13 +431,7 @@ export class TypstPreviewController implements vscode.Disposable {
 
 	/** Preview the block under the cursor again, because something changed. */
 	refresh(): void {
-		const target = cursorTarget();
-		// A cursor outside every block has nothing to compile. Starting a request
-		// for it would still supersede the one in flight, which then publishes
-		// nothing, so a brand switch or a reload asked a moment earlier was lost.
-		if (target !== undefined && this.hasBlockAt(target)) {
-			this.compile(target, "background");
-		}
+		this.compile(cursorTarget(), "background");
 	}
 
 	/**
@@ -465,7 +464,10 @@ export class TypstPreviewController implements vscode.Disposable {
 		// The block is what makes the command mean something, and the cursor can sit
 		// in a document that has none. Asking here rather than leaving it to the
 		// compile is what keeps the promise above true.
-		if (target === undefined || !this.hasBlockAt(target)) {
+		if (
+			target === undefined ||
+			blockAtOffset(this.blocksOf(target.document), target.document.offsetAt(target.position)) === undefined
+		) {
 			this.options.show(NO_BLOCK_MESSAGE);
 			return;
 		}
@@ -499,11 +501,6 @@ export class TypstPreviewController implements vscode.Disposable {
 		// would disagree with the image on screen until something else compiled.
 		this.brandModeOverride = otherBrandMode(shown.brandMode);
 		this.compile(target, "asked");
-	}
-
-	/** Whether the position of a target sits in one of the blocks of its document. */
-	private hasBlockAt(target: PreviewTarget): boolean {
-		return blockAtOffset(this.blocksOf(target.document), target.document.offsetAt(target.position)) !== undefined;
 	}
 
 	/**
@@ -632,11 +629,21 @@ export class TypstPreviewController implements vscode.Disposable {
 			return undefined;
 		}
 
-		const version = ++this.requestVersion;
+		// A request someone asked for takes its place at once. A background one
+		// waits until it knows it has something to compile: taking the place of the
+		// request in flight and then publishing nothing would lose that request, and
+		// a brand switch or a reload asked a moment earlier went missing that way.
+		const started = ++this.requestStarts;
+		let version = reason === "background" ? undefined : ++this.requestVersion;
 		// A newer request has started, or the controller has gone, or the document
 		// has. A closed document raised its own event already, so publishing a
-		// result for it here would bring back a preview that was taken away.
-		const stale = (): boolean => this.disposed || version !== this.requestVersion || document.isClosed;
+		// result for it here would bring back a preview that was taken away. Until a
+		// background request has its place, any request that started after it is
+		// newer.
+		const stale = (): boolean =>
+			this.disposed ||
+			document.isClosed ||
+			(version === undefined ? started !== this.requestStarts : version !== this.requestVersion);
 
 		if (!vscode.workspace.isTrusted) {
 			this.reportUnavailable("The Typst preview needs a trusted workspace, because it runs the Typst compiler.");
@@ -683,6 +690,7 @@ export class TypstPreviewController implements vscode.Disposable {
 			}
 			return undefined;
 		}
+		version ??= ++this.requestVersion;
 
 		const binary = await this.resolveBinary();
 		if (binary === undefined) {

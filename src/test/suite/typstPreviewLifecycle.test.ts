@@ -713,6 +713,30 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should keep a brand switch when the cursor sits in a cell that cannot be previewed", async () => {
+		// The cursor names a block, but the block has no request to give: a cell
+		// in a folder without `typst-render` is refused by the install gate. The
+		// request for it must not take the place of the switch in flight.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-gated-"));
+		written.push(directory);
+		const gated = path.join(directory, "gated.qmd");
+		fs.writeFileSync(gated, "```{typst}\n#circle()\n```\n");
+		await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(gated)), {
+			selection: new vscode.Range(1, 0, 1, 0),
+		});
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		controller.refresh();
+
+		assert.strictEqual((await switched)?.brandMode, first?.brandMode === "dark" ? "light" : "dark");
+		controller.dispose();
+	});
+
 	test("Should refuse to switch the brand mode of a block that has none", async () => {
 		// Only a cell resolves colours against a brand. A plain block carries the
 		// preview's own header, so there is no other side to show.
