@@ -684,11 +684,6 @@ export class TypstPreviewController implements vscode.Disposable {
 			}
 			return undefined;
 		}
-		// Taken only now, because a request that took its place and then published
-		// nothing would lose the one in flight: a brand switch or a reload asked a
-		// moment earlier went missing that way. Nothing awaits between the check
-		// above and this line, so no newer request can have taken a place since.
-		this.claimedStart = started;
 
 		const binary = await this.resolveBinary();
 		if (binary === undefined) {
@@ -697,6 +692,15 @@ export class TypstPreviewController implements vscode.Disposable {
 			);
 			return undefined;
 		}
+		if (stale()) {
+			return undefined;
+		}
+		// Taken only now, once there is a source and a binary to compile it with,
+		// because a request that took its place and then published nothing would
+		// lose the one in flight: a brand switch or a reload asked a moment earlier
+		// went missing that way. Nothing awaits between the check above and this
+		// line, so no newer request can have taken a place since.
+		this.claimedStart = started;
 		// The image is decided by the source, the command and the binary, and by
 		// nothing else. Two documents that assemble to the same source under the
 		// same command share the entry, which is what makes an undone keystroke

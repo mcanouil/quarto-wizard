@@ -756,6 +756,32 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should keep a brand switch when a newer request finds no Typst binary", async () => {
+		// A request without a binary publishes nothing, so it must not take the
+		// place of the switch in flight either. The refresh reads a plain block,
+		// which is quicker than the cell of the switch, so it makes the second
+		// lookup.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		let lookups = 0;
+		const controller = new TypstPreviewController({
+			hasSurface: () => true,
+			show: () => undefined,
+			resolveBinary: () => Promise.resolve(++lookups === 2 ? undefined : "/typst"),
+			createCompiler: () => compiler,
+		});
+		const document = await cellDocument();
+		const elsewhere = await plainFile();
+		await vscode.window.showTextDocument(elsewhere, { selection: new vscode.Range(INSIDE_BLOCK, INSIDE_BLOCK) });
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		controller.refresh();
+
+		assert.strictEqual((await switched)?.brandMode, first?.brandMode === "dark" ? "light" : "dark");
+		controller.dispose();
+	});
+
 	test("Should refuse to switch the brand mode of a block that has none", async () => {
 		// Only a cell resolves colours against a brand. A plain block carries the
 		// preview's own header, so there is no other side to show.
