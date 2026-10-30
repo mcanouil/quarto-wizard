@@ -1,17 +1,10 @@
 import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
+import { REPOSITORY_ROOT, readPackageJson, type PackageJson } from "./packageFixtures";
 
-const ROOT = path.resolve(__dirname, "../../..");
-
-interface WalkthroughStep {
-	id: string;
-	media: { image?: string; markdown?: string };
-}
-
-function readSteps(): WalkthroughStep[] {
-	const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
-	return pkg.contributes.walkthroughs.flatMap((walkthrough: { steps: WalkthroughStep[] }) => walkthrough.steps);
+function readSteps(): PackageJson["contributes"]["walkthroughs"][number]["steps"] {
+	return readPackageJson().contributes.walkthroughs.flatMap((walkthrough) => walkthrough.steps);
 }
 
 suite("Walkthrough Test Suite", () => {
@@ -22,7 +15,7 @@ suite("Walkthrough Test Suite", () => {
 		for (const step of steps) {
 			const mediaPath = step.media.markdown ?? step.media.image;
 			assert.ok(mediaPath, `Step ${step.id} should declare a markdown or image media`);
-			const mediaFile = path.join(ROOT, mediaPath);
+			const mediaFile = path.join(REPOSITORY_ROOT, mediaPath);
 			assert.ok(fs.existsSync(mediaFile), `Step ${step.id}: ${mediaPath} should exist`);
 
 			if (!step.media.markdown) {
