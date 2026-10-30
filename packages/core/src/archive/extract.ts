@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { ExtensionError } from "../errors.js";
+import type { GitHubLocator } from "../types/manifest.js";
 import { MANIFEST_FILENAMES } from "../filesystem/manifest.js";
 import { EXTENSIONS_DIR, getExtensionsDir } from "../filesystem/discovery.js";
 import { isQuartoIgnored, readQuartoIgnore } from "../filesystem/quartoignore.js";
@@ -212,7 +213,7 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
  * @param extractDir - Extraction directory
  * @returns Path to the repository root
  */
-export async function resolveArchiveRoot(extractDir: string): Promise<string> {
+async function resolveArchiveRoot(extractDir: string): Promise<string> {
 	if (await hasManifestFile(extractDir)) {
 		return extractDir;
 	}
@@ -264,6 +265,31 @@ export async function resolveSubdirectoryRoot(
 		throw notFound;
 	}
 	return resolved;
+}
+
+/**
+ * Resolve the directory a GitHub source installs from inside an extraction directory.
+ *
+ * Without a subdirectory, this is the extraction directory itself.
+ * With one, the archive wrapper is stripped and the subdirectory is resolved below the
+ * repository root with `resolveSubdirectoryRoot`.
+ *
+ * @param extractDir - Extraction directory
+ * @param source - Repository and optional subdirectory of the source
+ * @param ref - Tag or commit the archive was downloaded at, for the error message
+ * @returns The extraction directory, or the real path of the subdirectory
+ * @throws ExtensionError when the subdirectory is absent, is not a directory, or resolves outside the archive root
+ */
+export async function resolveSourceRoot(
+	extractDir: string,
+	source: GitHubLocator,
+	ref: string | undefined,
+): Promise<string> {
+	if (!source.subdirectory) {
+		return extractDir;
+	}
+	const label = `${source.owner}/${source.repo}@${ref}`;
+	return resolveSubdirectoryRoot(await resolveArchiveRoot(extractDir), source.subdirectory, label);
 }
 
 /**

@@ -22,8 +22,7 @@ import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
 	extractArchive,
 	readArchiveExtensions,
-	resolveArchiveRoot,
-	resolveSubdirectoryRoot,
+	resolveSourceRoot,
 	cleanupExtraction,
 	type DiscoveredExtension,
 } from "../archive/extract.js";
@@ -395,11 +394,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		}
 
 		// Find all extensions in the archive, or only below the subdirectory the source names
-		let searchRoot = extractDir;
-		if (source.type === "github" && source.subdirectory) {
-			const label = `${source.owner}/${source.repo}@${commitSha ?? tagName}`;
-			searchRoot = await resolveSubdirectoryRoot(await resolveArchiveRoot(extractDir), source.subdirectory, label);
-		}
+		const searchRoot =
+			source.type === "github" ? await resolveSourceRoot(extractDir, source, commitSha ?? tagName) : extractDir;
 		const { root: archiveRoot, extensions: allExtensions } = await readArchiveExtensions(searchRoot, {
 			stripWrapper: searchRoot === extractDir,
 		});
