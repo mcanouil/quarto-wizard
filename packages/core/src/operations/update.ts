@@ -376,13 +376,8 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 		},
 		latestCommit(candidate) {
 			const { subdirectory } = candidate;
-			const repository = candidate.fullName.toLowerCase();
-			if (!subdirectory) {
-				return once(`${repository}#commit`, () => fetchLatestCommit(candidate.owner, candidate.repo, options));
-			}
-			return once(`${repository}:${subdirectory}`, () =>
-				fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory }),
-			);
+			const key = `${candidate.fullName.toLowerCase()}#commit:${subdirectory ?? ""}`;
+			return once(key, () => fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory }));
 		},
 		subdirectoryVersion(candidate, ref) {
 			const repository = candidate.fullName.toLowerCase();
@@ -543,34 +538,27 @@ async function buildSubdirectoryUpdate(
 		if (!latestCommit) {
 			return null;
 		}
-		const latestRef = latestCommit.substring(0, 7).toLowerCase();
-		return {
-			extension: candidate.extension,
-			projectDir: candidate.projectDir,
+		return makeUpdate(candidate, {
 			currentVersion,
 			latestVersion,
-			latestRef,
+			latestRef: latestCommit.substring(0, 7).toLowerCase(),
 			refKind: "commit",
 			checkedOn: "github",
 			releaseUrl: htmlUrl,
-			source: `${formatGitHubLocator(candidate)}@${latestRef}`,
-		};
+		});
 	}
 
 	if (!comparable && !isNewerThanRecordedRef(candidate, latest)) {
 		return null;
 	}
-	return {
-		extension: candidate.extension,
-		projectDir: candidate.projectDir,
+	return makeUpdate(candidate, {
 		currentVersion: currentVersion ?? installedVersion,
 		latestVersion: comparable ? latestVersion : latest.version,
 		latestRef: latest.tagName,
 		refKind: "tag",
 		checkedOn: "github",
 		releaseUrl: latest.releaseUrl ?? htmlUrl,
-		source: `${formatGitHubLocator(candidate)}@${latest.tagName}`,
-	};
+	});
 }
 
 /** Whether the latest tag is newer than the ref recorded in the manifest source. */
@@ -604,17 +592,14 @@ function buildTagUpdate(
 	if (!isUpdate) {
 		return null;
 	}
-	return {
-		extension: candidate.extension,
-		projectDir: candidate.projectDir,
+	return makeUpdate(candidate, {
 		currentVersion: currentVersion ?? installedVersion,
 		latestVersion,
 		latestRef: latestTag,
 		refKind: "tag",
 		checkedOn,
 		releaseUrl,
-		source: `${formatGitHubLocator(candidate)}@${latestTag}`,
-	};
+	});
 }
 
 const EXTRA_NUMERIC_PARTS_PATTERN = /^v?(\d+\.\d+\.\d+)(?:\.\d+)+$/;
@@ -668,16 +653,26 @@ function buildCommitUpdate(
 	if (latestRef === currentCommit) {
 		return null;
 	}
-	return {
-		extension: candidate.extension,
-		projectDir: candidate.projectDir,
+	return makeUpdate(candidate, {
 		currentVersion: currentCommit,
 		latestVersion: latestRef,
 		latestRef,
 		refKind: "commit",
 		checkedOn,
 		releaseUrl,
-		source: `${formatGitHubLocator(candidate)}@${latestRef}`,
+	});
+}
+
+/** Update of a candidate to `latestRef`, installed from the same repository and subdirectory. */
+function makeUpdate(
+	candidate: UpdateCandidate,
+	details: Omit<UpdateInfo, "extension" | "projectDir" | "source">,
+): UpdateInfo {
+	return {
+		extension: candidate.extension,
+		projectDir: candidate.projectDir,
+		...details,
+		source: `${formatGitHubLocator(candidate)}@${details.latestRef}`,
 	};
 }
 
