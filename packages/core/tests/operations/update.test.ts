@@ -792,6 +792,35 @@ describe("checkForUpdates", () => {
 				expect(found?.latestRef).toBe("v2.0.0");
 			});
 
+			it("checks a subdirectory source on GitHub when a root source of the same repository uses the registry", async () => {
+				setupExtension("quarto-ext", "root", "1.0.0", "quarto-ext/monorepo@v1.0.0", "github");
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchRegistry).mockResolvedValue({
+					"quarto-ext/monorepo": registryEntry("quarto-ext/monorepo", {
+						latestVersion: "9.0.0",
+						latestTag: "v9.0.0",
+					}),
+				} as never);
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+				expect(fetchRegistry).toHaveBeenCalledTimes(1);
+				const byName = Object.fromEntries(result.updates.map((u) => [u.extension.id.name, u]));
+				expect(Object.keys(byName).sort()).toEqual(["root", "sub"]);
+				expect(byName.root).toMatchObject({ checkedOn: "registry", latestVersion: "9.0.0", latestRef: "v9.0.0" });
+				expect(byName.sub).toMatchObject({ checkedOn: "github", latestVersion: "0.4.0", latestRef: "v2.0.0" });
+				expect(fetchRawFile).toHaveBeenCalledWith(
+					"quarto-ext",
+					"monorepo",
+					"v2.0.0",
+					"sub/dir/_extension.yml",
+					expect.anything(),
+				);
+			});
+
 			it("keeps the subdirectory in UpdateInfo.source", async () => {
 				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
 
