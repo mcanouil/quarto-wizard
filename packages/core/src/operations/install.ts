@@ -684,14 +684,19 @@ export function applySourceOwner(extensions: DiscoveredExtension[], source: Inst
 	}
 }
 
+/**
+ * Whether a discovered extension is the one an update expects.
+ * An extension installed without an owner matches on its name only, because a GitHub
+ * source gives every discovered extension the repository owner.
+ */
 function isSameExtensionId(
 	discovered: { owner: string | null; name: string },
 	expected: { owner: string | null; name: string },
 ): boolean {
-	return (
-		discovered.owner?.toLowerCase() === expected.owner?.toLowerCase() &&
-		discovered.name.toLowerCase() === expected.name.toLowerCase()
-	);
+	if (discovered.name.toLowerCase() !== expected.name.toLowerCase()) {
+		return false;
+	}
+	return expected.owner === null || discovered.owner?.toLowerCase() === expected.owner.toLowerCase();
 }
 
 /**

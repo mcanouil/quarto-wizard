@@ -30,6 +30,11 @@ vi.mock("../../src/github/releases.js", async () => {
 	};
 });
 
+vi.mock("../../src/github/download.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/github/download.js")>()),
+	downloadGitHubArchive: vi.fn(),
+}));
+
 vi.mock("../../src/github/raw.js", () => ({
 	fetchRawFile: vi.fn().mockResolvedValue(null),
 }));
@@ -47,6 +52,11 @@ import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import { compareCommits, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 import { resolveVersion } from "../../src/github/resolve.js";
 import { fetchRawFile } from "../../src/github/raw.js";
+import { downloadGitHubArchive } from "../../src/github/download.js";
+import {
+	createSubdirectoryRepositoryArchive,
+	SUBDIRECTORY_REPOSITORY_TAG,
+} from "../fixtures/subdirectory-repository.js";
 import type { GitHubRelease, GitHubTag } from "../../src/github/releases.js";
 
 const TOKEN = { githubToken: "token", httpHeaders: [] };
@@ -1301,6 +1311,31 @@ describe("applyUpdates", () => {
 		]);
 		expect(result.updated).toHaveLength(1);
 		expect(installedNames(projectDir)).toEqual(["renamed"]);
+	});
+
+	it("updates an extension installed without an owner from a GitHub source", async () => {
+		const projectDir = path.join(tempDir, "project");
+		const installedDir = path.join(projectDir, "_extensions", "x");
+		fs.mkdirSync(installedDir, { recursive: true });
+		fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: X\nversion: 0.9.0\n");
+		vi.mocked(downloadGitHubArchive).mockImplementationOnce(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: SUBDIRECTORY_REPOSITORY_TAG,
+			format: "tarball",
+		}));
+		const pending = pendingUpdate("x");
+		const ownerless: UpdateInfo = {
+			...pending,
+			extension: { ...pending.extension, id: { owner: null, name: "x" } },
+			projectDir,
+			source: `acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`,
+		};
+
+		const result = await applyUpdates([ownerless], { projectDirs: [] });
+
+		expect(result.failed).toEqual([]);
+		expect(result.updated).toHaveLength(1);
+		expect(fs.existsSync(path.join(projectDir, "_extensions", "acme", "x", "_extension.yml"))).toBe(true);
 	});
 });
 
