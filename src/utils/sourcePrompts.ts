@@ -12,13 +12,13 @@ const SOURCE_TYPE_NAMES: Record<string, string> = {
 };
 
 /**
- * Validates whether a string is a valid GitHub reference (owner/repo or owner/repo@version).
+ * Validates whether a string is a valid GitHub reference (owner/repo, owner/repo/subdirectory, or either with @version).
  *
  * @param value - The string to validate.
  * @returns True if the string is a valid GitHub reference, false otherwise.
  */
 export function isValidGitHubReference(value: string): boolean {
-	return /^[\w.-]+\/[\w.-]+(@[\w.-]+)?$/.test(value);
+	return /^[\w.-]+\/[\w.-]+(\/[\w.-]+)*(@[\w.-]+(\/[\w.-]+)*)?$/.test(value);
 }
 
 export function isAbsolutePathForAnyPlatform(filePath: string): boolean {
@@ -50,14 +50,14 @@ export async function promptForGitHubReference(options?: SourcePromptOptions): P
 	return vscode.window.showInputBox({
 		title: `${titlePrefix}GitHub Reference`,
 		prompt: `Enter a GitHub reference${titlePrefix ? ` for the ${titlePrefix.toLowerCase().trim()}` : ""}`,
-		placeHolder: "owner/repo or owner/repo@version",
+		placeHolder: "owner/repo, owner/repo/subdirectory, or either with @version",
 		ignoreFocusOut: true,
 		validateInput: (value) => {
 			if (!value?.trim()) {
 				return "GitHub reference is required.";
 			}
 			if (!isValidGitHubReference(value.trim())) {
-				return "Use format: owner/repo or owner/repo@version";
+				return "Use format: owner/repo or owner/repo/subdirectory, with an optional @version";
 			}
 			return null;
 		},
