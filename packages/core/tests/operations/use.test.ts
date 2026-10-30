@@ -2,12 +2,27 @@
  * Tests for "use extension" operations.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import * as tar from "tar";
 import { getTemplateFiles, use } from "../../src/operations/use.js";
+import { downloadGitHubArchive } from "../../src/github/download.js";
+import {
+	createSubdirectoryRepositoryArchive,
+	SUBDIRECTORY_REPOSITORY_TAG,
+} from "../fixtures/subdirectory-repository.js";
+
+vi.mock("../../src/github/download.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/github/download.js")>()),
+	downloadGitHubArchive: vi.fn(),
+}));
+
+vi.mock("../../src/registry/fetcher.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/registry/fetcher.js")>()),
+	fetchRegistry: vi.fn().mockRejectedValue(new Error("registry offline")),
+}));
 
 describe("getTemplateFiles", () => {
 	let tempDir: string;
@@ -466,5 +481,52 @@ describe("use with a local archive source", () => {
 		expect(result.install.success).toBe(true);
 		expect(result.templateFiles).toContain("template.qmd");
 		expect(listExtractionDirs()).toEqual(before);
+	});
+});
+
+describe("use from a repository subdirectory", () => {
+	let tempDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-subdir-"));
+		projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir);
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: SUBDIRECTORY_REPOSITORY_TAG,
+			format: "tarball",
+		}));
+	});
+
+	afterEach(() => {
+		vi.mocked(downloadGitHubArchive).mockReset();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("use template takes the template from the subdirectory", async () => {
+		const result = await use("owner/repo/b", { projectDir });
+
+		expect(result.install.success).toBe(true);
+		expect(result.templateFiles).toEqual(["template.qmd"]);
+		expect(fs.readFileSync(path.join(projectDir, "template.qmd"), "utf-8")).toBe("b template\n");
+		expect(fs.existsSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"))).toBe(true);
+	});
+
+	it("offers only the subdirectory files when the files are selected first", async () => {
+		let offered: string[] = [];
+		const result = await use("owner/repo/b", {
+			projectDir,
+			selectFilesFirst: true,
+			selectFiles: async (availableFiles) => {
+				offered = availableFiles;
+				return { selectedFiles: availableFiles, overwriteExisting: false };
+			},
+		});
+
+		expect(result.install.success).toBe(true);
+		expect(offered).toEqual(["template.qmd"]);
+		expect(fs.readFileSync(path.join(projectDir, "template.qmd"), "utf-8")).toBe("b template\n");
+		expect(fs.existsSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"))).toBe(true);
 	});
 });

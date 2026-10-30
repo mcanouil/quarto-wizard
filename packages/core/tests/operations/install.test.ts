@@ -10,6 +10,21 @@ import { parseInstallSource, formatInstallSource, type InstallSource } from "../
 // Internal exports for testing only
 import { normaliseSubdirectory } from "../../src/archive/security.js";
 import { resolveExtensionId } from "../../src/operations/internal.js";
+import { downloadGitHubArchive } from "../../src/github/download.js";
+import {
+	createSubdirectoryRepositoryArchive,
+	SUBDIRECTORY_REPOSITORY_TAG,
+} from "../fixtures/subdirectory-repository.js";
+
+vi.mock("../../src/github/download.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/github/download.js")>()),
+	downloadGitHubArchive: vi.fn(),
+}));
+
+vi.mock("../../src/registry/fetcher.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/registry/fetcher.js")>()),
+	fetchRegistry: vi.fn().mockRejectedValue(new Error("registry offline")),
+}));
 
 describe("parseInstallSource", () => {
 	describe("GitHub sources", () => {
@@ -568,5 +583,92 @@ describe("install with multiple extensions", () => {
 		expect(result.additionalInstallFailures).toHaveLength(1);
 		expect(result.additionalInstallFailures![0].extensionId).toEqual({ owner: "testowner", name: "ext2" });
 		expect(result.additionalInstallFailures![0].error).toContain("intentional additional install failure");
+	});
+});
+
+describe("install from a repository subdirectory", () => {
+	let tempDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-subdir-install-"));
+		projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir);
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: SUBDIRECTORY_REPOSITORY_TAG,
+			format: "tarball",
+		}));
+	});
+
+	afterEach(() => {
+		vi.mocked(downloadGitHubArchive).mockReset();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	async function installFrom(input: string) {
+		const { install } = await import("../../src/operations/install.js");
+		return install(parseInstallSource(input), {
+			projectDir,
+			selectExtension: async (extensions) => extensions,
+		});
+	}
+
+	function installedExtensions(): string[] {
+		const extensionsDir = path.join(projectDir, "_extensions");
+		return fs
+			.readdirSync(extensionsDir, { recursive: true, encoding: "utf-8" })
+			.filter((entry) => path.basename(entry) === "_extension.yml")
+			.map((entry) => path.dirname(entry).split(path.sep).join("/"))
+			.sort();
+	}
+
+	it("installs only the extensions below the subdirectory", async () => {
+		const result = await installFrom("owner/repo/b");
+
+		expect(result.success).toBe(true);
+		expect(installedExtensions()).toEqual(["owner/y"]);
+	});
+
+	it("accepts a subdirectory that is the extension folder", async () => {
+		const result = await installFrom("owner/repo/c");
+
+		expect(result.success).toBe(true);
+		expect(installedExtensions()).toEqual(["owner/c"]);
+	});
+
+	it("accepts a subdirectory that is an _extensions folder", async () => {
+		const result = await installFrom("owner/repo/a/_extensions");
+
+		expect(result.success).toBe(true);
+		expect(installedExtensions()).toEqual(["owner/x"]);
+	});
+
+	it("fails with Subdirectory not found for an absent path", async () => {
+		await expect(installFrom("owner/repo/missing/dir")).rejects.toThrow(
+			`Subdirectory not found in owner/repo@${SUBDIRECTORY_REPOSITORY_TAG}: missing/dir`,
+		);
+	});
+
+	it("fails with Subdirectory not found for a file", async () => {
+		await expect(installFrom("owner/repo/README.md")).rejects.toThrow(
+			`Subdirectory not found in owner/repo@${SUBDIRECTORY_REPOSITORY_TAG}: README.md`,
+		);
+	});
+
+	it.skipIf(process.platform === "darwin" || process.platform === "win32")(
+		"does not match a subdirectory written with a different case",
+		async () => {
+			await expect(installFrom("owner/repo/B")).rejects.toThrow(
+				`Subdirectory not found in owner/repo@${SUBDIRECTORY_REPOSITORY_TAG}: B`,
+			);
+		},
+	);
+
+	it("records owner/repo/b@<ref> as the source", async () => {
+		await installFrom("owner/repo/b");
+
+		const manifest = fs.readFileSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"), "utf-8");
+		expect(manifest).toContain(`source: owner/repo/b@${SUBDIRECTORY_REPOSITORY_TAG}`);
 	});
 });

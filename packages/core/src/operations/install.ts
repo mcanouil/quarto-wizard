@@ -22,6 +22,8 @@ import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
 	extractArchive,
 	readArchiveExtensions,
+	resolveArchiveRoot,
+	resolveSubdirectoryRoot,
 	cleanupExtraction,
 	type DiscoveredExtension,
 } from "../archive/extract.js";
@@ -392,8 +394,15 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			temporaryDir = extracted.extractDir;
 		}
 
-		// Find all extensions in the archive
-		const { root: archiveRoot, extensions: allExtensions } = await readArchiveExtensions(extractDir);
+		// Find all extensions in the archive, or only below the subdirectory the source names
+		let searchRoot = extractDir;
+		if (source.type === "github" && source.subdirectory) {
+			const label = `${source.owner}/${source.repo}@${commitSha ?? tagName}`;
+			searchRoot = await resolveSubdirectoryRoot(await resolveArchiveRoot(extractDir), source.subdirectory, label);
+		}
+		const { root: archiveRoot, extensions: allExtensions } = await readArchiveExtensions(searchRoot, {
+			stripWrapper: searchRoot === extractDir,
+		});
 
 		if (allExtensions.length === 0) {
 			throw new ExtensionError("No _extension.yml found in archive", {

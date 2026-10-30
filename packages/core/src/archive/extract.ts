@@ -195,8 +195,9 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
 		}
 	}
 
-	// Fallback: use last directory name
-	return { owner: null, name: parts[parts.length - 1] };
+	// Fallback: use last directory name, which is the extension's own folder when the
+	// search started at the extension itself (a subdirectory source naming it)
+	return { owner: null, name: relativePath === "" ? path.basename(extensionPath) : parts[parts.length - 1] };
 }
 
 /**
@@ -210,7 +211,7 @@ function deriveExtensionIdFromPath(extensionPath: string, extractDir: string): {
  * @param extractDir - Extraction directory
  * @returns Path to the repository root
  */
-async function resolveArchiveRoot(extractDir: string): Promise<string> {
+export async function resolveArchiveRoot(extractDir: string): Promise<string> {
 	if (await hasManifestFile(extractDir)) {
 		return extractDir;
 	}
@@ -227,6 +228,41 @@ async function resolveArchiveRoot(extractDir: string): Promise<string> {
 	}
 
 	return path.join(extractDir, entries[0].name);
+}
+
+/**
+ * Resolve a repository subdirectory inside an extracted archive.
+ *
+ * Both sides are resolved with `realpath`, so a symbolic link in the archive cannot lead
+ * the subdirectory outside the archive root.
+ *
+ * @param archiveRoot - Repository root inside the extraction directory
+ * @param subdirectory - Normalised subdirectory from the install source (e.g., "sub/dir")
+ * @param label - Repository and ref for the error message (e.g., "owner/repo@v1.0.0")
+ * @returns Real path of the subdirectory
+ * @throws ExtensionError when the subdirectory is absent, is not a directory, or resolves outside the archive root
+ */
+export async function resolveSubdirectoryRoot(
+	archiveRoot: string,
+	subdirectory: string,
+	label: string,
+): Promise<string> {
+	const notFound = new ExtensionError(`Subdirectory not found in ${label}: ${subdirectory}`, {
+		suggestion: "Check the subdirectory path, which is case-sensitive, against the repository at that ref",
+	});
+
+	const realRoot = await fs.promises.realpath(archiveRoot);
+	let resolved: string;
+	try {
+		resolved = await fs.promises.realpath(path.join(archiveRoot, subdirectory));
+	} catch {
+		throw notFound;
+	}
+
+	if (!isInside(realRoot, resolved) || !(await fs.promises.stat(resolved)).isDirectory()) {
+		throw notFound;
+	}
+	return resolved;
 }
 
 /**
@@ -272,9 +308,15 @@ export interface ArchiveExtensions {
  * ordering the fallback below makes immaterial.
  *
  * @param extractDir - Extraction directory
+ * @param options - Set `stripWrapper` to false when `extractDir` is already the repository
+ *   root, such as a subdirectory from `resolveSubdirectoryRoot`, so a sole child directory
+ *   is not mistaken for an archive wrapper
  * @returns The repository root and the extensions on offer
  */
-export async function readArchiveExtensions(extractDir: string): Promise<ArchiveExtensions> {
+export async function readArchiveExtensions(
+	extractDir: string,
+	options: { stripWrapper?: boolean } = {},
+): Promise<ArchiveExtensions> {
 	const results: DiscoveredExtension[] = [];
 
 	async function searchDirectory(dir: string, depth = 0): Promise<void> {
@@ -303,7 +345,7 @@ export async function readArchiveExtensions(extractDir: string): Promise<Archive
 
 	await searchDirectory(extractDir);
 
-	const root = await resolveArchiveRoot(extractDir);
+	const root = options.stripWrapper === false ? extractDir : await resolveArchiveRoot(extractDir);
 
 	if (results.length === 0) {
 		return { root, extensions: [] };

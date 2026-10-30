@@ -16,7 +16,7 @@ import { ExtensionError, getErrorMessage } from "../errors.js";
 import { pluralise } from "../pluralise.js";
 import { parseInstallSource, formatInstallSource, type InstallSource } from "./install.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
-import { extractArchive, cleanupExtraction } from "../archive/extract.js";
+import { extractArchive, cleanupExtraction, resolveSubdirectoryRoot } from "../archive/extract.js";
 import { MANIFEST_FILENAMES } from "../filesystem/manifest.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 
@@ -561,7 +561,16 @@ async function stageBrandSource(
 			// Best-effort cleanup.
 		}
 
-		const stagedDir = resolveStagedDir(extracted.extractDir);
+		let stagedDir = resolveStagedDir(extracted.extractDir);
+		if (source.subdirectory) {
+			const label = `${source.owner}/${source.repo}@${result.commitSha ?? result.tagName}`;
+			try {
+				stagedDir = await resolveSubdirectoryRoot(stagedDir, source.subdirectory, label);
+			} catch (error) {
+				await cleanupExtraction(extracted.extractDir);
+				throw error;
+			}
+		}
 		return { extractDir: extracted.extractDir, stagedDir, isLocal: false };
 	}
 
