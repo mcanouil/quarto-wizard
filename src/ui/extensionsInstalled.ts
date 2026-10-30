@@ -397,6 +397,7 @@ export class ExtensionsInstalled {
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
+						expectedExtensionId: extension.id,
 					});
 				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
 					if (!resolvesTag) {
@@ -610,6 +611,7 @@ export class ExtensionsInstalled {
 								skipOverwritePrompt: true,
 								cancellationToken: token,
 								sourceType: getEffectiveSourceType(update.extension.manifest),
+								expectedExtensionId: update.extension.id,
 							});
 							if (result === true) {
 								updated.push(update);

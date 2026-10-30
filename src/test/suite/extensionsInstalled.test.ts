@@ -10,7 +10,7 @@ import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
-import { getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
+import { formatExtensionId, getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/coreOperations";
 import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
@@ -51,6 +51,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	let originalSetProjectRoots: typeof QuartoExtensionTreeDataProvider.prototype.setProjectRoots;
 
 	let installCalls: InstallCall[];
+	let expectedIds: (string | undefined)[];
 	let removeCalls: RemoveCall[];
 	let messages: string[];
 	let errors: string[];
@@ -150,6 +151,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		originalWithProgress = vscode.window.withProgress;
 
 		installCalls = [];
+		expectedIds = [];
 		removeCalls = [];
 		messages = [];
 		errors = [];
@@ -159,6 +161,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
 			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			expectedIds.push(options.expectedExtensionId && formatExtensionId(options.expectedExtensionId));
 			return true;
 		};
 		quartoModule.removeQuartoExtension = async (extension, workspaceFolder) => {
@@ -242,6 +245,14 @@ suite("Extensions Installed Commands Test Suite", () => {
 		]);
 	});
 
+	test("update names the installed extension as the one to install", async () => {
+		stubNetwork({ repositories: { "acme/github-demo": { githubTags: ["v1.3.0"] } } });
+
+		await runCommand("update", createItem("acme/github-demo"));
+
+		assert.deepStrictEqual(expectedIds, ["acme/github-demo"]);
+	});
+
 	test("update refuses a downgrade", async () => {
 		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.0.0", "v0.9.0"] } } });
 
@@ -290,6 +301,14 @@ suite("Extensions Installed Commands Test Suite", () => {
 		assert.ok(installCalls[0].source.endsWith("@v1.3.0"));
 		assert.ok(messages[0].includes("1.3.0"), `confirmation does not name 1.3.0: ${messages[0]}`);
 		assert.ok(!messages[0].includes("1.2.0"), `confirmation names the registry version: ${messages[0]}`);
+	});
+
+	test("update all names each installed extension as the one to install", async () => {
+		stubTwoUpdates();
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual([...expectedIds].sort(), ["acme/github-demo", "acme/registry-demo"]);
 	});
 
 	test("update all skips extensions without a newer tag", async () => {
