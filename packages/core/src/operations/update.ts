@@ -25,7 +25,7 @@ import { fetchRawFile } from "../github/raw.js";
 import { MANIFEST_FILENAMES, parseManifestContent } from "../filesystem/manifest.js";
 import { normaliseSubdirectory } from "../archive/security.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
-import { install, parseInstallSource, type ExtensionSelectionCallback } from "./install.js";
+import { install, parseInstallSource } from "./install.js";
 import {
 	AuthenticationError,
 	CancellationError,
@@ -681,26 +681,6 @@ function buildCommitUpdate(
 }
 
 /**
- * Build a selection callback that keeps only the discovered extension the
- * update names, so a source that holds several reinstalls the right one.
- * The identifier is compared by owner and name, ignoring case.
- */
-function selectNamedExtension(update: UpdateInfo): ExtensionSelectionCallback {
-	const { owner, name } = update.extension.id;
-	return async (extensions) => {
-		const match = extensions.find(
-			(candidate) =>
-				candidate.id.owner?.toLowerCase() === owner?.toLowerCase() &&
-				candidate.id.name.toLowerCase() === name.toLowerCase(),
-		);
-		if (!match) {
-			throw new ExtensionError(`${formatExtensionId(update.extension.id)} is no longer in ${update.source}`);
-		}
-		return [match];
-	};
-}
-
-/**
  * Apply updates to extensions.
  *
  * An aborted `signal` stops the running install. That update and every
@@ -738,7 +718,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				force: true,
 				sourceType: update.extension.manifest.sourceType,
 				signal,
-				selectExtension: selectNamedExtension(update),
+				expectedExtensionId: update.extension.id,
 				onProgress: (p) => {
 					onProgress?.({
 						extension: extName,

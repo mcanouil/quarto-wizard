@@ -42,8 +42,7 @@ vi.mock("../../src/operations/install.js", async () => {
 });
 
 import { fetchRegistry } from "../../src/registry/fetcher.js";
-import { install, selectExtensionsFromSource } from "../../src/operations/install.js";
-import type { DiscoveredExtension } from "../../src/archive/extract.js";
+import { install } from "../../src/operations/install.js";
 import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import { compareCommits, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 import { resolveVersion } from "../../src/github/resolve.js";
@@ -1197,19 +1196,36 @@ describe("applyUpdates", () => {
 		]);
 	});
 
-	function discovered(owner: string, name: string): DiscoveredExtension {
-		return { path: `/tmp/${owner}/${name}`, relativePath: `_extensions/${owner}/${name}`, id: { owner, name } };
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-apply-updates-"));
+		const actual = await vi.importActual<typeof import("../../src/operations/install.js")>(
+			"../../src/operations/install.js",
+		);
+		vi.mocked(install).mockReset();
+		vi.mocked(install).mockImplementation(actual.install);
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	function localSource(names: string[]): { source: string; projectDir: string } {
+		const source = path.join(tempDir, "source");
+		for (const name of names) {
+			const dir = path.join(source, "_extensions", "quarto-ext", name);
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(path.join(dir, "_extension.yml"), `title: ${name}\nversion: 2.0.0\n`);
+		}
+		const projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir, { recursive: true });
+		return { source, projectDir };
 	}
 
-	function installKeeping(available: DiscoveredExtension[], installed: DiscoveredExtension[]): void {
-		vi.mocked(install).mockReset();
-		vi.mocked(install).mockImplementation(async (_source, options) => {
-			const selected = await selectExtensionsFromSource(available, options.selectExtension);
-			installed.push(...(selected ?? []));
-			return { extension: pendingUpdate(selected?.[0].id.name ?? "none").extension } as Awaited<
-				ReturnType<typeof install>
-			>;
-		});
+	function installedNames(projectDir: string): string[] {
+		const dir = path.join(projectDir, "_extensions", "quarto-ext");
+		return fs.existsSync(dir) ? fs.readdirSync(dir).sort() : [];
 	}
 
 	function updateOf(name: string, source: string): UpdateInfo {
@@ -1234,38 +1250,57 @@ describe("applyUpdates", () => {
 		});
 	});
 
+	it("asks install for the extension the update names", async () => {
+		vi.mocked(install).mockReset();
+		vi.mocked(install).mockResolvedValue({ extension: pendingUpdate("x").extension } as Awaited<
+			ReturnType<typeof install>
+		>);
+
+		await applyUpdates([updateOf("x", "quarto-ext/repo@v2.0.0")], { projectDirs: [] });
+
+		expect(vi.mocked(install).mock.calls[0][1].expectedExtensionId).toEqual({ owner: "quarto-ext", name: "x" });
+	});
+
 	it("updates the extension the update names, not the first one in the source", async () => {
-		const installed: DiscoveredExtension[] = [];
-		installKeeping([discovered("quarto-ext", "x"), discovered("quarto-ext", "y")], installed);
+		const { source, projectDir } = localSource(["x", "y"]);
 
-		const result = await applyUpdates([updateOf("y", "quarto-ext/repo/sub/dir@v2.0.0")], { projectDirs: [] });
+		const result = await applyUpdates([{ ...updateOf("y", source), projectDir }], { projectDirs: [] });
 
-		expect(installed.map((e) => e.id.name)).toEqual(["y"]);
+		expect(installedNames(projectDir)).toEqual(["y"]);
 		expect(result.updated).toHaveLength(1);
 		expect(result.failed).toEqual([]);
 	});
 
-	it("works the same for an owner/repo source with several extensions", async () => {
-		const installed: DiscoveredExtension[] = [];
-		installKeeping([discovered("Quarto-Ext", "x"), discovered("Quarto-Ext", "Y")], installed);
-
-		await applyUpdates([updateOf("y", "quarto-ext/repo@v2.0.0")], { projectDirs: [] });
-
-		expect(installed.map((e) => e.id.name)).toEqual(["Y"]);
-	});
-
 	it("fails one update when its extension left the source and continues the others", async () => {
-		const installed: DiscoveredExtension[] = [];
-		installKeeping([discovered("quarto-ext", "x"), discovered("quarto-ext", "y")], installed);
-		const updates = [updateOf("gone", "quarto-ext/repo@v2.0.0"), updateOf("y", "quarto-ext/repo@v2.0.0")];
+		const { source, projectDir } = localSource(["x", "y"]);
+		const updates = [
+			{ ...updateOf("gone", source), projectDir },
+			{ ...updateOf("y", source), projectDir },
+		];
 
 		const result = await applyUpdates(updates, { projectDirs: [] });
 
 		expect(result.failed).toEqual([
-			{ extension: updates[0].extension, error: "quarto-ext/gone is no longer in quarto-ext/repo@v2.0.0" },
+			{ extension: updates[0].extension, error: `quarto-ext/gone is no longer in ${source}` },
 		]);
 		expect(result.updated).toHaveLength(1);
-		expect(installed.map((e) => e.id.name)).toEqual(["y"]);
+		expect(installedNames(projectDir)).toEqual(["y"]);
+	});
+
+	it("fails one update when the only extension in its source has another id, and continues the others", async () => {
+		const { source, projectDir } = localSource(["renamed"]);
+		const updates = [
+			{ ...updateOf("old", source), projectDir },
+			{ ...updateOf("renamed", source), projectDir },
+		];
+
+		const result = await applyUpdates(updates, { projectDirs: [] });
+
+		expect(result.failed).toEqual([
+			{ extension: updates[0].extension, error: `quarto-ext/old is no longer in ${source}` },
+		]);
+		expect(result.updated).toHaveLength(1);
+		expect(installedNames(projectDir)).toEqual(["renamed"]);
 	});
 });
 

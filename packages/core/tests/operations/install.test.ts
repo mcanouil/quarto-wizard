@@ -503,6 +503,34 @@ describe("install with multiple extensions", () => {
 		expect(confirmedExtensions).toContain("testowner/ext2");
 	});
 
+	it("keeps only the expected extension from a source with several", async () => {
+		const { install, parseInstallSource } = await import("../../src/operations/install.js");
+		const selectExtension = vi.fn(async (extensions) => extensions);
+
+		const result = await install(parseInstallSource(sourceDir), {
+			projectDir,
+			selectExtension,
+			expectedExtensionId: { owner: "TestOwner", name: "EXT2" },
+		});
+
+		expect(result.success).toBe(true);
+		expect(selectExtension).not.toHaveBeenCalled();
+		expect(fs.readdirSync(path.join(projectDir, "_extensions", "testowner"))).toEqual(["ext2"]);
+	});
+
+	it("fails when the expected extension is not the only extension of a one-extension source", async () => {
+		const { install, parseInstallSource } = await import("../../src/operations/install.js");
+		fs.rmSync(path.join(sourceDir, "_extensions", "testowner", "ext2"), { recursive: true });
+
+		await expect(
+			install(parseInstallSource(sourceDir), {
+				projectDir,
+				expectedExtensionId: { owner: "testowner", name: "ext2" },
+			}),
+		).rejects.toThrow(`testowner/ext2 is no longer in ${sourceDir}`);
+		expect(fs.existsSync(path.join(projectDir, "_extensions"))).toBe(false);
+	});
+
 	it("should skip additional extension when confirmOverwrite returns false for it", async () => {
 		const { install, parseInstallSource } = await import("../../src/operations/install.js");
 

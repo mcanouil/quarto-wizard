@@ -12,7 +12,7 @@ import * as path from "node:path";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest, SourceType } from "../types/manifest.js";
-import { parseExtensionRef } from "../types/extension.js";
+import { formatExtensionId, parseExtensionRef } from "../types/extension.js";
 import { normaliseSubdirectory } from "../archive/security.js";
 import { ExtensionError, getErrorMessage } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
@@ -99,6 +99,12 @@ export interface InstallOptions extends RegistryOptions {
 	 * If not provided and source contains multiple extensions, the first one is installed (legacy behaviour).
 	 */
 	selectExtension?: ExtensionSelectionCallback;
+	/**
+	 * Identifier of the one extension to install from the source.
+	 * Only the discovered extension with this owner and name (ignoring case) is kept, however many the source holds.
+	 * Installation fails before anything is written when none matches.
+	 */
+	expectedExtensionId?: ExtensionId;
 	/**
 	 * Callback for confirming overwrite when extension already exists.
 	 * Only called when force is true. If not provided, overwrites silently.
@@ -414,6 +420,16 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		applySourceOwner(allExtensions, source);
 
+		if (options.expectedExtensionId) {
+			const expected = options.expectedExtensionId;
+			const matching = allExtensions.filter((candidate) => isSameExtensionId(candidate.id, expected));
+			if (matching.length === 0) {
+				const location = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
+				throw new ExtensionError(`${formatExtensionId(expected)} is no longer in ${location}`);
+			}
+			allExtensions.splice(0, allExtensions.length, ...matching);
+		}
+
 		const selectedExtensions = await selectExtensionsFromSource(allExtensions, options.selectExtension);
 		if (!selectedExtensions) {
 			// User cancelled extension selection
@@ -666,6 +682,16 @@ export function applySourceOwner(extensions: DiscoveredExtension[], source: Inst
 			ext.id.owner = source.owner;
 		}
 	}
+}
+
+function isSameExtensionId(
+	discovered: { owner: string | null; name: string },
+	expected: { owner: string | null; name: string },
+): boolean {
+	return (
+		discovered.owner?.toLowerCase() === expected.owner?.toLowerCase() &&
+		discovered.name.toLowerCase() === expected.name.toLowerCase()
+	);
 }
 
 /**
