@@ -775,14 +775,33 @@ describe("checkForUpdates", () => {
 					expect(result.updates).toHaveLength(0);
 				});
 
-				it("a compare failure offers no update and does not fail the check", async () => {
-					vi.mocked(compareCommits).mockRejectedValue(new NetworkError("HTTP 502: Bad Gateway", { statusCode: 502 }));
+				it("a compare that cannot find a commit offers no update and does not fail the check", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
 
 					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
 
 					expect(result.updates).toHaveLength(0);
 					expect(result.checkFailure).toBeUndefined();
 					expect(result.repositoryFailures).toHaveLength(0);
+				});
+
+				it("a rate-limited compare fails the check", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(
+						new RateLimitError("HTTP 403: rate limit exceeded for quarto-ext/monorepo", { statusCode: 403 }),
+					);
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.updates).toHaveLength(0);
+					expect(result.checkFailure?.kind).toBe("rate-limited");
+				});
+
+				it("a compare that loses the server fails the check as a network failure", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(new NetworkError("HTTP 502: Bad Gateway", { statusCode: 502 }));
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.checkFailure?.kind).toBe("network");
 				});
 
 				it("a cancelled compare rejects the check", async () => {

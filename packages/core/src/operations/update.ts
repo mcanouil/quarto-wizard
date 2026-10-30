@@ -414,8 +414,10 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 					const status = await compareCommits(candidate.owner, candidate.repo, latestCommit, installedCommit, options);
 					return status === "behind" || status === "diverged";
 				} catch (error) {
-					// An update that cannot be confirmed is not offered, so the check never downgrades.
-					if (isCancellationError(error)) {
+					// A failure that makes the whole check unreliable, such as a rate limit, is reported.
+					// Any other failure, such as a commit that no longer exists, offers no update,
+					// so the check never downgrades.
+					if (isCancellationError(error) || checkFailureKind(error) !== null) {
 						throw error;
 					}
 					return false;
