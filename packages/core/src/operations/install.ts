@@ -13,7 +13,7 @@ import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest, SourceType } from "../types/manifest.js";
 import { formatGitHubLocator, parseGitHubLocator, splitSourceRef } from "../types/manifest.js";
-import { formatExtensionId, parseExtensionRef } from "../types/extension.js";
+import { formatExtensionId, isSameExtensionId, parseExtensionRef } from "../types/extension.js";
 import { ExtensionError, getErrorMessage } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
 import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
@@ -102,6 +102,7 @@ export interface InstallOptions extends RegistryOptions {
 	 * Identifier of the one extension to install from the source.
 	 * Only the discovered extension with this owner and name (ignoring case) is kept, however many the source holds.
 	 * Installation fails before anything is written when none matches.
+	 * When set, `selectExtension` is not called.
 	 */
 	expectedExtensionId?: ExtensionId;
 	/**
@@ -408,24 +409,27 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		applySourceOwner(allExtensions, source);
 
-		if (options.expectedExtensionId) {
-			const expected = options.expectedExtensionId;
-			const matching = allExtensions.filter((candidate) => isSameExtensionId(candidate.id, expected));
-			if (matching.length === 0) {
-				const location = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
-				throw new ExtensionError(`${formatExtensionId(expected)} is no longer in ${location}`);
-			}
-			allExtensions.splice(0, allExtensions.length, ...matching);
+		const expected = options.expectedExtensionId;
+		const offered = expected
+			? allExtensions.filter((candidate) => isSameExtensionId(candidate.id, expected))
+			: allExtensions;
+		if (expected && offered.length === 0) {
+			const location = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
+			throw new ExtensionError(`${formatExtensionId(expected)} is no longer in ${location}`);
 		}
 
-		const selectedExtensions = await selectExtensionsFromSource(allExtensions, options.selectExtension);
+		// An expected extension is already the selection, so the user is not asked to choose.
+		const selectedExtensions = await selectExtensionsFromSource(
+			offered,
+			expected ? undefined : options.selectExtension,
+		);
 		if (!selectedExtensions) {
 			// User cancelled extension selection
 			return {
 				success: false,
 				cancelled: true,
 				extension: {
-					id: allExtensions[0].id,
+					id: offered[0].id,
 					manifest: {} as ExtensionManifest,
 					manifestPath: "",
 					directory: "",
@@ -670,21 +674,6 @@ export function applySourceOwner(extensions: DiscoveredExtension[], source: Inst
 			ext.id.owner = source.owner;
 		}
 	}
-}
-
-/**
- * Whether a discovered extension is the one an update expects.
- * An extension installed without an owner matches on its name only, because a GitHub
- * source gives every discovered extension the repository owner.
- */
-function isSameExtensionId(
-	discovered: { owner: string | null; name: string },
-	expected: { owner: string | null; name: string },
-): boolean {
-	if (discovered.name.toLowerCase() !== expected.name.toLowerCase()) {
-		return false;
-	}
-	return expected.owner === null || discovered.owner?.toLowerCase() === expected.owner.toLowerCase();
 }
 
 /**

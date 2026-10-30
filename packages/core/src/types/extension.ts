@@ -95,6 +95,22 @@ export function formatExtensionId(id: ExtensionId): string {
 }
 
 /**
+ * Whether a discovered extension is the one an update expects, ignoring case.
+ * An extension installed without an owner matches on its name only, because a GitHub
+ * source gives every discovered extension the repository owner.
+ *
+ * @param discovered - Identifier of the extension found in the source
+ * @param expected - Identifier of the installed extension
+ * @returns True when both name the same extension
+ */
+export function isSameExtensionId(discovered: ExtensionId, expected: ExtensionId): boolean {
+	if (discovered.name.toLowerCase() !== expected.name.toLowerCase()) {
+		return false;
+	}
+	return expected.owner === null || discovered.owner?.toLowerCase() === expected.owner.toLowerCase();
+}
+
+/**
  * Parse a version specification string.
  *
  * Resolution order: tag > commit > branch

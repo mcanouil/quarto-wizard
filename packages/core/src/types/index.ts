@@ -9,6 +9,7 @@ export {
 	type ExtensionType,
 	parseExtensionId,
 	formatExtensionId,
+	isSameExtensionId,
 	parseVersionSpec,
 	parseExtensionRef,
 	formatExtensionRef,

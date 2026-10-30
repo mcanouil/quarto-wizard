@@ -301,9 +301,7 @@ export async function installQuartoExtension(
 		return false;
 	}
 
-	const selectExtension = expectedExtensionId
-		? undefined
-		: wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
+	const selectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
 
 	const controller = new AbortController();
 	if (cancellationToken?.isCancellationRequested) {
