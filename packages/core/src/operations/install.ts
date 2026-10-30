@@ -12,8 +12,8 @@ import * as path from "node:path";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest, SourceType } from "../types/manifest.js";
+import { formatGitHubLocator, parseGitHubLocator, splitSourceRef } from "../types/manifest.js";
 import { formatExtensionId, parseExtensionRef } from "../types/extension.js";
-import { normaliseSubdirectory } from "../archive/security.js";
 import { ExtensionError, getErrorMessage } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
 import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
@@ -248,12 +248,9 @@ export function parseInstallSource(
 	}
 
 	const trimmed = input.trim();
-	const atIndex = trimmed.lastIndexOf("@");
-	const locator = atIndex > 0 ? trimmed.substring(0, atIndex) : trimmed;
-	const refSuffix = atIndex > 0 ? trimmed.substring(atIndex) : "";
-	const [owner, repo, ...subdirectorySegments] = locator.split("/");
-	const subdirectory = normaliseSubdirectory(subdirectorySegments.filter(Boolean).join("/"));
-	const ref = parseExtensionRef(repo === undefined ? input : `${owner}/${repo}${refSuffix}`);
+	const { base } = splitSourceRef(trimmed);
+	const locator = parseGitHubLocator(base);
+	const ref = parseExtensionRef(locator ? `${locator.owner}/${locator.repo}${trimmed.slice(base.length)}` : input);
 
 	if (!ref.id.owner) {
 		throw new ExtensionError(`Invalid extension reference: "${input}"`, {
@@ -265,14 +262,9 @@ export function parseInstallSource(
 		type: "github",
 		owner: ref.id.owner,
 		repo: ref.id.name,
-		...(subdirectory ? { subdirectory } : {}),
+		...(locator?.subdirectory ? { subdirectory: locator.subdirectory } : {}),
 		version: ref.version,
 	};
-}
-
-function formatGitHubLocator(source: { owner: string; repo: string; subdirectory?: string }): string {
-	const base = `${source.owner}/${source.repo}`;
-	return source.subdirectory ? `${base}/${source.subdirectory}` : base;
 }
 
 /**

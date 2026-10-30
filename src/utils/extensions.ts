@@ -8,7 +8,10 @@ import {
 	type InstalledExtension,
 	type SourceType,
 	getErrorMessage,
+	parseGitHubLocator,
 	splitSourceRef,
+	ExtensionError,
+	type GitHubLocator,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
@@ -17,6 +20,21 @@ export function getSourceBase(source: string, sourceType?: SourceType): string {
 		return splitSourceRef(source).base;
 	}
 	return source;
+}
+
+/**
+ * Repository and subdirectory of a GitHub source base, or null when the base
+ * names no repository or a subdirectory that could leave it.
+ */
+function toGitHubLocator(base: string): GitHubLocator | null {
+	try {
+		return parseGitHubLocator(base);
+	} catch (error) {
+		if (error instanceof ExtensionError) {
+			return null;
+		}
+		throw error;
+	}
 }
 
 export function resolveLocalSourcePath(sourcePath: string, workspaceFolder: string): string {
@@ -97,7 +115,8 @@ export function getExtensionRepository(ext: InstalledExtension): string | undefi
 	}
 	const type = getEffectiveSourceType(ext.manifest);
 	if (type === "github" || type === "registry") {
-		return getSourceBase(source, type).split("/").slice(0, 2).join("/");
+		const locator = toGitHubLocator(getSourceBase(source, type));
+		return locator ? `${locator.owner}/${locator.repo}` : undefined;
 	}
 	return undefined;
 }
@@ -116,12 +135,12 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 	const type = getEffectiveSourceType(ext.manifest);
 	const base = getSourceBase(source, type);
 	if (type === "github" || type === "registry") {
-		const [owner, repo, ...subdirectory] = base.split("/");
-		if (subdirectory.length === 0) {
+		const locator = toGitHubLocator(base);
+		if (!locator?.subdirectory) {
 			return `https://github.com/${base}`;
 		}
 		const ref = splitSourceRef(source).hasRef ? source.slice(base.length + 1) : "HEAD";
-		return `https://github.com/${owner}/${repo}/tree/${ref}/${subdirectory.join("/")}`;
+		return `https://github.com/${locator.owner}/${locator.repo}/tree/${ref}/${locator.subdirectory}`;
 	}
 	if (type === "url" || type === "local") {
 		return base;

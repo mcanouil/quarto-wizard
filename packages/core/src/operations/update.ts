@@ -11,7 +11,13 @@ import * as semver from "semver";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId } from "../types/extension.js";
 import { formatExtensionId } from "../types/extension.js";
-import { getEffectiveSourceType, splitSourceRef } from "../types/manifest.js";
+import {
+	formatGitHubLocator,
+	getEffectiveSourceType,
+	parseGitHubLocator,
+	splitSourceRef,
+	type GitHubLocator,
+} from "../types/manifest.js";
 import {
 	discoverInstalledExtensions,
 	findInstalledExtension,
@@ -23,7 +29,6 @@ import { lookupRegistryEntry } from "../registry/search.js";
 import { compareCommits, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 import { fetchRawFile } from "../github/raw.js";
 import { MANIFEST_FILENAMES, parseManifestContent } from "../filesystem/manifest.js";
-import { normaliseSubdirectory } from "../archive/security.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { install, parseInstallSource } from "./install.js";
 import {
@@ -165,8 +170,8 @@ interface UpdateCandidate {
 	fullName: string;
 	/** Seven-character commit when the source is pinned to a commit. */
 	currentCommit: string | null;
-	/** Repository subdirectory the extension was installed from, or null for the repository root. */
-	subdirectory: string | null;
+	/** Repository subdirectory the extension was installed from, absent for the repository root. */
+	subdirectory?: string;
 }
 
 /**
@@ -223,7 +228,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 
 	let registry: Registry | null = null;
 	// No registry entry matches a subdirectory source.
-	if (!useGitHub && candidates.some((candidate) => candidate.subdirectory === null)) {
+	if (!useGitHub && candidates.some((candidate) => !candidate.subdirectory)) {
 		try {
 			registry = await fetchRegistry(registryOptions);
 		} catch (error) {
@@ -244,7 +249,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 
 	const updates = await Promise.all(
 		candidates.map(async (candidate) => {
-			const entry = registry && candidate.subdirectory === null ? lookupRegistryEntry(registry, candidate.base) : null;
+			const entry = registry && !candidate.subdirectory ? lookupRegistryEntry(registry, candidate.base) : null;
 			if (entry) {
 				return buildRegistryUpdate(candidate, entry);
 			}
@@ -319,12 +324,8 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 	}
 
 	const { base } = splitSourceRef(source);
-	const [owner, repo, ...segments] = base.split("/");
-	if (!owner || !repo) {
-		return null;
-	}
-	const subdirectory = toSubdirectory(segments.join("/"));
-	if (subdirectory === undefined) {
+	const locator = toLocator(base);
+	if (!locator) {
 		return null;
 	}
 
@@ -332,25 +333,22 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 		extension,
 		projectDir,
 		base,
-		owner,
-		repo,
-		fullName: `${owner}/${repo}`,
+		...locator,
+		fullName: `${locator.owner}/${locator.repo}`,
 		currentCommit: extractCommitFromSource(source),
-		subdirectory,
 	};
 }
 
 /**
- * Subdirectory recorded in a source, null for the repository root, or
- * undefined when the recorded subdirectory could leave the repository and the
- * source cannot be checked.
+ * Repository and subdirectory of a source base, or null when the source names
+ * no repository or a subdirectory that could leave it, so it cannot be checked.
  */
-function toSubdirectory(recorded: string): string | null | undefined {
+function toLocator(base: string): GitHubLocator | null {
 	try {
-		return normaliseSubdirectory(recorded) || null;
+		return parseGitHubLocator(base);
 	} catch (error) {
 		if (error instanceof ExtensionError) {
-			return undefined;
+			return null;
 		}
 		throw error;
 	}
@@ -379,7 +377,7 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 		latestCommit(candidate) {
 			const { subdirectory } = candidate;
 			const repository = candidate.fullName.toLowerCase();
-			if (subdirectory === null) {
+			if (!subdirectory) {
 				return once(`${repository}#commit`, () => fetchLatestCommit(candidate.owner, candidate.repo, options));
 			}
 			return once(`${repository}:${subdirectory}`, () =>
@@ -496,13 +494,13 @@ async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLook
 		const update = buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
 		// The latest commit of a path can be older than an installed commit of the
 		// whole repository, so a different commit is only an update when it is newer.
-		if (update && candidate.subdirectory !== null && latestCommit) {
+		if (update && candidate.subdirectory && latestCommit) {
 			return (await lookups.isBehind(candidate, candidate.currentCommit, latestCommit)) ? update : null;
 		}
 		return update;
 	}
 	const latest = await lookups.latestTag(candidate);
-	if (candidate.subdirectory !== null) {
+	if (candidate.subdirectory) {
 		return buildSubdirectoryUpdate(candidate, latest, lookups, htmlUrl);
 	}
 	if (!latest) {
@@ -555,7 +553,7 @@ async function buildSubdirectoryUpdate(
 			refKind: "commit",
 			checkedOn: "github",
 			releaseUrl: htmlUrl,
-			source: `${sourceBase(candidate)}@${latestRef}`,
+			source: `${formatGitHubLocator(candidate)}@${latestRef}`,
 		};
 	}
 
@@ -571,7 +569,7 @@ async function buildSubdirectoryUpdate(
 		refKind: "tag",
 		checkedOn: "github",
 		releaseUrl: latest.releaseUrl ?? htmlUrl,
-		source: `${sourceBase(candidate)}@${latest.tagName}`,
+		source: `${formatGitHubLocator(candidate)}@${latest.tagName}`,
 	};
 }
 
@@ -580,11 +578,6 @@ function isNewerThanRecordedRef(candidate: UpdateCandidate, latest: LatestTag): 
 	const ref = recordedRef(candidate);
 	const recordedVersion = ref === null ? null : normaliseVersion(ref.replace(/^V/, "v"));
 	return recordedVersion ? semver.gt(latest.version, recordedVersion) : !isInstalledTag(candidate, latest.tagName);
-}
-
-/** Source without its ref, as `owner/repo` or `owner/repo/<subdirectory>`. */
-function sourceBase(candidate: UpdateCandidate): string {
-	return candidate.subdirectory === null ? candidate.fullName : `${candidate.fullName}/${candidate.subdirectory}`;
 }
 
 function buildTagUpdate(
@@ -620,7 +613,7 @@ function buildTagUpdate(
 		refKind: "tag",
 		checkedOn,
 		releaseUrl,
-		source: `${sourceBase(candidate)}@${latestTag}`,
+		source: `${formatGitHubLocator(candidate)}@${latestTag}`,
 	};
 }
 
@@ -657,7 +650,8 @@ function isInstalledTag(candidate: UpdateCandidate, tag: string): boolean {
 /** Ref recorded in the manifest source, or null when the source has none. */
 function recordedRef(candidate: UpdateCandidate): string | null {
 	const source = candidate.extension.manifest.source ?? "";
-	return splitSourceRef(source).hasRef ? source.substring(source.lastIndexOf("@") + 1) : null;
+	const { base, hasRef } = splitSourceRef(source);
+	return hasRef ? source.slice(base.length + 1) : null;
 }
 
 function buildCommitUpdate(
@@ -683,7 +677,7 @@ function buildCommitUpdate(
 		refKind: "commit",
 		checkedOn,
 		releaseUrl,
-		source: `${sourceBase(candidate)}@${latestRef}`,
+		source: `${formatGitHubLocator(candidate)}@${latestRef}`,
 	};
 }
 

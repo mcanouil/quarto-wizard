@@ -8,6 +8,7 @@
  */
 
 import type { ExtensionType } from "./extension.js";
+import { normaliseSubdirectory } from "../archive/security.js";
 
 /**
  * Contributions an extension can provide to Quarto.
@@ -165,6 +166,46 @@ export function splitSourceRef(source: string): { base: string; hasRef: boolean 
 		base: source.substring(0, atIndex),
 		hasRef: true,
 	};
+}
+
+/**
+ * Repository and optional subdirectory named by a GitHub source.
+ */
+export interface GitHubLocator {
+	owner: string;
+	repo: string;
+	/** Normalised repository subdirectory, absent for the repository root. */
+	subdirectory?: string;
+}
+
+/**
+ * Parse the base of a GitHub source, without its `@ref`, into its repository
+ * and subdirectory.
+ *
+ * Empty segments in the subdirectory are dropped.
+ *
+ * @param base - Source without its ref (e.g. `owner/repo/sub/dir`)
+ * @returns The locator, or null when the owner or the repository is missing
+ * @throws ExtensionError with code "INVALID_SUBDIRECTORY" when the subdirectory could leave the repository
+ */
+export function parseGitHubLocator(base: string): GitHubLocator | null {
+	const [owner, repo, ...segments] = base.split("/");
+	const subdirectory = normaliseSubdirectory(segments.filter(Boolean).join("/"));
+	if (!owner || !repo) {
+		return null;
+	}
+	return subdirectory ? { owner, repo, subdirectory } : { owner, repo };
+}
+
+/**
+ * Format a GitHub locator as `owner/repo` or `owner/repo/<subdirectory>`.
+ *
+ * @param locator - Repository and optional subdirectory
+ * @returns Source base without a ref
+ */
+export function formatGitHubLocator(locator: GitHubLocator): string {
+	const base = `${locator.owner}/${locator.repo}`;
+	return locator.subdirectory ? `${base}/${locator.subdirectory}` : base;
 }
 
 function isLocalSourcePath(source: string): boolean {

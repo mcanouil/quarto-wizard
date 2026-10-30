@@ -19,10 +19,13 @@ export {
 	type ExtensionManifest,
 	type RawManifest,
 	type SourceType,
+	type GitHubLocator,
+	formatGitHubLocator,
 	getEffectiveSourceType,
 	getExtensionTypes,
 	inferSourceType,
 	normaliseManifest,
+	parseGitHubLocator,
 	splitSourceRef,
 } from "./manifest.js";
 
