@@ -354,7 +354,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				const entry = lookupRegistryEntry(registry, `${source.owner}/${source.repo}`);
 				if (entry) {
 					defaultBranch = entry.defaultBranchRef ?? undefined;
-					latestCommit = entry.latestCommit ?? undefined;
+					// The registry commit is the latest of the whole repository, not of the subdirectory.
+					latestCommit = source.subdirectory ? undefined : (entry.latestCommit ?? undefined);
 				}
 			} catch {
 				onProgress?.({ phase: "resolving", message: "Registry unavailable, using defaults." });
@@ -364,6 +365,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				auth,
 				defaultBranch,
 				latestCommit,
+				path: source.subdirectory,
 				signal,
 				onProgress: (p) => {
 					onProgress?.({

@@ -11,6 +11,7 @@ import { parseInstallSource, formatInstallSource, type InstallSource } from "../
 import { normaliseSubdirectory } from "../../src/archive/security.js";
 import { resolveExtensionId } from "../../src/operations/internal.js";
 import { downloadGitHubArchive } from "../../src/github/download.js";
+import { fetchRegistry } from "../../src/registry/fetcher.js";
 import {
 	createSubdirectoryRepositoryArchive,
 	SUBDIRECTORY_REPOSITORY_TAG,
@@ -664,6 +665,29 @@ describe("install from a repository subdirectory", () => {
 			);
 		},
 	);
+
+	it("install records the latest path commit for an untagged subdirectory source", async () => {
+		vi.mocked(fetchRegistry).mockResolvedValueOnce({
+			"owner/repo": { fullName: "owner/repo", defaultBranchRef: "main", latestCommit: "0000000aaaaaaa" },
+		} as never);
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: "fed9876",
+			format: "tarball",
+			commitSha: "fed9876",
+		}));
+
+		await installFrom("owner/repo/b");
+
+		expect(downloadGitHubArchive).toHaveBeenCalledWith(
+			"owner",
+			"repo",
+			{ type: "latest" },
+			expect.objectContaining({ path: "b", latestCommit: undefined, defaultBranch: "main" }),
+		);
+		const manifest = fs.readFileSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"), "utf-8");
+		expect(manifest).toContain("source: owner/repo/b@fed9876");
+	});
 
 	it("records owner/repo/b@<ref> as the source", async () => {
 		await installFrom("owner/repo/b");

@@ -26,6 +26,7 @@ vi.mock("../../src/github/releases.js", async () => {
 		fetchReleases: vi.fn().mockResolvedValue([]),
 		fetchTags: vi.fn().mockResolvedValue([]),
 		fetchLatestCommit: vi.fn().mockResolvedValue(null),
+		compareCommits: vi.fn(),
 	};
 });
 
@@ -43,7 +44,7 @@ vi.mock("../../src/operations/install.js", async () => {
 import { fetchRegistry } from "../../src/registry/fetcher.js";
 import { install } from "../../src/operations/install.js";
 import type { InstalledExtension } from "../../src/filesystem/discovery.js";
-import { fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
+import { compareCommits, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 import { resolveVersion } from "../../src/github/resolve.js";
 import { fetchRawFile } from "../../src/github/raw.js";
 import type { GitHubRelease, GitHubTag } from "../../src/github/releases.js";
@@ -605,6 +606,34 @@ describe("checkForUpdates", () => {
 				expect(result.updates[0]?.latestRef).toBe("v2.0.0");
 			});
 
+			it("falls back to the recorded ref when the raw file read fails", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockRejectedValue(
+					new NetworkError("HTTP 503: Service Unavailable", { statusCode: 503 }),
+				);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.checkFailure).toBeUndefined();
+				expect(result.repositoryFailures).toHaveLength(0);
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("2.0.0");
+				expect(result.updates[0]?.latestRef).toBe("v2.0.0");
+			});
+
+			it("a cancelled raw file read rejects the check", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockRejectedValue(new CancellationError());
+
+				await expect(checkForUpdates({ projectDirs: [tempDir], source: "github" })).rejects.toBeInstanceOf(
+					CancellationError,
+				);
+			});
+
 			it("falls back when the raw manifest cannot be parsed", async () => {
 				setupExtension("quarto-ext", "sub", "0.3.0", "quarto-ext/monorepo/sub/dir@v2.0.0", "github");
 
@@ -646,23 +675,88 @@ describe("checkForUpdates", () => {
 				expect(found?.source).toBe("quarto-ext/monorepo/sub/dir@def5678");
 			});
 
-			it("checks a commit-pinned subdirectory source on its path only", async () => {
-				setupExtension("quarto-ext", "sub", "0.3.0", "quarto-ext/monorepo/sub/dir@abc1234", "github");
+			describe("pinned to a commit", () => {
+				const LATEST_PATH_COMMIT = "def5678901234567890abcdef1234567890abcd";
 
-				vi.mocked(fetchLatestCommit).mockResolvedValue("def5678901234567890abcdef1234567890abcd");
+				beforeEach(() => {
+					setupExtension("quarto-ext", "sub", "0.3.0", "quarto-ext/monorepo/sub/dir@abc1234", "github");
+					vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_PATH_COMMIT);
+				});
 
-				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+				it("checks a commit-pinned subdirectory source on its path only", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("behind");
 
-				expect(fetchLatestCommit).toHaveBeenCalledWith(
-					"quarto-ext",
-					"monorepo",
-					expect.objectContaining({ path: "sub/dir" }),
-				);
-				expect(result.updates).toHaveLength(1);
-				const [found] = result.updates;
-				expect(found?.refKind).toBe("commit");
-				expect(found?.latestRef).toBe("def5678");
-				expect(found?.source).toBe("quarto-ext/monorepo/sub/dir@def5678");
+					await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(fetchLatestCommit).toHaveBeenCalledWith(
+						"quarto-ext",
+						"monorepo",
+						expect.objectContaining({ path: "sub/dir" }),
+					);
+				});
+
+				it("offers the path commit when the installed commit is behind", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("behind");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(compareCommits).toHaveBeenCalledWith(
+						"quarto-ext",
+						"monorepo",
+						LATEST_PATH_COMMIT,
+						"abc1234",
+						expect.anything(),
+					);
+					expect(result.updates).toHaveLength(1);
+					const [found] = result.updates;
+					expect(found?.refKind).toBe("commit");
+					expect(found?.latestRef).toBe("def5678");
+					expect(found?.source).toBe("quarto-ext/monorepo/sub/dir@def5678");
+				});
+
+				it("offers the path commit when the installed commit has diverged", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("diverged");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.updates.map((u) => u.latestRef)).toEqual(["def5678"]);
+				});
+
+				it("no update when the installed commit equals the latest path commit", async () => {
+					vi.mocked(fetchLatestCommit).mockResolvedValue("abc1234567890abcdef1234567890abcdef12345");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(compareCommits).not.toHaveBeenCalled();
+					expect(result.updates).toHaveLength(0);
+				});
+
+				it("no update when the installed commit is ahead of the latest path commit", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("ahead");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(compareCommits).toHaveBeenCalledTimes(1);
+					expect(result.updates).toHaveLength(0);
+				});
+
+				it("a compare failure offers no update and does not fail the check", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(new NetworkError("HTTP 502: Bad Gateway", { statusCode: 502 }));
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.updates).toHaveLength(0);
+					expect(result.checkFailure).toBeUndefined();
+					expect(result.repositoryFailures).toHaveLength(0);
+				});
+
+				it("a cancelled compare rejects the check", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(new CancellationError());
+
+					await expect(checkForUpdates({ projectDirs: [tempDir], source: "github" })).rejects.toBeInstanceOf(
+						CancellationError,
+					);
+				});
 			});
 
 			it("never looks a subdirectory source up in the registry", async () => {

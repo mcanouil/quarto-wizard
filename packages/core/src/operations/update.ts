@@ -20,7 +20,7 @@ import {
 import type { Registry, RegistryEntry } from "../types/registry.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 import { lookupRegistryEntry } from "../registry/search.js";
-import { fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
+import { compareCommits, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 import { fetchRawFile } from "../github/raw.js";
 import { MANIFEST_FILENAMES, parseManifestContent } from "../filesystem/manifest.js";
 import { normaliseSubdirectory } from "../archive/security.js";
@@ -176,8 +176,13 @@ interface UpdateCandidate {
 interface GitHubLookups {
 	latestTag(candidate: UpdateCandidate): Promise<LatestTag | null>;
 	latestCommit(candidate: UpdateCandidate): Promise<string | null>;
-	/** Normalised version in the manifest of the candidate subdirectory at a ref, or null when there is none. */
+	/**
+	 * Normalised version in the manifest of the candidate subdirectory at a ref,
+	 * or null when there is none or when it cannot be read.
+	 */
 	subdirectoryVersion(candidate: UpdateCandidate, ref: string): Promise<string | null>;
+	/** Whether the installed commit is behind or diverged from a later commit, or false when the comparison fails. */
+	isBehind(candidate: UpdateCandidate, installedCommit: string, latestCommit: string): Promise<boolean>;
 }
 
 /**
@@ -384,14 +389,37 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 		subdirectoryVersion(candidate, ref) {
 			const repository = candidate.fullName.toLowerCase();
 			return once(`${repository}@${ref}:${candidate.subdirectory}`, async () => {
-				for (const filename of MANIFEST_FILENAMES) {
-					const filePath = `${candidate.subdirectory}/${filename}`;
-					const content = await fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options);
-					if (content !== null) {
-						return manifestVersion(content, filePath);
+				try {
+					for (const filename of MANIFEST_FILENAMES) {
+						const filePath = `${candidate.subdirectory}/${filename}`;
+						const content = await fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options);
+						if (content !== null) {
+							return manifestVersion(content, filePath);
+						}
 					}
+					return null;
+				} catch (error) {
+					// The caller falls back to the recorded ref, so a failed read only loses precision.
+					if (isCancellationError(error)) {
+						throw error;
+					}
+					return null;
 				}
-				return null;
+			});
+		},
+		isBehind(candidate, installedCommit, latestCommit) {
+			const repository = candidate.fullName.toLowerCase();
+			return once(`${repository}#compare#${latestCommit}...${installedCommit}`, async () => {
+				try {
+					const status = await compareCommits(candidate.owner, candidate.repo, latestCommit, installedCommit, options);
+					return status === "behind" || status === "diverged";
+				} catch (error) {
+					// An update that cannot be confirmed is not offered, so the check never downgrades.
+					if (isCancellationError(error)) {
+						throw error;
+					}
+					return false;
+				}
 			});
 		},
 	};
@@ -463,7 +491,13 @@ async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLook
 	const htmlUrl = `https://github.com/${candidate.fullName}`;
 	if (candidate.currentCommit) {
 		const latestCommit = await lookups.latestCommit(candidate);
-		return buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
+		const update = buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
+		// The latest commit of a path can be older than an installed commit of the
+		// whole repository, so a different commit is only an update when it is newer.
+		if (update && candidate.subdirectory !== null && latestCommit) {
+			return (await lookups.isBehind(candidate, candidate.currentCommit, latestCommit)) ? update : null;
+		}
+		return update;
 	}
 	const latest = await lookups.latestTag(candidate);
 	if (candidate.subdirectory !== null) {

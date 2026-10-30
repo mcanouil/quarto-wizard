@@ -81,6 +81,7 @@ export async function downloadGitHubArchive(
 		downloadDir,
 		defaultBranch,
 		latestCommit,
+		path,
 		signal,
 	} = options;
 
@@ -89,7 +90,14 @@ export async function downloadGitHubArchive(
 		message: `Resolving version for ${owner}/${repo}...`,
 	});
 
-	const resolved = await resolveVersion(owner, repo, version, { auth, timeout, defaultBranch, latestCommit, signal });
+	const resolved = await resolveVersion(owner, repo, version, {
+		auth,
+		timeout,
+		defaultBranch,
+		latestCommit,
+		path,
+		signal,
+	});
 
 	const downloadUrl = format === "zip" ? resolved.zipballUrl : resolved.tarballUrl;
 	const extension = format === "zip" ? ".zip" : ".tar.gz";
