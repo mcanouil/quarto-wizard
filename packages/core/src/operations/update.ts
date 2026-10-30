@@ -518,16 +518,7 @@ async function buildSubdirectoryUpdate(
 ): Promise<UpdateInfo | null> {
 	const installedVersion = candidate.extension.manifest.version;
 	const currentVersion = normaliseVersion(installedVersion);
-	// Without a tag, an update installs the latest commit of the default branch, so that lookup
-	// starts with the version read. Its failure only counts when an update needs the commit.
-	const [version, commit] = await Promise.allSettled([
-		lookups.subdirectoryVersion(candidate, latest?.tagName ?? "HEAD"),
-		latest ? null : lookups.latestCommit(candidate),
-	]);
-	if (version.status === "rejected") {
-		throw version.reason;
-	}
-	const latestVersion = version.value;
+	const latestVersion = await lookups.subdirectoryVersion(candidate, latest?.tagName ?? "HEAD");
 	// Prereleases qualify only for a prerelease install, as in buildTagUpdate.
 	const followsPrereleases = currentVersion !== null && semver.prerelease(currentVersion) !== null;
 	if (latestVersion !== null && semver.prerelease(latestVersion) !== null && !followsPrereleases) {
@@ -543,10 +534,7 @@ async function buildSubdirectoryUpdate(
 			return null;
 		}
 		// The default branch is installed pinned to its latest commit, as a first install would.
-		if (commit.status === "rejected") {
-			throw commit.reason;
-		}
-		const latestCommit = commit.value;
+		const latestCommit = await lookups.latestCommit(candidate);
 		if (!latestCommit) {
 			return null;
 		}
