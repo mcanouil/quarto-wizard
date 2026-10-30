@@ -737,6 +737,25 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should keep a recompile when the cursor moves to a place with nothing to preview", async () => {
+		// A theme change recompiles the block on screen in the background. A cursor
+		// move into prose right after it has nothing to compile, and must not take
+		// the place of that recompile either.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+		const elsewhere = await plainFile();
+		await vscode.window.showTextDocument(elsewhere, { selection: new vscode.Range(0, 0, 0, 0) });
+
+		await nextResultFor(controller, document, INSIDE_CELL);
+		const recompiled = nextResult(controller);
+		controller.recompile();
+		controller.refresh();
+
+		assert.strictEqual((await recompiled)?.uri.toString(), document.uri.toString());
+		controller.dispose();
+	});
+
 	test("Should refuse to switch the brand mode of a block that has none", async () => {
 		// Only a cell resolves colours against a brand. A plain block carries the
 		// preview's own header, so there is no other side to show.

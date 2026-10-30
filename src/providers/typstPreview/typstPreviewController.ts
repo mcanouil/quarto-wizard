@@ -317,13 +317,16 @@ export class TypstPreviewController implements vscode.Disposable {
 	private compiler: TypstCompilerLike | undefined;
 	/** What the compiler was built for, so it is replaced when that changes. */
 	private compilerKey: string | undefined;
+	/** Rises with every request that starts, so each request knows its place in the order. */
+	private requestStarts = 0;
 	/**
-	 * Rises with every request that has something to publish, so a result that
+	 * The place of the newest request that had something to compile.
+	 *
+	 * A request takes its place only once it knows it can compile, so a request
+	 * with nothing to publish never drops the one in flight, and a result that
 	 * arrives out of order is dropped.
 	 */
-	private requestVersion = 0;
-	/** Rises with every request that starts, whether or not it has anything to publish. */
-	private requestStarts = 0;
+	private claimedStart = 0;
 	private result: TypstPreviewResult | undefined;
 	/**
 	 * The preview the reader is following, which is not always the last compile.
@@ -629,21 +632,12 @@ export class TypstPreviewController implements vscode.Disposable {
 			return undefined;
 		}
 
-		// A request someone asked for takes its place at once. A background one
-		// waits until it knows it has something to compile: taking the place of the
-		// request in flight and then publishing nothing would lose that request, and
-		// a brand switch or a reload asked a moment earlier went missing that way.
 		const started = ++this.requestStarts;
-		let version = reason === "background" ? undefined : ++this.requestVersion;
-		// A newer request has started, or the controller has gone, or the document
-		// has. A closed document raised its own event already, so publishing a
-		// result for it here would bring back a preview that was taken away. Until a
-		// background request has its place, any request that started after it is
-		// newer.
-		const stale = (): boolean =>
-			this.disposed ||
-			document.isClosed ||
-			(version === undefined ? started !== this.requestStarts : version !== this.requestVersion);
+		// A newer request with something to compile has taken its place, or the
+		// controller has gone, or the document has. A closed document raised its
+		// own event already, so publishing a result for it here would bring back a
+		// preview that was taken away.
+		const stale = (): boolean => this.disposed || document.isClosed || this.claimedStart > started;
 
 		if (!vscode.workspace.isTrusted) {
 			this.reportUnavailable("The Typst preview needs a trusted workspace, because it runs the Typst compiler.");
@@ -690,7 +684,11 @@ export class TypstPreviewController implements vscode.Disposable {
 			}
 			return undefined;
 		}
-		version ??= ++this.requestVersion;
+		// Taken only now, because a request that took its place and then published
+		// nothing would lose the one in flight: a brand switch or a reload asked a
+		// moment earlier went missing that way. Nothing awaits between the check
+		// above and this line, so no newer request can have taken a place since.
+		this.claimedStart = started;
 
 		const binary = await this.resolveBinary();
 		if (binary === undefined) {
