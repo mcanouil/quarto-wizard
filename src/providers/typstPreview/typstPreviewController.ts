@@ -317,8 +317,16 @@ export class TypstPreviewController implements vscode.Disposable {
 	private compiler: TypstCompilerLike | undefined;
 	/** What the compiler was built for, so it is replaced when that changes. */
 	private compilerKey: string | undefined;
-	/** Rises with every request, so a result that arrives out of order is dropped. */
-	private requestVersion = 0;
+	/** Rises with every request that starts, so each request knows its place in the order. */
+	private requestStarts = 0;
+	/**
+	 * The place of the newest request that had something to compile.
+	 *
+	 * A request takes its place only once it knows it can compile, so a request
+	 * with nothing to publish never drops the one in flight, and a result that
+	 * arrives out of order is dropped.
+	 */
+	private claimedStart = 0;
 	private result: TypstPreviewResult | undefined;
 	/**
 	 * The preview the reader is following, which is not always the last compile.
@@ -624,11 +632,12 @@ export class TypstPreviewController implements vscode.Disposable {
 			return undefined;
 		}
 
-		const version = ++this.requestVersion;
-		// A newer request has started, or the controller has gone, or the document
-		// has. A closed document raised its own event already, so publishing a
-		// result for it here would bring back a preview that was taken away.
-		const stale = (): boolean => this.disposed || version !== this.requestVersion || document.isClosed;
+		const started = ++this.requestStarts;
+		// A newer request with something to compile has taken its place, or the
+		// controller has gone, or the document has. A closed document raised its
+		// own event already, so publishing a result for it here would bring back a
+		// preview that was taken away.
+		const stale = (): boolean => this.disposed || document.isClosed || this.claimedStart > started;
 
 		if (!vscode.workspace.isTrusted) {
 			this.reportUnavailable("The Typst preview needs a trusted workspace, because it runs the Typst compiler.");
@@ -683,6 +692,15 @@ export class TypstPreviewController implements vscode.Disposable {
 			);
 			return undefined;
 		}
+		if (stale()) {
+			return undefined;
+		}
+		// Taken only now, once there is a source and a binary to compile it with,
+		// because a request that took its place and then published nothing would
+		// lose the one in flight: a brand switch or a reload asked a moment earlier
+		// went missing that way. Nothing awaits between the check above and this
+		// line, so no newer request can have taken a place since.
+		this.claimedStart = started;
 		// The image is decided by the source, the command and the binary, and by
 		// nothing else. Two documents that assemble to the same source under the
 		// same command share the entry, which is what makes an undone keystroke

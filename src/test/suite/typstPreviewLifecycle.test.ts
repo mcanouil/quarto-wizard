@@ -692,6 +692,96 @@ suite("Typst Preview Lifecycle Test Suite", () => {
 		controller.dispose();
 	});
 
+	test("Should keep a brand switch when the cursor sits outside every block", async () => {
+		// A cursor that names no block has nothing to compile. Starting a request
+		// for it anyway made the switch in flight stale, and the request that
+		// replaced it published nothing, so the switch was lost.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+		// A file, because the cursor path does not preview an untitled document, and
+		// a cursor on its title line, above the block.
+		const elsewhere = await plainFile();
+		await vscode.window.showTextDocument(elsewhere, { selection: new vscode.Range(0, 0, 0, 0) });
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		controller.refresh();
+
+		assert.strictEqual((await switched)?.brandMode, first?.brandMode === "dark" ? "light" : "dark");
+		controller.dispose();
+	});
+
+	test("Should keep a brand switch when the cursor sits in a cell that cannot be previewed", async () => {
+		// The cursor names a block, but the block has no request to give: a cell
+		// in a folder without `typst-render` is refused by the install gate. The
+		// request for it must not take the place of the switch in flight.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+		const directory = fs.mkdtempSync(path.join(os.tmpdir(), "typst-preview-gated-"));
+		written.push(directory);
+		const gated = path.join(directory, "gated.qmd");
+		fs.writeFileSync(gated, "```{typst}\n#circle()\n```\n");
+		await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(gated)), {
+			selection: new vscode.Range(1, 0, 1, 0),
+		});
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		controller.refresh();
+
+		assert.strictEqual((await switched)?.brandMode, first?.brandMode === "dark" ? "light" : "dark");
+		controller.dispose();
+	});
+
+	test("Should keep a recompile when the cursor moves to a place with nothing to preview", async () => {
+		// A theme change recompiles the block on screen in the background. A cursor
+		// move into prose right after it has nothing to compile, and must not take
+		// the place of that recompile either.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		const { controller } = makeController(compiler);
+		const document = await cellDocument();
+		const elsewhere = await plainFile();
+		await vscode.window.showTextDocument(elsewhere, { selection: new vscode.Range(0, 0, 0, 0) });
+
+		await nextResultFor(controller, document, INSIDE_CELL);
+		const recompiled = nextResult(controller);
+		controller.recompile();
+		controller.refresh();
+
+		assert.strictEqual((await recompiled)?.uri.toString(), document.uri.toString());
+		controller.dispose();
+	});
+
+	test("Should keep a brand switch when a newer request finds no Typst binary", async () => {
+		// A request without a binary publishes nothing, so it must not take the
+		// place of the switch in flight either. The refresh reads a plain block,
+		// which is quicker than the cell of the switch, so it makes the second
+		// lookup.
+		const compiler = new StubCompiler({ svg: SVG, stderr: "" });
+		let lookups = 0;
+		const controller = new TypstPreviewController({
+			hasSurface: () => true,
+			show: () => undefined,
+			resolveBinary: () => Promise.resolve(++lookups === 2 ? undefined : "/typst"),
+			createCompiler: () => compiler,
+		});
+		const document = await cellDocument();
+		const elsewhere = await plainFile();
+		await vscode.window.showTextDocument(elsewhere, { selection: new vscode.Range(INSIDE_BLOCK, INSIDE_BLOCK) });
+
+		const first = await nextResultFor(controller, document, INSIDE_CELL);
+		const switched = nextResult(controller);
+		controller.toggleBrandMode();
+		controller.refresh();
+
+		assert.strictEqual((await switched)?.brandMode, first?.brandMode === "dark" ? "light" : "dark");
+		controller.dispose();
+	});
+
 	test("Should refuse to switch the brand mode of a block that has none", async () => {
 		// Only a cell resolves colours against a brand. A plain block carries the
 		// preview's own header, so there is no other side to show.
