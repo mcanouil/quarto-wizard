@@ -28,6 +28,11 @@
 			"timeout": 60000
 		},
 		{
+			"kind": "click",
+			"text": "Detected Projects",
+			"part": "sidebar"
+		},
+		{
 			"kind": "wait",
 			"text": "archive",
 			"timeout": 60000
