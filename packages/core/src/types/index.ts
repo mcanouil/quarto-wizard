@@ -29,6 +29,8 @@ export {
 	parseGitHubLocator,
 	tryParseGitHubLocator,
 	splitSourceRef,
+	extractCommitFromSource,
+	recordedCommit,
 } from "./manifest.js";
 
 export {

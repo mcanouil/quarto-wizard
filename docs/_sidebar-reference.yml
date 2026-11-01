@@ -13,3 +13,4 @@ website:
             - reference/schema-validator.qmd
             - reference/snippet-specification.qmd
             - reference/environment-variables.qmd
+            - reference/install-record.qmd

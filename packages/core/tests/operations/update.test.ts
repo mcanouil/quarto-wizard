@@ -6,7 +6,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { applyUpdates, checkForUpdates, update, type UpdateInfo } from "../../src/operations/update.js";
+import {
+	applyUpdates,
+	checkForUpdates,
+	unpinnedRecordSource,
+	update,
+	type UpdateInfo,
+} from "../../src/operations/update.js";
 import {
 	AuthenticationError,
 	CancellationError,
@@ -49,6 +55,7 @@ vi.mock("../../src/operations/install.js", async () => {
 import { fetchRegistry } from "../../src/registry/fetcher.js";
 import { install } from "../../src/operations/install.js";
 import type { InstalledExtension } from "../../src/filesystem/discovery.js";
+import { readSourceRecord, writeSourceRecord, type SourceRecord } from "../../src/filesystem/sourceRecord.js";
 import { compareCommits, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 import { resolveVersion } from "../../src/github/resolve.js";
 import { fetchRawFile } from "../../src/github/raw.js";
@@ -1233,6 +1240,134 @@ describe("checkForUpdates", () => {
 		});
 	});
 
+	describe("install record", () => {
+		function setupRecordedExtension(
+			owner: string,
+			name: string,
+			version: string,
+			record: string,
+			projectDir = tempDir,
+		): string {
+			const extDir = path.join(projectDir, "_extensions", owner, name);
+			fs.mkdirSync(extDir, { recursive: true });
+			fs.writeFileSync(path.join(extDir, "_extension.yml"), `title: ${name}\nversion: ${version}\n`);
+			fs.writeFileSync(path.join(extDir, ".quarto-source.yml"), record);
+			return extDir;
+		}
+
+		const LATEST_COMMIT = "def5678901234567890abcdef1234567890abcd";
+
+		it("the update check uses quarto-wizard.commit for an untagged install", async () => {
+			setupRecordedExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				"version: 1\nsource: quarto-ext/fontawesome\nkind: github\nfiles: {}\nquarto-wizard:\n  commit: ABC1234567890abcdef1234567890abcdef12345\n",
+			);
+			vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+			vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_COMMIT);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(result.updates).toHaveLength(1);
+			const [found] = result.updates;
+			expect(found?.refKind).toBe("commit");
+			expect(found?.currentVersion).toBe("abc1234");
+			expect(found?.latestRef).toBe("def5678");
+			expect(found?.source).toBe("quarto-ext/fontawesome@def5678");
+		});
+
+		it("checks quarto-wizard.commit of a subdirectory record on its path", async () => {
+			setupRecordedExtension(
+				"quarto-ext",
+				"sub",
+				"0.3.0",
+				"version: 1\nsource: quarto-ext/monorepo/sub/dir\nkind: github\nfiles: {}\nquarto-wizard:\n  commit: abc1234567890abcdef1234567890abcdef12345\n",
+			);
+			vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_COMMIT);
+			vi.mocked(compareCommits).mockResolvedValue("behind");
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(fetchLatestCommit).toHaveBeenCalledWith(
+				"quarto-ext",
+				"monorepo",
+				expect.objectContaining({ path: "sub/dir" }),
+			);
+			expect(compareCommits).toHaveBeenCalledWith(
+				"quarto-ext",
+				"monorepo",
+				LATEST_COMMIT,
+				"abc1234",
+				expect.anything(),
+			);
+			expect(result.updates).toHaveLength(1);
+			expect(result.updates[0]?.source).toBe("quarto-ext/monorepo/sub/dir@def5678");
+		});
+
+		it("a q2 record without a ref compares the manifest version with the latest tag", async () => {
+			const record = "version: 1\nsource: quarto-ext/fontawesome\nkind: github\nfiles: {}\n";
+			setupRecordedExtension("quarto-ext", "fontawesome", "1.0.0", record);
+			const otherProject = fs.mkdtempSync(path.join(os.tmpdir(), "qw-update-test-"));
+			try {
+				setupRecordedExtension("quarto-ext", "fontawesome", "3.0.0", record, otherProject);
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir, otherProject], source: "github" });
+
+				expect(fetchLatestCommit).not.toHaveBeenCalled();
+				expect(result.updates).toHaveLength(1);
+				const [found] = result.updates;
+				expect(found?.projectDir).toBe(tempDir);
+				expect(found?.refKind).toBe("tag");
+				expect(found?.currentVersion).toBe("1.0.0");
+				expect(found?.latestRef).toBe("v2.0.0");
+			} finally {
+				fs.rmSync(otherProject, { recursive: true, force: true });
+			}
+		});
+
+		describe("embedded extensions", () => {
+			function setupParent(manifest: string, record?: string): string {
+				const parentDir = path.join(tempDir, "_extensions", "acme", "parent");
+				fs.mkdirSync(parentDir, { recursive: true });
+				fs.writeFileSync(path.join(parentDir, "_extension.yml"), manifest);
+				if (record) {
+					fs.writeFileSync(path.join(parentDir, ".quarto-source.yml"), record);
+				}
+				setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github", parentDir);
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				return parentDir;
+			}
+
+			it.each([
+				["a Quarto Wizard 3 source", "title: Parent\nsource: acme/parent@v1.0.0\n", undefined],
+				[
+					"an install record",
+					"title: Parent\n",
+					"version: 1\nsource: acme/parent@v1.0.0\nkind: github\nref: v1.0.0\nfiles: {}\n",
+				],
+			])("checkForUpdates skips an extension embedded in an installed parent with %s", async (_, manifest, record) => {
+				const parentDir = setupParent(manifest, record);
+
+				const result = await checkForUpdates({ projectDirs: [parentDir], source: "github" });
+
+				expect(fetchTags).not.toHaveBeenCalled();
+				expect(result.updates).toHaveLength(0);
+			});
+
+			it("checkForUpdates checks an extension embedded in a locally developed parent", async () => {
+				const parentDir = setupParent("title: Parent\n");
+
+				const result = await checkForUpdates({ projectDirs: [parentDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestRef).toBe("v2.0.0");
+			});
+		});
+	});
+
 	describe("failures", () => {
 		it("reports a rate limit as a check failure", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
@@ -1586,6 +1721,38 @@ describe("applyUpdates", () => {
 			expect(installedNames(projectDir)).toEqual(["renamed"]);
 		});
 
+		it("applyUpdates skips a locally edited extension and updates the rest", async () => {
+			const { source, projectDir } = localSource(["x", "y"]);
+			for (const name of ["x", "y"]) {
+				const dir = path.join(projectDir, "_extensions", "quarto-ext", name);
+				fs.mkdirSync(dir, { recursive: true });
+				fs.writeFileSync(path.join(dir, "_extension.yml"), `title: ${name}\nversion: 1.0.0\n`);
+				writeSourceRecord(dir, { source: `quarto-ext/${name}@v1.0.0`, kind: "github", ref: "v1.0.0" });
+			}
+			const editedDir = path.join(projectDir, "_extensions", "quarto-ext", "x");
+			fs.writeFileSync(path.join(editedDir, "_extension.yml"), "title: x edited\nversion: 1.0.0\n");
+			const updates = [
+				{ ...updateOf("x", source), projectDir },
+				{ ...updateOf("y", source), projectDir },
+			];
+
+			const result = await applyUpdates(updates, { projectDirs: [] });
+
+			expect(vi.mocked(install).mock.calls.every(([, options]) => !options.force)).toBe(true);
+			expect(result.skipped).toEqual([
+				{
+					extension: updates[0].extension,
+					reason: "local-edits",
+					edits: [{ path: "_extension.yml", change: "modified" }],
+				},
+			]);
+			expect(result.failed).toEqual([]);
+			expect(result.updated.map((u) => u.extension.id.name)).toEqual(["y"]);
+			expect(fs.readFileSync(path.join(editedDir, "_extension.yml"), "utf-8")).toBe(
+				"title: x edited\nversion: 1.0.0\n",
+			);
+		});
+
 		it("updates an extension installed without an owner from a GitHub source", async () => {
 			const projectDir = path.join(tempDir, "project");
 			const installedDir = path.join(projectDir, "_extensions", "x");
@@ -1609,6 +1776,168 @@ describe("applyUpdates", () => {
 			expect(result.failed).toEqual([]);
 			expect(result.updated).toHaveLength(1);
 			expect(fs.existsSync(path.join(projectDir, "_extensions", "acme", "x", "_extension.yml"))).toBe(true);
+		});
+
+		function githubUpdate(
+			installedSource: string,
+			resolution: { tagName: string; commitSha?: string },
+			sourceType: "github" | "registry" = "github",
+		): { update: UpdateInfo; installedDir: string } {
+			const projectDir = path.join(tempDir, "project");
+			const installedDir = path.join(projectDir, "_extensions", "acme", "x");
+			fs.mkdirSync(installedDir, { recursive: true });
+			fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: X\nversion: 0.9.0\n");
+			vi.mocked(downloadGitHubArchive).mockImplementationOnce(async () => ({
+				archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+				format: "tarball",
+				...resolution,
+			}));
+			const pending = pendingUpdate("x");
+			const latestRef = resolution.commitSha ?? resolution.tagName;
+			return {
+				installedDir,
+				update: {
+					...pending,
+					extension: {
+						...pending.extension,
+						id: { owner: "acme", name: "x" },
+						manifest: { title: "X", version: "0.9.0", source: installedSource, sourceType },
+					},
+					projectDir,
+					latestRef,
+					refKind: resolution.commitSha ? "commit" : "tag",
+					source: `acme/repo@${latestRef}`,
+				},
+			};
+		}
+
+		function recordIn(dir: string): SourceRecord {
+			const result = readSourceRecord(dir);
+			if (result.status !== "ok") {
+				throw new Error(`No readable install record in ${dir}: ${result.status}`);
+			}
+			return result.record;
+		}
+
+		it("an update of an unpinned extension stays unpinned", async () => {
+			const { update, installedDir } = githubUpdate("acme/repo", { tagName: SUBDIRECTORY_REPOSITORY_TAG });
+
+			const result = await applyUpdates([update], { projectDirs: [] });
+
+			expect(result.failed).toEqual([]);
+			const record = recordIn(installedDir);
+			expect(record.source).toBe("acme/repo");
+			expect(record).not.toHaveProperty("ref");
+			expect(record).not.toHaveProperty("quartoWizard");
+			expect(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf-8")).not.toMatch(/^source/m);
+		});
+
+		it("an update of an unpinned extension to a commit records quarto-wizard.commit", async () => {
+			const { update, installedDir } = githubUpdate("acme/repo", { tagName: "fed9876", commitSha: "fed9876" });
+
+			await applyUpdates([update], { projectDirs: [] });
+
+			const record = recordIn(installedDir);
+			expect(record.source).toBe("acme/repo");
+			expect(record).not.toHaveProperty("ref");
+			expect(record.quartoWizard).toEqual({ commit: "fed9876" });
+		});
+
+		it("a commit update with an equal manifest version writes the new copy and its commit", async () => {
+			const { update, installedDir } = githubUpdate("acme/repo", { tagName: "fed9876", commitSha: "fed9876" });
+			fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: X\nversion: 1.0.0\n");
+			writeSourceRecord(installedDir, { source: "acme/repo", kind: "github", quartoWizard: { commit: "aaaaaaa" } });
+
+			const result = await applyUpdates([update], { projectDirs: [] });
+
+			expect(result.failed).toEqual([]);
+			expect(result.skipped).toEqual([]);
+			expect(result.updated).toHaveLength(1);
+			expect(fs.readFileSync(path.join(installedDir, "x.lua"), "utf-8")).toBe("-- x\n");
+			expect(recordIn(installedDir).quartoWizard).toEqual({ commit: "fed9876" });
+		});
+
+		it("a commit update of an extension pinned to a commit at an equal version writes the new copy", async () => {
+			const { update, installedDir } = githubUpdate("acme/repo@aaaaaaa", { tagName: "fed9876", commitSha: "fed9876" });
+			fs.writeFileSync(
+				path.join(installedDir, "_extension.yml"),
+				"title: X\nversion: 1.0.0\nsource: acme/repo@aaaaaaa\nsource-type: github\n",
+			);
+
+			const result = await applyUpdates([update], { projectDirs: [] });
+
+			expect(result.skipped).toEqual([]);
+			expect(result.updated).toHaveLength(1);
+			const record = recordIn(installedDir);
+			expect(record.source).toBe("acme/repo@fed9876");
+			expect(record).not.toHaveProperty("quartoWizard");
+		});
+
+		it("unpinnedRecordSource gives the base of an unpinned GitHub install and nothing for a pinned one", () => {
+			expect(unpinnedRecordSource(githubUpdate("acme/repo", { tagName: "v1.0.0" }).update)).toBe("acme/repo");
+			expect(unpinnedRecordSource(githubUpdate("acme/repo@v0.9.0", { tagName: "v1.0.0" }).update)).toBeUndefined();
+			const subdirectory = githubUpdate("acme/repo/b", { tagName: "v1.0.0" }).update;
+			expect(unpinnedRecordSource({ ...subdirectory, source: "acme/repo/b@v1.0.0" })).toBe("acme/repo/b");
+		});
+
+		it("an update of a pinned extension records the new ref", async () => {
+			const { update, installedDir } = githubUpdate("acme/repo@v0.9.0", { tagName: SUBDIRECTORY_REPOSITORY_TAG });
+
+			await applyUpdates([update], { projectDirs: [] });
+
+			const record = recordIn(installedDir);
+			expect(record.source).toBe(`acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`);
+			expect(record.ref).toBe(SUBDIRECTORY_REPOSITORY_TAG);
+		});
+
+		function sameVersionTagUpdate(): { update: UpdateInfo; installedDir: string } {
+			const pinned = githubUpdate("acme/repo@v0.9.0", { tagName: SUBDIRECTORY_REPOSITORY_TAG });
+			fs.writeFileSync(path.join(pinned.installedDir, "_extension.yml"), "title: X\nversion: 1.0.0\n");
+			writeSourceRecord(pinned.installedDir, { source: "acme/repo@v0.9.0", kind: "github", ref: "v0.9.0" });
+			return pinned;
+		}
+
+		it("a tag update with an equal manifest version writes the new copy and records the new ref", async () => {
+			const { update, installedDir } = sameVersionTagUpdate();
+
+			const result = await applyUpdates([update], { projectDirs: [] });
+
+			expect(vi.mocked(install).mock.calls[0][1].force).toBeFalsy();
+			expect(result.failed).toEqual([]);
+			expect(result.skipped).toEqual([]);
+			expect(result.updated).toHaveLength(1);
+			expect(fs.readFileSync(path.join(installedDir, "x.lua"), "utf-8")).toBe("-- x\n");
+			const record = recordIn(installedDir);
+			expect(record.source).toBe(`acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`);
+			expect(record.ref).toBe(SUBDIRECTORY_REPOSITORY_TAG);
+		});
+
+		it("a tag update with an equal manifest version skips a locally edited copy", async () => {
+			const { update, installedDir } = sameVersionTagUpdate();
+			fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: X edited\nversion: 1.0.0\n");
+
+			const result = await applyUpdates([update], { projectDirs: [] });
+
+			expect(result.updated).toEqual([]);
+			expect(result.skipped).toEqual([
+				{
+					extension: update.extension,
+					reason: "local-edits",
+					edits: [{ path: "_extension.yml", change: "modified" }],
+				},
+			]);
+			expect(fs.existsSync(path.join(installedDir, "x.lua"))).toBe(false);
+			expect(recordIn(installedDir).ref).toBe("v0.9.0");
+		});
+
+		it("an update of a registry install keeps source-type registry", async () => {
+			const { update, installedDir } = githubUpdate("acme/repo", { tagName: SUBDIRECTORY_REPOSITORY_TAG }, "registry");
+
+			await applyUpdates([update], { projectDirs: [] });
+
+			const record = recordIn(installedDir);
+			expect(record.kind).toBe("github");
+			expect(record.quartoWizard).toEqual({ sourceType: "registry" });
 		});
 	});
 });

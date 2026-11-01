@@ -14,6 +14,7 @@ import { formatExtensionId } from "../types/extension.js";
 import {
 	formatGitHubLocator,
 	getEffectiveSourceType,
+	recordedCommit,
 	splitSourceRef,
 	tryParseGitHubLocator,
 } from "../types/manifest.js";
@@ -22,9 +23,11 @@ import {
 	findInstalledExtension,
 	type InstalledExtension,
 } from "../filesystem/discovery.js";
+import type { LocalEdit } from "../filesystem/sourceRecord.js";
 import type { Registry, RegistryEntry } from "../types/registry.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 import { lookupRegistryEntry } from "../registry/search.js";
+import { isEmbeddedInInstalledParent } from "../filesystem/projects.js";
 import { compareCommits, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 import { fetchRawFile } from "../github/raw.js";
 import { MANIFEST_FILENAMES, parseManifestContent } from "../filesystem/manifest.js";
@@ -34,6 +37,7 @@ import {
 	AuthenticationError,
 	CancellationError,
 	ExtensionError,
+	LocalEditsError,
 	ManifestError,
 	NetworkError,
 	RateLimitError,
@@ -143,10 +147,14 @@ export interface UpdateResult {
 		previousVersion: string;
 		newVersion: string;
 	}[];
-	/** Skipped extensions with reasons. */
+	/**
+	 * Skipped extensions with reasons.
+	 * An extension with local changes has the reason `local-edits` and lists its edits.
+	 */
 	skipped: {
 		extension: InstalledExtension;
 		reason: string;
+		edits?: LocalEdit[];
 	}[];
 	/** Failed updates with errors. */
 	failed: {
@@ -200,6 +208,9 @@ interface GitHubLookups {
  * installed version is compared with the version in the subdirectory manifest
  * at the latest tag, because the tags of a repository that holds several
  * extensions need not follow the version of any one of them.
+ *
+ * An extension embedded in an installed parent is not checked, because it
+ * changes only when its parent is updated.
  *
  * An aborted `signal` stops the requests and rejects with a
  * `CancellationError`.
@@ -300,6 +311,7 @@ async function collectCandidates(
 	target?: ExtensionId,
 ): Promise<{ candidates: UpdateCandidate[]; failures: Map<string, RepositoryFailure> }> {
 	const failures = new Map<string, RepositoryFailure>();
+	const installedParents = new Map<string, boolean>();
 	const perDirectory = await Promise.all(
 		projectDirs.map(async (projectDir) => {
 			let extensions: InstalledExtension[];
@@ -318,7 +330,11 @@ async function collectCandidates(
 			} else {
 				extensions = await discoverInstalledExtensions(projectDir);
 			}
-			return extensions.map((ext) => toCandidate(ext, projectDir)).filter((c): c is UpdateCandidate => c !== null);
+			// An embedded extension of an installed parent changes only when its parent is updated.
+			return extensions
+				.filter((ext) => !isEmbeddedInInstalledParent(ext.directory, installedParents))
+				.map((ext) => toCandidate(ext, projectDir))
+				.filter((c): c is UpdateCandidate => c !== null);
 		}),
 	);
 	return { candidates: perDirectory.flat(), failures };
@@ -347,7 +363,7 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 		base,
 		...locator,
 		fullName: `${locator.owner}/${locator.repo}`,
-		currentCommit: extractCommitFromSource(source),
+		currentCommit: recordedCommit({ source, quartoWizard: extension.record?.quartoWizard }),
 	};
 }
 
@@ -668,9 +684,7 @@ function isInstalledTag(candidate: UpdateCandidate, tag: string): boolean {
 
 /** Ref recorded in the manifest source, or null when the source has none. */
 function recordedRef(candidate: UpdateCandidate): string | null {
-	const source = candidate.extension.manifest.source ?? "";
-	const { base, hasRef } = splitSourceRef(source);
-	return hasRef ? source.slice(base.length + 1) : null;
+	return splitSourceRef(candidate.extension.manifest.source ?? "").ref ?? null;
 }
 
 function buildCommitUpdate(
@@ -713,6 +727,11 @@ function makeUpdate(
 /**
  * Apply updates to extensions.
  *
+ * An update never replaces an extension with local changes: that extension goes
+ * to `skipped` with the reason `local-edits`, and the other updates continue.
+ * An update replaces a copy at the same version too, because a new tag or
+ * commit can keep the manifest version.
+ *
  * An aborted `signal` stops the running install. That update and every
  * update after it go to `skipped`, and the result keeps the updates that
  * were already installed.
@@ -745,8 +764,9 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 			const installResult = await install(source, {
 				projectDir: update.projectDir,
 				auth,
-				force: true,
 				sourceType: update.extension.manifest.sourceType,
+				recordSource: unpinnedRecordSource(update),
+				replaceSameVersion: true,
 				signal,
 				expectedExtensionId: update.extension.id,
 				onProgress: (p) => {
@@ -764,6 +784,10 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				newVersion: update.latestVersion,
 			});
 		} catch (error) {
+			if (error instanceof LocalEditsError) {
+				result.skipped.push({ extension: update.extension, reason: "local-edits", edits: error.edits });
+				continue;
+			}
 			if (isCancellationError(error)) {
 				result.skipped.push(...updates.slice(index).map((u) => ({ extension: u.extension, reason: error.message })));
 				break;
@@ -776,6 +800,24 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 	}
 
 	return result;
+}
+
+/**
+ * Source to record for an update of an extension installed without a ref, so that it stays unpinned.
+ *
+ * Pass it as `InstallOptions.recordSource` when you install `update.source`.
+ * An update of a pinned extension records the new ref, so it needs no record source.
+ *
+ * @param update - Update to apply
+ * @returns The repository and subdirectory without a ref, or undefined when the installed source has a ref
+ */
+export function unpinnedRecordSource(update: UpdateInfo): string | undefined {
+	const installed = update.extension.manifest.source;
+	if (!installed || splitSourceRef(installed).hasRef) {
+		return undefined;
+	}
+	const source = parseInstallSource(update.source);
+	return source.type === "github" ? formatGitHubLocator(source) : undefined;
 }
 
 /**
@@ -797,21 +839,4 @@ export async function update(options: UpdateOptions): Promise<UpdateResult> {
 	}
 
 	return applyUpdates(updates, options);
-}
-
-/**
- * Check if a source string represents a commit-based installation.
- *
- * @param source - Source as recorded in the manifest
- * @returns The seven-character commit in lower case, or null when the source is not pinned to a commit
- */
-export function extractCommitFromSource(source: string): string | null {
-	const atIndex = source.lastIndexOf("@");
-	if (atIndex <= 0) return null;
-
-	const ref = source.substring(atIndex + 1);
-	if (/^[a-f0-9]{7,40}$/i.test(ref)) {
-		return ref.substring(0, 7).toLowerCase();
-	}
-	return null;
 }

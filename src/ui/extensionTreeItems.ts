@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import {
-	extractCommitFromSource,
+	recordedCommit,
 	pluralise,
 	type SourceType,
 	type UpdateCheckSource,
@@ -170,7 +170,10 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			updateNotes.push("Ships with the extension that embeds it, so it cannot be changed here.");
 		} else if (capabilities.includes("update")) {
 			updateNotes.push(
-				extractCommitFromSource(extension?.manifest.source ?? "") !== null
+				recordedCommit({
+					source: extension?.manifest.source ?? "",
+					quartoWizard: extension?.record?.quartoWizard,
+				}) !== null
 					? "Update installs the latest commit of the default branch."
 					: "Update installs the latest GitHub tag.",
 			);
@@ -189,7 +192,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 			warnings.push("Could not parse extension manifest");
 		}
 		if (noSource) {
-			warnings.push("No source in manifest (cannot check for updates)");
+			warnings.push("No install source is recorded (cannot check for updates)");
 		}
 		if (compatibilityWarningMessage) {
 			warnings.push(compatibilityWarningMessage);

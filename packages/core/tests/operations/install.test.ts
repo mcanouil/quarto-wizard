@@ -6,7 +6,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { parseInstallSource, formatInstallSource, type InstallSource } from "../../src/operations/install.js";
+import * as tar from "tar";
+import { install, parseInstallSource, formatInstallSource, type InstallSource } from "../../src/operations/install.js";
+import { ExtensionError, LocalEditsError } from "../../src/errors.js";
+import {
+	getInstalledState,
+	hashExtensionFiles,
+	readSourceRecord,
+	writeSourceRecord,
+	SOURCE_RECORD_FILENAME,
+	type SourceRecord,
+} from "../../src/filesystem/sourceRecord.js";
 // Internal exports for testing only
 import { normaliseSubdirectory } from "../../src/archive/security.js";
 import { resolveExtensionId } from "../../src/operations/internal.js";
@@ -504,7 +514,6 @@ describe("install with multiple extensions", () => {
 		const source = parseInstallSource(sourceDir);
 		const result = await install(source, {
 			projectDir,
-			force: true,
 			confirmOverwrite,
 			selectExtension,
 		});
@@ -516,6 +525,48 @@ describe("install with multiple extensions", () => {
 		expect(confirmOverwrite).toHaveBeenCalledTimes(2);
 		expect(confirmedExtensions).toContain("testowner/ext1");
 		expect(confirmedExtensions).toContain("testowner/ext2");
+	});
+
+	it("installs a new extension when the first selected one is already at the same version", async () => {
+		const { install, parseInstallSource } = await import("../../src/operations/install.js");
+		const preInstallExt1 = path.join(projectDir, "_extensions", "testowner", "ext1");
+		fs.mkdirSync(preInstallExt1, { recursive: true });
+		fs.writeFileSync(path.join(preInstallExt1, "_extension.yml"), "title: Old Extension 1\nversion: 1.0.0\n");
+
+		const result = await install(parseInstallSource(sourceDir), {
+			projectDir,
+			selectExtension: async (extensions) => extensions,
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.unchanged).toBe(true);
+		expect(fs.readFileSync(path.join(preInstallExt1, "_extension.yml"), "utf-8")).toContain("Old Extension 1");
+		expect(result.additionalInstalls?.map((r) => r.success)).toEqual([true]);
+		expect(fs.existsSync(path.join(projectDir, "_extensions", "testowner", "ext2", "filter2.lua"))).toBe(true);
+	});
+
+	it("writes no extension when a later selected one is locally edited", async () => {
+		const { install, parseInstallSource } = await import("../../src/operations/install.js");
+		const preInstallExt1 = path.join(projectDir, "_extensions", "testowner", "ext1");
+		const preInstallExt2 = path.join(projectDir, "_extensions", "testowner", "ext2");
+		for (const dir of [preInstallExt1, preInstallExt2]) {
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(path.join(dir, "_extension.yml"), "title: Old\nversion: 0.1.0\n");
+			writeSourceRecord(dir, { source: "./old", kind: "local-dir" });
+		}
+		fs.writeFileSync(path.join(preInstallExt2, "_extension.yml"), "title: Edited\nversion: 0.1.0\n");
+		const confirmOverwrite = vi.fn(async () => true);
+
+		await expect(
+			install(parseInstallSource(sourceDir), {
+				projectDir,
+				confirmOverwrite,
+				selectExtension: async (extensions) => extensions,
+			}),
+		).rejects.toBeInstanceOf(LocalEditsError);
+
+		expect(confirmOverwrite).not.toHaveBeenCalled();
+		expect(fs.readFileSync(path.join(preInstallExt1, "_extension.yml"), "utf-8")).toBe("title: Old\nversion: 0.1.0\n");
 	});
 
 	it("keeps only the expected extension from a source with several", async () => {
@@ -571,7 +622,6 @@ describe("install with multiple extensions", () => {
 		const source = parseInstallSource(sourceDir);
 		const result = await install(source, {
 			projectDir,
-			force: true,
 			confirmOverwrite,
 			selectExtension,
 		});
@@ -617,7 +667,6 @@ describe("install with multiple extensions", () => {
 		const source = parseInstallSource(sourceDir);
 		const result = await install(source, {
 			projectDir,
-			force: true,
 			confirmOverwrite,
 			selectExtension,
 		});
@@ -728,14 +777,482 @@ describe("install from a repository subdirectory", () => {
 			{ type: "latest" },
 			expect.objectContaining({ path: "b", latestCommit: undefined, defaultBranch: "main" }),
 		);
-		const manifest = fs.readFileSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"), "utf-8");
-		expect(manifest).toContain("source: owner/repo/b@fed9876");
+		const record = readSourceRecord(path.join(projectDir, "_extensions", "owner", "y"));
+		expect(record).toMatchObject({
+			status: "ok",
+			record: { source: "owner/repo/b", quartoWizard: { commit: "fed9876" } },
+		});
 	});
 
-	it("records owner/repo/b@<ref> as the source", async () => {
+	it("records owner/repo/b as the source, without the resolved tag", async () => {
 		await installFrom("owner/repo/b");
 
-		const manifest = fs.readFileSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"), "utf-8");
-		expect(manifest).toContain(`source: owner/repo/b@${SUBDIRECTORY_REPOSITORY_TAG}`);
+		const record = readSourceRecord(path.join(projectDir, "_extensions", "owner", "y"));
+		expect(record).toMatchObject({ status: "ok", record: { source: "owner/repo/b", kind: "github" } });
+		expect(record.status === "ok" && record.record.ref).toBeUndefined();
+	});
+});
+
+describe("install record", () => {
+	const MANIFEST = "title: Demo\nversion: 1.2.0\ncontributes:\n  filters:\n    - demo.lua\n";
+	let tempDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-install-record-"));
+		projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir);
+	});
+
+	afterEach(() => {
+		vi.mocked(downloadGitHubArchive).mockReset();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	function writeFiles(root: string, files: Record<string, string>): void {
+		for (const [relativePath, content] of Object.entries(files)) {
+			const fullPath = path.join(root, relativePath);
+			fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+			fs.writeFileSync(fullPath, content);
+		}
+	}
+
+	function extensionSource(root: string): string {
+		writeFiles(root, { "_extensions/demo/_extension.yml": MANIFEST, "_extensions/demo/demo.lua": "-- demo\n" });
+		return root;
+	}
+
+	function mockGitHubDownload(resolution: { tagName: string; commitSha?: string }): void {
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => {
+			const workDir = fs.mkdtempSync(path.join(tempDir, "archive-"));
+			extensionSource(path.join(workDir, "repo-main"));
+			const archivePath = path.join(workDir, "repo.tar.gz");
+			await tar.create({ gzip: true, file: archivePath, cwd: workDir }, ["repo-main"]);
+			return { archivePath, format: "tarball", ...resolution };
+		});
+	}
+
+	function installedDir(owner = "owner"): string {
+		return path.join(projectDir, "_extensions", owner, "demo");
+	}
+
+	function recordOf(dir: string): SourceRecord {
+		const result = readSourceRecord(dir);
+		if (result.status !== "ok") {
+			throw new Error(`No readable install record in ${dir}: ${result.status}`);
+		}
+		return result.record;
+	}
+
+	it("install writes a record and leaves _extension.yml as the archive had it", async () => {
+		const source = extensionSource(path.join(tempDir, "source"));
+
+		const result = await install(parseInstallSource(source), { projectDir });
+
+		const dir = path.join(projectDir, "_extensions", "demo");
+		expect(fs.readFileSync(path.join(dir, "_extension.yml"), "utf-8")).toBe(MANIFEST);
+		const record = recordOf(dir);
+		expect(record.files).toEqual(hashExtensionFiles(dir));
+		expect(result.extension.record).toEqual(record);
+		expect(result.extension.recordStatus).toBe("ok");
+		expect(result.extension.manifest.source).toBe(record.source);
+		expect(result.extension.manifest.sourceType).toBe("local");
+	});
+
+	it("install records source as typed without the resolved tag", async () => {
+		mockGitHubDownload({ tagName: "v1.2.0" });
+
+		await install(parseInstallSource("owner/repo"), { projectDir });
+
+		const record = recordOf(installedDir());
+		expect(record.source).toBe("owner/repo");
+		expect(record.kind).toBe("github");
+		expect(record).not.toHaveProperty("ref");
+		expect(record).not.toHaveProperty("quartoWizard");
+	});
+
+	it("install records ref for a pinned source", async () => {
+		mockGitHubDownload({ tagName: "v1.2.0" });
+
+		await install(parseInstallSource("owner/repo@v1.2.0"), { projectDir });
+
+		const record = recordOf(installedDir());
+		expect(record.source).toBe("owner/repo@v1.2.0");
+		expect(record.ref).toBe("v1.2.0");
+	});
+
+	it("a registry install records kind github and source-type registry", async () => {
+		mockGitHubDownload({ tagName: "v1.2.0" });
+
+		const result = await install(parseInstallSource("owner/repo"), { projectDir, sourceType: "registry" });
+
+		const record = recordOf(installedDir());
+		expect(record.kind).toBe("github");
+		expect(record.quartoWizard).toEqual({ sourceType: "registry" });
+		expect(result.extension.manifest.sourceType).toBe("registry");
+	});
+
+	it("an untagged install records quarto-wizard.commit", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+
+		await install(parseInstallSource("owner/repo"), { projectDir });
+
+		const record = recordOf(installedDir());
+		expect(record.source).toBe("owner/repo");
+		expect(record).not.toHaveProperty("ref");
+		expect(record.quartoWizard).toEqual({ commit: "fed9876" });
+	});
+
+	it("an install pinned to a commit records the ref and no quarto-wizard.commit", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+
+		await install(parseInstallSource("owner/repo@fed9876"), { projectDir });
+
+		const record = recordOf(installedDir());
+		expect(record.source).toBe("owner/repo@fed9876");
+		expect(record.ref).toBe("fed9876");
+		expect(record).not.toHaveProperty("quartoWizard");
+	});
+
+	it("a reinstall of an unpinned source at the recorded commit and the same version is unchanged", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo"), { projectDir });
+		fs.writeFileSync(path.join(installedDir(), "demo.lua"), "-- edited\n");
+		mockGitHubDownload({ tagName: "FED9876abc", commitSha: "FED9876abc" });
+
+		const result = await install(parseInstallSource("owner/repo"), { projectDir });
+
+		expect(result.unchanged).toBe(true);
+		expect(fs.readFileSync(path.join(installedDir(), "demo.lua"), "utf-8")).toBe("-- edited\n");
+	});
+
+	it("a reinstall of an unpinned source that moved to a new commit at the same version is an update", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo"), { projectDir });
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		const result = await install(parseInstallSource("owner/repo"), { projectDir });
+
+		expect(result.unchanged).toBeUndefined();
+		expect(recordOf(installedDir()).quartoWizard).toEqual({ commit: "abc1234" });
+	});
+
+	it("a reinstall of an unpinned source that moved to a new commit refuses a locally edited copy", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo"), { projectDir });
+		fs.writeFileSync(path.join(installedDir(), "demo.lua"), "-- edited\n");
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		await expect(install(parseInstallSource("owner/repo"), { projectDir })).rejects.toBeInstanceOf(LocalEditsError);
+		expect(recordOf(installedDir()).quartoWizard).toEqual({ commit: "fed9876" });
+	});
+
+	it("an install pinned to another commit at the same version replaces the copy", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo@fed9876"), { projectDir });
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		const result = await install(parseInstallSource("owner/repo@abc1234"), { projectDir });
+
+		expect(result.unchanged).toBeUndefined();
+		expect(recordOf(installedDir()).source).toBe("owner/repo@abc1234");
+	});
+
+	it("an install pinned to a commit replaces an unpinned copy at another commit", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo"), { projectDir });
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		const result = await install(parseInstallSource("owner/repo@abc1234"), { projectDir });
+
+		expect(result.unchanged).toBeUndefined();
+		expect(recordOf(installedDir()).ref).toBe("abc1234");
+	});
+
+	it("an install pinned to another commit refuses a locally edited copy", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo@fed9876"), { projectDir });
+		fs.writeFileSync(path.join(installedDir(), "demo.lua"), "-- edited\n");
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		await expect(install(parseInstallSource("owner/repo@abc1234"), { projectDir })).rejects.toBeInstanceOf(
+			LocalEditsError,
+		);
+		expect(recordOf(installedDir()).ref).toBe("fed9876");
+	});
+
+	it("an update recorded unpinned keeps the record unpinned with the new commit", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo"), { projectDir });
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		const result = await install(parseInstallSource("owner/repo@abc1234"), { projectDir, recordSource: "owner/repo" });
+
+		expect(result.unchanged).toBeUndefined();
+		const record = recordOf(installedDir());
+		expect(record.source).toBe("owner/repo");
+		expect(record).not.toHaveProperty("ref");
+		expect(record.quartoWizard).toEqual({ commit: "abc1234" });
+	});
+
+	it("a Quarto Wizard 3 copy at the same commit is unchanged", async () => {
+		writeQuartoWizard3Copy("owner/repo@fed9876");
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+
+		const result = await install(parseInstallSource("owner/repo@FED9876abc"), { projectDir });
+
+		expect(result.unchanged).toBe(true);
+		expect(readSourceRecord(installedDir()).status).toBe("absent");
+	});
+
+	it("a Quarto Wizard 3 copy at another commit is replaced", async () => {
+		writeQuartoWizard3Copy("owner/repo@fed9876");
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		const result = await install(parseInstallSource("owner/repo@abc1234"), { projectDir });
+
+		expect(result.unchanged).toBeUndefined();
+		expect(result.replacedUntracked).toBe(true);
+		expect(recordOf(installedDir()).ref).toBe("abc1234");
+	});
+
+	function writeQuartoWizard3Copy(source: string): void {
+		writeFiles(installedDir(), {
+			"_extension.yml": `${MANIFEST}source: ${source}\nsource-type: github\n`,
+			"demo.lua": "-- demo\n",
+		});
+	}
+
+	it("a local install inside the project records a relative path", async () => {
+		const source = extensionSource(path.join(projectDir, "vendor", "ext-source"));
+
+		await install(parseInstallSource(source), { projectDir });
+
+		const record = recordOf(path.join(projectDir, "_extensions", "demo"));
+		expect(record.source).toBe("./vendor/ext-source");
+		expect(record.kind).toBe("local-dir");
+	});
+
+	it("a local install outside the project records an absolute path", async () => {
+		const source = extensionSource(path.join(tempDir, "source"));
+
+		await install(parseInstallSource(path.relative(process.cwd(), source)), { projectDir });
+
+		const record = recordOf(path.join(projectDir, "_extensions", "demo"));
+		expect(record.source).toBe(source);
+		expect(record.kind).toBe("local-dir");
+	});
+
+	it("a local archive install records kind local-archive", async () => {
+		const workDir = path.join(tempDir, "work");
+		extensionSource(path.join(workDir, "ext"));
+		const archivePath = path.join(tempDir, "ext.tar.gz");
+		await tar.create({ gzip: true, file: archivePath, cwd: workDir }, ["ext"]);
+
+		await install(parseInstallSource(archivePath), { projectDir });
+
+		const record = recordOf(path.join(projectDir, "_extensions", "demo"));
+		expect(record.source).toBe(archivePath);
+		expect(record.kind).toBe("local-archive");
+	});
+
+	it("every extension selected from one source gets a record", async () => {
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => {
+			const workDir = fs.mkdtempSync(path.join(tempDir, "archive-"));
+			writeFiles(path.join(workDir, "repo-main"), {
+				"_extensions/one/_extension.yml": MANIFEST,
+				"_extensions/two/_extension.yml": MANIFEST,
+			});
+			const archivePath = path.join(workDir, "repo.tar.gz");
+			await tar.create({ gzip: true, file: archivePath, cwd: workDir }, ["repo-main"]);
+			return { archivePath, format: "tarball", tagName: "v1.2.0" };
+		});
+
+		const result = await install(parseInstallSource("owner/repo"), {
+			projectDir,
+			sourceType: "registry",
+			selectExtension: async (extensions) => extensions,
+		});
+
+		for (const name of ["one", "two"]) {
+			const record = recordOf(path.join(projectDir, "_extensions", "owner", name));
+			expect(record.source).toBe("owner/repo");
+			expect(record.quartoWizard).toEqual({ sourceType: "registry" });
+		}
+		expect(result.additionalInstalls?.[0].extension.recordStatus).toBe("ok");
+	});
+
+	it("no record is written for an embedded extension inside an installed one", async () => {
+		const source = extensionSource(path.join(tempDir, "source"));
+		writeFiles(source, { "_extensions/demo/_extensions/inner/_extension.yml": "title: Inner\n" });
+
+		await install(parseInstallSource(source), { projectDir });
+
+		const dir = path.join(projectDir, "_extensions", "demo");
+		expect(fs.existsSync(path.join(dir, "_extensions", "inner", SOURCE_RECORD_FILENAME))).toBe(false);
+		expect(Object.keys(recordOf(dir).files)).toContain("_extensions/inner/_extension.yml");
+	});
+});
+
+describe("install over an installed copy", () => {
+	let tempDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-install-replace-"));
+		projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir);
+	});
+
+	afterEach(() => {
+		vi.mocked(downloadGitHubArchive).mockReset();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	function sourceAt(version: string, lua: string): string {
+		const root = fs.mkdtempSync(path.join(tempDir, "source-"));
+		const dir = path.join(root, "_extensions", "demo");
+		fs.mkdirSync(dir, { recursive: true });
+		fs.writeFileSync(path.join(dir, "_extension.yml"), `title: Demo\nversion: ${version}\n`);
+		fs.writeFileSync(path.join(dir, "demo.lua"), lua);
+		return root;
+	}
+
+	function installedDir(): string {
+		return path.join(projectDir, "_extensions", "demo");
+	}
+
+	function installedLua(): string {
+		return fs.readFileSync(path.join(installedDir(), "demo.lua"), "utf-8");
+	}
+
+	async function installTracked(version: string, lua: string): Promise<void> {
+		await install(parseInstallSource(sourceAt(version, lua)), { projectDir });
+	}
+
+	function installUntracked(version: string, lua: string): void {
+		fs.mkdirSync(installedDir(), { recursive: true });
+		fs.writeFileSync(path.join(installedDir(), "_extension.yml"), `title: Demo\nversion: ${version}\n`);
+		fs.writeFileSync(path.join(installedDir(), "demo.lua"), lua);
+	}
+
+	it("refuses to replace a locally edited extension and lists the edits", async () => {
+		await installTracked("1.0.0", "-- one\n");
+		fs.writeFileSync(path.join(installedDir(), "demo.lua"), "-- edited\n");
+		fs.writeFileSync(path.join(installedDir(), "notes.txt"), "mine\n");
+		const confirmOverwrite = vi.fn(async () => true);
+
+		const attempt = install(parseInstallSource(sourceAt("2.0.0", "-- two\n")), { projectDir, confirmOverwrite });
+
+		await expect(attempt).rejects.toBeInstanceOf(LocalEditsError);
+		await expect(attempt).rejects.toMatchObject({
+			code: "LOCAL_EDITS",
+			extensionId: { owner: null, name: "demo" },
+			edits: [
+				{ path: "demo.lua", change: "modified" },
+				{ path: "notes.txt", change: "added" },
+			],
+			message: "demo has local changes: demo.lua (modified), notes.txt (added)",
+		});
+		expect(confirmOverwrite).not.toHaveBeenCalled();
+		expect(installedLua()).toBe("-- edited\n");
+		expect(fs.existsSync(path.join(installedDir(), "notes.txt"))).toBe(true);
+	});
+
+	it("force replaces a locally edited extension", async () => {
+		await installTracked("1.0.0", "-- one\n");
+		fs.writeFileSync(path.join(installedDir(), "demo.lua"), "-- edited\n");
+
+		const result = await install(parseInstallSource(sourceAt("2.0.0", "-- two\n")), { projectDir, force: true });
+
+		expect(result.success).toBe(true);
+		expect(installedLua()).toBe("-- two\n");
+		expect(getInstalledState(installedDir()).kind).toBe("unmodified");
+	});
+
+	it("replaces an unmodified extension after confirmation", async () => {
+		await installTracked("1.0.0", "-- one\n");
+		const confirmOverwrite = vi.fn(async () => true);
+
+		const result = await install(parseInstallSource(sourceAt("2.0.0", "-- two\n")), { projectDir, confirmOverwrite });
+
+		expect(result.success).toBe(true);
+		expect(confirmOverwrite).toHaveBeenCalledTimes(1);
+		expect(installedLua()).toBe("-- two\n");
+	});
+
+	it("replaces an untracked extension after confirmation", async () => {
+		installUntracked("1.0.0", "-- one\n");
+		const confirmOverwrite = vi.fn(async () => true);
+
+		const result = await install(parseInstallSource(sourceAt("2.0.0", "-- two\n")), { projectDir, confirmOverwrite });
+
+		expect(result.success).toBe(true);
+		expect(confirmOverwrite).toHaveBeenCalledTimes(1);
+		expect(installedLua()).toBe("-- two\n");
+		expect(getInstalledState(installedDir()).kind).toBe("unmodified");
+	});
+
+	it("reports that it replaced an untracked copy", async () => {
+		installUntracked("1.0.0", "-- one\n");
+
+		const result = await install(parseInstallSource(sourceAt("2.0.0", "-- two\n")), { projectDir });
+
+		expect(result.replacedUntracked).toBe(true);
+	});
+
+	it("does not report an untracked copy when it replaced a tracked one or installed a new one", async () => {
+		const first = await install(parseInstallSource(sourceAt("1.0.0", "-- one\n")), { projectDir });
+		const second = await install(parseInstallSource(sourceAt("2.0.0", "-- two\n")), { projectDir });
+
+		expect(first.replacedUntracked).toBeUndefined();
+		expect(second.replacedUntracked).toBeUndefined();
+	});
+
+	it("writes nothing for the same version and reports unchanged", async () => {
+		await installTracked("1.0.0", "-- one\n");
+		const recordBefore = fs.readFileSync(path.join(installedDir(), SOURCE_RECORD_FILENAME), "utf-8");
+		const confirmOverwrite = vi.fn(async () => true);
+
+		const result = await install(parseInstallSource(sourceAt("1.0", "-- other\n")), { projectDir, confirmOverwrite });
+
+		expect(result.success).toBe(true);
+		expect(result.unchanged).toBe(true);
+		expect(result.filesCreated).toEqual([]);
+		expect(result.extension.directory).toBe(installedDir());
+		expect(confirmOverwrite).not.toHaveBeenCalled();
+		expect(installedLua()).toBe("-- one\n");
+		expect(fs.readFileSync(path.join(installedDir(), SOURCE_RECORD_FILENAME), "utf-8")).toBe(recordBefore);
+	});
+
+	it("writes nothing for an untracked copy at the same version", async () => {
+		installUntracked("1.0.0", "-- one\n");
+
+		const result = await install(parseInstallSource(sourceAt("v1", "-- other\n")), { projectDir });
+
+		expect(result.unchanged).toBe(true);
+		expect(installedLua()).toBe("-- one\n");
+		expect(fs.existsSync(path.join(installedDir(), SOURCE_RECORD_FILENAME))).toBe(false);
+	});
+
+	it("force reinstalls the same version", async () => {
+		await installTracked("1.0.0", "-- one\n");
+		fs.writeFileSync(path.join(installedDir(), "demo.lua"), "-- edited\n");
+
+		const result = await install(parseInstallSource(sourceAt("1.0.0", "-- one\n")), { projectDir, force: true });
+
+		expect(result.success).toBe(true);
+		expect(result.unchanged).toBeUndefined();
+		expect(installedLua()).toBe("-- one\n");
+		expect(getInstalledState(installedDir()).kind).toBe("unmodified");
+	});
+
+	it("dry run with force is refused", async () => {
+		const attempt = install(parseInstallSource("owner/repo"), { projectDir, dryRun: true, force: true });
+
+		await expect(attempt).rejects.toBeInstanceOf(ExtensionError);
+		await expect(attempt).rejects.toThrow("The dryRun option cannot be combined with the force option");
+		expect(downloadGitHubArchive).not.toHaveBeenCalled();
+		expect(fs.readdirSync(projectDir)).toEqual([]);
 	});
 });

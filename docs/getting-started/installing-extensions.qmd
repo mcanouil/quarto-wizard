@@ -226,6 +226,35 @@ Two rules narrow what a source offers, so that a repository shipping a single ex
 
 Neither rule can empty the list: a source whose extensions all sit in ignored locations still installs.
 
+## Replacing an Installed Extension {#replacing-an-installed-extension}
+
+These rules apply when an install, an update or a reinstall would replace an extension that is already installed.
+
+### Local Changes
+
+Quarto Wizard compares the installed files with the install record before it replaces an extension.
+If you changed, removed or added a file, Quarto Wizard shows this warning:
+
+`<extension> has local changes that a reinstall would remove: <files>.`
+
+The warning lists at most ten files.
+If more files differ, it ends with `and <n> more`.
+Select **Replace anyway** to replace the extension and remove your changes.
+Select **Cancel**, or close the warning, to keep the extension as it is.
+Nothing is written in this case.
+
+### Same Version
+
+If the installed extension is already at the version that you install, Quarto Wizard writes nothing.
+It shows `<extension> is already at version <version>.`
+An update is different: it replaces the extension at the same version, because a new tag or commit can keep the version.
+If the extension has local changes, **Update** shows the warning in [Local Changes](#local-changes) and **Update All** skips the extension.
+To replace the extension anyway, use **Reinstall Extension** in the Extensions Installed view.
+Reinstall installs the pinned ref or the recorded commit again.
+For an extension that you installed without a ref, from a repository with version tags, Reinstall installs the latest version.
+
+See [Install Record](../reference/install-record.qmd) for more details.
+
 ## Conflict Resolution {#conflict-resolution}
 
 If an extension already exists in the target location, you will be asked to confirm before overwriting.

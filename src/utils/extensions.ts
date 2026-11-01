@@ -9,6 +9,7 @@ import {
 	type SourceType,
 	getErrorMessage,
 	splitSourceRef,
+	recordedCommit,
 	tryParseGitHubLocator,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
@@ -122,7 +123,8 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 		if (!locator?.subdirectory) {
 			return `https://github.com/${base}`;
 		}
-		const ref = splitSourceRef(source).hasRef ? source.slice(base.length + 1) : "HEAD";
+		const commit = recordedCommit({ source, quartoWizard: ext.record?.quartoWizard });
+		const ref = commit ?? splitSourceRef(source).ref ?? "HEAD";
 		return `https://github.com/${locator.owner}/${locator.repo}/tree/${ref}/${locator.subdirectory}`;
 	}
 	if (type === "url" || type === "local") {

@@ -152,21 +152,53 @@ function parseSourceType(value: string | undefined): SourceType | undefined {
 const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+$/;
 
 /**
- * Split a source string of the form `base@ref` into its base and an indicator
- * of whether an explicit ref was present.
+ * Split a source string of the form `base@ref` into its base and its ref.
  *
  * @param source - Raw source string (e.g. `owner/repo@v1.2.3`)
- * @returns Tuple of base and whether a ref was present
+ * @returns The base, whether a ref was present, and the ref (the text after the last `@`), undefined when there is none
  */
-export function splitSourceRef(source: string): { base: string; hasRef: boolean } {
+export function splitSourceRef(source: string): { base: string; hasRef: boolean; ref: string | undefined } {
 	const atIndex = source.lastIndexOf("@");
-	if (atIndex <= 0) {
-		return { base: source, hasRef: false };
+	const hasRef = atIndex > 0;
+	const base = hasRef ? source.substring(0, atIndex) : source;
+	return { base, hasRef, ref: hasRef ? source.slice(base.length + 1) : undefined };
+}
+
+/**
+ * Check if a source string represents a commit-based installation.
+ *
+ * @param source - Source as recorded in the manifest or the install record
+ * @returns The seven-character commit in lower case, or null when the source is not pinned to a commit
+ */
+export function extractCommitFromSource(source: string): string | null {
+	const atIndex = source.lastIndexOf("@");
+	if (atIndex <= 0) return null;
+
+	const ref = source.substring(atIndex + 1);
+	if (/^[a-f0-9]{7,40}$/i.test(ref)) {
+		return ref.substring(0, 7).toLowerCase();
 	}
-	return {
-		base: source.substring(0, atIndex),
-		hasRef: true,
-	};
+	return null;
+}
+
+/**
+ * First seven characters of a commit, in lower case.
+ */
+export function shortCommit(commit: string): string {
+	return commit.slice(0, 7).toLowerCase();
+}
+
+/**
+ * Seven-character commit in lower case that an install record holds, or null.
+ *
+ * The commit is `quarto-wizard.commit` for an unpinned source, or the commit ref of a pinned one.
+ *
+ * @param data - Source and Quarto Wizard data of an install record
+ * @returns The commit, or null when the record names none
+ */
+export function recordedCommit(data: { source: string; quartoWizard?: { commit?: string } }): string | null {
+	const tracked = data.quartoWizard?.commit;
+	return tracked ? shortCommit(tracked) : extractCommitFromSource(data.source);
 }
 
 /**

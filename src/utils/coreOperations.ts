@@ -9,6 +9,10 @@ import {
 	parseExtensionId,
 	createAuthConfig,
 	CancellationError,
+	LocalEditsError,
+	getInstalledState,
+	formatLocalEdit,
+	getExtensionInstallPath,
 	isCancellationError,
 	pluralise,
 	type UseResult,
@@ -20,18 +24,32 @@ import {
 	type SourceType,
 	type DiscoveredExtension,
 	type ExtensionManifest,
+	type LocalEdit,
 	type RemoveResult,
 	type ExtensionId,
 	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 import { handleAuthError, GITHUB_SCOPES, type HandleAuthErrorOptions } from "./auth";
-import { formatExtensionId } from "./extensions";
+import { formatExtensionId, resolveLocalSourcePath } from "./extensions";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
 import { validateQuartoRequirement } from "./versionValidation";
 import { showExtensionSelectionQuickPick } from "../ui/extensionSelectionQuickPick";
 
 type ParsedInstallSource = ReturnType<typeof parseInstallSource>;
+
+/**
+ * What an install did, filled in by {@link installQuartoExtension} for a caller that passes it.
+ */
+export interface InstallOutcome {
+	/** Set in skip mode when the installed copy has local changes, so nothing was written. */
+	localEdits?: LocalEditsError;
+	/**
+	 * Set when the install replaced a copy that had no install record.
+	 * A caller that passes an outcome reports this itself, so no message opens.
+	 */
+	replacedUntracked?: boolean;
+}
 
 /**
  * Optional parameters for {@link installQuartoExtension}.
@@ -58,6 +76,29 @@ export interface InstallOptions {
 	 * When set, only that extension of the source is installed and no selection quick pick opens.
 	 */
 	expectedExtensionId?: ExtensionId;
+	/**
+	 * What to do when the installed copy has local changes.
+	 * "ask" (the default) opens a dialog that offers Replace anyway.
+	 * "skip" replaces nothing, opens no dialog and reports the changes in `outcome`.
+	 */
+	localEdits?: "ask" | "skip";
+	/**
+	 * Replace the installed copy even when it is at the same version.
+	 * Needs `expectedExtensionId`: before it writes, a copy with local changes is shown in the Replace anyway dialog.
+	 */
+	force?: boolean;
+	/**
+	 * Replace the installed copy even when it is at the same version, as an update does.
+	 * Unlike `force`, a copy with local changes is still refused, as `localEdits` says.
+	 */
+	replaceSameVersion?: boolean;
+	/**
+	 * Source to write in the install record in place of the installed source.
+	 * An update or a reinstall of an extension installed without a ref sets it, so that the record stays unpinned.
+	 */
+	recordSource?: string;
+	/** Receives what the install did, so that the caller can report it. */
+	outcome?: InstallOutcome;
 }
 
 /**
@@ -235,6 +276,152 @@ function createConfirmOverwriteCallback(
 	};
 }
 
+const MAX_LISTED_EDITS = 10;
+
+/**
+ * An extension that has local changes, with the files that differ.
+ */
+interface EditedExtension {
+	id: ExtensionId;
+	edits: LocalEdit[];
+}
+
+/**
+ * Writes the files that differ from the install record, at most ten, then the number of the others.
+ *
+ * @param edits - Differences found in an installed extension
+ * @returns For example "a.lua (modified), b.lua (added) and 3 more"
+ */
+export function formatLocalEdits(edits: readonly LocalEdit[]): string {
+	const listed = edits.slice(0, MAX_LISTED_EDITS).map(formatLocalEdit);
+	const rest = edits.length - listed.length;
+	return rest > 0 ? `${listed.join(", ")} and ${rest} more` : listed.join(", ");
+}
+
+/**
+ * Writes the files of several extensions, grouped by extension, at most ten files in all.
+ */
+function formatEditedExtensions(edited: readonly EditedExtension[]): string {
+	if (edited.length === 1) {
+		return formatLocalEdits(edited[0].edits);
+	}
+	let room = MAX_LISTED_EDITS;
+	const groups: string[] = [];
+	for (const { id, edits } of edited) {
+		const listed = edits.slice(0, room);
+		room -= listed.length;
+		if (listed.length > 0) {
+			groups.push(`${formatExtensionId(id)}: ${listed.map(formatLocalEdit).join(", ")}`);
+		}
+	}
+	const rest = edited.reduce((total, { edits }) => total + edits.length, 0) - MAX_LISTED_EDITS;
+	return rest > 0 ? `${groups.join("; ")} and ${rest} more` : groups.join("; ");
+}
+
+/**
+ * Finds which of the extensions have local changes in the project folder.
+ */
+function findEditedExtensions(workspaceFolder: string, ids: readonly ExtensionId[]): EditedExtension[] {
+	const edited: EditedExtension[] = [];
+	for (const id of ids) {
+		const state = getInstalledState(getExtensionInstallPath(workspaceFolder, id));
+		if (state.kind === "modified") {
+			edited.push({ id, edits: state.edits });
+		}
+	}
+	return edited;
+}
+
+/**
+ * Asks whether to replace extensions that have local changes.
+ *
+ * @param prefix - Log prefix for messages
+ * @param edited - The extensions with local changes
+ * @returns True when the user chose Replace anyway
+ */
+async function confirmReplaceLocalEdits(prefix: string, edited: readonly EditedExtension[]): Promise<boolean> {
+	const names = edited.map(({ id }) => formatExtensionId(id)).join(", ");
+	const action = await vscode.window.showWarningMessage(
+		`${names} ${edited.length === 1 ? "has" : "have"} local changes that a reinstall would remove: ${formatEditedExtensions(edited)}.`,
+		{ modal: true },
+		"Replace anyway",
+		"Cancel",
+	);
+	if (action !== "Replace anyway") {
+		logMessage(`${prefix} Installation cancelled - extension has local changes.`, "info");
+		return false;
+	}
+	logMessage(`${prefix} User chose to replace the extension despite local changes.`, "info");
+	return true;
+}
+
+/**
+ * Asks whether to replace the extensions after an install refused one of them for its local changes.
+ * The dialog lists every extension of `ids` that has local changes, and the refused one.
+ *
+ * @param prefix - Log prefix for messages
+ * @param workspaceFolder - The project folder
+ * @param error - The refusal
+ * @param ids - The extensions that the install writes
+ * @returns True when the user chose Replace anyway
+ */
+async function confirmReplaceAfterRefusal(
+	prefix: string,
+	workspaceFolder: string,
+	error: LocalEditsError,
+	ids: readonly ExtensionId[],
+): Promise<boolean> {
+	const edited = findEditedExtensions(workspaceFolder, ids);
+	if (!edited.some(({ id }) => formatExtensionId(id) === formatExtensionId(error.extensionId))) {
+		edited.unshift({ id: error.extensionId, edits: error.edits });
+	}
+	return confirmReplaceLocalEdits(prefix, edited);
+}
+
+/**
+ * Wraps a dialog so that a second call gives the first answer without a new dialog.
+ *
+ * @param ask - The dialog to show once
+ * @returns The wrapped dialog
+ */
+function rememberFirstAnswer<TArgs extends unknown[], TResult>(
+	ask: (...args: TArgs) => Promise<TResult>,
+): (...args: TArgs) => Promise<TResult> {
+	let answer: { value: TResult } | undefined;
+	return async (...args: TArgs) => {
+		if (!answer) {
+			answer = { value: await ask(...args) };
+		}
+		return answer.value;
+	};
+}
+
+/**
+ * Wraps the extension selection so that a second call gives the first answer without a new quick pick.
+ * A retry after Replace anyway then installs the same extensions.
+ *
+ * @param ask - The selection to ask once
+ * @returns The wrapped selection, and the extensions that the user chose
+ */
+function rememberExtensionSelection(
+	ask: (candidates: DiscoveredExtension[]) => Promise<DiscoveredExtension[] | null>,
+): {
+	select: (candidates: DiscoveredExtension[]) => Promise<DiscoveredExtension[] | null>;
+	chosenIds: () => ExtensionId[] | undefined;
+} {
+	let chosenIds: ExtensionId[] | undefined;
+	const select = async (candidates: DiscoveredExtension[]) => {
+		if (chosenIds) {
+			const names = chosenIds.map(formatExtensionId);
+			return candidates.filter((candidate) => names.includes(formatExtensionId(candidate.id)));
+		}
+		const chosen = await ask(candidates);
+		chosenIds = chosen?.map((candidate) => candidate.id);
+		return chosen;
+	};
+	return { select, chosenIds: () => chosenIds };
+}
+
 /**
  * Creates a callback for validating Quarto version requirements.
  *
@@ -292,7 +479,18 @@ export async function installQuartoExtension(
 		context,
 		offerSessionOnNotFound,
 		expectedExtensionId,
+		localEdits = "ask",
+		force = false,
+		replaceSameVersion = false,
+		recordSource,
+		outcome,
 	} = options;
+	if (force && !expectedExtensionId) {
+		throw new Error(
+			"The force option needs the expectedExtensionId option, so that local changes are shown before they are replaced.",
+		);
+	}
+
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
@@ -301,7 +499,10 @@ export async function installQuartoExtension(
 		return false;
 	}
 
-	const selectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
+	const { select: selectExtension, chosenIds } = rememberExtensionSelection(
+		wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null),
+	);
+	const resolvedSource = sourceType === "local" ? resolveLocalSourcePath(extension, workspaceFolder) : extension;
 
 	const controller = new AbortController();
 	if (cancellationToken?.isCancellationRequested) {
@@ -309,37 +510,96 @@ export async function installQuartoExtension(
 	}
 	const cancellation = cancellationToken?.onCancellationRequested(() => controller.abort());
 
-	const doInstall = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<boolean | null> => {
-		const result = await install(source, {
+	const runInstall = (source: ParsedInstallSource, authConfig: AuthConfig | undefined, forceInstall: boolean) =>
+		install(source, {
 			signal: controller.signal,
 			projectDir: workspaceFolder,
-			force: true,
 			auth: authConfig,
-			sourceDisplay,
 			sourceType,
 			selectExtension,
 			expectedExtensionId,
-			confirmOverwrite: createConfirmOverwriteCallback(prefix, skipOverwritePrompt ?? false),
+			recordSource,
+			force: forceInstall,
+			replaceSameVersion,
+			confirmOverwrite: createConfirmOverwriteCallback(prefix, forceInstall || (skipOverwritePrompt ?? false)),
 			validateQuartoVersion: createValidateQuartoVersionCallback(prefix),
 			onProgress: (progress) => {
 				logMessage(`${prefix} [${progress.phase}] ${progress.message}`, "debug");
 			},
 		});
 
+	let forceConfirmed = false;
+	const doInstall = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<boolean | null> => {
+		if (force && localEdits === "ask" && !forceConfirmed) {
+			const edited = expectedExtensionId ? findEditedExtensions(workspaceFolder, [expectedExtensionId]) : [];
+			if (edited.length > 0 && !(await confirmReplaceLocalEdits(prefix, edited))) {
+				return null;
+			}
+			forceConfirmed = true;
+		}
+		let result;
+		try {
+			result = await runInstall(source, authConfig, force);
+		} catch (error) {
+			if (!(error instanceof LocalEditsError)) {
+				throw error;
+			}
+			if (localEdits === "skip") {
+				if (outcome) {
+					outcome.localEdits = error;
+				}
+				return null;
+			}
+			const selected = chosenIds() ?? (expectedExtensionId ? [expectedExtensionId] : []);
+			if (!(await confirmReplaceAfterRefusal(prefix, workspaceFolder, error, selected))) {
+				return null;
+			}
+			result = await runInstall(source, authConfig, true);
+		}
+
 		if (result.cancelled) {
 			logMessage(`${prefix} Installation cancelled by user.`, "info");
 			return null;
 		}
 
+		const additionalInstalls = (result.additionalInstalls ?? []).filter((installed) => !installed.unchanged);
+		if (result.success && result.unchanged) {
+			const version = result.extension.manifest.version;
+			logMessage(`${prefix} Already at version ${version}, nothing written.`, "info");
+			void vscode.window.showInformationMessage(
+				`${formatExtensionId(result.extension.id)} is already at version ${version}.`,
+			);
+			if (additionalInstalls.length === 0 && !result.additionalInstallFailures) {
+				return true;
+			}
+		}
+
 		if (result.success) {
+			if (result.replacedUntracked) {
+				logMessage(`${prefix} Replaced a copy that had no install record.`, "info");
+				if (outcome) {
+					outcome.replacedUntracked = true;
+				} else {
+					void vscode.window.showInformationMessage(
+						`${formatExtensionId(result.extension.id)} had no install record, so Quarto Wizard could not check it for local changes.`,
+					);
+				}
+			}
 			if (result.additionalInstallFailures && result.additionalInstallFailures.length > 0) {
 				const failed = result.additionalInstallFailures.map((f) => formatExtensionId(f.extensionId)).join(", ");
 				logMessage(
-					`${prefix} Installed, but failed to install ${pluralise(result.additionalInstallFailures.length, "additional extension")}: ${failed}.`,
+					`${prefix} ${result.unchanged ? "Failed" : "Installed, but failed"} to install ${pluralise(result.additionalInstallFailures.length, "additional extension")}: ${failed}.`,
 					"warn",
 				);
-			} else {
+			} else if (!result.unchanged) {
 				logMessage(`${prefix} Successfully installed.`, "info");
+			}
+			if (additionalInstalls.length > 0) {
+				const names = additionalInstalls.map((installed) => formatExtensionId(installed.extension.id)).join(", ");
+				logMessage(
+					`${prefix} Also installed ${pluralise(additionalInstalls.length, "additional extension")}: ${names}.`,
+					"info",
+				);
 			}
 			void vscode.commands.executeCommand("quartoWizard.extensionsInstalled.refresh");
 			return true;
@@ -350,10 +610,19 @@ export async function installQuartoExtension(
 	};
 
 	try {
-		return await runWithParsedSourceAndAuthRetry(extension, auth, prefix, cancellationToken, doInstall, false, null, {
-			context,
-			offerSessionOnNotFound,
-		});
+		return await runWithParsedSourceAndAuthRetry(
+			resolvedSource,
+			auth,
+			prefix,
+			cancellationToken,
+			doInstall,
+			false,
+			null,
+			{
+				context,
+				offerSessionOnNotFound,
+			},
+		);
 	} finally {
 		cancellation?.dispose();
 	}
@@ -524,23 +793,29 @@ export async function useQuartoExtension(
 		return null;
 	}
 
-	const wrappedSelectFiles = selectFiles ? wrapWithCancellation(selectFiles, cancellationToken, null) : undefined;
-	const wrappedSelectTargetSubdir = selectTargetSubdir
-		? wrapWithCancellation(selectTargetSubdir, cancellationToken, undefined)
+	// A retry after Replace anyway gives the same answers, so the dialogs open only once.
+	const wrappedSelectFiles = selectFiles
+		? rememberFirstAnswer(wrapWithCancellation(selectFiles, cancellationToken, null))
 		: undefined;
-	const wrappedSelectExtension = wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null);
+	const wrappedSelectTargetSubdir = selectTargetSubdir
+		? rememberFirstAnswer(wrapWithCancellation(selectTargetSubdir, cancellationToken, undefined))
+		: undefined;
+	const { select: wrappedSelectExtension, chosenIds } = rememberExtensionSelection(
+		wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null),
+	);
+	const confirmExtensionOverwrite = rememberFirstAnswer(showExtensionOverwriteConfirmation);
 
-	const doUse = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<UseResult | null> => {
-		const result = await use(source, {
+	const runUse = (source: ParsedInstallSource, authConfig: AuthConfig | undefined, force: boolean) =>
+		use(source, {
 			projectDir: workspaceFolder,
 			selectFiles: wrappedSelectFiles,
 			selectTargetSubdir: wrappedSelectTargetSubdir,
 			selectFilesFirst: true,
 			selectExtension: wrappedSelectExtension,
-			confirmExtensionOverwrite: showExtensionOverwriteConfirmation,
+			confirmExtensionOverwrite,
 			auth: authConfig,
-			sourceDisplay,
 			sourceType,
+			force,
 			onProgress: (progress) => {
 				if (progress.file) {
 					logMessage(`${prefix} [${progress.phase}] ${progress.message} (${progress.file})`, "debug");
@@ -549,6 +824,20 @@ export async function useQuartoExtension(
 				}
 			},
 		});
+
+	const doUse = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<UseResult | null> => {
+		let result;
+		try {
+			result = await runUse(source, authConfig, false);
+		} catch (error) {
+			if (!(error instanceof LocalEditsError)) {
+				throw error;
+			}
+			if (!(await confirmReplaceAfterRefusal(prefix, workspaceFolder, error, chosenIds() ?? []))) {
+				return null;
+			}
+			result = await runUse(source, authConfig, true);
+		}
 
 		if (result.cancelled) {
 			logMessage(`${prefix} Template usage cancelled by user.`, "info");

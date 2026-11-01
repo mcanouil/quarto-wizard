@@ -8,6 +8,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import * as tar from "tar";
 import { getTemplateFiles, use } from "../../src/operations/use.js";
+import { readSourceRecord, writeSourceRecord, type SourceRecord } from "../../src/filesystem/sourceRecord.js";
+import { LocalEditsError } from "../../src/errors.js";
 import { downloadGitHubArchive } from "../../src/github/download.js";
 import {
 	createSubdirectoryRepositoryArchive,
@@ -424,6 +426,116 @@ describe("use with a local directory source", () => {
 	});
 });
 
+describe("use over a locally edited extension", () => {
+	let tempDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-use-local-edits-"));
+		projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir);
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	function templateSource(version: string): string {
+		const root = fs.mkdtempSync(path.join(tempDir, "source-"));
+		const extDir = path.join(root, "_extensions", "owner", "my-ext");
+		fs.mkdirSync(extDir, { recursive: true });
+		fs.writeFileSync(path.join(extDir, "_extension.yml"), `title: Test\nversion: ${version}\n`);
+		fs.writeFileSync(path.join(extDir, "test.lua"), `-- ${version}\n`);
+		fs.writeFileSync(path.join(root, "template.qmd"), "---\ntitle: Template\n---");
+		return root;
+	}
+
+	const installedLua = () => path.join(projectDir, "_extensions", "owner", "my-ext", "test.lua");
+
+	async function installThenEdit(): Promise<void> {
+		await use({ type: "local", path: templateSource("1.0.0") }, { projectDir, noTemplate: true });
+		fs.writeFileSync(installedLua(), "-- edited\n");
+	}
+
+	it("refuses to replace a locally edited extension", async () => {
+		await installThenEdit();
+
+		await expect(use({ type: "local", path: templateSource("2.0.0") }, { projectDir })).rejects.toBeInstanceOf(
+			LocalEditsError,
+		);
+		expect(fs.readFileSync(installedLua(), "utf-8")).toBe("-- edited\n");
+		expect(fs.existsSync(path.join(projectDir, "template.qmd"))).toBe(false);
+	});
+
+	it("refuses to replace a locally edited extension when the files are selected first", async () => {
+		await installThenEdit();
+
+		await expect(
+			use(
+				{ type: "local", path: templateSource("2.0.0") },
+				{
+					projectDir,
+					selectFilesFirst: true,
+					selectFiles: async (files) => ({ selectedFiles: files, overwriteExisting: true }),
+				},
+			),
+		).rejects.toBeInstanceOf(LocalEditsError);
+		expect(fs.readFileSync(installedLua(), "utf-8")).toBe("-- edited\n");
+	});
+
+	it("writes no extension when a later selected one is locally edited and the files are selected first", async () => {
+		const root = fs.mkdtempSync(path.join(tempDir, "pair-"));
+		for (const name of ["first", "second"]) {
+			const extDir = path.join(root, "_extensions", "owner", name);
+			fs.mkdirSync(extDir, { recursive: true });
+			fs.writeFileSync(path.join(extDir, "_extension.yml"), `title: ${name}\nversion: 2.0.0\n`);
+			const installedDir = path.join(projectDir, "_extensions", "owner", name);
+			fs.mkdirSync(installedDir, { recursive: true });
+			fs.writeFileSync(path.join(installedDir, "_extension.yml"), `title: ${name}\nversion: 1.0.0\n`);
+			writeSourceRecord(installedDir, { source: "./old", kind: "local-dir" });
+		}
+		const firstManifest = path.join(projectDir, "_extensions", "owner", "first", "_extension.yml");
+		fs.writeFileSync(path.join(projectDir, "_extensions", "owner", "second", "notes.txt"), "mine\n");
+
+		await expect(
+			use(
+				{ type: "local", path: root },
+				{
+					projectDir,
+					selectFilesFirst: true,
+					selectExtension: async (extensions) => extensions,
+					selectFiles: async (files) => ({ selectedFiles: files, overwriteExisting: true }),
+				},
+			),
+		).rejects.toBeInstanceOf(LocalEditsError);
+		expect(fs.readFileSync(firstManifest, "utf-8")).toBe("title: first\nversion: 1.0.0\n");
+	});
+
+	it("force replaces a locally edited extension", async () => {
+		await installThenEdit();
+
+		await use({ type: "local", path: templateSource("2.0.0") }, { projectDir, force: true });
+
+		expect(fs.readFileSync(installedLua(), "utf-8")).toBe("-- 2.0.0\n");
+	});
+
+	it("force replaces a locally edited extension when the files are selected first", async () => {
+		await installThenEdit();
+
+		await use(
+			{ type: "local", path: templateSource("2.0.0") },
+			{
+				projectDir,
+				force: true,
+				selectFilesFirst: true,
+				selectFiles: async (files) => ({ selectedFiles: files, overwriteExisting: true }),
+			},
+		);
+
+		expect(fs.readFileSync(installedLua(), "utf-8")).toBe("-- 2.0.0\n");
+	});
+});
+
 describe("use with a local archive source", () => {
 	let sourceDir: string;
 	let projectDir: string;
@@ -528,5 +640,56 @@ describe("use from a repository subdirectory", () => {
 		expect(offered).toEqual(["template.qmd"]);
 		expect(fs.readFileSync(path.join(projectDir, "template.qmd"), "utf-8")).toBe("b template\n");
 		expect(fs.existsSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"))).toBe(true);
+	});
+
+	function recordIn(owner: string, name: string): SourceRecord {
+		const dir = path.join(projectDir, "_extensions", owner, name);
+		const result = readSourceRecord(dir);
+		if (result.status !== "ok") {
+			throw new Error(`No readable install record in ${dir}: ${result.status}`);
+		}
+		return result.record;
+	}
+
+	it("use template writes a record for each extension", async () => {
+		const result = await use("owner/repo", {
+			projectDir,
+			selectExtension: async (extensions) => extensions,
+		});
+
+		expect(result.install.success).toBe(true);
+		for (const name of ["c", "x", "y"]) {
+			const record = recordIn("owner", name);
+			expect(record.source).toBe("owner/repo");
+			expect(record.kind).toBe("github");
+			expect(record).not.toHaveProperty("ref");
+		}
+	});
+
+	it("use template writes a record for each extension when the files are selected first", async () => {
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: "fed9876",
+			commitSha: "fed9876",
+			format: "tarball",
+		}));
+
+		const result = await use("owner/repo", {
+			projectDir,
+			sourceType: "registry",
+			selectFilesFirst: true,
+			selectFiles: async () => ({ selectedFiles: [], overwriteExisting: false }),
+			selectExtension: async (extensions) => extensions,
+		});
+
+		expect(result.install.success).toBe(true);
+		for (const name of ["c", "x", "y"]) {
+			expect(recordIn("owner", name)).toMatchObject({
+				source: "owner/repo",
+				kind: "github",
+				quartoWizard: { sourceType: "registry", commit: "fed9876" },
+			});
+		}
+		expect(result.install.extension.recordStatus).toBe("ok");
 	});
 });

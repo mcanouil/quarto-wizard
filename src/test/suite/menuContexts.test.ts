@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
-import type { InstalledExtension, SourceType } from "@quarto-wizard/core";
+import { NO_SOURCE_RECORD, type InstalledExtension, type SourceType } from "@quarto-wizard/core";
 import { readPackageJson, type PackageJson } from "./packageFixtures";
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type ExtensionEmbedding } from "../../ui/extensionTreeItems";
 
@@ -132,6 +132,7 @@ function extensionItem(sourceType?: SourceType, embedding?: ExtensionEmbedding):
 		},
 		manifestPath: path.join("acme", "demo", "_extension.yml"),
 		directory: path.join("acme", "demo"),
+		...NO_SOURCE_RECORD,
 	};
 	return new ExtensionTreeItem(
 		"acme/demo",

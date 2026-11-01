@@ -15,6 +15,7 @@ import {
 	useBrand,
 } from "../../src/operations/brand.js";
 import { downloadGitHubArchive } from "../../src/github/download.js";
+import { SOURCE_RECORD_FILENAME } from "../../src/filesystem/sourceRecord.js";
 import {
 	createSubdirectoryRepositoryArchive,
 	SUBDIRECTORY_REPOSITORY_TAG,
@@ -646,6 +647,22 @@ describe("useBrand", () => {
 		expect(result.created).toContain("logos/light.svg");
 		expect(fs.existsSync(path.join(projectDir, "_brand", "_brand.yml"))).toBe(true);
 		expect(fs.existsSync(path.join(projectDir, "_brand", "logos", "light.svg"))).toBe(true);
+	});
+
+	it("use brand writes no record", async () => {
+		createFile(
+			sourceDir,
+			"_extensions/owner/my-brand/_extension.yml",
+			["title: My Brand", "contributes:", "  metadata:", "    project:", "      brand: brand.yml"].join("\n"),
+		);
+		createFile(sourceDir, "_extensions/owner/my-brand/brand.yml", "color:\n  primary: red\n");
+
+		const result = await useBrand(sourceDir, { projectDir });
+
+		expect(result.success).toBe(true);
+		const written = fs.readdirSync(projectDir, { recursive: true, encoding: "utf-8" });
+		expect(written.filter((entry) => path.basename(entry) === SOURCE_RECORD_FILENAME)).toEqual([]);
+		expect(fs.existsSync(path.join(projectDir, "_extensions"))).toBe(false);
 	});
 
 	it("should throw when no brand file is found", async () => {

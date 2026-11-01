@@ -11,6 +11,10 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
+- feat: Record where an extension came from in `.quarto-source.yml`, the Quarto 2 format, and stop writing `source` and `source-type` into `_extension.yml`. Records written by Quarto Wizard 3 are still read.
+- refactor: Make `InstallOptions.force` in `@quarto-wizard/core` replace a locally edited copy and reinstall the same version, as replacing an installed copy no longer needs it. A 3.x caller that passes `force: true` now skips the local-edit protection.
+- refactor: Remove `sourceDisplay` from `InstallOptions` and `UseOptions` in `@quarto-wizard/core`, and remove `updateManifestSource()` and `installSingleExtension()`. Set the recorded source with `InstallOptions.recordSource`.
+- refactor: Add `record` and `recordStatus` to `InstalledExtension`, `edits` to the `UpdateResult.skipped` entries, `unchanged` and `replacedUntracked` to `InstallResult`, `replaceSameVersion` to `InstallOptions`, and `LocalEditsError` in `@quarto-wizard/core`. `unpinnedRecordSource()` gives the source to record for an update.
 
 ### New Features
 
@@ -21,6 +25,7 @@
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 - feat: Add a Detected Projects view, collapsed by default, to show or hide projects, with the `quartoWizard.projectVisibility` setting to share the choice. Extensions that hold other extensions now appear as projects, and those of an installed parent are read-only.
 - feat: Add `discoverProjectDirs()` to `@quarto-wizard/core`, which finds Quarto projects and extensions that embed other extensions.
+- feat: Refuse to replace an extension with local changes unless you choose Replace anyway, and leave an extension untouched when the same version is installed again. An update still replaces an extension at the same version.
 
 ### Bug Fixes
 

@@ -263,6 +263,54 @@ jobs:
         working-directory: packages/schema
         run: npm run test:lua
 
+  # Report only. A newer q2 or a change in its record format must not block a
+  # pull request, so the job is not in the `needs` of `summary`.
+  q2-compat:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    name: Quarto 2 compatibility (report only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      Q2_VERSION: 0.39.0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 25.x
+
+      - name: Download q2
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="q2-${Q2_VERSION}-linux_amd64.tar.gz"
+          gh release download "v${Q2_VERSION}" --repo quarto-dev/q2 \
+            --pattern "${archive}" --pattern checksums.sha256 --dir "${RUNNER_TEMP}/q2"
+          cd "${RUNNER_TEMP}/q2"
+          grep -F " ${archive}" checksums.sha256 | sha256sum -c -
+          tar -xzf "${archive}"
+
+      - name: Install dependencies
+        shell: bash
+        run: npm ci
+
+      - name: Build core package
+        shell: bash
+        run: npm run build:core
+
+      - name: Run q2 against the install record
+        shell: bash
+        run: npm --prefix packages/core run test:q2 -- "${RUNNER_TEMP}/q2/q2"
+
   summary:
     # This job is the required status check of the ruleset, and it reports one
     # thing: did every job of this run pass. A draft builds like any other

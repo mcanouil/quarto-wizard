@@ -1,0 +1,80 @@
+---
+title: "Install Record"
+---
+
+Quarto Wizard writes a file named `.quarto-source.yml` in the folder of each extension that it installs.
+This file is the install record.
+It says where the extension came from, and it holds a checksum of each installed file.
+
+## Shared with Quarto 2
+
+Quarto 2 writes and reads the same file.
+You can install an extension with Quarto Wizard and update it with Quarto 2, or the other way round.
+Each tool finds the source in the record and checks the files against the checksums.
+
+Do not edit the file by hand.
+Quarto Wizard and Quarto 2 both write it.
+
+## What the Record Holds
+
+The record holds these items:
+
+- The source that you installed from, for example `owner/repository@v1.2.0`.
+- The type of the source: GitHub, URL, local folder or local archive.
+- A checksum for each file of the extension.
+
+The Extensions Installed view reads the source from the record.
+It uses the source to check for updates, to reinstall the extension, and to open the source.
+
+An extension that has no record can still have `source` and `source-type` keys in its `_extension.yml` file.
+This is the format of Quarto Wizard 3.
+Quarto Wizard still reads these keys.
+The next update of the extension writes a record.
+
+## Local Changes Are Detected
+
+Before Quarto Wizard replaces an extension, it compares the files with the checksums in the record.
+A file that you changed, removed or added counts as a local change.
+
+If the extension has local changes, Quarto Wizard does not replace it.
+It shows a warning that lists the files, at most ten.
+If more files differ, the warning ends with `and <n> more`.
+
+The warning has two actions:
+
+- **Replace anyway** replaces the extension and removes your changes.
+- **Cancel** writes nothing.
+
+If you close the warning, Quarto Wizard also writes nothing.
+
+**Update All** never replaces an extension that has local changes.
+It skips the extension, updates the others, and shows one message that lists each skipped extension and its files.
+The output log has the same list.
+
+An extension that has no record has no checksums.
+Quarto Wizard replaces it after the usual confirmation, and writes a record.
+It then tells you that it could not check the extension for local changes.
+
+## Install the Same Version Again
+
+If the installed extension is already at the version that you install, Quarto Wizard writes nothing.
+It shows the message `<extension> is already at version <version>.`
+This is also true when you changed files of the extension.
+
+**Update** and **Update All** replace the extension at the same version, because a new tag or commit can keep the version.
+If the extension has local changes, **Update** shows the warning and **Update All** skips the extension.
+
+An extension that has no record is also left as it is at the same version.
+To give it a record, remove the extension, then install it again.
+
+To reset an extension to its original files, use **Reinstall Extension** in the Extensions Installed view.
+Reinstall replaces the extension even when it is at the same version.
+The source in the record tells Reinstall what to install:
+
+- If the source has a ref, for example `owner/repository@v1.2.0`, Reinstall installs that ref.
+- If the source has no ref and the record has a commit, Reinstall installs that commit.
+  The record keeps the source without a ref.
+- If the source has no ref and the record has no commit, Reinstall installs the latest version.
+  This version can be newer than the installed version.
+
+If the extension has local changes, Reinstall first shows the warning with **Replace anyway** and **Cancel**.

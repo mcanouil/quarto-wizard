@@ -15,9 +15,11 @@ import type { ExtensionId } from "../types/extension.js";
 import {
 	EXTENSIONS_DIR,
 	type InstalledExtension,
+	applySourceRecord,
 	discoverInstalledExtensionsSync,
 	readDirectorySorted,
 } from "./discovery.js";
+import { readManifest } from "./manifest.js";
 import { toRelativePosixPath } from "./walk.js";
 
 /** Deepest folder level searched for projects, where the scan root is level 0. */
@@ -83,6 +85,53 @@ function findEmbeddingParents(rootDir: string, installed: readonly InstalledExte
 			hasQuartoConfig: false,
 			embeddedIn: { id: extension.id, source: extension.manifest.source },
 		}));
+}
+
+/** Whether a folder is in an `_extensions` folder, as `_extensions/<name>` or `_extensions/<owner>/<name>`. */
+function isInExtensionsDir(directory: string): boolean {
+	const parent = path.dirname(directory);
+	return path.basename(parent) === EXTENSIONS_DIR || path.basename(path.dirname(parent)) === EXTENSIONS_DIR;
+}
+
+/** Whether a folder is an installed extension with a source, from its install record or its manifest. */
+function isInstalledWithSource(directory: string): boolean {
+	let manifestResult;
+	try {
+		manifestResult = readManifest(directory);
+	} catch {
+		// A manifest that cannot be parsed gives no source.
+		return false;
+	}
+	return manifestResult !== null && Boolean(applySourceRecord(directory, manifestResult.manifest).manifest.source);
+}
+
+/**
+ * Whether an extension is embedded in an installed parent.
+ *
+ * The parent is an ancestor folder that is an extension in an `_extensions` folder and has a source.
+ * An embedded extension of an installed parent changes only when its parent is updated.
+ * An extension embedded in a parent that is developed locally (no source) is independent.
+ *
+ * @param extensionDir - Extension folder
+ * @param memo - Result of each ancestor folder already checked, shared between calls that check the same tree
+ * @returns True when an ancestor folder is an installed extension with a source
+ */
+export function isEmbeddedInInstalledParent(extensionDir: string, memo = new Map<string, boolean>()): boolean {
+	let directory = path.dirname(path.resolve(extensionDir));
+	while (path.dirname(directory) !== directory) {
+		if (isInExtensionsDir(directory)) {
+			let installed = memo.get(directory);
+			if (installed === undefined) {
+				installed = isInstalledWithSource(directory);
+				memo.set(directory, installed);
+			}
+			if (installed) {
+				return true;
+			}
+		}
+		directory = path.dirname(directory);
+	}
+	return false;
 }
 
 /**

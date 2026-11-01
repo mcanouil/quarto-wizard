@@ -248,4 +248,91 @@ describe("discovery.ts", () => {
 			expect(ext).toBeNull();
 		});
 	});
+
+	describe("install record", () => {
+		function writeRecord(extPath: string, content: string): void {
+			fs.writeFileSync(path.join(extPath, ".quarto-source.yml"), content);
+		}
+
+		const GITHUB_RECORD = "version: 1\nsource: acme/demo@v1.0.0\nkind: github\nref: v1.0.0\nfiles: {}\n";
+
+		it("discovery attaches an ok record and uses its source", async () => {
+			const extPath = createExtension("acme", "demo", "title: Demo\nversion: 1.0.0\n");
+			writeRecord(extPath, GITHUB_RECORD);
+
+			const [ext] = discoverInstalledExtensionsSync(tempDir);
+			const found = await findInstalledExtension(tempDir, { owner: "acme", name: "demo" });
+
+			for (const discovered of [ext, found!]) {
+				expect(discovered.recordStatus).toBe("ok");
+				expect(discovered.record).toMatchObject({ source: "acme/demo@v1.0.0", kind: "github", ref: "v1.0.0" });
+				expect(discovered.manifest.source).toBe("acme/demo@v1.0.0");
+				expect(discovered.manifest.sourceType).toBe("github");
+			}
+		});
+
+		it("the record wins over source keys in _extension.yml", () => {
+			const extPath = createExtension(
+				"acme",
+				"demo",
+				"title: Demo\nversion: 1.0.0\nsource: other/thing@v0.1.0\nsource-type: registry\n",
+			);
+			writeRecord(extPath, GITHUB_RECORD);
+
+			const [ext] = discoverInstalledExtensionsSync(tempDir);
+
+			expect(ext.manifest.source).toBe("acme/demo@v1.0.0");
+			expect(ext.manifest.sourceType).toBe("github");
+		});
+
+		it("discovery falls back to _extension.yml keys without a record", () => {
+			createExtension("acme", "demo", "title: Demo\nversion: 1.0.0\nsource: acme/demo@v1.0.0\nsource-type: registry\n");
+
+			const [ext] = discoverInstalledExtensionsSync(tempDir);
+
+			expect(ext.recordStatus).toBe("absent");
+			expect(ext.record).toBeNull();
+			expect(ext.manifest.source).toBe("acme/demo@v1.0.0");
+			expect(ext.manifest.sourceType).toBe("registry");
+		});
+
+		it("an unreadable record leaves the source empty and reports unreadable", () => {
+			const extPath = createExtension(
+				"acme",
+				"demo",
+				"title: Demo\nversion: 1.0.0\nsource: acme/demo@v1.0.0\nsource-type: github\n",
+			);
+			writeRecord(extPath, "version: 1\nsource: acme/demo@v1.0.0\nkind: svn\nfiles: {}\n");
+
+			const [ext] = discoverInstalledExtensionsSync(tempDir);
+
+			expect(ext.recordStatus).toBe("unreadable");
+			expect(ext.record).toBeNull();
+			expect(ext.manifest.source).toBeUndefined();
+			expect(ext.manifest.sourceType).toBeUndefined();
+		});
+
+		it("a registry record reports source type registry", () => {
+			const extPath = createExtension("acme", "demo", "title: Demo\nversion: 1.0.0\n");
+			writeRecord(extPath, `${GITHUB_RECORD}quarto-wizard:\n  source-type: registry\n`);
+
+			const [ext] = discoverInstalledExtensionsSync(tempDir);
+
+			expect(ext.manifest.sourceType).toBe("registry");
+		});
+
+		it.each([
+			["url", "https://example.com/demo.zip", "url"],
+			["local-archive", "demo.zip", "local"],
+			["local-dir", "../demo", "local"],
+		])("maps the record kind %s to a source type", (kind, source, sourceType) => {
+			const extPath = createExtension(null, "demo", "title: Demo\n");
+			writeRecord(extPath, `version: 1\nsource: ${source}\nkind: ${kind}\nfiles: {}\n`);
+
+			const [ext] = discoverInstalledExtensionsSync(tempDir);
+
+			expect(ext.manifest.source).toBe(source);
+			expect(ext.manifest.sourceType).toBe(sourceType);
+		});
+	});
 });

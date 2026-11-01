@@ -12,12 +12,32 @@ import * as path from "node:path";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest, SourceType } from "../types/manifest.js";
-import { formatGitHubLocator, parseGitHubLocator, splitSourceRef } from "../types/manifest.js";
+import {
+	extractCommitFromSource,
+	formatGitHubLocator,
+	parseGitHubLocator,
+	recordedCommit,
+	splitSourceRef,
+} from "../types/manifest.js";
 import { formatExtensionId, isSameExtensionId, parseExtensionRef } from "../types/extension.js";
-import { ExtensionError, getErrorMessage } from "../errors.js";
-import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
-import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
-import { readManifest, updateManifestSource } from "../filesystem/manifest.js";
+import { ExtensionError, LocalEditsError, ManifestError, getErrorMessage } from "../errors.js";
+import {
+	NO_SOURCE_RECORD,
+	getExtensionInstallPath,
+	toInstalledExtension,
+	type InstalledExtension,
+} from "../filesystem/discovery.js";
+import { copyDirectory, collectFiles, isInside, pathExists, toRelativePosixPath } from "../filesystem/walk.js";
+import { readManifest, type ManifestReadResult } from "../filesystem/manifest.js";
+import {
+	compareInstallAction,
+	getInstalledState,
+	readSourceRecord,
+	writeSourceRecord,
+	type SourceRecord,
+	type SourceRecordData,
+	type SourceRecordReadResult,
+} from "../filesystem/sourceRecord.js";
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
 	extractArchive,
@@ -83,16 +103,29 @@ export interface InstallOptions extends RegistryOptions {
 	auth?: AuthConfig;
 	/** Progress callback. */
 	onProgress?: InstallProgressCallback;
-	/** Force reinstall if already installed. */
+	/**
+	 * Replace an installed copy even when it has local changes or is at the same version.
+	 * Cannot be combined with `dryRun`.
+	 */
 	force?: boolean;
+	/**
+	 * Replace an installed copy at the same version, as an update does.
+	 * Unlike `force`, a copy with local changes is still refused.
+	 * Updates set it, because a new tag or commit can keep the manifest version.
+	 */
+	replaceSameVersion?: boolean;
 	/** AbortSignal for cancellation. */
 	signal?: AbortSignal;
 	/** Keep source directory after installation (for template copying). */
 	keepSourceDir?: boolean;
 	/** Dry run mode - resolve without installing. */
 	dryRun?: boolean;
-	/** Display source to record in manifest (for relative paths that were resolved). */
-	sourceDisplay?: string;
+	/**
+	 * Source to write in the install record in place of the typed form of `source`.
+	 * The record `ref` is the text after its last `@`.
+	 * `applyUpdates` sets it so that an update of an unpinned extension stays unpinned.
+	 */
+	recordSource?: string;
 	/**
 	 * Callback for selecting extensions when source contains multiple.
 	 * If not provided and source contains multiple extensions, the first one is installed (legacy behaviour).
@@ -107,7 +140,7 @@ export interface InstallOptions extends RegistryOptions {
 	expectedExtensionId?: ExtensionId;
 	/**
 	 * Callback for confirming overwrite when extension already exists.
-	 * Only called when force is true. If not provided, overwrites silently.
+	 * Called before an installed copy is replaced. If not provided, overwrites silently.
 	 * Return true to overwrite, false to cancel.
 	 */
 	confirmOverwrite?: ConfirmOverwriteCallback;
@@ -118,9 +151,9 @@ export interface InstallOptions extends RegistryOptions {
 	 */
 	validateQuartoVersion?: ValidateQuartoVersionCallback;
 	/**
-	 * Override the source type written to the manifest.
-	 * By default, the source type is inferred from the install source (e.g., "github", "url", "local").
-	 * Use "registry" when installing via the extension registry.
+	 * Source type of the install.
+	 * Use "registry" when installing via the extension registry: the install record of a GitHub
+	 * source then holds `source-type: registry` under its `quarto-wizard` key.
 	 */
 	sourceType?: SourceType;
 }
@@ -135,10 +168,15 @@ export interface InstallResult {
 	extension: InstalledExtension;
 	/** Files created during installation. */
 	filesCreated: string[];
-	/** Source string for the manifest. */
+	/** Source written in the install record. */
 	source: string;
-	/** Source type for the manifest. */
+	/** Source type of the installed extension, as discovery reports it. */
 	sourceType?: SourceType;
+	/**
+	 * Data of the install record, written or, in dry run mode, to be written.
+	 * Not set when the install was cancelled.
+	 */
+	recordData?: SourceRecordData;
 	/** Path to extracted source root (only set if keepSourceDir was true). */
 	sourceRoot?: string;
 	/**
@@ -159,6 +197,10 @@ export interface InstallResult {
 	additionalInstallFailures?: { extensionId: ExtensionId; error: string }[];
 	/** Whether the installation was cancelled by user (via callbacks). */
 	cancelled?: boolean;
+	/** Whether the installed copy is at the same version and was left as it was. */
+	unchanged?: boolean;
+	/** Whether an installed copy without an install record was replaced. */
+	replacedUntracked?: boolean;
 }
 
 /**
@@ -325,11 +367,15 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		auth,
 		onProgress,
 		force = false,
+		replaceSameVersion = false,
 		keepSourceDir = false,
 		dryRun = false,
-		sourceDisplay,
 		signal,
 	} = options;
+
+	if (dryRun && force) {
+		throw new ExtensionError("The dryRun option cannot be combined with the force option");
+	}
 
 	let archivePath: string | undefined;
 	let extractDir: string | undefined;
@@ -386,6 +432,13 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		onProgress?.({ phase: "extracting", message: "Extracting archive..." });
 
 		const archiveStats = await fs.promises.stat(archivePath);
+		const recordData = sourceRecordData(source, {
+			projectDir,
+			recordSource: options.recordSource,
+			sourceType: options.sourceType,
+			commitSha,
+			isDirectory: archiveStats.isDirectory(),
+		});
 		if (source.type === "local" && archiveStats.isDirectory()) {
 			extractDir = archivePath;
 		} else {
@@ -414,7 +467,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			? allExtensions.filter((candidate) => isSameExtensionId(candidate.id, expected))
 			: allExtensions;
 		if (expected && offered.length === 0) {
-			const location = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
+			const location = formatResolvedSource(source, tagName, commitSha);
 			throw new ExtensionError(`${formatExtensionId(expected)} is no longer in ${location}`);
 		}
 
@@ -433,9 +486,10 @@ export async function install(source: InstallSource, options: InstallOptions): P
 					manifest: {} as ExtensionManifest,
 					manifestPath: "",
 					directory: "",
+					...NO_SOURCE_RECORD,
 				},
 				filesCreated: [],
-				source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
+				source: recordData.source,
 			};
 		}
 
@@ -473,9 +527,10 @@ export async function install(source: InstallSource, options: InstallOptions): P
 						manifest: manifestResult.manifest,
 						manifestPath,
 						directory: getExtensionInstallPath(projectDir, selectedExtensions[0].id),
+						...NO_SOURCE_RECORD,
 					},
 					filesCreated: [],
-					source: sourceDisplay ?? formatSourceString(source, tagName, commitSha),
+					source: recordData.source,
 				};
 			}
 		}
@@ -486,8 +541,6 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		// This ensures consistency with additional extensions and respects the directory structure
 		const extensionId: ExtensionId = selectedExtensions[0].id;
 		const targetDir = getExtensionInstallPath(projectDir, extensionId);
-		// Use sourceDisplay if provided (for relative paths that were resolved), otherwise format from source
-		const sourceString = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
 		const alreadyExists = await pathExists(targetDir);
 
 		// In dry-run mode, return what would happen without making changes
@@ -503,9 +556,11 @@ export async function install(source: InstallSource, options: InstallOptions): P
 					manifest: manifestResult.manifest,
 					manifestPath,
 					directory: targetDir,
+					...NO_SOURCE_RECORD,
 				},
 				filesCreated: [],
-				source: sourceString,
+				source: recordData.source,
+				recordData,
 				sourceRoot: keepSourceDir ? repoRoot : undefined,
 				temporaryDir: keepSourceDir ? temporaryDir : undefined,
 				dryRun: true,
@@ -514,90 +569,34 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			};
 		}
 
-		if (alreadyExists) {
-			if (!force) {
-				throw new ExtensionError(`Extension already installed: ${extensionId.owner}/${extensionId.name}`, {
-					suggestion: "Use force option to reinstall",
-				});
-			}
-			// If confirmOverwrite callback is provided, ask for confirmation
-			if (options.confirmOverwrite) {
-				const proceed = await options.confirmOverwrite(selectedExtensions[0]);
-				if (!proceed) {
-					// User cancelled overwrite
-					return {
-						success: false,
-						cancelled: true,
-						extension: {
-							id: extensionId,
-							manifest: manifestResult.manifest,
-							manifestPath: path.join(targetDir, manifestResult.filename),
-							directory: targetDir,
-						},
-						filesCreated: [],
-						source: sourceString,
-						alreadyExists: true,
-					};
-				}
-			}
-			await fs.promises.rm(targetDir, { recursive: true, force: true });
+		// Every selected extension is checked before the first is written, so a refusal writes nothing.
+		const plans: ExtensionInstallPlan[] = [];
+		for (const selected of selectedExtensions) {
+			plans.push(await planExtensionInstall(selected, projectDir, recordData, force, replaceSameVersion));
 		}
 
-		onProgress?.({ phase: "finalizing", message: "Updating manifest..." });
-		const effectiveSourceType = options.sourceType ?? source.type;
-		const filesCreated = await writeExtensionToDisk(
-			extensionRoot,
-			targetDir,
-			manifestResult.filename,
-			sourceString,
-			effectiveSourceType,
-		);
+		const primary = await installPlannedExtension(plans[0], recordData, onProgress, options.confirmOverwrite);
+		if (primary.cancelled) {
+			return primary;
+		}
 
-		const manifestPath = path.join(targetDir, manifestResult.filename);
-		const finalManifest = readManifest(targetDir);
-
-		// Install additional extensions if multiple were selected
 		const additionalInstalls: InstallResult[] = [];
 		const additionalInstallFailures: { extensionId: ExtensionId; error: string }[] = [];
-		if (selectedExtensions.length > 1) {
-			for (let i = 1; i < selectedExtensions.length; i++) {
-				const additionalExt = selectedExtensions[i];
-				const extIdString = additionalExt.id.owner
-					? `${additionalExt.id.owner}/${additionalExt.id.name}`
-					: additionalExt.id.name;
-				try {
-					const additionalResult = await installSingleExtension(
-						additionalExt,
-						projectDir,
-						sourceDisplay ?? formatSourceString(source, tagName, commitSha),
-						force,
-						onProgress,
-						options.confirmOverwrite,
-						effectiveSourceType,
-					);
-					additionalInstalls.push(additionalResult);
-				} catch (error) {
-					const message = getErrorMessage(error);
-					additionalInstallFailures.push({ extensionId: additionalExt.id, error: message });
-					onProgress?.({
-						phase: "installing",
-						message: `Failed to install additional extension ${extIdString}: ${message}`,
-					});
-				}
+		for (const plan of plans.slice(1)) {
+			try {
+				additionalInstalls.push(await installPlannedExtension(plan, recordData, onProgress, options.confirmOverwrite));
+			} catch (error) {
+				const message = getErrorMessage(error);
+				additionalInstallFailures.push({ extensionId: plan.extension.id, error: message });
+				onProgress?.({
+					phase: "installing",
+					message: `Failed to install additional extension ${formatExtensionId(plan.extension.id)}: ${message}`,
+				});
 			}
 		}
 
 		return {
-			success: true,
-			extension: {
-				id: extensionId,
-				manifest: finalManifest?.manifest ?? manifestResult.manifest,
-				manifestPath,
-				directory: targetDir,
-			},
-			filesCreated,
-			source: sourceString,
-			sourceType: effectiveSourceType,
+			...primary,
 			sourceRoot: keepSourceDir ? repoRoot : undefined,
 			temporaryDir: keepSourceDir ? temporaryDir : undefined,
 			additionalInstalls: additionalInstalls.length > 0 ? additionalInstalls : undefined,
@@ -699,12 +698,11 @@ export async function selectExtensionsFromSource(
 }
 
 /**
- * Format source string for manifest.
+ * Format a source with the tag or commit it resolved to, for messages.
  */
-function formatSourceString(source: InstallSource, tagName?: string, commitSha?: string): string {
+function formatResolvedSource(source: InstallSource, tagName?: string, commitSha?: string): string {
 	if (source.type === "github") {
 		const base = formatGitHubLocator(source);
-		// If we resolved to a commit (no releases), use short commit format
 		if (commitSha) {
 			return `${base}@${commitSha}`;
 		}
@@ -715,31 +713,174 @@ function formatSourceString(source: InstallSource, tagName?: string, commitSha?:
 }
 
 /**
+ * Path of a local source as the install record holds it: relative to the project root,
+ * `/`-separated and starting with `./`, when it lies inside the project, else absolute.
+ */
+function formatLocalRecordSource(projectDir: string, sourcePath: string): string {
+	const absolute = path.resolve(sourcePath);
+	const root = path.resolve(projectDir);
+	if (!isInside(root, absolute)) {
+		return absolute;
+	}
+	const relative = toRelativePosixPath(root, absolute);
+	return relative === "" ? "." : `./${relative}`;
+}
+
+/**
+ * Build the data of the install record of a source.
+ *
+ * `source` is the source as typed, or `recordSource` when set, and `ref` the text after its last `@`.
+ * `quarto-wizard.commit` is set only when the recorded GitHub source has no ref and the download
+ * resolved to a commit.
+ */
+function sourceRecordData(
+	source: InstallSource,
+	context: {
+		projectDir: string;
+		recordSource?: string;
+		sourceType?: SourceType;
+		commitSha?: string;
+		isDirectory: boolean;
+	},
+): SourceRecordData {
+	if (source.type === "url") {
+		return { source: context.recordSource ?? source.url, kind: "url" };
+	}
+	if (source.type === "local") {
+		return {
+			source: context.recordSource ?? formatLocalRecordSource(context.projectDir, source.path),
+			kind: context.isDirectory ? "local-dir" : "local-archive",
+		};
+	}
+	const recorded = context.recordSource ?? formatInstallSource(source);
+	const { ref } = splitSourceRef(recorded);
+	const quartoWizard: NonNullable<SourceRecordData["quartoWizard"]> = {};
+	if (context.sourceType === "registry") {
+		quartoWizard.sourceType = "registry";
+	}
+	if (ref === undefined && context.commitSha) {
+		quartoWizard.commit = context.commitSha;
+	}
+	return {
+		source: recorded,
+		kind: "github",
+		...(ref !== undefined && { ref }),
+		...(Object.keys(quartoWizard).length > 0 && { quartoWizard }),
+	};
+}
+
+/**
+ * Read the manifest of an installed copy, or null when it has none or it cannot be parsed.
+ * A copy whose manifest cannot be parsed has no version, so an install replaces it.
+ */
+function readInstalledManifest(dir: string): ManifestReadResult | null {
+	try {
+		return readManifest(dir);
+	} catch (error) {
+		if (error instanceof ManifestError) {
+			return null;
+		}
+		throw error;
+	}
+}
+
+/**
+ * Seven-character commit in lower case of an installed copy, or null when it is not known.
+ *
+ * The install record gives it first. A copy without a record gives the commit of its
+ * Quarto Wizard 3 manifest source. A record that cannot be read gives none.
+ */
+function installedCommit(result: SourceRecordReadResult, installed: ExtensionManifest): string | null {
+	if (result.status === "ok") {
+		return recordedCommit(result.record);
+	}
+	return result.status === "absent" && installed.source ? extractCommitFromSource(installed.source) : null;
+}
+
+/**
+ * Whether an install resolved to a commit, and the installed copy has no commit or another one.
+ * Commits are compared on their first seven characters, without regard to case.
+ * The commit of the install comes from the download resolution, which checked a commit ref before it downloaded it.
+ */
+function movesToAnotherCommit(
+	installedRecord: SourceRecordReadResult,
+	installed: ExtensionManifest,
+	recordData: SourceRecordData,
+): boolean {
+	const incoming = recordedCommit(recordData);
+	return incoming !== null && installedCommit(installedRecord, installed) !== incoming;
+}
+
+/**
+ * What an install does to the installed copy of one extension.
+ * `untracked` is true when a copy without an install record is replaced.
+ */
+type Replacement = { action: "write"; untracked: boolean } | { action: "unchanged"; installed: ManifestReadResult };
+
+/**
+ * Decide whether an install writes the extension, with the rules of Quarto 2.
+ *
+ * Without `force`, a copy at the same version is left as it is, and a copy with local
+ * changes is refused before anything is written.
+ * An install that resolved to a commit other than the installed one is an update, whatever the versions.
+ * With `replaceSameVersion`, a copy at the same version is replaced too, unless it has local changes.
+ *
+ * @throws LocalEditsError when the installed copy has local changes and `force` is not set
+ */
+function checkReplacement(
+	targetDir: string,
+	alreadyExists: boolean,
+	extensionId: ExtensionId,
+	incoming: ExtensionManifest,
+	recordData: SourceRecordData,
+	force: boolean,
+	replaceSameVersion: boolean,
+): Replacement {
+	if (!alreadyExists) {
+		return { action: "write", untracked: false };
+	}
+	const installedRecord = readSourceRecord(targetDir);
+	if (force) {
+		return { action: "write", untracked: installedRecord.status === "absent" };
+	}
+	const installed = readInstalledManifest(targetDir);
+	if (
+		installed &&
+		!replaceSameVersion &&
+		!movesToAnotherCommit(installedRecord, installed.manifest, recordData) &&
+		compareInstallAction(installed.manifest.version || undefined, incoming.version || undefined) === "no-change"
+	) {
+		return { action: "unchanged", installed };
+	}
+	const state = getInstalledState(targetDir, installedRecord);
+	if (state.kind === "modified") {
+		throw new LocalEditsError(extensionId, state.edits);
+	}
+	return { action: "write", untracked: state.kind === "untracked" };
+}
+
+/**
  * Write an extension to disk with transactional rollback.
  *
- * Copies extension files to the target directory and updates the manifest
- * source field. If any step fails, the target directory is cleaned up to
- * avoid leaving an inconsistent state.
+ * Copies extension files to the target directory, then writes the install record at the
+ * top of it. Extensions embedded in the copied folder get no record of their own.
+ * The manifest is left as the source had it.
+ * If any step fails, the target directory is cleaned up to avoid leaving an inconsistent state.
  *
  * @param sourceDir - Source directory containing the extension
  * @param targetDir - Destination directory for the extension
- * @param manifestFilename - Name of the manifest file (e.g., "_extension.yml")
- * @param sourceString - Source string to write into the manifest
- * @param sourceType - Type of source (github, url, local, registry)
- * @returns List of files created
+ * @param recordData - Data of the install record
+ * @returns List of files created, and the install record written
  */
 async function writeExtensionToDisk(
 	sourceDir: string,
 	targetDir: string,
-	manifestFilename: string,
-	sourceString: string,
-	sourceType?: SourceType,
-): Promise<string[]> {
+	recordData: SourceRecordData,
+): Promise<{ filesCreated: string[]; record: SourceRecord }> {
 	try {
 		const filesCreated = await copyDirectory(sourceDir, targetDir);
-		const manifestPath = path.join(targetDir, manifestFilename);
-		updateManifestSource(manifestPath, sourceString, sourceType);
-		return filesCreated;
+		const record = writeSourceRecord(targetDir, recordData);
+		return { filesCreated, record };
 	} catch (error) {
 		// Rollback: remove partially installed extension to maintain consistency.
 		// eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -758,45 +899,97 @@ async function collectExtensionFiles(sourceDir: string): Promise<string[]> {
 }
 
 /**
- * Install a single extension from an already-extracted directory.
- * Used for installing additional extensions when multiple are selected,
- * or when installing extensions directly with pre-computed IDs (e.g., from twoPhaseUse).
+ * An extension checked for installation, before anything is written.
+ */
+export interface ExtensionInstallPlan {
+	/** Discovered extension with path and pre-computed ID. */
+	extension: DiscoveredExtension;
+	/** Manifest of the extension to install. */
+	manifestResult: ManifestReadResult;
+	/** Folder the extension is installed to. */
+	targetDir: string;
+	/** Whether a copy is installed in `targetDir`. */
+	alreadyExists: boolean;
+	/** What the install does to the installed copy. */
+	replacement: Replacement;
+}
+
+/**
+ * Check one extension for installation without writing anything.
+ *
+ * Plan every extension of a source before writing the first one, so that a refusal leaves the project as it was.
  *
  * @param extension - Discovered extension with path and pre-computed ID
  * @param projectDir - Project directory to install to
- * @param sourceString - Source string to record in manifest
- * @param force - Whether to force reinstall
- * @param onProgress - Progress callback
- * @param confirmOverwrite - Callback to confirm overwrite when extension exists
- * @returns Installation result
+ * @param recordData - Data of the install record to write
+ * @param force - Whether to replace an installed copy that has local changes or is at the same version
+ * @param replaceSameVersion - Whether to replace an installed copy at the same version that has no local changes
+ * @returns The plan to pass to `installPlannedExtension`
+ * @throws LocalEditsError when the installed copy has local changes and `force` is not set
  */
-export async function installSingleExtension(
+export async function planExtensionInstall(
 	extension: DiscoveredExtension,
 	projectDir: string,
-	sourceString: string,
+	recordData: SourceRecordData,
 	force: boolean,
-	onProgress?: InstallProgressCallback,
-	confirmOverwrite?: ConfirmOverwriteCallback,
-	sourceType?: SourceType,
-): Promise<InstallResult> {
+	replaceSameVersion = false,
+): Promise<ExtensionInstallPlan> {
 	const manifestResult = readManifest(extension.path);
 
 	if (!manifestResult) {
 		throw new ExtensionError("Failed to read extension manifest");
 	}
 
-	// Use the pre-computed ID from the discovered extension
+	const targetDir = getExtensionInstallPath(projectDir, extension.id);
+	const alreadyExists = await pathExists(targetDir);
+	const replacement = checkReplacement(
+		targetDir,
+		alreadyExists,
+		extension.id,
+		manifestResult.manifest,
+		recordData,
+		force,
+		replaceSameVersion,
+	);
+	return { extension, manifestResult, targetDir, alreadyExists, replacement };
+}
+
+/**
+ * Install an extension as its plan says.
+ *
+ * @param plan - Plan from `planExtensionInstall`
+ * @param recordData - Data of the install record to write
+ * @param onProgress - Progress callback
+ * @param confirmOverwrite - Callback to confirm overwrite when extension exists
+ * @returns Installation result
+ */
+export async function installPlannedExtension(
+	plan: ExtensionInstallPlan,
+	recordData: SourceRecordData,
+	onProgress?: InstallProgressCallback,
+	confirmOverwrite?: ConfirmOverwriteCallback,
+): Promise<InstallResult> {
+	const { extension, manifestResult, targetDir, alreadyExists, replacement } = plan;
 	const extensionId: ExtensionId = extension.id;
 
-	const targetDir = getExtensionInstallPath(projectDir, extensionId);
-	const alreadyExists = await pathExists(targetDir);
+	if (replacement.action === "unchanged") {
+		return {
+			success: true,
+			unchanged: true,
+			extension: toInstalledExtension(
+				extensionId,
+				replacement.installed.manifest,
+				path.join(targetDir, replacement.installed.filename),
+				targetDir,
+			),
+			filesCreated: [],
+			source: recordData.source,
+			recordData,
+			alreadyExists: true,
+		};
+	}
 
 	if (alreadyExists) {
-		if (!force) {
-			throw new ExtensionError(`Extension already installed: ${extensionId.owner}/${extensionId.name}`, {
-				suggestion: "Use force option to reinstall",
-			});
-		}
 		// If confirmOverwrite callback is provided, ask for confirmation
 		if (confirmOverwrite) {
 			const proceed = await confirmOverwrite(extension);
@@ -810,9 +1003,10 @@ export async function installSingleExtension(
 						manifest: manifestResult.manifest,
 						manifestPath: path.join(targetDir, manifestResult.filename),
 						directory: targetDir,
+						...NO_SOURCE_RECORD,
 					},
 					filesCreated: [],
-					source: sourceString,
+					source: recordData.source,
 					alreadyExists: true,
 				};
 			}
@@ -820,30 +1014,24 @@ export async function installSingleExtension(
 		await fs.promises.rm(targetDir, { recursive: true, force: true });
 	}
 
-	const extIdString = extensionId.owner ? `${extensionId.owner}/${extensionId.name}` : extensionId.name;
-	onProgress?.({ phase: "installing", message: `Installing ${extIdString}...` });
+	onProgress?.({ phase: "installing", message: `Installing ${formatExtensionId(extensionId)}...` });
 
-	const filesCreated = await writeExtensionToDisk(
-		extension.path,
+	const { filesCreated, record } = await writeExtensionToDisk(extension.path, targetDir, recordData);
+	const installed = toInstalledExtension(
+		extensionId,
+		manifestResult.manifest,
+		path.join(targetDir, manifestResult.filename),
 		targetDir,
-		manifestResult.filename,
-		sourceString,
-		sourceType,
+		{ status: "ok", record },
 	);
-
-	const manifestPath = path.join(targetDir, manifestResult.filename);
-	const finalManifest = readManifest(targetDir);
 
 	return {
 		success: true,
-		extension: {
-			id: extensionId,
-			manifest: finalManifest?.manifest ?? manifestResult.manifest,
-			manifestPath,
-			directory: targetDir,
-		},
+		extension: installed,
 		filesCreated,
-		source: sourceString,
-		sourceType,
+		source: recordData.source,
+		sourceType: installed.manifest.sourceType,
+		recordData,
+		...(replacement.untracked && { replacedUntracked: true }),
 	};
 }

@@ -32,6 +32,12 @@ See [Extension Schema Specification](schema-specification.qmd) for the full form
 Quarto extensions can provide a `_snippets.json` file for snippets in Explorer and IntelliSense.
 See [Extension Snippet Specification](snippet-specification.qmd) for Quarto Wizard specifics.
 
+## Install Record
+
+Quarto Wizard writes a `.quarto-source.yml` file in the folder of each extension that it installs.
+Quarto 2 uses the same file.
+See [Install Record](install-record.qmd) for what the file holds and how Quarto Wizard protects local changes.
+
 ## API Reference
 
 For developers integrating with the `@quarto-wizard/core`, `@quarto-wizard/schema`, or `@quarto-wizard/snippets` packages, see the [API Reference](../api/index.qmd).
