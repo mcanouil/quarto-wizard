@@ -16,11 +16,11 @@
 
 - feat: Add a `cells` schema section for comment-pipe cell options, with completion, hover and diagnostics in executable cells. (#518)
 - feat: Add `pluralise()` to `@quarto-wizard/core`, which writes a count with the singular or the plural of its noun. (#527)
+- feat: Install, use and update extensions from a repository subdirectory, written `owner/repo/subdirectory` as with `quarto add`. (#530)
 - feat: Show where the update check looked, in a message at the top of the Extensions Installed view and in the tooltip and details of each extension. Update and Update All now check GitHub when you click them, and install the tag that their messages name.
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 - feat: Add a Detected Projects view, collapsed by default, to show or hide projects, with the `quartoWizard.projectVisibility` setting to share the choice. Extensions that hold other extensions now appear as projects, and those of an installed parent are read-only.
 - feat: Add `discoverProjectDirs()` to `@quarto-wizard/core`, which finds Quarto projects and extensions that embed other extensions.
-- feat: Install, use and update extensions from a repository subdirectory, written `owner/repo/subdirectory` as with `quarto add`.
 
 ### Bug Fixes
 
@@ -34,6 +34,7 @@
 - fix: Check an attribute or a cell option against every extension that declares it, and name the extension when more than one declares it. (#520)
 - fix: Use the singular or the plural that a count needs in messages, so "1 extension" and "2 extensions" replace "extension(s)". (#527)
 - fix: Keep a Typst preview brand switch or reload that was still compiling when the cursor moved to a place with nothing to preview. The switch was dropped, and the panel kept the other side. (#529)
+- fix: Update only the extension an update names when its source holds several, in Update, Update All and Reinstall. (#530)
 - fix: Recognise a full commit of 40 characters as a commit pin.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
 
