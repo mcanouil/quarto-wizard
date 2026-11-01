@@ -950,6 +950,28 @@ describe("checkForUpdates", () => {
 				expect(byName).toEqual({ y: "1.1.0", z: "1.2.0" });
 			});
 
+			it("requests each manifest path once when two extensions come from the same subdirectory", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+				setupExtension("quarto-ext", "z", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				const contents: Record<string, string> = {
+					"b/_extensions/y/_extension.yml": "title: Y\nversion: 1.1.0\n",
+					"b/_extensions/z/_extension.yml": "title: Z\nversion: 1.2.0\n",
+				};
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) => contents[filePath] ?? null);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				const requests = vi.mocked(fetchRawFile).mock.calls.map((call) => `${call[2]}:${call[3]}`);
+				expect(new Set(requests).size).toBe(requests.length);
+				expect(requests.filter((request) => request === "v3.0.0:b/_extension.yml")).toHaveLength(1);
+				expect(requests.filter((request) => request === "v3.0.0:b/_extension.yaml")).toHaveLength(1);
+				expect(requests).toContain("v3.0.0:b/_extensions/z/_extension.yml");
+				const byName = Object.fromEntries(result.updates.map((u) => [u.extension.id.name, u.latestVersion]));
+				expect(byName).toEqual({ y: "1.1.0", z: "1.2.0" });
+			});
+
 			it("reports the subdirectory manifest version when the installed version is not a version", async () => {
 				setupExtension("quarto-ext", "sub", "1.0.0.9000", SUB_SOURCE, "github");
 
@@ -1004,6 +1026,31 @@ describe("checkForUpdates", () => {
 				expect(result.updates.map((u) => u.extension.id.name)).toEqual(["sub"]);
 				expect(result.updates[0]).toMatchObject({ checkedOn: "github", latestVersion: "0.4.0", latestRef: "v2.0.0" });
 			});
+
+			for (const [kind, error] of [
+				["rate-limited", new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 })],
+				[
+					"unauthorised",
+					new AuthenticationError("Bad credentials.", {
+						cause: new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 }),
+					}),
+				],
+			] as const) {
+				it(`reports the ${kind} failure met on GitHub over an unavailable registry`, async () => {
+					setupExtension("quarto-ext", "root", "1.0.0", "quarto-ext/monorepo@v1.0.0", "github");
+					setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+					vi.mocked(fetchRegistry).mockRejectedValue(
+						new NetworkError("HTTP 503: Service Unavailable", { statusCode: 503 }),
+					);
+					vi.mocked(fetchTags).mockRejectedValue(error);
+
+					const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+					expect(result.checkFailure?.kind).toBe(kind);
+					expect(result.updates).toHaveLength(0);
+				});
+			}
 
 			it("reports GitHub as the check source when every candidate is a subdirectory source", async () => {
 				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");

@@ -268,7 +268,13 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 				const message = getErrorMessage(error);
 				const kind = checkFailureKind(error);
 				if (kind) {
-					result.checkFailure ??= { kind, message };
+					// A rate limit or a rejected token can be fixed by signing in, so it hides an unavailable registry.
+					const replaces =
+						result.checkFailure?.kind === "registry-unavailable" &&
+						(kind === "rate-limited" || kind === "unauthorised");
+					if (!result.checkFailure || replaces) {
+						result.checkFailure = { kind, message };
+					}
 				} else {
 					const key = candidate.fullName.toLowerCase();
 					if (!repositoryFailures.has(key)) {
@@ -390,8 +396,13 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 			return once(`${repository}@${ref}:${candidate.subdirectory}#${extensionId}`, async () => {
 				// Raw file requests do not count against the API rate limit, so every path is asked at once.
 				const filePaths = subdirectoryManifestPaths(candidate);
+				// Two extensions of one subdirectory share the paths of the subdirectory itself, so each file is asked once.
 				const reads = await Promise.allSettled(
-					filePaths.map((filePath) => fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options)),
+					filePaths.map((filePath) =>
+						once(`${repository}#raw@${ref}:${filePath}`, () =>
+							fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options),
+						),
+					),
 				);
 				for (const read of reads) {
 					if (read.status === "rejected" && isCancellationError(read.reason)) {

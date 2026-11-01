@@ -290,6 +290,12 @@ suite("Extensions Installed Commands Test Suite", () => {
 		]);
 	});
 
+	test("reinstall names the installed extension as the one to install", async () => {
+		await runCommand("reinstall", createItem("acme/pinned-demo"));
+
+		assert.deepStrictEqual(expectedIds, ["acme/pinned-demo"]);
+	});
+
 	test("update all installs the GitHub tag when the registry lags", async () => {
 		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"], registryTag: "1.2.0" } } });
 
