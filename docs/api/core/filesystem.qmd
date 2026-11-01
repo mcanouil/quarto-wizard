@@ -16,21 +16,25 @@ Scans the _extensions directory to find installed Quarto extensions.
 ### Variables
 
 - [EXTENSIONS\_DIR](filesystem.qmd#symbol-variable-extensions-dir)
+- [NO\_SOURCE\_RECORD](filesystem.qmd#symbol-variable-no-source-record)
 
 ### Functions
 
+- [applySourceRecord](filesystem.qmd#symbol-function-applysourcerecord)
 - [discoverInstalledExtensions](filesystem.qmd#symbol-function-discoverinstalledextensions)
 - [discoverInstalledExtensionsSync](filesystem.qmd#symbol-function-discoverinstalledextensionssync)
 - [findInstalledExtension](filesystem.qmd#symbol-function-findinstalledextension)
 - [getExtensionInstallPath](filesystem.qmd#symbol-function-getextensioninstallpath)
 - [getExtensionsDir](filesystem.qmd#symbol-function-getextensionsdir)
 - [hasExtensionsDir](filesystem.qmd#symbol-function-hasextensionsdir)
+- [readDirectorySorted](filesystem.qmd#symbol-function-readdirectorysorted)
+- [toInstalledExtension](filesystem.qmd#symbol-function-toinstalledextension)
 
 ## Manifest Parsing Module
 
 Manifest parsing for _extension.yml files.
 
-Provides functions to read, parse, and write Quarto extension manifests.
+Provides functions to read and parse Quarto extension manifests.
 
 ### Interfaces
 
@@ -47,7 +51,28 @@ Provides functions to read, parse, and write Quarto extension manifests.
 - [parseManifestContent](filesystem.qmd#symbol-function-parsemanifestcontent)
 - [parseManifestFile](filesystem.qmd#symbol-function-parsemanifestfile)
 - [readManifest](filesystem.qmd#symbol-function-readmanifest)
-- [updateManifestSource](filesystem.qmd#symbol-function-updatemanifestsource)
+
+## Project Discovery Module
+
+Discovery of Quarto project folders below a root directory.
+
+Finds folders that hold a Quarto configuration or installed extensions,
+and extensions that embed other extensions in their own `_extensions` folder.
+
+### Interfaces
+
+- [DiscoveredProject](filesystem.qmd#symbol-interface-discoveredproject)
+- [EmbeddingParent](filesystem.qmd#symbol-interface-embeddingparent)
+- [ProjectDiscoveryOptions](filesystem.qmd#symbol-interface-projectdiscoveryoptions)
+
+### Variables
+
+- [PROJECT\_FOLDER\_MAX\_DEPTH](filesystem.qmd#symbol-variable-project-folder-max-depth)
+
+### Functions
+
+- [discoverProjectDirs](filesystem.qmd#symbol-function-discoverprojectdirs)
+- [isEmbeddedInInstalledParent](filesystem.qmd#symbol-function-isembeddedininstalledparent)
 
 ## Quarto Ignore Module
 
@@ -66,6 +91,40 @@ scans a repository for Quarto projects should skip those paths.
 - [isQuartoIgnored](filesystem.qmd#symbol-function-isquartoignored)
 - [quartoIgnoreGlobs](filesystem.qmd#symbol-function-quartoignoreglobs)
 - [readQuartoIgnore](filesystem.qmd#symbol-function-readquartoignore)
+
+## Install Record Module
+
+Reads and writes the Quarto 2 install record.
+
+Quarto 2 (`q2 add`) writes `.quarto-source.yml` in each extension folder.
+The record names the install source and holds a sha256 of each installed file.
+Before it replaces an extension, a tool compares the files with these hashes
+so that it does not overwrite local changes.
+
+### Interfaces
+
+- [SourceRecord](filesystem.qmd#symbol-interface-sourcerecord)
+
+### Type Aliases
+
+- [InstallAction](filesystem.qmd#symbol-typealias-installaction)
+- [InstalledState](filesystem.qmd#symbol-typealias-installedstate)
+- [SourceRecordData](filesystem.qmd#symbol-typealias-sourcerecorddata)
+- [SourceRecordKind](filesystem.qmd#symbol-typealias-sourcerecordkind)
+- [SourceRecordReadResult](filesystem.qmd#symbol-typealias-sourcerecordreadresult)
+
+### Variables
+
+- [SOURCE\_RECORD\_FILENAME](filesystem.qmd#symbol-variable-source-record-filename)
+- [SOURCE\_RECORD\_VERSION](filesystem.qmd#symbol-variable-source-record-version)
+
+### Functions
+
+- [compareInstallAction](filesystem.qmd#symbol-function-compareinstallaction)
+- [getInstalledState](filesystem.qmd#symbol-function-getinstalledstate)
+- [hashExtensionFiles](filesystem.qmd#symbol-function-hashextensionfiles)
+- [readSourceRecord](filesystem.qmd#symbol-function-readsourcerecord)
+- [writeSourceRecord](filesystem.qmd#symbol-function-writesourcerecord)
 
 ## Directory Walking Module
 
@@ -90,13 +149,43 @@ Provides recursive directory traversal and file copying operations.
 - [toRelativePosixPath](filesystem.qmd#symbol-function-torelativeposixpath)
 - [walkDirectory](filesystem.qmd#symbol-function-walkdirectory)
 
+## applySourceRecord {#symbol-function-applysourcerecord}
+
+```{.ts filename="TypeScript"}
+function applySourceRecord(
+   directory,
+   manifest,
+   result?
+): Pick<InstalledExtension, "manifest" | "record" | "recordStatus">;
+```
+
+Defined in: [packages/core/src/filesystem/discovery.ts:76](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L76)
+
+Read the install record of an extension folder and apply its source to the manifest.
+
+The record wins over the `source` and `source-type` keys of the manifest.
+
+### Parameters
+
+| Parameter   | Type                                                                               | Description                                                            |
+| ----------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `directory` | `string`                                                                           | Extension folder                                                       |
+| `manifest`  | [`ExtensionManifest`](types.qmd#symbol-interface-extensionmanifest)                | Manifest read from the folder                                          |
+| `result?`   | [`SourceRecordReadResult`](filesystem.qmd#symbol-typealias-sourcerecordreadresult) | Install record already read from the folder, read again when not given |
+
+### Returns
+
+`<code>Pick&lt;<a href="filesystem.qmd#symbol-interface-installedextension" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">InstalledExtension</a>, "manifest" | "record" | "recordStatus"&gt;</code>`{=html}
+
+The manifest with the effective source, and the record
+
 ## collectFiles {#symbol-function-collectfiles}
 
 ```{.ts filename="TypeScript"}
 function collectFiles(directory): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:62](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L62)
+Defined in: [packages/core/src/filesystem/walk.ts:62](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L62)
 
 Collect all file paths in a directory recursively.
 
@@ -112,13 +201,40 @@ Collect all file paths in a directory recursively.
 
 Array of file paths
 
+## compareInstallAction {#symbol-function-compareinstallaction}
+
+```{.ts filename="TypeScript"}
+function compareInstallAction(installed, incoming): InstallAction;
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:344](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L344)
+
+Decide what an install does, with the rules of Quarto 2.
+
+Versions are read leniently (`1.2` is `1.2.0`, `v1` is `1.0.0`), and keep their prerelease.
+A string that is not a version counts as no version.
+When either side has no version, the install is an update.
+
+### Parameters
+
+| Parameter   | Type                              | Description                                                                                            |
+| ----------- | --------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `installed` | `string` \| `null` \| `undefined` | Version of the installed copy, `undefined` when it has no version, or `null` when no copy is installed |
+| `incoming`  | `string` \| `undefined`           | Version of the copy to install, or `undefined` when it has no version                                  |
+
+### Returns
+
+[`InstallAction`](filesystem.qmd#symbol-typealias-installaction)
+
+`install`, `update`, `revert`, or `no-change`
+
 ## copyDirectory {#symbol-function-copydirectory}
 
 ```{.ts filename="TypeScript"}
 function copyDirectory(sourceDir, targetDir): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:99](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L99)
+Defined in: [packages/core/src/filesystem/walk.ts:99](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L99)
 
 Copy a directory recursively.
 
@@ -141,7 +257,7 @@ Array of created file paths
 function discoverInstalledExtensions(projectDir, options?): Promise<InstalledExtension[]>;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:82](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L82)
+Defined in: [packages/core/src/filesystem/discovery.ts:181](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L181)
 
 Discover all installed extensions in a project.
 
@@ -178,7 +294,7 @@ for (const ext of extensions) {
 function discoverInstalledExtensionsSync(projectDir, options?): InstalledExtension[];
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:99](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L99)
+Defined in: [packages/core/src/filesystem/discovery.ts:211](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L211)
 
 Synchronous version of discoverInstalledExtensions.
 
@@ -195,6 +311,35 @@ Synchronous version of discoverInstalledExtensions.
 
 Array of installed extensions
 
+## discoverProjectDirs {#symbol-function-discoverprojectdirs}
+
+```{.ts filename="TypeScript"}
+function discoverProjectDirs(rootDir, options?): DiscoveredProject[];
+```
+
+Defined in: [packages/core/src/filesystem/projects.ts:150](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L150)
+
+Find Quarto project folders below a directory.
+
+The walk is breadth-first and stops at `PROJECT_FOLDER_MAX_DEPTH`.
+It does not enter `_extensions`, `.git`, `node_modules`, symbolic links,
+or folders that match an exclude pattern.
+A folder is a project when it holds a Quarto configuration or installed extensions.
+An extension that holds installed extensions of its own is reported right after its project.
+
+### Parameters
+
+| Parameter  | Type                                                                                 | Description       |
+| ---------- | ------------------------------------------------------------------------------------ | ----------------- |
+| `rootDir`  | `string`                                                                             | Directory to scan |
+| `options?` | [`ProjectDiscoveryOptions`](filesystem.qmd#symbol-interface-projectdiscoveryoptions) | Discovery options |
+
+### Returns
+
+`<code><a href="filesystem.qmd#symbol-interface-discoveredproject" style="text-decoration-line: underline; text-decoration-style: dashed; text-decoration-thickness: 1px; text-decoration-color: currentColor;">DiscoveredProject</a>[]</code>`{=html}
+
+Projects in walk order, the scan root first
+
 ## findInstalledExtension {#symbol-function-findinstalledextension}
 
 ```{.ts filename="TypeScript"}
@@ -203,9 +348,12 @@ function findInstalledExtension(projectDir, extensionId): Promise<
 | null>;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:203](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L203)
+Defined in: [packages/core/src/filesystem/discovery.ts:303](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L303)
 
 Find a specific installed extension by ID.
+
+A name without an owner matches the ownerless `_extensions/<name>` first,
+then the single owned extension of that name.
 
 ### Parameters
 
@@ -222,13 +370,17 @@ Find a specific installed extension by ID.
 
 InstalledExtension or null if not found
 
+### Throws
+
+ExtensionError when a name without an owner matches several owners
+
 ## findManifestFile {#symbol-function-findmanifestfile}
 
 ```{.ts filename="TypeScript"}
 function findManifestFile(directory): string | null;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:38](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L38)
+Defined in: [packages/core/src/filesystem/manifest.ts:38](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L38)
 
 Find the manifest file in a directory.
 
@@ -250,7 +402,7 @@ Path to manifest file or null if not found
 function getExtensionInstallPath(projectDir, extensionId): string;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:239](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L239)
+Defined in: [packages/core/src/filesystem/discovery.ts:345](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L345)
 
 Get the installation path for an extension.
 
@@ -273,7 +425,7 @@ Path where the extension should be installed
 function getExtensionsDir(projectDir): string;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:48](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L48)
+Defined in: [packages/core/src/filesystem/discovery.ts:147](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L147)
 
 Get the extensions directory path for a project.
 
@@ -289,13 +441,38 @@ Get the extensions directory path for a project.
 
 Path to _extensions directory
 
+## getInstalledState {#symbol-function-getinstalledstate}
+
+```{.ts filename="TypeScript"}
+function getInstalledState(dir, recordResult?): InstalledState;
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:301](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L301)
+
+Compare an installed extension with its install record.
+
+An unreadable record counts as a local edit, as Quarto 2 counts it.
+
+### Parameters
+
+| Parameter       | Type                                                                               | Description                                                       |
+| --------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `dir`           | `string`                                                                           | Extension folder                                                  |
+| `recordResult?` | [`SourceRecordReadResult`](filesystem.qmd#symbol-typealias-sourcerecordreadresult) | Install record already read from `dir`, read again when not given |
+
+### Returns
+
+[`InstalledState`](filesystem.qmd#symbol-typealias-installedstate)
+
+`absent`, `untracked` (no record), `unmodified`, or `modified` with the edits sorted by path
+
 ## hasExtensionsDir {#symbol-function-hasextensionsdir}
 
 ```{.ts filename="TypeScript"}
 function hasExtensionsDir(projectDir): boolean;
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:58](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L58)
+Defined in: [packages/core/src/filesystem/discovery.ts:157](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L157)
 
 Check if an extensions directory exists.
 
@@ -311,13 +488,42 @@ Check if an extensions directory exists.
 
 True if _extensions directory exists
 
+## hashExtensionFiles {#symbol-function-hashextensionfiles}
+
+```{.ts filename="TypeScript"}
+function hashExtensionFiles(dir): Record<string, string>;
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:133](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L133)
+
+Hash every file in an extension folder, as Quarto 2 does.
+
+The walk follows symbolic links and skips the top-level install record.
+It stops with an error when it goes down more than 32 folders.
+
+The result has no prototype, so a file named `__proto__` or `constructor` is an ordinary key.
+Keys are added in code point order, but JavaScript lists integer-like keys (such as `10`) first.
+Sort the keys with `compareCodePoints` where the order matters.
+
+### Parameters
+
+| Parameter | Type     | Description      |
+| --------- | -------- | ---------------- |
+| `dir`     | `string` | Extension folder |
+
+### Returns
+
+`Record<string, string>`
+
+Path relative to `dir`, `/`-separated, to the lowercase hex sha256 of the raw bytes
+
 ## hasManifest {#symbol-function-hasmanifest}
 
 ```{.ts filename="TypeScript"}
 function hasManifest(directory): boolean;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:135](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L135)
+Defined in: [packages/core/src/filesystem/manifest.ts:135](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L135)
 
 Check if a directory contains a manifest file.
 
@@ -333,13 +539,40 @@ Check if a directory contains a manifest file.
 
 True if manifest exists
 
+## isEmbeddedInInstalledParent {#symbol-function-isembeddedininstalledparent}
+
+```{.ts filename="TypeScript"}
+function isEmbeddedInInstalledParent(extensionDir, memo?): boolean;
+```
+
+Defined in: [packages/core/src/filesystem/projects.ts:119](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L119)
+
+Whether an extension is embedded in an installed parent.
+
+The parent is an ancestor folder that is an extension in an `_extensions` folder and has a source.
+An embedded extension of an installed parent changes only when its parent is updated.
+An extension embedded in a parent that is developed locally (no source) is independent.
+
+### Parameters
+
+| Parameter      | Type                   | Description                                                                                   |
+| -------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
+| `extensionDir` | `string`               | Extension folder                                                                              |
+| `memo?`        | `Map<string, boolean>` | Result of each ancestor folder already checked, shared between calls that check the same tree |
+
+### Returns
+
+`boolean`
+
+True when an ancestor folder is an installed extension with a source
+
 ## isInside {#symbol-function-isinside}
 
 ```{.ts filename="TypeScript"}
 function isInside(parent, child): boolean;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:140](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L140)
+Defined in: [packages/core/src/filesystem/walk.ts:140](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L140)
 
 Check whether a path is `parent` itself or lives below it.
 
@@ -362,7 +595,7 @@ True when `child` is `parent` or is contained by it
 function isQuartoIgnored(patterns, relativePath): boolean;
 ```
 
-Defined in: [packages/core/src/filesystem/quartoignore.ts:75](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/quartoignore.ts#L75)
+Defined in: [packages/core/src/filesystem/quartoignore.ts:75](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/quartoignore.ts#L75)
 
 Check whether a path is covered by `.quartoignore` patterns.
 
@@ -396,7 +629,7 @@ isQuartoIgnored(["docs"], "docs/_extensions/mcanouil/gitlink"); // true
 function parseManifestContent(content, sourcePath?): ExtensionManifest;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:85](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L85)
+Defined in: [packages/core/src/filesystem/manifest.ts:85](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L85)
 
 Parse manifest content from a YAML string.
 
@@ -423,7 +656,7 @@ ManifestError if parsing fails
 function parseManifestFile(manifestPath): ExtensionManifest;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:73](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L73)
+Defined in: [packages/core/src/filesystem/manifest.ts:73](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L73)
 
 Parse a manifest file from a path.
 
@@ -449,7 +682,7 @@ ManifestError if parsing fails
 function pathExists(filePath): Promise<boolean>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:83](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L83)
+Defined in: [packages/core/src/filesystem/walk.ts:83](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L83)
 
 Async check whether a path exists on disk.
 
@@ -474,7 +707,7 @@ True if the path exists
 function quartoIgnoreGlobs(patterns): string[];
 ```
 
-Defined in: [packages/core/src/filesystem/quartoignore.ts:104](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/quartoignore.ts#L104)
+Defined in: [packages/core/src/filesystem/quartoignore.ts:104](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/quartoignore.ts#L104)
 
 Convert `.quartoignore` patterns into globs matching the ignored paths and their contents.
 
@@ -501,6 +734,30 @@ Glob patterns covering the ignored paths and their descendants
 quartoIgnoreGlobs(["docs"]); // ["docs", "docs/**", "**/docs", "**/docs/**"]
 ```
 
+## readDirectorySorted {#symbol-function-readdirectorysorted}
+
+```{.ts filename="TypeScript"}
+function readDirectorySorted(directory): Dirent<string>[];
+```
+
+Defined in: [packages/core/src/filesystem/discovery.ts:198](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L198)
+
+List a directory in code-point order of entry names.
+
+`readdirSync` returns entries in the order of the filesystem, which differs
+between machines. A fixed order makes the first match of a shared name the
+same everywhere.
+
+### Parameters
+
+| Parameter   | Type     |
+| ----------- | -------- |
+| `directory` | `string` |
+
+### Returns
+
+`Dirent<string>`[]
+
 ## readManifest {#symbol-function-readmanifest}
 
 ```{.ts filename="TypeScript"}
@@ -509,7 +766,7 @@ function readManifest(directory):
   | null;
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:112](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L112)
+Defined in: [packages/core/src/filesystem/manifest.ts:112](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L112)
 
 Read a manifest from a directory.
 
@@ -532,7 +789,7 @@ ManifestReadResult or null if no manifest found
 function readQuartoIgnore(dir): string[];
 ```
 
-Defined in: [packages/core/src/filesystem/quartoignore.ts:35](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/quartoignore.ts#L35)
+Defined in: [packages/core/src/filesystem/quartoignore.ts:35](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/quartoignore.ts#L35)
 
 Read and normalise the patterns declared in a directory's `.quartoignore`.
 
@@ -559,13 +816,71 @@ const patterns = readQuartoIgnore("./my-extension");
 // [".scratch", "docs"]
 ```
 
+## readSourceRecord {#symbol-function-readsourcerecord}
+
+```{.ts filename="TypeScript"}
+function readSourceRecord(dir): SourceRecordReadResult;
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:215](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L215)
+
+Read the install record of an extension folder.
+
+Leading comments and unknown keys are accepted, as Quarto 2 accepts them.
+A YAML error, a missing field, a field of the wrong type, an unknown `kind`, or a `version` greater than
+`SOURCE_RECORD_VERSION` makes the record unreadable.
+
+### Parameters
+
+| Parameter | Type     | Description      |
+| --------- | -------- | ---------------- |
+| `dir`     | `string` | Extension folder |
+
+### Returns
+
+[`SourceRecordReadResult`](filesystem.qmd#symbol-typealias-sourcerecordreadresult)
+
+`absent` when there is no record, `unreadable`, or the record
+
+## toInstalledExtension {#symbol-function-toinstalledextension}
+
+```{.ts filename="TypeScript"}
+function toInstalledExtension(
+   id,
+   manifest,
+   manifestPath,
+   directory,
+   recordResult?
+): InstalledExtension;
+```
+
+Defined in: [packages/core/src/filesystem/discovery.ts:111](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L111)
+
+Describe an installed extension, with its install record applied.
+
+### Parameters
+
+| Parameter       | Type                                                                               | Description                                                            |
+| --------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `id`            | [`ExtensionId`](types.qmd#symbol-interface-extensionid)                            | Extension identifier                                                   |
+| `manifest`      | [`ExtensionManifest`](types.qmd#symbol-interface-extensionmanifest)                | Manifest read from the folder                                          |
+| `manifestPath`  | `string`                                                                           | Full path to the manifest file                                         |
+| `directory`     | `string`                                                                           | Extension folder                                                       |
+| `recordResult?` | [`SourceRecordReadResult`](filesystem.qmd#symbol-typealias-sourcerecordreadresult) | Install record already read from the folder, read again when not given |
+
+### Returns
+
+[`InstalledExtension`](filesystem.qmd#symbol-interface-installedextension)
+
+The installed extension
+
 ## toRelativePosixPath {#symbol-function-torelativeposixpath}
 
 ```{.ts filename="TypeScript"}
 function toRelativePosixPath(basePath, fsPath): string;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:129](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L129)
+Defined in: [packages/core/src/filesystem/walk.ts:129](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L129)
 
 Express `fsPath` relative to `basePath` using POSIX separators.
 
@@ -585,48 +900,13 @@ need this normalisation before handing a path to a matcher or to a display label
 
 POSIX-separated relative path, empty when the two paths are equal
 
-## updateManifestSource {#symbol-function-updatemanifestsource}
-
-```{.ts filename="TypeScript"}
-function updateManifestSource(
-   manifestPath,
-   source,
-   sourceType?
-): void;
-```
-
-Defined in: [packages/core/src/filesystem/manifest.ts:298](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L298)
-
-Record the source of an installed extension in its manifest.
-
-Patches the `source` and `source-type` lines in place instead of
-re-serialising the document, so comments, key order, quoting style, and any
-keys the extension author added are preserved. A file without a trailing
-newline gains one when a key is appended.
-
-### Parameters
-
-| Parameter      | Type                                                  | Description                                   |
-| -------------- | ----------------------------------------------------- | --------------------------------------------- |
-| `manifestPath` | `string`                                              | Path to the manifest file                     |
-| `source`       | `string`                                              | New source value                              |
-| `sourceType?`  | [`SourceType`](types.qmd#symbol-typealias-sourcetype) | Type of source (github, url, local, registry) |
-
-### Returns
-
-`void`
-
-### Throws
-
-ManifestError if the manifest cannot be read or patched
-
 ## walkDirectory {#symbol-function-walkdirectory}
 
 ```{.ts filename="TypeScript"}
 function walkDirectory(directory, callback): Promise<void>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:37](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L37)
+Defined in: [packages/core/src/filesystem/walk.ts:37](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L37)
 
 Walk a directory recursively, calling the callback for each entry.
 
@@ -641,36 +921,92 @@ Walk a directory recursively, calling the callback for each entry.
 
 `Promise<void>`
 
+## writeSourceRecord {#symbol-function-writesourcerecord}
+
+```{.ts filename="TypeScript"}
+function writeSourceRecord(dir, record): SourceRecord;
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:240](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L240)
+
+Hash an extension folder and write its install record.
+
+The YAML keys are in this order: `version`, `source`, `kind`, `ref`, `files`, `quarto-wizard`.
+`ref` and `quarto-wizard` are left out when they are empty.
+
+### Parameters
+
+| Parameter | Type                                                                   | Description               |
+| --------- | ---------------------------------------------------------------------- | ------------------------- |
+| `dir`     | `string`                                                               | Extension folder          |
+| `record`  | [`SourceRecordData`](filesystem.qmd#symbol-typealias-sourcerecorddata) | Source data of the record |
+
+### Returns
+
+[`SourceRecord`](filesystem.qmd#symbol-interface-sourcerecord)
+
+The record that was written
+
+## DiscoveredProject {#symbol-interface-discoveredproject}
+
+Defined in: [packages/core/src/filesystem/projects.ts:44](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L44)
+
+A folder that holds a Quarto project or an extension with embedded extensions.
+
+### Properties
+
+| Property                                                | Type                                                                 | Description                                                  | Defined in                                                                                                                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-directory"></a> `directory`             | `string`                                                             | Absolute path of the folder.                                 | [packages/core/src/filesystem/projects.ts:46](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L46) |
+| <a id="property-embeddedin"></a> `embeddedIn?`          | [`EmbeddingParent`](filesystem.qmd#symbol-interface-embeddingparent) | Set only for an extension that embeds other extensions.      | [packages/core/src/filesystem/projects.ts:52](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L52) |
+| <a id="property-hasquartoconfig"></a> `hasQuartoConfig` | `boolean`                                                            | Whether the folder holds `_quarto.yml` or `_quarto.yaml`.    | [packages/core/src/filesystem/projects.ts:50](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L50) |
+| <a id="property-relativepath"></a> `relativePath`       | `string`                                                             | POSIX path relative to the scan root, "." for the scan root. | [packages/core/src/filesystem/projects.ts:48](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L48) |
+
 ## DiscoveryOptions {#symbol-interface-discoveryoptions}
 
-Defined in: [packages/core/src/filesystem/discovery.ts:37](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L37)
+Defined in: [packages/core/src/filesystem/discovery.ts:136](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L136)
 
 Options for extension discovery.
 
 ### Properties
 
-| Property                                               | Type      | Description                                 | Defined in                                                                                                                                                                            |
-| ------------------------------------------------------ | --------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-includeinvalid"></a> `includeInvalid?` | `boolean` | Include extensions without valid manifests. | [packages/core/src/filesystem/discovery.ts:39](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L39) |
+| Property                                               | Type      | Description                                 | Defined in                                                                                                                                                                              |
+| ------------------------------------------------------ | --------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-includeinvalid"></a> `includeInvalid?` | `boolean` | Include extensions without valid manifests. | [packages/core/src/filesystem/discovery.ts:138](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L138) |
+
+## EmbeddingParent {#symbol-interface-embeddingparent}
+
+Defined in: [packages/core/src/filesystem/projects.ts:34](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L34)
+
+The extension that embeds other extensions.
+
+### Properties
+
+| Property                               | Type                                                    | Description                                                           | Defined in                                                                                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-id"></a> `id`          | [`ExtensionId`](types.qmd#symbol-interface-extensionid) | Identifier of the embedding extension.                                | [packages/core/src/filesystem/projects.ts:36](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L36) |
+| <a id="property-source"></a> `source?` | `string`                                                | Manifest `source`, undefined when the extension is developed locally. | [packages/core/src/filesystem/projects.ts:38](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L38) |
 
 ## InstalledExtension {#symbol-interface-installedextension}
 
-Defined in: [packages/core/src/filesystem/discovery.ts:23](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L23)
+Defined in: [packages/core/src/filesystem/discovery.ts:30](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L30)
 
 An installed extension discovered on the filesystem.
 
 ### Properties
 
-| Property                                          | Type                                                                | Description                           | Defined in                                                                                                                                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-directory"></a> `directory`       | `string`                                                            | Full path to the extension directory. | [packages/core/src/filesystem/discovery.ts:31](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L31) |
-| <a id="property-id"></a> `id`                     | [`ExtensionId`](types.qmd#symbol-interface-extensionid)             | Extension identifier.                 | [packages/core/src/filesystem/discovery.ts:25](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L25) |
-| <a id="property-manifest"></a> `manifest`         | [`ExtensionManifest`](types.qmd#symbol-interface-extensionmanifest) | Parsed manifest data.                 | [packages/core/src/filesystem/discovery.ts:27](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L27) |
-| <a id="property-manifestpath"></a> `manifestPath` | `string`                                                            | Full path to the manifest file.       | [packages/core/src/filesystem/discovery.ts:29](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L29) |
+| Property                                          | Type                                                                     | Description                                                                                                                                                                                                                     | Defined in                                                                                                                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-directory"></a> `directory`       | `string`                                                                 | Full path to the extension directory.                                                                                                                                                                                           | [packages/core/src/filesystem/discovery.ts:44](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L44) |
+| <a id="property-id"></a> `id`                     | [`ExtensionId`](types.qmd#symbol-interface-extensionid)                  | Extension identifier.                                                                                                                                                                                                           | [packages/core/src/filesystem/discovery.ts:32](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L32) |
+| <a id="property-manifest"></a> `manifest`         | [`ExtensionManifest`](types.qmd#symbol-interface-extensionmanifest)      | Parsed manifest data. `source` and `sourceType` come from the install record when it can be read. Without a record, they come from the `source` and `source-type` keys of the manifest. An unreadable record leaves them empty. | [packages/core/src/filesystem/discovery.ts:40](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L40) |
+| <a id="property-manifestpath"></a> `manifestPath` | `string`                                                                 | Full path to the manifest file.                                                                                                                                                                                                 | [packages/core/src/filesystem/discovery.ts:42](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L42) |
+| <a id="property-record"></a> `record`             | [`SourceRecord`](filesystem.qmd#symbol-interface-sourcerecord) \| `null` | Install record, or null when it is absent or unreadable.                                                                                                                                                                        | [packages/core/src/filesystem/discovery.ts:46](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L46) |
+| <a id="property-recordstatus"></a> `recordStatus` | `"absent"` \| `"unreadable"` \| `"ok"`                                   | Whether the install record is absent, unreadable, or read.                                                                                                                                                                      | [packages/core/src/filesystem/discovery.ts:48](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L48) |
 
 ## ManifestReadResult {#symbol-interface-manifestreadresult}
 
-Defined in: [packages/core/src/filesystem/manifest.ts:23](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L23)
+Defined in: [packages/core/src/filesystem/manifest.ts:23](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L23)
 
 Result of reading a manifest file.
 
@@ -678,13 +1014,45 @@ Result of reading a manifest file.
 
 | Property                                          | Type                                                                | Description                             | Defined in                                                                                                                                                                          |
 | ------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-filename"></a> `filename`         | `string`                                                            | Filename used (e.g., "_extension.yml"). | [packages/core/src/filesystem/manifest.ts:29](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L29) |
-| <a id="property-manifest"></a> `manifest`         | [`ExtensionManifest`](types.qmd#symbol-interface-extensionmanifest) | Parsed manifest data.                   | [packages/core/src/filesystem/manifest.ts:25](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L25) |
-| <a id="property-manifestpath"></a> `manifestPath` | `string`                                                            | Full path to the manifest file.         | [packages/core/src/filesystem/manifest.ts:27](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L27) |
+| <a id="property-filename"></a> `filename`         | `string`                                                            | Filename used (e.g., "_extension.yml"). | [packages/core/src/filesystem/manifest.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L29) |
+| <a id="property-manifest"></a> `manifest`         | [`ExtensionManifest`](types.qmd#symbol-interface-extensionmanifest) | Parsed manifest data.                   | [packages/core/src/filesystem/manifest.ts:25](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L25) |
+| <a id="property-manifestpath"></a> `manifestPath` | `string`                                                            | Full path to the manifest file.         | [packages/core/src/filesystem/manifest.ts:27](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L27) |
+
+## ProjectDiscoveryOptions {#symbol-interface-projectdiscoveryoptions}
+
+Defined in: [packages/core/src/filesystem/projects.ts:58](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L58)
+
+Options for project discovery.
+
+### Properties
+
+| Property                                                 | Type                | Description                                                                                                  | Defined in                                                                                                                                                                          |
+| -------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-excludepatterns"></a> `excludePatterns?` | readonly `string[]` | Minimatch globs, matched against the relative path with `{ dot: true }`.                                     | [packages/core/src/filesystem/projects.ts:60](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L60) |
+| <a id="property-signal"></a> `signal?`                   | `AbortSignal`       | Checked before the walk starts. The walk is synchronous, so an already aborted signal gives an empty result. | [packages/core/src/filesystem/projects.ts:62](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L62) |
+
+## SourceRecord {#symbol-interface-sourcerecord}
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:46](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L46)
+
+Contents of an install record.
+
+### Properties
+
+| Property                                           | Type                                                        | Description                                                                     | Defined in                                                                                                                                                                                  |
+| -------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="property-files"></a> `files`                | `Record<string, string>`                                    | Path relative to the extension folder, to the lowercase hex sha256 of the file. | [packages/core/src/filesystem/sourceRecord.ts:56](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L56) |
+| <a id="property-kind"></a> `kind`                  | `"github"` \| `"url"` \| `"local-archive"` \| `"local-dir"` | Type of the source.                                                             | [packages/core/src/filesystem/sourceRecord.ts:52](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L52) |
+| <a id="property-quartowizard"></a> `quartoWizard?` | `object`                                                    | Data that only Quarto Wizard uses (YAML key `quarto-wizard`).                   | [packages/core/src/filesystem/sourceRecord.ts:58](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L58) |
+| `quartoWizard.commit?`                             | `string`                                                    | Commit of an unpinned install from the default branch.                          | [packages/core/src/filesystem/sourceRecord.ts:62](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L62) |
+| `quartoWizard.sourceType?`                         | `"registry"`                                                | YAML key `source-type`.                                                         | [packages/core/src/filesystem/sourceRecord.ts:60](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L60) |
+| <a id="property-ref"></a> `ref?`                   | `string`                                                    | The text after the last `@` of a GitHub source.                                 | [packages/core/src/filesystem/sourceRecord.ts:54](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L54) |
+| <a id="property-source"></a> `source`              | `string`                                                    | The source as typed, with any `@ref`.                                           | [packages/core/src/filesystem/sourceRecord.ts:50](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L50) |
+| <a id="property-version"></a> `version`            | `number`                                                    | Schema version.                                                                 | [packages/core/src/filesystem/sourceRecord.ts:48](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L48) |
 
 ## WalkEntry {#symbol-interface-walkentry}
 
-Defined in: [packages/core/src/filesystem/walk.ts:16](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L16)
+Defined in: [packages/core/src/filesystem/walk.ts:16](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L16)
 
 Entry information for directory walking.
 
@@ -692,9 +1060,83 @@ Entry information for directory walking.
 
 | Property                                        | Type      | Description                   | Defined in                                                                                                                                                                  |
 | ----------------------------------------------- | --------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="property-isdirectory"></a> `isDirectory` | `boolean` | Whether entry is a directory. | [packages/core/src/filesystem/walk.ts:22](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L22) |
-| <a id="property-name"></a> `name`               | `string`  | Entry name (basename).        | [packages/core/src/filesystem/walk.ts:20](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L20) |
-| <a id="property-path"></a> `path`               | `string`  | Full path to the entry.       | [packages/core/src/filesystem/walk.ts:18](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L18) |
+| <a id="property-isdirectory"></a> `isDirectory` | `boolean` | Whether entry is a directory. | [packages/core/src/filesystem/walk.ts:22](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L22) |
+| <a id="property-name"></a> `name`               | `string`  | Entry name (basename).        | [packages/core/src/filesystem/walk.ts:20](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L20) |
+| <a id="property-path"></a> `path`               | `string`  | Full path to the entry.       | [packages/core/src/filesystem/walk.ts:18](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L18) |
+
+## InstallAction {#symbol-typealias-installaction}
+
+```{.ts filename="TypeScript"}
+type InstallAction = "install" | "update" | "revert" | "no-change";
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:83](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L83)
+
+What an install does to an extension, as Quarto 2 reports it.
+
+## InstalledState {#symbol-typealias-installedstate}
+
+```{.ts filename="TypeScript"}
+type InstalledState =
+  | {
+  kind: "absent";
+}
+  | {
+  kind: "untracked";
+}
+  | {
+  kind: "unmodified";
+  record: SourceRecord;
+}
+  | {
+  edits: LocalEdit[];
+  kind: "modified";
+};
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:76](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L76)
+
+State of an installed extension, compared with its install record.
+
+## SourceRecordData {#symbol-typealias-sourcerecorddata}
+
+```{.ts filename="TypeScript"}
+type SourceRecordData = Omit<SourceRecord, "files" | "version">;
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:69](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L69)
+
+Data of an install record, without the file hashes and the schema version.
+
+## SourceRecordKind {#symbol-typealias-sourcerecordkind}
+
+```{.ts filename="TypeScript"}
+type SourceRecordKind = typeof SOURCE_RECORD_KINDS[number];
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:43](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L43)
+
+Type of the install source, as Quarto 2 records it.
+
+## SourceRecordReadResult {#symbol-typealias-sourcerecordreadresult}
+
+```{.ts filename="TypeScript"}
+type SourceRecordReadResult =
+  | {
+  status: "absent";
+}
+  | {
+  status: "unreadable";
+}
+  | {
+  record: SourceRecord;
+  status: "ok";
+};
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:72](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L72)
+
+Result of reading an install record.
 
 ## WalkCallback {#symbol-typealias-walkcallback}
 
@@ -702,7 +1144,7 @@ Entry information for directory walking.
 type WalkCallback = (entry) => boolean | void | Promise<boolean | void>;
 ```
 
-Defined in: [packages/core/src/filesystem/walk.ts:29](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/walk.ts#L29)
+Defined in: [packages/core/src/filesystem/walk.ts:29](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/walk.ts#L29)
 
 Callback for directory walking.
 Return false to skip processing children of a directory.
@@ -723,7 +1165,7 @@ Return false to skip processing children of a directory.
 const EXTENSIONS_DIR: "_extensions" = "_extensions";
 ```
 
-Defined in: [packages/core/src/filesystem/discovery.ts:18](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/discovery.ts#L18)
+Defined in: [packages/core/src/filesystem/discovery.ts:25](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L25)
 
 Name of the extensions directory.
 
@@ -733,9 +1175,43 @@ Name of the extensions directory.
 const MANIFEST_FILENAMES: readonly ["_extension.yml", "_extension.yaml"];
 ```
 
-Defined in: [packages/core/src/filesystem/manifest.ts:18](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/manifest.ts#L18)
+Defined in: [packages/core/src/filesystem/manifest.ts:18](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/manifest.ts#L18)
 
 Supported manifest file names.
+
+## NO_SOURCE_RECORD {#symbol-variable-no-source-record}
+
+```{.ts filename="TypeScript"}
+const NO_SOURCE_RECORD: object;
+```
+
+Defined in: [packages/core/src/filesystem/discovery.ts:54](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/discovery.ts#L54)
+
+Record fields of an extension that has no install record.
+
+### Type Declaration
+
+#### record {#symbol-variable-no-source-record-record}
+
+```{.ts filename="TypeScript"}
+readonly record: null = null;
+```
+
+#### recordStatus {#symbol-variable-no-source-record-recordstatus}
+
+```{.ts filename="TypeScript"}
+readonly recordStatus: "absent" = "absent";
+```
+
+## PROJECT_FOLDER_MAX_DEPTH {#symbol-variable-project-folder-max-depth}
+
+```{.ts filename="TypeScript"}
+const PROJECT_FOLDER_MAX_DEPTH: 2 = 2;
+```
+
+Defined in: [packages/core/src/filesystem/projects.ts:26](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/projects.ts#L26)
+
+Deepest folder level searched for projects, where the scan root is level 0.
 
 ## QUARTOIGNORE_FILENAME {#symbol-variable-quartoignore-filename}
 
@@ -743,6 +1219,26 @@ Supported manifest file names.
 const QUARTOIGNORE_FILENAME: ".quartoignore" = ".quartoignore";
 ```
 
-Defined in: [packages/core/src/filesystem/quartoignore.ts:17](https://github.com/mcanouil/quarto-wizard/blob/9e1d548db38647717aaac1c74c40903ed965e8bc/packages/core/src/filesystem/quartoignore.ts#L17)
+Defined in: [packages/core/src/filesystem/quartoignore.ts:17](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/quartoignore.ts#L17)
 
 Name of the ignore file.
+
+## SOURCE_RECORD_FILENAME {#symbol-variable-source-record-filename}
+
+```{.ts filename="TypeScript"}
+const SOURCE_RECORD_FILENAME: ".quarto-source.yml" = ".quarto-source.yml";
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:22](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L22)
+
+File name of the install record in an extension folder.
+
+## SOURCE_RECORD_VERSION {#symbol-variable-source-record-version}
+
+```{.ts filename="TypeScript"}
+const SOURCE_RECORD_VERSION: 1 = 1;
+```
+
+Defined in: [packages/core/src/filesystem/sourceRecord.ts:25](https://github.com/mcanouil/quarto-wizard/blob/c1f4065898eedcc6e7fb1ff329755025b74e9e0f/packages/core/src/filesystem/sourceRecord.ts#L25)
+
+Schema version of the install record.
