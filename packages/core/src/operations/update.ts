@@ -226,6 +226,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 	}
 
 	let registry: Registry | null = null;
+	let checked = candidates;
 	// No registry entry matches a subdirectory source.
 	if (!useGitHub && candidates.some((candidate) => !candidate.subdirectory)) {
 		try {
@@ -235,7 +236,11 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 				throw error;
 			}
 			result.checkFailure = { kind: "registry-unavailable", message: getErrorMessage(error) };
-			return result;
+			// A subdirectory source is always checked on GitHub, so only the root sources are lost.
+			checked = candidates.filter((candidate) => candidate.subdirectory);
+			if (checked.length === 0) {
+				return result;
+			}
 		}
 	} else {
 		result.checkedOn = "github";
@@ -249,7 +254,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 	const repositoryFailures = new Map(failures);
 
 	const updates = await Promise.all(
-		candidates.map(async (candidate) => {
+		checked.map(async (candidate) => {
 			const entry = registry && !candidate.subdirectory ? lookupRegistryEntry(registry, candidate.base) : null;
 			if (entry) {
 				return buildRegistryUpdate(candidate, entry);
@@ -383,19 +388,30 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 			const repository = candidate.fullName.toLowerCase();
 			const extensionId = formatExtensionId(candidate.extension.id);
 			return once(`${repository}@${ref}:${candidate.subdirectory}#${extensionId}`, async () => {
+				// Raw file requests do not count against the API rate limit, so every path is asked at once.
+				const filePaths = subdirectoryManifestPaths(candidate);
+				const reads = await Promise.allSettled(
+					filePaths.map((filePath) => fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options)),
+				);
+				for (const read of reads) {
+					if (read.status === "rejected" && isCancellationError(read.reason)) {
+						throw read.reason;
+					}
+				}
 				try {
-					for (const filePath of subdirectoryManifestPaths(candidate)) {
-						const content = await fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options);
-						if (content !== null) {
-							return manifestVersion(content, filePath);
+					// The paths are in priority order, so a read that fails before the first manifest
+					// found leaves the version unknown and a manifest of lower priority never decides.
+					for (const [index, read] of reads.entries()) {
+						if (read.status === "rejected") {
+							throw read.reason;
+						}
+						if (read.value !== null) {
+							return manifestVersion(read.value, filePaths[index]);
 						}
 					}
 					return null;
-				} catch (error) {
+				} catch {
 					// The caller falls back to the recorded ref, so a failed read only loses precision.
-					if (isCancellationError(error)) {
-						throw error;
-					}
 					return null;
 				}
 			});
@@ -527,6 +543,13 @@ async function buildSubdirectoryUpdate(
 	const comparable = currentVersion !== null && latestVersion !== null;
 	if (comparable && !semver.gt(latestVersion, currentVersion)) {
 		return null;
+	}
+	// An installed version that is not a version is compared on the floor it gives, as in buildTagUpdate.
+	if (currentVersion === null && latestVersion !== null) {
+		const floor = installedVersionFloor(candidate, installedVersion);
+		if (floor && !semver.gt(latestVersion, floor)) {
+			return null;
+		}
 	}
 
 	if (!latest) {

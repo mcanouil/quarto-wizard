@@ -18,7 +18,8 @@ const SOURCE_TYPE_NAMES: Record<string, string> = {
  * @returns True if the string is a valid GitHub reference, false otherwise.
  */
 export function isValidGitHubReference(value: string): boolean {
-	return /^[\w.-]+\/[\w.-]+(\/[\w.-]+)*(@[\w.-]+(\/[\w.-]+)*)?$/.test(value);
+	// A subdirectory segment of "." or ".." names no folder inside the repository.
+	return /^[\w.-]+\/[\w.-]+(\/(?!\.{1,2}(?:[/@]|$))[\w.-]+)*(@[\w.-]+(\/[\w.-]+)*)?$/.test(value);
 }
 
 export function isAbsolutePathForAnyPlatform(filePath: string): boolean {

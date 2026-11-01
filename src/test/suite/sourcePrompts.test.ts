@@ -15,6 +15,8 @@ suite("Source Prompts Test Suite", () => {
 			"owner/repo/sub/dir@v1",
 			"owner/repo@feature/branch",
 			"owner/repo/sub@feature/branch",
+			"owner/repo/.github/ext",
+			"owner/repo/a..b",
 		];
 
 		for (const value of validCases) {
@@ -36,6 +38,10 @@ suite("Source Prompts Test Suite", () => {
 			{ value: "owner/repo@", description: "trailing @" },
 			{ value: "owner/repo with spaces", description: "spaces in repo" },
 			{ value: "owner name/repo", description: "spaces in owner" },
+			{ value: "owner/repo/..", description: "parent segment in subdirectory" },
+			{ value: "owner/repo/a/../b", description: "inner parent segment in subdirectory" },
+			{ value: "owner/repo/.", description: "current segment in subdirectory" },
+			{ value: "owner/repo/a/./b@v1", description: "inner current segment in subdirectory with a ref" },
 		];
 
 		for (const { value, description } of invalidCases) {
