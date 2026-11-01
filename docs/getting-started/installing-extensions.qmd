@@ -131,6 +131,8 @@ After selecting Registry, you can filter by extension type (Filter, Shortcode, F
 
 Install from a GitHub repository using the format `owner/repo` or `owner/repo@version`.
 This allows installing specific versions or branches (e.g., `quarto-ext/lightbox@v0.1.6`).
+To install from a subdirectory of a repository, write `owner/repo/subdirectory`, as with `quarto add` (e.g., `owner/repo/path/to/extension@v1.0.0`).
+Quarto Wizard also checks such an extension for updates.
 
 ### From URL
 

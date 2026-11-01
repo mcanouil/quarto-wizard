@@ -2,7 +2,7 @@
  * Tests for "use brand" operations.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -14,6 +14,21 @@ import {
 	resolveStagedDir,
 	useBrand,
 } from "../../src/operations/brand.js";
+import { downloadGitHubArchive } from "../../src/github/download.js";
+import {
+	createSubdirectoryRepositoryArchive,
+	SUBDIRECTORY_REPOSITORY_TAG,
+} from "../fixtures/subdirectory-repository.js";
+
+vi.mock("../../src/github/download.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/github/download.js")>()),
+	downloadGitHubArchive: vi.fn(),
+}));
+
+vi.mock("../../src/registry/fetcher.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/registry/fetcher.js")>()),
+	fetchRegistry: vi.fn().mockRejectedValue(new Error("registry offline")),
+}));
 
 // --- Helpers ---
 
@@ -830,5 +845,33 @@ describe("useBrand", () => {
 			fs.rmSync(archiveContentDir, { recursive: true, force: true });
 			fs.rmSync(archiveFile, { force: true });
 		}
+	});
+});
+
+describe("useBrand from a repository subdirectory", () => {
+	let tempDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		tempDir = createTempDir();
+		projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir);
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: SUBDIRECTORY_REPOSITORY_TAG,
+			format: "tarball",
+		}));
+	});
+
+	afterEach(() => {
+		vi.mocked(downloadGitHubArchive).mockReset();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("use brand reads the brand from the subdirectory", async () => {
+		const result = await useBrand("owner/repo/d", { projectDir });
+
+		expect(result.success).toBe(true);
+		expect(fs.readFileSync(path.join(projectDir, "_brand", "_brand.yml"), "utf-8")).toBe("color:\n  primary: d\n");
 	});
 });

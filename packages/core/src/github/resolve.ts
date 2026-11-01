@@ -27,6 +27,11 @@ export interface ResolveVersionOptions extends GitHubOptions {
 	defaultBranch?: string;
 	/** Latest commit SHA on default branch (for fallback). */
 	latestCommit?: string;
+	/**
+	 * Repository subdirectory that is installed. Without a tag, the commit
+	 * recorded is the latest commit that changes this path.
+	 */
+	path?: string;
 }
 
 /**

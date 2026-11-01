@@ -94,6 +94,13 @@ interface RawCommit {
 }
 
 /**
+ * Raw comparison response from GitHub API.
+ */
+interface RawComparison {
+	status: CommitComparison;
+}
+
+/**
  * Raw tag response from GitHub API.
  */
 interface RawTag {
@@ -116,6 +123,11 @@ export interface GitHubOptions {
 	/** AbortSignal for cancellation. */
 	signal?: AbortSignal;
 }
+
+/**
+ * Position of a head commit against a base commit.
+ */
+export type CommitComparison = "identical" | "ahead" | "behind" | "diverged";
 
 /**
  * Get GitHub API headers.
@@ -390,16 +402,17 @@ export async function fetchTags(owner: string, repo: string, options: GitHubOpti
  *
  * @param owner - Repository owner
  * @param repo - Repository name
- * @param options - GitHub options
+ * @param options - GitHub options, and an optional `path` to keep only the commits that change it
  * @returns Full commit SHA, or null when the branch has no commit
  */
 export async function fetchLatestCommit(
 	owner: string,
 	repo: string,
-	options: GitHubOptions = {},
+	options: GitHubOptions & { path?: string } = {},
 ): Promise<string | null> {
-	const { auth, timeout, signal } = options;
-	const url = `${repoApiUrl(owner, repo, "commits")}?per_page=1`;
+	const { auth, timeout, signal, path } = options;
+	const pathQuery = path ? `&path=${encodeURIComponent(path)}` : "";
+	const url = `${repoApiUrl(owner, repo, "commits")}?per_page=1${pathQuery}`;
 
 	try {
 		const raw = await fetchJson<RawCommit[]>(url, {
@@ -409,6 +422,39 @@ export async function fetchLatestCommit(
 			signal,
 		});
 		return raw[0]?.sha ?? null;
+	} catch (error) {
+		handleGitHubError(error, owner, repo);
+	}
+}
+
+/**
+ * Compare two commits of a repository.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param base - Base commit
+ * @param head - Head commit
+ * @param options - GitHub options
+ * @returns Position of `head` against `base`
+ */
+export async function compareCommits(
+	owner: string,
+	repo: string,
+	base: string,
+	head: string,
+	options: GitHubOptions = {},
+): Promise<CommitComparison> {
+	const { auth, timeout, signal } = options;
+	const url = `${repoApiUrl(owner, repo, "compare", `${base}...${head}`)}?per_page=1`;
+
+	try {
+		const raw = await fetchJson<RawComparison>(url, {
+			headers: getGitHubHeaders(auth),
+			timeout,
+			retries: 2,
+			signal,
+		});
+		return raw.status;
 	} catch (error) {
 		handleGitHubError(error, owner, repo);
 	}

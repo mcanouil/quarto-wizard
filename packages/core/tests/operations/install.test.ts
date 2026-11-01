@@ -8,7 +8,24 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { parseInstallSource, formatInstallSource, type InstallSource } from "../../src/operations/install.js";
 // Internal exports for testing only
+import { normaliseSubdirectory } from "../../src/archive/security.js";
 import { resolveExtensionId } from "../../src/operations/internal.js";
+import { downloadGitHubArchive } from "../../src/github/download.js";
+import { fetchRegistry } from "../../src/registry/fetcher.js";
+import {
+	createSubdirectoryRepositoryArchive,
+	SUBDIRECTORY_REPOSITORY_TAG,
+} from "../fixtures/subdirectory-repository.js";
+
+vi.mock("../../src/github/download.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/github/download.js")>()),
+	downloadGitHubArchive: vi.fn(),
+}));
+
+vi.mock("../../src/registry/fetcher.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/registry/fetcher.js")>()),
+	fetchRegistry: vi.fn().mockRejectedValue(new Error("registry offline")),
+}));
 
 describe("parseInstallSource", () => {
 	describe("GitHub sources", () => {
@@ -40,6 +57,60 @@ describe("parseInstallSource", () => {
 				repo: "fontawesome",
 				version: { type: "branch", branch: "main" },
 			});
+		});
+
+		it("parses owner/repo/sub/dir@v1 with its subdirectory", () => {
+			expect(parseInstallSource("owner/repo/sub/dir@v1")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				subdirectory: "sub/dir",
+				version: { type: "tag", tag: "v1" },
+			});
+		});
+
+		it("parses a ref that contains a slash", () => {
+			expect(parseInstallSource("owner/repo/sub@feature/x")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				subdirectory: "sub",
+				version: { type: "branch", branch: "feature/x" },
+			});
+		});
+
+		it("drops a trailing slash and empty segments", () => {
+			expect(parseInstallSource("owner/repo//sub/")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				subdirectory: "sub",
+				version: { type: "latest" },
+			});
+		});
+
+		it("drops . segments", () => {
+			expect(parseInstallSource("owner/repo/a/./b")).toMatchObject({ subdirectory: "a/b" });
+			expect(parseInstallSource("owner/repo/.")).toEqual({
+				type: "github",
+				owner: "owner",
+				repo: "repo",
+				version: { type: "latest" },
+			});
+		});
+
+		it("refuses .. in a subdirectory", () => {
+			expect(() => parseInstallSource("owner/repo/a/../b")).toThrow(/Invalid subdirectory/);
+		});
+
+		it("refuses a backslash in a subdirectory", () => {
+			expect(() => parseInstallSource("owner/repo/a\\b")).toThrow(/Invalid subdirectory/);
+		});
+
+		it("leaves owner/repo without a subdirectory unchanged", () => {
+			const result = parseInstallSource("owner/repo");
+			expect(result).toEqual({ type: "github", owner: "owner", repo: "repo", version: { type: "latest" } });
+			expect(result).not.toHaveProperty("subdirectory");
 		});
 
 		it("should throw for invalid format without owner", () => {
@@ -201,7 +272,32 @@ describe("parseInstallSource", () => {
 	});
 });
 
+describe("normaliseSubdirectory", () => {
+	it("refuses a leading slash", () => {
+		expect(() => normaliseSubdirectory("/sub")).toThrow(expect.objectContaining({ code: "INVALID_SUBDIRECTORY" }));
+	});
+
+	it("refuses .. and a backslash with the subdirectory error code", () => {
+		expect(() => normaliseSubdirectory("a/../b")).toThrow(expect.objectContaining({ code: "INVALID_SUBDIRECTORY" }));
+		expect(() => normaliseSubdirectory("a\\b")).toThrow(expect.objectContaining({ code: "INVALID_SUBDIRECTORY" }));
+	});
+
+	it("drops empty segments and a trailing slash", () => {
+		expect(normaliseSubdirectory("a//b/")).toBe("a/b");
+	});
+
+	it("drops . segments", () => {
+		expect(normaliseSubdirectory("a/./b")).toBe("a/b");
+		expect(normaliseSubdirectory(".")).toBe("");
+	});
+});
+
 describe("formatInstallSource", () => {
+	it("round-trips a subdirectory source", () => {
+		const input = "owner/repo/sub/dir@v1";
+		expect(formatInstallSource(parseInstallSource(input))).toBe(input);
+	});
+
 	it("should format GitHub source without version", () => {
 		const source: InstallSource = {
 			type: "github",
@@ -422,6 +518,34 @@ describe("install with multiple extensions", () => {
 		expect(confirmedExtensions).toContain("testowner/ext2");
 	});
 
+	it("keeps only the expected extension from a source with several", async () => {
+		const { install, parseInstallSource } = await import("../../src/operations/install.js");
+		const selectExtension = vi.fn(async (extensions) => extensions);
+
+		const result = await install(parseInstallSource(sourceDir), {
+			projectDir,
+			selectExtension,
+			expectedExtensionId: { owner: "TestOwner", name: "EXT2" },
+		});
+
+		expect(result.success).toBe(true);
+		expect(selectExtension).not.toHaveBeenCalled();
+		expect(fs.readdirSync(path.join(projectDir, "_extensions", "testowner"))).toEqual(["ext2"]);
+	});
+
+	it("fails when the expected extension is not the only extension of a one-extension source", async () => {
+		const { install, parseInstallSource } = await import("../../src/operations/install.js");
+		fs.rmSync(path.join(sourceDir, "_extensions", "testowner", "ext2"), { recursive: true });
+
+		await expect(
+			install(parseInstallSource(sourceDir), {
+				projectDir,
+				expectedExtensionId: { owner: "testowner", name: "ext2" },
+			}),
+		).rejects.toThrow(`testowner/ext2 is no longer in ${sourceDir}`);
+		expect(fs.existsSync(path.join(projectDir, "_extensions"))).toBe(false);
+	});
+
 	it("should skip additional extension when confirmOverwrite returns false for it", async () => {
 		const { install, parseInstallSource } = await import("../../src/operations/install.js");
 
@@ -503,5 +627,115 @@ describe("install with multiple extensions", () => {
 		expect(result.additionalInstallFailures).toHaveLength(1);
 		expect(result.additionalInstallFailures![0].extensionId).toEqual({ owner: "testowner", name: "ext2" });
 		expect(result.additionalInstallFailures![0].error).toContain("intentional additional install failure");
+	});
+});
+
+describe("install from a repository subdirectory", () => {
+	let tempDir: string;
+	let projectDir: string;
+
+	beforeEach(() => {
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-subdir-install-"));
+		projectDir = path.join(tempDir, "project");
+		fs.mkdirSync(projectDir);
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: SUBDIRECTORY_REPOSITORY_TAG,
+			format: "tarball",
+		}));
+	});
+
+	afterEach(() => {
+		vi.mocked(downloadGitHubArchive).mockReset();
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	async function installFrom(input: string) {
+		const { install } = await import("../../src/operations/install.js");
+		return install(parseInstallSource(input), {
+			projectDir,
+			selectExtension: async (extensions) => extensions,
+		});
+	}
+
+	function installedExtensions(): string[] {
+		const extensionsDir = path.join(projectDir, "_extensions");
+		return fs
+			.readdirSync(extensionsDir, { recursive: true, encoding: "utf-8" })
+			.filter((entry) => path.basename(entry) === "_extension.yml")
+			.map((entry) => path.dirname(entry).split(path.sep).join("/"))
+			.sort();
+	}
+
+	it("installs only the extensions below the subdirectory", async () => {
+		const result = await installFrom("owner/repo/b");
+
+		expect(result.success).toBe(true);
+		expect(installedExtensions()).toEqual(["owner/y"]);
+	});
+
+	it("accepts a subdirectory that is the extension folder", async () => {
+		const result = await installFrom("owner/repo/c");
+
+		expect(result.success).toBe(true);
+		expect(installedExtensions()).toEqual(["owner/c"]);
+	});
+
+	it("accepts a subdirectory that is an _extensions folder", async () => {
+		const result = await installFrom("owner/repo/a/_extensions");
+
+		expect(result.success).toBe(true);
+		expect(installedExtensions()).toEqual(["owner/x"]);
+	});
+
+	it("fails with Subdirectory not found for an absent path", async () => {
+		await expect(installFrom("owner/repo/missing/dir")).rejects.toThrow(
+			`Subdirectory not found in owner/repo@${SUBDIRECTORY_REPOSITORY_TAG}: missing/dir`,
+		);
+	});
+
+	it("fails with Subdirectory not found for a file", async () => {
+		await expect(installFrom("owner/repo/README.md")).rejects.toThrow(
+			`Subdirectory not found in owner/repo@${SUBDIRECTORY_REPOSITORY_TAG}: README.md`,
+		);
+	});
+
+	it.skipIf(process.platform === "darwin" || process.platform === "win32")(
+		"does not match a subdirectory written with a different case",
+		async () => {
+			await expect(installFrom("owner/repo/B")).rejects.toThrow(
+				`Subdirectory not found in owner/repo@${SUBDIRECTORY_REPOSITORY_TAG}: B`,
+			);
+		},
+	);
+
+	it("install records the latest path commit for an untagged subdirectory source", async () => {
+		vi.mocked(fetchRegistry).mockResolvedValueOnce({
+			"owner/repo": { fullName: "owner/repo", defaultBranchRef: "main", latestCommit: "0000000aaaaaaa" },
+		} as never);
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: "fed9876",
+			format: "tarball",
+			commitSha: "fed9876",
+		}));
+
+		await installFrom("owner/repo/b");
+
+		expect(downloadGitHubArchive).toHaveBeenCalledWith(
+			"owner",
+			"repo",
+			{ type: "latest" },
+			expect.objectContaining({ path: "b", latestCommit: undefined, defaultBranch: "main" }),
+		);
+		const manifest = fs.readFileSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"), "utf-8");
+		expect(manifest).toContain("source: owner/repo/b@fed9876");
+	});
+
+	it("records owner/repo/b@<ref> as the source", async () => {
+		await installFrom("owner/repo/b");
+
+		const manifest = fs.readFileSync(path.join(projectDir, "_extensions", "owner", "y", "_extension.yml"), "utf-8");
+		expect(manifest).toContain(`source: owner/repo/b@${SUBDIRECTORY_REPOSITORY_TAG}`);
 	});
 });

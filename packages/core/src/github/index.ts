@@ -9,7 +9,11 @@ export {
 	fetchReleases,
 	fetchTags,
 	fetchLatestCommit,
+	compareCommits,
+	type CommitComparison,
 } from "./releases.js";
+
+export { fetchRawFile } from "./raw.js";
 
 export { type ResolvedVersion, type ResolveVersionOptions, resolveVersion } from "./resolve.js";
 

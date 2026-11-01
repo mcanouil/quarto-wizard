@@ -9,6 +9,7 @@ export {
 	type ExtensionType,
 	parseExtensionId,
 	formatExtensionId,
+	isSameExtensionId,
 	parseVersionSpec,
 	parseExtensionRef,
 	formatExtensionRef,
@@ -19,10 +20,14 @@ export {
 	type ExtensionManifest,
 	type RawManifest,
 	type SourceType,
+	type GitHubLocator,
+	formatGitHubLocator,
 	getEffectiveSourceType,
 	getExtensionTypes,
 	inferSourceType,
 	normaliseManifest,
+	parseGitHubLocator,
+	tryParseGitHubLocator,
 	splitSourceRef,
 } from "./manifest.js";
 

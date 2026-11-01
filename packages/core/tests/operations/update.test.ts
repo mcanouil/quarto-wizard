@@ -26,8 +26,18 @@ vi.mock("../../src/github/releases.js", async () => {
 		fetchReleases: vi.fn().mockResolvedValue([]),
 		fetchTags: vi.fn().mockResolvedValue([]),
 		fetchLatestCommit: vi.fn().mockResolvedValue(null),
+		compareCommits: vi.fn(),
 	};
 });
+
+vi.mock("../../src/github/download.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/github/download.js")>()),
+	downloadGitHubArchive: vi.fn(),
+}));
+
+vi.mock("../../src/github/raw.js", () => ({
+	fetchRawFile: vi.fn().mockResolvedValue(null),
+}));
 
 vi.mock("../../src/operations/install.js", async () => {
 	const actual = await vi.importActual<typeof import("../../src/operations/install.js")>(
@@ -39,8 +49,14 @@ vi.mock("../../src/operations/install.js", async () => {
 import { fetchRegistry } from "../../src/registry/fetcher.js";
 import { install } from "../../src/operations/install.js";
 import type { InstalledExtension } from "../../src/filesystem/discovery.js";
-import { fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
+import { compareCommits, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 import { resolveVersion } from "../../src/github/resolve.js";
+import { fetchRawFile } from "../../src/github/raw.js";
+import { downloadGitHubArchive } from "../../src/github/download.js";
+import {
+	createSubdirectoryRepositoryArchive,
+	SUBDIRECTORY_REPOSITORY_TAG,
+} from "../fixtures/subdirectory-repository.js";
 import type { GitHubRelease, GitHubTag } from "../../src/github/releases.js";
 
 const TOKEN = { githubToken: "token", httpHeaders: [] };
@@ -83,6 +99,7 @@ describe("checkForUpdates", () => {
 		vi.mocked(fetchReleases).mockResolvedValue([]);
 		vi.mocked(fetchTags).mockResolvedValue([]);
 		vi.mocked(fetchLatestCommit).mockResolvedValue(null);
+		vi.mocked(fetchRawFile).mockResolvedValue(null);
 	});
 
 	afterEach(() => {
@@ -523,16 +540,552 @@ describe("checkForUpdates", () => {
 			expect(result.updates[0]?.source).toBe("quarto-ext/fontawesome@2.0.0");
 		});
 
-		it("offers no update for a source with a subdirectory, which the installer cannot honour", async () => {
-			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome/sub@v1.0.0", "github");
+		describe("for a subdirectory source", () => {
+			const SUB_SOURCE = "quarto-ext/monorepo/sub/dir@v1.0.0";
 
-			vi.mocked(fetchTags).mockResolvedValue([tag("2.0.0")]);
+			it("offers an update when the subdirectory manifest version is higher", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
 
-			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
 
-			expect(result.updates).toHaveLength(0);
-			expect(fetchReleases).not.toHaveBeenCalled();
-			expect(fetchTags).not.toHaveBeenCalled();
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalledWith(
+					"quarto-ext",
+					"monorepo",
+					"v2.0.0",
+					"sub/dir/_extension.yml",
+					expect.anything(),
+				);
+				expect(result.updates).toHaveLength(1);
+				const [found] = result.updates;
+				expect(found?.currentVersion).toBe("0.3.0");
+				expect(found?.latestVersion).toBe("0.4.0");
+				expect(found?.latestRef).toBe("v2.0.0");
+				expect(found?.refKind).toBe("tag");
+				expect(found?.checkedOn).toBe("github");
+			});
+
+			it("offers no update when the subdirectory manifest version is equal", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.3.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalled();
+				expect(result.updates).toHaveLength(0);
+			});
+
+			it("offers no prerelease manifest version to a stable install", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0-beta.1\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalled();
+				expect(result.updates).toHaveLength(0);
+			});
+
+			it("offers a prerelease manifest version to a prerelease install", async () => {
+				setupExtension("quarto-ext", "sub", "0.4.0-alpha.1", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0-beta.1\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("0.4.0-beta.1");
+				expect(result.updates[0]?.latestRef).toBe("v2.0.0");
+			});
+
+			it("falls back to the recorded ref when the raw manifest has no version", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+				setupExtension("quarto-ext", "other", "0.3.0", "quarto-ext/current/other@v2.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				const [found] = result.updates;
+				expect(found?.extension.id.name).toBe("sub");
+				expect(found?.currentVersion).toBe("0.3.0");
+				expect(found?.latestVersion).toBe("2.0.0");
+				expect(found?.latestRef).toBe("v2.0.0");
+			});
+
+			it("falls back when the raw file answers 404", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue(null);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalledWith(
+					"quarto-ext",
+					"monorepo",
+					"v2.0.0",
+					"sub/dir/_extension.yaml",
+					expect.anything(),
+				);
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("2.0.0");
+				expect(result.updates[0]?.latestRef).toBe("v2.0.0");
+			});
+
+			it("falls back to the recorded ref when the raw file read fails", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockRejectedValue(
+					new NetworkError("HTTP 503: Service Unavailable", { statusCode: 503 }),
+				);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.checkFailure).toBeUndefined();
+				expect(result.repositoryFailures).toHaveLength(0);
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("2.0.0");
+				expect(result.updates[0]?.latestRef).toBe("v2.0.0");
+			});
+
+			it("a cancelled raw file read rejects the check", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockRejectedValue(new CancellationError());
+
+				await expect(checkForUpdates({ projectDirs: [tempDir], source: "github" })).rejects.toBeInstanceOf(
+					CancellationError,
+				);
+			});
+
+			it("falls back when the raw manifest cannot be parsed", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", "quarto-ext/monorepo/sub/dir@v2.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: [unclosed\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(0);
+				expect(result.repositoryFailures).toHaveLength(0);
+			});
+
+			it("reads the default branch manifest when the repository has no version tag", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", "quarto-ext/monorepo/sub/dir@main", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("nightly")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+				vi.mocked(fetchLatestCommit).mockResolvedValue("def5678901234567890abcdef1234567890abcd");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalledWith(
+					"quarto-ext",
+					"monorepo",
+					"HEAD",
+					"sub/dir/_extension.yml",
+					expect.anything(),
+				);
+				expect(fetchLatestCommit).toHaveBeenCalledWith(
+					"quarto-ext",
+					"monorepo",
+					expect.objectContaining({ path: "sub/dir" }),
+				);
+				expect(result.updates).toHaveLength(1);
+				const [found] = result.updates;
+				expect(found?.latestVersion).toBe("0.4.0");
+				expect(found?.latestRef).toBe("def5678");
+				expect(found?.refKind).toBe("commit");
+				expect(found?.source).toBe("quarto-ext/monorepo/sub/dir@def5678");
+			});
+
+			describe("pinned to a commit", () => {
+				const LATEST_PATH_COMMIT = "def5678901234567890abcdef1234567890abcd";
+
+				beforeEach(() => {
+					setupExtension("quarto-ext", "sub", "0.3.0", "quarto-ext/monorepo/sub/dir@abc1234", "github");
+					vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_PATH_COMMIT);
+				});
+
+				it("checks a commit-pinned subdirectory source on its path only", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("behind");
+
+					await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(fetchLatestCommit).toHaveBeenCalledWith(
+						"quarto-ext",
+						"monorepo",
+						expect.objectContaining({ path: "sub/dir" }),
+					);
+				});
+
+				it("offers the path commit when the installed commit is behind", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("behind");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(compareCommits).toHaveBeenCalledWith(
+						"quarto-ext",
+						"monorepo",
+						LATEST_PATH_COMMIT,
+						"abc1234",
+						expect.anything(),
+					);
+					expect(result.updates).toHaveLength(1);
+					const [found] = result.updates;
+					expect(found?.refKind).toBe("commit");
+					expect(found?.latestRef).toBe("def5678");
+					expect(found?.source).toBe("quarto-ext/monorepo/sub/dir@def5678");
+				});
+
+				it("offers the path commit when the installed commit has diverged", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("diverged");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.updates.map((u) => u.latestRef)).toEqual(["def5678"]);
+				});
+
+				it("no update when the installed commit equals the latest path commit", async () => {
+					vi.mocked(fetchLatestCommit).mockResolvedValue("abc1234567890abcdef1234567890abcdef12345");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(compareCommits).not.toHaveBeenCalled();
+					expect(result.updates).toHaveLength(0);
+				});
+
+				it("no update when the installed commit is ahead of the latest path commit", async () => {
+					vi.mocked(compareCommits).mockResolvedValue("ahead");
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(compareCommits).toHaveBeenCalledTimes(1);
+					expect(result.updates).toHaveLength(0);
+				});
+
+				it("a compare that cannot find a commit offers no update and does not fail the check", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.updates).toHaveLength(0);
+					expect(result.checkFailure).toBeUndefined();
+					expect(result.repositoryFailures).toHaveLength(0);
+				});
+
+				it("a rate-limited compare fails the check", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(
+						new RateLimitError("HTTP 403: rate limit exceeded for quarto-ext/monorepo", { statusCode: 403 }),
+					);
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.updates).toHaveLength(0);
+					expect(result.checkFailure?.kind).toBe("rate-limited");
+				});
+
+				it("a compare that loses the server fails the check as a network failure", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(new NetworkError("HTTP 502: Bad Gateway", { statusCode: 502 }));
+
+					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+					expect(result.checkFailure?.kind).toBe("network");
+				});
+
+				it("a cancelled compare rejects the check", async () => {
+					vi.mocked(compareCommits).mockRejectedValue(new CancellationError());
+
+					await expect(checkForUpdates({ projectDirs: [tempDir], source: "github" })).rejects.toBeInstanceOf(
+						CancellationError,
+					);
+				});
+			});
+
+			it("never looks a subdirectory source up in the registry", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchRegistry).mockResolvedValue({
+					"quarto-ext/monorepo": registryEntry("quarto-ext/monorepo", {
+						latestVersion: "9.0.0",
+						latestTag: "v9.0.0",
+					}),
+				} as never);
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+				expect(fetchRegistry).not.toHaveBeenCalled();
+				expect(fetchTags).toHaveBeenCalledWith("quarto-ext", "monorepo", expect.anything());
+				expect(result.updates).toHaveLength(1);
+				const [found] = result.updates;
+				expect(found?.checkedOn).toBe("github");
+				expect(found?.latestVersion).toBe("0.4.0");
+				expect(found?.latestRef).toBe("v2.0.0");
+			});
+
+			it("checks a subdirectory source on GitHub when a root source of the same repository uses the registry", async () => {
+				setupExtension("quarto-ext", "root", "1.0.0", "quarto-ext/monorepo@v1.0.0", "github");
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchRegistry).mockResolvedValue({
+					"quarto-ext/monorepo": registryEntry("quarto-ext/monorepo", {
+						latestVersion: "9.0.0",
+						latestTag: "v9.0.0",
+					}),
+				} as never);
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+				expect(fetchRegistry).toHaveBeenCalledTimes(1);
+				const byName = Object.fromEntries(result.updates.map((u) => [u.extension.id.name, u]));
+				expect(Object.keys(byName).sort()).toEqual(["root", "sub"]);
+				expect(byName.root).toMatchObject({ checkedOn: "registry", latestVersion: "9.0.0", latestRef: "v9.0.0" });
+				expect(byName.sub).toMatchObject({ checkedOn: "github", latestVersion: "0.4.0", latestRef: "v2.0.0" });
+				expect(fetchRawFile).toHaveBeenCalledWith(
+					"quarto-ext",
+					"monorepo",
+					"v2.0.0",
+					"sub/dir/_extension.yml",
+					expect.anything(),
+				);
+			});
+
+			it("reads the manifest under the _extensions folder of the subdirectory", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) =>
+					filePath === "b/_extensions/y/_extension.yml" ? "title: Y\nversion: 1.1.0\n" : null,
+				);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("1.1.0");
+				expect(result.updates[0]?.latestRef).toBe("v3.0.0");
+				const paths = vi.mocked(fetchRawFile).mock.calls.map((call) => call[3]);
+				expect(paths).toEqual([
+					"b/_extension.yml",
+					"b/_extension.yaml",
+					"b/_extensions/y/_extension.yml",
+					"b/_extensions/y/_extension.yaml",
+					"b/_extensions/quarto-ext/y/_extension.yml",
+					"b/_extensions/quarto-ext/y/_extension.yaml",
+				]);
+			});
+
+			it("asks for every manifest path at once and keeps the first one found in order", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				const contents: Record<string, string> = {
+					"b/_extensions/y/_extension.yml": "title: Y\nversion: 1.1.0\n",
+					"b/_extensions/quarto-ext/y/_extension.yml": "title: Y\nversion: 1.2.0\n",
+				};
+				let requestsWhenFirstAnswered = 0;
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) => {
+					if (filePath === "b/_extension.yml" || filePath === "b/_extensions/y/_extension.yml") {
+						await new Promise((resolve) => setTimeout(resolve, 20));
+					}
+					if (filePath === "b/_extension.yml") {
+						requestsWhenFirstAnswered = vi.mocked(fetchRawFile).mock.calls.length;
+					}
+					return contents[filePath] ?? null;
+				});
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(requestsWhenFirstAnswered).toBe(6);
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("1.1.0");
+			});
+
+			it("reads the manifest under the owner folder of the subdirectory _extensions folder", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) =>
+					filePath === "b/_extensions/quarto-ext/y/_extension.yaml" ? "title: Y\nversion: 1.1.0\n" : null,
+				);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("1.1.0");
+			});
+
+			it("reads each extension manifest when two extensions come from the same subdirectory", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+				setupExtension("quarto-ext", "z", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) => {
+					if (filePath === "b/_extensions/y/_extension.yml") {
+						return "title: Y\nversion: 1.1.0\n";
+					}
+					if (filePath === "b/_extensions/z/_extension.yml") {
+						return "title: Z\nversion: 1.2.0\n";
+					}
+					return null;
+				});
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				const byName = Object.fromEntries(result.updates.map((u) => [u.extension.id.name, u.latestVersion]));
+				expect(byName).toEqual({ y: "1.1.0", z: "1.2.0" });
+			});
+
+			it("requests each manifest path once when two extensions come from the same subdirectory", async () => {
+				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+				setupExtension("quarto-ext", "z", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				const contents: Record<string, string> = {
+					"b/_extensions/y/_extension.yml": "title: Y\nversion: 1.1.0\n",
+					"b/_extensions/z/_extension.yml": "title: Z\nversion: 1.2.0\n",
+				};
+				vi.mocked(fetchRawFile).mockImplementation(async (_owner, _repo, _ref, filePath) => contents[filePath] ?? null);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				const requests = vi.mocked(fetchRawFile).mock.calls.map((call) => `${call[2]}:${call[3]}`);
+				expect(new Set(requests).size).toBe(requests.length);
+				expect(requests.filter((request) => request === "v3.0.0:b/_extension.yml")).toHaveLength(1);
+				expect(requests.filter((request) => request === "v3.0.0:b/_extension.yaml")).toHaveLength(1);
+				expect(requests).toContain("v3.0.0:b/_extensions/z/_extension.yml");
+				const byName = Object.fromEntries(result.updates.map((u) => [u.extension.id.name, u.latestVersion]));
+				expect(byName).toEqual({ y: "1.1.0", z: "1.2.0" });
+			});
+
+			it("reports the subdirectory manifest version when the installed version is not a version", async () => {
+				setupExtension("quarto-ext", "sub", "1.0.0.9000", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 2.0.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates).toHaveLength(1);
+				expect(result.updates[0]?.latestVersion).toBe("2.0.0");
+				expect(result.updates[0]?.latestRef).toBe("v3.0.0");
+			});
+
+			it("offers no update below a development install when the manifest version is its first three parts", async () => {
+				setupExtension("quarto-ext", "sub", "1.0.0.9000", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 1.0.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalled();
+				expect(result.updates).toHaveLength(0);
+			});
+
+			it("offers no update below the recorded tag when the installed version is not a version", async () => {
+				setupExtension("quarto-ext", "sub", "dev", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.9.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(fetchRawFile).toHaveBeenCalled();
+				expect(result.updates).toHaveLength(0);
+			});
+
+			it("checks a subdirectory source on GitHub when the registry is unavailable", async () => {
+				setupExtension("quarto-ext", "root", "1.0.0", "quarto-ext/monorepo@v1.0.0", "github");
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchRegistry).mockRejectedValue(
+					new NetworkError("HTTP 503: Service Unavailable", { statusCode: 503 }),
+				);
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+				expect(result.checkFailure?.kind).toBe("registry-unavailable");
+				expect(result.checkFailure?.message).toContain("HTTP 503");
+				expect(result.updates.map((u) => u.extension.id.name)).toEqual(["sub"]);
+				expect(result.updates[0]).toMatchObject({ checkedOn: "github", latestVersion: "0.4.0", latestRef: "v2.0.0" });
+			});
+
+			for (const [kind, error] of [
+				["rate-limited", new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 })],
+				[
+					"unauthorised",
+					new AuthenticationError("Bad credentials.", {
+						cause: new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 }),
+					}),
+				],
+			] as const) {
+				it(`reports the ${kind} failure met on GitHub over an unavailable registry`, async () => {
+					setupExtension("quarto-ext", "root", "1.0.0", "quarto-ext/monorepo@v1.0.0", "github");
+					setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+					vi.mocked(fetchRegistry).mockRejectedValue(
+						new NetworkError("HTTP 503: Service Unavailable", { statusCode: 503 }),
+					);
+					vi.mocked(fetchTags).mockRejectedValue(error);
+
+					const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+					expect(result.checkFailure?.kind).toBe(kind);
+					expect(result.updates).toHaveLength(0);
+				});
+			}
+
+			it("reports GitHub as the check source when every candidate is a subdirectory source", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+				expect(fetchRegistry).not.toHaveBeenCalled();
+				expect(result.checkedOn).toBe("github");
+			});
+
+			it("keeps the subdirectory in UpdateInfo.source", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
+				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.updates[0]?.source).toBe("quarto-ext/monorepo/sub/dir@v2.0.0");
+			});
+
+			it("reports a failure against owner/repo", async () => {
+				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
+
+				vi.mocked(fetchTags).mockRejectedValue(
+					new RepositoryNotFoundError("Repository not found: quarto-ext/monorepo"),
+				);
+
+				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+				expect(result.repositoryFailures.map((f) => f.repository)).toEqual(["quarto-ext/monorepo"]);
+			});
 		});
 
 		it("never checks updates for url-sourced or local-sourced extensions", async () => {
@@ -899,6 +1452,10 @@ describe("applyUpdates", () => {
 		};
 	}
 
+	function updateOf(name: string, source: string): UpdateInfo {
+		return { ...pendingUpdate(name), source };
+	}
+
 	it("passes the signal to install and skips the remaining updates at a cancellation", async () => {
 		vi.mocked(install).mockReset();
 		const controller = new AbortController();
@@ -923,6 +1480,136 @@ describe("applyUpdates", () => {
 			{ extension: updates[1].extension, reason: "Operation cancelled by the user." },
 			{ extension: updates[2].extension, reason: "Operation cancelled by the user." },
 		]);
+	});
+
+	it("passes a subdirectory source on to install", async () => {
+		vi.mocked(install).mockReset();
+		vi.mocked(install).mockResolvedValue({ extension: pendingUpdate("x").extension } as Awaited<
+			ReturnType<typeof install>
+		>);
+
+		await applyUpdates([updateOf("x", "quarto-ext/repo/sub/dir@v2.0.0")], { projectDirs: [] });
+
+		const source = vi.mocked(install).mock.calls[0][0];
+		expect(source).toMatchObject({
+			type: "github",
+			owner: "quarto-ext",
+			repo: "repo",
+			subdirectory: "sub/dir",
+			version: { type: "tag", tag: "v2.0.0" },
+		});
+	});
+
+	it("asks install for the extension the update names", async () => {
+		vi.mocked(install).mockReset();
+		vi.mocked(install).mockResolvedValue({ extension: pendingUpdate("x").extension } as Awaited<
+			ReturnType<typeof install>
+		>);
+
+		await applyUpdates([updateOf("x", "quarto-ext/repo@v2.0.0")], { projectDirs: [] });
+
+		expect(vi.mocked(install).mock.calls[0][1].expectedExtensionId).toEqual({ owner: "quarto-ext", name: "x" });
+	});
+
+	describe("against a source on disk", () => {
+		let tempDir: string;
+
+		beforeEach(async () => {
+			tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-apply-updates-"));
+			const actual = await vi.importActual<typeof import("../../src/operations/install.js")>(
+				"../../src/operations/install.js",
+			);
+			vi.mocked(install).mockReset();
+			vi.mocked(install).mockImplementation(actual.install);
+		});
+
+		afterEach(() => {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		});
+
+		function localSource(names: string[]): { source: string; projectDir: string } {
+			const source = path.join(tempDir, "source");
+			for (const name of names) {
+				const dir = path.join(source, "_extensions", "quarto-ext", name);
+				fs.mkdirSync(dir, { recursive: true });
+				fs.writeFileSync(path.join(dir, "_extension.yml"), `title: ${name}\nversion: 2.0.0\n`);
+			}
+			const projectDir = path.join(tempDir, "project");
+			fs.mkdirSync(projectDir, { recursive: true });
+			return { source, projectDir };
+		}
+
+		function installedNames(projectDir: string): string[] {
+			const dir = path.join(projectDir, "_extensions", "quarto-ext");
+			return fs.existsSync(dir) ? fs.readdirSync(dir).sort() : [];
+		}
+
+		it("updates the extension the update names, not the first one in the source", async () => {
+			const { source, projectDir } = localSource(["x", "y"]);
+
+			const result = await applyUpdates([{ ...updateOf("y", source), projectDir }], { projectDirs: [] });
+
+			expect(installedNames(projectDir)).toEqual(["y"]);
+			expect(result.updated).toHaveLength(1);
+			expect(result.failed).toEqual([]);
+		});
+
+		it("fails one update when its extension left the source and continues the others", async () => {
+			const { source, projectDir } = localSource(["x", "y"]);
+			const updates = [
+				{ ...updateOf("gone", source), projectDir },
+				{ ...updateOf("y", source), projectDir },
+			];
+
+			const result = await applyUpdates(updates, { projectDirs: [] });
+
+			expect(result.failed).toEqual([
+				{ extension: updates[0].extension, error: `quarto-ext/gone is no longer in ${source}` },
+			]);
+			expect(result.updated).toHaveLength(1);
+			expect(installedNames(projectDir)).toEqual(["y"]);
+		});
+
+		it("fails one update when the only extension in its source has another id, and continues the others", async () => {
+			const { source, projectDir } = localSource(["renamed"]);
+			const updates = [
+				{ ...updateOf("old", source), projectDir },
+				{ ...updateOf("renamed", source), projectDir },
+			];
+
+			const result = await applyUpdates(updates, { projectDirs: [] });
+
+			expect(result.failed).toEqual([
+				{ extension: updates[0].extension, error: `quarto-ext/old is no longer in ${source}` },
+			]);
+			expect(result.updated).toHaveLength(1);
+			expect(installedNames(projectDir)).toEqual(["renamed"]);
+		});
+
+		it("updates an extension installed without an owner from a GitHub source", async () => {
+			const projectDir = path.join(tempDir, "project");
+			const installedDir = path.join(projectDir, "_extensions", "x");
+			fs.mkdirSync(installedDir, { recursive: true });
+			fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: X\nversion: 0.9.0\n");
+			vi.mocked(downloadGitHubArchive).mockImplementationOnce(async () => ({
+				archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+				tagName: SUBDIRECTORY_REPOSITORY_TAG,
+				format: "tarball",
+			}));
+			const pending = pendingUpdate("x");
+			const ownerless: UpdateInfo = {
+				...pending,
+				extension: { ...pending.extension, id: { owner: null, name: "x" } },
+				projectDir,
+				source: `acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`,
+			};
+
+			const result = await applyUpdates([ownerless], { projectDirs: [] });
+
+			expect(result.failed).toEqual([]);
+			expect(result.updated).toHaveLength(1);
+			expect(fs.existsSync(path.join(projectDir, "_extensions", "acme", "x", "_extension.yml"))).toBe(true);
+		});
 	});
 });
 

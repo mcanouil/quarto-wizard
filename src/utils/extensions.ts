@@ -9,6 +9,7 @@ import {
 	type SourceType,
 	getErrorMessage,
 	splitSourceRef,
+	tryParseGitHubLocator,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
 
@@ -85,6 +86,8 @@ export async function getInstalledExtensionsRecord(
  * Gets the repository identifier from an installed extension's source.
  * Returns a value only for GitHub and registry sources.
  *
+ * A subdirectory source such as "owner/repo/sub/dir" gives "owner/repo".
+ *
  * @param ext - The installed extension.
  * @returns The repository identifier (e.g., "owner/repo") or undefined if not available.
  */
@@ -95,7 +98,8 @@ export function getExtensionRepository(ext: InstalledExtension): string | undefi
 	}
 	const type = getEffectiveSourceType(ext.manifest);
 	if (type === "github" || type === "registry") {
-		return getSourceBase(source, type);
+		const locator = tryParseGitHubLocator(getSourceBase(source, type));
+		return locator ? `${locator.owner}/${locator.repo}` : undefined;
 	}
 	return undefined;
 }
@@ -114,7 +118,12 @@ export function getExtensionSourceUrl(ext: InstalledExtension): string | undefin
 	const type = getEffectiveSourceType(ext.manifest);
 	const base = getSourceBase(source, type);
 	if (type === "github" || type === "registry") {
-		return `https://github.com/${base}`;
+		const locator = tryParseGitHubLocator(base);
+		if (!locator?.subdirectory) {
+			return `https://github.com/${base}`;
+		}
+		const ref = splitSourceRef(source).hasRef ? source.slice(base.length + 1) : "HEAD";
+		return `https://github.com/${locator.owner}/${locator.repo}/tree/${ref}/${locator.subdirectory}`;
 	}
 	if (type === "url" || type === "local") {
 		return base;

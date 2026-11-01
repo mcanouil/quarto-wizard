@@ -662,6 +662,33 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.strictEqual(view.badge?.value, 1);
 		});
 
+		test("the tree view attaches an update to the subdirectory extension, not to a sibling from the same repository", async () => {
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qw-tree-"));
+			tempDirs.push(dir);
+			const sources: Record<string, string> = {
+				"acme/sub": "acme/mono/dir/sub@v1.0.0",
+				"acme/sibling": "acme/other@v1.0.0",
+			};
+			for (const [id, source] of Object.entries(sources)) {
+				const extensionDir = path.join(dir, "_extensions", ...id.split("/"));
+				fs.mkdirSync(extensionDir, { recursive: true });
+				fs.writeFileSync(
+					path.join(extensionDir, "_extension.yml"),
+					`title: ${id}\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\nsource: ${source}\nsource-type: github\n`,
+				);
+			}
+			const root = rootAt(dir);
+
+			const { provider } = await check([root], {
+				repositories: { "acme/mono": { githubStatus: 403 }, "acme/other": { githubTags: ["v1.0.0"] } },
+			});
+
+			const sub = await itemIn(provider, root, "acme/sub");
+			const sibling = await itemIn(provider, root, "acme/sibling");
+			assert.ok(String(sub.tooltip).includes("The update check of this extension failed."), String(sub.tooltip));
+			assert.ok(!String(sibling.tooltip).includes("The update check of this extension failed."));
+		});
+
 		test("a self-embedded child is flagged", async () => {
 			const embedded = rootAt(projectWith("acme/self-demo"), { id: { owner: "acme", name: "self-demo" } });
 

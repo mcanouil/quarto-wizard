@@ -203,6 +203,17 @@ contributes:\n`;
 			assert.strictEqual(repository, "quarto-ext/legacy-ext");
 		});
 
+		test("Should return owner/repo for a subdirectory source", async () => {
+			createTestExtension("quarto-ext", "sub-ext", {
+				source: "quarto-ext/mono/dir/sub@v1.0.0",
+				"source-type": "github",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+
+			assert.strictEqual(getExtensionRepository(extensions[0]), "quarto-ext/mono");
+		});
+
 		test("Should return undefined for URL source type", async () => {
 			createTestExtension("quarto-ext", "url-ext", {
 				source: "https://example.com/ext.zip",
@@ -255,6 +266,31 @@ contributes:\n`;
 
 			const url = getExtensionSourceUrl(ext);
 			assert.strictEqual(url, "https://github.com/quarto-ext/gh-ext");
+		});
+
+		test("source URL of a subdirectory source points at tree/<ref>/<sub/dir>", async () => {
+			createTestExtension("quarto-ext", "sub-ext", {
+				source: "quarto-ext/mono/dir/sub@v1.0.0",
+				"source-type": "github",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+
+			assert.strictEqual(
+				getExtensionSourceUrl(extensions[0]),
+				"https://github.com/quarto-ext/mono/tree/v1.0.0/dir/sub",
+			);
+		});
+
+		test("source URL of a subdirectory source without a ref uses HEAD", async () => {
+			createTestExtension("quarto-ext", "sub-ext2", {
+				source: "quarto-ext/mono/dir/sub",
+				"source-type": "github",
+			});
+
+			const extensions = await getInstalledExtensions(tempDir);
+
+			assert.strictEqual(getExtensionSourceUrl(extensions[0]), "https://github.com/quarto-ext/mono/tree/HEAD/dir/sub");
 		});
 
 		test("Should return URL as-is for URL source type", async () => {

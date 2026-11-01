@@ -12,7 +12,8 @@ import * as path from "node:path";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import type { ExtensionManifest, SourceType } from "../types/manifest.js";
-import { parseExtensionRef } from "../types/extension.js";
+import { formatGitHubLocator, parseGitHubLocator, splitSourceRef } from "../types/manifest.js";
+import { formatExtensionId, isSameExtensionId, parseExtensionRef } from "../types/extension.js";
 import { ExtensionError, getErrorMessage } from "../errors.js";
 import { getExtensionInstallPath, type InstalledExtension } from "../filesystem/discovery.js";
 import { copyDirectory, collectFiles, pathExists } from "../filesystem/walk.js";
@@ -21,6 +22,7 @@ import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import {
 	extractArchive,
 	readArchiveExtensions,
+	resolveSourceRoot,
 	cleanupExtraction,
 	type DiscoveredExtension,
 } from "../archive/extract.js";
@@ -31,7 +33,7 @@ import { lookupRegistryEntry } from "../registry/search.js";
  * Source for extension installation.
  */
 export type InstallSource =
-	| { type: "github"; owner: string; repo: string; version: VersionSpec }
+	| { type: "github"; owner: string; repo: string; subdirectory?: string; version: VersionSpec }
 	| { type: "url"; url: string }
 	| { type: "local"; path: string };
 
@@ -96,6 +98,13 @@ export interface InstallOptions extends RegistryOptions {
 	 * If not provided and source contains multiple extensions, the first one is installed (legacy behaviour).
 	 */
 	selectExtension?: ExtensionSelectionCallback;
+	/**
+	 * Identifier of the one extension to install from the source.
+	 * Only the discovered extension with this owner and name (ignoring case) is kept, however many the source holds.
+	 * Installation fails before anything is written when none matches.
+	 * When set, `selectExtension` is not called.
+	 */
+	expectedExtensionId?: ExtensionId;
 	/**
 	 * Callback for confirming overwrite when extension already exists.
 	 * Only called when force is true. If not provided, overwrites silently.
@@ -238,7 +247,10 @@ export function parseInstallSource(
 		return { type: "local", path: input };
 	}
 
-	const ref = parseExtensionRef(input);
+	const trimmed = input.trim();
+	const { base } = splitSourceRef(trimmed);
+	const locator = parseGitHubLocator(base);
+	const ref = parseExtensionRef(locator ? `${locator.owner}/${locator.repo}${trimmed.slice(base.length)}` : input);
 
 	if (!ref.id.owner) {
 		throw new ExtensionError(`Invalid extension reference: "${input}"`, {
@@ -250,6 +262,7 @@ export function parseInstallSource(
 		type: "github",
 		owner: ref.id.owner,
 		repo: ref.id.name,
+		...(locator?.subdirectory ? { subdirectory: locator.subdirectory } : {}),
 		version: ref.version,
 	};
 }
@@ -260,7 +273,7 @@ export function parseInstallSource(
 export function formatInstallSource(source: InstallSource): string {
 	switch (source.type) {
 		case "github": {
-			const base = `${source.owner}/${source.repo}`;
+			const base = formatGitHubLocator(source);
 			if (source.version.type === "latest") {
 				return base;
 			}
@@ -339,7 +352,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				const entry = lookupRegistryEntry(registry, `${source.owner}/${source.repo}`);
 				if (entry) {
 					defaultBranch = entry.defaultBranchRef ?? undefined;
-					latestCommit = entry.latestCommit ?? undefined;
+					// The registry commit is the latest of the whole repository, not of the subdirectory.
+					latestCommit = source.subdirectory ? undefined : (entry.latestCommit ?? undefined);
 				}
 			} catch {
 				onProgress?.({ phase: "resolving", message: "Registry unavailable, using defaults." });
@@ -349,6 +363,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				auth,
 				defaultBranch,
 				latestCommit,
+				path: source.subdirectory,
 				signal,
 				onProgress: (p) => {
 					onProgress?.({
@@ -379,8 +394,12 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			temporaryDir = extracted.extractDir;
 		}
 
-		// Find all extensions in the archive
-		const { root: archiveRoot, extensions: allExtensions } = await readArchiveExtensions(extractDir);
+		// Find all extensions in the archive, or only below the subdirectory the source names
+		const searchRoot =
+			source.type === "github" ? await resolveSourceRoot(extractDir, source, commitSha ?? tagName) : extractDir;
+		const { root: archiveRoot, extensions: allExtensions } = await readArchiveExtensions(searchRoot, {
+			stripWrapper: searchRoot === extractDir,
+		});
 
 		if (allExtensions.length === 0) {
 			throw new ExtensionError("No _extension.yml found in archive", {
@@ -390,14 +409,27 @@ export async function install(source: InstallSource, options: InstallOptions): P
 
 		applySourceOwner(allExtensions, source);
 
-		const selectedExtensions = await selectExtensionsFromSource(allExtensions, options.selectExtension);
+		const expected = options.expectedExtensionId;
+		const offered = expected
+			? allExtensions.filter((candidate) => isSameExtensionId(candidate.id, expected))
+			: allExtensions;
+		if (expected && offered.length === 0) {
+			const location = sourceDisplay ?? formatSourceString(source, tagName, commitSha);
+			throw new ExtensionError(`${formatExtensionId(expected)} is no longer in ${location}`);
+		}
+
+		// An expected extension is already the selection, so the user is not asked to choose.
+		const selectedExtensions = await selectExtensionsFromSource(
+			offered,
+			expected ? undefined : options.selectExtension,
+		);
 		if (!selectedExtensions) {
 			// User cancelled extension selection
 			return {
 				success: false,
 				cancelled: true,
 				extension: {
-					id: allExtensions[0].id,
+					id: offered[0].id,
 					manifest: {} as ExtensionManifest,
 					manifestPath: "",
 					directory: "",
@@ -671,7 +703,7 @@ export async function selectExtensionsFromSource(
  */
 function formatSourceString(source: InstallSource, tagName?: string, commitSha?: string): string {
 	if (source.type === "github") {
-		const base = `${source.owner}/${source.repo}`;
+		const base = formatGitHubLocator(source);
 		// If we resolved to a commit (no releases), use short commit format
 		if (commitSha) {
 			return `${base}@${commitSha}`;

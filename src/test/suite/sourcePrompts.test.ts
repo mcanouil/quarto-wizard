@@ -11,6 +11,12 @@ suite("Source Prompts Test Suite", () => {
 			"owner/repo@latest",
 			"a/b",
 			"owner-name/repo_name@1.2.3",
+			"owner/repo/sub/dir",
+			"owner/repo/sub/dir@v1",
+			"owner/repo@feature/branch",
+			"owner/repo/sub@feature/branch",
+			"owner/repo/.github/ext",
+			"owner/repo/a..b",
 		];
 
 		for (const value of validCases) {
@@ -23,13 +29,19 @@ suite("Source Prompts Test Suite", () => {
 			{ value: "", description: "empty string" },
 			{ value: "owner", description: "no slash" },
 			{ value: "///", description: "only slashes" },
-			{ value: "a/b/c", description: "multiple path segments" },
-			{ value: "a/b/c/d", description: "four path segments" },
+			{ value: "owner/repo/", description: "trailing slash" },
+			{ value: "owner/repo//sub", description: "empty segment" },
+			{ value: "owner/repo/sub dir", description: "space in subdirectory" },
+			{ value: "owner/repo@v1/", description: "trailing slash in ref" },
 			{ value: "/repo", description: "missing owner" },
 			{ value: "owner/", description: "missing repo" },
 			{ value: "owner/repo@", description: "trailing @" },
 			{ value: "owner/repo with spaces", description: "spaces in repo" },
 			{ value: "owner name/repo", description: "spaces in owner" },
+			{ value: "owner/repo/..", description: "parent segment in subdirectory" },
+			{ value: "owner/repo/a/../b", description: "inner parent segment in subdirectory" },
+			{ value: "owner/repo/.", description: "current segment in subdirectory" },
+			{ value: "owner/repo/a/./b@v1", description: "inner current segment in subdirectory with a ref" },
 		];
 
 		for (const { value, description } of invalidCases) {

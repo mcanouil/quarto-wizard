@@ -53,6 +53,11 @@ export interface InstallOptions {
 	 * entry points should set this.
 	 */
 	offerSessionOnNotFound?: boolean;
+	/**
+	 * The extension that an update replaces.
+	 * When set, only that extension of the source is installed and no selection quick pick opens.
+	 */
+	expectedExtensionId?: ExtensionId;
 }
 
 /**
@@ -278,8 +283,16 @@ export async function installQuartoExtension(
 	workspaceFolder: string,
 	options: InstallOptions = {},
 ): Promise<boolean | null> {
-	const { auth, sourceDisplay, skipOverwritePrompt, cancellationToken, sourceType, context, offerSessionOnNotFound } =
-		options;
+	const {
+		auth,
+		sourceDisplay,
+		skipOverwritePrompt,
+		cancellationToken,
+		sourceType,
+		context,
+		offerSessionOnNotFound,
+		expectedExtensionId,
+	} = options;
 	const prefix = `[${sourceDisplay ?? extension}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
@@ -305,6 +318,7 @@ export async function installQuartoExtension(
 			sourceDisplay,
 			sourceType,
 			selectExtension,
+			expectedExtensionId,
 			confirmOverwrite: createConfirmOverwriteCallback(prefix, skipOverwritePrompt ?? false),
 			validateQuartoVersion: createValidateQuartoVersionCallback(prefix),
 			onProgress: (progress) => {

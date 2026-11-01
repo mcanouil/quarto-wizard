@@ -408,7 +408,8 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 
 		// STEP 3: Extension selection
 		// Find all extensions in the extracted source
-		const { extensions: allExtensions } = await readArchiveExtensions(sourceRoot);
+		// `sourceRoot` is already the repository root or the subdirectory the source names.
+		const { extensions: allExtensions } = await readArchiveExtensions(sourceRoot, { stripWrapper: false });
 
 		if (allExtensions.length === 0) {
 			throw new ExtensionError("No extensions found in source", {

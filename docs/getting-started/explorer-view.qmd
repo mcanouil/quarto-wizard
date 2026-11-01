@@ -273,13 +273,14 @@ An update never installs a lower version than the one you have.
 When an extension is installed from a commit, Quarto Wizard compares commits instead.
 The commit can have between seven and 40 characters, from the short form to the full form.
 Update then installs the latest commit of the default branch.
-Quarto Wizard does not check an extension installed from a subdirectory of a repository, such as `owner/repository/subdirectory`, for updates.
+When an extension comes from a subdirectory of a repository, Quarto Wizard compares the installed version with the version in its own `_extension.yml` at the latest tag.
 
 ### Where Updates Are Checked
 
 The background check uses GitHub when you are signed in to GitHub or when a token is set.
 Otherwise, it uses the registry, which can be a little behind GitHub.
 An extension that the registry does not list is still checked on GitHub, without a token.
+An extension from a subdirectory of a repository is always checked on GitHub, never through the registry.
 An extension installed from a repository that has no tags records a commit, so the check compares commits.
 When you click **Update** or **Update All**, Quarto Wizard looks up GitHub, with or without a token.
 Quarto Wizard 4.0.0 removes the `quartoWizard.update.crossSource` setting, which no longer has an effect.

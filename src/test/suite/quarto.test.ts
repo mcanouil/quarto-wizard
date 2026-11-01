@@ -53,7 +53,7 @@ suite("Quarto Utils Test Suite", () => {
 			assert.strictEqual(typeof result, "boolean");
 		});
 
-		suite("cancellation", () => {
+		suite("against a stubbed repository", () => {
 			const ARCHIVE_URL = "https://api.github.com/repos/acme/demo/zipball/v1.0.0";
 			let originalFetch: typeof globalThis.fetch;
 			let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
@@ -69,15 +69,17 @@ suite("Quarto Utils Test Suite", () => {
 				return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 			}
 
-			async function buildArchive(): Promise<Buffer> {
+			async function buildArchive(names: readonly string[] = ["demo"]): Promise<Buffer> {
 				const archiveDir = fs.mkdtempSync(path.join(os.tmpdir(), "quarto-wizard-archive-"));
 				try {
-					const extensionDir = path.join(archiveDir, "demo-1.0.0", "_extensions", "acme", "demo");
-					fs.mkdirSync(extensionDir, { recursive: true });
-					fs.writeFileSync(
-						path.join(extensionDir, "_extension.yml"),
-						"title: Demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
-					);
+					for (const name of names) {
+						const extensionDir = path.join(archiveDir, "demo-1.0.0", "_extensions", "acme", name);
+						fs.mkdirSync(extensionDir, { recursive: true });
+						fs.writeFileSync(
+							path.join(extensionDir, "_extension.yml"),
+							`title: ${name}\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n`,
+						);
+					}
 					const zipPath = path.join(archiveDir, "demo.zip");
 					await new Promise<void>((resolve, reject) => {
 						const output = fs.createWriteStream(zipPath);
@@ -243,6 +245,28 @@ suite("Quarto Utils Test Suite", () => {
 
 				assert.strictEqual(result, null);
 				assert.match(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf8"), /Old/);
+			});
+
+			test("an expected extension installs only that extension without a quick pick", async () => {
+				archiveBody = await buildArchive(["demo", "other"]);
+				const originalShowQuickPick = vscode.window.showQuickPick;
+				let quickPicks = 0;
+				(vscode.window as { showQuickPick: unknown }).showQuickPick = async () => {
+					quickPicks++;
+					return undefined;
+				};
+				try {
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+						expectedExtensionId: { owner: "acme", name: "other" },
+					});
+
+					assert.strictEqual(result, true);
+					assert.strictEqual(quickPicks, 0);
+					assert.ok(fs.existsSync(path.join(testWorkspaceDir, "_extensions", "acme", "other", "_extension.yml")));
+					assert.ok(!fs.existsSync(path.join(testWorkspaceDir, "_extensions", "acme", "demo")));
+				} finally {
+					(vscode.window as { showQuickPick: unknown }).showQuickPick = originalShowQuickPick;
+				}
 			});
 		});
 	});

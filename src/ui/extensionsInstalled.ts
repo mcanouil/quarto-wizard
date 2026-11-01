@@ -397,6 +397,7 @@ export class ExtensionsInstalled {
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
+						expectedExtensionId: extension.id,
 					});
 				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
 					if (!resolvesTag) {
@@ -446,8 +447,9 @@ export class ExtensionsInstalled {
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.reinstall", async (item: ExtensionTreeItem) => {
-				const source = item.extension?.manifest.source;
-				if (!source) {
+				const extension = item.extension;
+				const source = extension?.manifest.source;
+				if (!extension || !source) {
 					showMessageWithLogs(
 						`Failed to reinstall extension "${item.label}". Source not found in extension manifest.`,
 						"error",
@@ -461,6 +463,7 @@ export class ExtensionsInstalled {
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
+						expectedExtensionId: extension.id,
 					});
 				});
 				if (result === true) {
@@ -610,6 +613,7 @@ export class ExtensionsInstalled {
 								skipOverwritePrompt: true,
 								cancellationToken: token,
 								sourceType: getEffectiveSourceType(update.extension.manifest),
+								expectedExtensionId: update.extension.id,
 							});
 							if (result === true) {
 								updated.push(update);

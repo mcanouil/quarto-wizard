@@ -65,7 +65,13 @@ vi.mock("../src/registry/http.js", () => {
 	};
 });
 
-import { fetchLatestCommit, fetchReleases, fetchTags, constructArchiveUrl } from "../src/github/releases.js";
+import {
+	compareCommits,
+	fetchLatestCommit,
+	fetchReleases,
+	fetchTags,
+	constructArchiveUrl,
+} from "../src/github/releases.js";
 import { resolveVersion } from "../src/github/resolve.js";
 import { AuthenticationError, CancellationError, NetworkError, RateLimitError, SamlSsoError } from "../src/errors.js";
 
@@ -192,6 +198,17 @@ describe("fetchLatestCommit", () => {
 		expect(fetchJson.mock.calls[0]?.[0]).toBe("https://api.github.com/repos/owner/repo/commits?per_page=1");
 	});
 
+	it("keeps only the commits that change a path", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockResolvedValueOnce([{ sha: "def5678901234" }]);
+
+		await fetchLatestCommit("owner", "repo", { path: "sub/dir" });
+
+		expect(fetchJson.mock.calls[0]?.[0]).toBe(
+			"https://api.github.com/repos/owner/repo/commits?per_page=1&path=sub%2Fdir",
+		);
+	});
+
 	it("returns null for a repository without commits", async () => {
 		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockResolvedValueOnce([]);
 
@@ -206,6 +223,24 @@ describe("fetchLatestCommit", () => {
 
 		expect(error).toBeInstanceOf(AuthenticationError);
 		expect((error as AuthenticationError).cause).toBe(forbidden);
+	});
+});
+
+describe("compareCommits", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("returns the status of head against base", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockResolvedValueOnce({ status: "ahead" });
+
+		const status = await compareCommits("owner", "repo", "def5678", "abc1234");
+
+		expect(status).toBe("ahead");
+		expect(fetchJson.mock.calls[0]?.[0]).toBe(
+			"https://api.github.com/repos/owner/repo/compare/def5678...abc1234?per_page=1",
+		);
 	});
 });
 
@@ -316,6 +351,19 @@ describe("resolveVersion", () => {
 		fetchJson.mockImplementation(githubApiMock({ repoMetadata: () => Promise.reject(new CancellationError()) }));
 
 		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(CancellationError);
+	});
+
+	it("records the latest commit of a path when no tag exists", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		const api = githubApiMock({ repoMetadata: () => Promise.resolve({ default_branch: "main" }) });
+		fetchJson.mockImplementation((url: string) =>
+			url.endsWith("/commits?per_page=1&path=sub%2Fdir") ? Promise.resolve([{ sha: "fed9876543210" }]) : api(url),
+		);
+
+		const result = await resolveVersion("owner", "repo", { type: "latest" }, { path: "sub/dir" });
+
+		expect(result.tagName).toBe("fed9876");
+		expect(result.commitSha).toBe("fed9876");
 	});
 
 	it("does not look up the default branch when a release exists", async () => {
