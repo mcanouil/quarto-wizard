@@ -523,7 +523,7 @@ describe("resolveSubdirectoryRoot", () => {
 	it("returns the real path of a subdirectory inside the archive root", async () => {
 		const resolved = await resolveSubdirectoryRoot(archiveRoot, "sub/dir", "owner/repo@v1");
 
-		expect(resolved).toBe(fs.realpathSync(path.join(archiveRoot, "sub", "dir")));
+		expect(resolved).toBe(fs.realpathSync.native(path.join(archiveRoot, "sub", "dir")));
 	});
 
 	it("refuses a symbolic link that leads outside the archive root", async () => {
