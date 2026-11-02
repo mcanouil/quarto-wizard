@@ -4,7 +4,13 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import { ZipArchive } from "archiver";
-import { installQuartoExtension, removeQuartoExtension } from "../../utils/coreOperations";
+import { QW_LOG } from "../../constants";
+import {
+	installQuartoExtension,
+	removeQuartoExtension,
+	useQuartoExtension,
+	type InstallOutcome,
+} from "../../utils/coreOperations";
 
 suite("Quarto Utils Test Suite", () => {
 	let testWorkspaceDir: string;
@@ -42,6 +48,13 @@ suite("Quarto Utils Test Suite", () => {
 			assert.strictEqual(result, false);
 		});
 
+		test("should refuse force without expectedExtensionId", async () => {
+			await assert.rejects(
+				installQuartoExtension("acme/demo", testWorkspaceDir, { force: true }),
+				/force option needs the expectedExtensionId option/,
+			);
+		});
+
 		test("should attempt installation with valid parameters", async () => {
 			const extensionName = "test-extension";
 
@@ -69,7 +82,7 @@ suite("Quarto Utils Test Suite", () => {
 				return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 			}
 
-			async function buildArchive(names: readonly string[] = ["demo"]): Promise<Buffer> {
+			async function buildArchive(names: readonly string[] = ["demo"], version = "1.0.0"): Promise<Buffer> {
 				const archiveDir = fs.mkdtempSync(path.join(os.tmpdir(), "quarto-wizard-archive-"));
 				try {
 					for (const name of names) {
@@ -77,7 +90,7 @@ suite("Quarto Utils Test Suite", () => {
 						fs.mkdirSync(extensionDir, { recursive: true });
 						fs.writeFileSync(
 							path.join(extensionDir, "_extension.yml"),
-							`title: ${name}\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n`,
+							`title: ${name}\nauthor: Acme\nversion: ${version}\ncontributes: {}\n`,
 						);
 					}
 					const zipPath = path.join(archiveDir, "demo.zip");
@@ -245,6 +258,362 @@ suite("Quarto Utils Test Suite", () => {
 
 				assert.strictEqual(result, null);
 				assert.match(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf8"), /Old/);
+			});
+
+			suite("an installed copy", () => {
+				const MANIFEST_NAME = "_extension.yml";
+				let installedDir: string;
+				let warnings: string[];
+				let infos: string[];
+				let warningChoice: string | undefined;
+				let originalShowInformationMessage: typeof vscode.window.showInformationMessage;
+
+				setup(() => {
+					installedDir = path.join(testWorkspaceDir, "_extensions", "acme", "demo");
+					warnings = [];
+					infos = [];
+					warningChoice = undefined;
+					originalShowInformationMessage = vscode.window.showInformationMessage;
+					(vscode.window as { showWarningMessage: unknown }).showWarningMessage = async (message: string) => {
+						warnings.push(message);
+						return warningChoice;
+					};
+					(vscode.window as { showInformationMessage: unknown }).showInformationMessage = async (message: string) => {
+						infos.push(message);
+						return undefined;
+					};
+				});
+
+				teardown(() => {
+					(vscode.window as { showInformationMessage: unknown }).showInformationMessage =
+						originalShowInformationMessage;
+				});
+
+				async function installThenEdit(): Promise<void> {
+					archiveBody = await buildArchive(["demo"], "1.0.0");
+					assert.strictEqual(await installQuartoExtension("acme/demo", testWorkspaceDir), true);
+					fs.appendFileSync(path.join(installedDir, MANIFEST_NAME), "# local edit\n");
+				}
+
+				test("with local changes shows the warning and Replace anyway forces the replacement", async () => {
+					await installThenEdit();
+					archiveBody = await buildArchive(["demo"], "1.1.0");
+					warningChoice = "Replace anyway";
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir);
+
+					assert.strictEqual(result, true);
+					assert.deepStrictEqual(warnings, [
+						"acme/demo has local changes that a reinstall would remove: _extension.yml (modified).",
+					]);
+					const manifest = fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8");
+					assert.match(manifest, /version: 1\.1\.0/);
+					assert.doesNotMatch(manifest, /local edit/);
+				});
+
+				for (const [name, choice] of [
+					["Cancel", "Cancel"],
+					["a dismissed dialog", undefined],
+				] as const) {
+					test(`with local changes is left untouched on ${name}`, async () => {
+						await installThenEdit();
+						archiveBody = await buildArchive(["demo"], "1.1.0");
+						warningChoice = choice;
+
+						const result = await installQuartoExtension("acme/demo", testWorkspaceDir);
+
+						assert.strictEqual(result, null);
+						assert.strictEqual(warnings.length, 1);
+						const manifest = fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8");
+						assert.match(manifest, /version: 1\.0\.0/);
+						assert.match(manifest, /local edit/);
+					});
+				}
+
+				test("with local changes lists at most ten files and counts the rest", async () => {
+					await installThenEdit();
+					for (let index = 1; index <= 12; index++) {
+						fs.writeFileSync(path.join(installedDir, `extra-${String(index).padStart(2, "0")}.txt`), "x");
+					}
+					archiveBody = await buildArchive(["demo"], "1.1.0");
+
+					await installQuartoExtension("acme/demo", testWorkspaceDir);
+
+					assert.strictEqual(warnings.length, 1);
+					const listed = warnings[0].replace(/^.*remove: /, "");
+					assert.match(listed, / and 3 more\.$/);
+					assert.strictEqual(listed.split(" (").length - 1, 10);
+				});
+
+				test("with local changes is skipped in skip mode without a dialog", async () => {
+					await installThenEdit();
+					archiveBody = await buildArchive(["demo"], "1.1.0");
+					const outcome: InstallOutcome = {};
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir, { localEdits: "skip", outcome });
+
+					assert.strictEqual(result, null);
+					assert.deepStrictEqual(warnings, []);
+					assert.deepStrictEqual(outcome.localEdits?.edits, [{ path: MANIFEST_NAME, change: "modified" }]);
+					assert.match(fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8"), /local edit/);
+				});
+
+				test("with local changes in several selected extensions lists every one of them", async () => {
+					archiveBody = await buildArchive(["demo", "other"], "1.0.0");
+					const originalShowQuickPick = vscode.window.showQuickPick;
+					(vscode.window as { showQuickPick: unknown }).showQuickPick = async (items: unknown[]) => items;
+					try {
+						assert.strictEqual(await installQuartoExtension("acme/demo", testWorkspaceDir), true);
+						const otherDir = path.join(testWorkspaceDir, "_extensions", "acme", "other");
+						fs.appendFileSync(path.join(installedDir, MANIFEST_NAME), "# local edit\n");
+						fs.appendFileSync(path.join(otherDir, MANIFEST_NAME), "# local edit\n");
+						archiveBody = await buildArchive(["demo", "other"], "1.1.0");
+						warningChoice = "Cancel";
+
+						const result = await installQuartoExtension("acme/demo", testWorkspaceDir);
+
+						assert.strictEqual(result, null);
+						assert.deepStrictEqual(warnings, [
+							"acme/demo, acme/other have local changes that a reinstall would remove: acme/demo: _extension.yml (modified); acme/other: _extension.yml (modified).",
+						]);
+					} finally {
+						(vscode.window as { showQuickPick: unknown }).showQuickPick = originalShowQuickPick;
+					}
+				});
+
+				test("forced at the same version rewrites a clean copy without a warning", async () => {
+					archiveBody = await buildArchive(["demo"], "1.0.0");
+					assert.strictEqual(await installQuartoExtension("acme/demo", testWorkspaceDir), true);
+					const manifestPath = path.join(installedDir, MANIFEST_NAME);
+					const old = new Date(2000, 0, 1);
+					fs.utimesSync(manifestPath, old, old);
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+						force: true,
+						expectedExtensionId: { owner: "acme", name: "demo" },
+					});
+
+					assert.strictEqual(result, true);
+					assert.deepStrictEqual(warnings, []);
+					assert.ok(fs.statSync(manifestPath).mtime.getTime() > old.getTime());
+				});
+
+				test("forced at the same version resets an edited copy after Replace anyway", async () => {
+					await installThenEdit();
+					warningChoice = "Replace anyway";
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+						force: true,
+						expectedExtensionId: { owner: "acme", name: "demo" },
+					});
+
+					assert.strictEqual(result, true);
+					assert.deepStrictEqual(warnings, [
+						"acme/demo has local changes that a reinstall would remove: _extension.yml (modified).",
+					]);
+					assert.doesNotMatch(fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8"), /local edit/);
+				});
+
+				test("forced at the same version leaves an edited copy as it is on Cancel", async () => {
+					await installThenEdit();
+					warningChoice = "Cancel";
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+						force: true,
+						expectedExtensionId: { owner: "acme", name: "demo" },
+					});
+
+					assert.strictEqual(result, null);
+					assert.strictEqual(warnings.length, 1);
+					assert.match(fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8"), /local edit/);
+				});
+
+				test("replaced at the same version rewrites a clean copy without a message", async () => {
+					archiveBody = await buildArchive(["demo"], "1.0.0");
+					assert.strictEqual(await installQuartoExtension("acme/demo", testWorkspaceDir), true);
+					const manifestPath = path.join(installedDir, MANIFEST_NAME);
+					const old = new Date(2000, 0, 1);
+					fs.utimesSync(manifestPath, old, old);
+					infos = [];
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+						replaceSameVersion: true,
+						skipOverwritePrompt: true,
+						expectedExtensionId: { owner: "acme", name: "demo" },
+					});
+
+					assert.strictEqual(result, true);
+					assert.deepStrictEqual(infos, []);
+					assert.deepStrictEqual(warnings, []);
+					assert.ok(fs.statSync(manifestPath).mtime.getTime() > old.getTime());
+				});
+
+				test("replaced at the same version still skips an edited copy", async () => {
+					await installThenEdit();
+					const outcome: InstallOutcome = {};
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir, {
+						replaceSameVersion: true,
+						expectedExtensionId: { owner: "acme", name: "demo" },
+						localEdits: "skip",
+						outcome,
+					});
+
+					assert.strictEqual(result, null);
+					assert.deepStrictEqual(outcome.localEdits?.edits, [{ path: MANIFEST_NAME, change: "modified" }]);
+					assert.match(fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8"), /local edit/);
+				});
+
+				test("at the same version with an additional install refreshes the tree and reports it", async () => {
+					archiveBody = await buildArchive(["demo", "other"], "1.0.0");
+					assert.strictEqual(
+						await installQuartoExtension("acme/demo", testWorkspaceDir, {
+							expectedExtensionId: { owner: "acme", name: "demo" },
+						}),
+						true,
+					);
+					const commands: string[] = [];
+					vscode.commands.executeCommand = async <T>(command: string): Promise<T> => {
+						commands.push(command);
+						return undefined as T;
+					};
+					const logged: string[] = [];
+					const originalInfo = QW_LOG.info;
+					QW_LOG.info = (message: string) => {
+						logged.push(message);
+					};
+					const originalShowQuickPick = vscode.window.showQuickPick;
+					(vscode.window as { showQuickPick: unknown }).showQuickPick = async (items: unknown[]) => items;
+					infos = [];
+					try {
+						const result = await installQuartoExtension("acme/demo", testWorkspaceDir);
+
+						assert.strictEqual(result, true);
+						assert.ok(fs.existsSync(path.join(testWorkspaceDir, "_extensions", "acme", "other", MANIFEST_NAME)));
+						assert.deepStrictEqual(commands, ["quartoWizard.extensionsInstalled.refresh"]);
+						assert.deepStrictEqual(infos, ["acme/demo is already at version 1.0.0."]);
+						assert.ok(
+							logged.includes("[acme/demo] Also installed 1 additional extension: acme/other."),
+							logged.join("\n"),
+						);
+					} finally {
+						QW_LOG.info = originalInfo;
+						(vscode.window as { showQuickPick: unknown }).showQuickPick = originalShowQuickPick;
+					}
+				});
+
+				suite("used as a template", () => {
+					let fileSelections: number;
+
+					function useTemplate(): Promise<unknown> {
+						return useQuartoExtension("acme/demo", testWorkspaceDir, {
+							selectFiles: async () => {
+								fileSelections++;
+								return { selectedFiles: [], overwriteExisting: false };
+							},
+						});
+					}
+
+					setup(() => {
+						fileSelections = 0;
+						(vscode.window as { showWarningMessage: unknown }).showWarningMessage = async (message: string) => {
+							warnings.push(message);
+							return message.includes("already exists") ? "Overwrite" : warningChoice;
+						};
+					});
+
+					test("with local changes shows the warning and Replace anyway forces the replacement", async () => {
+						await installThenEdit();
+						archiveBody = await buildArchive(["demo"], "1.1.0");
+						warningChoice = "Replace anyway";
+
+						const result = await useTemplate();
+
+						assert.notStrictEqual(result, null);
+						assert.deepStrictEqual(warnings, [
+							'Extension "acme/demo" already exists. Overwrite?',
+							"acme/demo has local changes that a reinstall would remove: _extension.yml (modified).",
+						]);
+						assert.strictEqual(fileSelections, 1);
+						const manifest = fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8");
+						assert.match(manifest, /version: 1\.1\.0/);
+						assert.doesNotMatch(manifest, /local edit/);
+					});
+
+					test("with local changes is left untouched on Cancel", async () => {
+						await installThenEdit();
+						archiveBody = await buildArchive(["demo"], "1.1.0");
+						warningChoice = "Cancel";
+
+						const result = await useTemplate();
+
+						assert.strictEqual(result, null);
+						assert.strictEqual(warnings.length, 2);
+						const manifest = fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8");
+						assert.match(manifest, /version: 1\.0\.0/);
+						assert.match(manifest, /local edit/);
+					});
+				});
+
+				test("a replaced copy without an install record is announced", async () => {
+					archiveBody = await buildArchive(["demo"], "1.1.0");
+					fs.mkdirSync(installedDir, { recursive: true });
+					fs.writeFileSync(path.join(installedDir, MANIFEST_NAME), "title: Old\nauthor: Acme\nversion: 1.0.0\n");
+					warningChoice = "Overwrite";
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir);
+
+					assert.strictEqual(result, true);
+					assert.deepStrictEqual(infos, [
+						"acme/demo had no install record, so Quarto Wizard could not check it for local changes.",
+					]);
+				});
+
+				test("at the same version shows the already-at-version message and writes nothing", async () => {
+					await installThenEdit();
+
+					const result = await installQuartoExtension("acme/demo", testWorkspaceDir);
+
+					assert.strictEqual(result, true);
+					assert.deepStrictEqual(infos, ["acme/demo is already at version 1.0.0."]);
+					assert.deepStrictEqual(warnings, []);
+					assert.match(fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8"), /local edit/);
+				});
+			});
+
+			test("a local source with a relative path resolves against the project folder", async () => {
+				const sourceDir = path.join(testWorkspaceDir, "ext-source", "_extensions", "acme", "local-demo");
+				fs.mkdirSync(sourceDir, { recursive: true });
+				fs.writeFileSync(
+					path.join(sourceDir, "_extension.yml"),
+					"title: Local\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
+				);
+
+				const result = await installQuartoExtension("./ext-source", testWorkspaceDir, { sourceType: "local" });
+
+				assert.strictEqual(result, true);
+				assert.ok(fs.existsSync(path.join(testWorkspaceDir, "_extensions", "acme", "local-demo", "_extension.yml")));
+				const record = fs.readFileSync(
+					path.join(testWorkspaceDir, "_extensions", "acme", "local-demo", ".quarto-source.yml"),
+					"utf8",
+				);
+				assert.match(record, /\.\/ext-source/);
+			});
+
+			test("a record source replaces the installed source in the install record", async () => {
+				archiveBody = await buildArchive(["demo"], "1.0.0");
+
+				const result = await installQuartoExtension("acme/demo@v1.0.0", testWorkspaceDir, {
+					recordSource: "acme/demo",
+				});
+
+				assert.strictEqual(result, true);
+				const record = fs.readFileSync(
+					path.join(testWorkspaceDir, "_extensions", "acme", "demo", ".quarto-source.yml"),
+					"utf8",
+				);
+				assert.match(record, /^source: acme\/demo$/m);
+				assert.doesNotMatch(record, /^ref:/m);
 			});
 
 			test("an expected extension installs only that extension without a quick pick", async () => {

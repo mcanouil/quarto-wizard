@@ -16,6 +16,7 @@ export * from "./types/index.js";
 export {
 	QuartoWizardError,
 	ExtensionError,
+	LocalEditsError,
 	AuthenticationError,
 	RepositoryNotFoundError,
 	NetworkError,

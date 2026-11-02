@@ -7,6 +7,10 @@
  * @module errors
  */
 
+import type { ExtensionId } from "./types/extension.js";
+import { formatExtensionId } from "./types/extension.js";
+import { formatLocalEdit, type LocalEdit } from "./types/localEdit.js";
+
 /**
  * Options for constructing a QuartoWizardError.
  */
@@ -57,6 +61,27 @@ export class ExtensionError extends QuartoWizardError {
 	constructor(message: string, options?: QuartoWizardErrorOptions & { code?: string }) {
 		super(message, options?.code ?? "EXTENSION_ERROR", options);
 		this.name = "ExtensionError";
+	}
+}
+
+/**
+ * Error thrown when an install would replace an extension that was edited after it was installed.
+ */
+export class LocalEditsError extends ExtensionError {
+	/** Extension that has local changes. */
+	readonly extensionId: ExtensionId;
+	/** Differences between the installed extension and its install record. */
+	readonly edits: LocalEdit[];
+
+	constructor(extensionId: ExtensionId, edits: LocalEdit[]) {
+		const changes = edits.map(formatLocalEdit).join(", ");
+		super(`${formatExtensionId(extensionId)} has local changes: ${changes}`, {
+			code: "LOCAL_EDITS",
+			suggestion: "Use the force option to replace the extension and discard the local changes",
+		});
+		this.name = "LocalEditsError";
+		this.extensionId = extensionId;
+		this.edits = edits;
 	}
 }
 

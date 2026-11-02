@@ -5,6 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
+import { LocalEditsError, writeSourceRecord } from "@quarto-wizard/core";
 import { registerInstallCommands } from "../../commands/installQuartoExtension";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
@@ -26,6 +27,11 @@ interface InstallCall {
 	source: string;
 	workspaceFolder: string;
 	sourceType: string | undefined;
+}
+
+interface RecordedInstall {
+	source: string;
+	recordSource: string | undefined;
 }
 
 interface RemoveCall {
@@ -425,6 +431,241 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 		assert.strictEqual(installCalls.length, 1);
 		assert.deepStrictEqual(errors, ["Failed to update extensions."]);
+	});
+
+	test("update all reports a skipped extension and updates the others", async () => {
+		stubTwoUpdates();
+		const modes: (string | undefined)[] = [];
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			modes.push(options.localEdits);
+			if (source.startsWith("acme/registry-demo")) {
+				if (options.outcome) {
+					options.outcome.localEdits = new LocalEditsError({ owner: "acme", name: "registry-demo" }, [
+						{ path: "_extension.yml", change: "modified" },
+						{ path: "filter.lua", change: "missing" },
+					]);
+				}
+				return null;
+			}
+			return true;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 2);
+		assert.deepStrictEqual(modes, ["skip", "skip"]);
+		assert.deepStrictEqual(errors, []);
+		assert.deepStrictEqual(messages.slice(-2), [
+			"Updated acme/github-demo to 1.3.0.",
+			"Skipped 1 extension with local changes: acme/registry-demo (_extension.yml (modified), filter.lua (missing)).",
+		]);
+	});
+
+	test("update all groups the notes about copies without an install record", async () => {
+		stubTwoUpdates();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			if (options.outcome) {
+				options.outcome.replacedUntracked = true;
+			}
+			return true;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 2);
+		assert.deepStrictEqual(errors, []);
+		assert.deepStrictEqual(
+			messages.filter((message) => message.includes("no install record")),
+			[
+				"2 extensions had no install record, so Quarto Wizard could not check them for local changes: acme/github-demo, acme/registry-demo.",
+			],
+		);
+	});
+
+	test("update all does not report an error when every update is skipped", async () => {
+		stubTwoUpdates();
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			if (options.outcome) {
+				options.outcome.localEdits = new LocalEditsError({ owner: "acme", name: "demo" }, [
+					{ path: "_extension.yml", change: "added" },
+				]);
+			}
+			return null;
+		};
+
+		await runCommand("updateAll");
+
+		assert.strictEqual(installCalls.length, 2);
+		assert.deepStrictEqual(errors, []);
+		assert.match(messages[messages.length - 1], /^Skipped 2 extensions with local changes: /);
+	});
+
+	function recordReplaceRules(): { replaceSameVersion: boolean | undefined; force: boolean | undefined }[] {
+		const rules: { replaceSameVersion: boolean | undefined; force: boolean | undefined }[] = [];
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			rules.push({ replaceSameVersion: options.replaceSameVersion, force: options.force });
+			return true;
+		};
+		return rules;
+	}
+
+	test("update replaces a copy at the same version without forcing", async () => {
+		stubNetwork({ repositories: { "acme/github-demo": { githubTags: ["v1.3.0"] } } });
+		const rules = recordReplaceRules();
+
+		await runCommand("update", createItem("acme/github-demo"));
+
+		assert.deepStrictEqual(rules, [{ replaceSameVersion: true, force: undefined }]);
+	});
+
+	test("update of a URL extension replaces a copy at the same version without forcing", async () => {
+		const rules = recordReplaceRules();
+
+		await runCommand("update", createItem("acme/url-demo"));
+
+		assert.deepStrictEqual(rules, [{ replaceSameVersion: true, force: undefined }]);
+	});
+
+	test("update all replaces copies at the same version without forcing", async () => {
+		stubTwoUpdates();
+		const rules = recordReplaceRules();
+
+		await runCommand("updateAll");
+
+		assert.deepStrictEqual(rules, [
+			{ replaceSameVersion: true, force: undefined },
+			{ replaceSameVersion: true, force: undefined },
+		]);
+	});
+
+	test("reinstall forces the install of the same version", async () => {
+		const forced: (boolean | undefined)[] = [];
+		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			forced.push(options.force);
+			return true;
+		};
+
+		await runCommand("reinstall", createItem("acme/pinned-demo"));
+
+		assert.deepStrictEqual(forced, [true]);
+	});
+
+	test("update and reinstall of an extension without a recorded source install nothing", async () => {
+		const pinned = extensions["acme/pinned-demo"];
+		const item = new ExtensionTreeItem("acme/pinned-demo", vscode.TreeItemCollapsibleState.Collapsed, FIXTURE_ROOT, {
+			...pinned,
+			manifest: { ...pinned.manifest, source: undefined },
+		});
+
+		await runCommand("update", item);
+		await runCommand("reinstall", item);
+
+		assert.deepStrictEqual(installCalls, []);
+		assert.deepStrictEqual(errors, [
+			'Failed to update extension "acme/pinned-demo". No install source is recorded for this extension.',
+			'Failed to reinstall extension "acme/pinned-demo". No install source is recorded for this extension.',
+		]);
+	});
+
+	suite("an extension installed without a ref", () => {
+		const UNPINNED_ID = "acme/unpinned-demo";
+		let unpinnedRoot: string;
+		let recorded: RecordedInstall[];
+
+		setup(() => {
+			unpinnedRoot = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-unpinned-"))).fsPath;
+			recorded = [];
+			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+				installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+				recorded.push({ source, recordSource: options.recordSource });
+				return true;
+			};
+		});
+
+		teardown(() => {
+			fs.rmSync(unpinnedRoot, { recursive: true, force: true });
+		});
+
+		async function unpinnedItem(source: string, commit?: string): Promise<ExtensionTreeItem> {
+			const extensionDir = path.join(unpinnedRoot, "_extensions", "acme", "unpinned-demo");
+			fs.mkdirSync(extensionDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extensionDir, "_extension.yml"),
+				"title: Unpinned demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
+			);
+			writeSourceRecord(extensionDir, {
+				source,
+				kind: "github",
+				...(commit && { quartoWizard: { commit } }),
+			});
+			setRoots([makeRoot(makeFolder("unpinned", unpinnedRoot))]);
+			const installed = await getInstalledExtensionsRecord(unpinnedRoot);
+			return new ExtensionTreeItem(
+				UNPINNED_ID,
+				vscode.TreeItemCollapsibleState.Collapsed,
+				unpinnedRoot,
+				installed[UNPINNED_ID],
+			);
+		}
+
+		test("update installs the latest tag and keeps the record unpinned", async () => {
+			stubNetwork({ repositories: { [UNPINNED_ID]: { githubTags: ["v1.3.0"] } } });
+
+			await runCommand("update", await unpinnedItem(UNPINNED_ID));
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: UNPINNED_ID }]);
+		});
+
+		test("update to a new commit keeps the record unpinned", async () => {
+			stubNetwork({ repositories: { [UNPINNED_ID]: { latestCommit: "fed9876543210fedcba9876543210fedcba98765" } } });
+
+			await runCommand("update", await unpinnedItem(UNPINNED_ID, "aaaaaaa"));
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+		});
+
+		test("update all keeps the record unpinned", async () => {
+			stubNetwork({ repositories: { [UNPINNED_ID]: { latestCommit: "fed9876543210fedcba9876543210fedcba98765" } } });
+			await unpinnedItem(UNPINNED_ID, "aaaaaaa");
+
+			await runCommand("updateAll");
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+		});
+
+		test("update of a pinned extension records the new ref", async () => {
+			stubNetwork({ repositories: { [UNPINNED_ID]: { githubTags: ["v1.3.0"] } } });
+
+			await runCommand("update", await unpinnedItem(`${UNPINNED_ID}@v1.0.0`));
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined }]);
+		});
+
+		test("update all of a pinned extension records the new ref", async () => {
+			stubNetwork({ repositories: { [UNPINNED_ID]: { githubTags: ["v1.3.0"] } } });
+			await unpinnedItem(`${UNPINNED_ID}@v1.0.0`);
+
+			await runCommand("updateAll");
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined }]);
+		});
+
+		test("reinstall installs the recorded commit and keeps the record unpinned", async () => {
+			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID, "fed9876"));
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+		});
+
+		test("reinstall of a tagged extension installs the source as recorded", async () => {
+			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID));
+
+			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined }]);
+		});
 	});
 
 	test("update all reports the updates done before a cancel", async () => {

@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
-import type { EmbeddingParent } from "@quarto-wizard/core";
+import { NO_SOURCE_RECORD, type EmbeddingParent } from "@quarto-wizard/core";
 import { SnippetCache } from "@quarto-wizard/snippets";
 import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvider";
 import {
@@ -42,6 +42,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			id: { owner: "quarto-ext", name: "demo" },
 			directory: "/tmp/demo",
 			manifestPath: "/tmp/demo/_extension.yml",
+			...NO_SOURCE_RECORD,
 			manifest: {
 				title: "Demo Extension",
 				author: "Quarto Team",
@@ -412,6 +413,31 @@ suite("Extension Tree Data Provider Test Suite", () => {
 				vscode.TreeItemCollapsibleState.Collapsed,
 				"/workspace",
 				createExtension({ source: "quarto-ext/demo@4f3c2a1", sourceType: "github" }),
+			);
+
+			const tooltip = String(item.tooltip);
+
+			assert.ok(tooltip.includes("Update installs the latest commit of the default branch."), tooltip);
+			assert.ok(!tooltip.includes("GitHub tag"), tooltip);
+		});
+
+		test("tooltip of an extension with a recorded commit names the latest commit", () => {
+			const extension: InstalledExtension = {
+				...createExtension({ source: "quarto-ext/demo", sourceType: "github" }),
+				record: {
+					version: 1,
+					source: "quarto-ext/demo",
+					kind: "github",
+					files: {},
+					quartoWizard: { commit: "4f3c2a1b9d8e7f60123456789abcdef012345678" },
+				},
+				recordStatus: "ok",
+			};
+			const item = new ExtensionTreeItem(
+				"quarto-ext/demo",
+				vscode.TreeItemCollapsibleState.Collapsed,
+				"/workspace",
+				extension,
 			);
 
 			const tooltip = String(item.tooltip);

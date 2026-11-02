@@ -104,7 +104,7 @@ A project starts hidden in these cases:
 
 - A `.quartoignore` file of the workspace folder matches the project.
 - The project is an installed extension that holds other extensions in its own `_extensions/`.
-  Its `_extension.yml` has a `source`.
+  It has an install record or a `source` in its `_extension.yml`.
 
 To change what is shown:
 
@@ -133,7 +133,7 @@ Quarto Wizard shows these extensions as projects too.
 Extensions may display different indicators:
 
 - **Update available**: A cloud icon indicates a newer version is available.
-- **Warning state**: A warning icon indicates an `_extension.yml` parse error, missing source information, or an incompatible `quarto-required` constraint.
+- **Warning state**: A warning icon indicates an `_extension.yml` parse error, missing source information (no install record), or an incompatible `quarto-required` constraint.
 
 ## Compatibility Status
 
@@ -260,8 +260,12 @@ Use **Refresh** when you need to force a manual reload.
 Quarto Wizard can detect when updates are available for your installed extensions.
 
 ::: {.callout-important}
-Extensions can only be updated if they were installed by Quarto Wizard or have `source: <owner>/<repository>` in their `_extension.yml` file.
-You can manually add the source field to enable update detection.
+Extensions can only be updated if they have an install record, which Quarto Wizard and Quarto 2 write when they install an extension.
+An extension can also have `source: <owner>/<repository>` in its `_extension.yml` file, the format of Quarto Wizard 3.
+If an extension has neither, or its install record cannot be read, Quarto Wizard cannot check it for updates.
+To correct this, remove the extension, then install it again with Quarto Wizard.
+An install over the installed copy is not sufficient, because Quarto Wizard writes nothing when the version is the same.
+See [Install Record](../reference/install-record.qmd).
 :::
 
 ### Which Version Is Installed
@@ -304,8 +308,15 @@ Hover over an extension to see its latest version and where it was found.
 The details of an extension show `Installed from:`.
 When an update is available, they also show `Latest:` with the version and the source of the check, for example `Latest: 1.2.0 (checked on GitHub)`.
 
-Quarto Wizard records `source` and `source-type` by editing those two lines only.
-The rest of `_extension.yml` is left byte for byte identical, so comments, key order, and quoting written by the extension author are preserved.
+Quarto Wizard records the source in the `.quarto-source.yml` file of the extension, and does not change `_extension.yml`.
+Quarto 2 reads the same file.
+See [Install Record](../reference/install-record.qmd).
+
+### Local Changes
+
+An update does not replace an extension that has local changes.
+**Update** shows a warning, and **Update All** skips the extension.
+See [Local Changes](installing-extensions.qmd#local-changes) for details.
 
 ## Visibility
 
@@ -316,7 +327,10 @@ If no extensions are installed, the view displays a welcome message with links t
 
 Right-click on an extension to access additional options:
 
-- Reinstall Extension (from its original source).
+- Reinstall Extension.
+  It installs the pinned ref or the recorded commit again, even at the same version.
+  For an extension that you installed without a ref, from a repository with version tags, it installs the latest version.
+  It warns before it removes local changes.
 - Update Extension (for an extension installed from GitHub or from the registry, even when it is up to date).
 - Remove Extension.
 - Open Extension Source (if source is available).

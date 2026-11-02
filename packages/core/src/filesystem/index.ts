@@ -10,13 +10,13 @@ export {
 	parseManifestContent,
 	readManifest,
 	hasManifest,
-	updateManifestSource,
 } from "./manifest.js";
 
 export {
 	type InstalledExtension,
 	type DiscoveryOptions,
 	EXTENSIONS_DIR,
+	NO_SOURCE_RECORD,
 	getExtensionsDir,
 	hasExtensionsDir,
 	discoverInstalledExtensions,
@@ -37,6 +37,24 @@ export {
 } from "./walk.js";
 
 export { QUARTOIGNORE_FILENAME, readQuartoIgnore, isQuartoIgnored, quartoIgnoreGlobs } from "./quartoignore.js";
+
+export {
+	SOURCE_RECORD_FILENAME,
+	SOURCE_RECORD_VERSION,
+	type SourceRecordKind,
+	type SourceRecord,
+	type SourceRecordData,
+	type SourceRecordReadResult,
+	type LocalEdit,
+	type InstalledState,
+	type InstallAction,
+	hashExtensionFiles,
+	readSourceRecord,
+	writeSourceRecord,
+	formatLocalEdit,
+	getInstalledState,
+	compareInstallAction,
+} from "./sourceRecord.js";
 
 export {
 	PROJECT_FOLDER_MAX_DEPTH,

@@ -15,7 +15,8 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"lint": "eslint --fix --cache \"src/**/*.ts\"",
-		"lint:check": "eslint --cache \"src/**/*.ts\""
+		"lint:check": "eslint --cache \"src/**/*.ts\"",
+		"test:q2": "node scripts/q2-compat.mjs"
 	},
 	"keywords": [
 		"quarto",

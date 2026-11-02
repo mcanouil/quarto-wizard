@@ -17,13 +17,14 @@ import { ExtensionError } from "../errors.js";
 import { pathExists } from "../filesystem/walk.js";
 import {
 	install,
-	installSingleExtension,
+	installPlannedExtension,
+	planExtensionInstall,
 	parseInstallSource,
-	formatInstallSource,
 	applySourceOwner,
 	selectExtensionsFromSource,
 	type InstallSource,
 	type InstallResult,
+	type ExtensionInstallPlan,
 	type ExtensionSelectionCallback,
 } from "./install.js";
 import { cleanupExtraction, readArchiveExtensions, type DiscoveredExtension } from "../archive/extract.js";
@@ -228,8 +229,11 @@ export interface UseOptions {
 	onProgress?: (info: { phase: string; message: string; file?: string }) => void;
 	/** Dry run mode - resolve and validate without copying files. */
 	dryRun?: boolean;
-	/** Display source to record in manifest (for relative paths that were resolved). */
-	sourceDisplay?: string;
+	/**
+	 * Replace an installed extension even when it has local changes or is at the same version.
+	 * Cannot be combined with `dryRun`.
+	 */
+	force?: boolean;
 	/**
 	 * Callback for selecting extensions when source contains multiple.
 	 * If not provided and source contains multiple extensions, the first one is installed.
@@ -254,7 +258,7 @@ export interface UseOptions {
 	 */
 	selectTargetSubdir?: SelectTargetSubdirCallback;
 	/**
-	 * Override the source type written to the manifest.
+	 * Source type of the install.
 	 * Use "registry" when installing via the extension registry.
 	 */
 	sourceType?: SourceType;
@@ -302,7 +306,6 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		selectExtension,
 		confirmExtensionOverwrite,
 		onProgress,
-		sourceDisplay,
 		targetSubdir: staticTargetSubdir,
 		selectTargetSubdir,
 	} = options;
@@ -310,11 +313,6 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 	if (!selectFiles) {
 		throw new ExtensionError("selectFiles callback is required for twoPhaseUse");
 	}
-
-	// Compute effective source display from original source if not provided.
-	// This ensures the original GitHub/URL reference is preserved when Phase 2
-	// uses a local path pointing to the extracted temporary directory.
-	const effectiveSourceDisplay = sourceDisplay ?? formatInstallSource(source);
 
 	let dryRunResult: InstallResult | null = null;
 
@@ -325,10 +323,8 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		dryRunResult = await install(source, {
 			projectDir,
 			auth,
-			force: true,
 			keepSourceDir: true,
 			dryRun: true,
-			sourceDisplay: effectiveSourceDisplay,
 			sourceType: options.sourceType,
 			// Do NOT pass selectExtension here - we'll handle it after file selection
 			onProgress: (p) => {
@@ -336,11 +332,13 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			},
 		});
 
-		if (!dryRunResult.success || !dryRunResult.sourceRoot) {
+		if (!dryRunResult.success || !dryRunResult.sourceRoot || !dryRunResult.recordData) {
 			throw new ExtensionError("Failed to prepare template preview");
 		}
 
 		const sourceRoot = dryRunResult.sourceRoot;
+		// The extensions are installed from the extracted copy, so they take the record of the source.
+		const recordData = dryRunResult.recordData;
 
 		// STEP 1.5: Target subdirectory selection (before file selection)
 		let effectiveTargetSubdir: string | undefined;
@@ -355,7 +353,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 						success: false,
 						extension: dryRunResult.extension,
 						filesCreated: [],
-						source: effectiveSourceDisplay,
+						source: recordData.source,
 					},
 					templateFiles: [],
 					skippedFiles: [],
@@ -398,7 +396,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 					success: false,
 					extension: dryRunResult.extension,
 					filesCreated: [],
-					source: effectiveSourceDisplay,
+					source: recordData.source,
 				},
 				templateFiles: [],
 				skippedFiles: allFiles,
@@ -428,7 +426,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 					success: false,
 					extension: dryRunResult.extension,
 					filesCreated: [],
-					source: effectiveSourceDisplay,
+					source: recordData.source,
 				},
 				templateFiles: [],
 				skippedFiles: allFiles,
@@ -456,7 +454,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 						success: false,
 						extension: dryRunResult.extension,
 						filesCreated: [],
-						source: effectiveSourceDisplay,
+						source: recordData.source,
 					},
 					templateFiles: [],
 					skippedFiles: allFiles,
@@ -473,25 +471,22 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 		}
 
 		// STEP 5: Install selected extensions and copy files
-		// Install each extension directly using installSingleExtension to preserve owner info
+		// Install each extension directly from its discovered ID to preserve owner info
 		let primaryInstallResult: InstallResult | null = null;
 		const allFilesCreated: string[] = [];
 
 		if (extensionsToInstall.length > 0) {
 			onProgress?.({ phase: "installing", message: "Installing extension(s)..." });
 
+			// Every extension is checked before the first is written, so a refusal writes nothing.
+			const plans: ExtensionInstallPlan[] = [];
 			for (const ext of extensionsToInstall) {
-				const extIdString = ext.id.owner ? `${ext.id.owner}/${ext.id.name}` : ext.id.name;
-				onProgress?.({ phase: "installing", message: `Installing ${extIdString}...` });
+				plans.push(await planExtensionInstall(ext, projectDir, recordData, options.force ?? false));
+			}
 
-				const result = await installSingleExtension(
-					ext,
-					projectDir,
-					effectiveSourceDisplay,
-					true, // force
-					(p) => onProgress?.({ phase: p.phase, message: p.message }),
-					undefined,
-					options.sourceType ?? source.type,
+			for (const plan of plans) {
+				const result = await installPlannedExtension(plan, recordData, (p) =>
+					onProgress?.({ phase: p.phase, message: p.message }),
 				);
 
 				if (!primaryInstallResult) {
@@ -519,7 +514,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			success: true,
 			extension: dryRunResult.extension,
 			filesCreated: [],
-			source: effectiveSourceDisplay,
+			source: recordData.source,
 		};
 
 		return {
@@ -557,7 +552,6 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		selectExtension,
 		onProgress,
 		dryRun = false,
-		sourceDisplay,
 		targetSubdir,
 	} = options;
 
@@ -575,10 +569,10 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 	const installResult = await install(installSource, {
 		projectDir,
 		auth,
-		force: true,
+		force: options.force,
 		keepSourceDir: !noTemplate || dryRun,
 		dryRun,
-		sourceDisplay,
+		sourceType: options.sourceType,
 		selectExtension,
 		onProgress: (p) => {
 			onProgress?.({ phase: p.phase, message: p.message });

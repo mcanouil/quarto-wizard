@@ -14,7 +14,6 @@ export {
 	parseInstallSource,
 	formatInstallSource,
 	install,
-	installSingleExtension,
 } from "./install.js";
 
 export {
@@ -28,7 +27,7 @@ export {
 	type UpdateResult,
 	checkForUpdates,
 	applyUpdates,
-	extractCommitFromSource,
+	unpinnedRecordSource,
 	update,
 } from "./update.js";
 

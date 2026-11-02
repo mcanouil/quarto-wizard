@@ -8,14 +8,24 @@ import {
 	getErrorMessage,
 	isCancellationError,
 	pluralise,
+	splitSourceRef,
+	unpinnedRecordSource,
 	type AuthConfig,
 	type ExtensionId,
+	type InstalledExtension,
+	type LocalEdit,
 	type UpdateCheckResult,
 	type UpdateInfo,
 } from "@quarto-wizard/core";
 import { REGISTRY_FETCH_TIMEOUT_MS } from "../constants";
 import { logMessage, showMessageWithLogs } from "../utils/log";
-import { removeQuartoExtension, removeQuartoExtensions, installQuartoExtension } from "../utils/coreOperations";
+import {
+	removeQuartoExtension,
+	removeQuartoExtensions,
+	installQuartoExtension,
+	formatLocalEdits,
+	type InstallOutcome,
+} from "../utils/coreOperations";
 import { withProgressNotification } from "../utils/withProgressNotification";
 import { getAuthConfig } from "../utils/auth";
 import { getEffectiveSourceType, resolveLocalSourcePath } from "../utils/extensions";
@@ -114,6 +124,20 @@ async function reportCheckFailures(
 
 function describeUpdate(update: UpdateInfo): string {
 	return `${formatExtensionId(update.extension.id)} ${update.currentVersion} to ${update.latestVersion}`;
+}
+
+/**
+ * Source that Reinstall installs, and the source to record in its place.
+ * An extension installed without a ref, with a recorded commit, is installed at that commit,
+ * and its record stays without a ref.
+ */
+function reinstallTarget(extension: InstalledExtension, source: string): { source: string; recordSource?: string } {
+	const commit = extension.record?.quartoWizard?.commit;
+	const { base, hasRef } = splitSourceRef(source);
+	if (!commit || hasRef) {
+		return { source };
+	}
+	return { source: `${base}@${commit}`, recordSource: base };
 }
 
 /**
@@ -383,7 +407,7 @@ export class ExtensionsInstalled {
 				const source = extension?.manifest.source;
 				if (!extension || !source) {
 					showMessageWithLogs(
-						`Failed to update extension "${item.label}". Source not found in extension manifest.`,
+						`Failed to update extension "${item.label}". No install source is recorded for this extension.`,
 						"error",
 					);
 					return;
@@ -391,13 +415,15 @@ export class ExtensionsInstalled {
 				const failureMessage = `Failed to update extension "${item.label}".`;
 				const resolvesTag = item.effectiveSourceType === "github" || item.effectiveSourceType === "registry";
 				const auth = await getAuthConfig(context);
-				const install = (installSource: string, token: vscode.CancellationToken) =>
+				const install = (installSource: string, token: vscode.CancellationToken, recordSource?: string) =>
 					installQuartoExtension(installSource, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 						expectedExtensionId: extension.id,
+						recordSource,
+						replaceSameVersion: true,
 					});
 				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
 					if (!resolvesTag) {
@@ -411,7 +437,7 @@ export class ExtensionsInstalled {
 					if (!update || check.checkFailure || check.repositoryFailures.length > 0) {
 						return { check };
 					}
-					return { check, update, installed: await install(update.source, token) };
+					return { check, update, installed: await install(update.source, token, unpinnedRecordSource(update)) };
 				});
 
 				if (outcome.check) {
@@ -443,7 +469,7 @@ export class ExtensionsInstalled {
 
 		/**
 		 * Reinstalls a Quarto extension from its original source.
-		 * Preserves the pinned version or re-downloads as-is.
+		 * Keeps the pinned ref or the recorded commit; an unpinned tagged extension gets its latest tag.
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.reinstall", async (item: ExtensionTreeItem) => {
@@ -451,19 +477,22 @@ export class ExtensionsInstalled {
 				const source = extension?.manifest.source;
 				if (!extension || !source) {
 					showMessageWithLogs(
-						`Failed to reinstall extension "${item.label}". Source not found in extension manifest.`,
+						`Failed to reinstall extension "${item.label}". No install source is recorded for this extension.`,
 						"error",
 					);
 					return;
 				}
 				const auth = await getAuthConfig(context);
+				const target = reinstallTarget(extension, source);
 				const result = await withProgressNotification(`Reinstalling "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(source, item.workspaceFolder, {
+					return installQuartoExtension(target.source, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 						expectedExtensionId: extension.id,
+						recordSource: target.recordSource,
+						force: true,
 					});
 				});
 				if (result === true) {
@@ -599,6 +628,8 @@ export class ExtensionsInstalled {
 				}
 
 				const updated: UpdateInfo[] = [];
+				const skipped: { update: UpdateInfo; edits: LocalEdit[] }[] = [];
+				const untracked: UpdateInfo[] = [];
 				let failedCount = 0;
 
 				const cancelled = await withProgressNotification(
@@ -608,15 +639,29 @@ export class ExtensionsInstalled {
 							if (token.isCancellationRequested) {
 								return true;
 							}
+							const installOutcome: InstallOutcome = {};
 							const result = await installQuartoExtension(update.source, update.projectDir, {
 								auth,
 								skipOverwritePrompt: true,
 								cancellationToken: token,
 								sourceType: getEffectiveSourceType(update.extension.manifest),
 								expectedExtensionId: update.extension.id,
+								recordSource: unpinnedRecordSource(update),
+								replaceSameVersion: true,
+								localEdits: "skip",
+								outcome: installOutcome,
 							});
-							if (result === true) {
+							if (installOutcome.localEdits) {
+								skipped.push({ update, edits: installOutcome.localEdits.edits });
+								logMessage(
+									`Skipped ${formatExtensionId(update.extension.id)}, it has local changes: ${formatLocalEdits(installOutcome.localEdits.edits)}.`,
+									"warn",
+								);
+							} else if (result === true) {
 								updated.push(update);
+								if (installOutcome.replacedUntracked) {
+									untracked.push(update);
+								}
 							} else if (result === false) {
 								failedCount++;
 							} else {
@@ -626,7 +671,7 @@ export class ExtensionsInstalled {
 						return token.isCancellationRequested;
 					},
 				);
-				const notAttempted = updates.length - updated.length - failedCount;
+				const notAttempted = updates.length - updated.length - failedCount - skipped.length;
 
 				if (updated.length > 0) {
 					invalidateProviderCaches();
@@ -639,8 +684,23 @@ export class ExtensionsInstalled {
 						...(cancelled && notAttempted > 0 ? [`cancelled before ${notAttempted} more`] : []),
 					];
 					vscode.window.showInformationMessage(`Updated ${[versions, ...problems].join("; ")}.`);
-				} else if (!cancelled || failedCount > 0) {
+				} else if (failedCount > 0 || (!cancelled && skipped.length === 0)) {
 					showMessageWithLogs(failureMessage, "error");
+				}
+				if (skipped.length > 0) {
+					const names = skipped
+						.map(({ update, edits }) => `${formatExtensionId(update.extension.id)} (${formatLocalEdits(edits)})`)
+						.join("; ");
+					vscode.window.showInformationMessage(
+						`Skipped ${pluralise(skipped.length, "extension")} with local changes: ${names}.`,
+					);
+				}
+
+				if (untracked.length > 0) {
+					const ids = untracked.map((update) => formatExtensionId(update.extension.id)).join(", ");
+					const note = `${pluralise(untracked.length, "extension")} had no install record, so Quarto Wizard could not check ${untracked.length === 1 ? "it" : "them"} for local changes: ${ids}.`;
+					logMessage(note, "info");
+					vscode.window.showInformationMessage(note);
 				}
 
 				this.treeDataProvider.refreshAfterAction(context, view);

@@ -293,6 +293,27 @@ contributes:\n`;
 			assert.strictEqual(getExtensionSourceUrl(extensions[0]), "https://github.com/quarto-ext/mono/tree/HEAD/dir/sub");
 		});
 
+		test("source URL of a subdirectory source uses the commit of the install record", async () => {
+			createTestExtension("quarto-ext", "sub-ext3", {
+				source: "quarto-ext/mono/dir/sub",
+				"source-type": "github",
+			});
+			const [installed] = await getInstalledExtensions(tempDir);
+			const ext = {
+				...installed,
+				record: {
+					version: 1,
+					source: "quarto-ext/mono/dir/sub",
+					kind: "github" as const,
+					files: {},
+					quartoWizard: { commit: "4F3C2A1B9D8E7F60123456789ABCDEF012345678" },
+				},
+				recordStatus: "ok" as const,
+			};
+
+			assert.strictEqual(getExtensionSourceUrl(ext), "https://github.com/quarto-ext/mono/tree/4f3c2a1/dir/sub");
+		});
+
 		test("Should return URL as-is for URL source type", async () => {
 			createTestExtension("quarto-ext", "url-ext2", {
 				source: "https://example.com/ext.zip",

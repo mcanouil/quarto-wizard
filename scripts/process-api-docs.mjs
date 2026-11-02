@@ -924,6 +924,7 @@ function generateReferenceSidebar() {
             - reference/schema-validator.qmd
             - reference/snippet-specification.qmd
             - reference/environment-variables.qmd
+            - reference/install-record.qmd
 `;
 
 	writeFileSync(join(docsDir, "_sidebar-reference.yml"), content, "utf-8");

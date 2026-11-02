@@ -8,3 +8,9 @@
 # on commit would leave that fixture passing while covering nothing. This rule
 # comes after the one above, because the last matching pattern wins.
 src/test/fixtures/typstPreview/** -text
+
+# The Quarto 2 record fixtures hold a sha256 of each file's raw bytes, and one
+# file is written with CRLF on purpose. Normalising line endings would change
+# those bytes and break the recorded hashes.
+packages/core/tests/fixtures/q2-record/** -text
+packages/core/tests/fixtures/q2-record-source/** -text

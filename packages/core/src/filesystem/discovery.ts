@@ -10,9 +10,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { formatExtensionId, type ExtensionId } from "../types/extension.js";
-import type { ExtensionManifest } from "../types/manifest.js";
+import type { ExtensionManifest, SourceType } from "../types/manifest.js";
 import { ExtensionError } from "../errors.js";
 import { readManifest } from "./manifest.js";
+import {
+	readSourceRecord,
+	type SourceRecord,
+	type SourceRecordKind,
+	type SourceRecordReadResult,
+} from "./sourceRecord.js";
 import { pathExists } from "./walk.js";
 
 /** Name of the extensions directory. */
@@ -24,12 +30,104 @@ export const EXTENSIONS_DIR = "_extensions";
 export interface InstalledExtension {
 	/** Extension identifier. */
 	id: ExtensionId;
-	/** Parsed manifest data. */
+	/**
+	 * Parsed manifest data.
+	 *
+	 * `source` and `sourceType` come from the install record when it can be read.
+	 * Without a record, they come from the `source` and `source-type` keys of the manifest.
+	 * An unreadable record leaves them empty.
+	 */
 	manifest: ExtensionManifest;
 	/** Full path to the manifest file. */
 	manifestPath: string;
 	/** Full path to the extension directory. */
 	directory: string;
+	/** Install record, or null when it is absent or unreadable. */
+	record: SourceRecord | null;
+	/** Whether the install record is absent, unreadable, or read. */
+	recordStatus: "absent" | "unreadable" | "ok";
+}
+
+/**
+ * Record fields of an extension that has no install record.
+ */
+export const NO_SOURCE_RECORD = { record: null, recordStatus: "absent" } as const satisfies Pick<
+	InstalledExtension,
+	"record" | "recordStatus"
+>;
+
+const RECORD_KIND_SOURCE_TYPES: Record<SourceRecordKind, SourceType> = {
+	github: "github",
+	url: "url",
+	"local-archive": "local",
+	"local-dir": "local",
+};
+
+/**
+ * Read the install record of an extension folder and apply its source to the manifest.
+ *
+ * The record wins over the `source` and `source-type` keys of the manifest.
+ *
+ * @param directory - Extension folder
+ * @param manifest - Manifest read from the folder
+ * @param result - Install record already read from the folder, read again when not given
+ * @returns The manifest with the effective source, and the record
+ */
+export function applySourceRecord(
+	directory: string,
+	manifest: ExtensionManifest,
+	result: SourceRecordReadResult = readSourceRecord(directory),
+): Pick<InstalledExtension, "manifest" | "record" | "recordStatus"> {
+	if (result.status === "absent") {
+		return { manifest, ...NO_SOURCE_RECORD };
+	}
+	if (result.status === "unreadable") {
+		return {
+			manifest: { ...manifest, source: undefined, sourceType: undefined },
+			record: null,
+			recordStatus: "unreadable",
+		};
+	}
+	const { record } = result;
+	const sourceType =
+		record.quartoWizard?.sourceType === "registry" ? "registry" : RECORD_KIND_SOURCE_TYPES[record.kind];
+	return {
+		manifest: { ...manifest, source: record.source, sourceType },
+		record,
+		recordStatus: "ok",
+	};
+}
+
+/**
+ * Describe an installed extension, with its install record applied.
+ *
+ * @param id - Extension identifier
+ * @param manifest - Manifest read from the folder
+ * @param manifestPath - Full path to the manifest file
+ * @param directory - Extension folder
+ * @param recordResult - Install record already read from the folder, read again when not given
+ * @returns The installed extension
+ */
+export function toInstalledExtension(
+	id: ExtensionId,
+	manifest: ExtensionManifest,
+	manifestPath: string,
+	directory: string,
+	recordResult?: SourceRecordReadResult,
+): InstalledExtension {
+	return { id, manifestPath, directory, ...applySourceRecord(directory, manifest, recordResult) };
+}
+
+/**
+ * Describe an extension folder whose manifest is missing or cannot be parsed.
+ */
+function toInvalidExtension(id: ExtensionId, directory: string): InstalledExtension {
+	return toInstalledExtension(
+		id,
+		{ title: id.name, author: "", version: "", contributes: {} },
+		path.join(directory, "_extension.yml"),
+		directory,
+	);
 }
 
 /**
@@ -135,12 +233,14 @@ export function discoverInstalledExtensionsSync(
 			// Check if this is an extension without owner (has manifest directly)
 			const directManifest = readManifest(topPath);
 			if (directManifest) {
-				results.push({
-					id: { owner: null, name: topEntry.name },
-					manifest: directManifest.manifest,
-					manifestPath: directManifest.manifestPath,
-					directory: topPath,
-				});
+				results.push(
+					toInstalledExtension(
+						{ owner: null, name: topEntry.name },
+						directManifest.manifest,
+						directManifest.manifestPath,
+						topPath,
+					),
+				);
 				continue;
 			}
 
@@ -158,41 +258,23 @@ export function discoverInstalledExtensionsSync(
 					const manifestResult = readManifest(extPath);
 
 					if (manifestResult) {
-						results.push({
-							id: { owner: topEntry.name, name: extEntry.name },
-							manifest: manifestResult.manifest,
-							manifestPath: manifestResult.manifestPath,
-							directory: extPath,
-						});
+						results.push(
+							toInstalledExtension(
+								{ owner: topEntry.name, name: extEntry.name },
+								manifestResult.manifest,
+								manifestResult.manifestPath,
+								extPath,
+							),
+						);
 					} else if (options.includeInvalid) {
-						results.push({
-							id: { owner: topEntry.name, name: extEntry.name },
-							manifest: {
-								title: extEntry.name,
-								author: "",
-								version: "",
-								contributes: {},
-							},
-							manifestPath: path.join(extPath, "_extension.yml"),
-							directory: extPath,
-						});
+						results.push(toInvalidExtension({ owner: topEntry.name, name: extEntry.name }, extPath));
 					}
 				} catch {
 					// Manifest parsing failed (invalid YAML, missing required fields, etc.).
 					// If includeInvalid is set, we still want to show the extension exists
 					// so users can see and potentially fix or remove it.
 					if (options.includeInvalid) {
-						results.push({
-							id: { owner: topEntry.name, name: extEntry.name },
-							manifest: {
-								title: extEntry.name,
-								author: "",
-								version: "",
-								contributes: {},
-							},
-							manifestPath: path.join(extPath, "_extension.yml"),
-							directory: extPath,
-						});
+						results.push(toInvalidExtension({ owner: topEntry.name, name: extEntry.name }, extPath));
 					}
 				}
 			}
@@ -250,12 +332,7 @@ export async function findInstalledExtension(
 		return null;
 	}
 
-	return {
-		id: extensionId,
-		manifest: manifestResult.manifest,
-		manifestPath: manifestResult.manifestPath,
-		directory: extPath,
-	};
+	return toInstalledExtension(extensionId, manifestResult.manifest, manifestResult.manifestPath, extPath);
 }
 
 /**
