@@ -62,11 +62,13 @@ This table shows what a GitHub install records:
 | Tag mode, no version tag in the repository | `owner/repo`         | `tag`    | full commit |
 
 A commit has nothing to follow, so the next update of an extension that you installed from a commit goes to the latest tag.
-If a repository has no version tag, tag mode installs the head of the default branch.
+If the repository has no version tag, the update goes to the head of the default branch.
 Update then compares commits until the repository has a version tag.
 An extension from a subdirectory (`owner/repo/subdirectory@ref`) follows the same table.
 
 A record that has no `track` item, for example a record that Quarto 2 wrote, counts as `tag`.
+Reinstall is the one exception.
+If the ref of such a record is a branch, for example `owner/repo@dev`, Reinstall installs it in branch mode.
 An extension that has no record also counts as `tag`.
 A URL source, a local folder and a local archive have no update source.
 

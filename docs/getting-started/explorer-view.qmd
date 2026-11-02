@@ -224,7 +224,9 @@ For each workspace folder, you can:
 
 For each installed extension, you can:
 
-- **Update**: Check GitHub and install the latest GitHub tag when it is newer.
+- **Update**: Check GitHub and install the update that the update source gives.
+  In tag mode, this is a newer tag.
+  In branch mode, this is a newer commit.
   When nothing is newer, the message `Extension "<name>" is up to date.` appears.
 - **Change Update Source**: Switch a GitHub extension between the latest tag and the default branch.
   See [Update Source](installing-extensions.qmd#update-source).
@@ -280,6 +282,7 @@ An update never installs a lower version than the one you have.
 In branch mode, Quarto Wizard compares the saved commit with the latest commit of the branch, and Update installs that commit.
 The branch is the default branch, unless the source names one.
 An extension that you installed from a commit follows the latest tag.
+If the repository has no version tag, it follows the head of the default branch.
 When an extension comes from a subdirectory of a repository, Quarto Wizard compares the installed version with the version in its own `_extension.yml` at the latest tag.
 
 ### Where Updates Are Checked
