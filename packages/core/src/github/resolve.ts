@@ -155,8 +155,9 @@ export async function resolveVersion(
 			const branchName = version.branch;
 			// Validate branch exists before constructing URL
 			await validateBranch(owner, repo, branchName, options);
-			// The head is downloaded by its commit, as for the default branch above.
-			const commitSha = (await fetchLatestCommit(owner, repo, { ...options, ref: branchName }))?.toLowerCase();
+			// The head is downloaded by its commit, as for the default branch above, and a
+			// failed lookup falls back to the branch archive.
+			const commitSha = (await lookUpLatestCommit(owner, repo, { ...options, ref: branchName }))?.toLowerCase();
 			if (commitSha) {
 				return { tagName: branchName, ...commitArchive(owner, repo, commitSha), commitSha, fromTag: false };
 			}
@@ -181,12 +182,17 @@ function commitArchive(owner: string, repo: string, commit: string): { zipballUr
 }
 
 /**
- * Look up the latest commit of the default branch, so that an install without
- * tags records the commit it installed. A failed lookup returns `undefined`,
- * so the install still goes ahead without a commit. A SAML SSO error and a
- * cancellation are rethrown, as in `fetchDefaultBranch`.
+ * Look up the latest commit of a branch, the default branch when `ref` is not
+ * set, so that an install records the commit it installed. A failed lookup
+ * returns `undefined`, so the install still goes ahead from the branch archive
+ * without a commit. A SAML SSO error and a cancellation are rethrown, as in
+ * `fetchDefaultBranch`.
  */
-async function lookUpLatestCommit(owner: string, repo: string, options: GitHubOptions): Promise<string | undefined> {
+async function lookUpLatestCommit(
+	owner: string,
+	repo: string,
+	options: GitHubOptions & { path?: string; ref?: string },
+): Promise<string | undefined> {
 	try {
 		return (await fetchLatestCommit(owner, repo, options)) ?? undefined;
 	} catch (error) {

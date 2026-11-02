@@ -1063,6 +1063,26 @@ describe("install record", () => {
 			expect(record.quartoWizard).toEqual({ track: "tag", commit: SHA });
 		});
 
+		it("branch mode without a resolved commit records the branch mode and no commit", async () => {
+			mockGitHubDownload({ tagName: "HEAD", fromTag: false });
+
+			await install(parseInstallSource("owner/repo"), { projectDir, track: "branch" });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo");
+			expect(record.quartoWizard).toEqual({ track: "branch" });
+		});
+
+		it("an explicit branch without a resolved commit records the branch mode and no commit", async () => {
+			mockGitHubDownload({ tagName: "dev", fromTag: false });
+
+			await install(parseInstallSource("owner/repo@dev"), { projectDir });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo@dev");
+			expect(record.quartoWizard).toEqual({ track: "branch" });
+		});
+
 		it("the mode option does not change a source with a ref", async () => {
 			mockGitHubDownload({ tagName: "v1.2.0", fromTag: true });
 

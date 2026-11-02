@@ -428,6 +428,47 @@ describe("resolveVersion", () => {
 		expect(result.commitSha).toBe("fed9876543210");
 	});
 
+	it("falls back to the default branch archive in branch mode when the head lookup fails", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation(githubApiMock({ repoMetadata: () => Promise.resolve({ default_branch: "main" }) }));
+
+		const result = await resolveVersion("owner", "repo", { type: "latest" }, { track: "branch" });
+
+		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/main.zip");
+		expect(result.commitSha).toBeUndefined();
+		expect(result.fromTag).toBe(false);
+	});
+
+	it("falls back to the archive of an explicit branch when its head lookup fails", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/branches/")) return Promise.resolve({ name: "dev" });
+			if (url.includes("/commits?")) return Promise.reject(new NetworkError("HTTP 500", { statusCode: 500 }));
+			return Promise.reject(new Error(`Unknown URL ${url}`));
+		});
+
+		const result = await resolveVersion("owner", "repo", { type: "branch", branch: "dev" });
+
+		expect(result.tagName).toBe("dev");
+		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/dev.zip");
+		expect(result.commitSha).toBeUndefined();
+	});
+
+	it("propagates a SAML SSO error from the head lookup of an explicit branch", async () => {
+		const samlUrl = "https://github.com/orgs/myorg/sso?authorization_request=abc";
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/branches/")) return Promise.resolve({ name: "dev" });
+			if (url.includes("/commits?"))
+				return Promise.reject(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl }));
+			return Promise.reject(new Error(`Unknown URL ${url}`));
+		});
+
+		await expect(resolveVersion("owner", "repo", { type: "branch", branch: "dev" })).rejects.toBeInstanceOf(
+			SamlSsoError,
+		);
+	});
+
 	it("names a commit by its seven characters in lower case", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
 		fetchJson.mockResolvedValue({ sha: "abcdef1234567" });
