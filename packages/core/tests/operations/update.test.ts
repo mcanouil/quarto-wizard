@@ -2366,9 +2366,10 @@ describe("resolveVersion latest", () => {
 		expect(resolved.tagName).toBe("abcdef1");
 	});
 
-	it("prefers the registry commit hint over a GitHub lookup", async () => {
+	it("prefers the live head over the registry commit hint", async () => {
 		vi.mocked(fetchReleases).mockResolvedValue([]);
 		vi.mocked(fetchTags).mockResolvedValue([]);
+		vi.mocked(fetchLatestCommit).mockResolvedValue("fedcba9876543210");
 
 		const resolved = await resolveVersion(
 			"owner",
@@ -2377,7 +2378,22 @@ describe("resolveVersion latest", () => {
 			{ defaultBranch: "main", latestCommit: "1234567890" },
 		);
 
-		expect(fetchLatestCommit).not.toHaveBeenCalled();
+		expect(resolved.commitSha).toBe("fedcba9876543210");
+		expect(resolved.zipballUrl).toContain("fedcba9876543210");
+	});
+
+	it("falls back to the registry commit hint when the live lookup fails", async () => {
+		vi.mocked(fetchReleases).mockResolvedValue([]);
+		vi.mocked(fetchTags).mockResolvedValue([]);
+		vi.mocked(fetchLatestCommit).mockRejectedValue(new NetworkError("HTTP 409: Conflict", { statusCode: 409 }));
+
+		const resolved = await resolveVersion(
+			"owner",
+			"repo",
+			{ type: "latest" },
+			{ defaultBranch: "main", latestCommit: "1234567890" },
+		);
+
 		expect(resolved.commitSha).toBe("1234567890");
 	});
 

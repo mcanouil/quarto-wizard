@@ -153,9 +153,10 @@ async function resolveBranchHead(
 	branch: string | undefined,
 	options: ResolveVersionOptions,
 ): Promise<ResolvedVersion> {
+	// The registry hint is a cached default-branch commit, so it only covers a failed live lookup.
 	const commit =
-		(branch === undefined ? options.latestCommit : undefined) ??
-		(await lookUpLatestCommit(owner, repo, { ...options, ref: branch }));
+		(await lookUpLatestCommit(owner, repo, { ...options, ref: branch })) ??
+		(branch === undefined ? options.latestCommit : undefined);
 	if (commit) {
 		const commitSha = normaliseCommit(commit);
 		return {
