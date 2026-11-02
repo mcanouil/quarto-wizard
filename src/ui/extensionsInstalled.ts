@@ -532,7 +532,8 @@ export class ExtensionsInstalled {
 					}
 
 					const toBranch = plan.track === "branch";
-					const question = `Switch "${item.label}" to ${toBranch ? "the default branch" : "the latest tag"}: install ${plan.targetLabel} (now ${plan.currentVersion ?? "unknown"})?`;
+					const installed = plan.currentVersion ? ` (now ${plan.currentVersion})` : "";
+					const question = `Switch "${item.label}" to ${toBranch ? "the default branch" : "the latest tag"}: install ${plan.targetLabel}${installed}?`;
 					const answer = await vscode.window.showWarningMessage(
 						plan.isDowngrade ? `${question} This is an older version than the one installed.` : question,
 						{ modal: true },

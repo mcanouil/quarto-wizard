@@ -725,12 +725,13 @@ suite("Extensions Installed Commands Test Suite", () => {
 		async function switchItem(
 			source: string,
 			quartoWizard: { track: InstallTrack; commit?: string },
+			version: string | null = "1.0.0",
 		): Promise<ExtensionTreeItem> {
 			const extensionDir = path.join(switchRoot, "_extensions", "acme", "switch-demo");
 			fs.mkdirSync(extensionDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(extensionDir, "_extension.yml"),
-				"title: Switch demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
+				`title: Switch demo\nauthor: Acme\n${version ? `version: ${version}\n` : ""}contributes: {}\n`,
 			);
 			writeSourceRecord(extensionDir, { source, kind: "github", quartoWizard });
 			setRoots([makeRoot(makeFolder("switch", switchRoot))]);
@@ -786,6 +787,17 @@ suite("Extensions Installed Commands Test Suite", () => {
 				[[`${SWITCH_ID}@v1.3.0`, undefined, "tag", true]],
 			);
 			assert.ok(messages.includes(`Extension "${SWITCH_ID}" now updates from the latest tag.`), messages.join("\n"));
+		});
+
+		test("an unknown installed version leaves out the now part", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }, null));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[`Switch "${SWITCH_ID}" to the default branch: install main @ fed9876?`],
+			);
 		});
 
 		test("a downgrade adds a second sentence", async () => {

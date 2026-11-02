@@ -111,12 +111,15 @@ suite("Quarto Utils Test Suite", () => {
 
 		suite("against a stubbed repository", () => {
 			const ARCHIVE_URL = "https://api.github.com/repos/acme/demo/zipball/v1.0.0";
+			const HEAD_COMMIT = "fed9876543210fedcba9876543210fedcba98765";
+			const COMMIT_ARCHIVE_URL = `https://github.com/acme/demo/archive/${HEAD_COMMIT}.zip`;
 			let originalFetch: typeof globalThis.fetch;
 			let originalShowWarningMessage: typeof vscode.window.showWarningMessage;
 			let source: vscode.CancellationTokenSource;
 			let archiveRequests: (AbortSignal | null | undefined)[];
 			let onArchiveRequest: () => void;
 			let archiveBody: Buffer | undefined;
+			let requests: string[];
 			let requireAuth: boolean;
 			let originalShowErrorMessage: typeof vscode.window.showErrorMessage;
 			let originalGetSession: typeof vscode.authentication.getSession;
@@ -157,6 +160,7 @@ suite("Quarto Utils Test Suite", () => {
 				archiveRequests = [];
 				onArchiveRequest = () => undefined;
 				archiveBody = undefined;
+				requests = [];
 				requireAuth = false;
 				originalShowErrorMessage = vscode.window.showErrorMessage;
 				originalGetSession = vscode.authentication.getSession;
@@ -165,6 +169,13 @@ suite("Quarto Utils Test Suite", () => {
 
 				globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
 					const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+					requests.push(url);
+					if (url.startsWith("https://api.github.com/repos/acme/demo/commits")) {
+						return json([{ sha: HEAD_COMMIT }]);
+					}
+					if (url === COMMIT_ARCHIVE_URL && archiveBody) {
+						return new Response(new Uint8Array(archiveBody), { status: 200 });
+					}
 					if (url.startsWith("https://api.github.com/repos/acme/demo/releases")) {
 						const headers = new Headers(init?.headers);
 						if (requireAuth && !headers.has("Authorization")) {
@@ -381,6 +392,50 @@ suite("Quarto Utils Test Suite", () => {
 					const read = readSourceRecord(installedDir);
 					assert.strictEqual(read.status, "ok");
 					assert.strictEqual(read.status === "ok" && read.record.quartoWizard?.track, "tag");
+				});
+
+				suite("with the update source setting on the default branch", () => {
+					let originalGetConfiguration: typeof vscode.workspace.getConfiguration;
+
+					setup(() => {
+						originalGetConfiguration = vscode.workspace.getConfiguration;
+						Object.defineProperty(vscode.workspace, "getConfiguration", {
+							value: (section?: string, scope?: vscode.ConfigurationScope) =>
+								section === "quartoWizard.install"
+									? { get: (key: string) => (key === "updateSource" ? "defaultBranch" : undefined) }
+									: originalGetConfiguration.call(vscode.workspace, section, scope),
+							writable: true,
+							configurable: true,
+						});
+					});
+
+					teardown(() => {
+						Object.defineProperty(vscode.workspace, "getConfiguration", {
+							value: originalGetConfiguration,
+							writable: true,
+							configurable: true,
+						});
+					});
+
+					test("a plain install records the branch mode and its commit", async () => {
+						archiveBody = await buildArchive(["demo"], "1.0.0");
+
+						assert.strictEqual(await installQuartoExtension("acme/demo", testWorkspaceDir), true);
+
+						const read = readSourceRecord(installedDir);
+						assert.strictEqual(read.status, "ok");
+						assert.strictEqual(read.status === "ok" && read.record.quartoWizard?.track, "branch");
+						assert.strictEqual(read.status === "ok" && read.record.quartoWizard?.commit, HEAD_COMMIT);
+					});
+
+					test("a template use follows the branch instead of the latest tag", async () => {
+						archiveBody = await buildArchive(["demo"], "1.0.0");
+
+						await useQuartoExtension("acme/demo", testWorkspaceDir, { selectFiles: async () => null });
+
+						assert.ok(requests.includes(COMMIT_ARCHIVE_URL), requests.join("\n"));
+						assert.ok(!requests.some((url) => url.includes("/releases")), requests.join("\n"));
+					});
 				});
 
 				test("a change of update source with local changes shows Replace anyway and Cancel writes nothing", async () => {
