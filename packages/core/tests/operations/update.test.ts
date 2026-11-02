@@ -1307,7 +1307,7 @@ describe("checkForUpdates", () => {
 
 			expect(result.checkFailure).toBeUndefined();
 			expect(result.repositoryFailures).toEqual([
-				{ repository: "quarto-ext/fontawesome", message: "Repository not found: quarto-ext/fontawesome" },
+				{ repository: "quarto-ext/fontawesome", message: 'Branch "dev" not found in quarto-ext/fontawesome' },
 			]);
 			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["lightbox"]);
 		});
@@ -1833,6 +1833,31 @@ describe("applyUpdates", () => {
 		};
 	}
 
+	it("installs a tag update without a dot as a tag", async () => {
+		vi.mocked(install).mockReset();
+		vi.mocked(install).mockResolvedValue({ extension: pendingUpdate("x").extension } as Awaited<
+			ReturnType<typeof install>
+		>);
+
+		await applyUpdates([{ ...pendingUpdate("x"), source: "quarto-ext/x@3", latestRef: "3" }], { projectDirs: [] });
+
+		expect(vi.mocked(install).mock.calls[0][1]).toMatchObject({ track: "tag", refIsTag: true });
+	});
+
+	it("does not install a commit update as a tag", async () => {
+		vi.mocked(install).mockReset();
+		vi.mocked(install).mockResolvedValue({ extension: pendingUpdate("x").extension } as Awaited<
+			ReturnType<typeof install>
+		>);
+		const commit = "fed9876543210fedcba9876543210fedcba98765";
+
+		await applyUpdates([{ ...pendingUpdate("x"), source: `quarto-ext/x@${commit}`, refKind: "commit" }], {
+			projectDirs: [],
+		});
+
+		expect(vi.mocked(install).mock.calls[0][1].refIsTag).toBe(false);
+	});
+
 	function updateOf(name: string, source: string): UpdateInfo {
 		return { ...pendingUpdate(name), source };
 	}
@@ -2081,6 +2106,37 @@ describe("applyUpdates", () => {
 			expect(record.ref).toBe(SUBDIRECTORY_REPOSITORY_TAG);
 			expect(record.quartoWizard).toEqual({ track: "tag" });
 			expect(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf-8")).not.toMatch(/^source/m);
+		});
+
+		it("follows an explicit branch from the check to the new record", async () => {
+			const oldCommit = "abc1234567890abcdef1234567890abcdef12345";
+			const projectDir = path.join(tempDir, "project");
+			const installedDir = path.join(projectDir, "_extensions", "acme", "x");
+			fs.mkdirSync(installedDir, { recursive: true });
+			fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: X\nversion: 0.9.0\n");
+			writeSourceRecord(installedDir, {
+				source: "acme/repo@dev",
+				kind: "github",
+				ref: "dev",
+				quartoWizard: { track: "branch", commit: oldCommit },
+			});
+			vi.mocked(fetchLatestCommit).mockResolvedValue(FULL_COMMIT);
+			vi.mocked(downloadGitHubArchive).mockImplementationOnce(async () => ({
+				archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+				tagName: "dev",
+				commitSha: FULL_COMMIT,
+				format: "tarball",
+			}));
+
+			const check = await checkForUpdates({ projectDirs: [projectDir] });
+			const result = await applyUpdates(check.updates, { projectDirs: [projectDir] });
+
+			expect(check.updates).toHaveLength(1);
+			expect(result.failed).toEqual([]);
+			const record = recordIn(installedDir);
+			expect(record.source).toBe("acme/repo@dev");
+			expect(record.ref).toBe("dev");
+			expect(record.quartoWizard).toEqual({ track: "branch", commit: FULL_COMMIT });
 		});
 
 		it("passes the record source and the mode of the update to install", async () => {

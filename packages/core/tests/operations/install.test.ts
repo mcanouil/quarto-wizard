@@ -1091,6 +1091,30 @@ describe("install record", () => {
 			expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "tag" });
 		});
 
+		it.each(["2", "20240101"])("the tag option installs a ref without a dot, %s, as a tag", async (ref) => {
+			mockGitHubDownload({ tagName: ref, fromTag: true });
+
+			await install(parseInstallSource(`owner/repo@${ref}`), { projectDir, track: "tag", refIsTag: true });
+
+			expect(downloadGitHubArchive).toHaveBeenCalledWith(
+				"owner",
+				"repo",
+				{ type: "tag", tag: ref },
+				expect.objectContaining({ track: "tag" }),
+			);
+			const record = recordOf(installedDir());
+			expect(record.source).toBe(`owner/repo@${ref}`);
+			expect(record.quartoWizard).toEqual({ track: "tag" });
+		});
+
+		it("a branch ref records branch mode whatever the mode option says, as a reinstall of a record without a mode does", async () => {
+			mockGitHubDownload({ tagName: "dev", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource("owner/repo@dev"), { projectDir, track: "tag" });
+
+			expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "branch", commit: SHA });
+		});
+
 		it("a subdirectory source in branch mode records its path commit", async () => {
 			vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
 				archivePath: await createSubdirectoryRepositoryArchive(tempDir),

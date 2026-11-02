@@ -409,6 +409,7 @@ export class ExtensionsInstalled {
 						expectedExtensionId: extension.id,
 						recordSource: update?.recordSource,
 						track: update?.track,
+						refIsTag: update?.refKind === "tag",
 						replaceSameVersion: true,
 					});
 				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
@@ -455,7 +456,7 @@ export class ExtensionsInstalled {
 
 		/**
 		 * Reinstalls a Quarto extension from its original source.
-		 * Keeps the pinned ref or the recorded commit; an unpinned tagged extension gets its latest tag.
+		 * Keeps the recorded tag or commit and the update source; a record that names neither gets the latest tag.
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.reinstall", async (item: ExtensionTreeItem) => {
@@ -479,6 +480,7 @@ export class ExtensionsInstalled {
 						expectedExtensionId: extension.id,
 						recordSource: target?.recordSource,
 						track: target?.track,
+						refIsTag: target?.refIsTag,
 						replaceSameVersion: true,
 						force: true,
 					});
@@ -528,6 +530,7 @@ export class ExtensionsInstalled {
 						}
 					});
 					if (!plan) {
+						logMessage(`Cannot change the update source of "${item.label}": its source is not on GitHub.`, "info");
 						return;
 					}
 
@@ -711,6 +714,7 @@ export class ExtensionsInstalled {
 								expectedExtensionId: update.extension.id,
 								recordSource: update.recordSource,
 								track: update.track,
+								refIsTag: update.refKind === "tag",
 								replaceSameVersion: true,
 								localEdits: "skip",
 								outcome: installOutcome,

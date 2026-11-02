@@ -43,6 +43,7 @@ import {
 	LocalEditsError,
 	NetworkError,
 	RateLimitError,
+	RepositoryNotFoundError,
 	SamlSsoError,
 	getErrorMessage,
 	isCancellationError,
@@ -534,7 +535,13 @@ async function buildBranchUpdate(
 	lookups: GitHubLookups,
 	htmlUrl: string,
 ): Promise<UpdateInfo | null> {
-	const latestCommit = await lookups.latestCommit(candidate);
+	const latestCommit = await lookups.latestCommit(candidate).catch((error: unknown) => {
+		// The head lookup of a named branch fails with the repository error when the branch is gone.
+		if (candidate.branch !== undefined && error instanceof RepositoryNotFoundError) {
+			throw new ExtensionError(`Branch "${candidate.branch}" not found in ${candidate.fullName}`);
+		}
+		throw error;
+	});
 	const update = buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
 	// The latest commit of a path can be older than an installed commit of the
 	// whole repository, so a different commit is only an update when it is newer.
@@ -794,6 +801,7 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				sourceType: update.extension.manifest.sourceType,
 				recordSource: update.recordSource,
 				track: update.track,
+				refIsTag: update.refKind === "tag",
 				replaceSameVersion: true,
 				signal,
 				expectedExtensionId: update.extension.id,

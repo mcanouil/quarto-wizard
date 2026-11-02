@@ -100,6 +100,8 @@ export interface InstallOptions {
 	recordSource?: string;
 	/** What updates of a GitHub install follow: the latest tag or the head of a branch. */
 	track?: InstallTrack;
+	/** Install the ref of the source as a tag, for a tag such as `2` that reads as a branch or a commit. */
+	refIsTag?: boolean;
 	/** Receives what the install did, so that the caller can report it. */
 	outcome?: InstallOutcome;
 }
@@ -500,6 +502,7 @@ export async function installQuartoExtension(
 		force = false,
 		replaceSameVersion = false,
 		recordSource,
+		refIsTag,
 		outcome,
 	} = options;
 	const track = options.track ?? configuredInstallTrack(workspaceFolder);
@@ -538,6 +541,7 @@ export async function installQuartoExtension(
 			expectedExtensionId,
 			recordSource,
 			track,
+			refIsTag,
 			force: forceInstall,
 			replaceSameVersion,
 			confirmOverwrite: createConfirmOverwriteCallback(prefix, forceInstall || (skipOverwritePrompt ?? false)),

@@ -65,6 +65,25 @@ describe("reinstallTarget", () => {
 		});
 	});
 
+	it.each(["2", "20240101"])("installs the dotless tag %s as a tag", (ref) => {
+		expect(reinstallTarget(installed(`o/ext@${ref}`, { quartoWizard: { track: "tag" } }))).toEqual({
+			source: `o/ext@${ref}`,
+			track: "tag",
+			refIsTag: true,
+		});
+	});
+
+	it("installs a ref that is not a version as written in tag mode", () => {
+		expect(reinstallTarget(installed("o/ext@abc1234", { quartoWizard: { track: "tag" } }))).toEqual({
+			source: "o/ext@abc1234",
+			track: "tag",
+		});
+	});
+
+	it("leaves a branch ref of a record without a mode to the install, which records branch mode", () => {
+		expect(reinstallTarget(installed("o/ext@dev"))).toEqual({ source: "o/ext@dev", track: "tag" });
+	});
+
 	it("installs the recorded commit of a tag-mode install without a version tag", () => {
 		expect(reinstallTarget(installed("o/ext", { quartoWizard: { track: "tag", commit: FULL_SHA } }))).toEqual({
 			source: `o/ext@${FULL_SHA}`,

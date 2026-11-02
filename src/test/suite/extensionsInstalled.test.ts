@@ -13,6 +13,7 @@ import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvi
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { formatExtensionId, getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/coreOperations";
+import * as constants from "../../constants";
 import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
@@ -285,7 +286,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		]);
 	});
 
-	test("reinstall keeps the pinned ref", async () => {
+	test("reinstall keeps the recorded tag or commit and the update source", async () => {
 		await runCommand("reinstall", createItem("acme/pinned-demo"));
 
 		assert.deepStrictEqual(installCalls, [
@@ -671,6 +672,20 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined, track: "tag" }]);
 		});
+
+		test("reinstall of a tag without a dot installs it as a tag", async () => {
+			const refIsTag: (boolean | undefined)[] = [];
+			const record = quartoModule.installQuartoExtension;
+			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+				refIsTag.push(options.refIsTag);
+				return record(source, workspaceFolder, options);
+			};
+
+			await runCommand("reinstall", await unpinnedItem(`${UNPINNED_ID}@20240101`));
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@20240101`, recordSource: undefined, track: "tag" }]);
+			assert.deepStrictEqual(refIsTag, [true]);
+		});
 	});
 
 	suite("change update source", () => {
@@ -850,12 +865,26 @@ suite("Extensions Installed Commands Test Suite", () => {
 			]);
 		});
 
-		test("an extension that is not on GitHub shows nothing", async () => {
-			await runCommand("changeUpdateSource", createItem("acme/url-demo"));
+		test("an extension that is not on GitHub shows no dialog and logs why", async () => {
+			const logged: string[] = [];
+			const log = (constants as { QW_LOG: unknown }).QW_LOG;
+			(constants as { QW_LOG: unknown }).QW_LOG = {
+				...(log as object),
+				info: (message: string) => logged.push(message),
+			};
+			try {
+				await runCommand("changeUpdateSource", createItem("acme/url-demo"));
+			} finally {
+				(constants as { QW_LOG: unknown }).QW_LOG = log;
+			}
 
 			assert.deepStrictEqual(dialogs, []);
 			assert.deepStrictEqual(installs, []);
 			assert.deepStrictEqual(errors, []);
+			assert.ok(
+				logged.includes('Cannot change the update source of "acme/url-demo": its source is not on GitHub.'),
+				logged.join("\n"),
+			);
 		});
 	});
 

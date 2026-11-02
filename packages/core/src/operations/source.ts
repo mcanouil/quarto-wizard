@@ -21,6 +21,7 @@ import {
 	type InstallTrack,
 } from "../types/manifest.js";
 import { ExtensionError } from "../errors.js";
+import { parseVersionSpec } from "../types/extension.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { fetchRawFile } from "../github/raw.js";
 import { installedVersionFloor, readSubdirectoryVersion } from "./versions.js";
@@ -35,6 +36,8 @@ export interface InstallTarget {
 	/** Source to write in the record, when it differs from `source`. */
 	recordSource?: string;
 	track: InstallTrack;
+	/** Whether the ref of `source` is a tag that reads as a branch or a commit, such as `2`. */
+	refIsTag?: boolean;
 }
 
 /**
@@ -95,7 +98,15 @@ export function reinstallTarget(extension: InstalledExtension): InstallTarget | 
 	if (commit && !parsed.hasRef) {
 		return { source: `${parsed.base}@${commit}`, recordSource: parsed.base, track };
 	}
-	return { source, track };
+	return { source, track, ...(refReadsAsTag(source) && { refIsTag: true }) };
+}
+
+/**
+ * Whether the ref of a source is a version that the version parser would not take for a tag.
+ */
+function refReadsAsTag(source: string): boolean {
+	const { ref } = splitSourceRef(source);
+	return ref !== undefined && normaliseVersion(ref) !== null && parseVersionSpec(ref).type !== "tag";
 }
 
 /**
