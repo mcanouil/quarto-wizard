@@ -14,6 +14,7 @@ import { formatExtensionId } from "../types/extension.js";
 import {
 	formatGitHubLocator,
 	getEffectiveSourceType,
+	normaliseCommit,
 	recordedCommit,
 	recordedTrack,
 	shortCommit,
@@ -597,7 +598,7 @@ async function buildSubdirectoryUpdate(
 		}
 		return makeUpdate(
 			candidate,
-			{ type: "commit", commit: latestCommit.toLowerCase() },
+			{ type: "commit", commit: normaliseCommit(latestCommit) },
 			{ currentVersion, latestVersion, checkedOn: "github", releaseUrl: htmlUrl },
 		);
 	}
@@ -704,7 +705,7 @@ function buildCommitUpdate(
 	}
 	return makeUpdate(
 		candidate,
-		{ type: "commit", commit: latestCommit.toLowerCase() },
+		{ type: "commit", commit: normaliseCommit(latestCommit) },
 		{
 			currentVersion: currentCommit ?? candidate.extension.manifest.version,
 			latestVersion: latestRef,

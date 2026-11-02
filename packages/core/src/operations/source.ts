@@ -13,6 +13,7 @@ import type { InstalledExtension } from "../filesystem/discovery.js";
 import {
 	formatGitHubLocator,
 	getEffectiveSourceType,
+	normaliseCommit,
 	recordedTrack,
 	shortCommit,
 	splitSourceRef,
@@ -167,7 +168,7 @@ export async function planSourceChange(
 			);
 		}
 		return {
-			source: githubInstallSource(locator, { type: "commit", commit: commit.toLowerCase() }),
+			source: githubInstallSource(locator, { type: "commit", commit: normaliseCommit(commit) }),
 			recordSource: base,
 			track,
 			targetLabel: `${branch ?? "default branch"} @ ${shortCommit(commit)}`,

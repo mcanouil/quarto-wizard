@@ -6,7 +6,7 @@
  */
 
 import type { VersionSpec } from "../types/extension.js";
-import { shortCommit, type InstallTrack } from "../types/manifest.js";
+import { normaliseCommit, shortCommit, type InstallTrack } from "../types/manifest.js";
 import { SamlSsoError, VersionError, isCancellationError } from "../errors.js";
 import {
 	constructArchiveUrl,
@@ -71,7 +71,7 @@ export async function resolveVersion(
 	version: VersionSpec,
 	options: ResolveVersionOptions = {},
 ): Promise<ResolvedVersion> {
-	const { defaultBranch, latestCommit, track = "tag" } = options;
+	const { track = "tag" } = options;
 
 	switch (version.type) {
 		case "latest": {
@@ -84,28 +84,7 @@ export async function resolveVersion(
 					fromTag: true,
 				};
 			}
-
-			// The head of the default branch is downloaded by its commit, so the files match the
-			// commit that is recorded even when the branch moves during the install.
-			const commitSha = (latestCommit ?? (await lookUpLatestCommit(owner, repo, options)))?.toLowerCase();
-			if (commitSha) {
-				return {
-					tagName: shortCommit(commitSha),
-					...commitArchive(owner, repo, commitSha),
-					commitSha,
-					fromTag: false,
-				};
-			}
-
-			// Without a commit, fall back to the branch archive. The registry hint is
-			// preferred, then GitHub itself, because the branch is not always "main".
-			const branch = defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
-			return {
-				tagName: "HEAD",
-				zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, branch, "branch", "tarball"),
-				fromTag: false,
-			};
+			return resolveBranchHead(owner, repo, undefined, options);
 		}
 
 		case "tag":
@@ -146,29 +125,55 @@ export async function resolveVersion(
 			return {
 				tagName: shortCommit(commitRef),
 				...commitArchive(owner, repo, commitRef),
-				commitSha: commitRef.toLowerCase(),
+				commitSha: normaliseCommit(commitRef),
 				fromTag: false,
 			};
 		}
 
 		case "branch": {
-			const branchName = version.branch;
-			// Validate branch exists before constructing URL
-			await validateBranch(owner, repo, branchName, options);
-			// The head is downloaded by its commit, as for the default branch above, and a
-			// failed lookup falls back to the branch archive.
-			const commitSha = (await lookUpLatestCommit(owner, repo, { ...options, ref: branchName }))?.toLowerCase();
-			if (commitSha) {
-				return { tagName: branchName, ...commitArchive(owner, repo, commitSha), commitSha, fromTag: false };
-			}
-			return {
-				tagName: branchName,
-				zipballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "tarball"),
-				fromTag: false,
-			};
+			const head = resolveBranchHead(owner, repo, version.branch, options);
+			// The head lookup runs alongside the check that the branch exists, whose error wins.
+			head.catch(() => undefined);
+			await validateBranch(owner, repo, version.branch, options);
+			return head;
 		}
 	}
+}
+
+/**
+ * Resolve the head of a branch, the default branch when `branch` is not set.
+ *
+ * The head is downloaded by its commit, so the files match the commit that is
+ * recorded even when the branch moves during the install. Without a commit,
+ * it falls back to the branch archive.
+ */
+async function resolveBranchHead(
+	owner: string,
+	repo: string,
+	branch: string | undefined,
+	options: ResolveVersionOptions,
+): Promise<ResolvedVersion> {
+	const commit =
+		(branch === undefined ? options.latestCommit : undefined) ??
+		(await lookUpLatestCommit(owner, repo, { ...options, ref: branch }));
+	if (commit) {
+		const commitSha = normaliseCommit(commit);
+		return {
+			tagName: branch ?? shortCommit(commitSha),
+			...commitArchive(owner, repo, commitSha),
+			commitSha,
+			fromTag: false,
+		};
+	}
+	// For the default branch, the registry hint is preferred, then GitHub itself,
+	// because the branch is not always "main".
+	const archiveBranch = branch ?? options.defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
+	return {
+		tagName: branch ?? "HEAD",
+		zipballUrl: constructArchiveUrl(owner, repo, archiveBranch, "branch", "zip"),
+		tarballUrl: constructArchiveUrl(owner, repo, archiveBranch, "branch", "tarball"),
+		fromTag: false,
+	};
 }
 
 /**

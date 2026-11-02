@@ -182,10 +182,17 @@ export function extractCommitFromSource(source: string): string | null {
 }
 
 /**
+ * Full commit in lower case, the form that an install record and a commit archive use.
+ */
+export function normaliseCommit(commit: string): string {
+	return commit.toLowerCase();
+}
+
+/**
  * First seven characters of a commit, in lower case.
  */
 export function shortCommit(commit: string): string {
-	return commit.slice(0, 7).toLowerCase();
+	return normaliseCommit(commit).slice(0, 7);
 }
 
 /**
