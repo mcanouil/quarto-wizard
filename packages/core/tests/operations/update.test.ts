@@ -2049,7 +2049,7 @@ describe("applyUpdates", () => {
 			);
 		});
 
-		it("updates an extension installed without an owner from a GitHub source", async () => {
+		it("updates an extension installed without an owner in its own folder", async () => {
 			const projectDir = path.join(tempDir, "project");
 			const installedDir = path.join(projectDir, "_extensions", "x");
 			fs.mkdirSync(installedDir, { recursive: true });
@@ -2071,7 +2071,10 @@ describe("applyUpdates", () => {
 
 			expect(result.failed).toEqual([]);
 			expect(result.updated).toHaveLength(1);
-			expect(fs.existsSync(path.join(projectDir, "_extensions", "acme", "x", "_extension.yml"))).toBe(true);
+			expect(result.updated[0].extension.directory).toBe(installedDir);
+			expect(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf-8")).not.toContain("version: 0.9.0");
+			expect(fs.existsSync(path.join(installedDir, ".quarto-source.yml"))).toBe(true);
+			expect(fs.existsSync(path.join(projectDir, "_extensions", "acme"))).toBe(false);
 		});
 
 		function githubUpdate(

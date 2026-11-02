@@ -142,6 +142,7 @@ export interface InstallOptions extends RegistryOptions {
 	/**
 	 * Identifier of the one extension to install from the source.
 	 * Only the discovered extension with this owner and name (ignoring case) is kept, however many the source holds.
+	 * A null owner matches any owner and installs into `_extensions/<name>`, so an extension installed without an owner is replaced in place.
 	 * Installation fails before anything is written when none matches.
 	 * When set, `selectExtension` is not called.
 	 */
@@ -477,8 +478,14 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		applySourceOwner(allExtensions, source);
 
 		const expected = options.expectedExtensionId;
+		// An expected extension installed without an owner is replaced in that folder,
+		// not copied next to it under the owner of the source.
 		const offered = expected
-			? allExtensions.filter((candidate) => isSameExtensionId(candidate.id, expected))
+			? allExtensions
+					.filter((candidate) => isSameExtensionId(candidate.id, expected))
+					.map((candidate) =>
+						expected.owner === null ? { ...candidate, id: { ...candidate.id, owner: null } } : candidate,
+					)
 			: allExtensions;
 		if (expected && offered.length === 0) {
 			const location = formatResolvedSource(source, tagName, commitSha);
