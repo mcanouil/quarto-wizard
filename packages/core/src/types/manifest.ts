@@ -182,10 +182,34 @@ export function extractCommitFromSource(source: string): string | null {
 }
 
 /**
+ * Full commit in lower case, the form that an install record and a commit archive use.
+ */
+export function normaliseCommit(commit: string): string {
+	return commit.toLowerCase();
+}
+
+/**
  * First seven characters of a commit, in lower case.
  */
 export function shortCommit(commit: string): string {
-	return commit.slice(0, 7).toLowerCase();
+	return normaliseCommit(commit).slice(0, 7);
+}
+
+/**
+ * What an update follows for a GitHub install: the latest tag, or the head of a branch.
+ */
+export type InstallTrack = "tag" | "branch";
+
+/**
+ * Update mode that an install record names.
+ *
+ * Only a GitHub record can say `branch`; a missing record, another kind, or a missing or unknown value is `tag`.
+ *
+ * @param record - Install record, or null when there is none
+ * @returns `branch` when the record says so, otherwise `tag`
+ */
+export function recordedTrack(record: { kind: string; quartoWizard?: { track?: InstallTrack } } | null): InstallTrack {
+	return record?.kind === "github" && record.quartoWizard?.track === "branch" ? "branch" : "tag";
 }
 
 /**

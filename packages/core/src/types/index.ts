@@ -31,6 +31,8 @@ export {
 	splitSourceRef,
 	extractCommitFromSource,
 	recordedCommit,
+	recordedTrack,
+	type InstallTrack,
 } from "./manifest.js";
 
 export {

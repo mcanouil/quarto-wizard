@@ -9,14 +9,18 @@
 
 import * as semver from "semver";
 import type { AuthConfig } from "../types/auth.js";
-import type { ExtensionId } from "../types/extension.js";
+import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import { formatExtensionId } from "../types/extension.js";
 import {
 	formatGitHubLocator,
 	getEffectiveSourceType,
+	normaliseCommit,
 	recordedCommit,
+	recordedTrack,
+	shortCommit,
 	splitSourceRef,
 	tryParseGitHubLocator,
+	type InstallTrack,
 } from "../types/manifest.js";
 import {
 	discoverInstalledExtensions,
@@ -30,17 +34,18 @@ import { lookupRegistryEntry } from "../registry/search.js";
 import { isEmbeddedInInstalledParent } from "../filesystem/projects.js";
 import { compareCommits, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 import { fetchRawFile } from "../github/raw.js";
-import { MANIFEST_FILENAMES, parseManifestContent } from "../filesystem/manifest.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
-import { install, parseInstallSource } from "./install.js";
+import { install } from "./install.js";
+import { githubInstallSource, type InstallTarget } from "./source.js";
+import { installedVersionFloor, readSubdirectoryVersion } from "./versions.js";
 import {
 	AuthenticationError,
 	CancellationError,
 	ExtensionError,
 	LocalEditsError,
-	ManifestError,
 	NetworkError,
 	RateLimitError,
+	RepositoryNotFoundError,
 	SamlSsoError,
 	getErrorMessage,
 	isCancellationError,
@@ -63,7 +68,7 @@ export interface UpdateInfo {
 	currentVersion: string;
 	/** Latest available version, or the latest commit for a commit comparison. */
 	latestVersion: string;
-	/** Tag or seven-character commit to install. */
+	/** Tag or seven-character commit to show for the update. */
 	latestRef: string;
 	/** Whether `latestRef` is a tag or a commit. */
 	refKind: "tag" | "commit";
@@ -71,8 +76,13 @@ export interface UpdateInfo {
 	checkedOn: UpdateCheckSource;
 	/** URL to the release, or to the repository when there is no release. */
 	releaseUrl: string | null;
-	/** Source to install, as `owner/repo@<latestRef>` or `owner/repo/<subdirectory>@<latestRef>`. */
-	source: string;
+	/**
+	 * What the update installs and records. Its source names the tag, or the full commit so that
+	 * the install downloads exactly the commit the check saw. It keeps the update mode of the
+	 * installed extension, and a commit update sets `recordSource`: the recorded source in branch
+	 * mode, and the source without a ref in tag mode.
+	 */
+	target: InstallTarget;
 }
 
 /**
@@ -175,10 +185,14 @@ interface UpdateCandidate {
 	repo: string;
 	/** Repository as `owner/repo`, or the extension name when it matches several owners. */
 	fullName: string;
-	/** Seven-character commit when the source is pinned to a commit. */
+	/** Seven-character installed commit, from the record or from a commit ref of the source. */
 	currentCommit: string | null;
 	/** Repository subdirectory the extension was installed from, absent for the repository root. */
 	subdirectory?: string;
+	/** Update mode of the install record. */
+	track: InstallTrack;
+	/** Branch that a branch-mode source names, absent for the default branch and in tag mode. */
+	branch?: string;
 }
 
 /**
@@ -200,9 +214,12 @@ interface GitHubLookups {
 /**
  * Check for available updates.
  *
- * A source pinned to a commit compares commits; every other source compares
- * the installed version with the latest tag. An update never goes to a lower
- * version.
+ * The update mode of the install record picks the comparison. Branch mode
+ * compares the installed commit with the head of the tracked branch, the
+ * default branch unless the source names one. Tag mode compares the installed
+ * version with the latest tag, and an update never goes to a lower version.
+ * While the repository has no version tag, tag mode compares commits on the
+ * default branch, when the install recorded a commit.
  *
  * A source with a repository subdirectory is always checked on GitHub. Its
  * installed version is compared with the version in the subdirectory manifest
@@ -238,8 +255,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 
 	let registry: Registry | null = null;
 	let checked = candidates;
-	// No registry entry matches a subdirectory source.
-	if (!useGitHub && candidates.some((candidate) => !candidate.subdirectory)) {
+	if (!useGitHub && candidates.some(checksInRegistry)) {
 		try {
 			registry = await fetchRegistry(registryOptions);
 		} catch (error) {
@@ -247,8 +263,8 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 				throw error;
 			}
 			result.checkFailure = { kind: "registry-unavailable", message: getErrorMessage(error) };
-			// A subdirectory source is always checked on GitHub, so only the root sources are lost.
-			checked = candidates.filter((candidate) => candidate.subdirectory);
+			// The sources that are always checked on GitHub can still be checked.
+			checked = candidates.filter((candidate) => !checksInRegistry(candidate));
 			if (checked.length === 0) {
 				return result;
 			}
@@ -266,7 +282,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 
 	const updates = await Promise.all(
 		checked.map(async (candidate) => {
-			const entry = registry && !candidate.subdirectory ? lookupRegistryEntry(registry, candidate.base) : null;
+			const entry = registry && checksInRegistry(candidate) ? lookupRegistryEntry(registry, candidate.base) : null;
 			if (entry) {
 				return buildRegistryUpdate(candidate, entry);
 			}
@@ -351,34 +367,35 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 		return null;
 	}
 
-	const { base } = splitSourceRef(source);
+	const { base, ref } = splitSourceRef(source);
 	const locator = tryParseGitHubLocator(base);
 	if (!locator) {
 		return null;
 	}
 
+	const track = recordedTrack(extension.record);
+	const quartoWizard = extension.record?.quartoWizard;
+	// A branch ref is never a commit, even when its name looks like one.
+	const branchCommit = quartoWizard?.commit ? shortCommit(quartoWizard.commit) : null;
 	return {
 		extension,
 		projectDir,
 		base,
 		...locator,
 		fullName: `${locator.owner}/${locator.repo}`,
-		currentCommit: recordedCommit({ source, quartoWizard: extension.record?.quartoWizard }),
+		currentCommit: track === "branch" ? branchCommit : recordedCommit({ source, quartoWizard }),
+		track,
+		...(track === "branch" && ref !== undefined && { branch: ref }),
 	};
 }
 
 /**
- * Paths where the manifest of a subdirectory source can be, in the order they are tried:
- * the subdirectory itself, then the folder of the installed extension under the
- * `_extensions` folder of the subdirectory, without and with its owner.
+ * Whether the registry can check a candidate. The registry holds the latest
+ * commit of the default branch of the whole repository only, and no entry
+ * matches a subdirectory source.
  */
-function subdirectoryManifestPaths(candidate: UpdateCandidate): string[] {
-	const { owner, name } = candidate.extension.id;
-	const directories = [candidate.subdirectory, `${candidate.subdirectory}/_extensions/${name}`];
-	if (owner) {
-		directories.push(`${candidate.subdirectory}/_extensions/${owner}/${name}`);
-	}
-	return directories.flatMap((directory) => MANIFEST_FILENAMES.map((filename) => `${directory}/${filename}`));
+function checksInRegistry(candidate: UpdateCandidate): boolean {
+	return !candidate.subdirectory && candidate.branch === undefined;
 }
 
 function createGitHubLookups(options: GitHubOptions): GitHubLookups {
@@ -396,51 +413,26 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 	return {
 		latestTag(candidate) {
 			const currentVersion = candidate.extension.manifest.version;
-			const normalised = normaliseVersion(currentVersion);
-			const followsPrereleases = normalised !== null && semver.prerelease(normalised) !== null;
-			const key = `${candidate.fullName.toLowerCase()}#tag#${followsPrereleases}`;
+			const key = `${candidate.fullName.toLowerCase()}#tag#${followsPrereleases(candidate)}`;
 			return once(key, () => resolveLatestTag(candidate.owner, candidate.repo, { ...options, currentVersion }));
 		},
 		latestCommit(candidate) {
-			const { subdirectory } = candidate;
-			const key = `${candidate.fullName.toLowerCase()}#commit:${subdirectory ?? ""}`;
-			return once(key, () => fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory }));
+			const { subdirectory, branch } = candidate;
+			const key = `${candidate.fullName.toLowerCase()}#commit@${branch ?? ""}:${subdirectory ?? ""}`;
+			return once(key, () =>
+				fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory, ref: branch }),
+			);
 		},
 		subdirectoryVersion(candidate, ref) {
 			const repository = candidate.fullName.toLowerCase();
 			const extensionId = formatExtensionId(candidate.extension.id);
 			return once(`${repository}@${ref}:${candidate.subdirectory}#${extensionId}`, async () => {
-				// Raw file requests do not count against the API rate limit, so every path is asked at once.
-				const filePaths = subdirectoryManifestPaths(candidate);
 				// Two extensions of one subdirectory share the paths of the subdirectory itself, so each file is asked once.
-				const reads = await Promise.allSettled(
-					filePaths.map((filePath) =>
-						once(`${repository}#raw@${ref}:${filePath}`, () =>
-							fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options),
-						),
+				return readSubdirectoryVersion(candidate.subdirectory as string, candidate.extension.id, (filePath) =>
+					once(`${repository}#raw@${ref}:${filePath}`, () =>
+						fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options),
 					),
 				);
-				for (const read of reads) {
-					if (read.status === "rejected" && isCancellationError(read.reason)) {
-						throw read.reason;
-					}
-				}
-				try {
-					// The paths are in priority order, so a read that fails before the first manifest
-					// found leaves the version unknown and a manifest of lower priority never decides.
-					for (const [index, read] of reads.entries()) {
-						if (read.status === "rejected") {
-							throw read.reason;
-						}
-						if (read.value !== null) {
-							return manifestVersion(read.value, filePaths[index]);
-						}
-					}
-					return null;
-				} catch {
-					// The caller falls back to the recorded ref, so a failed read only loses precision.
-					return null;
-				}
 			});
 		},
 		isBehind(candidate, installedCommit, latestCommit) {
@@ -461,21 +453,6 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 			});
 		},
 	};
-}
-
-/**
- * Normalised version of a manifest, or null when the manifest cannot be
- * parsed or has no version.
- */
-function manifestVersion(content: string, sourcePath: string): string | null {
-	try {
-		return normaliseVersion(parseManifestContent(content, sourcePath).version);
-	} catch (error) {
-		if (error instanceof ManifestError) {
-			return null;
-		}
-		throw error;
-	}
 }
 
 /**
@@ -516,35 +493,67 @@ function checkFailureKind(error: unknown): UpdateCheckFailure["kind"] | null {
 }
 
 function buildRegistryUpdate(candidate: UpdateCandidate, entry: RegistryEntry): UpdateInfo | null {
-	if (candidate.currentCommit) {
+	if (candidate.track === "branch") {
 		return buildCommitUpdate(candidate, entry.latestCommit, entry.htmlUrl, "registry");
 	}
-	if (!entry.latestTag) {
-		return null;
+	if (entry.latestTag && isUsableTag(candidate, entry.latestTag)) {
+		return buildTagUpdate(candidate, entry.latestTag, entry.latestReleaseUrl, "registry");
 	}
-	return buildTagUpdate(candidate, entry.latestTag, entry.latestReleaseUrl, "registry");
+	return buildDefaultBranchUpdate(candidate, entry.latestCommit, entry.htmlUrl, "registry");
 }
 
 async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLookups): Promise<UpdateInfo | null> {
 	const htmlUrl = `https://github.com/${candidate.fullName}`;
-	if (candidate.currentCommit) {
-		const latestCommit = await lookups.latestCommit(candidate);
-		const update = buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
-		// The latest commit of a path can be older than an installed commit of the
-		// whole repository, so a different commit is only an update when it is newer.
-		if (update && candidate.subdirectory && latestCommit) {
-			return (await lookups.isBehind(candidate, candidate.currentCommit, latestCommit)) ? update : null;
-		}
-		return update;
+	if (candidate.track === "branch") {
+		return buildBranchUpdate(candidate, lookups, htmlUrl);
 	}
 	const latest = await lookups.latestTag(candidate);
 	if (candidate.subdirectory) {
 		return buildSubdirectoryUpdate(candidate, latest, lookups, htmlUrl);
 	}
-	if (!latest) {
-		return null;
+	if (latest) {
+		return buildTagUpdate(candidate, latest.tagName, latest.releaseUrl ?? htmlUrl, "github");
 	}
-	return buildTagUpdate(candidate, latest.tagName, latest.releaseUrl ?? htmlUrl, "github");
+	const latestCommit = candidate.currentCommit ? await lookups.latestCommit(candidate) : null;
+	return buildDefaultBranchUpdate(candidate, latestCommit, htmlUrl, "github");
+}
+
+/**
+ * Update of a tag-mode install whose repository has no usable version tag.
+ * It follows the default branch, as a first install does, when the install
+ * recorded a commit.
+ */
+function buildDefaultBranchUpdate(
+	candidate: UpdateCandidate,
+	latestCommit: string | null,
+	releaseUrl: string,
+	checkedOn: UpdateCheckSource,
+): UpdateInfo | null {
+	return candidate.currentCommit ? buildCommitUpdate(candidate, latestCommit, releaseUrl, checkedOn) : null;
+}
+
+/**
+ * Compare the installed commit with the head of the tracked branch on GitHub.
+ */
+async function buildBranchUpdate(
+	candidate: UpdateCandidate,
+	lookups: GitHubLookups,
+	htmlUrl: string,
+): Promise<UpdateInfo | null> {
+	const latestCommit = await lookups.latestCommit(candidate).catch((error: unknown) => {
+		// The head lookup of a named branch fails with the repository error when the branch is gone.
+		if (candidate.branch !== undefined && error instanceof RepositoryNotFoundError) {
+			throw new ExtensionError(`Branch "${candidate.branch}" or its repository not found: ${candidate.fullName}`);
+		}
+		throw error;
+	});
+	const update = buildCommitUpdate(candidate, latestCommit, htmlUrl, "github");
+	// The latest commit of a path can be older than an installed commit of the
+	// whole repository, so a different commit is only an update when it is newer.
+	if (update && candidate.subdirectory && candidate.currentCommit && latestCommit) {
+		return (await lookups.isBehind(candidate, candidate.currentCommit, latestCommit)) ? update : null;
+	}
+	return update;
 }
 
 /**
@@ -563,8 +572,7 @@ async function buildSubdirectoryUpdate(
 	const currentVersion = normaliseVersion(installedVersion);
 	const latestVersion = await lookups.subdirectoryVersion(candidate, latest?.tagName ?? "HEAD");
 	// Prereleases qualify only for a prerelease install, as in buildTagUpdate.
-	const followsPrereleases = currentVersion !== null && semver.prerelease(currentVersion) !== null;
-	if (latestVersion !== null && semver.prerelease(latestVersion) !== null && !followsPrereleases) {
+	if (latestVersion !== null && semver.prerelease(latestVersion) !== null && !followsPrereleases(candidate)) {
 		return null;
 	}
 	const comparable = currentVersion !== null && latestVersion !== null;
@@ -573,7 +581,7 @@ async function buildSubdirectoryUpdate(
 	}
 	// An installed version that is not a version is compared on the floor it gives, as in buildTagUpdate.
 	if (currentVersion === null && latestVersion !== null) {
-		const floor = installedVersionFloor(candidate, installedVersion);
+		const floor = installedVersionFloor(installedVersion, recordedRef(candidate));
 		if (floor && !semver.gt(latestVersion, floor)) {
 			return null;
 		}
@@ -588,27 +596,26 @@ async function buildSubdirectoryUpdate(
 		if (!latestCommit) {
 			return null;
 		}
-		return makeUpdate(candidate, {
-			currentVersion,
-			latestVersion,
-			latestRef: latestCommit.substring(0, 7).toLowerCase(),
-			refKind: "commit",
-			checkedOn: "github",
-			releaseUrl: htmlUrl,
-		});
+		return makeUpdate(
+			candidate,
+			{ type: "commit", commit: normaliseCommit(latestCommit) },
+			{ currentVersion, latestVersion, checkedOn: "github", releaseUrl: htmlUrl },
+		);
 	}
 
 	if (!comparable && !isNewerThanRecordedRef(candidate, latest)) {
 		return null;
 	}
-	return makeUpdate(candidate, {
-		currentVersion: currentVersion ?? installedVersion,
-		latestVersion: latestVersion ?? latest.version,
-		latestRef: latest.tagName,
-		refKind: "tag",
-		checkedOn: "github",
-		releaseUrl: latest.releaseUrl ?? htmlUrl,
-	});
+	return makeUpdate(
+		candidate,
+		{ type: "tag", tag: latest.tagName },
+		{
+			currentVersion: currentVersion ?? installedVersion,
+			latestVersion: latestVersion ?? latest.version,
+			checkedOn: "github",
+			releaseUrl: latest.releaseUrl ?? htmlUrl,
+		},
+	);
 }
 
 /** Whether the latest tag is newer than the ref recorded in the manifest source. */
@@ -631,45 +638,36 @@ function buildTagUpdate(
 		return null;
 	}
 	// Prereleases qualify only for a prerelease install, as in resolveLatestTag.
-	const followsPrereleases = currentVersion !== null && semver.prerelease(currentVersion) !== null;
-	if (semver.prerelease(latestVersion) !== null && !followsPrereleases) {
+	if (semver.prerelease(latestVersion) !== null && !followsPrereleases(candidate)) {
 		return null;
 	}
 	// An installed version that is not a version is compared on the floor it
 	// gives, and an install that gives no floor is offered the latest stable tag.
-	const floor = currentVersion ?? installedVersionFloor(candidate, installedVersion);
+	const floor = currentVersion ?? installedVersionFloor(installedVersion, recordedRef(candidate));
 	const isUpdate = floor ? semver.gt(latestVersion, floor) : !isInstalledTag(candidate, latestTag);
 	if (!isUpdate) {
 		return null;
 	}
-	return makeUpdate(candidate, {
-		currentVersion: currentVersion ?? installedVersion,
-		latestVersion,
-		latestRef: latestTag,
-		refKind: "tag",
-		checkedOn,
-		releaseUrl,
-	});
+	return makeUpdate(
+		candidate,
+		{ type: "tag", tag: latestTag },
+		{ currentVersion: currentVersion ?? installedVersion, latestVersion, checkedOn, releaseUrl },
+	);
 }
 
-const EXTRA_NUMERIC_PARTS_PATTERN = /^v?(\d+\.\d+\.\d+)(?:\.\d+)+$/;
-
 /**
- * Version that an update must exceed when the installed version is not a
- * version, or null when there is none.
- *
- * A version with more than three numeric parts, such as the development build
- * "1.0.0.9000", is ahead of its first three parts, so a tag equal to them is
- * not newer. Any other installed version gives the version of the tag recorded
- * in the manifest source, so that an update never goes below that tag.
+ * Whether a tag is a version tag that the install can follow, as in
+ * resolveLatestTag: a prerelease qualifies only for a prerelease install.
  */
-function installedVersionFloor(candidate: UpdateCandidate, installedVersion: string): string | null {
-	const extended = EXTRA_NUMERIC_PARTS_PATTERN.exec(installedVersion.trim());
-	if (extended) {
-		return normaliseVersion(extended[1]);
-	}
-	const ref = recordedRef(candidate);
-	return ref === null ? null : normaliseVersion(ref.replace(/^V/, "v"));
+function isUsableTag(candidate: UpdateCandidate, tag: string): boolean {
+	const version = normaliseVersion(tag);
+	return version !== null && (semver.prerelease(version) === null || followsPrereleases(candidate));
+}
+
+/** Whether the installed version is a prerelease, so that the install follows prereleases too. */
+function followsPrereleases(candidate: UpdateCandidate): boolean {
+	const installed = normaliseVersion(candidate.extension.manifest.version);
+	return installed !== null && semver.prerelease(installed) !== null;
 }
 
 /**
@@ -687,40 +685,65 @@ function recordedRef(candidate: UpdateCandidate): string | null {
 	return splitSourceRef(candidate.extension.manifest.source ?? "").ref ?? null;
 }
 
+/**
+ * Compare the installed commit with the latest commit. A branch install whose
+ * commit lookup failed recorded no commit, so it is offered the latest commit.
+ */
 function buildCommitUpdate(
 	candidate: UpdateCandidate,
 	latestCommit: string | null,
 	releaseUrl: string,
 	checkedOn: UpdateCheckSource,
 ): UpdateInfo | null {
-	const currentCommit = candidate.currentCommit;
-	if (!currentCommit || !latestCommit) {
+	if (!latestCommit) {
 		return null;
 	}
-	const latestRef = latestCommit.substring(0, 7).toLowerCase();
+	const { currentCommit } = candidate;
+	const latestRef = shortCommit(latestCommit);
 	if (latestRef === currentCommit) {
 		return null;
 	}
-	return makeUpdate(candidate, {
-		currentVersion: currentCommit,
-		latestVersion: latestRef,
-		latestRef,
-		refKind: "commit",
-		checkedOn,
-		releaseUrl,
-	});
+	return makeUpdate(
+		candidate,
+		{ type: "commit", commit: normaliseCommit(latestCommit) },
+		{
+			currentVersion: currentCommit ?? candidate.extension.manifest.version,
+			latestVersion: latestRef,
+			checkedOn,
+			releaseUrl,
+		},
+	);
 }
 
-/** Update of a candidate to `latestRef`, installed from the same repository and subdirectory. */
+/** Tag or full commit that an update installs. */
+type UpdateRef = Extract<VersionSpec, { type: "tag" } | { type: "commit" }>;
+
+/**
+ * Update of a candidate to a tag or a full commit, installed from the same
+ * repository and subdirectory and with the same update mode.
+ */
 function makeUpdate(
 	candidate: UpdateCandidate,
-	details: Omit<UpdateInfo, "extension" | "projectDir" | "source">,
+	ref: UpdateRef,
+	details: Pick<UpdateInfo, "currentVersion" | "latestVersion" | "checkedOn" | "releaseUrl">,
 ): UpdateInfo {
+	const isCommit = ref.type === "commit";
+	// A commit update keeps the source it follows in the record, so the next check follows it too.
+	let recordSource: string | undefined;
+	if (isCommit) {
+		recordSource = candidate.track === "branch" ? candidate.extension.manifest.source : formatGitHubLocator(candidate);
+	}
 	return {
 		extension: candidate.extension,
 		projectDir: candidate.projectDir,
 		...details,
-		source: `${formatGitHubLocator(candidate)}@${details.latestRef}`,
+		latestRef: isCommit ? shortCommit(ref.commit) : ref.tag,
+		refKind: isCommit ? "commit" : "tag",
+		target: {
+			source: githubInstallSource(candidate, ref),
+			track: candidate.track,
+			...(recordSource !== undefined && { recordSource }),
+		},
 	};
 }
 
@@ -759,13 +782,12 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				message: `Updating to ${update.latestVersion}...`,
 			});
 
-			const source = parseInstallSource(update.source);
-
+			const { source, ...record } = update.target;
 			const installResult = await install(source, {
+				...record,
 				projectDir: update.projectDir,
 				auth,
 				sourceType: update.extension.manifest.sourceType,
-				recordSource: unpinnedRecordSource(update),
 				replaceSameVersion: true,
 				signal,
 				expectedExtensionId: update.extension.id,
@@ -800,24 +822,6 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 	}
 
 	return result;
-}
-
-/**
- * Source to record for an update of an extension installed without a ref, so that it stays unpinned.
- *
- * Pass it as `InstallOptions.recordSource` when you install `update.source`.
- * An update of a pinned extension records the new ref, so it needs no record source.
- *
- * @param update - Update to apply
- * @returns The repository and subdirectory without a ref, or undefined when the installed source has a ref
- */
-export function unpinnedRecordSource(update: UpdateInfo): string | undefined {
-	const installed = update.extension.manifest.source;
-	if (!installed || splitSourceRef(installed).hasRef) {
-		return undefined;
-	}
-	const source = parseInstallSource(update.source);
-	return source.type === "github" ? formatGitHubLocator(source) : undefined;
 }
 
 /**

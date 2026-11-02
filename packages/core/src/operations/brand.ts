@@ -564,7 +564,7 @@ async function stageBrandSource(
 		let stagedDir = resolveStagedDir(extracted.extractDir);
 		if (source.subdirectory) {
 			try {
-				stagedDir = await resolveSourceRoot(extracted.extractDir, source, result.commitSha ?? result.tagName);
+				stagedDir = await resolveSourceRoot(extracted.extractDir, source, result.tagName);
 			} catch (error) {
 				await cleanupExtraction(extracted.extractDir);
 				throw error;

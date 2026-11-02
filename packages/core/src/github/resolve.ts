@@ -6,6 +6,7 @@
  */
 
 import type { VersionSpec } from "../types/extension.js";
+import { normaliseCommit, shortCommit, type InstallTrack } from "../types/manifest.js";
 import { SamlSsoError, VersionError, isCancellationError } from "../errors.js";
 import {
 	constructArchiveUrl,
@@ -32,6 +33,11 @@ export interface ResolveVersionOptions extends GitHubOptions {
 	 * recorded is the latest commit that changes this path.
 	 */
 	path?: string;
+	/**
+	 * What a `latest` version follows: the latest tag (default), or the head of
+	 * the default branch. The other version types ignore it.
+	 */
+	track?: InstallTrack;
 }
 
 /**
@@ -44,8 +50,10 @@ export interface ResolvedVersion {
 	zipballUrl: string;
 	/** URL to download the tarball. */
 	tarballUrl: string;
-	/** Commit SHA if resolved to a commit (first 7 characters). */
+	/** Full commit SHA in lower case, if resolved to a commit. */
 	commitSha?: string;
+	/** Whether the archive is that of a release or a tag. */
+	fromTag: boolean;
 }
 
 /**
@@ -63,29 +71,20 @@ export async function resolveVersion(
 	version: VersionSpec,
 	options: ResolveVersionOptions = {},
 ): Promise<ResolvedVersion> {
-	const { defaultBranch, latestCommit } = options;
+	const { track = "tag" } = options;
 
 	switch (version.type) {
 		case "latest": {
-			const latest = await resolveLatestTag(owner, repo, options);
+			const latest = track === "tag" ? await resolveLatestTag(owner, repo, options) : null;
 			if (latest) {
 				return {
 					tagName: latest.tagName,
 					zipballUrl: latest.zipballUrl,
 					tarballUrl: latest.tarballUrl,
+					fromTag: true,
 				};
 			}
-
-			// Fallback to default branch with commit tracking. The registry hint is
-			// preferred, then GitHub itself, because the branch is not always "main".
-			const branch = defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
-			const commitSha = (latestCommit ?? (await lookUpLatestCommit(owner, repo, options)))?.substring(0, 7);
-			return {
-				tagName: commitSha ?? "HEAD",
-				zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, branch, "branch", "tarball"),
-				commitSha,
-			};
+			return resolveBranchHead(owner, repo, undefined, options);
 		}
 
 		case "tag":
@@ -99,6 +98,7 @@ export async function resolveVersion(
 					tagName: release.tagName,
 					zipballUrl: release.zipballUrl,
 					tarballUrl: release.tarballUrl,
+					fromTag: true,
 				};
 			}
 
@@ -109,6 +109,7 @@ export async function resolveVersion(
 					tagName: tag.name,
 					zipballUrl: tag.zipballUrl,
 					tarballUrl: tag.tarballUrl,
+					fromTag: true,
 				};
 			}
 
@@ -121,35 +122,83 @@ export async function resolveVersion(
 			const commitRef = version.commit;
 			// Validate commit exists before constructing URL
 			await validateCommit(owner, repo, commitRef, options);
-			const shortCommit = commitRef.substring(0, 7);
 			return {
-				tagName: shortCommit,
-				zipballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "tarball"),
-				commitSha: shortCommit,
+				tagName: shortCommit(commitRef),
+				...commitArchive(owner, repo, commitRef),
+				commitSha: normaliseCommit(commitRef),
+				fromTag: false,
 			};
 		}
 
 		case "branch": {
-			const branchName = version.branch;
-			// Validate branch exists before constructing URL
-			await validateBranch(owner, repo, branchName, options);
-			return {
-				tagName: branchName,
-				zipballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "tarball"),
-			};
+			const head = resolveBranchHead(owner, repo, version.branch, options);
+			// The head lookup runs alongside the check that the branch exists, whose error wins.
+			head.catch(() => undefined);
+			await validateBranch(owner, repo, version.branch, options);
+			return head;
 		}
 	}
 }
 
 /**
- * Look up the latest commit of the default branch, so that an install without
- * tags records the commit it installed. A failed lookup returns `undefined`,
- * so the install still goes ahead without a commit. A SAML SSO error and a
- * cancellation are rethrown, as in `fetchDefaultBranch`.
+ * Resolve the head of a branch, the default branch when `branch` is not set.
+ *
+ * The head is downloaded by its commit, so the files match the commit that is
+ * recorded even when the branch moves during the install. Without a commit,
+ * it falls back to the branch archive.
  */
-async function lookUpLatestCommit(owner: string, repo: string, options: GitHubOptions): Promise<string | undefined> {
+async function resolveBranchHead(
+	owner: string,
+	repo: string,
+	branch: string | undefined,
+	options: ResolveVersionOptions,
+): Promise<ResolvedVersion> {
+	// The registry hint is a cached default-branch commit, so it only covers a failed live lookup.
+	const commit =
+		(await lookUpLatestCommit(owner, repo, { ...options, ref: branch })) ??
+		(branch === undefined ? options.latestCommit : undefined);
+	if (commit) {
+		const commitSha = normaliseCommit(commit);
+		return {
+			tagName: branch ?? shortCommit(commitSha),
+			...commitArchive(owner, repo, commitSha),
+			commitSha,
+			fromTag: false,
+		};
+	}
+	// For the default branch, the registry hint is preferred, then GitHub itself,
+	// because the branch is not always "main".
+	const archiveBranch = branch ?? options.defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
+	return {
+		tagName: branch ?? "HEAD",
+		zipballUrl: constructArchiveUrl(owner, repo, archiveBranch, "branch", "zip"),
+		tarballUrl: constructArchiveUrl(owner, repo, archiveBranch, "branch", "tarball"),
+		fromTag: false,
+	};
+}
+
+/**
+ * Archive URLs of a commit.
+ */
+function commitArchive(owner: string, repo: string, commit: string): { zipballUrl: string; tarballUrl: string } {
+	return {
+		zipballUrl: constructArchiveUrl(owner, repo, commit, "commit", "zip"),
+		tarballUrl: constructArchiveUrl(owner, repo, commit, "commit", "tarball"),
+	};
+}
+
+/**
+ * Look up the latest commit of a branch, the default branch when `ref` is not
+ * set, so that an install records the commit it installed. A failed lookup
+ * returns `undefined`, so the install still goes ahead from the branch archive
+ * without a commit. A SAML SSO error and a cancellation are rethrown, as in
+ * `fetchDefaultBranch`.
+ */
+async function lookUpLatestCommit(
+	owner: string,
+	repo: string,
+	options: GitHubOptions & { path?: string; ref?: string },
+): Promise<string | undefined> {
 	try {
 		return (await fetchLatestCommit(owner, repo, options)) ?? undefined;
 	} catch (error) {

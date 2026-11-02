@@ -111,6 +111,7 @@ function evaluateViewItem(when: string, contextValue: string): boolean {
 const ITEM_MENUS: readonly MenuEntry[] = readPackageJson().contributes.menus["view/item/context"];
 
 const UPDATE = "quartoWizard.extensionsInstalled.update";
+const CHANGE_SOURCE = "quartoWizard.extensionsInstalled.changeUpdateSource";
 const REINSTALL = "quartoWizard.extensionsInstalled.reinstall";
 const REMOVE = "quartoWizard.extensionsInstalled.remove";
 const OPEN_SOURCE = "quartoWizard.extensionsInstalled.openSource";
@@ -153,16 +154,17 @@ const MENU_STATES: { name: string; item: () => vscode.TreeItem; contextValue: st
 	{
 		name: "extension with a GitHub or registry source",
 		item: () => extensionItem("github"),
-		contextValue: "quartoExtensionItem:update:reinstall:remove:openSource:reveal",
+		contextValue: "quartoExtensionItem:update:reinstall:changeSource:remove:openSource:reveal",
 		menus: [
 			[UPDATE, "inline@3"],
 			[REMOVE, "inline@4"],
 			[OPEN_SOURCE, "inline@5"],
 			[UPDATE, "navigation@1"],
 			[REINSTALL, "navigation@1"],
-			[REMOVE, "navigation@2"],
-			[OPEN_SOURCE, "navigation@3"],
-			[REVEAL, "navigation@4"],
+			[CHANGE_SOURCE, "navigation@2"],
+			[REMOVE, "navigation@3"],
+			[OPEN_SOURCE, "navigation@4"],
+			[REVEAL, "navigation@5"],
 		],
 	},
 	{
@@ -174,9 +176,9 @@ const MENU_STATES: { name: string; item: () => vscode.TreeItem; contextValue: st
 			[REMOVE, "inline@4"],
 			[OPEN_SOURCE, "inline@5"],
 			[REINSTALL, "navigation@1"],
-			[REMOVE, "navigation@2"],
-			[OPEN_SOURCE, "navigation@3"],
-			[REVEAL, "navigation@4"],
+			[REMOVE, "navigation@3"],
+			[OPEN_SOURCE, "navigation@4"],
+			[REVEAL, "navigation@5"],
 		],
 	},
 	{
@@ -185,8 +187,8 @@ const MENU_STATES: { name: string; item: () => vscode.TreeItem; contextValue: st
 		contextValue: "quartoExtensionItem:remove:reveal",
 		menus: [
 			[REMOVE, "inline@4"],
-			[REMOVE, "navigation@2"],
-			[REVEAL, "navigation@4"],
+			[REMOVE, "navigation@3"],
+			[REVEAL, "navigation@5"],
 		],
 	},
 	{
@@ -195,15 +197,15 @@ const MENU_STATES: { name: string; item: () => vscode.TreeItem; contextValue: st
 		contextValue: "quartoExtensionItem:openSource:reveal",
 		menus: [
 			[OPEN_SOURCE, "inline@5"],
-			[OPEN_SOURCE, "navigation@3"],
-			[REVEAL, "navigation@4"],
+			[OPEN_SOURCE, "navigation@4"],
+			[REVEAL, "navigation@5"],
 		],
 	},
 	{
 		name: "extension that embeds itself",
 		item: () => extensionItem("github", "self"),
 		contextValue: "quartoExtensionItem:reveal",
-		menus: [[REVEAL, "navigation@4"]],
+		menus: [[REVEAL, "navigation@5"]],
 	},
 	{
 		name: "detail row",

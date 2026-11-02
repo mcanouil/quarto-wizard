@@ -54,8 +54,10 @@ export interface DownloadResult {
 	tagName: string;
 	/** Archive format. */
 	format: "zip" | "tarball";
-	/** Commit SHA if resolved to a commit (first 7 characters). */
+	/** Full commit SHA in lower case, if resolved to a commit. */
 	commitSha?: string;
+	/** Whether the archive is that of a release or a tag. */
+	fromTag: boolean;
 }
 
 /**
@@ -82,6 +84,7 @@ export async function downloadGitHubArchive(
 		defaultBranch,
 		latestCommit,
 		path: subdirectory,
+		track,
 		signal,
 	} = options;
 
@@ -96,6 +99,7 @@ export async function downloadGitHubArchive(
 		defaultBranch,
 		latestCommit,
 		path: subdirectory,
+		track,
 		signal,
 	});
 
@@ -121,6 +125,7 @@ export async function downloadGitHubArchive(
 		tagName: resolved.tagName,
 		format,
 		commitSha: resolved.commitSha,
+		fromTag: resolved.fromTag,
 	};
 }
 

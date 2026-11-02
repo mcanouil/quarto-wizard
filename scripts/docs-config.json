@@ -122,6 +122,11 @@
 			"prefix": "quartoWizard.ask."
 		},
 		{
+			"id": "update-source",
+			"title": "Update Behaviour",
+			"prefix": "quartoWizard.install."
+		},
+		{
 			"id": "cache",
 			"title": "Cache Settings",
 			"prefix": "quartoWizard.cache."

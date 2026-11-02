@@ -17,6 +17,7 @@ import * as yaml from "js-yaml";
 import * as semver from "semver";
 import { ExtensionError } from "../errors.js";
 import { formatLocalEdit, type LocalEdit } from "../types/localEdit.js";
+import type { InstallTrack } from "../types/manifest.js";
 
 /** File name of the install record in an extension folder. */
 export const SOURCE_RECORD_FILENAME = ".quarto-source.yml";
@@ -56,9 +57,11 @@ export interface SourceRecord {
 	files: Record<string, string>;
 	/** Data that only Quarto Wizard uses (YAML key `quarto-wizard`). */
 	quartoWizard?: {
+		/** Update mode of a GitHub install: the latest tag, or the head of a branch. */
+		track?: InstallTrack;
 		/** YAML key `source-type`. */
 		sourceType?: "registry";
-		/** Commit of an unpinned install from the default branch. */
+		/** Full commit SHA of an unpinned install from a branch. */
 		commit?: string;
 	};
 }
@@ -153,6 +156,9 @@ function parseQuartoWizard(value: unknown): SourceRecord["quartoWizard"] {
 		return undefined;
 	}
 	const data: NonNullable<SourceRecord["quartoWizard"]> = {};
+	if (value.track === "tag" || value.track === "branch") {
+		data.track = value.track;
+	}
 	if (value["source-type"] === "registry") {
 		data.sourceType = "registry";
 	}
@@ -245,9 +251,10 @@ export function writeSourceRecord(dir: string, record: SourceRecordData): Source
 		...(record.ref !== undefined && { ref: record.ref }),
 		files: hashExtensionFiles(dir),
 	};
-	const { sourceType, commit } = record.quartoWizard ?? {};
-	if (sourceType !== undefined || commit !== undefined) {
+	const { track, sourceType, commit } = record.quartoWizard ?? {};
+	if (track !== undefined || sourceType !== undefined || commit !== undefined) {
 		written.quartoWizard = {
+			...(track !== undefined && { track }),
 			...(sourceType !== undefined && { sourceType }),
 			...(commit !== undefined && { commit }),
 		};
@@ -284,7 +291,7 @@ function formatSourceRecord(record: SourceRecord): string {
 					})
 					.join("");
 	const quartoWizard = wizard
-		? dumpYaml({ "quarto-wizard": { "source-type": wizard.sourceType, commit: wizard.commit } })
+		? dumpYaml({ "quarto-wizard": { track: wizard.track, "source-type": wizard.sourceType, commit: wizard.commit } })
 		: "";
 	return head + files + quartoWizard;
 }

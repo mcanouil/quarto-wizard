@@ -8,11 +8,11 @@ import {
 	getErrorMessage,
 	isCancellationError,
 	pluralise,
-	splitSourceRef,
-	unpinnedRecordSource,
+	planSourceChange,
+	reinstallTarget,
 	type AuthConfig,
 	type ExtensionId,
-	type InstalledExtension,
+	type InstallTarget,
 	type LocalEdit,
 	type UpdateCheckResult,
 	type UpdateInfo,
@@ -27,6 +27,7 @@ import {
 	type InstallOutcome,
 } from "../utils/coreOperations";
 import { withProgressNotification } from "../utils/withProgressNotification";
+import { withAbortSignal } from "../utils/cancellation";
 import { getAuthConfig } from "../utils/auth";
 import { getEffectiveSourceType, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
@@ -60,20 +61,17 @@ async function checkGitHubUpdates(
 	token: vscode.CancellationToken,
 	extension?: ExtensionId,
 ): Promise<UpdateCheckResult | undefined> {
-	const controller = new AbortController();
-	if (token.isCancellationRequested) {
-		controller.abort();
-	}
-	const cancellation = token.onCancellationRequested(() => controller.abort());
 	try {
-		return await checkForUpdates({
-			projectDirs,
-			extension,
-			source: "github",
-			auth,
-			timeout: REGISTRY_FETCH_TIMEOUT_MS,
-			signal: controller.signal,
-		});
+		return await withAbortSignal(token, (signal) =>
+			checkForUpdates({
+				projectDirs,
+				extension,
+				source: "github",
+				auth,
+				timeout: REGISTRY_FETCH_TIMEOUT_MS,
+				signal,
+			}),
+		);
 	} catch (error) {
 		if (isCancellationError(error)) {
 			return undefined;
@@ -84,8 +82,6 @@ async function checkGitHubUpdates(
 			repositoryFailures: [],
 			checkFailure: { kind: "network", message: getErrorMessage(error) },
 		};
-	} finally {
-		cancellation.dispose();
 	}
 }
 
@@ -124,20 +120,6 @@ async function reportCheckFailures(
 
 function describeUpdate(update: UpdateInfo): string {
 	return `${formatExtensionId(update.extension.id)} ${update.currentVersion} to ${update.latestVersion}`;
-}
-
-/**
- * Source that Reinstall installs, and the source to record in its place.
- * An extension installed without a ref, with a recorded commit, is installed at that commit,
- * and its record stays without a ref.
- */
-function reinstallTarget(extension: InstalledExtension, source: string): { source: string; recordSource?: string } {
-	const commit = extension.record?.quartoWizard?.commit;
-	const { base, hasRef } = splitSourceRef(source);
-	if (!commit || hasRef) {
-		return { source };
-	}
-	return { source: `${base}@${commit}`, recordSource: base };
 }
 
 /**
@@ -415,14 +397,13 @@ export class ExtensionsInstalled {
 				const failureMessage = `Failed to update extension "${item.label}".`;
 				const resolvesTag = item.effectiveSourceType === "github" || item.effectiveSourceType === "registry";
 				const auth = await getAuthConfig(context);
-				const install = (installSource: string, token: vscode.CancellationToken, recordSource?: string) =>
+				const install = (installSource: string | InstallTarget, token: vscode.CancellationToken) =>
 					installQuartoExtension(installSource, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 						expectedExtensionId: extension.id,
-						recordSource,
 						replaceSameVersion: true,
 					});
 				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
@@ -437,7 +418,7 @@ export class ExtensionsInstalled {
 					if (!update || check.checkFailure || check.repositoryFailures.length > 0) {
 						return { check };
 					}
-					return { check, update, installed: await install(update.source, token, unpinnedRecordSource(update)) };
+					return { check, update, installed: await install(update.target, token) };
 				});
 
 				if (outcome.check) {
@@ -469,7 +450,7 @@ export class ExtensionsInstalled {
 
 		/**
 		 * Reinstalls a Quarto extension from its original source.
-		 * Keeps the pinned ref or the recorded commit; an unpinned tagged extension gets its latest tag.
+		 * Keeps the recorded tag or commit and the update source; a record that names neither gets the latest tag.
 		 */
 		context.subscriptions.push(
 			vscode.commands.registerCommand("quartoWizard.extensionsInstalled.reinstall", async (item: ExtensionTreeItem) => {
@@ -483,15 +464,15 @@ export class ExtensionsInstalled {
 					return;
 				}
 				const auth = await getAuthConfig(context);
-				const target = reinstallTarget(extension, source);
+				const target = reinstallTarget(extension);
 				const result = await withProgressNotification(`Reinstalling "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(target.source, item.workspaceFolder, {
+					return installQuartoExtension(target ?? source, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 						expectedExtensionId: extension.id,
-						recordSource: target.recordSource,
+						replaceSameVersion: true,
 						force: true,
 					});
 				});
@@ -503,6 +484,82 @@ export class ExtensionsInstalled {
 					showMessageWithLogs(`Failed to reinstall extension "${item.label}".`, "error");
 				}
 			}),
+		);
+
+		/**
+		 * Switches a GitHub or registry extension between the latest tag and the default branch.
+		 * It asks first, then installs the target that core planned and records the new mode.
+		 */
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				"quartoWizard.extensionsInstalled.changeUpdateSource",
+				async (item: ExtensionTreeItem) => {
+					const extension = item.extension;
+					if (!extension) {
+						return;
+					}
+					const failureMessage = `Failed to change the update source of extension "${item.label}".`;
+					const auth = await getAuthConfig(context);
+					const plan = await withProgressNotification(`Checking "${item.label}" ...`, async (token) => {
+						try {
+							const planned = await withAbortSignal(token, (signal) =>
+								planSourceChange(extension, { auth, timeout: REGISTRY_FETCH_TIMEOUT_MS, signal }),
+							);
+							if (!planned) {
+								logMessage(`Cannot change the update source of "${item.label}": its source is not on GitHub.`, "info");
+							}
+							return planned;
+						} catch (error) {
+							if (isCancellationError(error)) {
+								return null;
+							}
+							logMessage(`${failureMessage} ${getErrorMessage(error)}`, "error");
+							showMessageWithLogs(getErrorMessage(error), "error");
+							return null;
+						}
+					});
+					if (!plan) {
+						return;
+					}
+
+					const toBranch = plan.track === "branch";
+					const noTagYet = !toBranch && plan.source.type === "github" && plan.source.version?.type === "commit";
+					const installed = plan.currentVersion ? ` (now ${plan.currentVersion})` : "";
+					const question = noTagYet
+						? `Switch "${item.label}" to the latest tag: the repository has no version tag yet, so install ${plan.targetLabel} from the default branch${installed}?`
+						: `Switch "${item.label}" to ${toBranch ? "the default branch" : "the latest tag"}: install ${plan.targetLabel}${installed}?`;
+					const answer = await vscode.window.showWarningMessage(
+						plan.isDowngrade ? `${question} This is an older version than the one installed.` : question,
+						{ modal: true },
+						"Switch",
+					);
+					if (answer !== "Switch") {
+						return;
+					}
+
+					const result = await withProgressNotification(`Changing the update source of "${item.label}" ...`, (token) =>
+						installQuartoExtension(plan, item.workspaceFolder, {
+							auth,
+							skipOverwritePrompt: true,
+							cancellationToken: token,
+							sourceType: item.effectiveSourceType,
+							expectedExtensionId: extension.id,
+							replaceSameVersion: true,
+						}),
+					);
+					if (result === true) {
+						invalidateProviderCaches(item.workspaceFolder);
+						vscode.window.showInformationMessage(
+							noTagYet
+								? `Extension "${item.label}" now updates from the latest tag, and follows the default branch until the first version tag.`
+								: `Extension "${item.label}" now updates from ${toBranch ? "the default branch" : "the latest tag"}.`,
+						);
+						this.treeDataProvider.refreshAfterAction(context, view);
+					} else if (result === false) {
+						showMessageWithLogs(failureMessage, "error");
+					}
+				},
+			),
 		);
 
 		/**
@@ -640,13 +697,12 @@ export class ExtensionsInstalled {
 								return true;
 							}
 							const installOutcome: InstallOutcome = {};
-							const result = await installQuartoExtension(update.source, update.projectDir, {
+							const result = await installQuartoExtension(update.target, update.projectDir, {
 								auth,
 								skipOverwritePrompt: true,
 								cancellationToken: token,
 								sourceType: getEffectiveSourceType(update.extension.manifest),
 								expectedExtensionId: update.extension.id,
-								recordSource: unpinnedRecordSource(update),
 								replaceSameVersion: true,
 								localEdits: "skip",
 								outcome: installOutcome,

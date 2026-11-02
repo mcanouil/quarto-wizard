@@ -27,9 +27,10 @@ export {
 	type UpdateResult,
 	checkForUpdates,
 	applyUpdates,
-	unpinnedRecordSource,
 	update,
 } from "./update.js";
+
+export { type InstallTarget, type SourceChange, reinstallTarget, planSourceChange } from "./source.js";
 
 export { type RemoveOptions, type RemoveResult, remove, removeMultiple } from "./remove.js";
 

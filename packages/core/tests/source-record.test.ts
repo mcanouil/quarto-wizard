@@ -12,6 +12,7 @@ import {
 	readSourceRecord,
 	writeSourceRecord,
 } from "../src/filesystem/sourceRecord.js";
+import { recordedTrack } from "../src/types/manifest.js";
 
 const FIXTURE_DIR = path.join(__dirname, "fixtures", "q2-record");
 
@@ -82,6 +83,45 @@ describe("sourceRecord.ts", () => {
 			const state = getInstalledState(FIXTURE_DIR);
 
 			expect(state.kind).toBe("unmodified");
+		});
+	});
+
+	describe("track", () => {
+		const FULL_COMMIT = "3f9c2e1a4b5d6c7e8f90123456789abcdef01234";
+
+		it("writes track, source-type, commit in that order and reads them back", () => {
+			writeFile("_extension.yml", "title: Demo\n");
+
+			const written = writeSourceRecord(tempDir, {
+				source: "acme/demo",
+				kind: "github",
+				quartoWizard: { track: "branch", sourceType: "registry", commit: FULL_COMMIT },
+			});
+			const content = fs.readFileSync(path.join(tempDir, SOURCE_RECORD_FILENAME), "utf-8");
+
+			expect(content).toContain(`quarto-wizard:\n  track: branch\n  source-type: registry\n  commit: ${FULL_COMMIT}\n`);
+			expect(readSourceRecord(tempDir)).toEqual({ status: "ok", record: written });
+		});
+
+		it("reads an unknown track as absent", () => {
+			writeFile("_extension.yml", "title: Demo\n");
+			writeSourceRecord(tempDir, { source: "acme/demo", kind: "github", quartoWizard: { track: "branch" } });
+			const file = path.join(tempDir, SOURCE_RECORD_FILENAME);
+			fs.writeFileSync(file, fs.readFileSync(file, "utf-8").replace("track: branch", "track: other"));
+
+			const result = readSourceRecord(tempDir);
+
+			expect(result.status).toBe("ok");
+			if (result.status !== "ok") return;
+			expect(result.record.quartoWizard).toBeUndefined();
+		});
+
+		it("recordedTrack is tag unless a GitHub record says branch", () => {
+			expect(recordedTrack(null)).toBe("tag");
+			expect(recordedTrack({ kind: "github" })).toBe("tag");
+			expect(recordedTrack({ kind: "url", quartoWizard: { track: "branch" } })).toBe("tag");
+			expect(recordedTrack({ kind: "github", quartoWizard: { track: "tag" } })).toBe("tag");
+			expect(recordedTrack({ kind: "github", quartoWizard: { track: "branch" } })).toBe("branch");
 		});
 	});
 

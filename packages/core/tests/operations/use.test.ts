@@ -666,6 +666,57 @@ describe("use from a repository subdirectory", () => {
 		}
 	});
 
+	it("use template in branch mode records the branch mode for each extension", async () => {
+		const sha = "fed9876543210fedcba9876543210fedcba98765";
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: "fed9876",
+			commitSha: sha,
+			fromTag: false,
+			format: "tarball",
+		}));
+
+		const result = await use("owner/repo", {
+			projectDir,
+			track: "branch",
+			selectExtension: async (extensions) => extensions,
+		});
+
+		expect(result.install.success).toBe(true);
+		expect(downloadGitHubArchive).toHaveBeenCalledWith(
+			"owner",
+			"repo",
+			{ type: "latest" },
+			expect.objectContaining({ track: "branch" }),
+		);
+		for (const name of ["c", "x", "y"]) {
+			expect(recordIn("owner", name)).toMatchObject({
+				source: "owner/repo",
+				quartoWizard: { track: "branch", commit: sha },
+			});
+		}
+	});
+
+	it("use template in branch mode records the branch mode when the files are selected first", async () => {
+		const sha = "fed9876543210fedcba9876543210fedcba98765";
+		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+			tagName: "fed9876",
+			commitSha: sha,
+			fromTag: false,
+			format: "tarball",
+		}));
+
+		await use("owner/repo/b", {
+			projectDir,
+			track: "branch",
+			selectFilesFirst: true,
+			selectFiles: async () => ({ selectedFiles: [], overwriteExisting: false }),
+		});
+
+		expect(recordIn("owner", "y").quartoWizard).toEqual({ track: "branch", commit: sha });
+	});
+
 	it("use template writes a record for each extension when the files are selected first", async () => {
 		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
 			archivePath: await createSubdirectoryRepositoryArchive(tempDir),

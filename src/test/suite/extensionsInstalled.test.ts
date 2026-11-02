@@ -5,7 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
-import { LocalEditsError, writeSourceRecord } from "@quarto-wizard/core";
+import { LocalEditsError, writeSourceRecord, type InstallTarget, type InstallTrack } from "@quarto-wizard/core";
 import { registerInstallCommands } from "../../commands/installQuartoExtension";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
@@ -13,6 +13,7 @@ import { QuartoExtensionTreeDataProvider } from "../../ui/extensionTreeDataProvi
 import { ExtensionTreeItem, WorkspaceFolderTreeItem, type FolderCache } from "../../ui/extensionTreeItems";
 import { formatExtensionId, getInstalledExtensionsRecord, type InstalledExtension } from "../../utils/extensions";
 import * as quarto from "../../utils/coreOperations";
+import * as constants from "../../constants";
 import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
@@ -32,6 +33,41 @@ interface InstallCall {
 interface RecordedInstall {
 	source: string;
 	recordSource: string | undefined;
+	track: InstallTrack | undefined;
+}
+
+/**
+ * Source of an install call as text: the source as passed, or the source of
+ * the target with its full ref.
+ */
+function sourceText(source: string | InstallTarget): string {
+	if (typeof source === "string") {
+		return source;
+	}
+	const target = source.source;
+	if (target.type !== "github") {
+		return target.type === "url" ? target.url : target.path;
+	}
+	const base = [target.owner, target.repo, target.subdirectory].filter(Boolean).join("/");
+	const { version } = target;
+	switch (version.type) {
+		case "latest":
+			return base;
+		case "tag":
+			return `${base}@${version.tag}`;
+		case "commit":
+			return `${base}@${version.commit}`;
+		case "branch":
+			return `${base}@${version.branch}`;
+		case "exact":
+			return `${base}@v${version.version}`;
+	}
+}
+
+function recordedInstall(source: string | InstallTarget): RecordedInstall {
+	return typeof source === "string"
+		? { source, recordSource: undefined, track: undefined }
+		: { source: sourceText(source), recordSource: source.recordSource, track: source.track };
 }
 
 interface RemoveCall {
@@ -166,7 +202,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		restoreBoundary = stubUpdateBoundary({ repositories: {} });
 
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			expectedIds.push(options.expectedExtensionId && formatExtensionId(options.expectedExtensionId));
 			return true;
 		};
@@ -284,7 +320,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		]);
 	});
 
-	test("reinstall keeps the pinned ref", async () => {
+	test("reinstall keeps the recorded tag or commit and the update source", async () => {
 		await runCommand("reinstall", createItem("acme/pinned-demo"));
 
 		assert.deepStrictEqual(installCalls, [
@@ -408,7 +444,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			progress.cancel();
 			return null;
 		};
@@ -423,7 +459,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all reports a declined install that is not a cancel", async () => {
 		stubTwoUpdates();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			return null;
 		};
 
@@ -437,9 +473,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 		stubTwoUpdates();
 		const modes: (string | undefined)[] = [];
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			modes.push(options.localEdits);
-			if (source.startsWith("acme/registry-demo")) {
+			if (sourceText(source).startsWith("acme/registry-demo")) {
 				if (options.outcome) {
 					options.outcome.localEdits = new LocalEditsError({ owner: "acme", name: "registry-demo" }, [
 						{ path: "_extension.yml", change: "modified" },
@@ -465,7 +501,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all groups the notes about copies without an install record", async () => {
 		stubTwoUpdates();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (options.outcome) {
 				options.outcome.replacedUntracked = true;
 			}
@@ -487,7 +523,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all does not report an error when every update is skipped", async () => {
 		stubTwoUpdates();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (options.outcome) {
 				options.outcome.localEdits = new LocalEditsError({ owner: "acme", name: "demo" }, [
 					{ path: "_extension.yml", change: "added" },
@@ -506,7 +542,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	function recordReplaceRules(): { replaceSameVersion: boolean | undefined; force: boolean | undefined }[] {
 		const rules: { replaceSameVersion: boolean | undefined; force: boolean | undefined }[] = [];
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			rules.push({ replaceSameVersion: options.replaceSameVersion, force: options.force });
 			return true;
 		};
@@ -545,7 +581,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("reinstall forces the install of the same version", async () => {
 		const forced: (boolean | undefined)[] = [];
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			forced.push(options.force);
 			return true;
 		};
@@ -581,8 +617,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 			unpinnedRoot = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-unpinned-"))).fsPath;
 			recorded = [];
 			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-				installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
-				recorded.push({ source, recordSource: options.recordSource });
+				installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
+				recorded.push(recordedInstall(source));
 				return true;
 			};
 		});
@@ -613,29 +649,33 @@ suite("Extensions Installed Commands Test Suite", () => {
 			);
 		}
 
-		test("update installs the latest tag and keeps the record unpinned", async () => {
+		test("update installs the latest tag and records it", async () => {
 			stubNetwork({ repositories: { [UNPINNED_ID]: { githubTags: ["v1.3.0"] } } });
 
 			await runCommand("update", await unpinnedItem(UNPINNED_ID));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
-		test("update to a new commit keeps the record unpinned", async () => {
+		test("update to a new commit installs the full commit and records the source without a ref", async () => {
 			stubNetwork({ repositories: { [UNPINNED_ID]: { latestCommit: "fed9876543210fedcba9876543210fedcba98765" } } });
 
 			await runCommand("update", await unpinnedItem(UNPINNED_ID, "aaaaaaa"));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [
+				{ source: `${UNPINNED_ID}@fed9876543210fedcba9876543210fedcba98765`, recordSource: UNPINNED_ID, track: "tag" },
+			]);
 		});
 
-		test("update all keeps the record unpinned", async () => {
+		test("update all to a new commit installs the full commit and records the source without a ref", async () => {
 			stubNetwork({ repositories: { [UNPINNED_ID]: { latestCommit: "fed9876543210fedcba9876543210fedcba98765" } } });
 			await unpinnedItem(UNPINNED_ID, "aaaaaaa");
 
 			await runCommand("updateAll");
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [
+				{ source: `${UNPINNED_ID}@fed9876543210fedcba9876543210fedcba98765`, recordSource: UNPINNED_ID, track: "tag" },
+			]);
 		});
 
 		test("update of a pinned extension records the new ref", async () => {
@@ -643,7 +683,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			await runCommand("update", await unpinnedItem(`${UNPINNED_ID}@v1.0.0`));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined }]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
 		test("update all of a pinned extension records the new ref", async () => {
@@ -652,27 +692,309 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			await runCommand("updateAll");
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined }]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
-		test("reinstall installs the recorded commit and keeps the record unpinned", async () => {
+		test("reinstall installs the recorded commit and records the source without a ref", async () => {
 			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID, "fed9876"));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID, track: "tag" }]);
 		});
 
 		test("reinstall of a tagged extension installs the source as recorded", async () => {
 			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID));
 
-			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined }]);
+			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined, track: "tag" }]);
 		});
+
+		test("reinstall of a tag without a dot installs it as a tag", async () => {
+			const versions: unknown[] = [];
+			const record = quartoModule.installQuartoExtension;
+			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+				versions.push(typeof source !== "string" && source.source.type === "github" && source.source.version);
+				return record(source, workspaceFolder, options);
+			};
+
+			await runCommand("reinstall", await unpinnedItem(`${UNPINNED_ID}@20240101`));
+
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@20240101`, recordSource: undefined, track: "tag" }]);
+			assert.deepStrictEqual(versions, [{ type: "tag", tag: "20240101" }]);
+		});
+	});
+
+	suite("change update source", () => {
+		const SWITCH_ID = "acme/switch-demo";
+		const HEAD = "fed9876543210fedcba9876543210fedcba98765";
+		let switchRoot: string;
+		let dialogs: { message: string; modal: boolean | undefined; items: string[] }[];
+		let dialogAnswer: string | undefined;
+		let installs: {
+			source: string;
+			recordSource: string | undefined;
+			track: InstallTrack | undefined;
+			replaceSameVersion: boolean | undefined;
+			force: boolean | undefined;
+			localEdits: string | undefined;
+			expectedId: string | undefined;
+		}[];
+
+		setup(() => {
+			switchRoot = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-switch-"))).fsPath;
+			dialogs = [];
+			dialogAnswer = "Switch";
+			installs = [];
+			vscode.window.showWarningMessage = (async (message: string, ...rest: unknown[]) => {
+				const options = typeof rest[0] === "object" ? (rest[0] as vscode.MessageOptions) : undefined;
+				dialogs.push({
+					message,
+					modal: options?.modal,
+					items: rest.filter((item): item is string => typeof item === "string"),
+				});
+				return dialogAnswer;
+			}) as unknown as typeof vscode.window.showWarningMessage;
+			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+				installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
+				installs.push({
+					...recordedInstall(source),
+					replaceSameVersion: options.replaceSameVersion,
+					force: options.force,
+					localEdits: options.localEdits,
+					expectedId: options.expectedExtensionId && formatExtensionId(options.expectedExtensionId),
+				});
+				return true;
+			};
+		});
+
+		teardown(() => {
+			fs.rmSync(switchRoot, { recursive: true, force: true });
+		});
+
+		async function switchItem(
+			source: string,
+			quartoWizard: { track: InstallTrack; commit?: string },
+			version: string | null = "1.0.0",
+		): Promise<ExtensionTreeItem> {
+			const extensionDir = path.join(switchRoot, "_extensions", "acme", "switch-demo");
+			fs.mkdirSync(extensionDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extensionDir, "_extension.yml"),
+				`title: Switch demo\nauthor: Acme\n${version ? `version: ${version}\n` : ""}contributes: {}\n`,
+			);
+			writeSourceRecord(extensionDir, { source, kind: "github", quartoWizard });
+			setRoots([makeRoot(makeFolder("switch", switchRoot))]);
+			const installed = await getInstalledExtensionsRecord(switchRoot);
+			return new ExtensionTreeItem(
+				SWITCH_ID,
+				vscode.TreeItemCollapsibleState.Collapsed,
+				switchRoot,
+				installed[SWITCH_ID],
+			);
+		}
+
+		test("tag to branch asks with the exact copy and installs the head of the default branch", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+
+			await runCommand("changeUpdateSource", await switchItem(`${SWITCH_ID}@v1.0.0`, { track: "tag" }));
+
+			assert.deepStrictEqual(dialogs, [
+				{
+					message: `Switch "${SWITCH_ID}" to the default branch: install main @ fed9876 (now 1.0.0)?`,
+					modal: true,
+					items: ["Switch"],
+				},
+			]);
+			assert.deepStrictEqual(installs, [
+				{
+					source: `${SWITCH_ID}@${HEAD}`,
+					recordSource: SWITCH_ID,
+					track: "branch",
+					replaceSameVersion: true,
+					force: undefined,
+					localEdits: undefined,
+					expectedId: SWITCH_ID,
+				},
+			]);
+			assert.ok(
+				messages.includes(`Extension "${SWITCH_ID}" now updates from the default branch.`),
+				messages.join("\n"),
+			);
+		});
+
+		test("a repository with no version tag asks without claiming a tag", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "branch", commit: HEAD }));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[
+					`Switch "${SWITCH_ID}" to the latest tag: the repository has no version tag yet, so install main @ fed9876 from the default branch (now 1.0.0)?`,
+				],
+			);
+			assert.ok(
+				messages.includes(
+					`Extension "${SWITCH_ID}" now updates from the latest tag, and follows the default branch until the first version tag.`,
+				),
+				messages.join("\n"),
+			);
+		});
+
+		test("branch to tag asks with the exact copy and installs the latest tag", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { githubTags: ["v1.3.0"] } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "branch", commit: HEAD }));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[`Switch "${SWITCH_ID}" to the latest tag: install v1.3.0 (now 1.0.0)?`],
+			);
+			assert.deepStrictEqual(
+				installs.map((install) => [install.source, install.recordSource, install.track, install.replaceSameVersion]),
+				[[`${SWITCH_ID}@v1.3.0`, undefined, "tag", true]],
+			);
+			assert.ok(messages.includes(`Extension "${SWITCH_ID}" now updates from the latest tag.`), messages.join("\n"));
+		});
+
+		test("an unknown installed version leaves out the now part", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }, null));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[`Switch "${SWITCH_ID}" to the default branch: install main @ fed9876?`],
+			);
+		});
+
+		test("a downgrade adds a second sentence", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { githubTags: ["v0.9.0"] } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "branch", commit: HEAD }));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[
+					`Switch "${SWITCH_ID}" to the latest tag: install v0.9.0 (now 1.0.0)? This is an older version than the one installed.`,
+				],
+			);
+		});
+
+		for (const [name, answer] of [
+			["a dismissed dialog", undefined],
+			["another button", "Cancel"],
+		] as const) {
+			test(`${name} installs nothing`, async () => {
+				stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD } } });
+				dialogAnswer = answer;
+
+				await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+
+				assert.strictEqual(dialogs.length, 1);
+				assert.deepStrictEqual(installs, []);
+			});
+		}
+
+		test("local edits are left to the Replace anyway dialog of the install", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+
+			assert.strictEqual(installs[0].localEdits, undefined);
+			assert.strictEqual(installs[0].force, undefined);
+			assert.strictEqual(installs[0].replaceSameVersion, true);
+		});
+
+		test("a branch with no commit shows the error and installs nothing", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: {} } });
+			const logged: string[] = [];
+			const log = (constants as { QW_LOG: unknown }).QW_LOG;
+			(constants as { QW_LOG: unknown }).QW_LOG = {
+				...(log as object),
+				info: (message: string) => logged.push(message),
+			};
+			try {
+				await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+			} finally {
+				(constants as { QW_LOG: unknown }).QW_LOG = log;
+			}
+
+			assert.deepStrictEqual(dialogs, []);
+			assert.deepStrictEqual(installs, []);
+			assert.deepStrictEqual(errors, [
+				`Cannot find a commit on the default branch of "${SWITCH_ID}". Check that the repository has commits and try again.`,
+			]);
+			assert.ok(!logged.some((message) => message.includes("not on GitHub")), logged.join("\n"));
+		});
+
+		test("an extension that is not on GitHub shows no dialog and logs why", async () => {
+			const logged: string[] = [];
+			const log = (constants as { QW_LOG: unknown }).QW_LOG;
+			(constants as { QW_LOG: unknown }).QW_LOG = {
+				...(log as object),
+				info: (message: string) => logged.push(message),
+			};
+			try {
+				await runCommand("changeUpdateSource", createItem("acme/url-demo"));
+			} finally {
+				(constants as { QW_LOG: unknown }).QW_LOG = log;
+			}
+
+			assert.deepStrictEqual(dialogs, []);
+			assert.deepStrictEqual(installs, []);
+			assert.deepStrictEqual(errors, []);
+			assert.ok(
+				logged.includes('Cannot change the update source of "acme/url-demo": its source is not on GitHub.'),
+				logged.join("\n"),
+			);
+		});
+	});
+
+	test("reinstall in branch mode installs the recorded commit and keeps the mode", async () => {
+		const reinstalled: RecordedInstall[] = [];
+		quartoModule.installQuartoExtension = async (source) => {
+			reinstalled.push(recordedInstall(source));
+			return true;
+		};
+		const root = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-branch-"))).fsPath;
+		try {
+			const extensionDir = path.join(root, "_extensions", "acme", "branch-demo");
+			fs.mkdirSync(extensionDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extensionDir, "_extension.yml"),
+				"title: Branch demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
+			);
+			const commit = "fed9876543210fedcba9876543210fedcba98765";
+			writeSourceRecord(extensionDir, {
+				source: "acme/branch-demo@dev",
+				kind: "github",
+				quartoWizard: { track: "branch", commit },
+			});
+			setRoots([makeRoot(makeFolder("branch", root))]);
+			const installed = await getInstalledExtensionsRecord(root);
+
+			await runCommand(
+				"reinstall",
+				new ExtensionTreeItem(
+					"acme/branch-demo",
+					vscode.TreeItemCollapsibleState.Collapsed,
+					root,
+					installed["acme/branch-demo"],
+				),
+			);
+
+			assert.deepStrictEqual(reinstalled, [
+				{ source: `acme/branch-demo@${commit}`, recordSource: "acme/branch-demo@dev", track: "branch" },
+			]);
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	test("update all reports the updates done before a cancel", async () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (installCalls.length === 1) {
 				return true;
 			}
@@ -691,7 +1013,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (installCalls.length === 1) {
 				return false;
 			}

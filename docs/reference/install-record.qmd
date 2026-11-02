@@ -21,6 +21,7 @@ The record holds these items:
 
 - The source that you installed from, for example `owner/repository@v1.2.0`.
 - The type of the source: GitHub, URL, local folder or local archive.
+- For a GitHub source, the update source, under the `quarto-wizard` key: `track`, and the full `commit` in some cases.
 - A checksum for each file of the extension.
 
 The Extensions Installed view reads the source from the record.
@@ -30,6 +31,50 @@ An extension that has no record can still have `source` and `source-type` keys i
 This is the format of Quarto Wizard 3.
 Quarto Wizard still reads these keys.
 The next update of the extension writes a record.
+
+## Update Source
+
+A GitHub extension follows one of two update sources:
+
+- `tag`: the latest version tag of the repository.
+  This is the default.
+- `branch`: the latest commit of a branch.
+  This is the default branch, unless the source names a branch.
+
+Quarto Wizard saves the choice as `quarto-wizard.track` in the record.
+An update follows the saved value, and not the current setting.
+The `@ref` in the source only says where the files came from.
+It never stops an update.
+
+The `commit` item is the full 40-character commit, in lower case.
+The Extensions Installed view shows the first seven characters.
+Quarto 2 ignores the `quarto-wizard` key.
+
+This table shows what a GitHub install records:
+
+| Case                                       | `source`             | `track`  | `commit`    |
+| ------------------------------------------ | -------------------- | -------- | ----------- |
+| Tag mode, latest tag `v1.4.0`              | `owner/repo@v1.4.0`  | `tag`    | none        |
+| Branch mode, default branch                | `owner/repo`         | `branch` | full commit |
+| Branch `dev`                               | `owner/repo@dev`     | `branch` | full commit |
+| Tag `v1.2.0`                               | `owner/repo@v1.2.0`  | `tag`    | none        |
+| Commit `abc1234`                           | `owner/repo@abc1234` | `tag`    | none        |
+| Tag mode, no version tag in the repository | `owner/repo`         | `tag`    | full commit |
+
+A commit has nothing to follow, so the next update of an extension that you installed from a commit goes to the latest tag.
+If the repository has no version tag, the update goes to the head of the default branch.
+Update then compares commits until the repository has a version tag.
+An extension from a subdirectory (`owner/repo/subdirectory@ref`) follows the same table.
+
+A record that has no `track` item, for example a record that Quarto 2 wrote, counts as `tag`.
+Reinstall is the one exception.
+If the ref of such a record is a branch, for example `owner/repo@dev`, Reinstall installs it in branch mode.
+An extension that has no record also counts as `tag`.
+A URL source, a local folder and a local archive have no update source.
+
+To change the update source of an installed extension, use **Change Update Source** in the Extensions Installed view.
+To set the update source of new installs, use the `quartoWizard.install.updateSource` setting.
+See [Configuration](configuration.qmd).
 
 ## Local Changes Are Detected
 
@@ -69,12 +114,13 @@ To give it a record, remove the extension, then install it again.
 
 To reset an extension to its original files, use **Reinstall Extension** in the Extensions Installed view.
 Reinstall replaces the extension even when it is at the same version.
-The source in the record tells Reinstall what to install:
+Reinstall keeps the update source of the extension.
+The record tells Reinstall what to install:
 
-- If the source has a ref, for example `owner/repository@v1.2.0`, Reinstall installs that ref.
-- If the source has no ref and the record has a commit, Reinstall installs that commit.
-  The record keeps the source without a ref.
-- If the source has no ref and the record has no commit, Reinstall installs the latest version.
+- In tag mode, Reinstall installs the recorded tag again.
+- In branch mode, Reinstall installs the recorded commit again.
+  The extension keeps following the branch.
+- If the record has no tag and no commit, Reinstall installs the latest tag.
   This version can be newer than the installed version.
 
 If the extension has local changes, Reinstall first shows the warning with **Replace anyway** and **Cancel**.
