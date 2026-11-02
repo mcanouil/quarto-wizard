@@ -8,6 +8,10 @@ import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import type { SourceRecord } from "../../src/filesystem/sourceRecord.js";
 import { ExtensionError } from "../../src/errors.js";
 
+vi.mock("../../src/github/raw.js", () => ({
+	fetchRawFile: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("../../src/github/releases.js", async () => {
 	const actual = await vi.importActual<typeof import("../../src/github/releases.js")>("../../src/github/releases.js");
 	return {
@@ -19,6 +23,7 @@ vi.mock("../../src/github/releases.js", async () => {
 	};
 });
 
+import { fetchRawFile } from "../../src/github/raw.js";
 import { fetchDefaultBranch, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 
 const FULL_SHA = "abcdef0123456789abcdef0123456789abcdef01";
@@ -96,6 +101,13 @@ describe("reinstallTarget", () => {
 		});
 	});
 
+	it("installs the recorded source in branch mode when no commit was recorded", () => {
+		expect(reinstallTarget(installed("o/ext@dev", { quartoWizard: { track: "branch" } }))).toEqual({
+			source: "o/ext@dev",
+			track: "branch",
+		});
+	});
+
 	it("keeps a subdirectory in the base", () => {
 		expect(
 			reinstallTarget(installed("o/ext/sub", { quartoWizard: { track: "branch", commit: FULL_SHA } }))?.source,
@@ -115,6 +127,7 @@ describe("planSourceChange", () => {
 		vi.mocked(fetchTags).mockResolvedValue([]);
 		vi.mocked(fetchLatestCommit).mockResolvedValue(FULL_SHA);
 		vi.mocked(fetchDefaultBranch).mockResolvedValue("main");
+		vi.mocked(fetchRawFile).mockResolvedValue(null);
 	});
 
 	it("targets the default branch head from tag mode and drops the tag", async () => {
@@ -197,6 +210,64 @@ describe("planSourceChange", () => {
 			currentVersion: "1.4.0",
 			isDowngrade: false,
 		});
+	});
+
+	it("lets a prerelease install follow a prerelease tag", async () => {
+		vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0-beta.1"), tag("v1.5.0")]);
+		const change = await planSourceChange(
+			installed("o/ext", { version: "2.0.0-alpha.1", quartoWizard: { track: "branch", commit: FULL_SHA } }),
+			{},
+		);
+		expect(change?.targetLabel).toBe("v2.0.0-beta.1");
+	});
+
+	it("compares a subdirectory source on its manifest at the target tag, not on the repository tag", async () => {
+		vi.mocked(fetchTags).mockResolvedValue([tag("v1.0.0")]);
+		vi.mocked(fetchRawFile).mockImplementation(async (_o, _r, ref, filePath) =>
+			ref === "v1.0.0" && filePath === "sub/_extension.yml" ? "title: ext\nversion: 2.0.0\n" : null,
+		);
+		const change = await planSourceChange(
+			installed("o/ext/sub", { version: "1.4.0", quartoWizard: { track: "branch", commit: FULL_SHA } }),
+			{},
+		);
+		expect(change?.isDowngrade).toBe(false);
+	});
+
+	it("flags a subdirectory downgrade when its manifest at the tag is lower", async () => {
+		vi.mocked(fetchTags).mockResolvedValue([tag("v3.0.0")]);
+		vi.mocked(fetchRawFile).mockImplementation(async (_o, _r, ref, filePath) =>
+			ref === "v3.0.0" && filePath === "sub/_extension.yml" ? "title: ext\nversion: 1.0.0\n" : null,
+		);
+		const change = await planSourceChange(
+			installed("o/ext/sub", { version: "1.4.0", quartoWizard: { track: "branch", commit: FULL_SHA } }),
+			{},
+		);
+		expect(change?.isDowngrade).toBe(true);
+	});
+
+	it("does not flag a downgrade when the subdirectory manifest cannot be read", async () => {
+		vi.mocked(fetchTags).mockResolvedValue([tag("v0.1.0")]);
+		const change = await planSourceChange(
+			installed("o/ext/sub", { version: "1.4.0", quartoWizard: { track: "branch", commit: FULL_SHA } }),
+			{},
+		);
+		expect(change?.isDowngrade).toBe(false);
+	});
+
+	it("flags a downgrade to the tag equal to the first parts of an extended installed version", async () => {
+		vi.mocked(fetchTags).mockResolvedValue([tag("v1.0.0")]);
+		const change = await planSourceChange(
+			installed("o/ext", { version: "1.0.0.9000", quartoWizard: { track: "branch", commit: FULL_SHA } }),
+			{},
+		);
+		expect(change?.isDowngrade).toBe(true);
+	});
+
+	it("lower-cases the head commit in the source", async () => {
+		vi.mocked(fetchLatestCommit).mockResolvedValue(FULL_SHA.toUpperCase());
+		const change = await planSourceChange(installed("o/ext"), {});
+		expect(change?.source).toBe(`o/ext@${FULL_SHA}`);
+		expect(change?.targetLabel).toBe("main @ abcdef0");
 	});
 
 	it("returns null for a source that is not on GitHub", async () => {

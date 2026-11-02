@@ -33,15 +33,14 @@ import { lookupRegistryEntry } from "../registry/search.js";
 import { isEmbeddedInInstalledParent } from "../filesystem/projects.js";
 import { compareCommits, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 import { fetchRawFile } from "../github/raw.js";
-import { MANIFEST_FILENAMES, parseManifestContent } from "../filesystem/manifest.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { install, parseInstallSource } from "./install.js";
+import { installedVersionFloor as floorOfInstalledVersion, readSubdirectoryVersion } from "./versions.js";
 import {
 	AuthenticationError,
 	CancellationError,
 	ExtensionError,
 	LocalEditsError,
-	ManifestError,
 	NetworkError,
 	RateLimitError,
 	SamlSsoError,
@@ -401,20 +400,6 @@ function checksInRegistry(candidate: UpdateCandidate): boolean {
 	return !candidate.subdirectory && candidate.branch === undefined;
 }
 
-/**
- * Paths where the manifest of a subdirectory source can be, in the order they are tried:
- * the subdirectory itself, then the folder of the installed extension under the
- * `_extensions` folder of the subdirectory, without and with its owner.
- */
-function subdirectoryManifestPaths(candidate: UpdateCandidate): string[] {
-	const { owner, name } = candidate.extension.id;
-	const directories = [candidate.subdirectory, `${candidate.subdirectory}/_extensions/${name}`];
-	if (owner) {
-		directories.push(`${candidate.subdirectory}/_extensions/${owner}/${name}`);
-	}
-	return directories.flatMap((directory) => MANIFEST_FILENAMES.map((filename) => `${directory}/${filename}`));
-}
-
 function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 	const pending = new Map<string, Promise<unknown>>();
 
@@ -446,37 +431,12 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 			const repository = candidate.fullName.toLowerCase();
 			const extensionId = formatExtensionId(candidate.extension.id);
 			return once(`${repository}@${ref}:${candidate.subdirectory}#${extensionId}`, async () => {
-				// Raw file requests do not count against the API rate limit, so every path is asked at once.
-				const filePaths = subdirectoryManifestPaths(candidate);
 				// Two extensions of one subdirectory share the paths of the subdirectory itself, so each file is asked once.
-				const reads = await Promise.allSettled(
-					filePaths.map((filePath) =>
-						once(`${repository}#raw@${ref}:${filePath}`, () =>
-							fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options),
-						),
+				return readSubdirectoryVersion(candidate.subdirectory as string, candidate.extension.id, (filePath) =>
+					once(`${repository}#raw@${ref}:${filePath}`, () =>
+						fetchRawFile(candidate.owner, candidate.repo, ref, filePath, options),
 					),
 				);
-				for (const read of reads) {
-					if (read.status === "rejected" && isCancellationError(read.reason)) {
-						throw read.reason;
-					}
-				}
-				try {
-					// The paths are in priority order, so a read that fails before the first manifest
-					// found leaves the version unknown and a manifest of lower priority never decides.
-					for (const [index, read] of reads.entries()) {
-						if (read.status === "rejected") {
-							throw read.reason;
-						}
-						if (read.value !== null) {
-							return manifestVersion(read.value, filePaths[index]);
-						}
-					}
-					return null;
-				} catch {
-					// The caller falls back to the recorded ref, so a failed read only loses precision.
-					return null;
-				}
 			});
 		},
 		isBehind(candidate, installedCommit, latestCommit) {
@@ -497,21 +457,6 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 			});
 		},
 	};
-}
-
-/**
- * Normalised version of a manifest, or null when the manifest cannot be
- * parsed or has no version.
- */
-function manifestVersion(content: string, sourcePath: string): string | null {
-	try {
-		return normaliseVersion(parseManifestContent(content, sourcePath).version);
-	} catch (error) {
-		if (error instanceof ManifestError) {
-			return null;
-		}
-		throw error;
-	}
 }
 
 /**
@@ -730,24 +675,8 @@ function isUsableTag(candidate: UpdateCandidate, tag: string): boolean {
 	return semver.prerelease(version) === null || followsPrereleases;
 }
 
-const EXTRA_NUMERIC_PARTS_PATTERN = /^v?(\d+\.\d+\.\d+)(?:\.\d+)+$/;
-
-/**
- * Version that an update must exceed when the installed version is not a
- * version, or null when there is none.
- *
- * A version with more than three numeric parts, such as the development build
- * "1.0.0.9000", is ahead of its first three parts, so a tag equal to them is
- * not newer. Any other installed version gives the version of the tag recorded
- * in the manifest source, so that an update never goes below that tag.
- */
 function installedVersionFloor(candidate: UpdateCandidate, installedVersion: string): string | null {
-	const extended = EXTRA_NUMERIC_PARTS_PATTERN.exec(installedVersion.trim());
-	if (extended) {
-		return normaliseVersion(extended[1]);
-	}
-	const ref = recordedRef(candidate);
-	return ref === null ? null : normaliseVersion(ref.replace(/^V/, "v"));
+	return floorOfInstalledVersion(installedVersion, recordedRef(candidate));
 }
 
 /**

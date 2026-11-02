@@ -21,7 +21,9 @@ import {
 	type InstallTrack,
 } from "../types/manifest.js";
 import { ExtensionError } from "../errors.js";
-import { normaliseVersion, resolveLatestTag } from "../github/latest.js";
+import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
+import { fetchRawFile } from "../github/raw.js";
+import { installedVersionFloor, readSubdirectoryVersion } from "./versions.js";
 import { fetchDefaultBranch, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 
 /**
@@ -132,7 +134,7 @@ export async function planSourceChange(
 			);
 		}
 		return {
-			source: `${base}@${commit}`,
+			source: `${base}@${commit.toLowerCase()}`,
 			recordSource: base,
 			track,
 			targetLabel: `${branch ?? "default branch"} @ ${shortCommit(commit)}`,
@@ -149,12 +151,42 @@ export async function planSourceChange(
 	if (!latest) {
 		return headTarget("tag");
 	}
-	const installedVersion = normaliseVersion(installed);
 	return {
 		source: `${base}@${latest.tagName}`,
 		track: "tag",
 		targetLabel: latest.tagName,
 		currentVersion,
-		isDowngrade: installedVersion !== null && semver.lt(latest.version, installedVersion),
+		isDowngrade: await isBelowInstalled(extension, parsed, latest, options),
 	};
+}
+
+/**
+ * Whether the target tag holds a version below the installed one.
+ *
+ * A subdirectory source compares the version in its manifest at the tag,
+ * because the version of the tag belongs to the whole repository. A version
+ * that cannot be read is not a downgrade.
+ */
+async function isBelowInstalled(
+	extension: InstalledExtension,
+	{ locator }: GitHubSource,
+	tag: LatestTag,
+	options: GitHubOptions,
+): Promise<boolean> {
+	const installed = extension.manifest.version;
+	const targetVersion = locator.subdirectory
+		? await readSubdirectoryVersion(locator.subdirectory, extension.id, (filePath) =>
+				fetchRawFile(locator.owner, locator.repo, tag.tagName, filePath, options),
+			)
+		: tag.version;
+	if (targetVersion === null) {
+		return false;
+	}
+	const installedVersion = normaliseVersion(installed);
+	if (installedVersion !== null) {
+		return semver.lt(targetVersion, installedVersion);
+	}
+	// A development build such as "1.0.0.9000" is ahead of the tag equal to its first parts.
+	const floor = installedVersionFloor(installed, null);
+	return floor !== null && semver.lte(targetVersion, floor);
 }
