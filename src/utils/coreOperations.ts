@@ -33,6 +33,7 @@ import {
 	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
+import { withAbortSignal } from "./cancellation";
 import { handleAuthError, GITHUB_SCOPES, type HandleAuthErrorOptions } from "./auth";
 import { formatExtensionId, resolveLocalSourcePath } from "./extensions";
 import { getQuartoVersionInfo } from "../services/quartoVersion";
@@ -521,15 +522,14 @@ export async function installQuartoExtension(
 		resolvedSource = sourceType === "local" ? resolveLocalSourcePath(extension, workspaceFolder) : extension;
 	}
 
-	const controller = new AbortController();
-	if (cancellationToken?.isCancellationRequested) {
-		controller.abort();
-	}
-	const cancellation = cancellationToken?.onCancellationRequested(() => controller.abort());
-
-	const runInstall = (source: ParsedInstallSource, authConfig: AuthConfig | undefined, forceInstall: boolean) =>
+	const runInstall = (
+		source: ParsedInstallSource,
+		signal: AbortSignal,
+		authConfig: AuthConfig | undefined,
+		forceInstall: boolean,
+	) =>
 		install(source, {
-			signal: controller.signal,
+			signal,
 			projectDir: workspaceFolder,
 			auth: authConfig,
 			sourceType,
@@ -547,7 +547,11 @@ export async function installQuartoExtension(
 		});
 
 	let forceConfirmed = false;
-	const doInstall = async (source: ParsedInstallSource, authConfig?: AuthConfig): Promise<boolean | null> => {
+	const doInstall = async (
+		source: ParsedInstallSource,
+		signal: AbortSignal,
+		authConfig?: AuthConfig,
+	): Promise<boolean | null> => {
 		if (force && localEdits === "ask" && !forceConfirmed) {
 			const edited = expectedExtensionId ? findEditedExtensions(workspaceFolder, [expectedExtensionId]) : [];
 			if (edited.length > 0 && !(await confirmReplaceLocalEdits(prefix, edited))) {
@@ -557,7 +561,7 @@ export async function installQuartoExtension(
 		}
 		let result;
 		try {
-			result = await runInstall(source, authConfig, force);
+			result = await runInstall(source, signal, authConfig, force);
 		} catch (error) {
 			if (!(error instanceof LocalEditsError)) {
 				throw error;
@@ -572,7 +576,7 @@ export async function installQuartoExtension(
 			if (!(await confirmReplaceAfterRefusal(prefix, workspaceFolder, error, selected))) {
 				return null;
 			}
-			result = await runInstall(source, authConfig, true);
+			result = await runInstall(source, signal, authConfig, true);
 		}
 
 		if (result.cancelled) {
@@ -627,23 +631,21 @@ export async function installQuartoExtension(
 		}
 	};
 
-	try {
-		return await runWithParsedSourceAndAuthRetry(
+	return withAbortSignal(cancellationToken, (signal) =>
+		runWithParsedSourceAndAuthRetry(
 			resolvedSource,
 			auth,
 			prefix,
 			cancellationToken,
-			doInstall,
+			(source, authConfig) => doInstall(source, signal, authConfig),
 			false,
 			null,
 			{
 				context,
 				offerSessionOnNotFound,
 			},
-		);
-	} finally {
-		cancellation?.dispose();
-	}
+		),
+	);
 }
 
 /**

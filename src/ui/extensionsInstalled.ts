@@ -27,6 +27,7 @@ import {
 	type InstallOutcome,
 } from "../utils/coreOperations";
 import { withProgressNotification } from "../utils/withProgressNotification";
+import { withAbortSignal } from "../utils/cancellation";
 import { getAuthConfig } from "../utils/auth";
 import { getEffectiveSourceType, resolveLocalSourcePath } from "../utils/extensions";
 import { invalidateInstalledExtensionsCache } from "../utils/installedExtensionsCache";
@@ -60,20 +61,17 @@ async function checkGitHubUpdates(
 	token: vscode.CancellationToken,
 	extension?: ExtensionId,
 ): Promise<UpdateCheckResult | undefined> {
-	const controller = new AbortController();
-	if (token.isCancellationRequested) {
-		controller.abort();
-	}
-	const cancellation = token.onCancellationRequested(() => controller.abort());
 	try {
-		return await checkForUpdates({
-			projectDirs,
-			extension,
-			source: "github",
-			auth,
-			timeout: REGISTRY_FETCH_TIMEOUT_MS,
-			signal: controller.signal,
-		});
+		return await withAbortSignal(token, (signal) =>
+			checkForUpdates({
+				projectDirs,
+				extension,
+				source: "github",
+				auth,
+				timeout: REGISTRY_FETCH_TIMEOUT_MS,
+				signal,
+			}),
+		);
 	} catch (error) {
 		if (isCancellationError(error)) {
 			return undefined;
@@ -84,8 +82,6 @@ async function checkGitHubUpdates(
 			repositoryFailures: [],
 			checkFailure: { kind: "network", message: getErrorMessage(error) },
 		};
-	} finally {
-		cancellation.dispose();
 	}
 }
 
@@ -505,14 +501,10 @@ export class ExtensionsInstalled {
 					const failureMessage = `Failed to change the update source of extension "${item.label}".`;
 					const auth = await getAuthConfig(context);
 					const plan = await withProgressNotification(`Checking "${item.label}" ...`, async (token) => {
-						const controller = new AbortController();
-						const cancellation = token.onCancellationRequested(() => controller.abort());
 						try {
-							return await planSourceChange(extension, {
-								auth,
-								timeout: REGISTRY_FETCH_TIMEOUT_MS,
-								signal: controller.signal,
-							});
+							return await withAbortSignal(token, (signal) =>
+								planSourceChange(extension, { auth, timeout: REGISTRY_FETCH_TIMEOUT_MS, signal }),
+							);
 						} catch (error) {
 							if (isCancellationError(error)) {
 								return null;
@@ -520,8 +512,6 @@ export class ExtensionsInstalled {
 							logMessage(`${failureMessage} ${getErrorMessage(error)}`, "error");
 							showMessageWithLogs(getErrorMessage(error), "error");
 							return null;
-						} finally {
-							cancellation.dispose();
 						}
 					});
 					if (!plan) {
