@@ -27,6 +27,7 @@ import {
 	type LocalEdit,
 	type RemoveResult,
 	type ExtensionId,
+	type InstallTrack,
 	getErrorMessage,
 } from "@quarto-wizard/core";
 import { logMessage } from "./log";
@@ -97,6 +98,8 @@ export interface InstallOptions {
 	 * An update or a reinstall of an extension installed without a ref sets it, so that the record stays unpinned.
 	 */
 	recordSource?: string;
+	/** What updates of a GitHub install follow: the latest tag or the head of a branch. */
+	track?: InstallTrack;
 	/** Receives what the install did, so that the caller can report it. */
 	outcome?: InstallOutcome;
 }
@@ -483,6 +486,7 @@ export async function installQuartoExtension(
 		force = false,
 		replaceSameVersion = false,
 		recordSource,
+		track,
 		outcome,
 	} = options;
 	if (force && !expectedExtensionId) {
@@ -519,6 +523,7 @@ export async function installQuartoExtension(
 			selectExtension,
 			expectedExtensionId,
 			recordSource,
+			track,
 			force: forceInstall,
 			replaceSameVersion,
 			confirmOverwrite: createConfirmOverwriteCallback(prefix, forceInstall || (skipOverwritePrompt ?? false)),

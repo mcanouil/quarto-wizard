@@ -27,7 +27,6 @@ export {
 	type UpdateResult,
 	checkForUpdates,
 	applyUpdates,
-	unpinnedRecordSource,
 	update,
 } from "./update.js";
 

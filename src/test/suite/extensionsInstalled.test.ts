@@ -5,7 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
-import { LocalEditsError, writeSourceRecord } from "@quarto-wizard/core";
+import { LocalEditsError, writeSourceRecord, type InstallTrack } from "@quarto-wizard/core";
 import { registerInstallCommands } from "../../commands/installQuartoExtension";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
@@ -32,6 +32,7 @@ interface InstallCall {
 interface RecordedInstall {
 	source: string;
 	recordSource: string | undefined;
+	track: InstallTrack | undefined;
 }
 
 interface RemoveCall {
@@ -582,7 +583,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			recorded = [];
 			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
 				installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
-				recorded.push({ source, recordSource: options.recordSource });
+				recorded.push({ source, recordSource: options.recordSource, track: options.track });
 				return true;
 			};
 		});
@@ -613,12 +614,12 @@ suite("Extensions Installed Commands Test Suite", () => {
 			);
 		}
 
-		test("update installs the latest tag and keeps the record unpinned", async () => {
+		test("update installs the latest tag and records it", async () => {
 			stubNetwork({ repositories: { [UNPINNED_ID]: { githubTags: ["v1.3.0"] } } });
 
 			await runCommand("update", await unpinnedItem(UNPINNED_ID));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
 		test("update to a new commit keeps the record unpinned", async () => {
@@ -626,7 +627,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			await runCommand("update", await unpinnedItem(UNPINNED_ID, "aaaaaaa"));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [
+				{ source: `${UNPINNED_ID}@fed9876543210fedcba9876543210fedcba98765`, recordSource: UNPINNED_ID, track: "tag" },
+			]);
 		});
 
 		test("update all keeps the record unpinned", async () => {
@@ -635,7 +638,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			await runCommand("updateAll");
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [
+				{ source: `${UNPINNED_ID}@fed9876543210fedcba9876543210fedcba98765`, recordSource: UNPINNED_ID, track: "tag" },
+			]);
 		});
 
 		test("update of a pinned extension records the new ref", async () => {
@@ -643,7 +648,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			await runCommand("update", await unpinnedItem(`${UNPINNED_ID}@v1.0.0`));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined }]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
 		test("update all of a pinned extension records the new ref", async () => {
@@ -652,19 +657,21 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			await runCommand("updateAll");
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined }]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
 		test("reinstall installs the recorded commit and keeps the record unpinned", async () => {
 			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID, "fed9876"));
 
-			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID }]);
+			assert.deepStrictEqual(recorded, [
+				{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID, track: undefined },
+			]);
 		});
 
 		test("reinstall of a tagged extension installs the source as recorded", async () => {
 			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID));
 
-			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined }]);
+			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined, track: undefined }]);
 		});
 	});
 

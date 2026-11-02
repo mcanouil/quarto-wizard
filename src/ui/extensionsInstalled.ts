@@ -9,7 +9,6 @@ import {
 	isCancellationError,
 	pluralise,
 	splitSourceRef,
-	unpinnedRecordSource,
 	type AuthConfig,
 	type ExtensionId,
 	type InstalledExtension,
@@ -415,14 +414,15 @@ export class ExtensionsInstalled {
 				const failureMessage = `Failed to update extension "${item.label}".`;
 				const resolvesTag = item.effectiveSourceType === "github" || item.effectiveSourceType === "registry";
 				const auth = await getAuthConfig(context);
-				const install = (installSource: string, token: vscode.CancellationToken, recordSource?: string) =>
+				const install = (installSource: string, token: vscode.CancellationToken, update?: UpdateInfo) =>
 					installQuartoExtension(installSource, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 						expectedExtensionId: extension.id,
-						recordSource,
+						recordSource: update?.recordSource,
+						track: update?.track,
 						replaceSameVersion: true,
 					});
 				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
@@ -437,7 +437,7 @@ export class ExtensionsInstalled {
 					if (!update || check.checkFailure || check.repositoryFailures.length > 0) {
 						return { check };
 					}
-					return { check, update, installed: await install(update.source, token, unpinnedRecordSource(update)) };
+					return { check, update, installed: await install(update.source, token, update) };
 				});
 
 				if (outcome.check) {
@@ -646,7 +646,8 @@ export class ExtensionsInstalled {
 								cancellationToken: token,
 								sourceType: getEffectiveSourceType(update.extension.manifest),
 								expectedExtensionId: update.extension.id,
-								recordSource: unpinnedRecordSource(update),
+								recordSource: update.recordSource,
+								track: update.track,
 								replaceSameVersion: true,
 								localEdits: "skip",
 								outcome: installOutcome,
