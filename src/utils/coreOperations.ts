@@ -460,6 +460,20 @@ function createValidateQuartoVersionCallback(
 }
 
 /**
+ * Update mode that a new install follows, from the `quartoWizard.install.updateSource` setting.
+ * Update, Reinstall and Change Update Source name their mode and never read it.
+ *
+ * @param workspaceFolder - The workspace folder whose setting applies.
+ * @returns `branch` for `defaultBranch`, otherwise `tag`.
+ */
+export function configuredInstallTrack(workspaceFolder: string): InstallTrack {
+	const configured = vscode.workspace
+		.getConfiguration("quartoWizard.install", vscode.Uri.file(workspaceFolder))
+		.get<string>("updateSource");
+	return configured === "defaultBranch" ? "branch" : "tag";
+}
+
+/**
  * Installs a Quarto extension using the core library.
  * Uses single-pass installation with interactive callbacks for overwrite and version validation.
  *
@@ -486,9 +500,9 @@ export async function installQuartoExtension(
 		force = false,
 		replaceSameVersion = false,
 		recordSource,
-		track,
 		outcome,
 	} = options;
+	const track = options.track ?? configuredInstallTrack(workspaceFolder);
 	if (force && !expectedExtensionId) {
 		throw new Error(
 			"The force option needs the expectedExtensionId option, so that local changes are shown before they are replaced.",
@@ -820,6 +834,7 @@ export async function useQuartoExtension(
 			confirmExtensionOverwrite,
 			auth: authConfig,
 			sourceType,
+			track: configuredInstallTrack(workspaceFolder),
 			force,
 			onProgress: (progress) => {
 				if (progress.file) {

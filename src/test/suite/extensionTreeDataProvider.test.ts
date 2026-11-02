@@ -404,46 +404,52 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			const tooltip = String((await extensionItem(provider, "acme/registry-demo")).tooltip);
 
 			assert.ok(tooltip.includes("Latest 1.3.0, found on GitHub."), tooltip);
-			assert.ok(tooltip.includes("Update installs the latest GitHub tag."), tooltip);
+			assert.ok(tooltip.includes("Updates from: latest tag"), tooltip);
 		});
 
-		test("tooltip of a commit-pinned extension with no known update names the latest commit", () => {
-			const item = new ExtensionTreeItem(
-				"quarto-ext/demo",
-				vscode.TreeItemCollapsibleState.Collapsed,
-				"/workspace",
-				createExtension({ source: "quarto-ext/demo@4f3c2a1", sourceType: "github" }),
-			);
-
-			const tooltip = String(item.tooltip);
-
-			assert.ok(tooltip.includes("Update installs the latest commit of the default branch."), tooltip);
-			assert.ok(!tooltip.includes("GitHub tag"), tooltip);
-		});
-
-		test("tooltip of an extension with a recorded commit names the latest commit", () => {
+		function trackedItem(source: string, track: "tag" | "branch" | undefined): ExtensionTreeItem {
 			const extension: InstalledExtension = {
-				...createExtension({ source: "quarto-ext/demo", sourceType: "github" }),
+				...createExtension({ source, sourceType: "github" }),
 				record: {
 					version: 1,
-					source: "quarto-ext/demo",
+					source,
 					kind: "github",
 					files: {},
-					quartoWizard: { commit: "4f3c2a1b9d8e7f60123456789abcdef012345678" },
+					...(track && { quartoWizard: { track } }),
 				},
 				recordStatus: "ok",
 			};
-			const item = new ExtensionTreeItem(
+			return new ExtensionTreeItem(
 				"quarto-ext/demo",
 				vscode.TreeItemCollapsibleState.Collapsed,
 				"/workspace",
 				extension,
 			);
+		}
 
-			const tooltip = String(item.tooltip);
+		test("tooltip of a tag-mode extension says it updates from the latest tag", () => {
+			const tooltip = String(trackedItem("quarto-ext/demo@v1.0.0", "tag").tooltip);
 
-			assert.ok(tooltip.includes("Update installs the latest commit of the default branch."), tooltip);
-			assert.ok(!tooltip.includes("GitHub tag"), tooltip);
+			assert.ok(tooltip.includes("Updates from: latest tag"), tooltip);
+			assert.ok(!tooltip.includes("branch"), tooltip);
+		});
+
+		test("tooltip of an extension with a record that names no mode says it updates from the latest tag", () => {
+			const tooltip = String(trackedItem("quarto-ext/demo", undefined).tooltip);
+
+			assert.ok(tooltip.includes("Updates from: latest tag"), tooltip);
+		});
+
+		test("tooltip of a branch-mode extension without a branch names the default branch", () => {
+			const tooltip = String(trackedItem("quarto-ext/demo", "branch").tooltip);
+
+			assert.ok(tooltip.includes("Updates from: default branch"), tooltip);
+		});
+
+		test("tooltip of a branch-mode extension with an explicit branch names the branch", () => {
+			const tooltip = String(trackedItem("quarto-ext/demo@dev", "branch").tooltip);
+
+			assert.ok(tooltip.includes("Updates from: dev branch"), tooltip);
 		});
 
 		test("a repository failure keeps the view message and marks the tooltip", async () => {
@@ -683,7 +689,10 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			});
 
 			const item = await itemIn(provider, embedded, "acme/child");
-			assert.strictEqual(item.contextValue, "quartoExtensionItem:update:reinstall:remove:openSource:reveal");
+			assert.strictEqual(
+				item.contextValue,
+				"quartoExtensionItem:update:reinstall:changeSource:remove:openSource:reveal",
+			);
 			assert.strictEqual(item.update?.latestVersion, "2.0.0");
 			assert.strictEqual(view.badge?.value, 1);
 		});

@@ -663,16 +663,229 @@ suite("Extensions Installed Commands Test Suite", () => {
 		test("reinstall installs the recorded commit and records the source without a ref", async () => {
 			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID, "fed9876"));
 
-			assert.deepStrictEqual(recorded, [
-				{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID, track: undefined },
-			]);
+			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@fed9876`, recordSource: UNPINNED_ID, track: "tag" }]);
 		});
 
 		test("reinstall of a tagged extension installs the source as recorded", async () => {
 			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID));
 
-			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined, track: undefined }]);
+			assert.deepStrictEqual(recorded, [{ source: UNPINNED_ID, recordSource: undefined, track: "tag" }]);
 		});
+	});
+
+	suite("change update source", () => {
+		const SWITCH_ID = "acme/switch-demo";
+		const HEAD = "fed9876543210fedcba9876543210fedcba98765";
+		let switchRoot: string;
+		let dialogs: { message: string; modal: boolean | undefined; items: string[] }[];
+		let dialogAnswer: string | undefined;
+		let installs: {
+			source: string;
+			recordSource: string | undefined;
+			track: InstallTrack | undefined;
+			replaceSameVersion: boolean | undefined;
+			force: boolean | undefined;
+			localEdits: string | undefined;
+			expectedId: string | undefined;
+		}[];
+
+		setup(() => {
+			switchRoot = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-switch-"))).fsPath;
+			dialogs = [];
+			dialogAnswer = "Switch";
+			installs = [];
+			vscode.window.showWarningMessage = (async (message: string, ...rest: unknown[]) => {
+				const options = typeof rest[0] === "object" ? (rest[0] as vscode.MessageOptions) : undefined;
+				dialogs.push({
+					message,
+					modal: options?.modal,
+					items: rest.filter((item): item is string => typeof item === "string"),
+				});
+				return dialogAnswer;
+			}) as unknown as typeof vscode.window.showWarningMessage;
+			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
+				installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+				installs.push({
+					source,
+					recordSource: options.recordSource,
+					track: options.track,
+					replaceSameVersion: options.replaceSameVersion,
+					force: options.force,
+					localEdits: options.localEdits,
+					expectedId: options.expectedExtensionId && formatExtensionId(options.expectedExtensionId),
+				});
+				return true;
+			};
+		});
+
+		teardown(() => {
+			fs.rmSync(switchRoot, { recursive: true, force: true });
+		});
+
+		async function switchItem(
+			source: string,
+			quartoWizard: { track: InstallTrack; commit?: string },
+		): Promise<ExtensionTreeItem> {
+			const extensionDir = path.join(switchRoot, "_extensions", "acme", "switch-demo");
+			fs.mkdirSync(extensionDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extensionDir, "_extension.yml"),
+				"title: Switch demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
+			);
+			writeSourceRecord(extensionDir, { source, kind: "github", quartoWizard });
+			setRoots([makeRoot(makeFolder("switch", switchRoot))]);
+			const installed = await getInstalledExtensionsRecord(switchRoot);
+			return new ExtensionTreeItem(
+				SWITCH_ID,
+				vscode.TreeItemCollapsibleState.Collapsed,
+				switchRoot,
+				installed[SWITCH_ID],
+			);
+		}
+
+		test("tag to branch asks with the exact copy and installs the head of the default branch", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+
+			await runCommand("changeUpdateSource", await switchItem(`${SWITCH_ID}@v1.0.0`, { track: "tag" }));
+
+			assert.deepStrictEqual(dialogs, [
+				{
+					message: `Switch "${SWITCH_ID}" to the default branch: install main @ fed9876 (now 1.0.0)?`,
+					modal: true,
+					items: ["Switch"],
+				},
+			]);
+			assert.deepStrictEqual(installs, [
+				{
+					source: `${SWITCH_ID}@${HEAD}`,
+					recordSource: SWITCH_ID,
+					track: "branch",
+					replaceSameVersion: true,
+					force: undefined,
+					localEdits: undefined,
+					expectedId: SWITCH_ID,
+				},
+			]);
+			assert.ok(
+				messages.includes(`Extension "${SWITCH_ID}" now updates from the default branch.`),
+				messages.join("\n"),
+			);
+		});
+
+		test("branch to tag asks with the exact copy and installs the latest tag", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { githubTags: ["v1.3.0"] } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "branch", commit: HEAD }));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[`Switch "${SWITCH_ID}" to the latest tag: install v1.3.0 (now 1.0.0)?`],
+			);
+			assert.deepStrictEqual(
+				installs.map((install) => [install.source, install.recordSource, install.track, install.replaceSameVersion]),
+				[[`${SWITCH_ID}@v1.3.0`, undefined, "tag", true]],
+			);
+			assert.ok(messages.includes(`Extension "${SWITCH_ID}" now updates from the latest tag.`), messages.join("\n"));
+		});
+
+		test("a downgrade adds a second sentence", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { githubTags: ["v0.9.0"] } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "branch", commit: HEAD }));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[
+					`Switch "${SWITCH_ID}" to the latest tag: install v0.9.0 (now 1.0.0)? This is an older version than the one installed.`,
+				],
+			);
+		});
+
+		for (const [name, answer] of [
+			["a dismissed dialog", undefined],
+			["another button", "Cancel"],
+		] as const) {
+			test(`${name} installs nothing`, async () => {
+				stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD } } });
+				dialogAnswer = answer;
+
+				await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+
+				assert.strictEqual(dialogs.length, 1);
+				assert.deepStrictEqual(installs, []);
+			});
+		}
+
+		test("local edits are left to the Replace anyway dialog of the install", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+
+			assert.strictEqual(installs[0].localEdits, undefined);
+			assert.strictEqual(installs[0].force, undefined);
+			assert.strictEqual(installs[0].replaceSameVersion, true);
+		});
+
+		test("a branch with no commit shows the error and installs nothing", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: {} } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+
+			assert.deepStrictEqual(dialogs, []);
+			assert.deepStrictEqual(installs, []);
+			assert.deepStrictEqual(errors, [
+				`Cannot find a commit on the default branch of "${SWITCH_ID}". Check that the repository has commits and try again.`,
+			]);
+		});
+
+		test("an extension that is not on GitHub shows nothing", async () => {
+			await runCommand("changeUpdateSource", createItem("acme/url-demo"));
+
+			assert.deepStrictEqual(dialogs, []);
+			assert.deepStrictEqual(installs, []);
+			assert.deepStrictEqual(errors, []);
+		});
+	});
+
+	test("reinstall in branch mode installs the recorded commit and keeps the mode", async () => {
+		const reinstalled: RecordedInstall[] = [];
+		quartoModule.installQuartoExtension = async (source, _workspaceFolder, options = {}) => {
+			reinstalled.push({ source, recordSource: options.recordSource, track: options.track });
+			return true;
+		};
+		const root = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-branch-"))).fsPath;
+		try {
+			const extensionDir = path.join(root, "_extensions", "acme", "branch-demo");
+			fs.mkdirSync(extensionDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(extensionDir, "_extension.yml"),
+				"title: Branch demo\nauthor: Acme\nversion: 1.0.0\ncontributes: {}\n",
+			);
+			const commit = "fed9876543210fedcba9876543210fedcba98765";
+			writeSourceRecord(extensionDir, {
+				source: "acme/branch-demo@dev",
+				kind: "github",
+				quartoWizard: { track: "branch", commit },
+			});
+			setRoots([makeRoot(makeFolder("branch", root))]);
+			const installed = await getInstalledExtensionsRecord(root);
+
+			await runCommand(
+				"reinstall",
+				new ExtensionTreeItem(
+					"acme/branch-demo",
+					vscode.TreeItemCollapsibleState.Collapsed,
+					root,
+					installed["acme/branch-demo"],
+				),
+			);
+
+			assert.deepStrictEqual(reinstalled, [
+				{ source: `acme/branch-demo@${commit}`, recordSource: "acme/branch-demo@dev", track: "branch" },
+			]);
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	test("update all reports the updates done before a cancel", async () => {

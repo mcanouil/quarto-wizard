@@ -233,6 +233,14 @@
 				"description": "Reinstall the extension from its original source."
 			},
 			{
+				"command": "quartoWizard.extensionsInstalled.changeUpdateSource",
+				"title": "Change Update Source",
+				"shortTitle": "Change Update Source",
+				"icon": "$(git-branch)",
+				"category": "Quarto Wizard",
+				"description": "Switch the extension between following the latest tag and following the default branch."
+			},
+			{
 				"command": "quartoWizard.extensionsInstalled.update",
 				"title": "Update Extension",
 				"shortTitle": "Update",
@@ -557,19 +565,24 @@
 					"group": "navigation@1"
 				},
 				{
+					"command": "quartoWizard.extensionsInstalled.changeUpdateSource",
+					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:changeSource(:|$)/",
+					"group": "navigation@2"
+				},
+				{
 					"command": "quartoWizard.extensionsInstalled.remove",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:remove(:|$)/",
-					"group": "navigation@2"
+					"group": "navigation@3"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.openSource",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:openSource(:|$)/",
-					"group": "navigation@3"
+					"group": "navigation@4"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.revealInExplorer",
 					"when": "view == quartoWizard.extensionsInstalled && viewItem =~ /^quartoExtensionItem(:[^:]+)*:reveal(:|$)/",
-					"group": "navigation@4"
+					"group": "navigation@5"
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.insertSnippet",
@@ -593,6 +606,10 @@
 				},
 				{
 					"command": "quartoWizard.extensionsInstalled.reinstall",
+					"when": "false"
+				},
+				{
+					"command": "quartoWizard.extensionsInstalled.changeUpdateSource",
 					"when": "false"
 				},
 				{
@@ -805,6 +822,23 @@
 					"markdownDescription": "Ask for confirmation before installing an extension. `ask` to ask for confirmation, `never` to always confirm and never ask again.",
 					"title": "Confirm Installation",
 					"description": "Prompt before installing."
+				},
+				"quartoWizard.install.updateSource": {
+					"order": 3,
+					"scope": "resource",
+					"type": "string",
+					"enum": [
+						"latestTag",
+						"defaultBranch"
+					],
+					"enumDescriptions": [
+						"Follow the latest version tag of the repository",
+						"Follow the head of the default branch"
+					],
+					"default": "latestTag",
+					"markdownDescription": "What updates of a new GitHub install follow. `latestTag` installs the latest version tag and updates when a newer tag appears. `defaultBranch` installs the head of the default branch and updates when the branch moves. Use Change Update Source on an installed extension to switch it later.",
+					"title": "Update Source",
+					"description": "What updates of a new install follow."
 				},
 				"quartoWizard.cache.ttlMinutes": {
 					"order": 10,

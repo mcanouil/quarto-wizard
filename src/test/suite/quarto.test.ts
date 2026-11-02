@@ -4,8 +4,10 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import { ZipArchive } from "archiver";
+import { readSourceRecord } from "@quarto-wizard/core";
 import { QW_LOG } from "../../constants";
 import {
+	configuredInstallTrack,
 	installQuartoExtension,
 	removeQuartoExtension,
 	useQuartoExtension,
@@ -39,6 +41,47 @@ suite("Quarto Utils Test Suite", () => {
 		if (fs.existsSync(testWorkspaceDir)) {
 			fs.rmSync(testWorkspaceDir, { recursive: true, force: true });
 		}
+	});
+
+	suite("configuredInstallTrack", () => {
+		let originalGetConfiguration: typeof vscode.workspace.getConfiguration;
+		let configured: string | undefined;
+
+		setup(() => {
+			originalGetConfiguration = vscode.workspace.getConfiguration;
+			configured = undefined;
+			Object.defineProperty(vscode.workspace, "getConfiguration", {
+				value: (section?: string) => ({
+					get: (key: string) => (section === "quartoWizard.install" && key === "updateSource" ? configured : undefined),
+				}),
+				writable: true,
+				configurable: true,
+			});
+		});
+
+		teardown(() => {
+			Object.defineProperty(vscode.workspace, "getConfiguration", {
+				value: originalGetConfiguration,
+				writable: true,
+				configurable: true,
+			});
+		});
+
+		test("maps latestTag to tag", () => {
+			configured = "latestTag";
+			assert.strictEqual(configuredInstallTrack(testWorkspaceDir), "tag");
+		});
+
+		test("maps defaultBranch to branch", () => {
+			configured = "defaultBranch";
+			assert.strictEqual(configuredInstallTrack(testWorkspaceDir), "branch");
+		});
+
+		test("reads an unset or unknown value as tag", () => {
+			assert.strictEqual(configuredInstallTrack(testWorkspaceDir), "tag");
+			configured = "somethingElse";
+			assert.strictEqual(configuredInstallTrack(testWorkspaceDir), "tag");
+		});
 	});
 
 	suite("installQuartoExtension", () => {
@@ -329,6 +372,39 @@ suite("Quarto Utils Test Suite", () => {
 						assert.match(manifest, /local edit/);
 					});
 				}
+
+				test("a plain install follows the latest tag by default", async () => {
+					archiveBody = await buildArchive(["demo"], "1.0.0");
+
+					assert.strictEqual(await installQuartoExtension("acme/demo", testWorkspaceDir), true);
+
+					const read = readSourceRecord(installedDir);
+					assert.strictEqual(read.status, "ok");
+					assert.strictEqual(read.status === "ok" && read.record.quartoWizard?.track, "tag");
+				});
+
+				test("a change of update source with local changes shows Replace anyway and Cancel writes nothing", async () => {
+					await installThenEdit();
+					const before = readSourceRecord(installedDir);
+					const manifestBefore = fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8");
+					archiveBody = await buildArchive(["demo"], "1.0.0");
+					warningChoice = "Cancel";
+
+					const result = await installQuartoExtension("acme/demo@v1.0.0", testWorkspaceDir, {
+						skipOverwritePrompt: true,
+						expectedExtensionId: { owner: "acme", name: "demo" },
+						replaceSameVersion: true,
+						recordSource: "acme/demo",
+						track: "branch",
+					});
+
+					assert.strictEqual(result, null);
+					assert.deepStrictEqual(warnings, [
+						"acme/demo has local changes that a reinstall would remove: _extension.yml (modified).",
+					]);
+					assert.deepStrictEqual(readSourceRecord(installedDir), before);
+					assert.strictEqual(fs.readFileSync(path.join(installedDir, MANIFEST_NAME), "utf8"), manifestBefore);
+				});
 
 				test("with local changes lists at most ten files and counts the rest", async () => {
 					await installThenEdit();

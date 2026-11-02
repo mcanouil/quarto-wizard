@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import type { ExtensionSchema, FieldDescriptor, ShortcodeSchema, ClassDefinition } from "@quarto-wizard/schema";
 import {
-	recordedCommit,
+	recordedTrack,
+	splitSourceRef,
 	pluralise,
 	type SourceType,
 	type UpdateCheckSource,
@@ -42,7 +43,7 @@ type FolderCapability = "install" | "template" | "removeMultiple" | "hide";
  * Commands that an extension row allows, in the order they appear in its `contextValue`.
  * Inline reinstall also needs `update` to be absent, because update takes its place.
  */
-type ExtensionCapability = "update" | "reinstall" | "remove" | "openSource" | "reveal";
+type ExtensionCapability = "update" | "reinstall" | "changeSource" | "remove" | "openSource" | "reveal";
 
 /**
  * Builds a `contextValue` of the form `<base>:<capability>:<capability>`.
@@ -78,9 +79,20 @@ function extensionCapabilities(
 		return ["remove", "reveal"];
 	}
 	if (sourceType === "github" || sourceType === "registry") {
-		return ["update", "reinstall", "remove", "openSource", "reveal"];
+		return ["update", "reinstall", "changeSource", "remove", "openSource", "reveal"];
 	}
 	return ["reinstall", "remove", "openSource", "reveal"];
+}
+
+/**
+ * Line of the tooltip that says where updates of a GitHub or registry extension come from.
+ */
+function describeUpdateSource(extension: InstalledExtension | undefined): string {
+	if (!extension || recordedTrack(extension.record) === "tag") {
+		return "Updates from: latest tag";
+	}
+	const { ref } = splitSourceRef(extension.manifest.source ?? "");
+	return ref ? `Updates from: ${ref} branch` : "Updates from: default branch";
 }
 
 /**
@@ -169,14 +181,7 @@ export class ExtensionTreeItem extends vscode.TreeItem {
 		if (embedding === "read-only") {
 			updateNotes.push("Ships with the extension that embeds it, so it cannot be changed here.");
 		} else if (capabilities.includes("update")) {
-			updateNotes.push(
-				recordedCommit({
-					source: extension?.manifest.source ?? "",
-					quartoWizard: extension?.record?.quartoWizard,
-				}) !== null
-					? "Update installs the latest commit of the default branch."
-					: "Update installs the latest GitHub tag.",
-			);
+			updateNotes.push(describeUpdateSource(extension));
 		}
 
 		// Build tooltip with warning if there are issues

@@ -19,6 +19,8 @@ export interface FakeRepository {
 	githubHeaders?: Record<string, string>;
 	/** Full SHA of the latest commit of the default branch; the branch has no commit when unset. */
 	latestCommit?: string;
+	/** Name of the default branch; GitHub reports none when unset. */
+	defaultBranch?: string;
 }
 
 export interface UpdateBoundaryOptions {
@@ -77,6 +79,10 @@ function githubResponse(fullName: string, endpoint: string, repository: FakeRepo
 			return json([]);
 		case "commits":
 			return json(repository?.latestCommit ? [{ sha: repository.latestCommit }] : []);
+		case undefined:
+			return repository?.defaultBranch
+				? json({ default_branch: repository.defaultBranch })
+				: json({ message: "Not Found" }, 404);
 		default:
 			return json({ message: "Not Found" }, 404);
 	}
