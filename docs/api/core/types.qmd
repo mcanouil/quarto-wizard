@@ -52,6 +52,7 @@ Defines types for extension contributions and manifest structure.
 - [getEffectiveSourceType](types.qmd#symbol-function-geteffectivesourcetype)
 - [getExtensionTypes](types.qmd#symbol-function-getextensiontypes)
 - [inferSourceType](types.qmd#symbol-function-infersourcetype)
+- [normaliseCommit](types.qmd#symbol-function-normalisecommit)
 - [normaliseManifest](types.qmd#symbol-function-normalisemanifest)
 - [parseGitHubLocator](types.qmd#symbol-function-parsegithublocator)
 - [recordedCommit](types.qmd#symbol-function-recordedcommit)
@@ -260,6 +261,26 @@ source gives every discovered extension the repository owner.
 `boolean`
 
 True when both name the same extension
+
+## normaliseCommit {#symbol-function-normalisecommit}
+
+```{.ts filename="TypeScript"}
+function normaliseCommit(commit): string;
+```
+
+Defined in: [packages/core/src/types/manifest.ts:187](https://github.com/mcanouil/quarto-wizard/blob/b7d550a185f5d7e29506b5543328795c41204575/packages/core/src/types/manifest.ts#L187)
+
+Full commit in lower case, the form that an install record and a commit archive use.
+
+### Parameters
+
+| Parameter | Type     |
+| --------- | -------- |
+| `commit`  | `string` |
+
+### Returns
+
+`string`
 
 ## normaliseManifest {#symbol-function-normalisemanifest}
 
