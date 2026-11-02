@@ -94,8 +94,8 @@ export interface InstallOptions {
 	 */
 	replaceSameVersion?: boolean;
 	/**
-	 * Source to write in the install record in place of the installed source.
-	 * An update or a reinstall of an extension installed without a ref sets it, so that the record stays unpinned.
+	 * Source to write in the install record when it differs from the source that is downloaded.
+	 * An update to a commit sets it, so that the record keeps the source the extension follows.
 	 */
 	recordSource?: string;
 	/** What updates of a GitHub install follow: the latest tag or the head of a branch. */

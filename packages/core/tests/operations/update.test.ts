@@ -842,6 +842,29 @@ describe("checkForUpdates", () => {
 						CancellationError,
 					);
 				});
+
+				it("offers the head of a hex-named branch when the record has no commit", async () => {
+					setupRecordedExtension(
+						"quarto-ext",
+						"hexsub",
+						"0.3.0",
+						githubRecord("quarto-ext/monorepo/sub/dir@cafe123", "branch"),
+					);
+					vi.mocked(fetchLatestCommit).mockResolvedValue("cafe123901234567890abcdef1234567890abcd");
+
+					const result = await checkForUpdates({
+						projectDirs: [tempDir],
+						extension: { owner: "quarto-ext", name: "hexsub" },
+						source: "github",
+					});
+
+					expect(compareCommits).not.toHaveBeenCalled();
+					expect(result.updates).toHaveLength(1);
+					const [found] = result.updates;
+					expect(found?.currentVersion).toBe("0.3.0");
+					expect(found?.latestRef).toBe("cafe123");
+					expect(found?.recordSource).toBe("quarto-ext/monorepo/sub/dir@cafe123");
+				});
 			});
 
 			it("never looks a subdirectory source up in the registry", async () => {
@@ -1242,6 +1265,31 @@ describe("checkForUpdates", () => {
 			expect(found?.recordSource).toBe("quarto-ext/fontawesome@dev");
 		});
 
+		it("offers the head of a hex-named branch when the record has no commit", async () => {
+			const branchHead = "cafe123901234567890abcdef1234567890abcd";
+			setupRecordedExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				githubRecord("quarto-ext/fontawesome@cafe123", "branch"),
+			);
+			vi.mocked(fetchLatestCommit).mockResolvedValue(branchHead);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(fetchLatestCommit).toHaveBeenCalledWith(
+				"quarto-ext",
+				"fontawesome",
+				expect.objectContaining({ ref: "cafe123" }),
+			);
+			expect(result.updates).toHaveLength(1);
+			const [found] = result.updates;
+			expect(found?.currentVersion).toBe("1.0.0");
+			expect(found?.latestRef).toBe("cafe123");
+			expect(found?.source).toBe(`quarto-ext/fontawesome@${branchHead}`);
+			expect(found?.recordSource).toBe("quarto-ext/fontawesome@cafe123");
+		});
+
 		it("reports a deleted branch as a repository failure and checks the other extensions", async () => {
 			setupRecordedExtension(
 				"quarto-ext",
@@ -1357,6 +1405,52 @@ describe("checkForUpdates", () => {
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
 			expect(fetchLatestCommit).not.toHaveBeenCalled();
+			expect(result.updates).toHaveLength(1);
+			const [found] = result.updates;
+			expect(found?.refKind).toBe("commit");
+			expect(found?.checkedOn).toBe("registry");
+			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.track).toBe("tag");
+			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+		});
+
+		it("follows the default branch on GitHub when a stable install sees only prerelease tags", async () => {
+			setupRecordedExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				githubRecord("quarto-ext/fontawesome", "tag", INSTALLED_COMMIT),
+			);
+			vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0-beta.1")]);
+			vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_COMMIT);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(result.updates).toHaveLength(1);
+			const [found] = result.updates;
+			expect(found?.refKind).toBe("commit");
+			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.track).toBe("tag");
+			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+		});
+
+		it("follows the registry latestCommit when a stable install sees only a prerelease tag", async () => {
+			setupRecordedExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				githubRecord("quarto-ext/fontawesome", "tag", INSTALLED_COMMIT),
+			);
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "2.0.0-beta.1",
+					latestTag: "v2.0.0-beta.1",
+					latestCommit: LATEST_COMMIT,
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");

@@ -622,7 +622,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
-		test("update to a new commit keeps the record unpinned", async () => {
+		test("update to a new commit installs the full commit and records the source without a ref", async () => {
 			stubNetwork({ repositories: { [UNPINNED_ID]: { latestCommit: "fed9876543210fedcba9876543210fedcba98765" } } });
 
 			await runCommand("update", await unpinnedItem(UNPINNED_ID, "aaaaaaa"));
@@ -632,7 +632,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			]);
 		});
 
-		test("update all keeps the record unpinned", async () => {
+		test("update all to a new commit installs the full commit and records the source without a ref", async () => {
 			stubNetwork({ repositories: { [UNPINNED_ID]: { latestCommit: "fed9876543210fedcba9876543210fedcba98765" } } });
 			await unpinnedItem(UNPINNED_ID, "aaaaaaa");
 
@@ -660,7 +660,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@v1.3.0`, recordSource: undefined, track: "tag" }]);
 		});
 
-		test("reinstall installs the recorded commit and keeps the record unpinned", async () => {
+		test("reinstall installs the recorded commit and records the source without a ref", async () => {
 			await runCommand("reinstall", await unpinnedItem(UNPINNED_ID, "fed9876"));
 
 			assert.deepStrictEqual(recorded, [

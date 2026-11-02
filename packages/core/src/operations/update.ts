@@ -377,13 +377,16 @@ function toCandidate(extension: InstalledExtension, projectDir: string): UpdateC
 	}
 
 	const track = recordedTrack(extension.record);
+	const quartoWizard = extension.record?.quartoWizard;
+	// A branch ref is never a commit, even when its name looks like one.
+	const branchCommit = quartoWizard?.commit ? shortCommit(quartoWizard.commit) : null;
 	return {
 		extension,
 		projectDir,
 		base,
 		...locator,
 		fullName: `${locator.owner}/${locator.repo}`,
-		currentCommit: recordedCommit({ source, quartoWizard: extension.record?.quartoWizard }),
+		currentCommit: track === "branch" ? branchCommit : recordedCommit({ source, quartoWizard }),
 		track,
 		...(track === "branch" && ref !== undefined && { branch: ref }),
 	};
@@ -552,10 +555,10 @@ function buildRegistryUpdate(candidate: UpdateCandidate, entry: RegistryEntry): 
 	if (candidate.track === "branch") {
 		return buildCommitUpdate(candidate, entry.latestCommit, entry.htmlUrl, "registry");
 	}
-	if (entry.latestTag) {
+	if (entry.latestTag && isUsableTag(candidate, entry.latestTag)) {
 		return buildTagUpdate(candidate, entry.latestTag, entry.latestReleaseUrl, "registry");
 	}
-	// Without a version tag, tag mode follows the default branch, as a first install does.
+	// Without a usable version tag, tag mode follows the default branch, as a first install does.
 	return candidate.currentCommit ? buildCommitUpdate(candidate, entry.latestCommit, entry.htmlUrl, "registry") : null;
 }
 
@@ -571,7 +574,7 @@ async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLook
 	if (latest) {
 		return buildTagUpdate(candidate, latest.tagName, latest.releaseUrl ?? htmlUrl, "github");
 	}
-	// Without a version tag, tag mode follows the default branch, as a first install does.
+	// Without a usable version tag, tag mode follows the default branch, as a first install does.
 	if (!candidate.currentCommit) {
 		return null;
 	}
@@ -711,6 +714,20 @@ function buildTagUpdate(
 		},
 		latestTag,
 	);
+}
+
+/**
+ * Whether a tag is a version tag that the install can follow, as in
+ * resolveLatestTag: a prerelease qualifies only for a prerelease install.
+ */
+function isUsableTag(candidate: UpdateCandidate, tag: string): boolean {
+	const version = normaliseVersion(tag);
+	if (version === null) {
+		return false;
+	}
+	const installed = normaliseVersion(candidate.extension.manifest.version);
+	const followsPrereleases = installed !== null && semver.prerelease(installed) !== null;
+	return semver.prerelease(version) === null || followsPrereleases;
 }
 
 const EXTRA_NUMERIC_PARTS_PATTERN = /^v?(\d+\.\d+\.\d+)(?:\.\d+)+$/;
