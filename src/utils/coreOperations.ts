@@ -6,6 +6,7 @@ import {
 	use,
 	useBrand,
 	parseInstallSource,
+	formatInstallSource,
 	parseExtensionId,
 	createAuthConfig,
 	CancellationError,
@@ -27,6 +28,7 @@ import {
 	type LocalEdit,
 	type RemoveResult,
 	type ExtensionId,
+	type InstallTarget,
 	type InstallTrack,
 	getErrorMessage,
 } from "@quarto-wizard/core";
@@ -93,15 +95,6 @@ export interface InstallOptions {
 	 * Unlike `force`, a copy with local changes is still refused, as `localEdits` says.
 	 */
 	replaceSameVersion?: boolean;
-	/**
-	 * Source to write in the install record when it differs from the source that is downloaded.
-	 * An update to a commit sets it, so that the record keeps the source the extension follows.
-	 */
-	recordSource?: string;
-	/** What updates of a GitHub install follow: the latest tag or the head of a branch. */
-	track?: InstallTrack;
-	/** Install the ref of the source as a tag, for a tag such as `2` that reads as a branch or a commit. */
-	refIsTag?: boolean;
 	/** Receives what the install did, so that the caller can report it. */
 	outcome?: InstallOutcome;
 }
@@ -215,7 +208,7 @@ async function retryWithFreshAuth<T>(
  * Parses source, runs the operation, and retries with fresh auth on failure.
  */
 async function runWithParsedSourceAndAuthRetry<T>(
-	sourceInput: string,
+	sourceInput: string | ParsedInstallSource,
 	initialAuth: AuthConfig | undefined,
 	prefix: string,
 	cancellationToken: vscode.CancellationToken | undefined,
@@ -224,8 +217,9 @@ async function runWithParsedSourceAndAuthRetry<T>(
 	cancelledValue: T,
 	retryFlags: Omit<HandleAuthErrorOptions, "hadAuth"> = {},
 ): Promise<T> {
+	const parse = () => (typeof sourceInput === "string" ? parseInstallSource(sourceInput) : sourceInput);
 	try {
-		const source = parseInstallSource(sourceInput);
+		const source = parse();
 		return await run(source, initialAuth);
 	} catch (error) {
 		if (isCancellationError(error)) {
@@ -242,10 +236,7 @@ async function runWithParsedSourceAndAuthRetry<T>(
 			error,
 			flags,
 			cancellationToken,
-			async (freshAuth) => {
-				const source = parseInstallSource(sourceInput);
-				return run(source, freshAuth);
-			},
+			async (freshAuth) => run(parse(), freshAuth),
 			fallbackValue,
 			cancelledValue,
 		);
@@ -479,13 +470,14 @@ export function configuredInstallTrack(workspaceFolder: string): InstallTrack {
  * Installs a Quarto extension using the core library.
  * Uses single-pass installation with interactive callbacks for overwrite and version validation.
  *
- * @param extension - The name of the extension to install (e.g., "owner/repo" or "owner/repo@version").
+ * @param extension - The source to install (e.g., "owner/repo" or "owner/repo@version"), or a target that core
+ * computed, which also says what to write in the install record and what updates follow.
  * @param workspaceFolder - The workspace folder path.
  * @param options - Optional installation parameters.
  * @returns A promise that resolves to true if successful, false if failed, or null if cancelled by user.
  */
 export async function installQuartoExtension(
-	extension: string,
+	extension: string | InstallTarget,
 	workspaceFolder: string,
 	options: InstallOptions = {},
 ): Promise<boolean | null> {
@@ -501,18 +493,17 @@ export async function installQuartoExtension(
 		localEdits = "ask",
 		force = false,
 		replaceSameVersion = false,
-		recordSource,
-		refIsTag,
 		outcome,
 	} = options;
-	const track = options.track ?? configuredInstallTrack(workspaceFolder);
+	const target = typeof extension === "string" ? undefined : extension;
+	const track = target?.track ?? configuredInstallTrack(workspaceFolder);
 	if (force && !expectedExtensionId) {
 		throw new Error(
 			"The force option needs the expectedExtensionId option, so that local changes are shown before they are replaced.",
 		);
 	}
 
-	const prefix = `[${sourceDisplay ?? extension}]`;
+	const prefix = `[${sourceDisplay ?? (target ? formatInstallSource(target.source) : extension)}]`;
 	logMessage(`${prefix} Installing ...`, "info");
 
 	if (!workspaceFolder) {
@@ -523,7 +514,12 @@ export async function installQuartoExtension(
 	const { select: selectExtension, chosenIds } = rememberExtensionSelection(
 		wrapWithCancellation(showExtensionSelectionQuickPick, cancellationToken, null),
 	);
-	const resolvedSource = sourceType === "local" ? resolveLocalSourcePath(extension, workspaceFolder) : extension;
+	let resolvedSource: string | ParsedInstallSource;
+	if (typeof extension !== "string") {
+		resolvedSource = extension.source;
+	} else {
+		resolvedSource = sourceType === "local" ? resolveLocalSourcePath(extension, workspaceFolder) : extension;
+	}
 
 	const controller = new AbortController();
 	if (cancellationToken?.isCancellationRequested) {
@@ -539,9 +535,8 @@ export async function installQuartoExtension(
 			sourceType,
 			selectExtension,
 			expectedExtensionId,
-			recordSource,
+			recordSource: target?.recordSource,
 			track,
-			refIsTag,
 			force: forceInstall,
 			replaceSameVersion,
 			confirmOverwrite: createConfirmOverwriteCallback(prefix, forceInstall || (skipOverwritePrompt ?? false)),

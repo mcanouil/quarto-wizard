@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { planSourceChange, reinstallTarget } from "../../src/operations/source.js";
+import { parseInstallSource } from "../../src/operations/install.js";
 import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import type { SourceRecord } from "../../src/filesystem/sourceRecord.js";
 import { ExtensionError } from "../../src/errors.js";
@@ -27,6 +28,10 @@ import { fetchRawFile } from "../../src/github/raw.js";
 import { fetchDefaultBranch, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
 
 const FULL_SHA = "abcdef0123456789abcdef0123456789abcdef01";
+
+function githubSource(text: string) {
+	return parseInstallSource(text, () => false);
+}
 
 function tag(name: string) {
 	return {
@@ -60,33 +65,32 @@ function installed(
 describe("reinstallTarget", () => {
 	it("installs the recorded tag in tag mode", () => {
 		expect(reinstallTarget(installed("o/ext@v1.4.0", { quartoWizard: { track: "tag" } }))).toEqual({
-			source: "o/ext@v1.4.0",
+			source: githubSource("o/ext@v1.4.0"),
 			track: "tag",
 		});
 	});
 
 	it.each(["2", "20240101"])("installs the dotless tag %s as a tag", (ref) => {
 		expect(reinstallTarget(installed(`o/ext@${ref}`, { quartoWizard: { track: "tag" } }))).toEqual({
-			source: `o/ext@${ref}`,
+			source: { type: "github", owner: "o", repo: "ext", version: { type: "tag", tag: ref } },
 			track: "tag",
-			refIsTag: true,
 		});
 	});
 
 	it("installs a ref that is not a version as written in tag mode", () => {
 		expect(reinstallTarget(installed("o/ext@abc1234", { quartoWizard: { track: "tag" } }))).toEqual({
-			source: "o/ext@abc1234",
+			source: githubSource("o/ext@abc1234"),
 			track: "tag",
 		});
 	});
 
 	it("leaves a branch ref of a record without a mode to the install, which records branch mode", () => {
-		expect(reinstallTarget(installed("o/ext@dev"))).toEqual({ source: "o/ext@dev", track: "tag" });
+		expect(reinstallTarget(installed("o/ext@dev"))).toEqual({ source: githubSource("o/ext@dev"), track: "tag" });
 	});
 
 	it("installs the recorded commit of a tag-mode install without a version tag", () => {
 		expect(reinstallTarget(installed("o/ext", { quartoWizard: { track: "tag", commit: FULL_SHA } }))).toEqual({
-			source: `o/ext@${FULL_SHA}`,
+			source: githubSource(`o/ext@${FULL_SHA}`),
 			recordSource: "o/ext",
 			track: "tag",
 		});
@@ -94,19 +98,22 @@ describe("reinstallTarget", () => {
 
 	it("installs the base, which is the latest tag, when the record names no ref and no commit", () => {
 		expect(reinstallTarget(installed("o/ext", { quartoWizard: { track: "tag" } }))).toEqual({
-			source: "o/ext",
+			source: githubSource("o/ext"),
 			track: "tag",
 		});
 	});
 
 	it("installs the latest tag for a record written by Quarto 2", () => {
-		expect(reinstallTarget(installed("o/ext"))).toEqual({ source: "o/ext", track: "tag" });
-		expect(reinstallTarget(installed("o/ext", { noRecord: true }))).toEqual({ source: "o/ext", track: "tag" });
+		expect(reinstallTarget(installed("o/ext"))).toEqual({ source: githubSource("o/ext"), track: "tag" });
+		expect(reinstallTarget(installed("o/ext", { noRecord: true }))).toEqual({
+			source: githubSource("o/ext"),
+			track: "tag",
+		});
 	});
 
 	it("installs the recorded commit in branch mode and keeps the recorded source", () => {
 		expect(reinstallTarget(installed("o/ext", { quartoWizard: { track: "branch", commit: FULL_SHA } }))).toEqual({
-			source: `o/ext@${FULL_SHA}`,
+			source: githubSource(`o/ext@${FULL_SHA}`),
 			recordSource: "o/ext",
 			track: "branch",
 		});
@@ -114,7 +121,7 @@ describe("reinstallTarget", () => {
 
 	it("keeps an explicit branch in the record", () => {
 		expect(reinstallTarget(installed("o/ext@dev", { quartoWizard: { track: "branch", commit: FULL_SHA } }))).toEqual({
-			source: `o/ext@${FULL_SHA}`,
+			source: githubSource(`o/ext@${FULL_SHA}`),
 			recordSource: "o/ext@dev",
 			track: "branch",
 		});
@@ -122,7 +129,7 @@ describe("reinstallTarget", () => {
 
 	it("installs the recorded source in branch mode when no commit was recorded", () => {
 		expect(reinstallTarget(installed("o/ext@dev", { quartoWizard: { track: "branch" } }))).toEqual({
-			source: "o/ext@dev",
+			source: githubSource("o/ext@dev"),
 			track: "branch",
 		});
 	});
@@ -130,7 +137,7 @@ describe("reinstallTarget", () => {
 	it("keeps a subdirectory in the base", () => {
 		expect(
 			reinstallTarget(installed("o/ext/sub", { quartoWizard: { track: "branch", commit: FULL_SHA } }))?.source,
-		).toBe(`o/ext/sub@${FULL_SHA}`);
+		).toEqual(githubSource(`o/ext/sub@${FULL_SHA}`));
 	});
 
 	it("returns null for a source that is not on GitHub", () => {
@@ -152,7 +159,7 @@ describe("planSourceChange", () => {
 	it("targets the default branch head from tag mode and drops the tag", async () => {
 		const change = await planSourceChange(installed("o/ext@v1.4.0", { quartoWizard: { track: "tag" } }), {});
 		expect(change).toEqual({
-			source: `o/ext@${FULL_SHA}`,
+			source: githubSource(`o/ext@${FULL_SHA}`),
 			recordSource: "o/ext",
 			track: "branch",
 			targetLabel: "main @ abcdef0",
@@ -189,7 +196,7 @@ describe("planSourceChange", () => {
 			{},
 		);
 		expect(change).toEqual({
-			source: "o/ext@v1.5.0",
+			source: githubSource("o/ext@v1.5.0"),
 			track: "tag",
 			targetLabel: "v1.5.0",
 			currentVersion: "1.4.0",
@@ -204,7 +211,7 @@ describe("planSourceChange", () => {
 			{},
 		);
 		expect(change?.isDowngrade).toBe(true);
-		expect(change?.source).toBe("o/ext@v1.2.0");
+		expect(change?.source).toEqual(githubSource("o/ext@v1.2.0"));
 	});
 
 	it("ignores prereleases for a stable install", async () => {
@@ -222,7 +229,7 @@ describe("planSourceChange", () => {
 			{},
 		);
 		expect(change).toEqual({
-			source: `o/ext@${FULL_SHA}`,
+			source: githubSource(`o/ext@${FULL_SHA}`),
 			recordSource: "o/ext",
 			track: "tag",
 			targetLabel: "main @ abcdef0",
@@ -285,7 +292,7 @@ describe("planSourceChange", () => {
 	it("lower-cases the head commit in the source", async () => {
 		vi.mocked(fetchLatestCommit).mockResolvedValue(FULL_SHA.toUpperCase());
 		const change = await planSourceChange(installed("o/ext"), {});
-		expect(change?.source).toBe(`o/ext@${FULL_SHA}`);
+		expect(change?.source).toEqual(githubSource(`o/ext@${FULL_SHA}`));
 		expect(change?.targetLabel).toBe("main @ abcdef0");
 	});
 

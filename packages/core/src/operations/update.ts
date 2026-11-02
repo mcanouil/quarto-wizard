@@ -9,7 +9,7 @@
 
 import * as semver from "semver";
 import type { AuthConfig } from "../types/auth.js";
-import type { ExtensionId } from "../types/extension.js";
+import type { ExtensionId, VersionSpec } from "../types/extension.js";
 import { formatExtensionId } from "../types/extension.js";
 import {
 	formatGitHubLocator,
@@ -34,7 +34,8 @@ import { isEmbeddedInInstalledParent } from "../filesystem/projects.js";
 import { compareCommits, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 import { fetchRawFile } from "../github/raw.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
-import { install, parseInstallSource } from "./install.js";
+import { install } from "./install.js";
+import { githubInstallSource, type InstallTarget } from "./source.js";
 import { installedVersionFloor as floorOfInstalledVersion, readSubdirectoryVersion } from "./versions.js";
 import {
 	AuthenticationError,
@@ -75,17 +76,12 @@ export interface UpdateInfo {
 	/** URL to the release, or to the repository when there is no release. */
 	releaseUrl: string | null;
 	/**
-	 * Source to install, as `owner/repo[/subdirectory]@<tag>` or `owner/repo[/subdirectory]@<full commit>`.
-	 * A commit update names the full commit, so the install downloads exactly the commit the check saw.
+	 * What the update installs and records. Its source names the tag, or the full commit so that
+	 * the install downloads exactly the commit the check saw. It keeps the update mode of the
+	 * installed extension, and a commit update sets `recordSource`: the recorded source in branch
+	 * mode, and the source without a ref in tag mode.
 	 */
-	source: string;
-	/** Update mode of the installed extension, which the update keeps. */
-	track: InstallTrack;
-	/**
-	 * Source to write in the install record in place of `source`, set for a commit update only.
-	 * It is the recorded source in branch mode, and the source without a ref in tag mode.
-	 */
-	recordSource?: string;
+	target: InstallTarget;
 }
 
 /**
@@ -594,15 +590,8 @@ async function buildSubdirectoryUpdate(
 		}
 		return makeUpdate(
 			candidate,
-			{
-				currentVersion,
-				latestVersion,
-				latestRef: shortCommit(latestCommit),
-				refKind: "commit",
-				checkedOn: "github",
-				releaseUrl: htmlUrl,
-			},
-			latestCommit.toLowerCase(),
+			{ type: "commit", commit: latestCommit.toLowerCase() },
+			{ currentVersion, latestVersion, checkedOn: "github", releaseUrl: htmlUrl },
 		);
 	}
 
@@ -611,15 +600,13 @@ async function buildSubdirectoryUpdate(
 	}
 	return makeUpdate(
 		candidate,
+		{ type: "tag", tag: latest.tagName },
 		{
 			currentVersion: currentVersion ?? installedVersion,
 			latestVersion: latestVersion ?? latest.version,
-			latestRef: latest.tagName,
-			refKind: "tag",
 			checkedOn: "github",
 			releaseUrl: latest.releaseUrl ?? htmlUrl,
 		},
-		latest.tagName,
 	);
 }
 
@@ -656,15 +643,8 @@ function buildTagUpdate(
 	}
 	return makeUpdate(
 		candidate,
-		{
-			currentVersion: currentVersion ?? installedVersion,
-			latestVersion,
-			latestRef: latestTag,
-			refKind: "tag",
-			checkedOn,
-			releaseUrl,
-		},
-		latestTag,
+		{ type: "tag", tag: latestTag },
+		{ currentVersion: currentVersion ?? installedVersion, latestVersion, checkedOn, releaseUrl },
 	);
 }
 
@@ -721,40 +701,45 @@ function buildCommitUpdate(
 	}
 	return makeUpdate(
 		candidate,
+		{ type: "commit", commit: latestCommit.toLowerCase() },
 		{
 			currentVersion: currentCommit ?? candidate.extension.manifest.version,
 			latestVersion: latestRef,
-			latestRef,
-			refKind: "commit",
 			checkedOn,
 			releaseUrl,
 		},
-		latestCommit.toLowerCase(),
 	);
 }
 
+/** Tag or full commit that an update installs. */
+type UpdateRef = Extract<VersionSpec, { type: "tag" } | { type: "commit" }>;
+
 /**
- * Update of a candidate to `target`, a tag or a full commit, installed from the
- * same repository and subdirectory and with the same update mode.
+ * Update of a candidate to a tag or a full commit, installed from the same
+ * repository and subdirectory and with the same update mode.
  */
 function makeUpdate(
 	candidate: UpdateCandidate,
-	details: Omit<UpdateInfo, "extension" | "projectDir" | "source" | "track" | "recordSource">,
-	target: string,
+	ref: UpdateRef,
+	details: Pick<UpdateInfo, "currentVersion" | "latestVersion" | "checkedOn" | "releaseUrl">,
 ): UpdateInfo {
-	const locator = formatGitHubLocator(candidate);
+	const isCommit = ref.type === "commit";
 	// A commit update keeps the source it follows in the record, so the next check follows it too.
 	let recordSource: string | undefined;
-	if (details.refKind === "commit") {
-		recordSource = candidate.track === "branch" ? candidate.extension.manifest.source : locator;
+	if (isCommit) {
+		recordSource = candidate.track === "branch" ? candidate.extension.manifest.source : formatGitHubLocator(candidate);
 	}
 	return {
 		extension: candidate.extension,
 		projectDir: candidate.projectDir,
 		...details,
-		source: `${locator}@${target}`,
-		track: candidate.track,
-		...(recordSource !== undefined && { recordSource }),
+		latestRef: isCommit ? shortCommit(ref.commit) : ref.tag,
+		refKind: isCommit ? "commit" : "tag",
+		target: {
+			source: githubInstallSource(candidate, ref),
+			track: candidate.track,
+			...(recordSource !== undefined && { recordSource }),
+		},
 	};
 }
 
@@ -793,15 +778,12 @@ export async function applyUpdates(updates: UpdateInfo[], options: UpdateOptions
 				message: `Updating to ${update.latestVersion}...`,
 			});
 
-			const source = parseInstallSource(update.source);
-
+			const { source, ...record } = update.target;
 			const installResult = await install(source, {
+				...record,
 				projectDir: update.projectDir,
 				auth,
 				sourceType: update.extension.manifest.sourceType,
-				recordSource: update.recordSource,
-				track: update.track,
-				refIsTag: update.refKind === "tag",
 				replaceSameVersion: true,
 				signal,
 				expectedExtensionId: update.extension.id,

@@ -47,7 +47,9 @@ vi.mock("../../src/operations/install.js", async () => {
 });
 
 import { fetchRegistry } from "../../src/registry/fetcher.js";
-import { install } from "../../src/operations/install.js";
+import { install, parseInstallSource } from "../../src/operations/install.js";
+import type { InstallTarget } from "../../src/operations/source.js";
+import { formatGitHubLocator } from "../../src/types/manifest.js";
 import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import { readSourceRecord, writeSourceRecord, type SourceRecord } from "../../src/filesystem/sourceRecord.js";
 import { compareCommits, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
@@ -89,6 +91,24 @@ function registryEntry(fullName: string, fields: Record<string, unknown>): Recor
 		htmlUrl: `https://github.com/${fullName}`,
 		...fields,
 	};
+}
+
+function installSource(text: string): InstallTarget["source"] {
+	return parseInstallSource(text, () => false);
+}
+
+/** Source that an update installs, as `<locator>@<tag or full commit>`. */
+function targetText(update: UpdateInfo | undefined): string | undefined {
+	if (!update) {
+		return undefined;
+	}
+	const { source } = update.target;
+	if (source.type !== "github") {
+		return undefined;
+	}
+	const { version } = source;
+	const ref = version.type === "tag" ? version.tag : version.type === "commit" ? version.commit : version.type;
+	return `${formatGitHubLocator(source)}@${ref}`;
 }
 
 describe("checkForUpdates", () => {
@@ -175,7 +195,7 @@ describe("checkForUpdates", () => {
 			expect(found?.latestRef).toBe("v2.0.0");
 			expect(found?.refKind).toBe("tag");
 			expect(found?.releaseUrl).toBe("https://github.com/quarto-ext/fontawesome/releases/tag/v2.0.0");
-			expect(found?.source).toBe("quarto-ext/fontawesome@v2.0.0");
+			expect(targetText(found)).toBe("quarto-ext/fontawesome@v2.0.0");
 		});
 
 		it("does not report an update when already at latest", async () => {
@@ -276,7 +296,7 @@ describe("checkForUpdates", () => {
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
 			expect(result.updates).toHaveLength(1);
-			expect(result.updates[0]?.source).toBe("mcanouil/quarto-remember@1.1.0");
+			expect(targetText(result.updates[0])).toBe("mcanouil/quarto-remember@1.1.0");
 		});
 
 		it("uses the registry for a github-sourced extension that the registry lists", async () => {
@@ -312,7 +332,7 @@ describe("checkForUpdates", () => {
 			expect(found?.checkedOn).toBe("registry");
 			expect(found?.currentVersion).toBe("1.0.0.9000");
 			expect(found?.latestRef).toBe("v1.2.0");
-			expect(found?.source).toBe("quarto-ext/fontawesome@v1.2.0");
+			expect(targetText(found)).toBe("quarto-ext/fontawesome@v1.2.0");
 		});
 
 		it("does not offer a registry tag equal to the first three parts of a four-part version", async () => {
@@ -418,7 +438,7 @@ describe("checkForUpdates", () => {
 			expect(fetchReleases).toHaveBeenCalledWith("unknown", "extension", expect.anything());
 			expect(result.updates).toHaveLength(1);
 			expect(result.updates[0]?.checkedOn).toBe("github");
-			expect(result.updates[0]?.source).toBe("unknown/extension@v1.1.0");
+			expect(targetText(result.updates[0])).toBe("unknown/extension@v1.1.0");
 		});
 	});
 
@@ -478,7 +498,7 @@ describe("checkForUpdates", () => {
 			expect(found?.currentVersion).toBe("1.0.0.9000");
 			expect(found?.latestVersion).toBe("1.2.0");
 			expect(found?.latestRef).toBe("v1.2.0");
-			expect(found?.source).toBe("quarto-ext/fontawesome@v1.2.0");
+			expect(targetText(found)).toBe("quarto-ext/fontawesome@v1.2.0");
 		});
 
 		it("does not offer the installed tag again when the installed version is not a version", async () => {
@@ -532,7 +552,7 @@ describe("checkForUpdates", () => {
 
 			expect(result.updates).toHaveLength(1);
 			expect(result.updates[0]?.latestRef).toBe("v1.2.0");
-			expect(result.updates[0]?.source).toBe("quarto-ext/fontawesome@v1.2.0");
+			expect(targetText(result.updates[0])).toBe("quarto-ext/fontawesome@v1.2.0");
 		});
 
 		it("resolves each repository once across project roots", async () => {
@@ -559,7 +579,7 @@ describe("checkForUpdates", () => {
 
 			expect(fetchReleases).toHaveBeenCalledWith("quarto-ext", "fontawesome", expect.anything());
 			expect(result.updates[0]?.latestRef).toBe("2.0.0");
-			expect(result.updates[0]?.source).toBe("quarto-ext/fontawesome@2.0.0");
+			expect(targetText(result.updates[0])).toBe("quarto-ext/fontawesome@2.0.0");
 		});
 
 		describe("for a subdirectory source", () => {
@@ -729,9 +749,9 @@ describe("checkForUpdates", () => {
 				expect(found?.latestVersion).toBe("0.4.0");
 				expect(found?.latestRef).toBe("def5678");
 				expect(found?.refKind).toBe("commit");
-				expect(found?.source).toBe("quarto-ext/monorepo/sub/dir@def5678901234567890abcdef1234567890abcd");
-				expect(found?.track).toBe("tag");
-				expect(found?.recordSource).toBe("quarto-ext/monorepo/sub/dir");
+				expect(targetText(found)).toBe("quarto-ext/monorepo/sub/dir@def5678901234567890abcdef1234567890abcd");
+				expect(found?.target.track).toBe("tag");
+				expect(found?.target.recordSource).toBe("quarto-ext/monorepo/sub/dir");
 			});
 
 			describe("in branch mode", () => {
@@ -775,9 +795,9 @@ describe("checkForUpdates", () => {
 					const [found] = result.updates;
 					expect(found?.refKind).toBe("commit");
 					expect(found?.latestRef).toBe("def5678");
-					expect(found?.source).toBe(`quarto-ext/monorepo/sub/dir@${LATEST_PATH_COMMIT}`);
-					expect(found?.track).toBe("branch");
-					expect(found?.recordSource).toBe("quarto-ext/monorepo/sub/dir");
+					expect(targetText(found)).toBe(`quarto-ext/monorepo/sub/dir@${LATEST_PATH_COMMIT}`);
+					expect(found?.target.track).toBe("branch");
+					expect(found?.target.recordSource).toBe("quarto-ext/monorepo/sub/dir");
 				});
 
 				it("offers the path commit when the installed commit has diverged", async () => {
@@ -863,7 +883,7 @@ describe("checkForUpdates", () => {
 					const [found] = result.updates;
 					expect(found?.currentVersion).toBe("0.3.0");
 					expect(found?.latestRef).toBe("cafe123");
-					expect(found?.recordSource).toBe("quarto-ext/monorepo/sub/dir@cafe123");
+					expect(found?.target.recordSource).toBe("quarto-ext/monorepo/sub/dir@cafe123");
 				});
 			});
 
@@ -1126,7 +1146,7 @@ describe("checkForUpdates", () => {
 
 				const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
 
-				expect(result.updates[0]?.source).toBe("quarto-ext/monorepo/sub/dir@v2.0.0");
+				expect(targetText(result.updates[0])).toBe("quarto-ext/monorepo/sub/dir@v2.0.0");
 			});
 
 			it("reports a failure against owner/repo", async () => {
@@ -1184,9 +1204,9 @@ describe("checkForUpdates", () => {
 			expect(found?.latestVersion).toBe("def5678");
 			expect(found?.latestRef).toBe("def5678");
 			expect(found?.checkedOn).toBe("github");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.track).toBe("branch");
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.track).toBe("branch");
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome");
 		});
 
 		it("compares the default branch with the registry latestCommit", async () => {
@@ -1213,9 +1233,9 @@ describe("checkForUpdates", () => {
 			expect(found?.latestRef).toBe("def5678");
 			expect(found?.checkedOn).toBe("registry");
 			expect(found?.releaseUrl).toBe("https://github.com/quarto-ext/fontawesome");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.track).toBe("branch");
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.track).toBe("branch");
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome");
 		});
 
 		it("checks an explicit branch on GitHub, never in the registry", async () => {
@@ -1240,9 +1260,9 @@ describe("checkForUpdates", () => {
 			const [found] = result.updates;
 			expect(found?.checkedOn).toBe("github");
 			expect(found?.latestRef).toBe("def5678");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.track).toBe("branch");
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome@dev");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.track).toBe("branch");
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome@dev");
 		});
 
 		it("offers the branch head when the record has no commit", async () => {
@@ -1261,8 +1281,8 @@ describe("checkForUpdates", () => {
 			expect(found?.refKind).toBe("commit");
 			expect(found?.currentVersion).toBe("1.0.0");
 			expect(found?.latestRef).toBe("def5678");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome@dev");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome@dev");
 		});
 
 		it("offers the head of a hex-named branch when the record has no commit", async () => {
@@ -1286,8 +1306,8 @@ describe("checkForUpdates", () => {
 			const [found] = result.updates;
 			expect(found?.currentVersion).toBe("1.0.0");
 			expect(found?.latestRef).toBe("cafe123");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${branchHead}`);
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome@cafe123");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${branchHead}`);
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome@cafe123");
 		});
 
 		it("reports a deleted branch as a repository failure and checks the other extensions", async () => {
@@ -1389,9 +1409,9 @@ describe("checkForUpdates", () => {
 			expect(found?.refKind).toBe("commit");
 			expect(found?.currentVersion).toBe("abc1234");
 			expect(found?.latestRef).toBe("def5678");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.track).toBe("tag");
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.track).toBe("tag");
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome");
 		});
 
 		it("follows the registry latestCommit while the registry has no tag", async () => {
@@ -1412,9 +1432,9 @@ describe("checkForUpdates", () => {
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");
 			expect(found?.checkedOn).toBe("registry");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.track).toBe("tag");
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.track).toBe("tag");
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome");
 		});
 
 		it("follows the default branch on GitHub when a stable install sees only prerelease tags", async () => {
@@ -1432,9 +1452,9 @@ describe("checkForUpdates", () => {
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.track).toBe("tag");
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.track).toBe("tag");
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome");
 		});
 
 		it("follows the registry latestCommit when a stable install sees only a prerelease tag", async () => {
@@ -1458,9 +1478,9 @@ describe("checkForUpdates", () => {
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");
 			expect(found?.checkedOn).toBe("registry");
-			expect(found?.source).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
-			expect(found?.track).toBe("tag");
-			expect(found?.recordSource).toBe("quarto-ext/fontawesome");
+			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
+			expect(found?.target.track).toBe("tag");
+			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome");
 		});
 
 		it("offers the first version tag above the installed version", async () => {
@@ -1481,9 +1501,9 @@ describe("checkForUpdates", () => {
 			expect(found?.refKind).toBe("tag");
 			expect(found?.currentVersion).toBe("1.0.0");
 			expect(found?.latestRef).toBe("v2.0.0");
-			expect(found?.source).toBe("quarto-ext/fontawesome@v2.0.0");
-			expect(found?.track).toBe("tag");
-			expect(found?.recordSource).toBeUndefined();
+			expect(targetText(found)).toBe("quarto-ext/fontawesome@v2.0.0");
+			expect(found?.target.track).toBe("tag");
+			expect(found?.target.recordSource).toBeUndefined();
 		});
 
 		it("does not offer a first version tag below the installed version", async () => {
@@ -1519,8 +1539,8 @@ describe("checkForUpdates", () => {
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("tag");
-			expect(found?.source).toBe("quarto-ext/fontawesome@v2.0.0");
-			expect(found?.recordSource).toBeUndefined();
+			expect(targetText(found)).toBe("quarto-ext/fontawesome@v2.0.0");
+			expect(found?.target.recordSource).toBeUndefined();
 		});
 
 		it("reports no update when an explicit commit is the default branch head and no tag exists", async () => {
@@ -1831,9 +1851,12 @@ describe("applyUpdates", () => {
 			refKind: "tag",
 			checkedOn: "github",
 			releaseUrl: null,
-			source: `quarto-ext/${name}@v2.0.0`,
-			track: "tag",
+			target: { source: installSource(`quarto-ext/${name}@v2.0.0`), track: "tag" },
 		};
+	}
+
+	function updateOf(name: string, source: string): UpdateInfo {
+		return { ...pendingUpdate(name), target: { source: installSource(source), track: "tag" } };
 	}
 
 	it("installs a tag update without a dot as a tag", async () => {
@@ -1842,9 +1865,14 @@ describe("applyUpdates", () => {
 			ReturnType<typeof install>
 		>);
 
-		await applyUpdates([{ ...pendingUpdate("x"), source: "quarto-ext/x@3", latestRef: "3" }], { projectDirs: [] });
+		const target: InstallTarget = {
+			source: { type: "github", owner: "quarto-ext", repo: "x", version: { type: "tag", tag: "3" } },
+			track: "tag",
+		};
+		await applyUpdates([{ ...pendingUpdate("x"), target, latestRef: "3" }], { projectDirs: [] });
 
-		expect(vi.mocked(install).mock.calls[0][1]).toMatchObject({ track: "tag", refIsTag: true });
+		expect(vi.mocked(install).mock.calls[0][0]).toMatchObject({ version: { type: "tag", tag: "3" } });
+		expect(vi.mocked(install).mock.calls[0][1]).toMatchObject({ track: "tag" });
 	});
 
 	it("does not install a commit update as a tag", async () => {
@@ -1854,16 +1882,10 @@ describe("applyUpdates", () => {
 		>);
 		const commit = "fed9876543210fedcba9876543210fedcba98765";
 
-		await applyUpdates([{ ...pendingUpdate("x"), source: `quarto-ext/x@${commit}`, refKind: "commit" }], {
-			projectDirs: [],
-		});
+		await applyUpdates([{ ...updateOf("x", `quarto-ext/x@${commit}`), refKind: "commit" }], { projectDirs: [] });
 
-		expect(vi.mocked(install).mock.calls[0][1].refIsTag).toBe(false);
+		expect(vi.mocked(install).mock.calls[0][0]).toMatchObject({ version: { type: "commit", commit } });
 	});
-
-	function updateOf(name: string, source: string): UpdateInfo {
-		return { ...pendingUpdate(name), source };
-	}
 
 	it("passes the signal to install and skips the remaining updates at a cancellation", async () => {
 		vi.mocked(install).mockReset();
@@ -2042,7 +2064,7 @@ describe("applyUpdates", () => {
 				...pending,
 				extension: { ...pending.extension, id: { owner: null, name: "x" } },
 				projectDir,
-				source: `acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`,
+				target: { source: installSource(`acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`), track: "tag" },
 			};
 
 			const result = await applyUpdates([ownerless], { projectDirs: [] });
@@ -2056,7 +2078,7 @@ describe("applyUpdates", () => {
 			installedSource: string,
 			resolution: { tagName: string; commitSha?: string },
 			sourceType: "github" | "registry" = "github",
-			follow: Pick<UpdateInfo, "track" | "recordSource"> = { track: "tag" },
+			follow: Omit<InstallTarget, "source"> = { track: "tag" },
 		): { update: UpdateInfo; installedDir: string } {
 			const projectDir = path.join(tempDir, "project");
 			const installedDir = path.join(projectDir, "_extensions", "acme", "x");
@@ -2081,14 +2103,13 @@ describe("applyUpdates", () => {
 					projectDir,
 					latestRef,
 					refKind: resolution.commitSha ? "commit" : "tag",
-					source: `acme/repo@${latestRef}`,
-					...follow,
+					target: { source: installSource(`acme/repo@${latestRef}`), ...follow },
 				},
 			};
 		}
 
 		const FULL_COMMIT = "fed9876543210fedcba9876543210fedcba98765";
-		const TAG_MODE_COMMIT: Pick<UpdateInfo, "track" | "recordSource"> = { track: "tag", recordSource: "acme/repo" };
+		const TAG_MODE_COMMIT: Omit<InstallTarget, "source"> = { track: "tag", recordSource: "acme/repo" };
 
 		function recordIn(dir: string): SourceRecord {
 			const result = readSourceRecord(dir);
@@ -2244,7 +2265,7 @@ describe("applyUpdates", () => {
 			}));
 
 			const { updates } = await checkForUpdates({ projectDirs: [projectDir], source: "github" });
-			expect(updates.map((u) => [u.refKind, u.source, u.track, u.recordSource])).toEqual([
+			expect(updates.map((u) => [u.refKind, targetText(u), u.target.track, u.target.recordSource])).toEqual([
 				["tag", `acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`, "tag", undefined],
 			]);
 			const result = await applyUpdates(updates, { projectDirs: [] });

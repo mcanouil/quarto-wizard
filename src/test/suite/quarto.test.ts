@@ -4,7 +4,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import { ZipArchive } from "archiver";
-import { readSourceRecord } from "@quarto-wizard/core";
+import { parseInstallSource, readSourceRecord } from "@quarto-wizard/core";
 import { QW_LOG } from "../../constants";
 import {
 	configuredInstallTrack,
@@ -445,12 +445,15 @@ suite("Quarto Utils Test Suite", () => {
 					archiveBody = await buildArchive(["demo"], "1.0.0");
 					warningChoice = "Cancel";
 
-					const result = await installQuartoExtension("acme/demo@v1.0.0", testWorkspaceDir, {
+					const target = {
+						source: parseInstallSource("acme/demo@v1.0.0"),
+						recordSource: "acme/demo",
+						track: "branch" as const,
+					};
+					const result = await installQuartoExtension(target, testWorkspaceDir, {
 						skipOverwritePrompt: true,
 						expectedExtensionId: { owner: "acme", name: "demo" },
 						replaceSameVersion: true,
-						recordSource: "acme/demo",
-						track: "branch",
 					});
 
 					assert.strictEqual(result, null);
@@ -734,9 +737,12 @@ suite("Quarto Utils Test Suite", () => {
 			test("a record source replaces the installed source in the install record", async () => {
 				archiveBody = await buildArchive(["demo"], "1.0.0");
 
-				const result = await installQuartoExtension("acme/demo@v1.0.0", testWorkspaceDir, {
+				const target = {
+					source: parseInstallSource("acme/demo@v1.0.0"),
 					recordSource: "acme/demo",
-				});
+					track: "tag" as const,
+				};
+				const result = await installQuartoExtension(target, testWorkspaceDir);
 
 				assert.strictEqual(result, true);
 				const record = fs.readFileSync(

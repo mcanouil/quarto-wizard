@@ -1091,10 +1091,16 @@ describe("install record", () => {
 			expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "tag" });
 		});
 
-		it.each(["2", "20240101"])("the tag option installs a ref without a dot, %s, as a tag", async (ref) => {
+		it.each(["2", "20240101"])("a tag source installs a ref without a dot, %s, as a tag", async (ref) => {
 			mockGitHubDownload({ tagName: ref, fromTag: true });
 
-			await install(parseInstallSource(`owner/repo@${ref}`), { projectDir, track: "tag", refIsTag: true });
+			const source = {
+				type: "github" as const,
+				owner: "owner",
+				repo: "repo",
+				version: { type: "tag" as const, tag: ref },
+			};
+			await install(source, { projectDir, track: "tag" });
 
 			expect(downloadGitHubArchive).toHaveBeenCalledWith(
 				"owner",

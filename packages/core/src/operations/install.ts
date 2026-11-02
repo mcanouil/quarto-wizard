@@ -135,11 +135,6 @@ export interface InstallOptions extends RegistryOptions {
 	 */
 	track?: InstallTrack;
 	/**
-	 * Install the ref of a GitHub source as a tag, whatever its form.
-	 * A tag such as `2` or `20240101` reads as a branch or a commit otherwise.
-	 */
-	refIsTag?: boolean;
-	/**
 	 * Callback for selecting extensions when source contains multiple.
 	 * If not provided and source contains multiple extensions, the first one is installed (legacy behaviour).
 	 */
@@ -374,8 +369,7 @@ export function formatInstallSource(source: InstallSource): string {
  * });
  * ```
  */
-export async function install(requested: InstallSource, options: InstallOptions): Promise<InstallResult> {
-	const source = asTagWhenRequested(requested, options.refIsTag);
+export async function install(source: InstallSource, options: InstallOptions): Promise<InstallResult> {
 	const {
 		projectDir,
 		auth,
@@ -715,23 +709,6 @@ export async function selectExtensionsFromSource(
 		return selected;
 	}
 	return allExtensions.length === 1 ? allExtensions : [allExtensions[0]];
-}
-
-/**
- * The source with its branch or commit ref read as a tag, when the caller knows the ref is a tag.
- */
-function asTagWhenRequested(source: InstallSource, refIsTag: boolean | undefined): InstallSource {
-	if (!refIsTag || source.type !== "github") {
-		return source;
-	}
-	const { version } = source;
-	if (version.type === "branch") {
-		return { ...source, version: { type: "tag", tag: version.branch } };
-	}
-	if (version.type === "commit") {
-		return { ...source, version: { type: "tag", tag: version.commit } };
-	}
-	return source;
 }
 
 /**

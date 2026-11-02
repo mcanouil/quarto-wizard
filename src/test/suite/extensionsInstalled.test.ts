@@ -5,7 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { SchemaCache } from "@quarto-wizard/schema";
 import { SnippetCache } from "@quarto-wizard/snippets";
-import { LocalEditsError, writeSourceRecord, type InstallTrack } from "@quarto-wizard/core";
+import { LocalEditsError, writeSourceRecord, type InstallTarget, type InstallTrack } from "@quarto-wizard/core";
 import { registerInstallCommands } from "../../commands/installQuartoExtension";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ExtensionsInstalled } from "../../ui/extensionsInstalled";
@@ -34,6 +34,40 @@ interface RecordedInstall {
 	source: string;
 	recordSource: string | undefined;
 	track: InstallTrack | undefined;
+}
+
+/**
+ * Source of an install call as text: the source as passed, or the source of
+ * the target with its full ref.
+ */
+function sourceText(source: string | InstallTarget): string {
+	if (typeof source === "string") {
+		return source;
+	}
+	const target = source.source;
+	if (target.type !== "github") {
+		return target.type === "url" ? target.url : target.path;
+	}
+	const base = [target.owner, target.repo, target.subdirectory].filter(Boolean).join("/");
+	const { version } = target;
+	switch (version.type) {
+		case "latest":
+			return base;
+		case "tag":
+			return `${base}@${version.tag}`;
+		case "commit":
+			return `${base}@${version.commit}`;
+		case "branch":
+			return `${base}@${version.branch}`;
+		case "exact":
+			return `${base}@v${version.version}`;
+	}
+}
+
+function recordedInstall(source: string | InstallTarget): RecordedInstall {
+	return typeof source === "string"
+		? { source, recordSource: undefined, track: undefined }
+		: { source: sourceText(source), recordSource: source.recordSource, track: source.track };
 }
 
 interface RemoveCall {
@@ -168,7 +202,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		restoreBoundary = stubUpdateBoundary({ repositories: {} });
 
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			expectedIds.push(options.expectedExtensionId && formatExtensionId(options.expectedExtensionId));
 			return true;
 		};
@@ -410,7 +444,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			progress.cancel();
 			return null;
 		};
@@ -425,7 +459,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all reports a declined install that is not a cancel", async () => {
 		stubTwoUpdates();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			return null;
 		};
 
@@ -439,9 +473,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 		stubTwoUpdates();
 		const modes: (string | undefined)[] = [];
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			modes.push(options.localEdits);
-			if (source.startsWith("acme/registry-demo")) {
+			if (sourceText(source).startsWith("acme/registry-demo")) {
 				if (options.outcome) {
 					options.outcome.localEdits = new LocalEditsError({ owner: "acme", name: "registry-demo" }, [
 						{ path: "_extension.yml", change: "modified" },
@@ -467,7 +501,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all groups the notes about copies without an install record", async () => {
 		stubTwoUpdates();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (options.outcome) {
 				options.outcome.replacedUntracked = true;
 			}
@@ -489,7 +523,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all does not report an error when every update is skipped", async () => {
 		stubTwoUpdates();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (options.outcome) {
 				options.outcome.localEdits = new LocalEditsError({ owner: "acme", name: "demo" }, [
 					{ path: "_extension.yml", change: "added" },
@@ -508,7 +542,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	function recordReplaceRules(): { replaceSameVersion: boolean | undefined; force: boolean | undefined }[] {
 		const rules: { replaceSameVersion: boolean | undefined; force: boolean | undefined }[] = [];
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			rules.push({ replaceSameVersion: options.replaceSameVersion, force: options.force });
 			return true;
 		};
@@ -547,7 +581,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("reinstall forces the install of the same version", async () => {
 		const forced: (boolean | undefined)[] = [];
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			forced.push(options.force);
 			return true;
 		};
@@ -583,8 +617,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 			unpinnedRoot = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-unpinned-"))).fsPath;
 			recorded = [];
 			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-				installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
-				recorded.push({ source, recordSource: options.recordSource, track: options.track });
+				installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
+				recorded.push(recordedInstall(source));
 				return true;
 			};
 		});
@@ -674,17 +708,17 @@ suite("Extensions Installed Commands Test Suite", () => {
 		});
 
 		test("reinstall of a tag without a dot installs it as a tag", async () => {
-			const refIsTag: (boolean | undefined)[] = [];
+			const versions: unknown[] = [];
 			const record = quartoModule.installQuartoExtension;
 			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-				refIsTag.push(options.refIsTag);
+				versions.push(typeof source !== "string" && source.source.type === "github" && source.source.version);
 				return record(source, workspaceFolder, options);
 			};
 
 			await runCommand("reinstall", await unpinnedItem(`${UNPINNED_ID}@20240101`));
 
 			assert.deepStrictEqual(recorded, [{ source: `${UNPINNED_ID}@20240101`, recordSource: undefined, track: "tag" }]);
-			assert.deepStrictEqual(refIsTag, [true]);
+			assert.deepStrictEqual(versions, [{ type: "tag", tag: "20240101" }]);
 		});
 	});
 
@@ -719,11 +753,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 				return dialogAnswer;
 			}) as unknown as typeof vscode.window.showWarningMessage;
 			quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-				installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+				installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 				installs.push({
-					source,
-					recordSource: options.recordSource,
-					track: options.track,
+					...recordedInstall(source),
 					replaceSameVersion: options.replaceSameVersion,
 					force: options.force,
 					localEdits: options.localEdits,
@@ -890,8 +922,8 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 	test("reinstall in branch mode installs the recorded commit and keeps the mode", async () => {
 		const reinstalled: RecordedInstall[] = [];
-		quartoModule.installQuartoExtension = async (source, _workspaceFolder, options = {}) => {
-			reinstalled.push({ source, recordSource: options.recordSource, track: options.track });
+		quartoModule.installQuartoExtension = async (source) => {
+			reinstalled.push(recordedInstall(source));
 			return true;
 		};
 		const root = vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), "qw-branch-"))).fsPath;
@@ -933,7 +965,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (installCalls.length === 1) {
 				return true;
 			}
@@ -952,7 +984,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 		stubTwoUpdates();
 		const progress = cancellableProgress();
 		quartoModule.installQuartoExtension = async (source, workspaceFolder, options = {}) => {
-			installCalls.push({ source, workspaceFolder, sourceType: options.sourceType });
+			installCalls.push({ source: sourceText(source), workspaceFolder, sourceType: options.sourceType });
 			if (installCalls.length === 1) {
 				return false;
 			}

@@ -12,6 +12,7 @@ import {
 	reinstallTarget,
 	type AuthConfig,
 	type ExtensionId,
+	type InstallTarget,
 	type LocalEdit,
 	type UpdateCheckResult,
 	type UpdateInfo,
@@ -400,16 +401,13 @@ export class ExtensionsInstalled {
 				const failureMessage = `Failed to update extension "${item.label}".`;
 				const resolvesTag = item.effectiveSourceType === "github" || item.effectiveSourceType === "registry";
 				const auth = await getAuthConfig(context);
-				const install = (installSource: string, token: vscode.CancellationToken, update?: UpdateInfo) =>
+				const install = (installSource: string | InstallTarget, token: vscode.CancellationToken) =>
 					installQuartoExtension(installSource, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 						expectedExtensionId: extension.id,
-						recordSource: update?.recordSource,
-						track: update?.track,
-						refIsTag: update?.refKind === "tag",
 						replaceSameVersion: true,
 					});
 				const outcome = await withProgressNotification(`Updating "${item.label}" ...`, async (token) => {
@@ -424,7 +422,7 @@ export class ExtensionsInstalled {
 					if (!update || check.checkFailure || check.repositoryFailures.length > 0) {
 						return { check };
 					}
-					return { check, update, installed: await install(update.source, token, update) };
+					return { check, update, installed: await install(update.target, token) };
 				});
 
 				if (outcome.check) {
@@ -472,15 +470,12 @@ export class ExtensionsInstalled {
 				const auth = await getAuthConfig(context);
 				const target = reinstallTarget(extension);
 				const result = await withProgressNotification(`Reinstalling "${item.label}" ...`, async (token) => {
-					return installQuartoExtension(target?.source ?? source, item.workspaceFolder, {
+					return installQuartoExtension(target ?? source, item.workspaceFolder, {
 						auth,
 						skipOverwritePrompt: true,
 						cancellationToken: token,
 						sourceType: item.effectiveSourceType,
 						expectedExtensionId: extension.id,
-						recordSource: target?.recordSource,
-						track: target?.track,
-						refIsTag: target?.refIsTag,
 						replaceSameVersion: true,
 						force: true,
 					});
@@ -547,14 +542,12 @@ export class ExtensionsInstalled {
 					}
 
 					const result = await withProgressNotification(`Changing the update source of "${item.label}" ...`, (token) =>
-						installQuartoExtension(plan.source, item.workspaceFolder, {
+						installQuartoExtension(plan, item.workspaceFolder, {
 							auth,
 							skipOverwritePrompt: true,
 							cancellationToken: token,
 							sourceType: item.effectiveSourceType,
 							expectedExtensionId: extension.id,
-							recordSource: plan.recordSource,
-							track: plan.track,
 							replaceSameVersion: true,
 						}),
 					);
@@ -706,15 +699,12 @@ export class ExtensionsInstalled {
 								return true;
 							}
 							const installOutcome: InstallOutcome = {};
-							const result = await installQuartoExtension(update.source, update.projectDir, {
+							const result = await installQuartoExtension(update.target, update.projectDir, {
 								auth,
 								skipOverwritePrompt: true,
 								cancellationToken: token,
 								sourceType: getEffectiveSourceType(update.extension.manifest),
 								expectedExtensionId: update.extension.id,
-								recordSource: update.recordSource,
-								track: update.track,
-								refIsTag: update.refKind === "tag",
 								replaceSameVersion: true,
 								localEdits: "skip",
 								outcome: installOutcome,

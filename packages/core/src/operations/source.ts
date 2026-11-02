@@ -21,23 +21,34 @@ import {
 	type InstallTrack,
 } from "../types/manifest.js";
 import { ExtensionError } from "../errors.js";
-import { parseVersionSpec } from "../types/extension.js";
+import { parseVersionSpec, type VersionSpec } from "../types/extension.js";
+import type { InstallSource } from "./install.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { fetchRawFile } from "../github/raw.js";
 import { installedVersionFloor, readSubdirectoryVersion } from "./versions.js";
 import { fetchDefaultBranch, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 
 /**
- * What an install writes for a GitHub extension.
+ * What an install of a GitHub extension downloads and what it records.
  */
 export interface InstallTarget {
-	/** Source to download. */
-	source: string;
-	/** Source to write in the record, when it differs from `source`. */
+	/**
+	 * Source to download. Its version says whether the ref is a tag, a commit or a
+	 * branch, so a tag such as `2` installs as a tag.
+	 */
+	source: InstallSource;
+	/** Source to write in the record, in place of the typed form of `source`. */
 	recordSource?: string;
+	/** What updates of the install follow. */
 	track: InstallTrack;
-	/** Whether the ref of `source` is a tag that reads as a branch or a commit, such as `2`. */
-	refIsTag?: boolean;
+}
+
+/**
+ * GitHub install source of a repository, or of one of its subdirectories, at a version.
+ */
+export function githubInstallSource(locator: GitHubLocator, version: VersionSpec): InstallSource {
+	const { owner, repo, subdirectory } = locator;
+	return { type: "github", owner, repo, ...(subdirectory && { subdirectory }), version };
 }
 
 /**
@@ -89,24 +100,35 @@ export function reinstallTarget(extension: InstalledExtension): InstallTarget | 
 		return null;
 	}
 	const source = extension.manifest.source as string;
+	const { locator } = parsed;
 	const track = recordedTrack(extension.record);
 	const commit = extension.record?.quartoWizard?.commit;
+	const atCommit = (commitRef: string) => githubInstallSource(locator, { type: "commit", commit: commitRef });
 
 	if (track === "branch") {
-		return commit ? { source: `${parsed.base}@${commit}`, recordSource: source, track } : { source, track };
+		return commit
+			? { source: atCommit(commit), recordSource: source, track }
+			: { source: githubInstallSource(locator, recordedVersion(source, false)), track };
 	}
 	if (commit && !parsed.hasRef) {
-		return { source: `${parsed.base}@${commit}`, recordSource: parsed.base, track };
+		return { source: atCommit(commit), recordSource: parsed.base, track };
 	}
-	return { source, track, ...(refReadsAsTag(source) && { refIsTag: true }) };
+	return { source: githubInstallSource(locator, recordedVersion(source, true)), track };
 }
 
 /**
- * Whether the ref of a source is a version that the version parser would not take for a tag.
+ * Version that the ref of a recorded source names. In tag mode, a ref that is
+ * a version, such as `2` or `20240101`, is a tag even when it reads as a branch
+ * or a commit.
  */
-function refReadsAsTag(source: string): boolean {
+function recordedVersion(source: string, inTagMode: boolean): VersionSpec {
 	const { ref } = splitSourceRef(source);
-	return ref !== undefined && normaliseVersion(ref) !== null && parseVersionSpec(ref).type !== "tag";
+	if (ref === undefined) {
+		return { type: "latest" };
+	}
+	const version = parseVersionSpec(ref);
+	const readsAsTag = inTagMode && (version.type === "branch" || version.type === "commit");
+	return readsAsTag && normaliseVersion(ref) !== null ? { type: "tag", tag: ref } : version;
 }
 
 /**
@@ -145,7 +167,7 @@ export async function planSourceChange(
 			);
 		}
 		return {
-			source: `${base}@${commit.toLowerCase()}`,
+			source: githubInstallSource(locator, { type: "commit", commit: commit.toLowerCase() }),
 			recordSource: base,
 			track,
 			targetLabel: `${branch ?? "default branch"} @ ${shortCommit(commit)}`,
@@ -163,7 +185,7 @@ export async function planSourceChange(
 		return headTarget("tag");
 	}
 	return {
-		source: `${base}@${latest.tagName}`,
+		source: githubInstallSource(locator, { type: "tag", tag: latest.tagName }),
 		track: "tag",
 		targetLabel: latest.tagName,
 		currentVersion,
