@@ -237,8 +237,8 @@ An extension from GitHub follows one update source:
 - **Default branch**: the latest commit of the default branch, as `quarto add` does in Quarto 2.
 
 The setting `quartoWizard.install.updateSource` (`latestTag` or `defaultBranch`) selects the update source of new installs.
-Quarto Wizard does not ask you at install time.
-Quarto Wizard saves the update source in the install record of each extension.
+The install does not ask you to choose.
+The install record of each extension saves the update source.
 Update and Update All follow the saved value.
 A change of the setting does not change the extensions that you already installed.
 

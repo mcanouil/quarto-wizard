@@ -32,7 +32,7 @@ This is the format of Quarto Wizard 3.
 Quarto Wizard still reads these keys.
 The next update of the extension writes a record.
 
-## The Update Source
+## Update Source
 
 A GitHub extension follows one of two update sources:
 

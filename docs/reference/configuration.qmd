@@ -41,6 +41,25 @@ Ask for confirmation before installing an extension. `ask` to ask for confirmati
 }
 ```
 
+## Update Behaviour
+
+### Update Source
+
+**Setting**: `quartoWizard.install.updateSource`
+
+What updates of a new GitHub install follow. `latestTag` installs the latest version tag and updates when a newer tag appears. `defaultBranch` installs the head of the default branch and updates when the branch moves. Use Change Update Source on an installed extension to switch it later.
+
+| Value           | Description                                                |
+| --------------- | ---------------------------------------------------------- |
+| `latestTag`     | Follow the latest version tag of the repository (default). |
+| `defaultBranch` | Follow the head of the default branch.                     |
+
+```json
+{
+  "quartoWizard.install.updateSource": "latestTag"
+}
+```
+
 ## Cache Settings
 
 ### Cache Duration
