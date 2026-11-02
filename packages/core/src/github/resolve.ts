@@ -6,6 +6,7 @@
  */
 
 import type { VersionSpec } from "../types/extension.js";
+import { shortCommit, type InstallTrack } from "../types/manifest.js";
 import { SamlSsoError, VersionError, isCancellationError } from "../errors.js";
 import {
 	constructArchiveUrl,
@@ -32,6 +33,11 @@ export interface ResolveVersionOptions extends GitHubOptions {
 	 * recorded is the latest commit that changes this path.
 	 */
 	path?: string;
+	/**
+	 * What a `latest` version follows: the latest tag (default), or the head of
+	 * the default branch. The other version types ignore it.
+	 */
+	track?: InstallTrack;
 }
 
 /**
@@ -46,6 +52,8 @@ export interface ResolvedVersion {
 	tarballUrl: string;
 	/** Full commit SHA in lower case, if resolved to a commit. */
 	commitSha?: string;
+	/** Whether the archive is that of a release or a tag. */
+	fromTag: boolean;
 }
 
 /**
@@ -63,28 +71,40 @@ export async function resolveVersion(
 	version: VersionSpec,
 	options: ResolveVersionOptions = {},
 ): Promise<ResolvedVersion> {
-	const { defaultBranch, latestCommit } = options;
+	const { defaultBranch, latestCommit, track = "tag" } = options;
 
 	switch (version.type) {
 		case "latest": {
-			const latest = await resolveLatestTag(owner, repo, options);
+			const latest = track === "tag" ? await resolveLatestTag(owner, repo, options) : null;
 			if (latest) {
 				return {
 					tagName: latest.tagName,
 					zipballUrl: latest.zipballUrl,
 					tarballUrl: latest.tarballUrl,
+					fromTag: true,
 				};
 			}
 
-			// Fallback to default branch with commit tracking. The registry hint is
+			// The head of the default branch is downloaded by its commit, so the files match the
+			// commit that is recorded even when the branch moves during the install.
+			const commitSha = (latestCommit ?? (await lookUpLatestCommit(owner, repo, options)))?.toLowerCase();
+			if (commitSha) {
+				return {
+					tagName: shortCommit(commitSha),
+					...commitArchive(owner, repo, commitSha),
+					commitSha,
+					fromTag: false,
+				};
+			}
+
+			// Without a commit, fall back to the branch archive. The registry hint is
 			// preferred, then GitHub itself, because the branch is not always "main".
 			const branch = defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
-			const commitSha = (latestCommit ?? (await lookUpLatestCommit(owner, repo, options)))?.toLowerCase();
 			return {
-				tagName: commitSha?.substring(0, 7) ?? "HEAD",
+				tagName: "HEAD",
 				zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
 				tarballUrl: constructArchiveUrl(owner, repo, branch, "branch", "tarball"),
-				commitSha,
+				fromTag: false,
 			};
 		}
 
@@ -99,6 +119,7 @@ export async function resolveVersion(
 					tagName: release.tagName,
 					zipballUrl: release.zipballUrl,
 					tarballUrl: release.tarballUrl,
+					fromTag: true,
 				};
 			}
 
@@ -109,6 +130,7 @@ export async function resolveVersion(
 					tagName: tag.name,
 					zipballUrl: tag.zipballUrl,
 					tarballUrl: tag.tarballUrl,
+					fromTag: true,
 				};
 			}
 
@@ -121,12 +143,11 @@ export async function resolveVersion(
 			const commitRef = version.commit;
 			// Validate commit exists before constructing URL
 			await validateCommit(owner, repo, commitRef, options);
-			const shortCommit = commitRef.substring(0, 7);
 			return {
-				tagName: shortCommit,
-				zipballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "zip"),
-				tarballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "tarball"),
+				tagName: shortCommit(commitRef),
+				...commitArchive(owner, repo, commitRef),
 				commitSha: commitRef.toLowerCase(),
+				fromTag: false,
 			};
 		}
 
@@ -134,13 +155,29 @@ export async function resolveVersion(
 			const branchName = version.branch;
 			// Validate branch exists before constructing URL
 			await validateBranch(owner, repo, branchName, options);
+			// The head is downloaded by its commit, as for the default branch above.
+			const commitSha = (await fetchLatestCommit(owner, repo, { ...options, ref: branchName }))?.toLowerCase();
+			if (commitSha) {
+				return { tagName: branchName, ...commitArchive(owner, repo, commitSha), commitSha, fromTag: false };
+			}
 			return {
 				tagName: branchName,
 				zipballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "zip"),
 				tarballUrl: constructArchiveUrl(owner, repo, branchName, "branch", "tarball"),
+				fromTag: false,
 			};
 		}
 	}
+}
+
+/**
+ * Archive URLs of a commit.
+ */
+function commitArchive(owner: string, repo: string, commit: string): { zipballUrl: string; tarballUrl: string } {
+	return {
+		zipballUrl: constructArchiveUrl(owner, repo, commit, "commit", "zip"),
+		tarballUrl: constructArchiveUrl(owner, repo, commit, "commit", "tarball"),
+	};
 }
 
 /**

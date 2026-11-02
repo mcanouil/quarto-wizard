@@ -53,6 +53,10 @@ vi.mock("../src/registry/http.js", () => {
 		if (url.includes("/branches/")) {
 			return Promise.resolve({ name: "main", commit: { sha: "abc123" } });
 		}
+		// Mock latest commit of a branch
+		if (url.includes("/commits?")) {
+			return Promise.resolve([{ sha: "BEEF123456789beef123456789beef123456789b" }]);
+		}
 		// Mock commit validation endpoint
 		if (url.includes("/commits/")) {
 			return Promise.resolve({ sha: "abc1234567890", commit: { message: "test" } });
@@ -281,7 +285,13 @@ describe("resolveVersion", () => {
 		});
 
 		expect(result.tagName).toBe("main");
-		expect(result.zipballUrl).toContain("refs/heads/main");
+		expect(result.zipballUrl).toBe(
+			"https://github.com/owner/repo/archive/beef123456789beef123456789beef123456789b.zip",
+		);
+		expect(result.tarballUrl).toBe(
+			"https://github.com/owner/repo/archive/beef123456789beef123456789beef123456789b.tar.gz",
+		);
+		expect(result.commitSha).toBe("beef123456789beef123456789beef123456789b");
 	});
 
 	it("throws for unknown tag", async () => {
@@ -312,8 +322,9 @@ describe("resolveVersion", () => {
 		);
 
 		expect(result.tagName).toBe("abc1234");
-		expect(result.zipballUrl).toContain("refs/heads/develop");
+		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/abc1234567890.zip");
 		expect(result.commitSha).toBe("abc1234567890");
+		expect(result.fromTag).toBe(false);
 		expect(repoMetadataCalls(fetchJson)).toHaveLength(0);
 	});
 
@@ -382,7 +393,49 @@ describe("resolveVersion", () => {
 		const result = await resolveVersion("owner", "repo", { type: "latest" });
 
 		expect(result.tagName).toBe("v2.0.0");
+		expect(result.fromTag).toBe(true);
 		expect(repoMetadataCalls(fetchJson)).toHaveLength(0);
+	});
+
+	it("downloads the default branch head by commit in branch mode, even when a release exists", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		const api = githubApiMock({ releases: mockReleases, tags: mockTags });
+		fetchJson.mockImplementation((url: string) =>
+			url.endsWith("/commits?per_page=1") ? Promise.resolve([{ sha: "fed9876543210" }]) : api(url),
+		);
+
+		const result = await resolveVersion("owner", "repo", { type: "latest" }, { track: "branch" });
+
+		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/fed9876543210.zip");
+		expect(result.commitSha).toBe("fed9876543210");
+		expect(result.fromTag).toBe(false);
+		expect(fetchJson.mock.calls.some(([url]) => /\/(releases|tags)/.test(String(url)))).toBe(false);
+	});
+
+	it("looks up the head of an explicit branch for the path of a subdirectory", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/branches/")) return Promise.resolve({ name: "dev" });
+			if (url.endsWith("/commits?per_page=1&sha=dev&path=sub%2Fdir"))
+				return Promise.resolve([{ sha: "fed9876543210" }]);
+			return Promise.reject(new Error(`Unknown URL ${url}`));
+		});
+
+		const result = await resolveVersion("owner", "repo", { type: "branch", branch: "dev" }, { path: "sub/dir" });
+
+		expect(result.tagName).toBe("dev");
+		expect(result.tarballUrl).toBe("https://github.com/owner/repo/archive/fed9876543210.tar.gz");
+		expect(result.commitSha).toBe("fed9876543210");
+	});
+
+	it("names a commit by its seven characters in lower case", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockResolvedValue({ sha: "abcdef1234567" });
+
+		const result = await resolveVersion("owner", "repo", { type: "commit", commit: "ABCDEF1234567" });
+
+		expect(result.tagName).toBe("abcdef1");
+		expect(result.commitSha).toBe("abcdef1234567");
 	});
 });
 

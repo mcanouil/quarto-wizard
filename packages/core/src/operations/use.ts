@@ -12,7 +12,7 @@ import * as path from "node:path";
 import { glob } from "glob";
 import { minimatch } from "minimatch";
 import type { AuthConfig } from "../types/auth.js";
-import type { SourceType } from "../types/manifest.js";
+import type { InstallTrack, SourceType } from "../types/manifest.js";
 import { ExtensionError } from "../errors.js";
 import { pathExists } from "../filesystem/walk.js";
 import {
@@ -262,6 +262,8 @@ export interface UseOptions {
 	 * Use "registry" when installing via the extension registry.
 	 */
 	sourceType?: SourceType;
+	/** What updates of a GitHub install without a ref follow, as `InstallOptions.track`. */
+	track?: InstallTrack;
 }
 
 /**
@@ -326,6 +328,7 @@ async function twoPhaseUse(source: InstallSource, options: UseOptions): Promise<
 			keepSourceDir: true,
 			dryRun: true,
 			sourceType: options.sourceType,
+			track: options.track,
 			// Do NOT pass selectExtension here - we'll handle it after file selection
 			onProgress: (p) => {
 				onProgress?.({ phase: p.phase, message: p.message });
@@ -573,6 +576,7 @@ export async function use(source: string | InstallSource, options: UseOptions): 
 		keepSourceDir: !noTemplate || dryRun,
 		dryRun,
 		sourceType: options.sourceType,
+		track: options.track,
 		selectExtension,
 		onProgress: (p) => {
 			onProgress?.({ phase: p.phase, message: p.message });

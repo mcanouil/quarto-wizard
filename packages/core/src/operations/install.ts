@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AuthConfig } from "../types/auth.js";
 import type { ExtensionId, VersionSpec } from "../types/extension.js";
-import type { ExtensionManifest, SourceType } from "../types/manifest.js";
+import type { ExtensionManifest, InstallTrack, SourceType } from "../types/manifest.js";
 import {
 	extractCommitFromSource,
 	formatGitHubLocator,
@@ -124,9 +124,16 @@ export interface InstallOptions extends RegistryOptions {
 	/**
 	 * Source to write in the install record in place of the typed form of `source`.
 	 * The record `ref` is the text after its last `@`.
-	 * `applyUpdates` sets it so that an update of an unpinned extension stays unpinned.
+	 * An update sets it to install an exact tag or commit while the record keeps the source it follows.
 	 */
 	recordSource?: string;
+	/**
+	 * What updates of a GitHub install follow: the latest tag (default) or the head of a branch.
+	 * It applies to a source without a ref, which installs the latest tag or the head of the
+	 * default branch, and to the record when `recordSource` is set.
+	 * A source with a ref records `branch` for a branch and `tag` otherwise.
+	 */
+	track?: InstallTrack;
 	/**
 	 * Callback for selecting extensions when source contains multiple.
 	 * If not provided and source contains multiple extensions, the first one is installed (legacy behaviour).
@@ -371,6 +378,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		replaceSameVersion = false,
 		keepSourceDir = false,
 		dryRun = false,
+		track = "tag",
 		signal,
 	} = options;
 
@@ -386,6 +394,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 	let tagName: string | undefined;
 	let repoRoot: string | undefined;
 	let commitSha: string | undefined;
+	let fromTag = false;
 
 	try {
 		onProgress?.({ phase: "resolving", message: "Resolving extension source..." });
@@ -411,6 +420,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 				defaultBranch,
 				latestCommit,
 				path: source.subdirectory,
+				track,
 				signal,
 				onProgress: (p) => {
 					onProgress?.({
@@ -423,6 +433,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			archivePath = result.archivePath;
 			tagName = result.tagName;
 			commitSha = result.commitSha;
+			fromTag = result.fromTag;
 		} else if (source.type === "url") {
 			onProgress?.({ phase: "downloading", message: "Downloading archive..." });
 			archivePath = await downloadFromUrl(source.url, { auth, signal });
@@ -437,6 +448,9 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			projectDir,
 			recordSource: options.recordSource,
 			sourceType: options.sourceType,
+			track,
+			tagName,
+			fromTag,
 			commitSha,
 			isDirectory: archiveStats.isDirectory(),
 		});
@@ -729,9 +743,11 @@ function formatLocalRecordSource(projectDir: string, sourcePath: string): string
 /**
  * Build the data of the install record of a source.
  *
- * `source` is the source as typed, or `recordSource` when set, and `ref` the text after its last `@`.
- * `quarto-wizard.commit` is set only when the recorded GitHub source has no ref and the download
- * resolved to a commit.
+ * `source` is `recordSource` when set, else the source as typed, with the tag it resolved to
+ * when it has no ref. `ref` is the text after the last `@` of `source`.
+ * A GitHub record always holds `quarto-wizard.track`. It holds `quarto-wizard.commit` when the
+ * download resolved to a commit that the recorded ref does not name: the head of a branch, or
+ * the head of the default branch when the repository has no version tag.
  */
 function sourceRecordData(
 	source: InstallSource,
@@ -739,6 +755,9 @@ function sourceRecordData(
 		projectDir: string;
 		recordSource?: string;
 		sourceType?: SourceType;
+		track: InstallTrack;
+		tagName?: string;
+		fromTag: boolean;
 		commitSha?: string;
 		isDirectory: boolean;
 	},
@@ -752,21 +771,47 @@ function sourceRecordData(
 			kind: context.isDirectory ? "local-dir" : "local-archive",
 		};
 	}
-	const recorded = context.recordSource ?? formatInstallSource(source);
+	const { recorded, track, commit } = githubRecordSource(source, context);
 	const { ref } = splitSourceRef(recorded);
-	const quartoWizard: NonNullable<SourceRecordData["quartoWizard"]> = {};
+	const quartoWizard: NonNullable<SourceRecordData["quartoWizard"]> = { track };
 	if (context.sourceType === "registry") {
 		quartoWizard.sourceType = "registry";
 	}
-	if (ref === undefined && context.commitSha) {
-		quartoWizard.commit = context.commitSha;
+	if (commit && (ref === undefined || shortCommit(ref) !== shortCommit(commit))) {
+		quartoWizard.commit = commit;
 	}
 	return {
 		source: recorded,
 		kind: "github",
 		...(ref !== undefined && { ref }),
-		...(Object.keys(quartoWizard).length > 0 && { quartoWizard }),
+		quartoWizard,
 	};
+}
+
+/**
+ * Source, update mode and commit that the install record of a GitHub source names.
+ * The commit is a candidate: `sourceRecordData` drops it when the recorded ref is that commit.
+ */
+function githubRecordSource(
+	source: Extract<InstallSource, { type: "github" }>,
+	context: { recordSource?: string; track: InstallTrack; tagName?: string; fromTag: boolean; commitSha?: string },
+): { recorded: string; track: InstallTrack; commit?: string } {
+	if (context.recordSource !== undefined) {
+		return { recorded: context.recordSource, track: context.track, commit: context.commitSha };
+	}
+	switch (source.version.type) {
+		case "latest": {
+			const base = formatGitHubLocator(source);
+			if (context.fromTag && context.tagName) {
+				return { recorded: `${base}@${context.tagName}`, track: "tag" };
+			}
+			return { recorded: base, track: context.track, commit: context.commitSha };
+		}
+		case "branch":
+			return { recorded: formatInstallSource(source), track: "branch", commit: context.commitSha };
+		default:
+			return { recorded: formatInstallSource(source), track: "tag" };
+	}
 }
 
 /**

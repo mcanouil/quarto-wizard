@@ -822,7 +822,7 @@ describe("install record", () => {
 		return root;
 	}
 
-	function mockGitHubDownload(resolution: { tagName: string; commitSha?: string }): void {
+	function mockGitHubDownload(resolution: { tagName: string; commitSha?: string; fromTag?: boolean }): void {
 		vi.mocked(downloadGitHubArchive).mockImplementation(async () => {
 			const workDir = fs.mkdtempSync(path.join(tempDir, "archive-"));
 			extensionSource(path.join(workDir, "repo-main"));
@@ -859,18 +859,6 @@ describe("install record", () => {
 		expect(result.extension.manifest.sourceType).toBe("local");
 	});
 
-	it("install records source as typed without the resolved tag", async () => {
-		mockGitHubDownload({ tagName: "v1.2.0" });
-
-		await install(parseInstallSource("owner/repo"), { projectDir });
-
-		const record = recordOf(installedDir());
-		expect(record.source).toBe("owner/repo");
-		expect(record.kind).toBe("github");
-		expect(record).not.toHaveProperty("ref");
-		expect(record).not.toHaveProperty("quartoWizard");
-	});
-
 	it("install records ref for a pinned source", async () => {
 		mockGitHubDownload({ tagName: "v1.2.0" });
 
@@ -882,36 +870,14 @@ describe("install record", () => {
 	});
 
 	it("a registry install records kind github and source-type registry", async () => {
-		mockGitHubDownload({ tagName: "v1.2.0" });
+		mockGitHubDownload({ tagName: "v1.2.0", fromTag: true });
 
 		const result = await install(parseInstallSource("owner/repo"), { projectDir, sourceType: "registry" });
 
 		const record = recordOf(installedDir());
 		expect(record.kind).toBe("github");
-		expect(record.quartoWizard).toEqual({ sourceType: "registry" });
+		expect(record.quartoWizard).toEqual({ track: "tag", sourceType: "registry" });
 		expect(result.extension.manifest.sourceType).toBe("registry");
-	});
-
-	it("an untagged install records quarto-wizard.commit", async () => {
-		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
-
-		await install(parseInstallSource("owner/repo"), { projectDir });
-
-		const record = recordOf(installedDir());
-		expect(record.source).toBe("owner/repo");
-		expect(record).not.toHaveProperty("ref");
-		expect(record.quartoWizard).toEqual({ commit: "fed9876" });
-	});
-
-	it("an install pinned to a commit records the ref and no quarto-wizard.commit", async () => {
-		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
-
-		await install(parseInstallSource("owner/repo@fed9876"), { projectDir });
-
-		const record = recordOf(installedDir());
-		expect(record.source).toBe("owner/repo@fed9876");
-		expect(record.ref).toBe("fed9876");
-		expect(record).not.toHaveProperty("quartoWizard");
 	});
 
 	it("a reinstall of an unpinned source at the recorded commit and the same version is unchanged", async () => {
@@ -934,7 +900,7 @@ describe("install record", () => {
 		const result = await install(parseInstallSource("owner/repo"), { projectDir });
 
 		expect(result.unchanged).toBeUndefined();
-		expect(recordOf(installedDir()).quartoWizard).toEqual({ commit: "abc1234" });
+		expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "tag", commit: "abc1234" });
 	});
 
 	it("a reinstall of an unpinned source that moved to a new commit refuses a locally edited copy", async () => {
@@ -944,7 +910,7 @@ describe("install record", () => {
 		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
 
 		await expect(install(parseInstallSource("owner/repo"), { projectDir })).rejects.toBeInstanceOf(LocalEditsError);
-		expect(recordOf(installedDir()).quartoWizard).toEqual({ commit: "fed9876" });
+		expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "tag", commit: "fed9876" });
 	});
 
 	it("an install pinned to another commit at the same version replaces the copy", async () => {
@@ -992,7 +958,7 @@ describe("install record", () => {
 		const record = recordOf(installedDir());
 		expect(record.source).toBe("owner/repo");
 		expect(record).not.toHaveProperty("ref");
-		expect(record.quartoWizard).toEqual({ commit: "abc1234" });
+		expect(record.quartoWizard).toEqual({ track: "tag", commit: "abc1234" });
 	});
 
 	it("a Quarto Wizard 3 copy at the same commit is unchanged", async () => {
@@ -1014,6 +980,169 @@ describe("install record", () => {
 		expect(result.unchanged).toBeUndefined();
 		expect(result.replacedUntracked).toBe(true);
 		expect(recordOf(installedDir()).ref).toBe("abc1234");
+	});
+
+	describe("by update mode", () => {
+		const SHA = "fed9876543210fedcba9876543210fedcba98765";
+
+		it("tag mode records the latest tag as the ref", async () => {
+			mockGitHubDownload({ tagName: "v1.4.0", fromTag: true });
+
+			await install(parseInstallSource("owner/repo"), { projectDir });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo@v1.4.0");
+			expect(record.ref).toBe("v1.4.0");
+			expect(record.quartoWizard).toEqual({ track: "tag" });
+			expect(downloadGitHubArchive).toHaveBeenCalledWith(
+				"owner",
+				"repo",
+				{ type: "latest" },
+				expect.objectContaining({ track: "tag" }),
+			);
+		});
+
+		it("branch mode records the default branch head without a ref", async () => {
+			mockGitHubDownload({ tagName: "fed9876", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource("owner/repo"), { projectDir, track: "branch" });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo");
+			expect(record).not.toHaveProperty("ref");
+			expect(record.quartoWizard).toEqual({ track: "branch", commit: SHA });
+			expect(downloadGitHubArchive).toHaveBeenCalledWith(
+				"owner",
+				"repo",
+				{ type: "latest" },
+				expect.objectContaining({ track: "branch" }),
+			);
+		});
+
+		it("an explicit branch records the branch and its head commit", async () => {
+			mockGitHubDownload({ tagName: "dev", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource("owner/repo@dev"), { projectDir });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo@dev");
+			expect(record.ref).toBe("dev");
+			expect(record.quartoWizard).toEqual({ track: "branch", commit: SHA });
+		});
+
+		it("an explicit tag records the tag in tag mode without a commit", async () => {
+			mockGitHubDownload({ tagName: "v1.2.0", fromTag: true });
+
+			await install(parseInstallSource("owner/repo@v1.2.0"), { projectDir });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo@v1.2.0");
+			expect(record.ref).toBe("v1.2.0");
+			expect(record.quartoWizard).toEqual({ track: "tag" });
+		});
+
+		it("an explicit commit records the commit in tag mode without quarto-wizard.commit", async () => {
+			mockGitHubDownload({ tagName: "fed9876", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource("owner/repo@fed9876"), { projectDir });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo@fed9876");
+			expect(record.ref).toBe("fed9876");
+			expect(record.quartoWizard).toEqual({ track: "tag" });
+		});
+
+		it("tag mode without a version tag records the default branch head commit", async () => {
+			mockGitHubDownload({ tagName: "fed9876", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource("owner/repo"), { projectDir });
+
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo");
+			expect(record).not.toHaveProperty("ref");
+			expect(record.quartoWizard).toEqual({ track: "tag", commit: SHA });
+		});
+
+		it("the mode option does not change a source with a ref", async () => {
+			mockGitHubDownload({ tagName: "v1.2.0", fromTag: true });
+
+			await install(parseInstallSource("owner/repo@v1.2.0"), { projectDir, track: "branch" });
+
+			expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "tag" });
+		});
+
+		it("a subdirectory source in branch mode records its path commit", async () => {
+			vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
+				archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+				tagName: "fed9876",
+				commitSha: SHA,
+				fromTag: false,
+				format: "tarball",
+			}));
+
+			await install(parseInstallSource("owner/repo/b"), { projectDir, track: "branch" });
+
+			expect(downloadGitHubArchive).toHaveBeenCalledWith(
+				"owner",
+				"repo",
+				{ type: "latest" },
+				expect.objectContaining({ path: "b", track: "branch" }),
+			);
+			const record = recordOf(path.join(projectDir, "_extensions", "owner", "y"));
+			expect(record.source).toBe("owner/repo/b");
+			expect(record).not.toHaveProperty("ref");
+			expect(record.quartoWizard).toEqual({ track: "branch", commit: SHA });
+		});
+
+		it("an install of the commit a check saw downloads that commit, not the moved branch head", async () => {
+			mockGitHubDownload({ tagName: "fed9876", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource(`owner/repo@${SHA}`), {
+				projectDir,
+				recordSource: "owner/repo@dev",
+				track: "branch",
+			});
+
+			expect(downloadGitHubArchive).toHaveBeenCalledWith(
+				"owner",
+				"repo",
+				{ type: "commit", commit: SHA },
+				expect.anything(),
+			);
+			const record = recordOf(installedDir());
+			expect(record.source).toBe("owner/repo@dev");
+			expect(record.ref).toBe("dev");
+			expect(record.quartoWizard).toEqual({ track: "branch", commit: SHA });
+		});
+
+		it("a record source takes the mode from the option, tag by default", async () => {
+			mockGitHubDownload({ tagName: "fed9876", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource(`owner/repo@${SHA}`), { projectDir, recordSource: "owner/repo" });
+
+			expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "tag", commit: SHA });
+		});
+
+		it("a record source pinned to the downloaded commit records no quarto-wizard.commit", async () => {
+			mockGitHubDownload({ tagName: "fed9876", commitSha: SHA, fromTag: false });
+
+			await install(parseInstallSource(`owner/repo@${SHA}`), { projectDir, recordSource: "owner/repo@fed9876" });
+
+			const record = recordOf(installedDir());
+			expect(record.ref).toBe("fed9876");
+			expect(record.quartoWizard).toEqual({ track: "tag" });
+		});
+
+		it("a reinstall at the full commit of a seven-character record is unchanged", async () => {
+			mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876", fromTag: false });
+			await install(parseInstallSource("owner/repo"), { projectDir });
+			fs.writeFileSync(path.join(installedDir(), "demo.lua"), "-- edited\n");
+			mockGitHubDownload({ tagName: "fed9876", commitSha: SHA, fromTag: false });
+
+			const result = await install(parseInstallSource("owner/repo"), { projectDir });
+
+			expect(result.unchanged).toBe(true);
+		});
 	});
 
 	function writeQuartoWizard3Copy(source: string): void {
@@ -1065,7 +1194,7 @@ describe("install record", () => {
 			});
 			const archivePath = path.join(workDir, "repo.tar.gz");
 			await tar.create({ gzip: true, file: archivePath, cwd: workDir }, ["repo-main"]);
-			return { archivePath, format: "tarball", tagName: "v1.2.0" };
+			return { archivePath, format: "tarball", tagName: "v1.2.0", fromTag: true };
 		});
 
 		const result = await install(parseInstallSource("owner/repo"), {
@@ -1076,8 +1205,8 @@ describe("install record", () => {
 
 		for (const name of ["one", "two"]) {
 			const record = recordOf(path.join(projectDir, "_extensions", "owner", name));
-			expect(record.source).toBe("owner/repo");
-			expect(record.quartoWizard).toEqual({ sourceType: "registry" });
+			expect(record.source).toBe("owner/repo@v1.2.0");
+			expect(record.quartoWizard).toEqual({ track: "tag", sourceType: "registry" });
 		}
 		expect(result.additionalInstalls?.[0].extension.recordStatus).toBe("ok");
 	});

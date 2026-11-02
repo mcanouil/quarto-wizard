@@ -1828,7 +1828,7 @@ describe("applyUpdates", () => {
 			const record = recordIn(installedDir);
 			expect(record.source).toBe("acme/repo");
 			expect(record).not.toHaveProperty("ref");
-			expect(record).not.toHaveProperty("quartoWizard");
+			expect(record.quartoWizard).toEqual({ track: "tag" });
 			expect(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf-8")).not.toMatch(/^source/m);
 		});
 
@@ -1840,7 +1840,7 @@ describe("applyUpdates", () => {
 			const record = recordIn(installedDir);
 			expect(record.source).toBe("acme/repo");
 			expect(record).not.toHaveProperty("ref");
-			expect(record.quartoWizard).toEqual({ commit: "fed9876" });
+			expect(record.quartoWizard).toEqual({ track: "tag", commit: "fed9876" });
 		});
 
 		it("a commit update with an equal manifest version writes the new copy and its commit", async () => {
@@ -1854,7 +1854,7 @@ describe("applyUpdates", () => {
 			expect(result.skipped).toEqual([]);
 			expect(result.updated).toHaveLength(1);
 			expect(fs.readFileSync(path.join(installedDir, "x.lua"), "utf-8")).toBe("-- x\n");
-			expect(recordIn(installedDir).quartoWizard).toEqual({ commit: "fed9876" });
+			expect(recordIn(installedDir).quartoWizard).toEqual({ track: "tag", commit: "fed9876" });
 		});
 
 		it("a commit update of an extension pinned to a commit at an equal version writes the new copy", async () => {
@@ -1870,7 +1870,7 @@ describe("applyUpdates", () => {
 			expect(result.updated).toHaveLength(1);
 			const record = recordIn(installedDir);
 			expect(record.source).toBe("acme/repo@fed9876");
-			expect(record).not.toHaveProperty("quartoWizard");
+			expect(record.quartoWizard).toEqual({ track: "tag" });
 		});
 
 		it("unpinnedRecordSource gives the base of an unpinned GitHub install and nothing for a pinned one", () => {
@@ -1937,7 +1937,7 @@ describe("applyUpdates", () => {
 
 			const record = recordIn(installedDir);
 			expect(record.kind).toBe("github");
-			expect(record.quartoWizard).toEqual({ sourceType: "registry" });
+			expect(record.quartoWizard).toEqual({ track: "tag", sourceType: "registry" });
 		});
 	});
 });
