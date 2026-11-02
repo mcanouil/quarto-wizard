@@ -484,7 +484,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 			? allExtensions
 					.filter((candidate) => isSameExtensionId(candidate.id, expected))
 					.map((candidate) =>
-						expected.owner === null ? { ...candidate, id: { ...candidate.id, owner: null } } : candidate,
+						expected.owner === null ? { ...candidate, id: { owner: null, name: expected.name } } : candidate,
 					)
 			: allExtensions;
 		if (expected && offered.length === 0) {

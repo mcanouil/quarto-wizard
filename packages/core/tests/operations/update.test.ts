@@ -2077,6 +2077,34 @@ describe("applyUpdates", () => {
 			expect(fs.existsSync(path.join(projectDir, "_extensions", "acme"))).toBe(false);
 		});
 
+		it("updates an extension installed without an owner in its own folder whatever the case of the source", async () => {
+			const projectDir = path.join(tempDir, "project");
+			const installedDir = path.join(projectDir, "_extensions", "X");
+			fs.mkdirSync(installedDir, { recursive: true });
+			fs.writeFileSync(path.join(installedDir, "_extension.yml"), "title: X\nversion: 0.9.0\n");
+			vi.mocked(downloadGitHubArchive).mockImplementationOnce(async () => ({
+				archivePath: await createSubdirectoryRepositoryArchive(tempDir),
+				tagName: SUBDIRECTORY_REPOSITORY_TAG,
+				format: "tarball",
+			}));
+			const pending = pendingUpdate("x");
+			const ownerless: UpdateInfo = {
+				...pending,
+				extension: { ...pending.extension, id: { owner: null, name: "X" } },
+				projectDir,
+				target: { source: installSource(`acme/repo@${SUBDIRECTORY_REPOSITORY_TAG}`), track: "tag" },
+			};
+
+			const result = await applyUpdates([ownerless], { projectDirs: [] });
+
+			expect(result.failed).toEqual([]);
+			expect(result.updated).toHaveLength(1);
+			expect(result.updated[0].extension.directory).toBe(installedDir);
+			expect(fs.readFileSync(path.join(installedDir, "_extension.yml"), "utf-8")).not.toContain("version: 0.9.0");
+			expect(fs.existsSync(path.join(installedDir, ".quarto-source.yml"))).toBe(true);
+			expect(fs.existsSync(path.join(projectDir, "_extensions", "acme"))).toBe(false);
+		});
+
 		function githubUpdate(
 			installedSource: string,
 			resolution: { tagName: string; commitSha?: string },
