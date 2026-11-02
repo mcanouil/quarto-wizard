@@ -412,9 +412,7 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 	return {
 		latestTag(candidate) {
 			const currentVersion = candidate.extension.manifest.version;
-			const normalised = normaliseVersion(currentVersion);
-			const followsPrereleases = normalised !== null && semver.prerelease(normalised) !== null;
-			const key = `${candidate.fullName.toLowerCase()}#tag#${followsPrereleases}`;
+			const key = `${candidate.fullName.toLowerCase()}#tag#${followsPrereleases(candidate)}`;
 			return once(key, () => resolveLatestTag(candidate.owner, candidate.repo, { ...options, currentVersion }));
 		},
 		latestCommit(candidate) {
@@ -500,8 +498,7 @@ function buildRegistryUpdate(candidate: UpdateCandidate, entry: RegistryEntry): 
 	if (entry.latestTag && isUsableTag(candidate, entry.latestTag)) {
 		return buildTagUpdate(candidate, entry.latestTag, entry.latestReleaseUrl, "registry");
 	}
-	// Without a usable version tag, tag mode follows the default branch, as a first install does.
-	return candidate.currentCommit ? buildCommitUpdate(candidate, entry.latestCommit, entry.htmlUrl, "registry") : null;
+	return buildDefaultBranchUpdate(candidate, entry.latestCommit, entry.htmlUrl, "registry");
 }
 
 async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLookups): Promise<UpdateInfo | null> {
@@ -516,11 +513,22 @@ async function buildGitHubUpdate(candidate: UpdateCandidate, lookups: GitHubLook
 	if (latest) {
 		return buildTagUpdate(candidate, latest.tagName, latest.releaseUrl ?? htmlUrl, "github");
 	}
-	// Without a usable version tag, tag mode follows the default branch, as a first install does.
-	if (!candidate.currentCommit) {
-		return null;
-	}
-	return buildCommitUpdate(candidate, await lookups.latestCommit(candidate), htmlUrl, "github");
+	const latestCommit = candidate.currentCommit ? await lookups.latestCommit(candidate) : null;
+	return buildDefaultBranchUpdate(candidate, latestCommit, htmlUrl, "github");
+}
+
+/**
+ * Update of a tag-mode install whose repository has no usable version tag.
+ * It follows the default branch, as a first install does, when the install
+ * recorded a commit.
+ */
+function buildDefaultBranchUpdate(
+	candidate: UpdateCandidate,
+	latestCommit: string | null,
+	releaseUrl: string,
+	checkedOn: UpdateCheckSource,
+): UpdateInfo | null {
+	return candidate.currentCommit ? buildCommitUpdate(candidate, latestCommit, releaseUrl, checkedOn) : null;
 }
 
 /**
@@ -563,8 +571,7 @@ async function buildSubdirectoryUpdate(
 	const currentVersion = normaliseVersion(installedVersion);
 	const latestVersion = await lookups.subdirectoryVersion(candidate, latest?.tagName ?? "HEAD");
 	// Prereleases qualify only for a prerelease install, as in buildTagUpdate.
-	const followsPrereleases = currentVersion !== null && semver.prerelease(currentVersion) !== null;
-	if (latestVersion !== null && semver.prerelease(latestVersion) !== null && !followsPrereleases) {
+	if (latestVersion !== null && semver.prerelease(latestVersion) !== null && !followsPrereleases(candidate)) {
 		return null;
 	}
 	const comparable = currentVersion !== null && latestVersion !== null;
@@ -630,8 +637,7 @@ function buildTagUpdate(
 		return null;
 	}
 	// Prereleases qualify only for a prerelease install, as in resolveLatestTag.
-	const followsPrereleases = currentVersion !== null && semver.prerelease(currentVersion) !== null;
-	if (semver.prerelease(latestVersion) !== null && !followsPrereleases) {
+	if (semver.prerelease(latestVersion) !== null && !followsPrereleases(candidate)) {
 		return null;
 	}
 	// An installed version that is not a version is compared on the floor it
@@ -654,12 +660,13 @@ function buildTagUpdate(
  */
 function isUsableTag(candidate: UpdateCandidate, tag: string): boolean {
 	const version = normaliseVersion(tag);
-	if (version === null) {
-		return false;
-	}
+	return version !== null && (semver.prerelease(version) === null || followsPrereleases(candidate));
+}
+
+/** Whether the installed version is a prerelease, so that the install follows prereleases too. */
+function followsPrereleases(candidate: UpdateCandidate): boolean {
 	const installed = normaliseVersion(candidate.extension.manifest.version);
-	const followsPrereleases = installed !== null && semver.prerelease(installed) !== null;
-	return semver.prerelease(version) === null || followsPrereleases;
+	return installed !== null && semver.prerelease(installed) !== null;
 }
 
 /**
