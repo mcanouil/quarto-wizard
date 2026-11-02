@@ -36,7 +36,7 @@ import { fetchRawFile } from "../github/raw.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { install } from "./install.js";
 import { githubInstallSource, type InstallTarget } from "./source.js";
-import { installedVersionFloor as floorOfInstalledVersion, readSubdirectoryVersion } from "./versions.js";
+import { installedVersionFloor, readSubdirectoryVersion } from "./versions.js";
 import {
 	AuthenticationError,
 	CancellationError,
@@ -573,7 +573,7 @@ async function buildSubdirectoryUpdate(
 	}
 	// An installed version that is not a version is compared on the floor it gives, as in buildTagUpdate.
 	if (currentVersion === null && latestVersion !== null) {
-		const floor = installedVersionFloor(candidate, installedVersion);
+		const floor = installedVersionFloor(installedVersion, recordedRef(candidate));
 		if (floor && !semver.gt(latestVersion, floor)) {
 			return null;
 		}
@@ -636,7 +636,7 @@ function buildTagUpdate(
 	}
 	// An installed version that is not a version is compared on the floor it
 	// gives, and an install that gives no floor is offered the latest stable tag.
-	const floor = currentVersion ?? installedVersionFloor(candidate, installedVersion);
+	const floor = currentVersion ?? installedVersionFloor(installedVersion, recordedRef(candidate));
 	const isUpdate = floor ? semver.gt(latestVersion, floor) : !isInstalledTag(candidate, latestTag);
 	if (!isUpdate) {
 		return null;
@@ -660,10 +660,6 @@ function isUsableTag(candidate: UpdateCandidate, tag: string): boolean {
 	const installed = normaliseVersion(candidate.extension.manifest.version);
 	const followsPrereleases = installed !== null && semver.prerelease(installed) !== null;
 	return semver.prerelease(version) === null || followsPrereleases;
-}
-
-function installedVersionFloor(candidate: UpdateCandidate, installedVersion: string): string | null {
-	return floorOfInstalledVersion(installedVersion, recordedRef(candidate));
 }
 
 /**
