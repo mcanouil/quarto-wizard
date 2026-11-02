@@ -8,6 +8,7 @@
 - refactor: Make `InstallOptions.force` in `@quarto-wizard/core` replace a locally edited copy and reinstall the same version, as replacing an installed copy no longer needs it. A 3.x caller that passes `force: true` now skips the local-edit protection. (#532)
 - refactor: Remove `sourceDisplay` from `InstallOptions` and `UseOptions` in `@quarto-wizard/core`, and remove `updateManifestSource()` and `installSingleExtension()`. Set the recorded source with `InstallOptions.recordSource`. (#532)
 - refactor: Add `record` and `recordStatus` to `InstalledExtension`, `edits` to the `UpdateResult.skipped` entries, `unchanged` and `replacedUntracked` to `InstallResult`, `replaceSameVersion` to `InstallOptions`, and `LocalEditsError` in `@quarto-wizard/core`. (#532)
+- refactor: Add the update source to `@quarto-wizard/core`: `InstallTrack`, `recordedTrack()`, `track` in `InstallOptions` and `UseOptions`, `InstallTarget`, `reinstallTarget()` and `planSourceChange()`. `UpdateInfo.target` replaces `UpdateInfo.source`. A resolved `commitSha` is now the full commit, and `DownloadResult` has `fromTag`. (#533)
 - feat: Resolve every update to the latest GitHub tag, the highest version among the releases and tags, and never to a lower version. In `@quarto-wizard/core`, `checkForUpdates()` takes `projectDirs`, checks GitHub when a token is set and returns its failures, while `crossSource` and `getLatestRelease()` are removed.
 - feat: Install the highest semantic version among the releases and tags of `owner/repo`, and no longer the release that GitHub marks as latest. Tag names that are not versions are ignored, and a repository that has only prereleases installs its default branch.
 - refactor: Return an `UpdateCheckResult` object from `checkForUpdates()` in `@quarto-wizard/core`, with `updates`, `repositoryFailures` and `checkFailure`, in place of an array of updates. Each `UpdateInfo` now also carries `projectDir`, `latestRef`, `refKind` and `checkedOn`.
@@ -15,7 +16,6 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
-- refactor: Add the update source to `@quarto-wizard/core`: `InstallTrack`, `recordedTrack()`, `track` in `InstallOptions` and `UseOptions`, `InstallTarget`, `reinstallTarget()` and `planSourceChange()`. `UpdateInfo.target` replaces `UpdateInfo.source`. A resolved `commitSha` is now the full commit, and `DownloadResult` has `fromTag`.
 
 ### New Features
 
@@ -23,11 +23,11 @@
 - feat: Add `pluralise()` to `@quarto-wizard/core`, which writes a count with the singular or the plural of its noun. (#527)
 - feat: Install, use and update extensions from a repository subdirectory, written `owner/repo/subdirectory` as with `quarto add`. (#530)
 - feat: Refuse to replace an extension with local changes unless you choose Replace anyway, and leave an extension untouched when the same version is installed again. An update still replaces an extension at the same version. (#532)
+- feat: Choose where a GitHub extension updates from, the latest version tag or the default branch. The setting `quartoWizard.install.updateSource` sets the choice for new installs, Update follows the choice saved in the install record, and Change Update Source switches an installed extension. (#533)
 - feat: Show where the update check looked, in a message at the top of the Extensions Installed view and in the tooltip and details of each extension. Update and Update All now check GitHub when you click them, and install the tag that their messages name.
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 - feat: Add a Detected Projects view, collapsed by default, to show or hide projects, with the `quartoWizard.projectVisibility` setting to share the choice. Extensions that hold other extensions now appear as projects, and those of an installed parent are read-only.
 - feat: Add `discoverProjectDirs()` to `@quarto-wizard/core`, which finds Quarto projects and extensions that embed other extensions.
-- feat: Choose where a GitHub extension updates from, the latest version tag or the default branch. The setting `quartoWizard.install.updateSource` sets the choice for new installs, Update follows the choice saved in the install record, and Change Update Source switches an installed extension.
 
 ### Bug Fixes
 
