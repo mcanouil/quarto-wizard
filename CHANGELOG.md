@@ -7,7 +7,7 @@
 - feat: Record where an extension came from in `.quarto-source.yml`, the Quarto 2 format, and stop writing `source` and `source-type` into `_extension.yml`. Records written by Quarto Wizard 3 are still read. (#532)
 - refactor: Make `InstallOptions.force` in `@quarto-wizard/core` replace a locally edited copy and reinstall the same version, as replacing an installed copy no longer needs it. A 3.x caller that passes `force: true` now skips the local-edit protection. (#532)
 - refactor: Remove `sourceDisplay` from `InstallOptions` and `UseOptions` in `@quarto-wizard/core`, and remove `updateManifestSource()` and `installSingleExtension()`. Set the recorded source with `InstallOptions.recordSource`. (#532)
-- refactor: Add `record` and `recordStatus` to `InstalledExtension`, `edits` to the `UpdateResult.skipped` entries, `unchanged` and `replacedUntracked` to `InstallResult`, `replaceSameVersion` to `InstallOptions`, and `LocalEditsError` in `@quarto-wizard/core`. `unpinnedRecordSource()` gives the source to record for an update. (#532)
+- refactor: Add `record` and `recordStatus` to `InstalledExtension`, `edits` to the `UpdateResult.skipped` entries, `unchanged` and `replacedUntracked` to `InstallResult`, `replaceSameVersion` to `InstallOptions`, and `LocalEditsError` in `@quarto-wizard/core`. (#532)
 - feat: Resolve every update to the latest GitHub tag, the highest version among the releases and tags, and never to a lower version. In `@quarto-wizard/core`, `checkForUpdates()` takes `projectDirs`, checks GitHub when a token is set and returns its failures, while `crossSource` and `getLatestRelease()` are removed.
 - feat: Install the highest semantic version among the releases and tags of `owner/repo`, and no longer the release that GitHub marks as latest. Tag names that are not versions are ignored, and a repository that has only prereleases installs its default branch.
 - refactor: Return an `UpdateCheckResult` object from `checkForUpdates()` in `@quarto-wizard/core`, with `updates`, `repositoryFailures` and `checkFailure`, in place of an array of updates. Each `UpdateInfo` now also carries `projectDir`, `latestRef`, `refKind` and `checkedOn`.
@@ -15,6 +15,7 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
+- refactor: Add the update source to `@quarto-wizard/core`: `InstallTrack`, `recordedTrack()`, `track` and `refIsTag` in `InstallOptions`, `track` in `UseOptions`, `track` and `recordSource` in `UpdateInfo`, and `reinstallTarget()` and `planSourceChange()`. A resolved `commitSha` is now the full commit, and `DownloadResult` has `fromTag`.
 
 ### New Features
 
