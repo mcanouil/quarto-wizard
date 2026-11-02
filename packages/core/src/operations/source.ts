@@ -153,37 +153,17 @@ export async function planSourceChange(
 	if (!parsed) {
 		return null;
 	}
-	const { locator, base } = parsed;
 	const installed = extension.manifest.version;
-	const currentVersion = installed ? installed : null;
-
-	const headTarget = async (track: InstallTrack): Promise<SourceChange> => {
-		const [commit, branch] = await Promise.all([
-			fetchLatestCommit(locator.owner, locator.repo, { ...options, path: locator.subdirectory }),
-			fetchDefaultBranch(locator.owner, locator.repo, options),
-		]);
-		if (!commit) {
-			throw new ExtensionError(
-				`Cannot find a commit on the default branch of "${formatGitHubLocator(locator)}". Check that the repository has commits and try again.`,
-			);
-		}
-		return {
-			source: githubInstallSource(locator, { type: "commit", commit: normaliseCommit(commit) }),
-			recordSource: base,
-			track,
-			targetLabel: `${branch ?? "default branch"} @ ${shortCommit(commit)}`,
-			currentVersion,
-			isDowngrade: false,
-		};
-	};
+	const currentVersion = installed || null;
 
 	if (recordedTrack(extension.record) === "tag") {
-		return headTarget("branch");
+		return headTarget(parsed, "branch", currentVersion, options);
 	}
 
+	const { locator } = parsed;
 	const latest = await resolveLatestTag(locator.owner, locator.repo, { ...options, currentVersion: installed });
 	if (!latest) {
-		return headTarget("tag");
+		return headTarget(parsed, "tag", currentVersion, options);
 	}
 	return {
 		source: githubInstallSource(locator, { type: "tag", tag: latest.tagName }),
@@ -191,6 +171,36 @@ export async function planSourceChange(
 		targetLabel: latest.tagName,
 		currentVersion,
 		isDowngrade: await isBelowInstalled(extension, parsed, latest, options),
+	};
+}
+
+/**
+ * Target of a change of update source to the head of the default branch, in the given update mode.
+ *
+ * @throws ExtensionError when the default branch has no commit to install
+ */
+async function headTarget(
+	{ locator, base }: GitHubSource,
+	track: InstallTrack,
+	currentVersion: string | null,
+	options: GitHubOptions,
+): Promise<SourceChange> {
+	const [commit, branch] = await Promise.all([
+		fetchLatestCommit(locator.owner, locator.repo, { ...options, path: locator.subdirectory }),
+		fetchDefaultBranch(locator.owner, locator.repo, options),
+	]);
+	if (!commit) {
+		throw new ExtensionError(
+			`Cannot find a commit on the default branch of "${formatGitHubLocator(locator)}". Check that the repository has commits and try again.`,
+		);
+	}
+	return {
+		source: githubInstallSource(locator, { type: "commit", commit: normaliseCommit(commit) }),
+		recordSource: base,
+		track,
+		targetLabel: `${branch ?? "default branch"} @ ${shortCommit(commit)}`,
+		currentVersion,
+		isDowngrade: false,
 	};
 }
 
