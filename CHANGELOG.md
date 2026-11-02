@@ -15,7 +15,7 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
-- refactor: Add the update source to `@quarto-wizard/core`: `InstallTrack`, `recordedTrack()`, `track` and `refIsTag` in `InstallOptions`, `track` in `UseOptions`, `track` and `recordSource` in `UpdateInfo`, and `reinstallTarget()` and `planSourceChange()`. A resolved `commitSha` is now the full commit, and `DownloadResult` has `fromTag`.
+- refactor: Add the update source to `@quarto-wizard/core`: `InstallTrack`, `recordedTrack()`, `track` in `InstallOptions` and `UseOptions`, `InstallTarget`, `reinstallTarget()` and `planSourceChange()`. `UpdateInfo.target` replaces `UpdateInfo.source`. A resolved `commitSha` is now the full commit, and `DownloadResult` has `fromTag`.
 
 ### New Features
 
