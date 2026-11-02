@@ -887,14 +887,24 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 		test("a branch with no commit shows the error and installs nothing", async () => {
 			stubNetwork({ repositories: { [SWITCH_ID]: {} } });
-
-			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+			const logged: string[] = [];
+			const log = (constants as { QW_LOG: unknown }).QW_LOG;
+			(constants as { QW_LOG: unknown }).QW_LOG = {
+				...(log as object),
+				info: (message: string) => logged.push(message),
+			};
+			try {
+				await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }));
+			} finally {
+				(constants as { QW_LOG: unknown }).QW_LOG = log;
+			}
 
 			assert.deepStrictEqual(dialogs, []);
 			assert.deepStrictEqual(installs, []);
 			assert.deepStrictEqual(errors, [
 				`Cannot find a commit on the default branch of "${SWITCH_ID}". Check that the repository has commits and try again.`,
 			]);
+			assert.ok(!logged.some((message) => message.includes("not on GitHub")), logged.join("\n"));
 		});
 
 		test("an extension that is not on GitHub shows no dialog and logs why", async () => {

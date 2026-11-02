@@ -502,9 +502,13 @@ export class ExtensionsInstalled {
 					const auth = await getAuthConfig(context);
 					const plan = await withProgressNotification(`Checking "${item.label}" ...`, async (token) => {
 						try {
-							return await withAbortSignal(token, (signal) =>
+							const planned = await withAbortSignal(token, (signal) =>
 								planSourceChange(extension, { auth, timeout: REGISTRY_FETCH_TIMEOUT_MS, signal }),
 							);
+							if (!planned) {
+								logMessage(`Cannot change the update source of "${item.label}": its source is not on GitHub.`, "info");
+							}
+							return planned;
 						} catch (error) {
 							if (isCancellationError(error)) {
 								return null;
@@ -515,7 +519,6 @@ export class ExtensionsInstalled {
 						}
 					});
 					if (!plan) {
-						logMessage(`Cannot change the update source of "${item.label}": its source is not on GitHub.`, "info");
 						return;
 					}
 
