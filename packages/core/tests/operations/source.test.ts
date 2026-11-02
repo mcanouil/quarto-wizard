@@ -134,6 +134,14 @@ describe("reinstallTarget", () => {
 		});
 	});
 
+	it("reads a branch ref as a branch in branch mode, even when it looks like a commit or a tag", () => {
+		for (const branch of ["cafe123", "v2-dev"]) {
+			const target = reinstallTarget(installed(`o/ext@${branch}`, { quartoWizard: { track: "branch" } }));
+			expect(target?.track).toBe("branch");
+			expect(target?.source).toMatchObject({ type: "github", version: { type: "branch", branch } });
+		}
+	});
+
 	it("keeps a subdirectory in the base", () => {
 		expect(
 			reinstallTarget(installed("o/ext/sub", { quartoWizard: { track: "branch", commit: FULL_SHA } }))?.source,

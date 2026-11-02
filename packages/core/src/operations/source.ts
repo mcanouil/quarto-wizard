@@ -107,28 +107,32 @@ export function reinstallTarget(extension: InstalledExtension): InstallTarget | 
 	const atCommit = (commitRef: string) => githubInstallSource(locator, { type: "commit", commit: commitRef });
 
 	if (track === "branch") {
-		return commit
-			? { source: atCommit(commit), recordSource: source, track }
-			: { source: githubInstallSource(locator, recordedVersion(source, false)), track };
+		if (commit) {
+			return { source: atCommit(commit), recordSource: source, track };
+		}
+		// A branch ref is never a commit or a tag, even when its name looks like one.
+		const { ref } = splitSourceRef(source);
+		const version: VersionSpec = ref === undefined ? { type: "latest" } : { type: "branch", branch: ref };
+		return { source: githubInstallSource(locator, version), track };
 	}
 	if (commit && !parsed.hasRef) {
 		return { source: atCommit(commit), recordSource: parsed.base, track };
 	}
-	return { source: githubInstallSource(locator, recordedVersion(source, true)), track };
+	return { source: githubInstallSource(locator, recordedVersion(source)), track };
 }
 
 /**
- * Version that the ref of a recorded source names. In tag mode, a ref that is
+ * Version that the ref of a tag-mode source names. A ref that is
  * a version, such as `2` or `20240101`, is a tag even when it reads as a branch
  * or a commit.
  */
-function recordedVersion(source: string, inTagMode: boolean): VersionSpec {
+function recordedVersion(source: string): VersionSpec {
 	const { ref } = splitSourceRef(source);
 	if (ref === undefined) {
 		return { type: "latest" };
 	}
 	const version = parseVersionSpec(ref);
-	const readsAsTag = inTagMode && (version.type === "branch" || version.type === "commit");
+	const readsAsTag = version.type === "branch" || version.type === "commit";
 	return readsAsTag && normaliseVersion(ref) !== null ? { type: "tag", tag: ref } : version;
 }
 
