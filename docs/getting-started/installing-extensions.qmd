@@ -131,6 +131,8 @@ After selecting Registry, you can filter by extension type (Filter, Shortcode, F
 
 Install from a GitHub repository using the format `owner/repo` or `owner/repo@version`.
 This allows installing specific versions or branches (e.g., `quarto-ext/lightbox@v0.1.6`).
+The `@` part tells where the files come from.
+It never stops an update.
 To install from a subdirectory of a repository, write `owner/repo/subdirectory`, as with `quarto add` (e.g., `owner/repo/path/to/extension@v1.0.0`).
 Quarto Wizard also checks such an extension for updates.
 
@@ -226,6 +228,34 @@ Two rules narrow what a source offers, so that a repository shipping a single ex
 
 Neither rule can empty the list: a source whose extensions all sit in ignored locations still installs.
 
+## Update Source {#update-source}
+
+An extension from GitHub follows one update source:
+
+- **Latest tag**: the highest version tag of the repository.
+  This is the default.
+- **Default branch**: the latest commit of the default branch, as `quarto add` does in Quarto 2.
+
+The setting `quartoWizard.install.updateSource` (`latestTag` or `defaultBranch`) selects the update source of new installs.
+Quarto Wizard does not ask you at install time.
+Quarto Wizard saves the update source in the install record of each extension.
+Update and Update All follow the saved value.
+A change of the setting does not change the extensions that you already installed.
+
+To change the update source of an installed extension, right-click the extension and select **Change Update Source**.
+Quarto Wizard first shows the target and asks you to confirm, for example:
+
+`Switch "owner/ext" to the default branch: install main @ abc1234 (now 1.4.0)?`
+
+When the target is an older version than the installed one, the message adds `This is an older version than the one installed.`
+After you confirm, Quarto Wizard reinstalls the extension from the new source.
+If the extension has local changes, the warning in [Local Changes](#local-changes) appears first.
+
+The action is not available for extensions from a URL, a local folder or a local archive.
+It is also not available for an extension that is embedded in an installed parent.
+
+See [Install Record](../reference/install-record.qmd) for what each case records.
+
 ## Replacing an Installed Extension {#replacing-an-installed-extension}
 
 These rules apply when an install, an update or a reinstall would replace an extension that is already installed.
@@ -250,8 +280,9 @@ It shows `<extension> is already at version <version>.`
 An update is different: it replaces the extension at the same version, because a new tag or commit can keep the version.
 If the extension has local changes, **Update** shows the warning in [Local Changes](#local-changes) and **Update All** skips the extension.
 To replace the extension anyway, use **Reinstall Extension** in the Extensions Installed view.
-Reinstall installs the pinned ref or the recorded commit again.
-For an extension that you installed without a ref, from a repository with version tags, Reinstall installs the latest version.
+Reinstall keeps the update source of the extension.
+In tag mode it installs the recorded tag again.
+In branch mode it installs the recorded commit again.
 
 See [Install Record](../reference/install-record.qmd) for more details.
 

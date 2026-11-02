@@ -226,6 +226,8 @@ For each installed extension, you can:
 
 - **Update**: Check GitHub and install the latest GitHub tag when it is newer.
   When nothing is newer, the message `Extension "<name>" is up to date.` appears.
+- **Change Update Source**: Switch a GitHub extension between the latest tag and the default branch.
+  See [Update Source](installing-extensions.qmd#update-source).
 - **Remove**: Delete the extension from the `_extensions` directory.
 - **Open Source**: View the extension's GitHub repository (if source is available).
 - **Reveal in Explorer View**: Open the extension folder in the file explorer.
@@ -270,13 +272,14 @@ See [Install Record](../reference/install-record.qmd).
 
 ### Which Version Is Installed
 
-Each update, from the **Update** button or from **Update All**, installs the latest GitHub tag.
-This is the highest semantic version among the releases and tags of the repository.
+Each update, from the **Update** button or from **Update All**, follows the update source that Quarto Wizard saved for the extension.
+By default this is the latest GitHub tag.
+In tag mode, the latest tag is the highest semantic version among the releases and tags of the repository.
 Prereleases are only considered when the installed version is a prerelease.
 An update never installs a lower version than the one you have.
-When an extension is installed from a commit, Quarto Wizard compares commits instead.
-The commit can have between seven and 40 characters, from the short form to the full form.
-Update then installs the latest commit of the default branch.
+In branch mode, Quarto Wizard compares the saved commit with the latest commit of the branch, and Update installs that commit.
+The branch is the default branch, unless the source names one.
+An extension that you installed from a commit follows the latest tag.
 When an extension comes from a subdirectory of a repository, Quarto Wizard compares the installed version with the version in its own `_extension.yml` at the latest tag.
 
 ### Where Updates Are Checked
@@ -285,7 +288,7 @@ The background check uses GitHub when you are signed in to GitHub or when a toke
 Otherwise, it uses the registry, which can be a little behind GitHub.
 An extension that the registry does not list is still checked on GitHub, without a token.
 An extension from a subdirectory of a repository is always checked on GitHub, never through the registry.
-An extension installed from a repository that has no tags records a commit, so the check compares commits.
+While a repository has no version tag, the check compares commits on the default branch.
 When you click **Update** or **Update All**, Quarto Wizard looks up GitHub, with or without a token.
 Quarto Wizard 4.0.0 removes the `quartoWizard.update.crossSource` setting, which no longer has an effect.
 
@@ -305,6 +308,7 @@ You can always run `Quarto Wizard: Sign In with GitHub Session` from the Command
 To sign in or to set a token, see [Optional: GitHub Authentication](installation.qmd#optional-github-authentication).
 
 Hover over an extension to see its latest version and where it was found.
+The tooltip also shows `Updates from: latest tag`, `Updates from: default branch`, or `Updates from: <ref> branch`.
 The details of an extension show `Installed from:`.
 When an update is available, they also show `Latest:` with the version and the source of the check, for example `Latest: 1.2.0 (checked on GitHub)`.
 
@@ -328,9 +332,9 @@ If no extensions are installed, the view displays a welcome message with links t
 Right-click on an extension to access additional options:
 
 - Reinstall Extension.
-  It installs the pinned ref or the recorded commit again, even at the same version.
-  For an extension that you installed without a ref, from a repository with version tags, it installs the latest version.
+  It keeps the update source and installs the recorded tag or commit again, even at the same version.
   It warns before it removes local changes.
+- Change Update Source (for an extension installed from GitHub).
 - Update Extension (for an extension installed from GitHub or from the registry, even when it is up to date).
 - Remove Extension.
 - Open Extension Source (if source is available).
