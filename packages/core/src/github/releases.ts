@@ -398,21 +398,22 @@ export async function fetchTags(owner: string, repo: string, options: GitHubOpti
 }
 
 /**
- * Fetch the latest commit of the default branch of a repository.
+ * Fetch the latest commit of a branch of a repository, the default branch unless `ref` is set.
  *
  * @param owner - Repository owner
  * @param repo - Repository name
- * @param options - GitHub options, and an optional `path` to keep only the commits that change it
+ * @param options - GitHub options, an optional `ref` (branch, tag or commit), and an optional `path` to keep only the commits that change it
  * @returns Full commit SHA, or null when the branch has no commit
  */
 export async function fetchLatestCommit(
 	owner: string,
 	repo: string,
-	options: GitHubOptions & { path?: string } = {},
+	options: GitHubOptions & { path?: string; ref?: string } = {},
 ): Promise<string | null> {
-	const { auth, timeout, signal, path } = options;
+	const { auth, timeout, signal, path, ref } = options;
+	const refQuery = ref ? `&sha=${encodeURIComponent(ref)}` : "";
 	const pathQuery = path ? `&path=${encodeURIComponent(path)}` : "";
-	const url = `${repoApiUrl(owner, repo, "commits")}?per_page=1${pathQuery}`;
+	const url = `${repoApiUrl(owner, repo, "commits")}?per_page=1${refQuery}${pathQuery}`;
 
 	try {
 		const raw = await fetchJson<RawCommit[]>(url, {

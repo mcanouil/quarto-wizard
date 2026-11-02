@@ -17,6 +17,7 @@ import {
 	formatGitHubLocator,
 	parseGitHubLocator,
 	recordedCommit,
+	shortCommit,
 	splitSourceRef,
 } from "../types/manifest.js";
 import { formatExtensionId, isSameExtensionId, parseExtensionRef } from "../types/extension.js";
@@ -448,8 +449,7 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		}
 
 		// Find all extensions in the archive, or only below the subdirectory the source names
-		const searchRoot =
-			source.type === "github" ? await resolveSourceRoot(extractDir, source, commitSha ?? tagName) : extractDir;
+		const searchRoot = source.type === "github" ? await resolveSourceRoot(extractDir, source, tagName) : extractDir;
 		const { root: archiveRoot, extensions: allExtensions } = await readArchiveExtensions(searchRoot, {
 			stripWrapper: searchRoot === extractDir,
 		});
@@ -704,7 +704,7 @@ function formatResolvedSource(source: InstallSource, tagName?: string, commitSha
 	if (source.type === "github") {
 		const base = formatGitHubLocator(source);
 		if (commitSha) {
-			return `${base}@${commitSha}`;
+			return `${base}@${shortCommit(commitSha)}`;
 		}
 		return tagName && tagName !== "HEAD" ? `${base}@${tagName}` : base;
 	}

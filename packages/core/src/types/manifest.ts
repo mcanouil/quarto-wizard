@@ -189,6 +189,23 @@ export function shortCommit(commit: string): string {
 }
 
 /**
+ * What an update follows for a GitHub install: the latest tag, or the head of a branch.
+ */
+export type InstallTrack = "tag" | "branch";
+
+/**
+ * Update mode that an install record names.
+ *
+ * Only a GitHub record can say `branch`; a missing record, another kind, or a missing or unknown value is `tag`.
+ *
+ * @param record - Install record, or null when there is none
+ * @returns `branch` when the record says so, otherwise `tag`
+ */
+export function recordedTrack(record: { kind: string; quartoWizard?: { track?: InstallTrack } } | null): InstallTrack {
+	return record?.kind === "github" && record.quartoWizard?.track === "branch" ? "branch" : "tag";
+}
+
+/**
  * Seven-character commit in lower case that an install record holds, or null.
  *
  * The commit is `quarto-wizard.commit` for an unpinned source, or the commit ref of a pinned one.

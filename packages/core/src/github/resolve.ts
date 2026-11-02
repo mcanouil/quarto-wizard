@@ -44,7 +44,7 @@ export interface ResolvedVersion {
 	zipballUrl: string;
 	/** URL to download the tarball. */
 	tarballUrl: string;
-	/** Commit SHA if resolved to a commit (first 7 characters). */
+	/** Full commit SHA in lower case, if resolved to a commit. */
 	commitSha?: string;
 }
 
@@ -79,9 +79,9 @@ export async function resolveVersion(
 			// Fallback to default branch with commit tracking. The registry hint is
 			// preferred, then GitHub itself, because the branch is not always "main".
 			const branch = defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
-			const commitSha = (latestCommit ?? (await lookUpLatestCommit(owner, repo, options)))?.substring(0, 7);
+			const commitSha = (latestCommit ?? (await lookUpLatestCommit(owner, repo, options)))?.toLowerCase();
 			return {
-				tagName: commitSha ?? "HEAD",
+				tagName: commitSha?.substring(0, 7) ?? "HEAD",
 				zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
 				tarballUrl: constructArchiveUrl(owner, repo, branch, "branch", "tarball"),
 				commitSha,
@@ -126,7 +126,7 @@ export async function resolveVersion(
 				tagName: shortCommit,
 				zipballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "zip"),
 				tarballUrl: constructArchiveUrl(owner, repo, commitRef, "commit", "tarball"),
-				commitSha: shortCommit,
+				commitSha: commitRef.toLowerCase(),
 			};
 		}
 

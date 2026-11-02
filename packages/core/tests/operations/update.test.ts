@@ -1964,7 +1964,7 @@ describe("resolveVersion latest", () => {
 
 		const resolved = await resolveVersion("owner", "repo", { type: "latest" }, { defaultBranch: "main" });
 
-		expect(resolved.commitSha).toBe("abcdef1");
+		expect(resolved.commitSha).toBe("abcdef1234567890abcdef1234567890abcdef12");
 		expect(resolved.tagName).toBe("abcdef1");
 	});
 
@@ -1980,7 +1980,7 @@ describe("resolveVersion latest", () => {
 		);
 
 		expect(fetchLatestCommit).not.toHaveBeenCalled();
-		expect(resolved.commitSha).toBe("1234567");
+		expect(resolved.commitSha).toBe("1234567890");
 	});
 
 	it("records no commit when the latest commit lookup fails", async () => {

@@ -209,6 +209,15 @@ describe("fetchLatestCommit", () => {
 		);
 	});
 
+	it("reads the commits of a ref", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockResolvedValueOnce([{ sha: "def5678901234" }]);
+
+		await fetchLatestCommit("owner", "repo", { ref: "dev" });
+
+		expect(fetchJson.mock.calls[0]?.[0]).toBe("https://api.github.com/repos/owner/repo/commits?per_page=1&sha=dev");
+	});
+
 	it("returns null for a repository without commits", async () => {
 		vi.mocked(await import("../src/registry/http.js")).fetchJson.mockResolvedValueOnce([]);
 
@@ -288,7 +297,7 @@ describe("resolveVersion", () => {
 		expect(result.tagName).toBe("abc1234");
 		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/abc1234567890.zip");
 		expect(result.tarballUrl).toBe("https://github.com/owner/repo/archive/abc1234567890.tar.gz");
-		expect(result.commitSha).toBe("abc1234");
+		expect(result.commitSha).toBe("abc1234567890");
 	});
 
 	it("uses custom default branch when no releases/tags", async () => {
@@ -304,7 +313,7 @@ describe("resolveVersion", () => {
 
 		expect(result.tagName).toBe("abc1234");
 		expect(result.zipballUrl).toContain("refs/heads/develop");
-		expect(result.commitSha).toBe("abc1234");
+		expect(result.commitSha).toBe("abc1234567890");
 		expect(repoMetadataCalls(fetchJson)).toHaveLength(0);
 	});
 
@@ -363,7 +372,7 @@ describe("resolveVersion", () => {
 		const result = await resolveVersion("owner", "repo", { type: "latest" }, { path: "sub/dir" });
 
 		expect(result.tagName).toBe("fed9876");
-		expect(result.commitSha).toBe("fed9876");
+		expect(result.commitSha).toBe("fed9876543210");
 	});
 
 	it("does not look up the default branch when a release exists", async () => {
