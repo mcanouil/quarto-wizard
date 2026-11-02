@@ -1307,7 +1307,10 @@ describe("checkForUpdates", () => {
 
 			expect(result.checkFailure).toBeUndefined();
 			expect(result.repositoryFailures).toEqual([
-				{ repository: "quarto-ext/fontawesome", message: 'Branch "dev" not found in quarto-ext/fontawesome' },
+				{
+					repository: "quarto-ext/fontawesome",
+					message: 'Branch "dev" or its repository not found: quarto-ext/fontawesome',
+				},
 			]);
 			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["lightbox"]);
 		});

@@ -538,7 +538,7 @@ async function buildBranchUpdate(
 	const latestCommit = await lookups.latestCommit(candidate).catch((error: unknown) => {
 		// The head lookup of a named branch fails with the repository error when the branch is gone.
 		if (candidate.branch !== undefined && error instanceof RepositoryNotFoundError) {
-			throw new ExtensionError(`Branch "${candidate.branch}" not found in ${candidate.fullName}`);
+			throw new ExtensionError(`Branch "${candidate.branch}" or its repository not found: ${candidate.fullName}`);
 		}
 		throw error;
 	});
