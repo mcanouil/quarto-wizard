@@ -88,10 +88,12 @@ function extensionCapabilities(
  * Line of the tooltip that says where updates of a GitHub or registry extension come from.
  */
 function describeUpdateSource(extension: InstalledExtension | undefined): string {
+	const { ref } = splitSourceRef(extension?.manifest.source ?? "");
 	if (!extension || recordedTrack(extension.record) === "tag") {
-		return "Updates from: latest tag";
+		return !ref && extension?.record?.quartoWizard?.commit
+			? "Updates from: default branch until the first version tag"
+			: "Updates from: latest tag";
 	}
-	const { ref } = splitSourceRef(extension.manifest.source ?? "");
 	return ref ? `Updates from: ${ref} branch` : "Updates from: default branch";
 }
 

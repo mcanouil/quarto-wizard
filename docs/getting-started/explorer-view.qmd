@@ -311,7 +311,7 @@ You can always run `Quarto Wizard: Sign In with GitHub Session` from the Command
 To sign in or to set a token, see [Optional: GitHub Authentication](installation.qmd#optional-github-authentication).
 
 Hover over an extension to see its latest version and where it was found.
-The tooltip also shows `Updates from: latest tag`, `Updates from: default branch`, or `Updates from: <ref> branch`.
+The tooltip also shows `Updates from: latest tag`, `Updates from: default branch`, `Updates from: <ref> branch`, or `Updates from: default branch until the first version tag`.
 The details of an extension show `Installed from:`.
 When an update is available, they also show `Latest:` with the version and the source of the check, for example `Latest: 1.2.0 (checked on GitHub)`.
 

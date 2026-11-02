@@ -820,6 +820,25 @@ suite("Extensions Installed Commands Test Suite", () => {
 			);
 		});
 
+		test("a repository with no version tag asks without claiming a tag", async () => {
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+
+			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "branch", commit: HEAD }));
+
+			assert.deepStrictEqual(
+				dialogs.map((dialog) => dialog.message),
+				[
+					`Switch "${SWITCH_ID}" to the latest tag: the repository has no version tag yet, so install main @ fed9876 from the default branch (now 1.0.0)?`,
+				],
+			);
+			assert.ok(
+				messages.includes(
+					`Extension "${SWITCH_ID}" now updates from the latest tag, and follows the default branch until the first version tag.`,
+				),
+				messages.join("\n"),
+			);
+		});
+
 		test("branch to tag asks with the exact copy and installs the latest tag", async () => {
 			stubNetwork({ repositories: { [SWITCH_ID]: { githubTags: ["v1.3.0"] } } });
 

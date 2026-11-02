@@ -523,8 +523,11 @@ export class ExtensionsInstalled {
 					}
 
 					const toBranch = plan.track === "branch";
+					const noTagYet = !toBranch && plan.source.type === "github" && plan.source.version?.type === "commit";
 					const installed = plan.currentVersion ? ` (now ${plan.currentVersion})` : "";
-					const question = `Switch "${item.label}" to ${toBranch ? "the default branch" : "the latest tag"}: install ${plan.targetLabel}${installed}?`;
+					const question = noTagYet
+						? `Switch "${item.label}" to the latest tag: the repository has no version tag yet, so install ${plan.targetLabel} from the default branch${installed}?`
+						: `Switch "${item.label}" to ${toBranch ? "the default branch" : "the latest tag"}: install ${plan.targetLabel}${installed}?`;
 					const answer = await vscode.window.showWarningMessage(
 						plan.isDowngrade ? `${question} This is an older version than the one installed.` : question,
 						{ modal: true },
@@ -547,7 +550,9 @@ export class ExtensionsInstalled {
 					if (result === true) {
 						invalidateProviderCaches(item.workspaceFolder);
 						vscode.window.showInformationMessage(
-							`Extension "${item.label}" now updates from ${toBranch ? "the default branch" : "the latest tag"}.`,
+							noTagYet
+								? `Extension "${item.label}" now updates from the latest tag, and follows the default branch until the first version tag.`
+								: `Extension "${item.label}" now updates from ${toBranch ? "the default branch" : "the latest tag"}.`,
 						);
 						this.treeDataProvider.refreshAfterAction(context, view);
 					} else if (result === false) {

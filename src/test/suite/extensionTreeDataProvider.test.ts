@@ -407,7 +407,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.ok(tooltip.includes("Updates from: latest tag"), tooltip);
 		});
 
-		function trackedItem(source: string, track: "tag" | "branch" | undefined): ExtensionTreeItem {
+		function trackedItem(source: string, track: "tag" | "branch" | undefined, commit?: string): ExtensionTreeItem {
 			const extension: InstalledExtension = {
 				...createExtension({ source, sourceType: "github" }),
 				record: {
@@ -415,7 +415,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 					source,
 					kind: "github",
 					files: {},
-					...(track && { quartoWizard: { track } }),
+					...(track && { quartoWizard: { track, ...(commit && { commit }) } }),
 				},
 				recordStatus: "ok",
 			};
@@ -432,6 +432,12 @@ suite("Extension Tree Data Provider Test Suite", () => {
 
 			assert.ok(tooltip.includes("Updates from: latest tag"), tooltip);
 			assert.ok(!tooltip.includes("branch"), tooltip);
+		});
+
+		test("tooltip of a tag-mode extension that holds a commit follows the default branch until the first tag", () => {
+			const tooltip = String(trackedItem("quarto-ext/demo", "tag", "fed9876543210abcdef").tooltip);
+
+			assert.ok(tooltip.includes("Updates from: default branch until the first version tag"), tooltip);
 		});
 
 		test("tooltip of an extension with a record that names no mode says it updates from the latest tag", () => {
