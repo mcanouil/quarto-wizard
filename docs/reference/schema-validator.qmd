@@ -161,6 +161,9 @@ local values = schema.extract_meta_options(meta, 'iconify')
 
 `extract_meta_options` reads `meta.extensions.<extension_name>` and returns a plain Lua table.
 It keeps every key as the document wrote it, and it applies no default.
+A string value also keeps the text as the document wrote it.
+Raw HTML, straight quotes, `--`, `---` and `...` do not change.
+Other Markdown, such as `*x*`, becomes plain text.
 `validate_options` calls it, so a caller needs it only to validate by hand.
 
 ## List the Keys of a Mapping
@@ -189,7 +192,7 @@ The module reaches `pandoc` and `quarto` through its `_env` table only, which a 
 
 | Field                   | Job                                                    |
 | ----------------------- | ------------------------------------------------------ |
-| `stringify(value)`      | Shows a Pandoc value as plain text.                    |
+| `stringify(value)`      | Shows a Pandoc value as the plain text the source had. |
 | `pandoc_type(value)`    | Reports the Pandoc type of a value.                    |
 | `warn(message)`         | Sends a warning to `quarto.log.warning`, or to stderr. |
 | `report_error(message)` | Sends an error to `quarto.log.error`, or to stderr.    |

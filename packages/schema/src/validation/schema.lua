@@ -76,7 +76,7 @@ local _LITERAL_FILTER = {
 --- `'<b>A</b> & x'` would come back as `A & x`.
 --- @param value any Pandoc value
 --- @return string Plain text
-function _env.literal_text(value)
+function _env.stringify(value)
   return pandoc.utils.stringify(value:walk(_LITERAL_FILTER))
 end
 
@@ -763,7 +763,7 @@ local function _convert_pandoc_value(value)
   end
 
   if kind == 'Inlines' or kind == 'Blocks' or kind == 'Inline' or kind == 'Block' then
-    return _env.literal_text(value)
+    return _env.stringify(value)
   end
 
   if kind == 'List' then
