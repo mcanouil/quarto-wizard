@@ -27,11 +27,57 @@ M.SCHEMA_VERSION = 'https://m.canouil.dev/quarto-wizard/assets/schema/v2/extensi
 --- harness can install stubs before the first call.
 local _env = {}
 
---- Render a Pandoc value as plain text.
+--- The marks that a `Quoted` element had in the source.
+local _QUOTE_MARKS = { SingleQuote = "'", DoubleQuote = '"' }
+
+--- The characters that Pandoc's `smart` extension writes inside `Str`, mapped
+--- back to what the source had. A typographic character that the author typed
+--- also becomes ASCII, the same trade-off that `_QUOTE_MARKS` makes.
+local _SMART_CHARACTERS = {
+  ['‘'] = "'",
+  ['’'] = "'",
+  ['“'] = '"',
+  ['”'] = '"',
+  ['–'] = '--',
+  ['—'] = '---',
+  ['…'] = '...',
+}
+
+--- The walk that puts raw HTML, quotes and smart punctuation back as the
+--- source text.
+local _LITERAL_FILTER = {
+  Str = function(str)
+    local text = str.text
+    for typographic, ascii in pairs(_SMART_CHARACTERS) do
+      text = text:gsub(typographic, ascii)
+    end
+    return pandoc.Str(text)
+  end,
+  RawInline = function(raw)
+    return pandoc.Str(raw.text)
+  end,
+  RawBlock = function(raw)
+    return pandoc.Plain({ pandoc.Str(raw.text) })
+  end,
+  Quoted = function(quoted)
+    local mark = _QUOTE_MARKS[quoted.quotetype]
+    local inlines = pandoc.Inlines({ pandoc.Str(mark) })
+    inlines:extend(quoted.content)
+    inlines:insert(pandoc.Str(mark))
+    return inlines
+  end,
+}
+
+--- Render a Pandoc value as the plain text the document wrote.
+--- Quarto reads a metadata string as Markdown, so raw HTML arrives as
+--- `RawInline` or `RawBlock`, quotes arrive as `Quoted`, and `smart` turns
+--- `'`, `--`, `---` and `...` into typographic characters. `stringify` alone
+--- drops the raw HTML and keeps the typographic marks, so a label such as
+--- `'<b>A</b> & x'` would come back as `A & x`.
 --- @param value any Pandoc value
 --- @return string Plain text
 function _env.stringify(value)
-  return pandoc.utils.stringify(value)
+  return pandoc.utils.stringify(value:walk(_LITERAL_FILTER))
 end
 
 --- Report the Pandoc type of a value.

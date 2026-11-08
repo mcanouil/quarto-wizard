@@ -1955,6 +1955,58 @@ options:
 end)
 
 -- ============================================================================
+-- LITERAL METADATA STRINGS
+-- ============================================================================
+
+test('a metadata string keeps the raw HTML the document wrote', function()
+  local options = doc_options([[    label: '<b>A</b> & x']])
+  assert_eq(options.label, '<b>A</b> & x', 'the raw HTML should be kept')
+end)
+
+test('a metadata string keeps straight double quotes', function()
+  local options = doc_options([[    label: 'say "hi"']])
+  assert_eq(options.label, 'say "hi"', 'the double quotes should stay straight')
+end)
+
+test('a metadata string keeps straight single quotes', function()
+  local options = doc_options([[    label: "it is 'here'"]])
+  assert_eq(options.label, "it is 'here'", 'the single quotes should stay straight')
+end)
+
+test('a string nested in a list of maps keeps its literal text', function()
+  local options = doc_options([[    groups:
+      - name: a
+        label: '<i>"A"</i>']])
+  assert_eq(options.groups[1].label, '<i>"A"</i>', 'the nested label should be literal')
+  assert_eq(options.groups[1].name, 'a', 'the sibling value should be unchanged')
+end)
+
+test('a metadata string keeps a straight apostrophe', function()
+  local options = doc_options([[    label: "Don't panic"]])
+  assert_eq(options.label, "Don't panic", 'the apostrophe should stay straight')
+end)
+
+test('a metadata string keeps double and triple hyphens', function()
+  local options = doc_options([[    flag: "--verbose --- now"]])
+  assert_eq(options.flag, '--verbose --- now', 'the hyphens should not become dashes')
+end)
+
+test('a metadata string keeps three dots', function()
+  local options = doc_options([[    label: "wait..."]])
+  assert_eq(options.label, 'wait...', 'the dots should not become an ellipsis')
+end)
+
+test('a block metadata string keeps its block-level raw HTML', function()
+  local options = doc_options('    label: |\n      <section>text</section>')
+  assert_eq(options.label, '<section>text</section>', 'the raw block should be kept')
+end)
+
+test('Markdown emphasis in a metadata string is still flattened', function()
+  local options = doc_options('    label: "*x*"')
+  assert_eq(options.label, 'x', 'emphasis should flatten to its text')
+end)
+
+-- ============================================================================
 -- REPORT
 -- ============================================================================
 
