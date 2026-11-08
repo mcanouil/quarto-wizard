@@ -258,6 +258,11 @@ jobs:
           packages/schema/scripts/stamp-version.sh "${VERSION}"
           npm run build:schema
 
+          # `land` needs HEAD on the branch it lands on, and the checkout is
+          # detached at the commit of the dispatch. The branch starts at that
+          # commit, so the pin holds.
+          git switch -C main "${GITHUB_SHA}"
+
       # The gates. The package suite holds the keyword parity test, the
       # published copies test, and the test that the stamped version and the
       # meta-schema agree on their major. The Lua suite holds the validator
@@ -301,14 +306,6 @@ jobs:
             echo "::error file=packages/schema/CHANGELOG.md::${MESSAGE}"
             exit 1
           fi
-
-      # `land` needs HEAD on the branch it lands on, and the checkout above is
-      # detached at the commit of the dispatch. The branch is set to that
-      # commit, so the pin holds.
-      - name: Put the dispatched commit on main
-        if: ${{ steps.version.outputs.bump == 'true' }}
-        shell: bash
-        run: git switch -C main
 
       # Through the API and not `git push`, because GitHub signs a commit it
       # makes, and the tag that the release creates on it then shows as
