@@ -9,7 +9,7 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ### Bug Fixes
 
-- fix: Keep raw HTML and straight quotes in string options read from document metadata.
+- fix: Keep raw HTML, straight quotes, apostrophes, hyphens and dots as written in string options read from document metadata.
 
 ## 2.3.0
 
