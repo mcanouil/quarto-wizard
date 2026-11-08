@@ -163,6 +163,7 @@ local values = schema.extract_meta_options(meta, 'iconify')
 It keeps every key as the document wrote it, and it applies no default.
 A string value also keeps the text as the document wrote it.
 Raw HTML, straight quotes, `--`, `---` and `...` do not change.
+Typographic punctuation becomes its ASCII form, so a typed `—` becomes `---` and a curly quote becomes a straight quote.
 Other Markdown, such as `*x*`, becomes plain text.
 `validate_options` calls it, so a caller needs it only to validate by hand.
 
