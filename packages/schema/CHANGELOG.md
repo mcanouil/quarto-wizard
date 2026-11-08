@@ -7,6 +7,10 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+### Bug Fixes
+
+- fix: Keep raw HTML and straight quotes in string options read from document metadata.
+
 ## 2.3.0
 
 ### Features

@@ -27,11 +27,31 @@ M.SCHEMA_VERSION = 'https://m.canouil.dev/quarto-wizard/assets/schema/v2/extensi
 --- harness can install stubs before the first call.
 local _env = {}
 
---- Render a Pandoc value as plain text.
+--- The marks that a `Quoted` element had in the source.
+local _QUOTE_MARKS = { SingleQuote = "'", DoubleQuote = '"' }
+
+--- Render a Pandoc value as the plain text the document wrote.
+--- Quarto reads a metadata string as Markdown, so raw HTML arrives as
+--- `RawInline` and quotes arrive as `Quoted`. `stringify` drops the first and
+--- writes typographic marks for the second, so a label such as
+--- `'<b>A</b> & x'` would come back as `A & x`. The walk puts both back as the
+--- source text before `stringify` flattens the rest.
 --- @param value any Pandoc value
 --- @return string Plain text
 function _env.stringify(value)
-  return pandoc.utils.stringify(value)
+  local literal = value:walk({
+    RawInline = function(raw)
+      return pandoc.Str(raw.text)
+    end,
+    Quoted = function(quoted)
+      local mark = _QUOTE_MARKS[quoted.quotetype]
+      local inlines = pandoc.Inlines({ pandoc.Str(mark) })
+      inlines:extend(quoted.content)
+      inlines:insert(pandoc.Str(mark))
+      return inlines
+    end,
+  })
+  return pandoc.utils.stringify(literal)
 end
 
 --- Report the Pandoc type of a value.
