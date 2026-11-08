@@ -302,22 +302,32 @@ jobs:
             exit 1
           fi
 
+      # `land` needs HEAD on the branch it lands on, and the checkout above is
+      # detached at the commit of the dispatch. The branch is set to that
+      # commit, so the pin holds.
+      - name: Put the dispatched commit on main
+        if: ${{ steps.version.outputs.bump == 'true' }}
+        shell: bash
+        run: git switch -C main
+
+      # Through the API and not `git push`, because GitHub signs a commit it
+      # makes, and the tag that the release creates on it then shows as
+      # verified. `land` refuses the commit if `main` moved since the dispatch,
+      # and nothing is released.
       - name: Push the bump to main
         id: push
         if: ${{ steps.version.outputs.bump == 'true' }}
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git add packages/schema/CHANGELOG.md packages/schema/src/validation/schema.lua docs/assets/schema
-          git commit -m "ci: bump the extension schema to ${VERSION} :rocket:"
-
-          # A plain push, so it is a fast-forward. If `main` moved since the
-          # dispatch, git refuses it and says so, and nothing is released.
-          git push origin HEAD:main
-          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+        uses: mcanouil/release-actions/land@v1
+        with:
+          mode: push
+          files: |
+            packages/schema/CHANGELOG.md
+            packages/schema/src/validation/schema.lua
+            docs/assets/schema
+          version: ${{ steps.version.outputs.version }}
+          tag-prefix: schema-v
+          message: "ci: bump the extension schema to ${{ steps.version.outputs.version }} :rocket:"
+          token: ${{ steps.token.outputs.token }}
 
       # Drafted first, and published only once every asset is there, because
       # publication is the point of no return described at the guard above. A
