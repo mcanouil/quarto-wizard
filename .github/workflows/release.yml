@@ -167,11 +167,6 @@ jobs:
 
           npm run docs:build
 
-          # `land` needs HEAD on the branch it lands on, and the checkout above
-          # is detached at the commit `verify` built. The branch starts at that
-          # commit, so the pin holds.
-          git switch -C main "${GITHUB_SHA}"
-
       # Through the API and not `git push`, because GitHub signs a commit it
       # makes, and the tag that the release creates on it then shows as
       # verified. `land` refuses the commit if `main` moved since the dispatch,
