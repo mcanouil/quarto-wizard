@@ -57,7 +57,7 @@ jobs:
       # bump falls through to the commit the dispatch resolved, which `verify`
       # has just built. That is how a release recovers from a publish that
       # failed.
-      sha: ${{ steps.bump.outputs.sha || github.sha }}
+      sha: ${{ steps.land.outputs.sha || github.sha }}
 
     steps:
       # The bump is pushed to `main`. A dispatch from any other branch would
@@ -129,7 +129,7 @@ jobs:
         shell: bash
         run: npm ci
 
-      - name: Bump the version and push it to main
+      - name: Bump the version
         id: bump
         if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
         env:
@@ -153,6 +153,7 @@ jobs:
           npm run sync-metadata
 
           VERSION=$(jq -r .version package.json)
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           # The first heading alone, matched in full. A substitution on the
           # word rewrites the first match on every line, so an entry whose
           # prose carries it would be corrupted in the release notes.
@@ -166,14 +167,28 @@ jobs:
 
           npm run docs:build
 
-          git add CHANGELOG.md CITATION.cff package.json package-lock.json packages/*/package.json docs/
-          git commit -m "ci: bump version for release :rocket:"
-
-          # A plain push, so it is a fast-forward. If `main` moved since the
-          # dispatch, git refuses it and says so, and the bump belongs on the
-          # new tip.
-          git push origin HEAD:main
-          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+      # Through the API and not `git push`, because GitHub signs a commit it
+      # makes, and the tag that the release creates on it then shows as
+      # verified. `land` refuses the commit if `main` moved since the dispatch,
+      # and the bump belongs on the new tip.
+      - name: Push the bump to main
+        id: land
+        if: ${{ steps.check_unreleased.outputs.UNRELEASED_FOUND == 'true' }}
+        uses: mcanouil/release-actions/land@v1
+        with:
+          mode: push
+          files: |
+            CHANGELOG.md
+            CITATION.cff
+            package.json
+            package-lock.json
+            packages/core/package.json
+            packages/schema/package.json
+            packages/snippets/package.json
+            docs
+          version: ${{ steps.bump.outputs.version }}
+          message: "ci: bump version for release :rocket:"
+          token: ${{ steps.token.outputs.token }}
 
   package:
     runs-on: ubuntu-latest
