@@ -432,8 +432,9 @@ export async function fetchDefaultBranchHead(
 
 	try {
 		let location = new URL(await fetchRedirectLocation(archiveUrl, httpOptions));
-		if (location.hostname === "github.com" && RENAMED_ARCHIVE_PATH.test(location.pathname)) {
-			location = new URL(await fetchRedirectLocation(location.href, httpOptions));
+		// The token goes with this request, so only the github.com origin is followed, and without a query.
+		if (location.origin === "https://github.com" && RENAMED_ARCHIVE_PATH.test(location.pathname)) {
+			location = new URL(await fetchRedirectLocation(`${location.origin}${location.pathname}`, httpOptions));
 		}
 		const commit = location.hostname === "codeload.github.com" ? CODELOAD_COMMIT_PATH.exec(location.pathname) : null;
 		if (!commit) {

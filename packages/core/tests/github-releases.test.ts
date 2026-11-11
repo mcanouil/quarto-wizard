@@ -294,6 +294,22 @@ describe("fetchDefaultBranchHead", () => {
 		expect(fetchRedirectLocation.mock.calls[1]?.[0]).toBe("https://github.com/owner/new-repo/archive/HEAD.tar.gz");
 	});
 
+	it("drops the query of a renamed repository redirect", async () => {
+		const fetchRedirectLocation = await mockRedirect("https://github.com/owner/new-repo/archive/HEAD.tar.gz?x=1");
+		fetchRedirectLocation.mockResolvedValueOnce(`https://codeload.github.com/owner/new-repo/tar.gz/${SHA}`);
+
+		await fetchDefaultBranchHead("owner", "repo");
+
+		expect(fetchRedirectLocation.mock.calls[1]?.[0]).toBe("https://github.com/owner/new-repo/archive/HEAD.tar.gz");
+	});
+
+	it("does not follow a renamed repository redirect to another port", async () => {
+		const fetchRedirectLocation = await mockRedirect("https://github.com:8443/owner/new-repo/archive/HEAD.tar.gz");
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(NetworkError);
+		expect(fetchRedirectLocation).toHaveBeenCalledTimes(1);
+	});
+
 	it("rejects a redirect that holds no commit", async () => {
 		await mockRedirect("https://codeload.github.com/owner/repo/tar.gz/refs/heads/main");
 
