@@ -19,7 +19,8 @@ import {
 	VersionError,
 	isCancellationError,
 } from "../errors.js";
-import { fetchJson, fetchJsonPages } from "../registry/http.js";
+import { fetchJson, fetchJsonPages, fetchRedirectLocation } from "../registry/http.js";
+import { normaliseCommit } from "../types/manifest.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -77,13 +78,6 @@ interface RawRelease {
 	published_at: string;
 	prerelease: boolean;
 	draft: boolean;
-}
-
-/**
- * Raw repository response from GitHub API.
- */
-interface RawRepository {
-	default_branch: string;
 }
 
 /**
@@ -183,8 +177,17 @@ export function constructArchiveUrl(
 
 /**
  * Handle GitHub API errors.
+ *
+ * A caller can give `context`: `notFoundSuggestion` replaces the suggestion of
+ * a 404, and `wrapNetworkError` replaces a network error that no case below
+ * maps, such as a 5xx, so that the caller can name what it was doing.
  */
-function handleGitHubError(error: unknown, owner: string, repo: string): never {
+function handleGitHubError(
+	error: unknown,
+	owner: string,
+	repo: string,
+	context: { notFoundSuggestion?: string; wrapNetworkError?: (error: NetworkError) => NetworkError } = {},
+): never {
 	if (error instanceof SamlSsoError || error instanceof RateLimitError) {
 		throw error;
 	}
@@ -207,8 +210,12 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
 
 		if (status === 404) {
 			throw new RepositoryNotFoundError(`Repository not found: ${owner}/${repo}`, {
-				suggestion: "Check if the repository exists and you have access to it",
+				suggestion: context.notFoundSuggestion ?? "Check if the repository exists and you have access to it",
 			});
+		}
+
+		if (context.wrapNetworkError) {
+			throw context.wrapNetworkError(error);
 		}
 	}
 
@@ -283,43 +290,6 @@ export async function validateCommit(
 			});
 		}
 		handleGitHubError(error, owner, repo);
-	}
-}
-
-/**
- * Fetch the default branch of a repository.
- *
- * This is used only when no release, no tag and no registry entry give a
- * reference to install. A failed lookup returns `undefined`, so the caller keeps
- * its own fallback. A SAML SSO error is rethrown, because the user must act on
- * it, and a cancellation is rethrown, because the user asked the operation to
- * stop.
- *
- * @param owner - Repository owner
- * @param repo - Repository name
- * @param options - GitHub options
- * @returns Default branch name, or undefined when the lookup fails
- */
-export async function fetchDefaultBranch(
-	owner: string,
-	repo: string,
-	options: GitHubOptions = {},
-): Promise<string | undefined> {
-	const { auth, timeout, signal } = options;
-
-	try {
-		const raw = await fetchJson<RawRepository>(repoApiUrl(owner, repo), {
-			headers: getGitHubHeaders(auth),
-			timeout,
-			retries: 1,
-			signal,
-		});
-		return raw.default_branch || undefined;
-	} catch (error) {
-		if (error instanceof SamlSsoError || isCancellationError(error)) {
-			throw error;
-		}
-		return undefined;
 	}
 }
 
@@ -425,6 +395,86 @@ export async function fetchLatestCommit(
 		return raw[0]?.sha ?? null;
 	} catch (error) {
 		handleGitHubError(error, owner, repo);
+	}
+}
+
+/** Archive of the default branch on `codeload.github.com`, which names its commit. */
+const CODELOAD_COMMIT_PATH = /^\/[^/]+\/[^/]+\/(?:tar\.gz|zip)\/([0-9a-f]{40})$/i;
+
+/** Archive of the default branch of a renamed repository, on `github.com`. */
+const RENAMED_ARCHIVE_PATH = /^\/[^/]+\/[^/]+\/archive\/HEAD\.tar\.gz$/;
+
+const DEFAULT_BRANCH_HEAD_SUGGESTION =
+	"Check your internet connection and try again. If a proxy sits between you and github.com, check that it passes redirects through unchanged";
+
+/**
+ * Fetch the head commit of the default branch of a repository.
+ *
+ * GitHub serves the default branch at `archive/HEAD` and redirects it to an
+ * archive named by its commit, so the default branch is never named and no
+ * GitHub API request is made. The redirect of a renamed repository is
+ * followed once.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param options - GitHub options
+ * @returns Full commit SHA in lower case
+ * @throws NetworkError when the redirect does not name a commit
+ */
+export async function fetchDefaultBranchHead(
+	owner: string,
+	repo: string,
+	options: GitHubOptions = {},
+): Promise<string> {
+	const { auth, timeout, signal } = options;
+	const httpOptions = { headers: getAuthHeaders(auth, true), timeout, retries: 2, signal };
+	const archiveUrl = constructArchiveUrl(owner, repo, "HEAD", "commit", "tarball");
+
+	try {
+		let location = new URL(await fetchRedirectLocation(archiveUrl, httpOptions));
+		// The token goes with this request, so only the github.com origin is followed, and without a query.
+		if (location.origin === "https://github.com" && RENAMED_ARCHIVE_PATH.test(location.pathname)) {
+			location = new URL(await fetchRedirectLocation(`${location.origin}${location.pathname}`, httpOptions));
+		}
+		const commit = location.hostname === "codeload.github.com" ? CODELOAD_COMMIT_PATH.exec(location.pathname) : null;
+		if (!commit) {
+			throw new NetworkError(`unexpected redirect to ${location.origin}${location.pathname}`);
+		}
+		return normaliseCommit(commit[1]);
+	} catch (error) {
+		if (auth?.githubToken && error instanceof NetworkError && error.statusCode === 404) {
+			await throwSamlSsoError(owner, repo, options);
+		}
+		handleGitHubError(error, owner, repo, {
+			// GitHub also answers 404 for the archive of a repository without a commit.
+			notFoundSuggestion:
+				"Check that the repository exists, that you have access to it, and that it has at least one commit",
+			wrapNetworkError: (cause) =>
+				new NetworkError(`Cannot read the default branch head of ${owner}/${repo} from GitHub: ${cause.message}`, {
+					statusCode: cause.statusCode,
+					cause,
+					suggestion: DEFAULT_BRANCH_HEAD_SUGGESTION,
+				}),
+		});
+	}
+}
+
+/**
+ * Throw the SAML SSO error of a repository, if the API reports one.
+ *
+ * Only the API sends the `X-GitHub-SSO` header. `github.com` answers 404 to a
+ * token that SAML SSO blocks, so one API request tells that case apart from a
+ * missing repository. Any other answer returns, and the caller keeps its own
+ * error.
+ */
+async function throwSamlSsoError(owner: string, repo: string, options: GitHubOptions): Promise<void> {
+	const { auth, timeout, signal } = options;
+	try {
+		await fetchJson(repoApiUrl(owner, repo), { headers: getGitHubHeaders(auth), timeout, retries: 0, signal });
+	} catch (error) {
+		if (error instanceof SamlSsoError || isCancellationError(error)) {
+			throw error;
+		}
 	}
 }
 

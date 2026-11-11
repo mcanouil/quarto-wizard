@@ -16,6 +16,7 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
+- refactor: Remove the `defaultBranch` and `latestCommit` options of `ResolveVersionOptions` and `DownloadOptions` in `@quarto-wizard/core`. `resolveVersion()` now reads the head of the default branch from GitHub itself.
 
 ### New Features
 
@@ -46,6 +47,7 @@
 - fix: Keep the keys of `.quarto-source.yml` that Quarto Wizard does not write when it replaces an extension, so the data of Quarto 2 and other tools survives an update. (#537)
 - fix: Recognise a full commit of 40 characters as a commit pin.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
+- fix: Install and update the default branch of an extension from the archive GitHub serves for it, so the real default branch is installed and its commit recorded, even when the GitHub API is not available. Quarto Wizard no longer guesses `main`.
 
 ### Documentation
 

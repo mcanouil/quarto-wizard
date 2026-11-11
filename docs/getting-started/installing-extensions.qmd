@@ -245,7 +245,7 @@ A change of the setting does not change the extensions that you already installe
 To change the update source of an installed extension, right-click the extension and select **Change Update Source**.
 Quarto Wizard first shows the target and asks you to confirm, for example:
 
-`Switch "owner/ext" to the default branch: install main @ abc1234 (now 1.4.0)?`
+`Switch "owner/ext" to the default branch: install default branch @ abc1234 (now 1.4.0)?`
 
 When the target is an older version than the installed one, the message adds `This is an older version than the one installed.`
 After you confirm, Quarto Wizard reinstalls the extension from the new source.

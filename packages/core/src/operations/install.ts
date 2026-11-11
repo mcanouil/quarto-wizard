@@ -48,8 +48,7 @@ import {
 	cleanupExtraction,
 	type DiscoveredExtension,
 } from "../archive/extract.js";
-import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
-import { lookupRegistryEntry } from "../registry/search.js";
+import type { RegistryOptions } from "../registry/fetcher.js";
 
 /**
  * Source for extension installation.
@@ -402,25 +401,8 @@ export async function install(source: InstallSource, options: InstallOptions): P
 		onProgress?.({ phase: "resolving", message: "Resolving extension source..." });
 
 		if (source.type === "github") {
-			// Try to get registry info for default branch and latest commit
-			let defaultBranch: string | undefined;
-			let latestCommit: string | undefined;
-			try {
-				const registry = await fetchRegistry(options);
-				const entry = lookupRegistryEntry(registry, `${source.owner}/${source.repo}`);
-				if (entry) {
-					defaultBranch = entry.defaultBranchRef ?? undefined;
-					// The registry commit is the latest of the whole repository, not of the subdirectory.
-					latestCommit = source.subdirectory ? undefined : (entry.latestCommit ?? undefined);
-				}
-			} catch {
-				onProgress?.({ phase: "resolving", message: "Registry unavailable, using defaults." });
-			}
-
 			const result = await downloadGitHubArchive(source.owner, source.repo, source.version, {
 				auth,
-				defaultBranch,
-				latestCommit,
 				path: source.subdirectory,
 				track,
 				signal,
@@ -728,7 +710,7 @@ function formatResolvedSource(source: InstallSource, tagName?: string, commitSha
 		if (commitSha) {
 			return `${base}@${shortCommit(commitSha)}`;
 		}
-		return tagName && tagName !== "HEAD" ? `${base}@${tagName}` : base;
+		return tagName ? `${base}@${tagName}` : base;
 	}
 
 	return formatInstallSource(source);

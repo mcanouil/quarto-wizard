@@ -7,7 +7,6 @@ import { planSourceChange, reinstallTarget } from "../../src/operations/source.j
 import { parseInstallSource } from "../../src/operations/install.js";
 import type { InstalledExtension } from "../../src/filesystem/discovery.js";
 import type { SourceRecord } from "../../src/filesystem/sourceRecord.js";
-import { ExtensionError } from "../../src/errors.js";
 
 vi.mock("../../src/github/raw.js", () => ({
 	fetchRawFile: vi.fn().mockResolvedValue(null),
@@ -20,14 +19,16 @@ vi.mock("../../src/github/releases.js", async () => {
 		fetchReleases: vi.fn().mockResolvedValue([]),
 		fetchTags: vi.fn().mockResolvedValue([]),
 		fetchLatestCommit: vi.fn().mockResolvedValue(null),
-		fetchDefaultBranch: vi.fn().mockResolvedValue(undefined),
+		fetchDefaultBranchHead: vi.fn(),
 	};
 });
 
 import { fetchRawFile } from "../../src/github/raw.js";
-import { fetchDefaultBranch, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
+import { fetchDefaultBranchHead, fetchLatestCommit, fetchReleases, fetchTags } from "../../src/github/releases.js";
+import { NetworkError, RepositoryNotFoundError } from "../../src/errors.js";
 
 const FULL_SHA = "abcdef0123456789abcdef0123456789abcdef01";
+const PATH_SHA = "1234567890abcdef1234567890abcdef12345678";
 
 function githubSource(text: string) {
 	return parseInstallSource(text, () => false);
@@ -159,8 +160,8 @@ describe("planSourceChange", () => {
 		vi.clearAllMocks();
 		vi.mocked(fetchReleases).mockResolvedValue([]);
 		vi.mocked(fetchTags).mockResolvedValue([]);
-		vi.mocked(fetchLatestCommit).mockResolvedValue(FULL_SHA);
-		vi.mocked(fetchDefaultBranch).mockResolvedValue("main");
+		vi.mocked(fetchLatestCommit).mockResolvedValue(null);
+		vi.mocked(fetchDefaultBranchHead).mockResolvedValue(FULL_SHA);
 		vi.mocked(fetchRawFile).mockResolvedValue(null);
 	});
 
@@ -170,7 +171,7 @@ describe("planSourceChange", () => {
 			source: githubSource(`o/ext@${FULL_SHA}`),
 			recordSource: "o/ext",
 			track: "branch",
-			targetLabel: "main @ abcdef0",
+			targetLabel: "default branch @ abcdef0",
 			currentVersion: "1.4.0",
 			isDowngrade: false,
 		});
@@ -181,20 +182,29 @@ describe("planSourceChange", () => {
 		expect(change?.track).toBe("branch");
 	});
 
-	it("scopes the head lookup to a subdirectory", async () => {
-		await planSourceChange(installed("o/ext/sub"), {});
-		expect(fetchLatestCommit).toHaveBeenCalledWith("o", "ext", expect.objectContaining({ path: "sub" }));
-	});
-
-	it("falls back to a generic branch label when the default branch is unknown", async () => {
-		vi.mocked(fetchDefaultBranch).mockResolvedValue(undefined);
+	it("uses the head for a root source", async () => {
 		const change = await planSourceChange(installed("o/ext"), {});
-		expect(change?.targetLabel).toBe("default branch @ abcdef0");
+		expect(fetchLatestCommit).not.toHaveBeenCalled();
+		expect(change?.source).toEqual(githubSource(`o/ext@${FULL_SHA}`));
 	});
 
-	it("fails clearly when the default branch has no commit", async () => {
-		vi.mocked(fetchLatestCommit).mockResolvedValue(null);
-		await expect(planSourceChange(installed("o/ext"), {})).rejects.toThrow(ExtensionError);
+	it("uses the path commit at the head for a subdirectory", async () => {
+		vi.mocked(fetchLatestCommit).mockResolvedValue(PATH_SHA);
+		const change = await planSourceChange(installed("o/ext/sub"), {});
+		expect(fetchLatestCommit).toHaveBeenCalledWith("o", "ext", expect.objectContaining({ path: "sub", ref: FULL_SHA }));
+		expect(change?.source).toEqual(githubSource(`o/ext/sub@${PATH_SHA}`));
+		expect(change?.targetLabel).toBe("default branch @ 1234567");
+	});
+
+	it("falls back to the head when the path lookup fails", async () => {
+		vi.mocked(fetchLatestCommit).mockRejectedValue(new NetworkError("HTTP 500", { statusCode: 500 }));
+		const change = await planSourceChange(installed("o/ext/sub"), {});
+		expect(change?.source).toEqual(githubSource(`o/ext/sub@${FULL_SHA}`));
+	});
+
+	it("fails when the head lookup fails", async () => {
+		vi.mocked(fetchDefaultBranchHead).mockRejectedValue(new RepositoryNotFoundError("Repository not found: o/ext"));
+		await expect(planSourceChange(installed("o/ext"), {})).rejects.toBeInstanceOf(RepositoryNotFoundError);
 	});
 
 	it("targets the latest tag from branch mode and drops an explicit branch", async () => {
@@ -240,7 +250,7 @@ describe("planSourceChange", () => {
 			source: githubSource(`o/ext@${FULL_SHA}`),
 			recordSource: "o/ext",
 			track: "tag",
-			targetLabel: "main @ abcdef0",
+			targetLabel: "default branch @ abcdef0",
 			currentVersion: "1.4.0",
 			isDowngrade: false,
 		});
@@ -298,14 +308,14 @@ describe("planSourceChange", () => {
 	});
 
 	it("lower-cases the head commit in the source", async () => {
-		vi.mocked(fetchLatestCommit).mockResolvedValue(FULL_SHA.toUpperCase());
+		vi.mocked(fetchDefaultBranchHead).mockResolvedValue(FULL_SHA.toUpperCase());
 		const change = await planSourceChange(installed("o/ext"), {});
 		expect(change?.source).toEqual(githubSource(`o/ext@${FULL_SHA}`));
-		expect(change?.targetLabel).toBe("main @ abcdef0");
+		expect(change?.targetLabel).toBe("default branch @ abcdef0");
 	});
 
 	it("returns null for a source that is not on GitHub", async () => {
 		expect(await planSourceChange(installed("https://example.test/ext.zip", { kind: "url" }), {})).toBeNull();
-		expect(fetchLatestCommit).not.toHaveBeenCalled();
+		expect(fetchDefaultBranchHead).not.toHaveBeenCalled();
 	});
 });

@@ -66,41 +66,54 @@ vi.mock("../src/registry/http.js", () => {
 	return {
 		fetchJson,
 		fetchJsonPages: vi.fn((url: string, options: unknown) => fetchJson(url, options)),
+		fetchRedirectLocation: vi.fn().mockRejectedValue(new Error("Unexpected redirect lookup")),
 	};
 });
 
 import {
 	compareCommits,
+	fetchDefaultBranchHead,
 	fetchLatestCommit,
 	fetchReleases,
 	fetchTags,
 	constructArchiveUrl,
 } from "../src/github/releases.js";
 import { resolveVersion } from "../src/github/resolve.js";
-import { AuthenticationError, CancellationError, NetworkError, RateLimitError, SamlSsoError } from "../src/errors.js";
+import {
+	AuthenticationError,
+	CancellationError,
+	NetworkError,
+	RateLimitError,
+	RepositoryNotFoundError,
+	SamlSsoError,
+} from "../src/errors.js";
 
-const REPO_METADATA_URL = "https://api.github.com/repos/owner/repo";
-
-function isRepoMetadataUrl(url: string): boolean {
-	return url === REPO_METADATA_URL;
+/** Archive of a commit as `codeload.github.com` names it in the `archive/HEAD` redirect. */
+function codeload(sha: string): string {
+	return `https://codeload.github.com/owner/repo/tar.gz/${sha}`;
 }
 
-function repoMetadataCalls(fetchJson: { mock: { calls: unknown[][] } }): unknown[][] {
-	return fetchJson.mock.calls.filter((call) => typeof call[0] === "string" && isRepoMetadataUrl(call[0]));
+/** Answer the next `archive/HEAD` redirect lookup with a `Location`, or reject it with an error. */
+async function mockRedirect(answer: string | Error) {
+	const { fetchRedirectLocation } = vi.mocked(await import("../src/registry/http.js"));
+	if (answer instanceof Error) {
+		fetchRedirectLocation.mockRejectedValueOnce(answer);
+	} else {
+		fetchRedirectLocation.mockResolvedValueOnce(answer);
+	}
+	return fetchRedirectLocation;
 }
 
 /**
- * Build a `fetchJson` implementation for the three endpoints `resolveVersion` reads.
- * The releases and the tags endpoints answer with an empty list unless a test gives
- * one. The repository endpoint rejects unless a test gives an answer, so a test that
- * expects no default branch lookup fails when one is made.
+ * Build a `fetchJson` implementation for the endpoints `resolveVersion` reads.
+ * The releases and the tags endpoints answer with an empty list unless a test
+ * gives one. Any other endpoint rejects, so a test fails on an unexpected lookup.
  */
-function githubApiMock(endpoints: { releases?: unknown[]; tags?: unknown[]; repoMetadata?: () => Promise<unknown> }) {
-	const { releases = [], tags = [], repoMetadata } = endpoints;
+function githubApiMock(endpoints: { releases?: unknown[]; tags?: unknown[] }) {
+	const { releases = [], tags = [] } = endpoints;
 	return (url: string) => {
 		if (url.includes("/releases")) return Promise.resolve(releases);
 		if (url.includes("/tags")) return Promise.resolve(tags);
-		if (repoMetadata && isRepoMetadataUrl(url)) return repoMetadata();
 		return Promise.reject(new Error("Unknown URL"));
 	};
 }
@@ -239,6 +252,161 @@ describe("fetchLatestCommit", () => {
 	});
 });
 
+describe("fetchDefaultBranchHead", () => {
+	const SHA = "911b18ae14e559d8aaa1f7ba5e8305bd71b03a7e";
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("returns the sha of the codeload redirect", async () => {
+		const fetchRedirectLocation = await mockRedirect(`https://codeload.github.com/owner/repo/tar.gz/${SHA}`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+		expect(fetchRedirectLocation.mock.calls[0]?.[0]).toBe("https://github.com/owner/repo/archive/HEAD.tar.gz");
+	});
+
+	it("lower-cases the sha", async () => {
+		await mockRedirect(`https://codeload.github.com/owner/repo/tar.gz/${SHA.toUpperCase()}`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+	});
+
+	it("accepts the signed token query of a private repository", async () => {
+		await mockRedirect(`https://codeload.github.com/owner/repo/tar.gz/${SHA}?token=ABC`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+	});
+
+	it("sends the token to github.com", async () => {
+		const fetchRedirectLocation = await mockRedirect(`https://codeload.github.com/owner/repo/tar.gz/${SHA}`);
+
+		await fetchDefaultBranchHead("owner", "repo", { auth: { githubToken: "t", httpHeaders: [] } });
+
+		expect(fetchRedirectLocation.mock.calls[0]?.[1]?.headers).toMatchObject({ Authorization: "Bearer t" });
+	});
+
+	it("follows the redirect of a renamed repository once", async () => {
+		const fetchRedirectLocation = await mockRedirect("https://github.com/owner/new-repo/archive/HEAD.tar.gz");
+		fetchRedirectLocation.mockResolvedValueOnce(`https://codeload.github.com/owner/new-repo/tar.gz/${SHA}`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+		expect(fetchRedirectLocation.mock.calls[1]?.[0]).toBe("https://github.com/owner/new-repo/archive/HEAD.tar.gz");
+	});
+
+	it("drops the query of a renamed repository redirect", async () => {
+		const fetchRedirectLocation = await mockRedirect("https://github.com/owner/new-repo/archive/HEAD.tar.gz?x=1");
+		fetchRedirectLocation.mockResolvedValueOnce(`https://codeload.github.com/owner/new-repo/tar.gz/${SHA}`);
+
+		await fetchDefaultBranchHead("owner", "repo");
+
+		expect(fetchRedirectLocation.mock.calls[1]?.[0]).toBe("https://github.com/owner/new-repo/archive/HEAD.tar.gz");
+	});
+
+	it("does not follow a renamed repository redirect to another port", async () => {
+		const fetchRedirectLocation = await mockRedirect("https://github.com:8443/owner/new-repo/archive/HEAD.tar.gz");
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(NetworkError);
+		expect(fetchRedirectLocation).toHaveBeenCalledTimes(1);
+	});
+
+	it("rejects a redirect that holds no commit", async () => {
+		await mockRedirect("https://codeload.github.com/owner/repo/tar.gz/refs/heads/main");
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(NetworkError);
+		expect((error as NetworkError).message).toContain("owner/repo");
+	});
+
+	it("rejects a redirect to another host", async () => {
+		await mockRedirect(`https://example.com/owner/repo/tar.gz/${SHA}`);
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(NetworkError);
+		expect((error as NetworkError).message).toContain("owner/repo");
+	});
+
+	it("names the repository and keeps the status of a server error", async () => {
+		await mockRedirect(new NetworkError("HTTP 502: Bad Gateway", { statusCode: 502 }));
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(NetworkError);
+		expect((error as NetworkError).message).toContain("Cannot read the default branch head of owner/repo");
+		expect((error as NetworkError).message).toContain("HTTP 502");
+		expect((error as NetworkError).statusCode).toBe(502);
+		expect((error as NetworkError).suggestion).toContain("proxy");
+	});
+
+	it("suggests checking a proxy when the redirect is unexpected", async () => {
+		await mockRedirect("https://example.com/owner/repo/archive.tar.gz");
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect((error as NetworkError).suggestion).toContain("proxy");
+	});
+
+	it("maps a 404 to RepositoryNotFoundError", async () => {
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RepositoryNotFoundError);
+	});
+
+	it("asks the API whether SAML SSO blocks a token that gets a 404", async () => {
+		const samlUrl = "https://github.com/orgs/acme/sso?authorization_request=abc";
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockRejectedValueOnce(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl }));
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		const error = await fetchDefaultBranchHead("owner", "repo", { auth: { githubToken: "t", httpHeaders: [] } }).catch(
+			(e: unknown) => e,
+		);
+
+		expect(error).toBeInstanceOf(SamlSsoError);
+		expect(fetchJson.mock.calls[0]?.[0]).toBe("https://api.github.com/repos/owner/repo");
+	});
+
+	it("reports a 404 as not found when the API finds no SAML SSO block", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockRejectedValueOnce(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		await expect(
+			fetchDefaultBranchHead("owner", "repo", { auth: { githubToken: "t", httpHeaders: [] } }),
+		).rejects.toBeInstanceOf(RepositoryNotFoundError);
+	});
+
+	it("makes no API request for a 404 without a token", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RepositoryNotFoundError);
+		expect(fetchJson).not.toHaveBeenCalled();
+	});
+
+	it("says that a 404 can come from a repository without a commit", async () => {
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect((error as RepositoryNotFoundError).suggestion).toContain("at least one commit");
+	});
+
+	it("maps a 401 to AuthenticationError", async () => {
+		await mockRedirect(new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(AuthenticationError);
+	});
+
+	it("rethrows a RateLimitError", async () => {
+		await mockRedirect(new RateLimitError("HTTP 429: rate limit exceeded", { statusCode: 429 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RateLimitError);
+	});
+});
+
 describe("compareCommits", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -258,6 +426,8 @@ describe("compareCommits", () => {
 });
 
 describe("resolveVersion", () => {
+	const HEAD_SHA = "911b18ae14e559d8aaa1f7ba5e8305bd71b03a7e";
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
@@ -310,104 +480,97 @@ describe("resolveVersion", () => {
 		expect(result.commitSha).toBe("abc1234567890");
 	});
 
-	it("uses custom default branch when no releases/tags", async () => {
+	it("downloads the default branch by its head commit when no releases/tags", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
 		fetchJson.mockImplementation(githubApiMock({}));
+		await mockRedirect(codeload(HEAD_SHA));
 
-		const result = await resolveVersion(
-			"owner",
-			"repo",
-			{ type: "latest" },
-			{ defaultBranch: "develop", latestCommit: "abc1234567890" },
-		);
+		const result = await resolveVersion("owner", "repo", { type: "latest" });
 
-		expect(result.tagName).toBe("abc1234");
-		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/abc1234567890.zip");
-		expect(result.commitSha).toBe("abc1234567890");
+		expect(result.tagName).toBe("911b18a");
+		expect(result.zipballUrl).toBe(`https://github.com/owner/repo/archive/${HEAD_SHA}.zip`);
+		expect(result.tarballUrl).toBe(`https://github.com/owner/repo/archive/${HEAD_SHA}.tar.gz`);
+		expect(result.commitSha).toBe(HEAD_SHA);
 		expect(result.fromTag).toBe(false);
-		expect(repoMetadataCalls(fetchJson)).toHaveLength(0);
+		expect(fetchJson.mock.calls.some(([url]) => String(url).includes("/commits?"))).toBe(false);
 	});
 
-	it("reads the default branch from GitHub when no releases, tags or registry hint exist", async () => {
+	it("fails when the default branch head cannot be read", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation(githubApiMock({ repoMetadata: () => Promise.resolve({ default_branch: "master" }) }));
+		fetchJson.mockImplementation(githubApiMock({}));
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
 
-		const result = await resolveVersion("owner", "repo", { type: "latest" });
-
-		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/master.zip");
-		expect(result.tarballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/master.tar.gz");
-		expect(repoMetadataCalls(fetchJson)).toHaveLength(1);
+		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(RepositoryNotFoundError);
 	});
 
-	it("falls back to main when the default branch lookup fails", async () => {
-		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation(
-			githubApiMock({
-				repoMetadata: () => Promise.reject(new NetworkError("HTTP 403: rate limit exceeded", { statusCode: 403 })),
-			}),
-		);
-
-		const result = await resolveVersion("owner", "repo", { type: "latest" });
-
-		expect(result.tagName).toBe("HEAD");
-		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/main.zip");
-	});
-
-	it("propagates a SAML SSO error from the default branch lookup", async () => {
+	it("propagates a SAML SSO error from the default branch head lookup", async () => {
 		const samlUrl = "https://github.com/orgs/myorg/sso?authorization_request=abc";
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation(
-			githubApiMock({
-				repoMetadata: () =>
-					Promise.reject(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl })),
-			}),
-		);
+		fetchJson.mockImplementation(githubApiMock({}));
+		await mockRedirect(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl }));
 
 		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(SamlSsoError);
 	});
 
-	it("propagates a cancellation from the default branch lookup", async () => {
+	it("propagates a cancellation from the default branch head lookup", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation(githubApiMock({ repoMetadata: () => Promise.reject(new CancellationError()) }));
+		fetchJson.mockImplementation(githubApiMock({}));
+		await mockRedirect(new CancellationError());
 
 		await expect(resolveVersion("owner", "repo", { type: "latest" })).rejects.toBeInstanceOf(CancellationError);
 	});
 
-	it("records the latest commit of a path when no tag exists", async () => {
+	it("records the latest commit of a path at the head when no tag exists", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		const api = githubApiMock({ repoMetadata: () => Promise.resolve({ default_branch: "main" }) });
+		const api = githubApiMock({});
 		fetchJson.mockImplementation((url: string) =>
-			url.endsWith("/commits?per_page=1&path=sub%2Fdir") ? Promise.resolve([{ sha: "fed9876543210" }]) : api(url),
+			url.endsWith(`/commits?per_page=1&sha=${HEAD_SHA}&path=sub%2Fdir`)
+				? Promise.resolve([{ sha: "fed9876543210" }])
+				: api(url),
 		);
+		await mockRedirect(codeload(HEAD_SHA));
 
 		const result = await resolveVersion("owner", "repo", { type: "latest" }, { path: "sub/dir" });
 
 		expect(result.tagName).toBe("fed9876");
 		expect(result.commitSha).toBe("fed9876543210");
+		expect(result.tarballUrl).toBe(`https://github.com/owner/repo/archive/${HEAD_SHA}.tar.gz`);
+	});
+
+	it("records the head when the latest commit of a path cannot be read", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		const api = githubApiMock({});
+		fetchJson.mockImplementation((url: string) =>
+			url.includes("/commits?") ? Promise.reject(new NetworkError("HTTP 500", { statusCode: 500 })) : api(url),
+		);
+		await mockRedirect(codeload(HEAD_SHA));
+
+		const result = await resolveVersion("owner", "repo", { type: "latest" }, { path: "sub/dir" });
+
+		expect(result.commitSha).toBe(HEAD_SHA);
+		expect(result.tarballUrl).toBe(`https://github.com/owner/repo/archive/${HEAD_SHA}.tar.gz`);
 	});
 
 	it("does not look up the default branch when a release exists", async () => {
-		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		const { fetchJson, fetchRedirectLocation } = vi.mocked(await import("../src/registry/http.js"));
 		fetchJson.mockImplementation(githubApiMock({ releases: mockReleases }));
 
 		const result = await resolveVersion("owner", "repo", { type: "latest" });
 
 		expect(result.tagName).toBe("v2.0.0");
 		expect(result.fromTag).toBe(true);
-		expect(repoMetadataCalls(fetchJson)).toHaveLength(0);
+		expect(fetchRedirectLocation).not.toHaveBeenCalled();
 	});
 
 	it("downloads the default branch head by commit in branch mode, even when a release exists", async () => {
 		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		const api = githubApiMock({ releases: mockReleases, tags: mockTags });
-		fetchJson.mockImplementation((url: string) =>
-			url.endsWith("/commits?per_page=1") ? Promise.resolve([{ sha: "fed9876543210" }]) : api(url),
-		);
+		fetchJson.mockImplementation(githubApiMock({ releases: mockReleases, tags: mockTags }));
+		await mockRedirect(codeload(HEAD_SHA));
 
 		const result = await resolveVersion("owner", "repo", { type: "latest" }, { track: "branch" });
 
-		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/fed9876543210.zip");
-		expect(result.commitSha).toBe("fed9876543210");
+		expect(result.zipballUrl).toBe(`https://github.com/owner/repo/archive/${HEAD_SHA}.zip`);
+		expect(result.commitSha).toBe(HEAD_SHA);
 		expect(result.fromTag).toBe(false);
 		expect(fetchJson.mock.calls.some(([url]) => /\/(releases|tags)/.test(String(url)))).toBe(false);
 	});
@@ -428,15 +591,25 @@ describe("resolveVersion", () => {
 		expect(result.commitSha).toBe("fed9876543210");
 	});
 
-	it("falls back to the default branch archive in branch mode when the head lookup fails", async () => {
-		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
-		fetchJson.mockImplementation(githubApiMock({ repoMetadata: () => Promise.resolve({ default_branch: "main" }) }));
+	it("propagates a rate limit from the default branch head lookup in branch mode", async () => {
+		await mockRedirect(new RateLimitError("HTTP 429: rate limit exceeded", { statusCode: 429 }));
 
-		const result = await resolveVersion("owner", "repo", { type: "latest" }, { track: "branch" });
+		await expect(resolveVersion("owner", "repo", { type: "latest" }, { track: "branch" })).rejects.toBeInstanceOf(
+			RateLimitError,
+		);
+	});
 
-		expect(result.zipballUrl).toBe("https://github.com/owner/repo/archive/refs/heads/main.zip");
-		expect(result.commitSha).toBeUndefined();
-		expect(result.fromTag).toBe(false);
+	it("does not read the default branch head for an explicit branch", async () => {
+		const { fetchJson, fetchRedirectLocation } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockImplementation((url: string) => {
+			if (url.includes("/branches/")) return Promise.resolve({ name: "dev" });
+			if (url.includes("/commits?")) return Promise.resolve([{ sha: "fed9876543210" }]);
+			return Promise.reject(new Error(`Unknown URL ${url}`));
+		});
+
+		await resolveVersion("owner", "repo", { type: "branch", branch: "dev" });
+
+		expect(fetchRedirectLocation).not.toHaveBeenCalled();
 	});
 
 	it("falls back to the archive of an explicit branch when its head lookup fails", async () => {

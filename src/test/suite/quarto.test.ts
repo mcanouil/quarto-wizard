@@ -173,6 +173,10 @@ suite("Quarto Utils Test Suite", () => {
 					if (url.startsWith("https://api.github.com/repos/acme/demo/commits")) {
 						return json([{ sha: HEAD_COMMIT }]);
 					}
+					if (url === "https://github.com/acme/demo/archive/HEAD.tar.gz") {
+						const location = `https://codeload.github.com/acme/demo/tar.gz/${HEAD_COMMIT}`;
+						return new Response(null, { status: 302, headers: { Location: location } });
+					}
 					if (url === COMMIT_ARCHIVE_URL && archiveBody) {
 						return new Response(new Uint8Array(archiveBody), { status: 200 });
 					}
