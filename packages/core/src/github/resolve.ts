@@ -152,9 +152,7 @@ async function resolveBranchHead(
 	options: ResolveVersionOptions,
 ): Promise<ResolvedVersion> {
 	if (branch === undefined) {
-		const head = await fetchDefaultBranchHead(owner, repo, options);
-		const pathCommit = options.path ? await lookUpLatestCommit(owner, repo, { ...options, ref: head }) : undefined;
-		const commitSha = normaliseCommit(pathCommit ?? head);
+		const { head, commit: commitSha } = await resolveDefaultBranchCommit(owner, repo, options);
 		return {
 			tagName: shortCommit(commitSha),
 			...commitArchive(owner, repo, head),
@@ -181,6 +179,24 @@ async function resolveBranchHead(
 }
 
 /**
+ * Resolve the commit that an install of the default branch records.
+ *
+ * `head` is the head of the default branch, read from its `archive/HEAD`
+ * redirect, and is the commit to download. `commit` is the latest commit of
+ * `path` at that head, or `head` itself for the repository root or when the
+ * path lookup fails.
+ */
+export async function resolveDefaultBranchCommit(
+	owner: string,
+	repo: string,
+	options: GitHubOptions & { path?: string },
+): Promise<{ head: string; commit: string }> {
+	const head = await fetchDefaultBranchHead(owner, repo, options);
+	const pathCommit = options.path ? await lookUpLatestCommit(owner, repo, { ...options, ref: head }) : undefined;
+	return { head, commit: normaliseCommit(pathCommit ?? head) };
+}
+
+/**
  * Archive URLs of a commit.
  */
 function commitArchive(owner: string, repo: string, commit: string): { zipballUrl: string; tarballUrl: string } {
@@ -197,7 +213,7 @@ function commitArchive(owner: string, repo: string, commit: string): { zipballUr
  * with the head commit for a subdirectory of the default branch. A SAML SSO
  * error and a cancellation are rethrown, because the user must act on them.
  */
-export async function lookUpLatestCommit(
+async function lookUpLatestCommit(
 	owner: string,
 	repo: string,
 	options: GitHubOptions & { path?: string; ref?: string },

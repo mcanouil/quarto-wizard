@@ -18,7 +18,9 @@ import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFi
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
 const RATE_LIMITED = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
-const PINNED_COMMIT = "4f3c2a1b9d8e7f60514233a4b5c6d7e8f9012345";
+// The pinned fixture has no version tag, so an update check reads its default branch head.
+// This head is the pinned commit, so the pinned extension is up to date.
+const PINNED_UP_TO_DATE = { "acme/pinned-demo": { latestCommit: "4f3c2a1b9d8e7f60514233a4b5c6d7e8f9012345" } };
 
 const quartoModule = quarto as {
 	installQuartoExtension: typeof quarto.installQuartoExtension;
@@ -117,14 +119,9 @@ suite("Extensions Installed Commands Test Suite", () => {
 		return new ExtensionTreeItem(id, vscode.TreeItemCollapsibleState.Collapsed, FIXTURE_ROOT, extensions[id]);
 	}
 
-	// The pinned fixture has no version tag, so a check reads its default branch head. Unless a test
-	// says otherwise, that head is the pinned commit, and the extension is up to date.
 	function stubNetwork(options: UpdateBoundaryOptions): void {
 		restoreBoundary();
-		restoreBoundary = stubUpdateBoundary({
-			...options,
-			repositories: { "acme/pinned-demo": { latestCommit: PINNED_COMMIT }, ...options.repositories },
-		});
+		restoreBoundary = stubUpdateBoundary(options);
 	}
 
 	function cancelEveryProgress(): void {
@@ -156,6 +153,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	function stubTwoUpdates(): void {
 		stubNetwork({
 			repositories: {
+				...PINNED_UP_TO_DATE,
 				"acme/registry-demo": { githubTags: ["v1.3.0"] },
 				"acme/github-demo": { githubTags: ["v1.3.0"] },
 			},
@@ -382,7 +380,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 	});
 
 	test("update all installs nothing when every extension is up to date", async () => {
-		stubNetwork({ repositories: { "acme/registry-demo": { githubTags: ["v1.0.0"] } } });
+		stubNetwork({ repositories: { ...PINNED_UP_TO_DATE, "acme/registry-demo": { githubTags: ["v1.0.0"] } } });
 
 		await runCommand("updateAll");
 
@@ -392,7 +390,11 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 	test("update all reports the repositories it could not check", async () => {
 		stubNetwork({
-			repositories: { "acme/registry-demo": { githubTags: ["v1.0.0"] }, "acme/github-demo": { githubStatus: 404 } },
+			repositories: {
+				...PINNED_UP_TO_DATE,
+				"acme/registry-demo": { githubTags: ["v1.0.0"] },
+				"acme/github-demo": { githubStatus: 404 },
+			},
 		});
 
 		await runCommand("updateAll");
@@ -1033,7 +1035,11 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 	test("update all counts the repositories it could not check in its summary", async () => {
 		stubNetwork({
-			repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 404 } },
+			repositories: {
+				...PINNED_UP_TO_DATE,
+				"acme/registry-demo": { githubTags: ["v1.3.0"] },
+				"acme/github-demo": { githubStatus: 404 },
+			},
 		});
 
 		await runCommand("updateAll");
@@ -1073,7 +1079,11 @@ suite("Extensions Installed Commands Test Suite", () => {
 	test("update all reports a repository that denies access and keeps the other results", async () => {
 		stubNetwork({
 			token: "test-token",
-			repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"] }, "acme/github-demo": { githubStatus: 403 } },
+			repositories: {
+				...PINNED_UP_TO_DATE,
+				"acme/registry-demo": { githubTags: ["v1.3.0"] },
+				"acme/github-demo": { githubStatus: 403 },
+			},
 		});
 
 		await runCommand("updateAll");

@@ -12,7 +12,6 @@ import * as semver from "semver";
 import type { InstalledExtension } from "../filesystem/discovery.js";
 import {
 	getEffectiveSourceType,
-	normaliseCommit,
 	recordedTrack,
 	shortCommit,
 	splitSourceRef,
@@ -25,8 +24,8 @@ import type { InstallSource } from "./install.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { fetchRawFile } from "../github/raw.js";
 import { installedVersionFloor, readSubdirectoryVersion } from "./versions.js";
-import { fetchDefaultBranchHead, type GitHubOptions } from "../github/releases.js";
-import { lookUpLatestCommit } from "../github/resolve.js";
+import type { GitHubOptions } from "../github/releases.js";
+import { resolveDefaultBranchCommit } from "../github/resolve.js";
 
 /**
  * What an install of a GitHub extension downloads and what it records.
@@ -188,12 +187,10 @@ async function headTarget(
 	currentVersion: string | null,
 	options: GitHubOptions,
 ): Promise<SourceChange> {
-	const head = await fetchDefaultBranchHead(locator.owner, locator.repo, options);
-	const commit = normaliseCommit(
-		(locator.subdirectory
-			? await lookUpLatestCommit(locator.owner, locator.repo, { ...options, path: locator.subdirectory, ref: head })
-			: undefined) ?? head,
-	);
+	const { commit } = await resolveDefaultBranchCommit(locator.owner, locator.repo, {
+		...options,
+		path: locator.subdirectory,
+	});
 	return {
 		source: githubInstallSource(locator, { type: "commit", commit }),
 		recordSource: base,

@@ -19,6 +19,7 @@ import {
 	VersionError,
 } from "../errors.js";
 import { fetchJson, fetchJsonPages, fetchRedirectLocation } from "../registry/http.js";
+import { normaliseCommit } from "../types/manifest.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -175,8 +176,16 @@ export function constructArchiveUrl(
 
 /**
  * Handle GitHub API errors.
+ *
+ * `wrapNetworkError`, when given, replaces a network error that no case below
+ * maps, such as a 5xx, so that the caller can name what it was doing.
  */
-function handleGitHubError(error: unknown, owner: string, repo: string): never {
+function handleGitHubError(
+	error: unknown,
+	owner: string,
+	repo: string,
+	wrapNetworkError?: (error: NetworkError) => NetworkError,
+): never {
 	if (error instanceof SamlSsoError || error instanceof RateLimitError) {
 		throw error;
 	}
@@ -201,6 +210,10 @@ function handleGitHubError(error: unknown, owner: string, repo: string): never {
 			throw new RepositoryNotFoundError(`Repository not found: ${owner}/${repo}`, {
 				suggestion: "Check if the repository exists and you have access to it",
 			});
+		}
+
+		if (wrapNetworkError) {
+			throw wrapNetworkError(error);
 		}
 	}
 
@@ -413,7 +426,7 @@ export async function fetchDefaultBranchHead(
 ): Promise<string> {
 	const { auth, timeout, signal } = options;
 	const httpOptions = { headers: getAuthHeaders(auth, true), timeout, retries: 2, signal };
-	const archiveUrl = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/archive/HEAD.tar.gz`;
+	const archiveUrl = constructArchiveUrl(owner, repo, "HEAD", "commit", "tarball");
 
 	try {
 		let location = new URL(await fetchRedirectLocation(archiveUrl, httpOptions));
@@ -424,19 +437,19 @@ export async function fetchDefaultBranchHead(
 		if (!commit) {
 			throw new NetworkError(`unexpected redirect to ${location.origin}${location.pathname}`);
 		}
-		return commit[1].toLowerCase();
+		return normaliseCommit(commit[1]);
 	} catch (error) {
-		// 401, 403 and 404 get their own error classes, which already name the repository.
-		const status = error instanceof NetworkError ? error.statusCode : undefined;
-		const ownClass = error instanceof SamlSsoError || error instanceof RateLimitError;
-		if (error instanceof NetworkError && !ownClass && status !== 401 && status !== 403 && status !== 404) {
-			throw new NetworkError(`Cannot read the default branch head of ${owner}/${repo} from GitHub: ${error.message}`, {
-				statusCode: status,
-				cause: error,
-				suggestion: DEFAULT_BRANCH_HEAD_SUGGESTION,
-			});
-		}
-		handleGitHubError(error, owner, repo);
+		handleGitHubError(
+			error,
+			owner,
+			repo,
+			(cause) =>
+				new NetworkError(`Cannot read the default branch head of ${owner}/${repo} from GitHub: ${cause.message}`, {
+					statusCode: cause.statusCode,
+					cause,
+					suggestion: DEFAULT_BRANCH_HEAD_SUGGESTION,
+				}),
+		);
 	}
 }
 

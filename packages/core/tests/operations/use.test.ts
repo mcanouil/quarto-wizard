@@ -21,11 +21,6 @@ vi.mock("../../src/github/download.js", async (importOriginal) => ({
 	downloadGitHubArchive: vi.fn(),
 }));
 
-vi.mock("../../src/registry/fetcher.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../../src/registry/fetcher.js")>()),
-	fetchRegistry: vi.fn().mockRejectedValue(new Error("registry offline")),
-}));
-
 describe("getTemplateFiles", () => {
 	let tempDir: string;
 

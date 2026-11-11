@@ -26,11 +26,6 @@ export interface HttpOptions {
 	headers?: Record<string, string>;
 	/** AbortSignal for cancellation. */
 	signal?: AbortSignal;
-	/**
-	 * Redirect mode (default: `follow`). With `manual`, a 3xx answer is handed
-	 * to the caller instead of being followed or treated as an error.
-	 */
-	redirect?: "follow" | "manual";
 }
 
 const DEFAULT_TIMEOUT = 30000;
@@ -154,6 +149,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
  * @param requestHeaders - Headers to send
  * @param processResponse - Callback to extract the desired value from the response
  * @param options - HTTP options
+ * @param redirect - Redirect mode; with `manual`, a 3xx answer goes to `processResponse`
  * @returns Processed response value
  */
 async function fetchWithRetry<T>(
@@ -161,6 +157,7 @@ async function fetchWithRetry<T>(
 	requestHeaders: Record<string, string>,
 	processResponse: (response: Response) => Promise<T>,
 	options: HttpOptions = {},
+	redirect: "follow" | "manual" = "follow",
 ): Promise<T> {
 	const {
 		timeout = DEFAULT_TIMEOUT,
@@ -168,7 +165,6 @@ async function fetchWithRetry<T>(
 		retryDelay = DEFAULT_RETRY_DELAY,
 		headers = {},
 		signal,
-		redirect = "follow",
 	} = options;
 
 	let lastError: Error | undefined;
@@ -189,8 +185,7 @@ async function fetchWithRetry<T>(
 				signal,
 			);
 
-			const handedRedirect = redirect === "manual" && response.status >= 300 && response.status < 400;
-			if (!response.ok && !handedRedirect) {
+			if (!response.ok && !(redirect === "manual" && isRedirect(response.status))) {
 				const samlError = detectSamlSsoError(response, `HTTP ${response.status}`);
 				if (samlError) {
 					throw samlError;
@@ -298,7 +293,7 @@ export async function fetchText(url: string, options: HttpOptions = {}): Promise
  * Read where a URL redirects to, without following the redirect.
  *
  * @param url - URL that answers with a redirect
- * @param options - HTTP options; `redirect` is always `manual`
+ * @param options - HTTP options
  * @returns Absolute URL of the `Location` header
  * @throws NetworkError when the answer is not a redirect or has no `Location`
  */
@@ -307,14 +302,21 @@ export async function fetchRedirectLocation(url: string, options: HttpOptions = 
 		url,
 		{ "User-Agent": USER_AGENT },
 		async (response) => {
+			// Only the header is read, so the body is released at once and the connection can be reused.
+			await response.body?.cancel();
 			const location = response.headers.get("location");
-			if (response.status < 300 || response.status >= 400 || !location) {
+			if (!isRedirect(response.status) || !location) {
 				throw new NetworkError(`HTTP ${response.status}: expected a redirect from ${url}`, {
 					statusCode: response.status,
 				});
 			}
 			return new URL(location, url).href;
 		},
-		{ ...options, redirect: "manual" },
+		options,
+		"manual",
 	);
+}
+
+function isRedirect(status: number): boolean {
+	return status >= 300 && status < 400;
 }

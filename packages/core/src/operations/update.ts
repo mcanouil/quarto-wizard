@@ -418,15 +418,12 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 		},
 		latestCommit(candidate) {
 			const { subdirectory, branch } = candidate;
-			// The head of the default branch comes from its archive redirect, without the GitHub API.
-			if (branch === undefined && !subdirectory) {
-				return once(`${candidate.fullName.toLowerCase()}#head`, () =>
-					fetchDefaultBranchHead(candidate.owner, candidate.repo, options),
-				);
-			}
 			const key = `${candidate.fullName.toLowerCase()}#commit@${branch ?? ""}:${subdirectory ?? ""}`;
+			// The head of the default branch comes from its archive redirect, without the GitHub API.
 			return once(key, () =>
-				fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory, ref: branch }),
+				branch === undefined && !subdirectory
+					? fetchDefaultBranchHead(candidate.owner, candidate.repo, options)
+					: fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory, ref: branch }),
 			);
 		},
 		subdirectoryVersion(candidate, ref) {

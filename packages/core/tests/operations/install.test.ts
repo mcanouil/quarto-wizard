@@ -21,7 +21,6 @@ import {
 import { normaliseSubdirectory } from "../../src/archive/security.js";
 import { resolveExtensionId } from "../../src/operations/internal.js";
 import { downloadGitHubArchive } from "../../src/github/download.js";
-import { fetchRegistry } from "../../src/registry/fetcher.js";
 import {
 	createSubdirectoryRepositoryArchive,
 	SUBDIRECTORY_REPOSITORY_TAG,
@@ -30,11 +29,6 @@ import {
 vi.mock("../../src/github/download.js", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../src/github/download.js")>()),
 	downloadGitHubArchive: vi.fn(),
-}));
-
-vi.mock("../../src/registry/fetcher.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../../src/registry/fetcher.js")>()),
-	fetchRegistry: vi.fn().mockRejectedValue(new Error("registry offline")),
 }));
 
 describe("parseInstallSource", () => {

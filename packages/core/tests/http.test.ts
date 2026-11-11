@@ -362,6 +362,18 @@ describe("fetchRedirectLocation", () => {
 		expect(vi.mocked(proxyFetch).mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
 	});
 
+	it("releases the body of the redirect", async () => {
+		const cancel = vi.fn();
+		const body = new ReadableStream({ cancel });
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response(body, { status: 302, headers: { location: `https://codeload.github.com/o/r/tar.gz/${SHA}` } }),
+		);
+
+		await fetchRedirectLocation(ARCHIVE_URL, { retries: 0 });
+
+		expect(cancel).toHaveBeenCalledTimes(1);
+	});
+
 	it("resolves a relative Location", async () => {
 		vi.mocked(proxyFetch).mockResolvedValueOnce(
 			new Response(null, { status: 302, headers: { location: `/o/r/tar.gz/${SHA}` } }),
