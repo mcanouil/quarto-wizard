@@ -19,7 +19,7 @@ import {
 	VersionError,
 	isCancellationError,
 } from "../errors.js";
-import { fetchJson, fetchJsonPages } from "../registry/http.js";
+import { fetchJson, fetchJsonPages, fetchRedirectLocation } from "../registry/http.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -423,6 +423,52 @@ export async function fetchLatestCommit(
 			signal,
 		});
 		return raw[0]?.sha ?? null;
+	} catch (error) {
+		handleGitHubError(error, owner, repo);
+	}
+}
+
+/** Archive of the default branch on `codeload.github.com`, which names its commit. */
+const CODELOAD_COMMIT_PATH = /^\/[^/]+\/[^/]+\/(?:tar\.gz|zip)\/([0-9a-f]{40})$/i;
+
+/** Archive of the default branch of a renamed repository, on `github.com`. */
+const RENAMED_ARCHIVE_PATH = /^\/[^/]+\/[^/]+\/archive\/HEAD\.tar\.gz$/;
+
+/**
+ * Fetch the head commit of the default branch of a repository.
+ *
+ * GitHub serves the default branch at `archive/HEAD` and redirects it to an
+ * archive named by its commit, so the default branch is never named and no
+ * GitHub API request is made. The redirect of a renamed repository is
+ * followed once.
+ *
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param options - GitHub options
+ * @returns Full commit SHA in lower case
+ * @throws NetworkError when the redirect does not name a commit
+ */
+export async function fetchDefaultBranchHead(
+	owner: string,
+	repo: string,
+	options: GitHubOptions = {},
+): Promise<string> {
+	const { auth, timeout, signal } = options;
+	const httpOptions = { headers: getAuthHeaders(auth, true), timeout, retries: 2, signal };
+	const archiveUrl = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/archive/HEAD.tar.gz`;
+
+	try {
+		let location = new URL(await fetchRedirectLocation(archiveUrl, httpOptions));
+		if (location.hostname === "github.com" && RENAMED_ARCHIVE_PATH.test(location.pathname)) {
+			location = new URL(await fetchRedirectLocation(location.href, httpOptions));
+		}
+		const commit = location.hostname === "codeload.github.com" ? CODELOAD_COMMIT_PATH.exec(location.pathname) : null;
+		if (!commit) {
+			throw new NetworkError(
+				`Cannot read the default branch head of ${owner}/${repo} from GitHub: unexpected redirect to ${location.origin}${location.pathname}`,
+			);
+		}
+		return commit[1].toLowerCase();
 	} catch (error) {
 		handleGitHubError(error, owner, repo);
 	}

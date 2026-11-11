@@ -66,18 +66,27 @@ vi.mock("../src/registry/http.js", () => {
 	return {
 		fetchJson,
 		fetchJsonPages: vi.fn((url: string, options: unknown) => fetchJson(url, options)),
+		fetchRedirectLocation: vi.fn().mockRejectedValue(new Error("Unexpected redirect lookup")),
 	};
 });
 
 import {
 	compareCommits,
+	fetchDefaultBranchHead,
 	fetchLatestCommit,
 	fetchReleases,
 	fetchTags,
 	constructArchiveUrl,
 } from "../src/github/releases.js";
 import { resolveVersion } from "../src/github/resolve.js";
-import { AuthenticationError, CancellationError, NetworkError, RateLimitError, SamlSsoError } from "../src/errors.js";
+import {
+	AuthenticationError,
+	CancellationError,
+	NetworkError,
+	RateLimitError,
+	RepositoryNotFoundError,
+	SamlSsoError,
+} from "../src/errors.js";
 
 const REPO_METADATA_URL = "https://api.github.com/repos/owner/repo";
 
@@ -236,6 +245,95 @@ describe("fetchLatestCommit", () => {
 
 		expect(error).toBeInstanceOf(AuthenticationError);
 		expect((error as AuthenticationError).cause).toBe(forbidden);
+	});
+});
+
+describe("fetchDefaultBranchHead", () => {
+	const SHA = "911b18ae14e559d8aaa1f7ba5e8305bd71b03a7e";
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	async function redirectTo(location: string | Error) {
+		const { fetchRedirectLocation } = vi.mocked(await import("../src/registry/http.js"));
+		if (location instanceof Error) {
+			fetchRedirectLocation.mockRejectedValueOnce(location);
+		} else {
+			fetchRedirectLocation.mockResolvedValueOnce(location);
+		}
+		return fetchRedirectLocation;
+	}
+
+	it("returns the sha of the codeload redirect", async () => {
+		const fetchRedirectLocation = await redirectTo(`https://codeload.github.com/owner/repo/tar.gz/${SHA}`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+		expect(fetchRedirectLocation.mock.calls[0]?.[0]).toBe("https://github.com/owner/repo/archive/HEAD.tar.gz");
+	});
+
+	it("lower-cases the sha", async () => {
+		await redirectTo(`https://codeload.github.com/owner/repo/tar.gz/${SHA.toUpperCase()}`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+	});
+
+	it("accepts the signed token query of a private repository", async () => {
+		await redirectTo(`https://codeload.github.com/owner/repo/tar.gz/${SHA}?token=ABC`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+	});
+
+	it("sends the token to github.com", async () => {
+		const fetchRedirectLocation = await redirectTo(`https://codeload.github.com/owner/repo/tar.gz/${SHA}`);
+
+		await fetchDefaultBranchHead("owner", "repo", { auth: { githubToken: "t", httpHeaders: [] } });
+
+		expect(fetchRedirectLocation.mock.calls[0]?.[1]?.headers).toMatchObject({ Authorization: "Bearer t" });
+	});
+
+	it("follows the redirect of a renamed repository once", async () => {
+		const fetchRedirectLocation = await redirectTo("https://github.com/owner/new-repo/archive/HEAD.tar.gz");
+		fetchRedirectLocation.mockResolvedValueOnce(`https://codeload.github.com/owner/new-repo/tar.gz/${SHA}`);
+
+		expect(await fetchDefaultBranchHead("owner", "repo")).toBe(SHA);
+		expect(fetchRedirectLocation.mock.calls[1]?.[0]).toBe("https://github.com/owner/new-repo/archive/HEAD.tar.gz");
+	});
+
+	it("rejects a redirect that holds no commit", async () => {
+		await redirectTo("https://codeload.github.com/owner/repo/tar.gz/refs/heads/main");
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(NetworkError);
+		expect((error as NetworkError).message).toContain("owner/repo");
+	});
+
+	it("rejects a redirect to another host", async () => {
+		await redirectTo(`https://example.com/owner/repo/tar.gz/${SHA}`);
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(NetworkError);
+		expect((error as NetworkError).message).toContain("owner/repo");
+	});
+
+	it("maps a 404 to RepositoryNotFoundError", async () => {
+		await redirectTo(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RepositoryNotFoundError);
+	});
+
+	it("maps a 401 to AuthenticationError", async () => {
+		await redirectTo(new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(AuthenticationError);
+	});
+
+	it("rethrows a RateLimitError", async () => {
+		await redirectTo(new RateLimitError("HTTP 429: rate limit exceeded", { statusCode: 429 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RateLimitError);
 	});
 });
 
