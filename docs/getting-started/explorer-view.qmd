@@ -302,7 +302,8 @@ The extensions that GitHub answered keep their GitHub result.
 Only an extension that the registry lists can use the registry.
 An extension from a subdirectory of a repository, or from a named branch, never uses the registry.
 If GitHub refuses one of these extensions, or an extension that the registry does not list, it is not checked.
-The log names each extension that was not checked.
+When other extensions used the registry, the log names each extension that was not checked.
+When no extension could use the registry, the update check fails.
 
 Each check uses the GitHub API:
 
@@ -319,13 +320,14 @@ A line at the top of the view shows which source was used:
 
 - `Updates checked against GitHub.`
 - `Updates checked against the registry because GitHub did not answer. Sign in to GitHub to raise the rate limit.`
-- `Updates checked against the registry because GitHub did not answer.`, when you are signed in or a token is set.
+- `Updates checked against the registry because GitHub did not answer. Show log.`, when you are signed in or a token is set.
 - `Update check failed. Show log.`, when GitHub refused and the registry could not help either.
 
 The title bar of the view can show one button for this line:
 
 - **Sign In** appears only when updates were checked against the registry and you are not signed in.
-- **Show Log** appears only when the update check failed.
+- **Show Log** appears when the update check failed, or when updates were checked against the registry and you are signed in.
+  The log gives the reason that GitHub did not answer, for example a token that GitHub rejected.
 
 Neither button appears when updates were checked against GitHub, or when no extensions are installed.
 You can always run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette.

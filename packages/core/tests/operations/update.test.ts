@@ -530,6 +530,7 @@ describe("checkForUpdates", () => {
 			expect(result.repositoryFailures).toEqual([
 				{ repository: "unknown/extension", message: "HTTP 403: rate limit exceeded" },
 			]);
+			expect(fetchRegistry).toHaveBeenCalledTimes(1);
 		});
 
 		it("never looks up a subdirectory or named-branch source in the registry", async () => {

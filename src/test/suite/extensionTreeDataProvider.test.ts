@@ -419,7 +419,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		test("view message names the registry without Sign In when GitHub rate-limits a signed-in check", async () => {
 			const { view } = await runCheck({ token: "test-token", repositories: RATE_LIMITED_REPOSITORIES });
 
-			assert.strictEqual(view.message, "Updates checked against the registry because GitHub did not answer.");
+			assert.strictEqual(view.message, "Updates checked against the registry because GitHub did not answer. Show log.");
 			assert.strictEqual(updateCheckContextValue, "registrySignedIn");
 		});
 

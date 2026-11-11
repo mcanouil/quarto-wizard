@@ -504,7 +504,7 @@
 				},
 				{
 					"command": "quartoWizard.showOutput",
-					"when": "view == quartoWizard.extensionsInstalled && quartoWizard.extensionsInstalled.updateCheck == failed",
+					"when": "view == quartoWizard.extensionsInstalled && quartoWizard.extensionsInstalled.updateCheck =~ /^(failed|registrySignedIn)$/",
 					"group": "navigation@5"
 				}
 			],

@@ -57,7 +57,7 @@ const UPDATE_CHECK_MESSAGES = {
 	github: "Updates checked against GitHub.",
 	registry:
 		"Updates checked against the registry because GitHub did not answer. Sign in to GitHub to raise the rate limit.",
-	registrySignedIn: "Updates checked against the registry because GitHub did not answer.",
+	registrySignedIn: "Updates checked against the registry because GitHub did not answer. Show log.",
 	failed: "Update check failed. Show log.",
 } as const;
 
