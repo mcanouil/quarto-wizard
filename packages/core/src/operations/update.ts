@@ -117,6 +117,8 @@ export interface UpdateCheckResult {
 	repositoryFailures: RepositoryFailure[];
 	/** Set when the check could not complete. */
 	checkFailure?: UpdateCheckFailure;
+	/** Why GitHub refused, set when at least one extension fell back to the registry. */
+	fallbackReason?: UpdateCheckFailure;
 }
 
 /**
@@ -266,11 +268,13 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 	};
 	// Fetched once, on the first refusal that can fall back. An unavailable registry gives no fallback.
 	let registry: Promise<Registry | null> | undefined;
+	let registryError: string | undefined;
 	const loadRegistry = (): Promise<Registry | null> =>
 		(registry ??= fetchRegistry(registryOptions).catch((error: unknown) => {
 			if (isCancellationError(error)) {
 				throw error;
 			}
+			registryError = getErrorMessage(error);
 			return null;
 		}));
 
@@ -290,10 +294,10 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 				}
 				const fallback = source === "auto" && checksInRegistry(candidate) ? await loadRegistry() : null;
 				const entry = fallback ? lookupRegistryEntry(fallback, candidate.base) : null;
-				if (entry) {
-					return { update: buildRegistryUpdate(candidate, entry), fellBack: true };
-				}
-				return { update: null, refused: { candidate, failure: { kind, message } } };
+				const refusal = { candidate, failure: { kind, message } };
+				return entry
+					? { update: buildRegistryUpdate(candidate, entry), refusal, fellBack: true }
+					: { update: null, refusal };
 			}
 		}),
 	);
@@ -303,26 +307,32 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		updates: outcomes.flatMap((outcome) => (outcome.update ? [outcome.update] : [])),
 		repositoryFailures: [],
 	};
-	const refused = outcomes.flatMap((outcome) => (outcome.refused ? [outcome.refused] : []));
+	const firstRefusal = outcomes.find((outcome) => outcome.refusal)?.refusal;
 	if (result.checkedOn === "registry") {
-		for (const { candidate, failure } of refused) {
-			addRepositoryFailure(candidate, failure.message);
+		result.fallbackReason = firstRefusal?.failure;
+		for (const { refusal, fellBack } of outcomes) {
+			if (refusal && !fellBack) {
+				addRepositoryFailure(refusal.candidate, refusal.failure.message);
+			}
 		}
-	} else if (refused.length > 0) {
-		result.checkFailure = refused[0].failure;
+	} else if (firstRefusal) {
+		const { kind, message } = firstRefusal.failure;
+		result.checkFailure = registryError
+			? { kind, message: `${message} (registry unavailable: ${registryError})` }
+			: firstRefusal.failure;
 	}
 	result.repositoryFailures = [...repositoryFailures.values()];
 	return result;
 }
 
 /**
- * Result of checking one extension: its update, whether it came from the
- * registry, and the reason when GitHub refused it and it could not fall back.
+ * Result of checking one extension: its update, the reason when GitHub
+ * refused it, and whether the registry then gave the result.
  */
 interface CheckOutcome {
 	update: UpdateInfo | null;
+	refusal?: { candidate: UpdateCandidate; failure: UpdateCheckFailure };
 	fellBack?: boolean;
-	refused?: { candidate: UpdateCandidate; failure: UpdateCheckFailure };
 }
 
 /**

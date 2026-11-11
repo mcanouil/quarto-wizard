@@ -16,7 +16,7 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
-- refactor: Make `checkForUpdates()` in `@quarto-wizard/core` check GitHub first in `auto` mode, with the registry as a fallback when GitHub refuses. The `registry-unavailable` kind of `UpdateCheckFailure` is removed.
+- refactor: Make `checkForUpdates()` in `@quarto-wizard/core` check GitHub first in `auto` mode, with the registry as a fallback when GitHub refuses. `fallbackReason` names why GitHub refused, and the `registry-unavailable` kind of `UpdateCheckFailure` is removed.
 
 ### New Features
 

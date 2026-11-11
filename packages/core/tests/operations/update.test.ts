@@ -202,6 +202,7 @@ describe("checkForUpdates", () => {
 
 			expect(result.checkedOn).toBe("registry");
 			expect(result.checkFailure).toBeUndefined();
+			expect(result.fallbackReason).toEqual({ kind: "rate-limited", message: "HTTP 403: rate limit exceeded" });
 			expect(fetchReleases).toHaveBeenCalled();
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
@@ -437,6 +438,9 @@ describe("checkForUpdates", () => {
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
 			expect(result.checkFailure?.kind).toBe("rate-limited");
+			expect(result.checkFailure?.message).toBe(
+				"HTTP 403: rate limit exceeded (registry unavailable: HTTP 503: Service Unavailable)",
+			);
 			expect(result.updates).toHaveLength(0);
 		});
 
@@ -573,6 +577,7 @@ describe("checkForUpdates", () => {
 			expect(fetchRegistry).not.toHaveBeenCalled();
 			expect(result.checkedOn).toBe("github");
 			expect(result.updates.map((u) => [u.latestRef, u.checkedOn])).toEqual([["v2.5.0", "github"]]);
+			expect(result.fallbackReason).toBeUndefined();
 		});
 
 		it("does not fall back to the registry for a repository failure", async () => {

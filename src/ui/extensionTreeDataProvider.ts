@@ -677,6 +677,12 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				logMessage(`Failed to check for updates: ${getErrorMessage(error)}.`, "error");
 			}
 
+			if (result?.fallbackReason) {
+				logMessage(
+					`GitHub refused the update check, so the registry was used: ${result.fallbackReason.message}.`,
+					"warn",
+				);
+			}
 			for (const failure of result?.repositoryFailures ?? []) {
 				logMessage(`Failed to check updates for ${failure.repository}: ${failure.message}.`, "warn");
 			}
