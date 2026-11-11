@@ -141,9 +141,9 @@ An active internet connection is required for:
 
 For accessing private repositories or avoiding rate limits, you can configure GitHub authentication.
 Quarto Wizard checks GitHub for new extension tags, with or without a token.
-Without a token, GitHub accepts 60 requests in one hour, and a few extensions can use all of them.
+A token raises the GitHub rate limit, so that GitHub refuses fewer checks.
 When GitHub refuses a check, Quarto Wizard uses the registry, which can be a little behind.
-A token raises the limit to 5,000 requests in one hour.
+See [Where Updates Are Checked](explorer-view.qmd#where-updates-are-checked) for the limits.
 
 To sign in with your VS Code GitHub session, run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette.
 When the view says that updates were checked against the registry, you can also select **Sign In** in its title bar.

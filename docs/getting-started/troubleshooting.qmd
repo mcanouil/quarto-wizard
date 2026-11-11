@@ -107,10 +107,9 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 
 **Causes**:
 
-- Without a token, GitHub accepts 60 requests in one hour for each IP address.
-  Each update check uses about 2 requests for each extension, so a few checks can use all of them.
-- When the limit is reached, the update check uses the registry for the extensions that it lists.
-  The registry refreshes once a day, so a new tag can be missing.
+- Without a token, a few update checks can use all of the GitHub requests for one hour.
+  See [Where Updates Are Checked](explorer-view.qmd#where-updates-are-checked) for the limits.
+- When the limit is reached, the update check uses the registry, so a new tag can be missing.
   **Update** and **Update All** use GitHub only, so they fail until the limit resets.
 
 **Solutions**:

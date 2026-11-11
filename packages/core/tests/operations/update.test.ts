@@ -97,6 +97,13 @@ function rateLimit(): RateLimitError {
 	return new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 });
 }
 
+/** Makes every GitHub lookup reject with `error`, a rate limit by default. */
+function refuseGitHub(error: Error = rateLimit()): void {
+	vi.mocked(fetchReleases).mockRejectedValue(error);
+	vi.mocked(fetchTags).mockRejectedValue(error);
+	vi.mocked(fetchLatestCommit).mockRejectedValue(error);
+}
+
 function installSource(text: string): InstallTarget["source"] {
 	return parseInstallSource(text, () => false);
 }
@@ -177,9 +184,7 @@ describe("checkForUpdates", () => {
 
 	describe("registry fallback", () => {
 		beforeEach(() => {
-			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
-			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
-			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
+			refuseGitHub();
 		});
 
 		it("uses the registry when GitHub rate-limits the check", async () => {
@@ -458,8 +463,7 @@ describe("checkForUpdates", () => {
 		] as const) {
 			it(`falls back to the registry after ${kind}, with or without a token`, async () => {
 				setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
-				vi.mocked(fetchReleases).mockRejectedValue(error);
-				vi.mocked(fetchTags).mockRejectedValue(error);
+				refuseGitHub(error);
 				vi.mocked(fetchRegistry).mockResolvedValue({
 					"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
 						latestVersion: "2.0.0",
@@ -1198,7 +1202,7 @@ describe("checkForUpdates", () => {
 			});
 
 			for (const [kind, error] of [
-				["rate-limited", new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 })],
+				["rate-limited", rateLimit()],
 				[
 					"unauthorised",
 					new AuthenticationError("Bad credentials.", {
@@ -1319,9 +1323,7 @@ describe("checkForUpdates", () => {
 					latestCommit: LATEST_COMMIT,
 				}),
 			} as never);
-			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
-			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
-			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
+			refuseGitHub();
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
@@ -1522,9 +1524,7 @@ describe("checkForUpdates", () => {
 			vi.mocked(fetchRegistry).mockResolvedValue({
 				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", { latestCommit: LATEST_COMMIT }),
 			} as never);
-			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
-			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
-			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
+			refuseGitHub();
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
@@ -1571,9 +1571,7 @@ describe("checkForUpdates", () => {
 					latestCommit: LATEST_COMMIT,
 				}),
 			} as never);
-			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
-			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
-			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
+			refuseGitHub();
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
@@ -1912,7 +1910,7 @@ describe("checkForUpdates", () => {
 		it("passes the signal to the registry", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
 			vi.mocked(fetchRegistry).mockResolvedValue({});
-			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
+			refuseGitHub();
 			const { signal } = new AbortController();
 
 			await checkForUpdates({ projectDirs: [tempDir], signal });

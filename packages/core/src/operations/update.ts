@@ -223,10 +223,10 @@ interface GitHubLookups {
  * While the repository has no version tag, tag mode compares commits on the
  * default branch, when the install recorded a commit.
  *
- * Every extension is checked on GitHub first. In `"auto"` mode, an extension
- * that GitHub refuses falls back to the registry when the registry lists it,
- * and is reported in `repositoryFailures` when it does not. The check fails as
- * a whole only when no refused extension could fall back.
+ * Every extension is checked on GitHub first. See `UpdateCheckOptions.source`
+ * for the registry fallback. A refused extension that cannot fall back is
+ * reported in `repositoryFailures`, and the check fails as a whole only when no
+ * refused extension could fall back.
  *
  * A source with a repository subdirectory is never looked up in the registry. Its
  * installed version is compared with the version in the subdirectory manifest
@@ -244,20 +244,13 @@ interface GitHubLookups {
  */
 export async function checkForUpdates(options: UpdateCheckOptions): Promise<UpdateCheckResult> {
 	const { projectDirs, extension: targetExtension, source = "auto", ...registryOptions } = options;
-	const result: UpdateCheckResult = {
-		checkedOn: "github",
-		updates: [],
-		repositoryFailures: [],
-	};
 
 	if (registryOptions.signal?.aborted) {
 		throw new CancellationError();
 	}
-	const { candidates, failures } = await collectCandidates(projectDirs, targetExtension);
-	const repositoryFailures = new Map(failures);
-	result.repositoryFailures = [...repositoryFailures.values()];
+	const { candidates, failures: repositoryFailures } = await collectCandidates(projectDirs, targetExtension);
 	if (candidates.length === 0) {
-		return result;
+		return { checkedOn: "github", updates: [], repositoryFailures: [...repositoryFailures.values()] };
 	}
 
 	const lookups = createGitHubLookups({
@@ -271,97 +264,65 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 			repositoryFailures.set(key, { repository: candidate.fullName, message });
 		}
 	};
+	// Fetched once, on the first refusal that can fall back. An unavailable registry gives no fallback.
+	let registry: Promise<Registry | null> | undefined;
+	const loadRegistry = (): Promise<Registry | null> =>
+		(registry ??= fetchRegistry(registryOptions).catch((error: unknown) => {
+			if (isCancellationError(error)) {
+				throw error;
+			}
+			return null;
+		}));
 
-	const refused: RefusedCandidate[] = [];
-	const updates = await Promise.all(
-		candidates.map(async (candidate, index) => {
+	const outcomes = await Promise.all(
+		candidates.map(async (candidate): Promise<CheckOutcome> => {
 			try {
-				return await buildGitHubUpdate(candidate, lookups);
+				return { update: await buildGitHubUpdate(candidate, lookups) };
 			} catch (error) {
 				if (isCancellationError(error)) {
 					throw error;
 				}
 				const message = getErrorMessage(error);
 				const kind = checkFailureKind(error);
-				if (kind) {
-					refused.push({ index, candidate, failure: { kind, message } });
-				} else {
+				if (!kind) {
 					addRepositoryFailure(candidate, message);
+					return { update: null };
 				}
-				return null;
+				const fallback = source === "auto" && checksInRegistry(candidate) ? await loadRegistry() : null;
+				const entry = fallback ? lookupRegistryEntry(fallback, candidate.base) : null;
+				if (entry) {
+					return { update: buildRegistryUpdate(candidate, entry), fellBack: true };
+				}
+				return { update: null, refused: { candidate, failure: { kind, message } } };
 			}
 		}),
 	);
 
-	if (refused.length > 0) {
-		// Promise.all settles in any order, so the first failure is picked by position.
-		refused.sort((a, b) => a.index - b.index);
-		const fallback = source === "auto" ? await registryFallback(refused, registryOptions) : null;
-		if (fallback) {
-			result.checkedOn = "registry";
-			for (const [index, update] of fallback.updates) {
-				updates[index] = update;
-			}
-			for (const { candidate, failure } of fallback.unchecked) {
-				addRepositoryFailure(candidate, failure.message);
-			}
-		} else {
-			result.checkFailure = refused[0].failure;
+	const result: UpdateCheckResult = {
+		checkedOn: outcomes.some((outcome) => outcome.fellBack) ? "registry" : "github",
+		updates: outcomes.flatMap((outcome) => (outcome.update ? [outcome.update] : [])),
+		repositoryFailures: [],
+	};
+	const refused = outcomes.flatMap((outcome) => (outcome.refused ? [outcome.refused] : []));
+	if (result.checkedOn === "registry") {
+		for (const { candidate, failure } of refused) {
+			addRepositoryFailure(candidate, failure.message);
 		}
+	} else if (refused.length > 0) {
+		result.checkFailure = refused[0].failure;
 	}
-
-	result.updates = updates.filter((u): u is UpdateInfo => u !== null);
 	result.repositoryFailures = [...repositoryFailures.values()];
 	return result;
 }
 
 /**
- * An extension that GitHub refused to check, with the reason.
+ * Result of checking one extension: its update, whether it came from the
+ * registry, and the reason when GitHub refused it and it could not fall back.
  */
-interface RefusedCandidate {
-	/** Position of the candidate in the check. */
-	index: number;
-	candidate: UpdateCandidate;
-	failure: UpdateCheckFailure;
-}
-
-/**
- * Looks up in the registry the extensions that GitHub refused to check.
- *
- * Only an extension that the registry lists, installed from the repository
- * root without a named branch, can fall back. The others stay unchecked.
- *
- * @returns The registry results by candidate position and the extensions left unchecked, or null
- *   when the registry is unavailable or no extension can fall back.
- */
-async function registryFallback(
-	refused: RefusedCandidate[],
-	registryOptions: RegistryOptions,
-): Promise<{ updates: Map<number, UpdateInfo | null>; unchecked: RefusedCandidate[] } | null> {
-	if (!refused.some(({ candidate }) => checksInRegistry(candidate))) {
-		return null;
-	}
-	let registry: Registry;
-	try {
-		registry = await fetchRegistry(registryOptions);
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw error;
-		}
-		return null;
-	}
-
-	const updates = new Map<number, UpdateInfo | null>();
-	const unchecked: RefusedCandidate[] = [];
-	for (const item of refused) {
-		const entry = checksInRegistry(item.candidate) ? lookupRegistryEntry(registry, item.candidate.base) : null;
-		if (entry) {
-			updates.set(item.index, buildRegistryUpdate(item.candidate, entry));
-		} else {
-			unchecked.push(item);
-		}
-	}
-	return updates.size > 0 ? { updates, unchecked } : null;
+interface CheckOutcome {
+	update: UpdateInfo | null;
+	fellBack?: boolean;
+	refused?: { candidate: UpdateCandidate; failure: UpdateCheckFailure };
 }
 
 /**
