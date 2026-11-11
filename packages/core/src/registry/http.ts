@@ -26,6 +26,11 @@ export interface HttpOptions {
 	headers?: Record<string, string>;
 	/** AbortSignal for cancellation. */
 	signal?: AbortSignal;
+	/**
+	 * Redirect mode (default: `follow`). With `manual`, a 3xx answer is handed
+	 * to the caller instead of being followed or treated as an error.
+	 */
+	redirect?: "follow" | "manual";
 }
 
 const DEFAULT_TIMEOUT = 30000;
@@ -163,6 +168,7 @@ async function fetchWithRetry<T>(
 		retryDelay = DEFAULT_RETRY_DELAY,
 		headers = {},
 		signal,
+		redirect = "follow",
 	} = options;
 
 	let lastError: Error | undefined;
@@ -177,12 +183,14 @@ async function fetchWithRetry<T>(
 						...requestHeaders,
 						...headers,
 					},
+					redirect,
 				},
 				timeout,
 				signal,
 			);
 
-			if (!response.ok) {
+			const handedRedirect = redirect === "manual" && response.status >= 300 && response.status < 400;
+			if (!response.ok && !handedRedirect) {
 				const samlError = detectSamlSsoError(response, `HTTP ${response.status}`);
 				if (samlError) {
 					throw samlError;
@@ -284,4 +292,29 @@ export async function fetchJsonPages<T>(url: string, options: HttpOptions, maxPa
  */
 export async function fetchText(url: string, options: HttpOptions = {}): Promise<string> {
 	return fetchWithRetry<string>(url, { "User-Agent": USER_AGENT }, (response) => response.text(), options);
+}
+
+/**
+ * Read where a URL redirects to, without following the redirect.
+ *
+ * @param url - URL that answers with a redirect
+ * @param options - HTTP options; `redirect` is always `manual`
+ * @returns Absolute URL of the `Location` header
+ * @throws NetworkError when the answer is not a redirect or has no `Location`
+ */
+export async function fetchRedirectLocation(url: string, options: HttpOptions = {}): Promise<string> {
+	return fetchWithRetry<string>(
+		url,
+		{ "User-Agent": USER_AGENT },
+		async (response) => {
+			const location = response.headers.get("location");
+			if (response.status < 300 || response.status >= 400 || !location) {
+				throw new NetworkError(`HTTP ${response.status}: expected a redirect from ${url}`, {
+					statusCode: response.status,
+				});
+			}
+			return new URL(location, url).href;
+		},
+		{ ...options, redirect: "manual" },
+	);
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CancellationError, NetworkError, RateLimitError, SamlSsoError } from "../src/errors.js";
-import { fetchJson, fetchJsonPages } from "../src/registry/http.js";
+import { fetchJson, fetchJsonPages, fetchRedirectLocation } from "../src/registry/http.js";
 import { proxyFetch } from "../src/proxy/index.js";
 
 vi.mock("../src/proxy/index.js", () => ({
@@ -336,5 +336,67 @@ describe("fetchJsonPages", () => {
 			CancellationError,
 		);
 		expect(proxyFetch).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("fetchRedirectLocation", () => {
+	const SHA = "911b18ae14e559d8aaa1f7ba5e8305bd71b03a7e";
+	const ARCHIVE_URL = "https://github.com/o/r/archive/HEAD.tar.gz";
+
+	beforeEach(() => {
+		vi.resetAllMocks();
+	});
+
+	async function statusOf(response: Response): Promise<number | undefined> {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(response);
+		const error = await fetchRedirectLocation(ARCHIVE_URL, { retries: 0 }).catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(NetworkError);
+		return (error as NetworkError).statusCode;
+	}
+
+	it("returns the Location of a 302", async () => {
+		const location = `https://codeload.github.com/o/r/tar.gz/${SHA}`;
+		vi.mocked(proxyFetch).mockResolvedValueOnce(new Response(null, { status: 302, headers: { location } }));
+
+		await expect(fetchRedirectLocation(ARCHIVE_URL, { retries: 0 })).resolves.toBe(location);
+		expect(vi.mocked(proxyFetch).mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
+	});
+
+	it("resolves a relative Location", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(
+			new Response(null, { status: 302, headers: { location: `/o/r/tar.gz/${SHA}` } }),
+		);
+
+		await expect(fetchRedirectLocation(ARCHIVE_URL, { retries: 0 })).resolves.toBe(
+			`https://github.com/o/r/tar.gz/${SHA}`,
+		);
+	});
+
+	it("rejects a 200", async () => {
+		expect(await statusOf(new Response("archive", { status: 200 }))).toBe(200);
+	});
+
+	it("rejects a 302 without Location", async () => {
+		expect(await statusOf(new Response(null, { status: 302 }))).toBe(302);
+	});
+
+	it("maps a 404 to NetworkError 404", async () => {
+		expect(await statusOf(new Response("Not Found", { status: 404 }))).toBe(404);
+	});
+
+	it("maps a 429 to RateLimitError", async () => {
+		vi.mocked(proxyFetch).mockResolvedValueOnce(new Response("Too Many Requests", { status: 429 }));
+
+		await expect(fetchRedirectLocation(ARCHIVE_URL, { retries: 0 })).rejects.toBeInstanceOf(RateLimitError);
+	});
+
+	it("throws CancellationError when the signal aborts", async () => {
+		const controller = new AbortController();
+		controller.abort();
+
+		await expect(fetchRedirectLocation(ARCHIVE_URL, { signal: controller.signal })).rejects.toBeInstanceOf(
+			CancellationError,
+		);
+		expect(vi.mocked(proxyFetch).mock.calls.length).toBeLessThanOrEqual(1);
 	});
 });
