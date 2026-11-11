@@ -118,9 +118,9 @@ export class NetworkError extends QuartoWizardError {
 	/** HTTP status code if available. */
 	readonly statusCode?: number;
 
-	constructor(message: string, options?: { statusCode?: number; cause?: unknown }) {
+	constructor(message: string, options?: { statusCode?: number; cause?: unknown; suggestion?: string }) {
 		super(message, "NETWORK_ERROR", {
-			suggestion: "Check your internet connection and try again",
+			suggestion: options?.suggestion ?? "Check your internet connection and try again",
 			cause: options?.cause,
 		});
 		this.name = "NetworkError";

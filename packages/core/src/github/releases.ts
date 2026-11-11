@@ -389,6 +389,9 @@ const CODELOAD_COMMIT_PATH = /^\/[^/]+\/[^/]+\/(?:tar\.gz|zip)\/([0-9a-f]{40})$/
 /** Archive of the default branch of a renamed repository, on `github.com`. */
 const RENAMED_ARCHIVE_PATH = /^\/[^/]+\/[^/]+\/archive\/HEAD\.tar\.gz$/;
 
+const DEFAULT_BRANCH_HEAD_SUGGESTION =
+	"Check your internet connection and try again. If a proxy sits between you and github.com, check that it passes redirects through unchanged";
+
 /**
  * Fetch the head commit of the default branch of a repository.
  *
@@ -419,12 +422,20 @@ export async function fetchDefaultBranchHead(
 		}
 		const commit = location.hostname === "codeload.github.com" ? CODELOAD_COMMIT_PATH.exec(location.pathname) : null;
 		if (!commit) {
-			throw new NetworkError(
-				`Cannot read the default branch head of ${owner}/${repo} from GitHub: unexpected redirect to ${location.origin}${location.pathname}`,
-			);
+			throw new NetworkError(`unexpected redirect to ${location.origin}${location.pathname}`);
 		}
 		return commit[1].toLowerCase();
 	} catch (error) {
+		// 401, 403 and 404 get their own error classes, which already name the repository.
+		const status = error instanceof NetworkError ? error.statusCode : undefined;
+		const ownClass = error instanceof SamlSsoError || error instanceof RateLimitError;
+		if (error instanceof NetworkError && !ownClass && status !== 401 && status !== 403 && status !== 404) {
+			throw new NetworkError(`Cannot read the default branch head of ${owner}/${repo} from GitHub: ${error.message}`, {
+				statusCode: status,
+				cause: error,
+				suggestion: DEFAULT_BRANCH_HEAD_SUGGESTION,
+			});
+		}
 		handleGitHubError(error, owner, repo);
 	}
 }

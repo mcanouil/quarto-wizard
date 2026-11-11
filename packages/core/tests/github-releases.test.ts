@@ -316,6 +316,26 @@ describe("fetchDefaultBranchHead", () => {
 		expect((error as NetworkError).message).toContain("owner/repo");
 	});
 
+	it("names the repository and keeps the status of a server error", async () => {
+		await redirectTo(new NetworkError("HTTP 502: Bad Gateway", { statusCode: 502 }));
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(NetworkError);
+		expect((error as NetworkError).message).toContain("Cannot read the default branch head of owner/repo");
+		expect((error as NetworkError).message).toContain("HTTP 502");
+		expect((error as NetworkError).statusCode).toBe(502);
+		expect((error as NetworkError).suggestion).toContain("proxy");
+	});
+
+	it("suggests checking a proxy when the redirect is unexpected", async () => {
+		await redirectTo("https://example.com/owner/repo/archive.tar.gz");
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect((error as NetworkError).suggestion).toContain("proxy");
+	});
+
 	it("maps a 404 to RepositoryNotFoundError", async () => {
 		await redirectTo(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
 
