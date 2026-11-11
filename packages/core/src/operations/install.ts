@@ -34,6 +34,7 @@ import {
 	compareInstallAction,
 	getInstalledState,
 	readSourceRecord,
+	readSourceRecordKeys,
 	writeSourceRecord,
 	type SourceRecord,
 	type SourceRecordData,
@@ -922,16 +923,18 @@ function checkReplacement(
  * @param sourceDir - Source directory containing the extension
  * @param targetDir - Destination directory for the extension
  * @param recordData - Data of the install record
+ * @param previousKeys - Keys of the install record of the replaced copy, kept when Quarto Wizard does not own them
  * @returns List of files created, and the install record written
  */
 async function writeExtensionToDisk(
 	sourceDir: string,
 	targetDir: string,
 	recordData: SourceRecordData,
+	previousKeys: Record<string, unknown> | undefined,
 ): Promise<{ filesCreated: string[]; record: SourceRecord }> {
 	try {
 		const filesCreated = await copyDirectory(sourceDir, targetDir);
-		const record = writeSourceRecord(targetDir, recordData);
+		const record = writeSourceRecord(targetDir, recordData, previousKeys);
 		return { filesCreated, record };
 	} catch (error) {
 		// Rollback: remove partially installed extension to maintain consistency.
@@ -1041,6 +1044,7 @@ export async function installPlannedExtension(
 		};
 	}
 
+	let previousKeys: Record<string, unknown> | undefined;
 	if (alreadyExists) {
 		// If confirmOverwrite callback is provided, ask for confirmation
 		if (confirmOverwrite) {
@@ -1063,12 +1067,13 @@ export async function installPlannedExtension(
 				};
 			}
 		}
+		previousKeys = readSourceRecordKeys(targetDir);
 		await fs.promises.rm(targetDir, { recursive: true, force: true });
 	}
 
 	onProgress?.({ phase: "installing", message: `Installing ${formatExtensionId(extensionId)}...` });
 
-	const { filesCreated, record } = await writeExtensionToDisk(extension.path, targetDir, recordData);
+	const { filesCreated, record } = await writeExtensionToDisk(extension.path, targetDir, recordData, previousKeys);
 	const installed = toInstalledExtension(
 		extensionId,
 		manifestResult.manifest,

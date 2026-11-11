@@ -10,6 +10,7 @@ import {
 	getInstalledState,
 	hashExtensionFiles,
 	readSourceRecord,
+	readSourceRecordKeys,
 	writeSourceRecord,
 } from "../src/filesystem/sourceRecord.js";
 import { recordedTrack } from "../src/types/manifest.js";
@@ -187,6 +188,90 @@ describe("sourceRecord.ts", () => {
 				.map((entry) => Object.keys(entry)[0]);
 
 			expect(keys).toEqual(["10", "9", "b"]);
+		});
+
+		it("keeps the keys it does not own and replaces the keys it owns", () => {
+			writeFile("_extension.yml", "title: Demo\n");
+			writeFile(
+				SOURCE_RECORD_FILENAME,
+				[
+					"version: 1",
+					"source: acme/demo@v1.0.0",
+					"kind: github",
+					"ref: v1.0.0",
+					"installed: 2026-11-11",
+					"files:",
+					"  old.lua: 0000",
+					"other-tool:",
+					"  pinned: true",
+					"quarto-wizard:",
+					"  commit: 3f9c2e1",
+					"  future: kept",
+					"",
+				].join("\n"),
+			);
+			const previousKeys = readSourceRecordKeys(tempDir);
+
+			const written = writeSourceRecord(tempDir, { source: "acme/demo", kind: "github" }, previousKeys);
+			const content = fs.readFileSync(path.join(tempDir, SOURCE_RECORD_FILENAME), "utf-8");
+
+			expect(topLevelKeys(content)).toEqual([
+				"version",
+				"source",
+				"kind",
+				"files",
+				"installed",
+				"other-tool",
+				"quarto-wizard",
+			]);
+			expect((yaml.load(content) as Record<string, unknown>).installed).toBe("2026-11-11");
+			expect(content).toContain("other-tool:\n  pinned: true\n");
+			expect(content).toContain("quarto-wizard:\n  future: kept\n");
+			expect(content).not.toContain("old.lua");
+			expect(content).not.toContain("3f9c2e1");
+			expect(readSourceRecord(tempDir)).toEqual({ status: "ok", record: written });
+			expect(written).not.toHaveProperty("ref");
+			expect(written).not.toHaveProperty("quartoWizard");
+		});
+
+		it("writes its own quarto-wizard keys before the keys it does not own", () => {
+			writeFile("_extension.yml", "title: Demo\n");
+
+			writeSourceRecord(
+				tempDir,
+				{ source: "acme/demo", kind: "github", quartoWizard: { track: "branch" } },
+				{ "quarto-wizard": { future: "kept", track: "tag" } },
+			);
+			const content = fs.readFileSync(path.join(tempDir, SOURCE_RECORD_FILENAME), "utf-8");
+
+			expect(content).toContain("quarto-wizard:\n  track: branch\n  future: kept\n");
+		});
+
+		it("replaces a quarto-wizard value that is not a mapping", () => {
+			writeFile("_extension.yml", "title: Demo\n");
+
+			writeSourceRecord(tempDir, { source: "acme/demo", kind: "github" }, { "quarto-wizard": [1, 2] });
+			const content = fs.readFileSync(path.join(tempDir, SOURCE_RECORD_FILENAME), "utf-8");
+
+			expect(topLevelKeys(content)).toEqual(["version", "source", "kind", "files"]);
+		});
+	});
+
+	describe("readSourceRecordKeys", () => {
+		it("reads the keys of a record that is not readable as a record", () => {
+			writeFile(SOURCE_RECORD_FILENAME, "version: 2\nfuture: kept\n");
+
+			expect(readSourceRecordKeys(tempDir)).toEqual({ version: 2, future: "kept" });
+		});
+
+		it("reads no keys when there is no record, a YAML error, or no mapping", () => {
+			expect(readSourceRecordKeys(tempDir)).toBeUndefined();
+
+			writeFile(SOURCE_RECORD_FILENAME, "version: [1\n");
+			expect(readSourceRecordKeys(tempDir)).toBeUndefined();
+
+			writeFile(SOURCE_RECORD_FILENAME, "- 1\n- 2\n");
+			expect(readSourceRecordKeys(tempDir)).toBeUndefined();
 		});
 	});
 
