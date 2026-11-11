@@ -309,7 +309,7 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 	};
 	const firstRefusal = outcomes.find((outcome) => outcome.refusal)?.refusal;
 	if (result.checkedOn === "registry") {
-		result.fallbackReason = firstRefusal?.failure;
+		result.fallbackReason = outcomes.find((outcome) => outcome.fellBack)?.refusal?.failure;
 		for (const { refusal, fellBack } of outcomes) {
 			if (refusal && !fellBack) {
 				addRepositoryFailure(refusal.candidate, refusal.failure.message);

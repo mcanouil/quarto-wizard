@@ -557,6 +557,27 @@ describe("checkForUpdates", () => {
 			]);
 		});
 
+		it("names the refusal of an extension that fell back as the fallback reason", async () => {
+			setupExtension("quarto-ext", "aaa-sub", "0.3.0", "quarto-ext/monorepo/sub@v1.0.0", "github");
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+			const refuse = async (_owner: string, repo: string): Promise<never> => {
+				throw repo === "monorepo" ? new NetworkError("fetch failed") : rateLimit();
+			};
+			vi.mocked(fetchReleases).mockImplementation(refuse);
+			vi.mocked(fetchTags).mockImplementation(refuse);
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["fontawesome"]);
+			expect(result.fallbackReason?.kind).toBe("rate-limited");
+		});
+
 		it("does not use the registry when the source is github", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
 
