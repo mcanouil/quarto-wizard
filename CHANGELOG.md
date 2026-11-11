@@ -16,6 +16,7 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
+- refactor: Remove the `defaultBranch` and `latestCommit` options of `ResolveVersionOptions` and `DownloadOptions` in `@quarto-wizard/core`. `resolveVersion()` now reads the head of the default branch from GitHub itself.
 
 ### New Features
 
