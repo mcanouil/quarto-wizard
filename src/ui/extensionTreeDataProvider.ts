@@ -55,7 +55,9 @@ const UPDATE_CHECK_CONTEXT_KEY = "quartoWizard.extensionsInstalled.updateCheck";
 
 const UPDATE_CHECK_MESSAGES = {
 	github: "Updates checked against GitHub.",
-	registry: "Updates checked against the registry. Sign in to GitHub to see new tags straight away.",
+	registry:
+		"Updates checked against the registry because GitHub did not answer. Sign in to GitHub to raise the rate limit.",
+	registrySignedIn: "Updates checked against the registry because GitHub did not answer.",
 	failed: "Update check failed. Show log.",
 } as const;
 
@@ -688,7 +690,7 @@ export class QuartoExtensionTreeDataProvider implements vscode.TreeDataProvider<
 				state = "failed";
 			} else {
 				this.storeUpdates(projectDirs, result);
-				state = result.checkedOn;
+				state = result.checkedOn === "registry" && auth.githubToken ? "registrySignedIn" : result.checkedOn;
 			}
 			this._onDidChangeCounts.fire();
 

@@ -16,6 +16,7 @@
 - feat: Remove the `quartoWizard.update.crossSource` setting. Every update now installs the latest GitHub tag, so the setting had no effect.
 - refactor: Remove the folder variants of the install and template commands, `quartoWizard.extensionsInstalled.install` and `quartoWizard.extensionsInstalled.useTemplate`. The main commands, `quartoWizard.installExtension` and `quartoWizard.useTemplate`, now accept a tree item.
 - feat: Remove the `quartoWizard.autoProjectDetection` setting. Quarto Wizard now detects every project down to two folder levels, and `.quartoignore` matches start hidden.
+- refactor: Make `checkForUpdates()` in `@quarto-wizard/core` check GitHub first in `auto` mode, with the registry as a fallback when GitHub refuses. The `registry-unavailable` kind of `UpdateCheckFailure` is removed.
 
 ### New Features
 
@@ -28,6 +29,7 @@
 - feat: Add a Use Brand link to the welcome message of the Extensions Installed view, next to Install Extensions and Use Template.
 - feat: Add a Detected Projects view, collapsed by default, to show or hide projects, with the `quartoWizard.projectVisibility` setting to share the choice. Extensions that hold other extensions now appear as projects, and those of an installed parent are read-only.
 - feat: Add `discoverProjectDirs()` to `@quarto-wizard/core`, which finds Quarto projects and extensions that embed other extensions.
+- feat: Check updates on GitHub first, with or without a token, so a new tag shows as soon as it is published. When GitHub refuses the check, each extension that the registry lists falls back to the registry, and the others are logged as not checked.
 
 ### Bug Fixes
 

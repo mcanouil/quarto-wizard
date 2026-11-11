@@ -93,6 +93,10 @@ function registryEntry(fullName: string, fields: Record<string, unknown>): Recor
 	};
 }
 
+function rateLimit(): RateLimitError {
+	return new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 });
+}
+
 function installSource(text: string): InstallTarget["source"] {
 	return parseInstallSource(text, () => false);
 }
@@ -121,6 +125,7 @@ describe("checkForUpdates", () => {
 		vi.mocked(fetchTags).mockResolvedValue([]);
 		vi.mocked(fetchLatestCommit).mockResolvedValue(null);
 		vi.mocked(fetchRawFile).mockResolvedValue(null);
+		vi.mocked(fetchRegistry).mockResolvedValue({} as never);
 	});
 
 	afterEach(() => {
@@ -170,8 +175,14 @@ describe("checkForUpdates", () => {
 		return `version: 1\nsource: ${source}\n${ref}kind: github\nfiles: {}\nquarto-wizard:\n  track: ${track}\n${commitLine}`;
 	}
 
-	describe("registry check", () => {
-		it("uses the registry without a token", async () => {
+	describe("registry fallback", () => {
+		beforeEach(() => {
+			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
+			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
+			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
+		});
+
+		it("uses the registry when GitHub rate-limits the check", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
 
 			vi.mocked(fetchRegistry).mockResolvedValue({
@@ -185,7 +196,8 @@ describe("checkForUpdates", () => {
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
 			expect(result.checkedOn).toBe("registry");
-			expect(fetchReleases).not.toHaveBeenCalled();
+			expect(result.checkFailure).toBeUndefined();
+			expect(fetchReleases).toHaveBeenCalled();
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.checkedOn).toBe("registry");
@@ -311,7 +323,6 @@ describe("checkForUpdates", () => {
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
-			expect(fetchReleases).not.toHaveBeenCalled();
 			expect(result.updates[0]?.checkedOn).toBe("registry");
 		});
 
@@ -411,7 +422,7 @@ describe("checkForUpdates", () => {
 			expect(result.updates[0]?.latestRef).toBe("v1.3.0-beta.1");
 		});
 
-		it("reports an unavailable registry as a check failure", async () => {
+		it("reports the GitHub failure when the registry is unavailable too", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome");
 
 			vi.mocked(fetchRegistry).mockRejectedValue(
@@ -420,25 +431,157 @@ describe("checkForUpdates", () => {
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
-			expect(result.checkFailure?.kind).toBe("registry-unavailable");
-			expect(result.checkFailure?.message).toContain("HTTP 503");
+			expect(result.checkFailure?.kind).toBe("rate-limited");
 			expect(result.updates).toHaveLength(0);
-			expect(fetchReleases).not.toHaveBeenCalled();
 		});
 
-		it("uses GitHub without a token for an extension missing from the registry", async () => {
+		it("reports the GitHub failure when the registry lists no refused extension", async () => {
 			setupExtension("unknown", "extension", "1.0.0", "unknown/extension");
 
-			vi.mocked(fetchRegistry).mockResolvedValue({} as never);
-			vi.mocked(fetchTags).mockResolvedValue([tag("v1.1.0")]);
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(fetchRegistry).toHaveBeenCalled();
+			expect(result.checkFailure?.kind).toBe("rate-limited");
+			expect(result.repositoryFailures).toHaveLength(0);
+		});
+
+		for (const [kind, error] of [
+			["a 403 rate limit", rateLimit()],
+			["an HTTP 429", new NetworkError("HTTP 429: Too Many Requests", { statusCode: 429 })],
+			[
+				"a 401",
+				new AuthenticationError("Bad credentials.", {
+					cause: new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 }),
+				}),
+			],
+			["a lost connection", new NetworkError("fetch failed")],
+		] as const) {
+			it(`falls back to the registry after ${kind}, with or without a token`, async () => {
+				setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+				vi.mocked(fetchReleases).mockRejectedValue(error);
+				vi.mocked(fetchTags).mockRejectedValue(error);
+				vi.mocked(fetchRegistry).mockResolvedValue({
+					"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+						latestVersion: "2.0.0",
+						latestTag: "v2.0.0",
+					}),
+				} as never);
+
+				for (const auth of [undefined, TOKEN]) {
+					const result = await checkForUpdates({ projectDirs: [tempDir], auth });
+
+					expect(result.checkFailure).toBeUndefined();
+					expect(result.checkedOn).toBe("registry");
+					expect(result.updates.map((u) => [u.latestRef, u.checkedOn])).toEqual([["v2.0.0", "registry"]]);
+				}
+			});
+		}
+
+		it("keeps the extensions that GitHub answered and falls back for the rest", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+			setupExtension("quarto-ext", "lightbox", "1.0.0", "quarto-ext/lightbox@v1.0.0");
+			vi.mocked(fetchReleases).mockImplementation(async (_owner, repo) => {
+				if (repo === "fontawesome") {
+					throw rateLimit();
+				}
+				return [release("v3.0.0")];
+			});
+			vi.mocked(fetchTags).mockResolvedValue([]);
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+				}),
+				"quarto-ext/lightbox": registryEntry("quarto-ext/lightbox", { latestVersion: "2.0.0", latestTag: "v2.0.0" }),
+			} as never);
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
 			expect(result.checkedOn).toBe("registry");
-			expect(fetchReleases).toHaveBeenCalledWith("unknown", "extension", expect.anything());
-			expect(result.updates).toHaveLength(1);
-			expect(result.updates[0]?.checkedOn).toBe("github");
-			expect(targetText(result.updates[0])).toBe("unknown/extension@v1.1.0");
+			expect(result.updates.map((u) => [u.extension.id.name, u.latestRef, u.checkedOn])).toEqual([
+				["fontawesome", "v2.0.0", "registry"],
+				["lightbox", "v3.0.0", "github"],
+			]);
+		});
+
+		it("reports a refused extension that the registry does not list as a repository failure", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+			setupExtension("unknown", "extension", "1.0.0", "unknown/extension@v1.0.0");
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.checkFailure).toBeUndefined();
+			expect(result.checkedOn).toBe("registry");
+			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["fontawesome"]);
+			expect(result.repositoryFailures).toEqual([
+				{ repository: "unknown/extension", message: "HTTP 403: rate limit exceeded" },
+			]);
+		});
+
+		it("never looks up a subdirectory or named-branch source in the registry", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+			setupExtension("quarto-ext", "sub", "0.3.0", "quarto-ext/monorepo/sub@v1.0.0", "github");
+			setupRecordedExtension("quarto-ext", "dev", "1.0.0", githubRecord("quarto-ext/dev@dev", "branch", "abc1234"));
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", {
+					latestVersion: "2.0.0",
+					latestTag: "v2.0.0",
+				}),
+				"quarto-ext/monorepo": registryEntry("quarto-ext/monorepo", { latestVersion: "9.0.0", latestTag: "v9.0.0" }),
+				"quarto-ext/dev": registryEntry("quarto-ext/dev", {
+					latestCommit: "fff9999999999999999999999999999999999999",
+				}),
+			} as never);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(result.updates.map((u) => u.extension.id.name)).toEqual(["fontawesome"]);
+			expect(result.repositoryFailures.map((f) => f.repository).sort()).toEqual([
+				"quarto-ext/dev",
+				"quarto-ext/monorepo",
+			]);
+		});
+
+		it("does not use the registry when the source is github", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
+
+			expect(fetchRegistry).not.toHaveBeenCalled();
+			expect(result.checkedOn).toBe("github");
+			expect(result.checkFailure?.kind).toBe("rate-limited");
+		});
+	});
+
+	describe("GitHub first", () => {
+		it("checks GitHub without a token and leaves the registry alone", async () => {
+			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0");
+			vi.mocked(fetchReleases).mockResolvedValue([release("v2.5.0")]);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(fetchRegistry).not.toHaveBeenCalled();
+			expect(result.checkedOn).toBe("github");
+			expect(result.updates.map((u) => [u.latestRef, u.checkedOn])).toEqual([["v2.5.0", "github"]]);
+		});
+
+		it("does not fall back to the registry for a repository failure", async () => {
+			setupExtension("gone", "away", "1.0.0", "gone/away@v1.0.0");
+			vi.mocked(fetchReleases).mockRejectedValue(new RepositoryNotFoundError("Repository not found: gone/away"));
+
+			const result = await checkForUpdates({ projectDirs: [tempDir] });
+
+			expect(fetchRegistry).not.toHaveBeenCalled();
+			expect(result.checkedOn).toBe("github");
+			expect(result.repositoryFailures).toEqual([
+				{ repository: "gone/away", message: "Repository not found: gone/away" },
+			]);
 		});
 	});
 
@@ -910,35 +1053,6 @@ describe("checkForUpdates", () => {
 				expect(found?.latestRef).toBe("v2.0.0");
 			});
 
-			it("checks a subdirectory source on GitHub when a root source of the same repository uses the registry", async () => {
-				setupExtension("quarto-ext", "root", "1.0.0", "quarto-ext/monorepo@v1.0.0", "github");
-				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
-
-				vi.mocked(fetchRegistry).mockResolvedValue({
-					"quarto-ext/monorepo": registryEntry("quarto-ext/monorepo", {
-						latestVersion: "9.0.0",
-						latestTag: "v9.0.0",
-					}),
-				} as never);
-				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
-				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
-
-				const result = await checkForUpdates({ projectDirs: [tempDir] });
-
-				expect(fetchRegistry).toHaveBeenCalledTimes(1);
-				const byName = Object.fromEntries(result.updates.map((u) => [u.extension.id.name, u]));
-				expect(Object.keys(byName).sort()).toEqual(["root", "sub"]);
-				expect(byName.root).toMatchObject({ checkedOn: "registry", latestVersion: "9.0.0", latestRef: "v9.0.0" });
-				expect(byName.sub).toMatchObject({ checkedOn: "github", latestVersion: "0.4.0", latestRef: "v2.0.0" });
-				expect(fetchRawFile).toHaveBeenCalledWith(
-					"quarto-ext",
-					"monorepo",
-					"v2.0.0",
-					"sub/dir/_extension.yml",
-					expect.anything(),
-				);
-			});
-
 			it("reads the manifest under the _extensions folder of the subdirectory", async () => {
 				setupExtension("quarto-ext", "y", "1.0.0", "quarto-ext/monorepo/b@v1.0.0", "github");
 
@@ -1083,24 +1197,6 @@ describe("checkForUpdates", () => {
 				expect(result.updates).toHaveLength(0);
 			});
 
-			it("checks a subdirectory source on GitHub when the registry is unavailable", async () => {
-				setupExtension("quarto-ext", "root", "1.0.0", "quarto-ext/monorepo@v1.0.0", "github");
-				setupExtension("quarto-ext", "sub", "0.3.0", SUB_SOURCE, "github");
-
-				vi.mocked(fetchRegistry).mockRejectedValue(
-					new NetworkError("HTTP 503: Service Unavailable", { statusCode: 503 }),
-				);
-				vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
-				vi.mocked(fetchRawFile).mockResolvedValue("title: Sub\nversion: 0.4.0\n");
-
-				const result = await checkForUpdates({ projectDirs: [tempDir] });
-
-				expect(result.checkFailure?.kind).toBe("registry-unavailable");
-				expect(result.checkFailure?.message).toContain("HTTP 503");
-				expect(result.updates.map((u) => u.extension.id.name)).toEqual(["sub"]);
-				expect(result.updates[0]).toMatchObject({ checkedOn: "github", latestVersion: "0.4.0", latestRef: "v2.0.0" });
-			});
-
 			for (const [kind, error] of [
 				["rate-limited", new RateLimitError("HTTP 403: rate limit exceeded", { statusCode: 403 })],
 				[
@@ -1223,10 +1319,12 @@ describe("checkForUpdates", () => {
 					latestCommit: LATEST_COMMIT,
 				}),
 			} as never);
+			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
+			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
+			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
-			expect(fetchLatestCommit).not.toHaveBeenCalled();
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");
@@ -1424,10 +1522,12 @@ describe("checkForUpdates", () => {
 			vi.mocked(fetchRegistry).mockResolvedValue({
 				"quarto-ext/fontawesome": registryEntry("quarto-ext/fontawesome", { latestCommit: LATEST_COMMIT }),
 			} as never);
+			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
+			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
+			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
-			expect(fetchLatestCommit).not.toHaveBeenCalled();
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");
@@ -1471,6 +1571,9 @@ describe("checkForUpdates", () => {
 					latestCommit: LATEST_COMMIT,
 				}),
 			} as never);
+			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
+			vi.mocked(fetchTags).mockRejectedValue(rateLimit());
+			vi.mocked(fetchLatestCommit).mockRejectedValue(rateLimit());
 
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
@@ -1809,6 +1912,7 @@ describe("checkForUpdates", () => {
 		it("passes the signal to the registry", async () => {
 			setupExtension("quarto-ext", "fontawesome", "1.0.0", "quarto-ext/fontawesome@v1.0.0", "github");
 			vi.mocked(fetchRegistry).mockResolvedValue({});
+			vi.mocked(fetchReleases).mockRejectedValue(rateLimit());
 			const { signal } = new AbortController();
 
 			await checkForUpdates({ projectDirs: [tempDir], signal });
@@ -1828,7 +1932,9 @@ describe("update", () => {
 				path.join(extDir, "_extension.yml"),
 				"title: fontawesome\nversion: 1.0.0\nsource: quarto-ext/fontawesome\n",
 			);
-			vi.mocked(fetchRegistry).mockRejectedValue(new NetworkError("offline"));
+			vi.mocked(fetchReleases).mockRejectedValue(new NetworkError("offline"));
+			vi.mocked(fetchTags).mockRejectedValue(new NetworkError("offline"));
+			vi.mocked(fetchRegistry).mockRejectedValue(new NetworkError("registry offline"));
 
 			await expect(update({ projectDirs: [tempDir] })).rejects.toThrow("offline");
 		} finally {

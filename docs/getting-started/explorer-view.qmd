@@ -287,23 +287,44 @@ When an extension comes from a subdirectory of a repository, Quarto Wizard compa
 
 ### Where Updates Are Checked
 
-The background check uses GitHub when you are signed in to GitHub or when a token is set.
-Otherwise, it uses the registry, which can be a little behind GitHub.
-An extension that the registry does not list is still checked on GitHub, without a token.
-An extension from a subdirectory of a repository is always checked on GitHub, never through the registry.
+The background check looks up each extension on GitHub first, with or without a token.
+A new tag therefore shows as soon as the author publishes it.
 While a repository has no version tag, the check compares commits on the default branch.
-When you click **Update** or **Update All**, Quarto Wizard looks up GitHub, with or without a token.
+When you click **Update** or **Update All**, Quarto Wizard also looks up GitHub, with or without a token.
 Quarto Wizard 4.0.0 removes the `quartoWizard.update.crossSource` setting, which no longer has an effect.
+
+GitHub can refuse a check.
+The usual cause is the rate limit, but a rejected token or a lost connection has the same result.
+When GitHub refuses, the background check uses the registry for each extension that GitHub did not answer.
+The registry refreshes once a day, so it can be a little behind GitHub.
+The extensions that GitHub answered keep their GitHub result.
+
+Only an extension that the registry lists can use the registry.
+An extension from a subdirectory of a repository, or from a named branch, never uses the registry.
+If GitHub refuses one of these extensions, or an extension that the registry does not list, it is not checked.
+The log names each extension that was not checked.
+
+Each check uses the GitHub API:
+
+- About 2 requests for each extension that follows the latest tag (`/releases` and `/tags`).
+- 1 request for each extension that follows a branch (`/commits`).
+- 1 more request (`/compare`) for some extensions from a subdirectory of a repository.
+
+Extensions from the same repository share their requests.
+Quarto Wizard checks for updates when it starts, when the view opens, when you select **Refresh**, and after each install, update, or removal.
+Without a token, GitHub accepts 60 requests in one hour for each IP address.
+With a token, the limit is 5,000 requests in one hour.
 
 A line at the top of the view shows which source was used:
 
 - `Updates checked against GitHub.`
-- `Updates checked against the registry. Sign in to GitHub to see new tags straight away.`
-- `Update check failed. Show log.`
+- `Updates checked against the registry because GitHub did not answer. Sign in to GitHub to raise the rate limit.`
+- `Updates checked against the registry because GitHub did not answer.`, when you are signed in or a token is set.
+- `Update check failed. Show log.`, when GitHub refused and the registry could not help either.
 
 The title bar of the view can show one button for this line:
 
-- **Sign In** appears only when updates were checked against the registry.
+- **Sign In** appears only when updates were checked against the registry and you are not signed in.
 - **Show Log** appears only when the update check failed.
 
 Neither button appears when updates were checked against GitHub, or when no extensions are installed.
