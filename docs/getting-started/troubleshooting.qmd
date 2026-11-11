@@ -67,7 +67,8 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 - The extension has no install record and no `source` in its `_extension.yml` file.
   Quarto Wizard and Quarto 2 write the record when they install an extension.
 - The install record of the extension cannot be read.
-- You are not signed in to GitHub, and the registry does not list the new tag yet.
+- GitHub refused the check, for example because of the rate limit, and the registry does not list the new tag yet.
+  The line at the top of the Extensions Installed view says that updates were checked against the registry.
 - The update check failed.
   The line at the top of the Extensions Installed view says so.
 
@@ -76,7 +77,7 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 1. Remove the extension, then install it again with Quarto Wizard, from GitHub or from the registry.
    This writes the install record.
    An install over the installed copy at the same version writes nothing, so remove the extension first.
-2. Run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette, or set a GitHub token, to check GitHub directly.
+2. Run `Quarto Wizard: Sign In with GitHub Session` from the Command Palette, or set a GitHub token, to raise the GitHub rate limit.
    When the view says that updates were checked against the registry, you can also select **Sign In** in its title bar.
 3. If the view says `Update check failed. Show log.`, select **Show Log** in the title bar of the view and read the error.
    This button only appears when the update check failed.
@@ -102,7 +103,14 @@ Choose `Debug` for the Quarto Wizard channel to see details such as the folders 
 
 ### GitHub Rate Limiting
 
-**Symptoms**: "Rate limit exceeded" errors.
+**Symptoms**: "Rate limit exceeded" errors, or the Extensions Installed view says that updates were checked against the registry.
+
+**Causes**:
+
+- Without a token, a few update checks can use all of the GitHub requests for one hour.
+  See [Where Updates Are Checked](explorer-view.qmd#where-updates-are-checked) for the limits.
+- When the limit is reached, the update check uses the registry, so a new tag can be missing.
+  **Update** and **Update All** use GitHub only, so they fail until the limit resets.
 
 **Solutions**:
 

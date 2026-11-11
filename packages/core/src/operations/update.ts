@@ -100,7 +100,7 @@ export interface RepositoryFailure {
  */
 export interface UpdateCheckFailure {
 	/** Kind of failure. */
-	kind: "registry-unavailable" | "rate-limited" | "unauthorised" | "network";
+	kind: "rate-limited" | "unauthorised" | "network";
 	/** Reason of the failure. */
 	message: string;
 }
@@ -109,7 +109,7 @@ export interface UpdateCheckFailure {
  * Result of an update check.
  */
 export interface UpdateCheckResult {
-	/** Where the check as a whole looked for the latest versions. */
+	/** Where the check as a whole looked for the latest versions: `"registry"` when at least one extension fell back to it. */
 	checkedOn: UpdateCheckSource;
 	/** Available updates, in the order of the project directories. */
 	updates: UpdateInfo[];
@@ -117,6 +117,8 @@ export interface UpdateCheckResult {
 	repositoryFailures: RepositoryFailure[];
 	/** Set when the check could not complete. */
 	checkFailure?: UpdateCheckFailure;
+	/** Why GitHub refused, set when at least one extension fell back to the registry. */
+	fallbackReason?: UpdateCheckFailure;
 }
 
 /**
@@ -130,9 +132,11 @@ export interface UpdateCheckOptions extends RegistryOptions {
 	/**
 	 * Where to look for the latest versions.
 	 *
-	 * `"auto"` (default) uses GitHub when `auth.githubToken` is set, else the
-	 * registry, and GitHub for an extension that the registry does not list.
-	 * `"github"` uses GitHub for every extension, with or without a token.
+	 * Both modes check every extension on GitHub, with or without a token.
+	 * `"auto"` (default) falls back to the registry when GitHub refuses the
+	 * check: a rate limit, a rejected token or a network failure. Only the
+	 * refused extensions that the registry lists fall back.
+	 * `"github"` never falls back.
 	 */
 	source?: "auto" | "github";
 }
@@ -221,7 +225,12 @@ interface GitHubLookups {
  * While the repository has no version tag, tag mode compares commits on the
  * default branch, when the install recorded a commit.
  *
- * A source with a repository subdirectory is always checked on GitHub. Its
+ * Every extension is checked on GitHub first. See `UpdateCheckOptions.source`
+ * for the registry fallback. A refused extension that cannot fall back is
+ * reported in `repositoryFailures`, and the check fails as a whole only when no
+ * refused extension could fall back.
+ *
+ * A source with a repository subdirectory is never looked up in the registry. Its
  * installed version is compared with the version in the subdirectory manifest
  * at the latest tag, because the tags of a repository that holds several
  * extensions need not follow the version of any one of them.
@@ -237,40 +246,13 @@ interface GitHubLookups {
  */
 export async function checkForUpdates(options: UpdateCheckOptions): Promise<UpdateCheckResult> {
 	const { projectDirs, extension: targetExtension, source = "auto", ...registryOptions } = options;
-	const useGitHub = source === "github" || Boolean(registryOptions.auth?.githubToken);
-	const result: UpdateCheckResult = {
-		checkedOn: useGitHub ? "github" : "registry",
-		updates: [],
-		repositoryFailures: [],
-	};
 
 	if (registryOptions.signal?.aborted) {
 		throw new CancellationError();
 	}
-	const { candidates, failures } = await collectCandidates(projectDirs, targetExtension);
-	result.repositoryFailures = [...failures.values()];
+	const { candidates, failures: repositoryFailures } = await collectCandidates(projectDirs, targetExtension);
 	if (candidates.length === 0) {
-		return result;
-	}
-
-	let registry: Registry | null = null;
-	let checked = candidates;
-	if (!useGitHub && candidates.some(checksInRegistry)) {
-		try {
-			registry = await fetchRegistry(registryOptions);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw error;
-			}
-			result.checkFailure = { kind: "registry-unavailable", message: getErrorMessage(error) };
-			// The sources that are always checked on GitHub can still be checked.
-			checked = candidates.filter((candidate) => !checksInRegistry(candidate));
-			if (checked.length === 0) {
-				return result;
-			}
-		}
-	} else {
-		result.checkedOn = "github";
+		return { checkedOn: "github", updates: [], repositoryFailures: [...repositoryFailures.values()] };
 	}
 
 	const lookups = createGitHubLookups({
@@ -278,44 +260,79 @@ export async function checkForUpdates(options: UpdateCheckOptions): Promise<Upda
 		timeout: registryOptions.timeout,
 		signal: registryOptions.signal,
 	});
-	const repositoryFailures = new Map(failures);
-
-	const updates = await Promise.all(
-		checked.map(async (candidate) => {
-			const entry = registry && checksInRegistry(candidate) ? lookupRegistryEntry(registry, candidate.base) : null;
-			if (entry) {
-				return buildRegistryUpdate(candidate, entry);
+	const addRepositoryFailure = (candidate: UpdateCandidate, message: string): void => {
+		const key = candidate.fullName.toLowerCase();
+		if (!repositoryFailures.has(key)) {
+			repositoryFailures.set(key, { repository: candidate.fullName, message });
+		}
+	};
+	// Fetched once, on the first refusal that can fall back. An unavailable registry gives no fallback.
+	let registry: Promise<Registry | null> | undefined;
+	let registryError: string | undefined;
+	const loadRegistry = (): Promise<Registry | null> =>
+		(registry ??= fetchRegistry(registryOptions).catch((error: unknown) => {
+			if (isCancellationError(error)) {
+				throw error;
 			}
+			registryError = getErrorMessage(error);
+			return null;
+		}));
+
+	const outcomes = await Promise.all(
+		candidates.map(async (candidate): Promise<CheckOutcome> => {
 			try {
-				return await buildGitHubUpdate(candidate, lookups);
+				return { update: await buildGitHubUpdate(candidate, lookups) };
 			} catch (error) {
 				if (isCancellationError(error)) {
 					throw error;
 				}
 				const message = getErrorMessage(error);
 				const kind = checkFailureKind(error);
-				if (kind) {
-					// A rate limit or a rejected token can be fixed by signing in, so it hides an unavailable registry.
-					const replaces =
-						result.checkFailure?.kind === "registry-unavailable" &&
-						(kind === "rate-limited" || kind === "unauthorised");
-					if (!result.checkFailure || replaces) {
-						result.checkFailure = { kind, message };
-					}
-				} else {
-					const key = candidate.fullName.toLowerCase();
-					if (!repositoryFailures.has(key)) {
-						repositoryFailures.set(key, { repository: candidate.fullName, message });
-					}
+				if (!kind) {
+					addRepositoryFailure(candidate, message);
+					return { update: null };
 				}
-				return null;
+				const fallback = source === "auto" && checksInRegistry(candidate) ? await loadRegistry() : null;
+				const entry = fallback ? lookupRegistryEntry(fallback, candidate.base) : null;
+				const refusal = { candidate, failure: { kind, message } };
+				return entry
+					? { update: buildRegistryUpdate(candidate, entry), refusal, fellBack: true }
+					: { update: null, refusal };
 			}
 		}),
 	);
 
-	result.updates = updates.filter((u): u is UpdateInfo => u !== null);
+	const result: UpdateCheckResult = {
+		checkedOn: outcomes.some((outcome) => outcome.fellBack) ? "registry" : "github",
+		updates: outcomes.flatMap((outcome) => (outcome.update ? [outcome.update] : [])),
+		repositoryFailures: [],
+	};
+	const firstRefusal = outcomes.find((outcome) => outcome.refusal)?.refusal;
+	if (result.checkedOn === "registry") {
+		result.fallbackReason = outcomes.find((outcome) => outcome.fellBack)?.refusal?.failure;
+		for (const { refusal, fellBack } of outcomes) {
+			if (refusal && !fellBack) {
+				addRepositoryFailure(refusal.candidate, refusal.failure.message);
+			}
+		}
+	} else if (firstRefusal) {
+		const { kind, message } = firstRefusal.failure;
+		result.checkFailure = registryError
+			? { kind, message: `${message} (registry unavailable: ${registryError})` }
+			: firstRefusal.failure;
+	}
 	result.repositoryFailures = [...repositoryFailures.values()];
 	return result;
+}
+
+/**
+ * Result of checking one extension: its update, the reason when GitHub
+ * refused it, and whether the registry then gave the result.
+ */
+interface CheckOutcome {
+	update: UpdateInfo | null;
+	refusal?: { candidate: UpdateCandidate; failure: UpdateCheckFailure };
+	fellBack?: boolean;
 }
 
 /**

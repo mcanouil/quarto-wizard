@@ -19,7 +19,12 @@ import type { InstalledExtension } from "../../utils/extensions";
 import type { QuartoProjectRoot } from "../../utils/quartoProjectDiscovery";
 import { ProjectVisibility } from "../../utils/projectVisibility";
 import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFixtures";
-import { TREE_COMMANDS_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
+import {
+	TREE_COMMANDS_ROOT,
+	stubUpdateBoundary,
+	type FakeRepository,
+	type UpdateBoundaryOptions,
+} from "./updateFixtures";
 
 suite("Extension Tree Data Provider Test Suite", () => {
 	function createVisibility(): ProjectVisibility {
@@ -326,8 +331,21 @@ suite("Extension Tree Data Provider Test Suite", () => {
 
 	suite("Update check", () => {
 		let restoreBoundary: (() => void) | undefined;
+		const originalExecuteCommand = vscode.commands.executeCommand;
+		let updateCheckContextValue: unknown;
+
+		setup(() => {
+			updateCheckContextValue = undefined;
+			vscode.commands.executeCommand = async <T>(command: string, ...rest: unknown[]): Promise<T> => {
+				if (command === "setContext" && rest[0] === "quartoWizard.extensionsInstalled.updateCheck") {
+					updateCheckContextValue = rest[1];
+				}
+				return originalExecuteCommand<T>(command, ...rest);
+			};
+		});
 
 		teardown(() => {
+			vscode.commands.executeCommand = originalExecuteCommand;
 			restoreBoundary?.();
 			restoreBoundary = undefined;
 		});
@@ -349,6 +367,12 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			return { provider, view };
 		}
 
+		const RATE_LIMITED: FakeRepository = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
+		const RATE_LIMITED_REPOSITORIES: Record<string, FakeRepository> = {
+			"acme/registry-demo": { ...RATE_LIMITED, registryTag: "1.2.0" },
+			"acme/github-demo": { ...RATE_LIMITED, registryTag: "1.0.0" },
+		};
+
 		async function extensionItem(provider: QuartoExtensionTreeDataProvider, id: string): Promise<ExtensionTreeItem> {
 			const items = await provider.getChildren(new WorkspaceFolderTreeItem("treeCommands", TREE_COMMANDS_ROOT));
 			const item = items.find((candidate) => candidate.label === id);
@@ -357,7 +381,7 @@ suite("Extension Tree Data Provider Test Suite", () => {
 		}
 
 		test("view message reports a check failure", async () => {
-			const { view } = await runCheck({ repositories: {}, registryStatus: 404 });
+			const { view } = await runCheck({ repositories: RATE_LIMITED_REPOSITORIES, registryStatus: 404 });
 
 			assert.strictEqual(view.message, "Update check failed. Show log.");
 		});
@@ -371,21 +395,36 @@ suite("Extension Tree Data Provider Test Suite", () => {
 			assert.strictEqual(view.message, "Updates checked against GitHub.");
 		});
 
-		test("view message names the registry without a token", async () => {
+		test("view message names GitHub without a token", async () => {
+			const requests: string[] = [];
 			const { view } = await runCheck({
-				repositories: { "acme/registry-demo": { registryTag: "1.2.0" }, "acme/github-demo": { registryTag: "1.0.0" } },
+				requests,
+				repositories: { "acme/registry-demo": { githubTags: ["v1.3.0"], registryTag: "1.2.0" } },
 			});
+
+			assert.strictEqual(view.message, "Updates checked against GitHub.");
+			assert.ok(!requests.some((url) => url.startsWith("https://registry.test/")), requests.join(", "));
+		});
+
+		test("view message names the registry and offers Sign In when GitHub rate-limits a check without a token", async () => {
+			const { view } = await runCheck({ repositories: RATE_LIMITED_REPOSITORIES });
 
 			assert.strictEqual(
 				view.message,
-				"Updates checked against the registry. Sign in to GitHub to see new tags straight away.",
+				"Updates checked against the registry because GitHub did not answer. Sign in to GitHub to raise the rate limit.",
 			);
+			assert.strictEqual(updateCheckContextValue, "registry");
+		});
+
+		test("view message names the registry without Sign In when GitHub rate-limits a signed-in check", async () => {
+			const { view } = await runCheck({ token: "test-token", repositories: RATE_LIMITED_REPOSITORIES });
+
+			assert.strictEqual(view.message, "Updates checked against the registry because GitHub did not answer. Show log.");
+			assert.strictEqual(updateCheckContextValue, "registrySignedIn");
 		});
 
 		test("detail rows show Installed from and Latest", async () => {
-			const { provider } = await runCheck({
-				repositories: { "acme/registry-demo": { registryTag: "1.2.0" }, "acme/github-demo": { registryTag: "1.0.0" } },
-			});
+			const { provider } = await runCheck({ repositories: RATE_LIMITED_REPOSITORIES });
 
 			const item = await extensionItem(provider, "acme/registry-demo");
 			const labels = (await provider.getChildren(item)).map((child) => String(child.label));
