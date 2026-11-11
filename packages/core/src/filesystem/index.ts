@@ -50,7 +50,6 @@ export {
 	type InstallAction,
 	hashExtensionFiles,
 	readSourceRecord,
-	readSourceRecordKeys,
 	writeSourceRecord,
 	formatLocalEdit,
 	getInstalledState,
