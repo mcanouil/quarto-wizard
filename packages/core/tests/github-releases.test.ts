@@ -338,6 +338,14 @@ describe("fetchDefaultBranchHead", () => {
 		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RepositoryNotFoundError);
 	});
 
+	it("says that a 404 can come from a repository without a commit", async () => {
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		const error = await fetchDefaultBranchHead("owner", "repo").catch((e: unknown) => e);
+
+		expect((error as RepositoryNotFoundError).suggestion).toContain("at least one commit");
+	});
+
 	it("maps a 401 to AuthenticationError", async () => {
 		await mockRedirect(new NetworkError("HTTP 401: Unauthorized", { statusCode: 401 }));
 

@@ -177,14 +177,15 @@ export function constructArchiveUrl(
 /**
  * Handle GitHub API errors.
  *
- * `wrapNetworkError`, when given, replaces a network error that no case below
+ * A caller can give `context`: `notFoundSuggestion` replaces the suggestion of
+ * a 404, and `wrapNetworkError` replaces a network error that no case below
  * maps, such as a 5xx, so that the caller can name what it was doing.
  */
 function handleGitHubError(
 	error: unknown,
 	owner: string,
 	repo: string,
-	wrapNetworkError?: (error: NetworkError) => NetworkError,
+	context: { notFoundSuggestion?: string; wrapNetworkError?: (error: NetworkError) => NetworkError } = {},
 ): never {
 	if (error instanceof SamlSsoError || error instanceof RateLimitError) {
 		throw error;
@@ -208,12 +209,12 @@ function handleGitHubError(
 
 		if (status === 404) {
 			throw new RepositoryNotFoundError(`Repository not found: ${owner}/${repo}`, {
-				suggestion: "Check if the repository exists and you have access to it",
+				suggestion: context.notFoundSuggestion ?? "Check if the repository exists and you have access to it",
 			});
 		}
 
-		if (wrapNetworkError) {
-			throw wrapNetworkError(error);
+		if (context.wrapNetworkError) {
+			throw context.wrapNetworkError(error);
 		}
 	}
 
@@ -439,17 +440,17 @@ export async function fetchDefaultBranchHead(
 		}
 		return normaliseCommit(commit[1]);
 	} catch (error) {
-		handleGitHubError(
-			error,
-			owner,
-			repo,
-			(cause) =>
+		handleGitHubError(error, owner, repo, {
+			// GitHub also answers 404 for the archive of a repository without a commit.
+			notFoundSuggestion:
+				"Check that the repository exists, that you have access to it, and that it has at least one commit",
+			wrapNetworkError: (cause) =>
 				new NetworkError(`Cannot read the default branch head of ${owner}/${repo} from GitHub: ${cause.message}`, {
 					statusCode: cause.statusCode,
 					cause,
 					suggestion: DEFAULT_BRANCH_HEAD_SUGGESTION,
 				}),
-		);
+		});
 	}
 }
 

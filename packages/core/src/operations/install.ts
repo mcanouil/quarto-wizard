@@ -710,7 +710,7 @@ function formatResolvedSource(source: InstallSource, tagName?: string, commitSha
 		if (commitSha) {
 			return `${base}@${shortCommit(commitSha)}`;
 		}
-		return tagName && tagName !== "HEAD" ? `${base}@${tagName}` : base;
+		return tagName ? `${base}@${tagName}` : base;
 	}
 
 	return formatInstallSource(source);
