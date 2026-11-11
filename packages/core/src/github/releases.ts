@@ -17,6 +17,7 @@ import {
 	RepositoryNotFoundError,
 	SamlSsoError,
 	VersionError,
+	isCancellationError,
 } from "../errors.js";
 import { fetchJson, fetchJsonPages, fetchRedirectLocation } from "../registry/http.js";
 import { normaliseCommit } from "../types/manifest.js";
@@ -440,6 +441,9 @@ export async function fetchDefaultBranchHead(
 		}
 		return normaliseCommit(commit[1]);
 	} catch (error) {
+		if (auth?.githubToken && error instanceof NetworkError && error.statusCode === 404) {
+			await throwSamlSsoError(owner, repo, options);
+		}
 		handleGitHubError(error, owner, repo, {
 			// GitHub also answers 404 for the archive of a repository without a commit.
 			notFoundSuggestion:
@@ -451,6 +455,25 @@ export async function fetchDefaultBranchHead(
 					suggestion: DEFAULT_BRANCH_HEAD_SUGGESTION,
 				}),
 		});
+	}
+}
+
+/**
+ * Throw the SAML SSO error of a repository, if the API reports one.
+ *
+ * Only the API sends the `X-GitHub-SSO` header. `github.com` answers 404 to a
+ * token that SAML SSO blocks, so one API request tells that case apart from a
+ * missing repository. Any other answer returns, and the caller keeps its own
+ * error.
+ */
+async function throwSamlSsoError(owner: string, repo: string, options: GitHubOptions): Promise<void> {
+	const { auth, timeout, signal } = options;
+	try {
+		await fetchJson(repoApiUrl(owner, repo), { headers: getGitHubHeaders(auth), timeout, retries: 0, signal });
+	} catch (error) {
+		if (error instanceof SamlSsoError || isCancellationError(error)) {
+			throw error;
+		}
 	}
 }
 

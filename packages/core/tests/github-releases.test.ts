@@ -338,6 +338,38 @@ describe("fetchDefaultBranchHead", () => {
 		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RepositoryNotFoundError);
 	});
 
+	it("asks the API whether SAML SSO blocks a token that gets a 404", async () => {
+		const samlUrl = "https://github.com/orgs/acme/sso?authorization_request=abc";
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockRejectedValueOnce(new SamlSsoError("HTTP 403: SAML SSO enforcement", { authorizationUrl: samlUrl }));
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		const error = await fetchDefaultBranchHead("owner", "repo", { auth: { githubToken: "t", httpHeaders: [] } }).catch(
+			(e: unknown) => e,
+		);
+
+		expect(error).toBeInstanceOf(SamlSsoError);
+		expect(fetchJson.mock.calls[0]?.[0]).toBe("https://api.github.com/repos/owner/repo");
+	});
+
+	it("reports a 404 as not found when the API finds no SAML SSO block", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		fetchJson.mockRejectedValueOnce(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		await expect(
+			fetchDefaultBranchHead("owner", "repo", { auth: { githubToken: "t", httpHeaders: [] } }),
+		).rejects.toBeInstanceOf(RepositoryNotFoundError);
+	});
+
+	it("makes no API request for a 404 without a token", async () => {
+		const { fetchJson } = vi.mocked(await import("../src/registry/http.js"));
+		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
+
+		await expect(fetchDefaultBranchHead("owner", "repo")).rejects.toBeInstanceOf(RepositoryNotFoundError);
+		expect(fetchJson).not.toHaveBeenCalled();
+	});
+
 	it("says that a 404 can come from a repository without a commit", async () => {
 		await mockRedirect(new NetworkError("HTTP 404: Not Found", { statusCode: 404 }));
 
