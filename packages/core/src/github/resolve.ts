@@ -10,7 +10,7 @@ import { normaliseCommit, shortCommit, type InstallTrack } from "../types/manife
 import { SamlSsoError, VersionError, isCancellationError } from "../errors.js";
 import {
 	constructArchiveUrl,
-	fetchDefaultBranch,
+	fetchDefaultBranchHead,
 	fetchLatestCommit,
 	fetchReleases,
 	fetchTags,
@@ -24,10 +24,6 @@ import { resolveLatestTag } from "./latest.js";
  * Options for version resolution.
  */
 export interface ResolveVersionOptions extends GitHubOptions {
-	/** Default branch to use when no releases/tags exist. */
-	defaultBranch?: string;
-	/** Latest commit SHA on default branch (for fallback). */
-	latestCommit?: string;
 	/**
 	 * Repository subdirectory that is installed. Without a tag, the commit
 	 * recorded is the latest commit that changes this path.
@@ -144,8 +140,10 @@ export async function resolveVersion(
  * Resolve the head of a branch, the default branch when `branch` is not set.
  *
  * The head is downloaded by its commit, so the files match the commit that is
- * recorded even when the branch moves during the install. Without a commit,
- * it falls back to the branch archive.
+ * recorded even when the branch moves during the install. The default branch
+ * is never named: its head comes from the `archive/HEAD` redirect, and a
+ * subdirectory records the latest commit of its path at that head. An explicit
+ * branch without a commit falls back to the branch archive.
  */
 async function resolveBranchHead(
 	owner: string,
@@ -153,26 +151,31 @@ async function resolveBranchHead(
 	branch: string | undefined,
 	options: ResolveVersionOptions,
 ): Promise<ResolvedVersion> {
-	// The registry hint is a cached default-branch commit, so it only covers a failed live lookup.
-	const commit =
-		(await lookUpLatestCommit(owner, repo, { ...options, ref: branch })) ??
-		(branch === undefined ? options.latestCommit : undefined);
+	if (branch === undefined) {
+		const head = await fetchDefaultBranchHead(owner, repo, options);
+		const pathCommit = options.path ? await lookUpLatestCommit(owner, repo, { ...options, ref: head }) : undefined;
+		const commitSha = normaliseCommit(pathCommit ?? head);
+		return {
+			tagName: shortCommit(commitSha),
+			...commitArchive(owner, repo, head),
+			commitSha,
+			fromTag: false,
+		};
+	}
+	const commit = await lookUpLatestCommit(owner, repo, { ...options, ref: branch });
 	if (commit) {
 		const commitSha = normaliseCommit(commit);
 		return {
-			tagName: branch ?? shortCommit(commitSha),
+			tagName: branch,
 			...commitArchive(owner, repo, commitSha),
 			commitSha,
 			fromTag: false,
 		};
 	}
-	// For the default branch, the registry hint is preferred, then GitHub itself,
-	// because the branch is not always "main".
-	const archiveBranch = branch ?? options.defaultBranch ?? (await fetchDefaultBranch(owner, repo, options)) ?? "main";
 	return {
-		tagName: branch ?? "HEAD",
-		zipballUrl: constructArchiveUrl(owner, repo, archiveBranch, "branch", "zip"),
-		tarballUrl: constructArchiveUrl(owner, repo, archiveBranch, "branch", "tarball"),
+		tagName: branch,
+		zipballUrl: constructArchiveUrl(owner, repo, branch, "branch", "zip"),
+		tarballUrl: constructArchiveUrl(owner, repo, branch, "branch", "tarball"),
 		fromTag: false,
 	};
 }
@@ -188,11 +191,11 @@ function commitArchive(owner: string, repo: string, commit: string): { zipballUr
 }
 
 /**
- * Look up the latest commit of a branch, the default branch when `ref` is not
- * set, so that an install records the commit it installed. A failed lookup
- * returns `undefined`, so the install still goes ahead from the branch archive
- * without a commit. A SAML SSO error and a cancellation are rethrown, as in
- * `fetchDefaultBranch`.
+ * Look up the latest commit of a ref, so that an install records the commit
+ * it installed. A failed lookup returns `undefined`, so the install still goes
+ * ahead: from the branch archive without a commit for an explicit branch, or
+ * with the head commit for a subdirectory of the default branch. A SAML SSO
+ * error and a cancellation are rethrown, because the user must act on them.
  */
 async function lookUpLatestCommit(
 	owner: string,

@@ -759,9 +759,6 @@ describe("install from a repository subdirectory", () => {
 	);
 
 	it("install records the latest path commit for an untagged subdirectory source", async () => {
-		vi.mocked(fetchRegistry).mockResolvedValueOnce({
-			"owner/repo": { fullName: "owner/repo", defaultBranchRef: "main", latestCommit: "0000000aaaaaaa" },
-		} as never);
 		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
 			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
 			tagName: "fed9876",
@@ -775,7 +772,7 @@ describe("install from a repository subdirectory", () => {
 			"owner",
 			"repo",
 			{ type: "latest" },
-			expect.objectContaining({ path: "b", latestCommit: undefined, defaultBranch: "main" }),
+			expect.objectContaining({ path: "b" }),
 		);
 		const record = readSourceRecord(path.join(projectDir, "_extensions", "owner", "y"));
 		expect(record).toMatchObject({
