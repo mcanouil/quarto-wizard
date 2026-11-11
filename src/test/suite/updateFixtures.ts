@@ -7,6 +7,7 @@ export const TREE_COMMANDS_ROOT = path.join(__dirname, "..", "..", "..", "src", 
 
 const REGISTRY_URL = "https://registry.test/extensions.json";
 const GITHUB_REPOS = "https://api.github.com/repos/";
+const DEFAULT_BRANCH_ARCHIVE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/archive\/HEAD\.tar\.gz$/;
 
 export interface FakeRepository {
 	/** Tags that GitHub lists, as published. */
@@ -17,10 +18,11 @@ export interface FakeRepository {
 	githubStatus?: number;
 	/** Response headers that go with `githubStatus`. */
 	githubHeaders?: Record<string, string>;
-	/** Full SHA of the latest commit of the default branch; the branch has no commit when unset. */
+	/**
+	 * Full SHA of the latest commit of the default branch, from the commits endpoint and from the
+	 * `archive/HEAD` redirect; the branch has no commit and the archive is not found when unset.
+	 */
 	latestCommit?: string;
-	/** Name of the default branch; GitHub reports none when unset. */
-	defaultBranch?: string;
 }
 
 export interface UpdateBoundaryOptions {
@@ -79,13 +81,21 @@ function githubResponse(fullName: string, endpoint: string, repository: FakeRepo
 			return json([]);
 		case "commits":
 			return json(repository?.latestCommit ? [{ sha: repository.latestCommit }] : []);
-		case undefined:
-			return repository?.defaultBranch
-				? json({ default_branch: repository.defaultBranch })
-				: json({ message: "Not Found" }, 404);
 		default:
 			return json({ message: "Not Found" }, 404);
 	}
+}
+
+/** Redirect of `archive/HEAD` to the archive of the default branch head, as GitHub answers it. */
+function defaultBranchArchiveResponse(fullName: string, repository: FakeRepository | undefined): Response {
+	if (repository?.githubStatus) {
+		return json({ message: "Not Found" }, repository.githubStatus, repository.githubHeaders);
+	}
+	if (!repository?.latestCommit) {
+		return json({ message: "Not Found" }, 404);
+	}
+	const location = `https://codeload.github.com/${fullName}/tar.gz/${repository.latestCommit}`;
+	return new Response(null, { status: 302, headers: { Location: location } });
 }
 
 /**
@@ -110,6 +120,11 @@ export function stubUpdateBoundary(options: UpdateBoundaryOptions): () => void {
 			return options.registryStatus
 				? json({ message: "Unavailable" }, options.registryStatus)
 				: json(registryBody(options.repositories));
+		}
+		const archive = DEFAULT_BRANCH_ARCHIVE.exec(url);
+		if (archive) {
+			const fullName = `${decodeURIComponent(archive[1])}/${decodeURIComponent(archive[2])}`;
+			return defaultBranchArchiveResponse(fullName, options.repositories[fullName]);
 		}
 		if (url.startsWith(GITHUB_REPOS)) {
 			const [owner, repo, endpoint] = new URL(url).pathname.split("/").slice(2);

@@ -21,7 +21,6 @@ import {
 import { normaliseSubdirectory } from "../../src/archive/security.js";
 import { resolveExtensionId } from "../../src/operations/internal.js";
 import { downloadGitHubArchive } from "../../src/github/download.js";
-import { fetchRegistry } from "../../src/registry/fetcher.js";
 import {
 	createSubdirectoryRepositoryArchive,
 	SUBDIRECTORY_REPOSITORY_TAG,
@@ -30,11 +29,6 @@ import {
 vi.mock("../../src/github/download.js", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../src/github/download.js")>()),
 	downloadGitHubArchive: vi.fn(),
-}));
-
-vi.mock("../../src/registry/fetcher.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../../src/registry/fetcher.js")>()),
-	fetchRegistry: vi.fn().mockRejectedValue(new Error("registry offline")),
 }));
 
 describe("parseInstallSource", () => {
@@ -759,9 +753,6 @@ describe("install from a repository subdirectory", () => {
 	);
 
 	it("install records the latest path commit for an untagged subdirectory source", async () => {
-		vi.mocked(fetchRegistry).mockResolvedValueOnce({
-			"owner/repo": { fullName: "owner/repo", defaultBranchRef: "main", latestCommit: "0000000aaaaaaa" },
-		} as never);
 		vi.mocked(downloadGitHubArchive).mockImplementation(async () => ({
 			archivePath: await createSubdirectoryRepositoryArchive(tempDir),
 			tagName: "fed9876",
@@ -775,7 +766,7 @@ describe("install from a repository subdirectory", () => {
 			"owner",
 			"repo",
 			{ type: "latest" },
-			expect.objectContaining({ path: "b", latestCommit: undefined, defaultBranch: "main" }),
+			expect.objectContaining({ path: "b" }),
 		);
 		const record = readSourceRecord(path.join(projectDir, "_extensions", "owner", "y"));
 		expect(record).toMatchObject({
@@ -1092,16 +1083,6 @@ describe("install record", () => {
 			expect(record.source).toBe("owner/repo");
 			expect(record).not.toHaveProperty("ref");
 			expect(record.quartoWizard).toEqual({ track: "tag", commit: SHA });
-		});
-
-		it("branch mode without a resolved commit records the branch mode and no commit", async () => {
-			mockGitHubDownload({ tagName: "HEAD", fromTag: false });
-
-			await install(parseInstallSource("owner/repo"), { projectDir, track: "branch" });
-
-			const record = recordOf(installedDir());
-			expect(record.source).toBe("owner/repo");
-			expect(record.quartoWizard).toEqual({ track: "branch" });
 		});
 
 		it("an explicit branch without a resolved commit records the branch mode and no commit", async () => {

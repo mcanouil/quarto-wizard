@@ -308,7 +308,8 @@ When no extension could use the registry, the update check fails.
 Each check uses the GitHub API:
 
 - About 2 requests for each extension that follows the latest tag (`/releases` and `/tags`).
-- 1 request for each extension that follows a branch (`/commits`).
+- 1 request for each extension that follows a named branch (`/commits`).
+  An extension that follows the default branch uses no API request.
 - 1 more request (`/compare`) for some extensions from a subdirectory of a repository.
 
 Extensions from the same repository share their requests.

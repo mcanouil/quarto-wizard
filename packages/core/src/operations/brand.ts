@@ -18,7 +18,7 @@ import { parseInstallSource, formatInstallSource, type InstallSource } from "./i
 import { downloadGitHubArchive, downloadFromUrl } from "../github/download.js";
 import { extractArchive, cleanupExtraction, resolveSourceRoot } from "../archive/extract.js";
 import { MANIFEST_FILENAMES } from "../filesystem/manifest.js";
-import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
+import type { RegistryOptions } from "../registry/fetcher.js";
 
 /** Supported brand file names at root level. */
 const BRAND_FILENAMES = ["_brand.yml", "_brand.yaml"] as const;
@@ -528,24 +528,8 @@ async function stageBrandSource(
 	if (source.type === "github") {
 		onProgress?.({ phase: "resolving", message: `Resolving ${source.owner}/${source.repo}...` });
 
-		let defaultBranch: string | undefined;
-		let latestCommit: string | undefined;
-		try {
-			const registry = await fetchRegistry(options);
-			const registryKey = `${source.owner}/${source.repo}`;
-			const entry = registry[registryKey] ?? registry[registryKey.toLowerCase()];
-			if (entry) {
-				defaultBranch = entry.defaultBranchRef ?? undefined;
-				latestCommit = entry.latestCommit ?? undefined;
-			}
-		} catch {
-			// Registry fetch failed; use defaults.
-		}
-
 		const result = await downloadGitHubArchive(source.owner, source.repo, source.version, {
 			auth,
-			defaultBranch,
-			latestCommit,
 			onProgress: (p) => {
 				onProgress?.({ phase: p.phase, message: p.message });
 			},

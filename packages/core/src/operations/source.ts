@@ -11,9 +11,7 @@
 import * as semver from "semver";
 import type { InstalledExtension } from "../filesystem/discovery.js";
 import {
-	formatGitHubLocator,
 	getEffectiveSourceType,
-	normaliseCommit,
 	recordedTrack,
 	shortCommit,
 	splitSourceRef,
@@ -21,13 +19,13 @@ import {
 	type GitHubLocator,
 	type InstallTrack,
 } from "../types/manifest.js";
-import { ExtensionError } from "../errors.js";
 import { parseVersionSpec, type VersionSpec } from "../types/extension.js";
 import type { InstallSource } from "./install.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { fetchRawFile } from "../github/raw.js";
 import { installedVersionFloor, readSubdirectoryVersion } from "./versions.js";
-import { fetchDefaultBranch, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
+import type { GitHubOptions } from "../github/releases.js";
+import { resolveDefaultBranchCommit } from "../github/resolve.js";
 
 /**
  * What an install of a GitHub extension downloads and what it records.
@@ -147,7 +145,7 @@ function recordedVersion(source: string): VersionSpec {
  * @param extension - Installed extension
  * @param options - GitHub options
  * @returns Target to install, or null when the source is not on GitHub
- * @throws ExtensionError when the default branch has no commit to install
+ * @throws RepositoryNotFoundError or NetworkError when the head of the default branch cannot be read
  */
 export async function planSourceChange(
 	extension: InstalledExtension,
@@ -181,7 +179,7 @@ export async function planSourceChange(
 /**
  * Target of a change of update source to the head of the default branch, in the given update mode.
  *
- * @throws ExtensionError when the default branch has no commit to install
+ * @throws RepositoryNotFoundError or NetworkError when the head of the default branch cannot be read
  */
 async function headTarget(
 	{ locator, base }: GitHubSource,
@@ -189,20 +187,15 @@ async function headTarget(
 	currentVersion: string | null,
 	options: GitHubOptions,
 ): Promise<SourceChange> {
-	const [commit, branch] = await Promise.all([
-		fetchLatestCommit(locator.owner, locator.repo, { ...options, path: locator.subdirectory }),
-		fetchDefaultBranch(locator.owner, locator.repo, options),
-	]);
-	if (!commit) {
-		throw new ExtensionError(
-			`Cannot find a commit on the default branch of "${formatGitHubLocator(locator)}". Check that the repository has commits and try again.`,
-		);
-	}
+	const { commit } = await resolveDefaultBranchCommit(locator.owner, locator.repo, {
+		...options,
+		path: locator.subdirectory,
+	});
 	return {
-		source: githubInstallSource(locator, { type: "commit", commit: normaliseCommit(commit) }),
+		source: githubInstallSource(locator, { type: "commit", commit }),
 		recordSource: base,
 		track,
-		targetLabel: `${branch ?? "default branch"} @ ${shortCommit(commit)}`,
+		targetLabel: `default branch @ ${shortCommit(commit)}`,
 		currentVersion,
 		isDowngrade: false,
 	};

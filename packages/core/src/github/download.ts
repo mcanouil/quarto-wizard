@@ -75,18 +75,7 @@ export async function downloadGitHubArchive(
 	version: VersionSpec,
 	options: DownloadOptions = {},
 ): Promise<DownloadResult> {
-	const {
-		auth,
-		timeout = 60000,
-		format = "zip",
-		onProgress,
-		downloadDir,
-		defaultBranch,
-		latestCommit,
-		path: subdirectory,
-		track,
-		signal,
-	} = options;
+	const { auth, timeout = 60000, format = "zip", onProgress, downloadDir, path: subdirectory, track, signal } = options;
 
 	onProgress?.({
 		phase: "resolving",
@@ -96,8 +85,6 @@ export async function downloadGitHubArchive(
 	const resolved = await resolveVersion(owner, repo, version, {
 		auth,
 		timeout,
-		defaultBranch,
-		latestCommit,
 		path: subdirectory,
 		track,
 		signal,
