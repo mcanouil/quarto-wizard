@@ -233,17 +233,61 @@ export function readSourceRecord(dir: string): SourceRecordReadResult {
 	return record ? { status: "ok", record } : { status: "unreadable" };
 }
 
+/** Top-level keys of the install record that Quarto Wizard writes itself. */
+const OWN_RECORD_KEYS = ["version", "source", "kind", "ref", "files", "quarto-wizard"];
+
+/** Keys of the `quarto-wizard` block that Quarto Wizard writes itself. */
+const OWN_QUARTO_WIZARD_KEYS = ["track", "source-type", "commit"];
+
+/**
+ * Read every key of the install record of an extension folder, as YAML values.
+ *
+ * Give the result to `writeSourceRecord` to keep the keys of other tools and of newer versions.
+ * A record with a newer schema version is read too.
+ *
+ * @param dir - Extension folder
+ * @returns The keys, or `undefined` when there is no record, a YAML error, or no mapping
+ */
+export function readSourceRecordKeys(dir: string): Record<string, unknown> | undefined {
+	let raw: unknown;
+	try {
+		raw = yaml.load(fs.readFileSync(path.join(dir, SOURCE_RECORD_FILENAME), "utf-8"));
+	} catch {
+		return undefined;
+	}
+	return isPlainObject(raw) ? raw : undefined;
+}
+
+function otherKeys(value: unknown, ownKeys: readonly string[]): Record<string, unknown> {
+	const kept: Record<string, unknown> = Object.create(null);
+	if (isPlainObject(value)) {
+		for (const [key, entry] of Object.entries(value)) {
+			if (!ownKeys.includes(key)) {
+				kept[key] = entry;
+			}
+		}
+	}
+	return kept;
+}
+
 /**
  * Hash an extension folder and write its install record.
  *
- * The YAML keys are in this order: `version`, `source`, `kind`, `ref`, `files`, `quarto-wizard`.
+ * The YAML keys are in this order: `version`, `source`, `kind`, `ref`, `files`, the kept keys, `quarto-wizard`.
  * `ref` and `quarto-wizard` are left out when they are empty.
+ * The keys of `previousKeys` that Quarto Wizard does not own are kept as they are, in their order.
+ * This holds for the top-level keys and for the keys of the `quarto-wizard` block.
  *
  * @param dir - Extension folder
  * @param record - Source data of the record
+ * @param previousKeys - Keys of the record that the install replaces, from `readSourceRecordKeys`
  * @returns The record that was written
  */
-export function writeSourceRecord(dir: string, record: SourceRecordData): SourceRecord {
+export function writeSourceRecord(
+	dir: string,
+	record: SourceRecordData,
+	previousKeys?: Record<string, unknown>,
+): SourceRecord {
 	const written: SourceRecord = {
 		version: SOURCE_RECORD_VERSION,
 		source: record.source,
@@ -259,7 +303,13 @@ export function writeSourceRecord(dir: string, record: SourceRecordData): Source
 			...(commit !== undefined && { commit }),
 		};
 	}
-	fs.writeFileSync(path.join(dir, SOURCE_RECORD_FILENAME), SOURCE_RECORD_HEADER + formatSourceRecord(written), "utf-8");
+	const kept = otherKeys(previousKeys, OWN_RECORD_KEYS);
+	const keptQuartoWizard = otherKeys(previousKeys?.["quarto-wizard"], OWN_QUARTO_WIZARD_KEYS);
+	fs.writeFileSync(
+		path.join(dir, SOURCE_RECORD_FILENAME),
+		SOURCE_RECORD_HEADER + formatSourceRecord(written, kept, keptQuartoWizard),
+		"utf-8",
+	);
 	return written;
 }
 
@@ -272,28 +322,43 @@ function dumpYaml(value: unknown): string {
  *
  * The record has no empty `ref` or `quartoWizard` key, as `writeSourceRecord` builds it.
  * `yaml.dump` leaves out a key whose value is undefined.
- * It would list integer-like keys first, so each `files` entry is dumped
- * on its own, in code point order.
+ * It would list integer-like keys first, so each `files` entry and each kept key is dumped
+ * on its own, in code point order for `files` and in the order of the old record for kept keys.
  */
-function formatSourceRecord(record: SourceRecord): string {
+function formatSourceRecord(
+	record: SourceRecord,
+	kept: Record<string, unknown>,
+	keptQuartoWizard: Record<string, unknown>,
+): string {
 	const { files: hashes, quartoWizard: wizard, ...fields } = record;
 	const head = dumpYaml(fields);
 	const paths = Object.keys(hashes).sort(compareCodePoints);
 	const files =
 		paths.length === 0
 			? "files: {}\n"
-			: "files:\n" +
-				paths
-					.map((filePath) => {
-						const entry: Record<string, string> = Object.create(null);
-						entry[filePath] = hashes[filePath];
-						return dumpYaml(entry).replace(/^(?=.)/gm, "  ");
-					})
-					.join("");
-	const quartoWizard = wizard
-		? dumpYaml({ "quarto-wizard": { track: wizard.track, "source-type": wizard.sourceType, commit: wizard.commit } })
+			: "files:\n" + paths.map((filePath) => indent(dumpEntry(filePath, hashes[filePath]))).join("");
+	const keptKeys = Object.keys(kept)
+		.map((key) => dumpEntry(key, kept[key]))
+		.join("");
+	const ownQuartoWizard = wizard
+		? dumpYaml({ track: wizard.track, "source-type": wizard.sourceType, commit: wizard.commit })
 		: "";
-	return head + files + quartoWizard;
+	const otherQuartoWizard = Object.keys(keptQuartoWizard)
+		.map((key) => dumpEntry(key, keptQuartoWizard[key]))
+		.join("");
+	const quartoWizardBody = ownQuartoWizard + otherQuartoWizard;
+	const quartoWizard = quartoWizardBody === "" ? "" : "quarto-wizard:\n" + indent(quartoWizardBody);
+	return head + files + keptKeys + quartoWizard;
+}
+
+function dumpEntry(key: string, value: unknown): string {
+	const entry: Record<string, unknown> = Object.create(null);
+	entry[key] = value;
+	return dumpYaml(entry);
+}
+
+function indent(text: string): string {
+	return text.replace(/^(?=.)/gm, "  ");
 }
 
 /**

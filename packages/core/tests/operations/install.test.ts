@@ -961,6 +961,37 @@ describe("install record", () => {
 		expect(record.quartoWizard).toEqual({ track: "tag", commit: "abc1234" });
 	});
 
+	it("an update keeps the record keys that Quarto Wizard does not own", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo"), { projectDir });
+		const recordPath = path.join(installedDir(), SOURCE_RECORD_FILENAME);
+		const content = fs.readFileSync(recordPath, "utf-8");
+		fs.writeFileSync(
+			recordPath,
+			content.replace("quarto-wizard:\n", "other-tool:\n  pinned: true\nquarto-wizard:\n  future: kept\n"),
+		);
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		await install(parseInstallSource("owner/repo"), { projectDir });
+
+		const updated = fs.readFileSync(recordPath, "utf-8");
+		expect(updated).toContain("other-tool:\n  pinned: true\n");
+		expect(updated).toContain("quarto-wizard:\n  track: tag\n  commit: abc1234\n  future: kept\n");
+	});
+
+	it("a forced install keeps the keys of a record it cannot read", async () => {
+		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });
+		await install(parseInstallSource("owner/repo"), { projectDir });
+		const recordPath = path.join(installedDir(), SOURCE_RECORD_FILENAME);
+		fs.writeFileSync(recordPath, "version: 1\nother-tool: kept\n");
+		mockGitHubDownload({ tagName: "abc1234", commitSha: "abc1234" });
+
+		await install(parseInstallSource("owner/repo"), { projectDir, force: true });
+
+		expect(fs.readFileSync(recordPath, "utf-8")).toContain("other-tool: kept\n");
+		expect(recordOf(installedDir()).quartoWizard).toEqual({ track: "tag", commit: "abc1234" });
+	});
+
 	it("a Quarto Wizard 3 copy at the same commit is unchanged", async () => {
 		writeQuartoWizard3Copy("owner/repo@fed9876");
 		mockGitHubDownload({ tagName: "fed9876", commitSha: "fed9876" });

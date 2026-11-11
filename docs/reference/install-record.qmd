@@ -15,6 +15,12 @@ Each tool finds the source in the record and checks the files against the checks
 Do not edit the file by hand.
 Quarto Wizard and Quarto 2 both write it.
 
+When Quarto Wizard replaces an extension, it writes again only the keys that it uses.
+It keeps all other keys of the record, with their values.
+These keys can come from Quarto 2, from a newer version of Quarto Wizard, or from a different tool.
+Quarto Wizard does not change these keys, also when they are no longer correct after an update.
+The tool that writes a key must keep it correct.
+
 ## What the Record Holds
 
 The record holds these items:
