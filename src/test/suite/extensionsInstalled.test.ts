@@ -18,6 +18,7 @@ import { FakeMemento, makeEmbeddedRoot, makeFolder, makeRoot } from "./projectFi
 import { TREE_COMMANDS_ROOT as FIXTURE_ROOT, stubUpdateBoundary, type UpdateBoundaryOptions } from "./updateFixtures";
 const COMMAND_PREFIX = "treeCommandsTest.";
 const RATE_LIMITED = { githubStatus: 403, githubHeaders: { "x-ratelimit-remaining": "0" } };
+const PINNED_COMMIT = "4f3c2a1b9d8e7f60514233a4b5c6d7e8f9012345";
 
 const quartoModule = quarto as {
 	installQuartoExtension: typeof quarto.installQuartoExtension;
@@ -116,9 +117,14 @@ suite("Extensions Installed Commands Test Suite", () => {
 		return new ExtensionTreeItem(id, vscode.TreeItemCollapsibleState.Collapsed, FIXTURE_ROOT, extensions[id]);
 	}
 
+	// The pinned fixture has no version tag, so a check reads its default branch head. Unless a test
+	// says otherwise, that head is the pinned commit, and the extension is up to date.
 	function stubNetwork(options: UpdateBoundaryOptions): void {
 		restoreBoundary();
-		restoreBoundary = stubUpdateBoundary(options);
+		restoreBoundary = stubUpdateBoundary({
+			...options,
+			repositories: { "acme/pinned-demo": { latestCommit: PINNED_COMMIT }, ...options.repositories },
+		});
 	}
 
 	function cancelEveryProgress(): void {
@@ -792,13 +798,13 @@ suite("Extensions Installed Commands Test Suite", () => {
 		}
 
 		test("tag to branch asks with the exact copy and installs the head of the default branch", async () => {
-			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD } } });
 
 			await runCommand("changeUpdateSource", await switchItem(`${SWITCH_ID}@v1.0.0`, { track: "tag" }));
 
 			assert.deepStrictEqual(dialogs, [
 				{
-					message: `Switch "${SWITCH_ID}" to the default branch: install main @ fed9876 (now 1.0.0)?`,
+					message: `Switch "${SWITCH_ID}" to the default branch: install default branch @ fed9876 (now 1.0.0)?`,
 					modal: true,
 					items: ["Switch"],
 				},
@@ -821,14 +827,14 @@ suite("Extensions Installed Commands Test Suite", () => {
 		});
 
 		test("a repository with no version tag asks without claiming a tag", async () => {
-			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD } } });
 
 			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "branch", commit: HEAD }));
 
 			assert.deepStrictEqual(
 				dialogs.map((dialog) => dialog.message),
 				[
-					`Switch "${SWITCH_ID}" to the latest tag: the repository has no version tag yet, so install main @ fed9876 from the default branch (now 1.0.0)?`,
+					`Switch "${SWITCH_ID}" to the latest tag: the repository has no version tag yet, so install default branch @ fed9876 (now 1.0.0)?`,
 				],
 			);
 			assert.ok(
@@ -856,13 +862,13 @@ suite("Extensions Installed Commands Test Suite", () => {
 		});
 
 		test("an unknown installed version leaves out the now part", async () => {
-			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD, defaultBranch: "main" } } });
+			stubNetwork({ repositories: { [SWITCH_ID]: { latestCommit: HEAD } } });
 
 			await runCommand("changeUpdateSource", await switchItem(SWITCH_ID, { track: "tag" }, null));
 
 			assert.deepStrictEqual(
 				dialogs.map((dialog) => dialog.message),
-				[`Switch "${SWITCH_ID}" to the default branch: install main @ fed9876?`],
+				[`Switch "${SWITCH_ID}" to the default branch: install default branch @ fed9876?`],
 			);
 		});
 
@@ -904,7 +910,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 			assert.strictEqual(installs[0].replaceSameVersion, true);
 		});
 
-		test("a branch with no commit shows the error and installs nothing", async () => {
+		test("a default branch whose head cannot be read shows the error and installs nothing", async () => {
 			stubNetwork({ repositories: { [SWITCH_ID]: {} } });
 			const logged: string[] = [];
 			const log = (constants as { QW_LOG: unknown }).QW_LOG;
@@ -920,9 +926,7 @@ suite("Extensions Installed Commands Test Suite", () => {
 
 			assert.deepStrictEqual(dialogs, []);
 			assert.deepStrictEqual(installs, []);
-			assert.deepStrictEqual(errors, [
-				`Cannot find a commit on the default branch of "${SWITCH_ID}". Check that the repository has commits and try again.`,
-			]);
+			assert.deepStrictEqual(errors, [`Repository not found: ${SWITCH_ID}`]);
 			assert.ok(!logged.some((message) => message.includes("not on GitHub")), logged.join("\n"));
 		});
 

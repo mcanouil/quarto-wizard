@@ -99,17 +99,15 @@ function repoMetadataCalls(fetchJson: { mock: { calls: unknown[][] } }): unknown
 }
 
 /**
- * Build a `fetchJson` implementation for the three endpoints `resolveVersion` reads.
- * The releases and the tags endpoints answer with an empty list unless a test gives
- * one. The repository endpoint rejects unless a test gives an answer, so a test that
- * expects no default branch lookup fails when one is made.
+ * Build a `fetchJson` implementation for the endpoints `resolveVersion` reads.
+ * The releases and the tags endpoints answer with an empty list unless a test
+ * gives one. Any other endpoint rejects, so a test fails on an unexpected lookup.
  */
-function githubApiMock(endpoints: { releases?: unknown[]; tags?: unknown[]; repoMetadata?: () => Promise<unknown> }) {
-	const { releases = [], tags = [], repoMetadata } = endpoints;
+function githubApiMock(endpoints: { releases?: unknown[]; tags?: unknown[] }) {
+	const { releases = [], tags = [] } = endpoints;
 	return (url: string) => {
 		if (url.includes("/releases")) return Promise.resolve(releases);
 		if (url.includes("/tags")) return Promise.resolve(tags);
-		if (repoMetadata && isRepoMetadataUrl(url)) return repoMetadata();
 		return Promise.reject(new Error("Unknown URL"));
 	};
 }

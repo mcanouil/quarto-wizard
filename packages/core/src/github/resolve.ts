@@ -197,7 +197,7 @@ function commitArchive(owner: string, repo: string, commit: string): { zipballUr
  * with the head commit for a subdirectory of the default branch. A SAML SSO
  * error and a cancellation are rethrown, because the user must act on them.
  */
-async function lookUpLatestCommit(
+export async function lookUpLatestCommit(
 	owner: string,
 	repo: string,
 	options: GitHubOptions & { path?: string; ref?: string },

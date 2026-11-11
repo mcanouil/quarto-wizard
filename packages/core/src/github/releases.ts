@@ -17,7 +17,6 @@ import {
 	RepositoryNotFoundError,
 	SamlSsoError,
 	VersionError,
-	isCancellationError,
 } from "../errors.js";
 import { fetchJson, fetchJsonPages, fetchRedirectLocation } from "../registry/http.js";
 
@@ -77,13 +76,6 @@ interface RawRelease {
 	published_at: string;
 	prerelease: boolean;
 	draft: boolean;
-}
-
-/**
- * Raw repository response from GitHub API.
- */
-interface RawRepository {
-	default_branch: string;
 }
 
 /**
@@ -283,43 +275,6 @@ export async function validateCommit(
 			});
 		}
 		handleGitHubError(error, owner, repo);
-	}
-}
-
-/**
- * Fetch the default branch of a repository.
- *
- * This is used only when no release, no tag and no registry entry give a
- * reference to install. A failed lookup returns `undefined`, so the caller keeps
- * its own fallback. A SAML SSO error is rethrown, because the user must act on
- * it, and a cancellation is rethrown, because the user asked the operation to
- * stop.
- *
- * @param owner - Repository owner
- * @param repo - Repository name
- * @param options - GitHub options
- * @returns Default branch name, or undefined when the lookup fails
- */
-export async function fetchDefaultBranch(
-	owner: string,
-	repo: string,
-	options: GitHubOptions = {},
-): Promise<string | undefined> {
-	const { auth, timeout, signal } = options;
-
-	try {
-		const raw = await fetchJson<RawRepository>(repoApiUrl(owner, repo), {
-			headers: getGitHubHeaders(auth),
-			timeout,
-			retries: 1,
-			signal,
-		});
-		return raw.default_branch || undefined;
-	} catch (error) {
-		if (error instanceof SamlSsoError || isCancellationError(error)) {
-			throw error;
-		}
-		return undefined;
 	}
 }
 
