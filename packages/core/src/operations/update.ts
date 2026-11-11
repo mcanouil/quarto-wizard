@@ -32,7 +32,7 @@ import type { Registry, RegistryEntry } from "../types/registry.js";
 import { fetchRegistry, type RegistryOptions } from "../registry/fetcher.js";
 import { lookupRegistryEntry } from "../registry/search.js";
 import { isEmbeddedInInstalledParent } from "../filesystem/projects.js";
-import { compareCommits, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
+import { compareCommits, fetchDefaultBranchHead, fetchLatestCommit, type GitHubOptions } from "../github/releases.js";
 import { fetchRawFile } from "../github/raw.js";
 import { normaliseVersion, resolveLatestTag, type LatestTag } from "../github/latest.js";
 import { install } from "./install.js";
@@ -418,6 +418,12 @@ function createGitHubLookups(options: GitHubOptions): GitHubLookups {
 		},
 		latestCommit(candidate) {
 			const { subdirectory, branch } = candidate;
+			// The head of the default branch comes from its archive redirect, without the GitHub API.
+			if (branch === undefined && !subdirectory) {
+				return once(`${candidate.fullName.toLowerCase()}#head`, () =>
+					fetchDefaultBranchHead(candidate.owner, candidate.repo, options),
+				);
+			}
 			const key = `${candidate.fullName.toLowerCase()}#commit@${branch ?? ""}:${subdirectory ?? ""}`;
 			return once(key, () =>
 				fetchLatestCommit(candidate.owner, candidate.repo, { ...options, path: subdirectory, ref: branch }),

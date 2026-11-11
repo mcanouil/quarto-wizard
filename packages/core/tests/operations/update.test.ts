@@ -830,6 +830,7 @@ describe("checkForUpdates", () => {
 					const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
 
 					expect(compareCommits).toHaveBeenCalledTimes(1);
+					expect(fetchDefaultBranchHead).not.toHaveBeenCalled();
 					expect(result.updates).toHaveLength(0);
 				});
 
@@ -1193,17 +1194,14 @@ describe("checkForUpdates", () => {
 				githubRecord("quarto-ext/fontawesome", "branch", INSTALLED_COMMIT),
 			);
 			vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0")]);
-			vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_COMMIT);
+			vi.mocked(fetchDefaultBranchHead).mockResolvedValue(LATEST_COMMIT);
 
 			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
 
 			expect(fetchReleases).not.toHaveBeenCalled();
 			expect(fetchTags).not.toHaveBeenCalled();
-			expect(fetchLatestCommit).toHaveBeenCalledWith(
-				"quarto-ext",
-				"fontawesome",
-				expect.objectContaining({ ref: undefined, path: undefined }),
-			);
+			expect(fetchLatestCommit).not.toHaveBeenCalled();
+			expect(fetchDefaultBranchHead).toHaveBeenCalledWith("quarto-ext", "fontawesome", expect.anything());
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");
@@ -1214,6 +1212,58 @@ describe("checkForUpdates", () => {
 			expect(targetText(found)).toBe(`quarto-ext/fontawesome@${LATEST_COMMIT}`);
 			expect(found?.target.track).toBe("branch");
 			expect(found?.target.recordSource).toBe("quarto-ext/fontawesome");
+		});
+
+		it("offers no update when the default branch head is the recorded commit", async () => {
+			setupRecordedExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				githubRecord("quarto-ext/fontawesome", "branch", LATEST_COMMIT),
+			);
+			vi.mocked(fetchDefaultBranchHead).mockResolvedValue(LATEST_COMMIT);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
+
+			expect(result.updates).toHaveLength(0);
+			expect(fetchLatestCommit).not.toHaveBeenCalled();
+		});
+
+		it.each([
+			["rate-limited", new RateLimitError("HTTP 429: rate limit exceeded", { statusCode: 429 })],
+			["network", new NetworkError("HTTP 503: Service Unavailable", { statusCode: 503 })],
+		] as const)("reports a %s default branch head lookup as a check failure", async (kind, error) => {
+			setupRecordedExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				githubRecord("quarto-ext/fontawesome", "branch", INSTALLED_COMMIT),
+			);
+			vi.mocked(fetchDefaultBranchHead).mockRejectedValue(error);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
+
+			expect(result.checkFailure?.kind).toBe(kind);
+			expect(result.updates).toHaveLength(0);
+		});
+
+		it("reports a missing repository from the default branch head lookup as a repository failure", async () => {
+			setupRecordedExtension(
+				"quarto-ext",
+				"fontawesome",
+				"1.0.0",
+				githubRecord("quarto-ext/fontawesome", "branch", INSTALLED_COMMIT),
+			);
+			vi.mocked(fetchDefaultBranchHead).mockRejectedValue(
+				new RepositoryNotFoundError("Repository not found: quarto-ext/fontawesome"),
+			);
+
+			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
+
+			expect(result.checkFailure).toBeUndefined();
+			expect(result.repositoryFailures).toEqual([
+				{ repository: "quarto-ext/fontawesome", message: "Repository not found: quarto-ext/fontawesome" },
+			]);
 		});
 
 		it("compares the default branch with the registry latestCommit", async () => {
@@ -1257,6 +1307,7 @@ describe("checkForUpdates", () => {
 			const result = await checkForUpdates({ projectDirs: [tempDir] });
 
 			expect(fetchRegistry).not.toHaveBeenCalled();
+			expect(fetchDefaultBranchHead).not.toHaveBeenCalled();
 			expect(fetchLatestCommit).toHaveBeenCalledWith(
 				"quarto-ext",
 				"fontawesome",
@@ -1402,15 +1453,12 @@ describe("checkForUpdates", () => {
 				githubRecord("quarto-ext/fontawesome", "tag", INSTALLED_COMMIT),
 			);
 			vi.mocked(fetchTags).mockResolvedValue([tag("nightly")]);
-			vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_COMMIT);
+			vi.mocked(fetchDefaultBranchHead).mockResolvedValue(LATEST_COMMIT);
 
 			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
 
-			expect(fetchLatestCommit).toHaveBeenCalledWith(
-				"quarto-ext",
-				"fontawesome",
-				expect.objectContaining({ ref: undefined }),
-			);
+			expect(fetchDefaultBranchHead).toHaveBeenCalledWith("quarto-ext", "fontawesome", expect.anything());
+			expect(fetchLatestCommit).not.toHaveBeenCalled();
 			expect(result.updates).toHaveLength(1);
 			const [found] = result.updates;
 			expect(found?.refKind).toBe("commit");
@@ -1452,7 +1500,7 @@ describe("checkForUpdates", () => {
 				githubRecord("quarto-ext/fontawesome", "tag", INSTALLED_COMMIT),
 			);
 			vi.mocked(fetchTags).mockResolvedValue([tag("v2.0.0-beta.1")]);
-			vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_COMMIT);
+			vi.mocked(fetchDefaultBranchHead).mockResolvedValue(LATEST_COMMIT);
 
 			const result = await checkForUpdates({ projectDirs: [tempDir], source: "github" });
 
@@ -1558,11 +1606,11 @@ describe("checkForUpdates", () => {
 				"quarto-ext/fontawesome@def5678901234567890abcdef1234567890abcd",
 				"github",
 			);
-			vi.mocked(fetchLatestCommit).mockResolvedValue(LATEST_COMMIT);
+			vi.mocked(fetchDefaultBranchHead).mockResolvedValue(LATEST_COMMIT);
 
 			const result = await checkForUpdates({ projectDirs: [tempDir], auth: TOKEN });
 
-			expect(fetchLatestCommit).toHaveBeenCalledTimes(1);
+			expect(fetchDefaultBranchHead).toHaveBeenCalledTimes(1);
 			expect(result.updates).toHaveLength(0);
 		});
 
@@ -1810,7 +1858,7 @@ describe("checkForUpdates", () => {
 			const withSignal = expect.objectContaining({ signal });
 			expect(fetchReleases).toHaveBeenCalledWith("quarto-ext", "fontawesome", withSignal);
 			expect(fetchTags).toHaveBeenCalledWith("quarto-ext", "fontawesome", withSignal);
-			expect(fetchLatestCommit).toHaveBeenCalledWith("quarto-ext", "lightbox", withSignal);
+			expect(fetchDefaultBranchHead).toHaveBeenCalledWith("quarto-ext", "lightbox", withSignal);
 		});
 
 		it("passes the signal to the registry", async () => {
