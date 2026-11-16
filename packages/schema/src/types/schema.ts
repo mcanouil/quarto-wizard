@@ -233,7 +233,7 @@ export function isSupportedSchemaUri(schemaUri: string): boolean {
  * Mapping of alternate key names to canonical TypeScript property names.
  * Handles kebab-case YAML keys and JSON Schema-style aliases.
  */
-const KEY_ALIASES: Record<string, string> = {
+export const KEY_ALIASES: Record<string, string> = {
 	"enum-case-insensitive": "enumCaseInsensitive",
 	"pattern-exact": "patternExact",
 	"min-length": "minLength",
@@ -288,14 +288,26 @@ export function readBooleanKeyword(value: unknown): boolean | undefined {
 	if (typeof value === "boolean") {
 		return value;
 	}
-	if (typeof value === "string") {
-		const word = value.toLowerCase();
-		if (word === "true" || word === "false") {
-			return word === "true";
-		}
+	const word = typeof value === "string" ? value.toLowerCase() : undefined;
+	if (word === "true") {
+		return true;
+	}
+	if (word === "false") {
+		return false;
 	}
 	return undefined;
 }
+
+/**
+ * Descriptor keywords that take a boolean.
+ * `additionalProperties` can also hold a descriptor, and `deprecated` is not listed, because a string there is a message.
+ */
+export const BOOLEAN_KEYWORDS: ReadonlySet<string> = new Set([
+	"required",
+	"uniqueItems",
+	"enumCaseInsensitive",
+	"additionalProperties",
+]);
 
 /**
  * Normalise a raw field descriptor from YAML, converting kebab-case keys to camelCase.
@@ -317,7 +329,7 @@ export function normaliseFieldDescriptor(raw: Record<string, unknown>): FieldDes
 			result[camelKey] = normaliseDeprecatedSpec(value as Record<string, unknown>);
 		} else if (camelKey === "additionalProperties" && value && typeof value === "object" && !Array.isArray(value)) {
 			result[camelKey] = normaliseFieldDescriptor(value as Record<string, unknown>);
-		} else if (camelKey === "required" || camelKey === "enumCaseInsensitive" || camelKey === "additionalProperties") {
+		} else if (BOOLEAN_KEYWORDS.has(camelKey)) {
 			const flag = readBooleanKeyword(value);
 			if (flag !== undefined) {
 				result[camelKey] = flag;

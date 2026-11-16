@@ -1666,6 +1666,30 @@ options:
   assert_eq(#errors, 4, 'one report per fault, and no "is required" for token')
 end)
 
+test('a nested boolean keyword fault is reported once, at its schema path', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    items:
+      type: string
+      enumCaseInsensitive: yes
+  style:
+    type: object
+    properties:
+      size:
+        type: number
+        required: yes
+]])
+  local _, errors = schema.validate({ tags = { 'a', 'b', 'c' } }, loaded.options)
+  assert_contains(errors, 'tags.items: schema declares "enumCaseInsensitive" as "yes"; write true or false.')
+  assert_contains(errors, 'style.size: schema declares "required" as "yes"; write true or false.')
+  assert_eq(#errors, 2, 'one report per fault, whatever the values')
+
+  local _, empty_errors = schema.validate({}, loaded.options)
+  assert_eq(#empty_errors, 2, 'an absent value still reports the faults under it')
+end)
+
 test('a boolean keyword written as the string true or false is still read', function()
   local loaded = load_schema([[
 options:

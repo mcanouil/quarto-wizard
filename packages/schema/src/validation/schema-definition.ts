@@ -12,8 +12,10 @@ import * as yaml from "js-yaml";
 import { normaliseCellLanguage } from "./cell-language.js";
 import { allowedSetsFor, ALLOWED_TYPES } from "./schema-derived.js";
 import {
+	BOOLEAN_KEYWORDS,
 	FIELD_ALIAS_PAIRS,
 	isSupportedSchemaUri,
+	KEY_ALIASES,
 	readBooleanKeyword,
 	resolveSchemaVersion,
 	type SchemaVersion,
@@ -484,26 +486,16 @@ function validateFieldDescriptor(
 	}
 }
 
-const BOOLEAN_KEYWORDS = [
-	"required",
-	"uniqueItems",
-	"enumCaseInsensitive",
-	"enum-case-insensitive",
-	"additionalProperties",
-	"additional-properties",
-];
-
 function validateBooleanKeywords(
 	raw: Record<string, unknown>,
 	keyPath: string,
 	findings: SchemaDefinitionFinding[],
 ): void {
-	for (const keyword of BOOLEAN_KEYWORDS) {
-		const value = raw[keyword];
-		if (value === undefined || readBooleanKeyword(value) !== undefined) {
+	for (const [keyword, value] of Object.entries(raw)) {
+		if (!BOOLEAN_KEYWORDS.has(KEY_ALIASES[keyword] ?? keyword)) {
 			continue;
 		}
-		if (keyword.startsWith("additional") && isPlainObject(value)) {
+		if (readBooleanKeyword(value) !== undefined || isPlainObject(value)) {
 			continue;
 		}
 		findings.push({

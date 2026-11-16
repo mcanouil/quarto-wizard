@@ -128,8 +128,8 @@ local NUMERIC_KEYWORDS = {
 }
 
 --- Keywords whose value is a boolean. `additionalProperties` can also hold a
---- descriptor, and `deprecated` a message, so neither is listed here.
-local BOOLEAN_KEYWORDS = { 'required', 'uniqueItems', 'enumCaseInsensitive' }
+--- descriptor. `deprecated` is not listed, because a string there is a message.
+local BOOLEAN_KEYWORDS = { 'required', 'uniqueItems', 'enumCaseInsensitive', 'additionalProperties' }
 
 --- Every keyword the v2 field descriptor may carry, mapped to whether this
 --- module enforces it. Annotations are carried through untouched for tooling.
@@ -1622,16 +1622,12 @@ _compile = function(spec)
   -- strings. Only `true` and `false` name a boolean, in any case. Any other
   -- value is dropped and reported, because guessing what it meant would turn a
   -- check on or off without telling the author.
-  local keywords = { table.unpack(BOOLEAN_KEYWORDS) }
-  if type(out.additionalProperties) ~= 'table' then
-    keywords[#keywords + 1] = 'additionalProperties'
-  end
-  for _, keyword in ipairs(keywords) do
+  for _, keyword in ipairs(BOOLEAN_KEYWORDS) do
     local value = out[keyword]
-    if value ~= nil and type(value) ~= 'boolean' then
-      local word = type(value) == 'string' and value:lower() or nil
-      if word == 'true' or word == 'false' then
-        out[keyword] = word == 'true'
+    if value ~= nil and type(value) ~= 'boolean' and type(value) ~= 'table' then
+      local flag, ok = _coerce_scalar(value, 'boolean')
+      if ok then
+        out[keyword] = flag
       else
         out._keyword_faults = out._keyword_faults or {}
         out._keyword_faults[#out._keyword_faults + 1] = string.format(
@@ -1660,6 +1656,15 @@ _compile = function(spec)
   end
   if type(out.additionalProperties) == 'table' then
     out.additionalProperties = _compile(out.additionalProperties)
+  end
+
+  -- Marks a tree that holds a keyword fault anywhere, so a tree without one
+  -- costs nothing to check.
+  out._has_faults = out._keyword_faults ~= nil
+    or (type(out.items) == 'table' and out.items._has_faults)
+    or (type(out.additionalProperties) == 'table' and out.additionalProperties._has_faults)
+  for _, property in pairs(type(out.properties) == 'table' and out.properties or {}) do
+    out._has_faults = out._has_faults or (type(property) == 'table' and property._has_faults)
   end
 
   _compiled_cache[spec] = out
@@ -1731,10 +1736,28 @@ local function _check_enum(value, spec, path, context)
   ))
 end
 
---- Report the boolean keywords of a descriptor that hold another value.
+--- Report the keyword faults of a descriptor and of the descriptors under it.
+--- A fault belongs to the schema and not to a value, so it is reported once at
+--- its schema path, whether or not the document supplies a value there.
 local function _check_keyword_faults(spec, path, context)
+  if type(spec) ~= 'table' or not spec._has_faults or context.faults_seen[spec] then
+    return
+  end
+  context.faults_seen[spec] = true
   for _, message in ipairs(spec._keyword_faults or {}) do
     _report(context, 'error', path, 'schema', message)
+  end
+  _check_keyword_faults(spec.items, path .. '.items', context)
+  _check_keyword_faults(spec.additionalProperties, path .. '.additionalProperties', context)
+  if type(spec.properties) == 'table' then
+    local keys = {}
+    for key in pairs(spec.properties) do
+      keys[#keys + 1] = key
+    end
+    table.sort(keys)
+    for _, key in ipairs(keys) do
+      _check_keyword_faults(spec.properties[key], path .. '.' .. key, context)
+    end
   end
 end
 
@@ -1954,8 +1977,6 @@ end
 --- @param context table Validation context
 --- @return nil
 _validate_value = function(value, spec, path, context)
-  _check_keyword_faults(spec, path, context)
-
   local names = _type_names(spec.type)
 
   if names then
@@ -2198,9 +2219,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
     -- An empty string is a value the author wrote. Only a missing key is
     -- absent, so `minLength`, `const` and `enum` can be tested against ''.
-    if value == nil then
-      _check_keyword_faults(spec, path, context)
-    end
+    _check_keyword_faults(spec, path, context)
     if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
     elseif value ~= nil then
@@ -2233,7 +2252,7 @@ end
 --- Start a validation run.
 --- @return table Fresh validation context
 local function _new_context()
-  return { findings = {} }
+  return { findings = {}, faults_seen = {} }
 end
 
 --- Close a validation run and shape the public return values.
@@ -2360,9 +2379,7 @@ function M.validate_arguments(args, argument_specs, options)
     end
     merged[name] = value
 
-    if value == nil then
-      _check_keyword_faults(spec, path, context)
-    end
+    _check_keyword_faults(spec, path, context)
     if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
     elseif value ~= nil then
