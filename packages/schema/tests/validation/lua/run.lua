@@ -1482,6 +1482,56 @@ test('S11: a second YAML document is reported clearly', function()
   assert_contains(tostring(err), 'multiple YAML documents')
 end)
 
+--- Parse YAML text and return the error, failing when the text is accepted.
+local function yaml_error(text)
+  local value, err = schema._parse_yaml_text(text)
+  if err == nil then
+    fail('the YAML was accepted: ' .. text)
+  end
+  assert_eq(value, nil, 'no value is returned with an error')
+  return err
+end
+
+test('an unescaped double quote inside a double-quoted scalar is refused', function()
+  assert_contains(yaml_error('a: "say "hi" now"\n'), 'line 1: unescaped " inside a double-quoted scalar')
+end)
+
+test('text after the closing quote of a quoted scalar is named as such', function()
+  assert_contains(yaml_error('a: "done" later\n'), 'line 1: text after the closing quote of a double-quoted scalar')
+  assert_contains(yaml_error("a: 'done' later\n"), 'line 1: text after the closing quote of a single-quoted scalar')
+  assert_contains(yaml_error('a: "x" "y"\n'), 'line 1: text after the closing quote of a double-quoted scalar')
+  assert_contains(yaml_error("a: 'x' 'y'\n"), 'line 1: text after the closing quote of a single-quoted scalar')
+end)
+
+test('an undoubled single quote inside a single-quoted scalar is refused', function()
+  assert_contains(yaml_error("a: 'it's'\n"), "line 1: unescaped ' inside a single-quoted scalar")
+end)
+
+test('a quoted scalar whose closing quote is escaped is unterminated', function()
+  assert_contains(yaml_error('a: "open \\"\n'), 'unterminated double-quoted scalar')
+  assert_contains(yaml_error('a: "open \\\n'), 'unterminated double-quoted scalar')
+end)
+
+test('escaped and doubled quotes inside quoted scalars still parse', function()
+  local value, err = schema._parse_yaml_text('a: "ok \\"x\\""\nb: \'it\'\'s\'\nc: "tab\\there"\nd: "back\\\\"\n')
+  assert_eq(err, nil)
+  assert_eq(value.a, 'ok "x"')
+  assert_eq(value.b, "it's")
+  assert_eq(value.c, 'tab\there')
+  assert_eq(value.d, 'back\\')
+end)
+
+test('an unescaped quote is refused in keys and flow collections too', function()
+  assert_contains(yaml_error('"a"b"c": 1\n'), 'line 1: unescaped " inside a double-quoted scalar')
+  assert_contains(yaml_error('"a"b: 1\n'), 'line 1: text after the closing quote of a double-quoted scalar')
+  assert_contains(yaml_error('"a"b": 1\n'), 'line 1: expected "key: value"')
+  assert_contains(yaml_error('a:\n  - ["x"y"z"]\n'), 'line 2: unescaped " inside a double-quoted scalar')
+  assert_contains(yaml_error('a:\n  - ["x"y]\n'), 'line 2: text after the closing quote of a double-quoted scalar')
+  assert_contains(yaml_error('a:\n  - ["x"y"]\n'), 'line 2: unterminated flow collection')
+  assert_contains(yaml_error("a: {'k'v: 1}\n"), "line 1: text after the closing quote of a single-quoted scalar")
+  assert_contains(yaml_error("a: {k: 'a'b'c'}\n"), "line 1: unescaped ' inside a single-quoted scalar")
+end)
+
 test('S11: a missing schema file names the path', function()
   local loaded, err = schema.load_schema('/nonexistent/_schema.yml')
   assert_eq(loaded, nil)
