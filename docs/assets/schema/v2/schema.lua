@@ -898,7 +898,10 @@ local function _parse_quoted(text, line_number)
       index = index + 2
     elseif char == quote then
       if index ~= #text then
-        return nil, _yaml_error(line_number, 'unescaped ' .. quote .. ' inside a ' .. style .. ' scalar')
+        if text:find(quote, index + 1, true) then
+          return nil, _yaml_error(line_number, 'unescaped ' .. quote .. ' inside a ' .. style .. ' scalar')
+        end
+        return nil, _yaml_error(line_number, 'text after the closing quote of a ' .. style .. ' scalar')
       end
       return table.concat(out), nil
     else
