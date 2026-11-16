@@ -1666,6 +1666,22 @@ options:
   assert_eq(#errors, 4, 'one report per fault, and no "is required" for token')
 end)
 
+test('a list under a boolean keyword is reported, and a descriptor under additionalProperties is read', function()
+  local loaded = load_schema([[
+options:
+  size:
+    type: string
+    required: [size]
+  style:
+    type: object
+    additionalProperties:
+      type: string
+]])
+  local _, errors = schema.validate({ style = { colour = 'red' } }, loaded.options)
+  assert_contains(errors, 'size: schema declares "required" as "[size]"; write true or false.')
+  assert_eq(#errors, 1)
+end)
+
 test('a nested boolean keyword fault is reported once, at its schema path', function()
   local loaded = load_schema([[
 options:

@@ -1624,14 +1624,15 @@ _compile = function(spec)
   -- check on or off without telling the author.
   for _, keyword in ipairs(BOOLEAN_KEYWORDS) do
     local value = out[keyword]
-    if value ~= nil and type(value) ~= 'boolean' and type(value) ~= 'table' then
+    local descriptor = keyword == 'additionalProperties' and type(value) == 'table'
+    if value ~= nil and type(value) ~= 'boolean' and not descriptor then
       local flag, ok = _coerce_scalar(value, 'boolean')
       if ok then
         out[keyword] = flag
       else
         out._keyword_faults = out._keyword_faults or {}
         out._keyword_faults[#out._keyword_faults + 1] = string.format(
-          'schema declares "%s" as "%s"; write true or false.', keyword, tostring(value))
+          'schema declares "%s" as "%s"; write true or false.', keyword, _format_value(value))
         out[keyword] = nil
       end
     end

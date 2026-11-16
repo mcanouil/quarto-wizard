@@ -492,10 +492,11 @@ function validateBooleanKeywords(
 	findings: SchemaDefinitionFinding[],
 ): void {
 	for (const [keyword, value] of Object.entries(raw)) {
-		if (!BOOLEAN_KEYWORDS.has(KEY_ALIASES[keyword] ?? keyword)) {
+		const name = KEY_ALIASES[keyword] ?? keyword;
+		if (!BOOLEAN_KEYWORDS.has(name) || readBooleanKeyword(value) !== undefined) {
 			continue;
 		}
-		if (readBooleanKeyword(value) !== undefined || isPlainObject(value)) {
+		if (name === "additionalProperties" && isPlainObject(value)) {
 			continue;
 		}
 		findings.push({

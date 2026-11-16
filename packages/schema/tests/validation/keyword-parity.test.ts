@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { ALLOWED_FIELD_PROPERTIES_V2 } from "../../src/validation/schema-derived.js";
 import { validateSchemaDefinitionStructure } from "../../src/validation/schema-definition.js";
-import { SCHEMA_V2_VERSION_URI } from "../../src/types/schema.js";
+import { BOOLEAN_KEYWORDS, SCHEMA_V2_VERSION_URI } from "../../src/types/schema.js";
 import { parseKeywordTable, metaSchemaProperties } from "../helpers/schemaVocabulary.js";
 
 const validationDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "src", "validation");
@@ -34,6 +34,13 @@ describe("keyword parity", () => {
 	// an entry now changes a count and fails here. The two counts are asserted
 	// over the names and not over the values, so a failure prints the list and
 	// names the keyword that moved.
+	it("reads the same boolean keywords in both readers", () => {
+		const table = /^local BOOLEAN_KEYWORDS = \{([^}]*)\}/m.exec(luaSource);
+		expect(table, "BOOLEAN_KEYWORDS in schema.lua").not.toBeNull();
+		const inLua = [...(table?.[1] ?? "").matchAll(/'([^']+)'/g)].map((match) => match[1]);
+		expect(inLua.sort()).toEqual([...BOOLEAN_KEYWORDS].sort());
+	});
+
 	it("holds 25 acted-on keywords and 7 annotations", () => {
 		const named = (wanted: boolean) => [...entries].filter(([, acted]) => acted === wanted).map(([name]) => name);
 		expect(named(true)).toHaveLength(25);

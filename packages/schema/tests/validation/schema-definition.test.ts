@@ -404,6 +404,19 @@ describe("semantic checks", () => {
 		expect(reported[0].message).toBe('"required" is "yes"; write true or false.');
 	});
 
+	it("reports a list or a map under a boolean keyword other than additionalProperties", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: {
+				size: { type: "string", required: ["size"] },
+				tags: { type: "array", uniqueItems: { on: true } },
+			},
+		});
+		expect(findings.filter((f) => f.code === "invalid-boolean-keyword").map((f) => f.keyPath)).toEqual([
+			"options.size.required",
+			"options.tags.uniqueItems",
+		]);
+	});
+
 	it("accepts a boolean keyword written as a boolean, or as the string true or false", () => {
 		const findings = validateSchemaDefinitionStructure({
 			options: {
