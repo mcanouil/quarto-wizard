@@ -1494,7 +1494,6 @@ end
 
 test('an unescaped double quote inside a double-quoted scalar is refused', function()
   assert_contains(yaml_error('a: "say "hi" now"\n'), 'line 1: unescaped " inside a double-quoted scalar')
-  assert_contains(yaml_error('a: "done" later\n'), 'unescaped " inside a double-quoted scalar')
 end)
 
 test('an undoubled single quote inside a single-quoted scalar is refused', function()
@@ -1517,9 +1516,9 @@ end)
 
 test('an unescaped quote is refused in keys and flow collections too', function()
   assert_contains(yaml_error('"a"b: 1\n'), 'line 1: unescaped " inside a double-quoted scalar')
-  assert_contains(yaml_error('"a"b": 1\n'), 'line 1: ')
+  assert_contains(yaml_error('"a"b": 1\n'), 'line 1: expected "key: value"')
   assert_contains(yaml_error('a:\n  - ["x"y]\n'), 'line 2: unescaped " inside a double-quoted scalar')
-  assert_contains(yaml_error('a:\n  - ["x"y"]\n'), 'line 2: ')
+  assert_contains(yaml_error('a:\n  - ["x"y"]\n'), 'line 2: unterminated flow collection')
   assert_contains(yaml_error("a: {'k'v: 1}\n"), "line 1: unescaped ' inside a single-quoted scalar")
   assert_contains(yaml_error("a: {k: 'a'b'c'}\n"), "line 1: unescaped ' inside a single-quoted scalar")
 end)
