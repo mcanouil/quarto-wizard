@@ -7,6 +7,8 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+## 2.3.4
+
 ### Bug Fixes
 
 - fix: Report a schema error when `required`, `uniqueItems`, `enumCaseInsensitive` or `additionalProperties` holds a value other than `true` or `false`.
