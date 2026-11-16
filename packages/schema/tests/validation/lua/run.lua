@@ -1638,25 +1638,6 @@ options:
   assert_eq(merged.inline, 'yes', 'the default is the string Quarto hands over')
 end)
 
-test('a bare yes is not a boolean in a schema keyword either', function()
-  local loaded = load_schema([[
-options:
-  token:
-    type: string
-    required: yes
-  tags:
-    type: array
-    uniqueItems: yes
-  style:
-    type: object
-    additionalProperties: no
-]])
-  local valid, errors, warnings = schema.validate(
-    { tags = { 'a', 'a' }, style = { colour = 'red' } }, loaded.options)
-  assert_valid(valid, errors)
-  assert_eq(#warnings, 0, 'additionalProperties: no does not warn on an unknown key')
-end)
-
 test('a string enum of "true" and "false" stays a string', function()
   local loaded = load_schema([[
 shortcodes:

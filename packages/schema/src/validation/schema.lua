@@ -1615,7 +1615,7 @@ _compile = function(spec)
   end
 
   if type(out.required) == 'string' then
-    out.required = out.required:lower() == 'true'
+    out.required = out.required:lower() == 'true' or out.required:lower() == 'yes'
   end
   if type(out.uniqueItems) == 'string' then
     out.uniqueItems = out.uniqueItems:lower() == 'true'
