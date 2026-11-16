@@ -7,6 +7,8 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+## 2.3.3
+
 ### Bug Fixes
 
 - fix: Read a bare `yes` or `no` in a schema file as a string, as Pandoc does.
