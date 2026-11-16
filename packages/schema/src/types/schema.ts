@@ -278,6 +278,26 @@ function normaliseDeprecatedSpec(raw: Record<string, unknown>): DeprecatedSpec {
 }
 
 /**
+ * Read a boolean keyword the way the Lua reference validator does.
+ * A schema file is YAML 1.2, so `yes` and `no` are strings, and only `true` and `false` name a boolean, in any case.
+ *
+ * @param value - Raw keyword value.
+ * @returns The boolean, or undefined for any other value.
+ */
+export function readBooleanKeyword(value: unknown): boolean | undefined {
+	if (typeof value === "boolean") {
+		return value;
+	}
+	if (typeof value === "string") {
+		const word = value.toLowerCase();
+		if (word === "true" || word === "false") {
+			return word === "true";
+		}
+	}
+	return undefined;
+}
+
+/**
  * Normalise a raw field descriptor from YAML, converting kebab-case keys to camelCase.
  *
  * @param raw - Raw field descriptor object from YAML
@@ -297,6 +317,11 @@ export function normaliseFieldDescriptor(raw: Record<string, unknown>): FieldDes
 			result[camelKey] = normaliseDeprecatedSpec(value as Record<string, unknown>);
 		} else if (camelKey === "additionalProperties" && value && typeof value === "object" && !Array.isArray(value)) {
 			result[camelKey] = normaliseFieldDescriptor(value as Record<string, unknown>);
+		} else if (camelKey === "required" || camelKey === "enumCaseInsensitive" || camelKey === "additionalProperties") {
+			const flag = readBooleanKeyword(value);
+			if (flag !== undefined) {
+				result[camelKey] = flag;
+			}
 		} else {
 			result[camelKey] = value;
 		}

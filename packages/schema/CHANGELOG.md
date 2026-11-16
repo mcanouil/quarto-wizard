@@ -7,6 +7,11 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+### Bug Fixes
+
+- fix: Report a schema error when `required`, `uniqueItems`, `enumCaseInsensitive` or `additionalProperties` holds a value other than `true` or `false`.
+  A `yes` or `no` there is a string in YAML 1.2, so `required: yes` no longer makes a field required, and the keyword has no effect.
+
 ## 2.3.3
 
 ### Bug Fixes

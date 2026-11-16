@@ -127,6 +127,10 @@ local NUMERIC_KEYWORDS = {
   'minLength', 'maxLength', 'minItems', 'maxItems',
 }
 
+--- Keywords whose value is a boolean. `additionalProperties` can also hold a
+--- descriptor, and `deprecated` a message, so neither is listed here.
+local BOOLEAN_KEYWORDS = { 'required', 'uniqueItems', 'enumCaseInsensitive' }
+
 --- Every keyword the v2 field descriptor may carry, mapped to whether this
 --- module enforces it. Annotations are carried through untouched for tooling.
 M.KEYWORDS = {
@@ -1614,19 +1618,27 @@ _compile = function(spec)
     end
   end
 
-  if type(out.required) == 'string' then
-    out.required = out.required:lower() == 'true' or out.required:lower() == 'yes'
+  -- A schema file is read as YAML 1.2, so `yes` and `no` reach here as
+  -- strings. Only `true` and `false` name a boolean, in any case. Any other
+  -- value is dropped and reported, because guessing what it meant would turn a
+  -- check on or off without telling the author.
+  local keywords = { table.unpack(BOOLEAN_KEYWORDS) }
+  if type(out.additionalProperties) ~= 'table' then
+    keywords[#keywords + 1] = 'additionalProperties'
   end
-  if type(out.uniqueItems) == 'string' then
-    out.uniqueItems = out.uniqueItems:lower() == 'true'
-  end
-  if type(out.enumCaseInsensitive) == 'string' then
-    out.enumCaseInsensitive = out.enumCaseInsensitive:lower() == 'true'
-  end
-  if out.additionalProperties == 'false' then
-    out.additionalProperties = false
-  elseif out.additionalProperties == 'true' then
-    out.additionalProperties = true
+  for _, keyword in ipairs(keywords) do
+    local value = out[keyword]
+    if value ~= nil and type(value) ~= 'boolean' then
+      local word = type(value) == 'string' and value:lower() or nil
+      if word == 'true' or word == 'false' then
+        out[keyword] = word == 'true'
+      else
+        out._keyword_faults = out._keyword_faults or {}
+        out._keyword_faults[#out._keyword_faults + 1] = string.format(
+          'schema declares "%s" as "%s"; write true or false.', keyword, tostring(value))
+        out[keyword] = nil
+      end
+    end
   end
 
   if type(out.pattern) == 'string' then
@@ -1717,6 +1729,13 @@ local function _check_enum(value, spec, path, context)
   _report(context, 'error', path, 'enum', string.format(
     'must be one of: %s, got %s.', _format_list(spec.enum), _format_value(value)
   ))
+end
+
+--- Report the boolean keywords of a descriptor that hold another value.
+local function _check_keyword_faults(spec, path, context)
+  for _, message in ipairs(spec._keyword_faults or {}) do
+    _report(context, 'error', path, 'schema', message)
+  end
 end
 
 --- Check `pattern`, reporting a pattern the module cannot compile.
@@ -1935,6 +1954,8 @@ end
 --- @param context table Validation context
 --- @return nil
 _validate_value = function(value, spec, path, context)
+  _check_keyword_faults(spec, path, context)
+
   local names = _type_names(spec.type)
 
   if names then
@@ -2177,6 +2198,9 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
     -- An empty string is a value the author wrote. Only a missing key is
     -- absent, so `minLength`, `const` and `enum` can be tested against ''.
+    if value == nil then
+      _check_keyword_faults(spec, path, context)
+    end
     if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
     elseif value ~= nil then
@@ -2336,6 +2360,9 @@ function M.validate_arguments(args, argument_specs, options)
     end
     merged[name] = value
 
+    if value == nil then
+      _check_keyword_faults(spec, path, context)
+    end
     if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
     elseif value ~= nil then

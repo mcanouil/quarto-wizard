@@ -11,7 +11,13 @@
 import * as yaml from "js-yaml";
 import { normaliseCellLanguage } from "./cell-language.js";
 import { allowedSetsFor, ALLOWED_TYPES } from "./schema-derived.js";
-import { FIELD_ALIAS_PAIRS, isSupportedSchemaUri, resolveSchemaVersion, type SchemaVersion } from "../types/schema.js";
+import {
+	FIELD_ALIAS_PAIRS,
+	isSupportedSchemaUri,
+	readBooleanKeyword,
+	resolveSchemaVersion,
+	type SchemaVersion,
+} from "../types/schema.js";
 
 const ALLOWED_TYPES_LIST = [...ALLOWED_TYPES].join(", ");
 
@@ -454,6 +460,7 @@ function validateFieldDescriptor(
 	}
 
 	validateFieldSemantics(raw, keyPath, findings);
+	validateBooleanKeywords(raw, keyPath, findings);
 
 	if (isPlainObject(raw["items"])) {
 		validateFieldDescriptor(raw["items"] as Record<string, unknown>, `${keyPath}.items`, ctx, false);
@@ -474,6 +481,37 @@ function validateFieldDescriptor(
 		if (isPlainObject(ap)) {
 			validateFieldDescriptor(ap as Record<string, unknown>, `${keyPath}.${apKey}`, ctx, false);
 		}
+	}
+}
+
+const BOOLEAN_KEYWORDS = [
+	"required",
+	"uniqueItems",
+	"enumCaseInsensitive",
+	"enum-case-insensitive",
+	"additionalProperties",
+	"additional-properties",
+];
+
+function validateBooleanKeywords(
+	raw: Record<string, unknown>,
+	keyPath: string,
+	findings: SchemaDefinitionFinding[],
+): void {
+	for (const keyword of BOOLEAN_KEYWORDS) {
+		const value = raw[keyword];
+		if (value === undefined || readBooleanKeyword(value) !== undefined) {
+			continue;
+		}
+		if (keyword.startsWith("additional") && isPlainObject(value)) {
+			continue;
+		}
+		findings.push({
+			message: `"${keyword}" is ${JSON.stringify(value)}; write true or false.`,
+			severity: "error",
+			code: "invalid-boolean-keyword",
+			keyPath: `${keyPath}.${keyword}`,
+		});
 	}
 }
 
