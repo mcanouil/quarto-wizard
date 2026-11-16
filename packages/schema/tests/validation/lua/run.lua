@@ -1680,6 +1680,19 @@ options:
   local _, errors = schema.validate({ style = { colour = 'red' } }, loaded.options)
   assert_contains(errors, 'size: schema declares "required" as "[size]"; write true or false.')
   assert_eq(#errors, 1)
+
+  local listed = load_schema([[
+options:
+  style:
+    type: object
+    additionalProperties: [a, b]
+  open:
+    type: object
+    additionalProperties: {}
+]])
+  local _, list_errors = schema.validate({}, listed.options)
+  assert_contains(list_errors, 'style: schema declares "additionalProperties" as "[a, b]"; write true or false.')
+  assert_eq(#list_errors, 1, 'an empty map is a descriptor')
 end)
 
 test('a nested boolean keyword fault is reported once, at its schema path', function()
@@ -1704,6 +1717,9 @@ options:
 
   local _, empty_errors = schema.validate({}, loaded.options)
   assert_eq(#empty_errors, 2, 'an absent value still reports the faults under it')
+
+  local _, present_errors = schema.validate({ style = {} }, loaded.options)
+  assert_eq(#present_errors, 2, 'a present parent does not report a nested fault again')
 end)
 
 test('a boolean keyword written as the string true or false is still read', function()

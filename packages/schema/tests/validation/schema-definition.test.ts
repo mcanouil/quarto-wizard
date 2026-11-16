@@ -409,11 +409,14 @@ describe("semantic checks", () => {
 			options: {
 				size: { type: "string", required: ["size"] },
 				tags: { type: "array", uniqueItems: { on: true } },
+				style: { type: "object", additionalProperties: ["a", "b"] },
+				open: { type: "object", additionalProperties: {} },
 			},
 		});
 		expect(findings.filter((f) => f.code === "invalid-boolean-keyword").map((f) => f.keyPath)).toEqual([
 			"options.size.required",
 			"options.tags.uniqueItems",
+			"options.style.additionalProperties",
 		]);
 	});
 

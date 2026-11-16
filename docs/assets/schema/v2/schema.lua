@@ -1624,7 +1624,9 @@ _compile = function(spec)
   -- check on or off without telling the author.
   for _, keyword in ipairs(BOOLEAN_KEYWORDS) do
     local value = out[keyword]
+    -- An empty table is a mapping as well as a list, and `{}` is a descriptor.
     local descriptor = keyword == 'additionalProperties' and type(value) == 'table'
+      and not (_is_array(value) and #value > 0)
     if value ~= nil and type(value) ~= 'boolean' and not descriptor then
       local flag, ok = _coerce_scalar(value, 'boolean')
       if ok then
@@ -1668,7 +1670,11 @@ _compile = function(spec)
     out._has_faults = out._has_faults or (type(property) == 'table' and property._has_faults)
   end
 
+  -- A compiled descriptor compiles to itself. `_check_object` hands compiled
+  -- properties back to `_validate_map`, and a fresh copy would hide from the
+  -- `faults_seen` set, so a nested fault would be reported twice.
   _compiled_cache[spec] = out
+  _compiled_cache[out] = out
   return out
 end
 
