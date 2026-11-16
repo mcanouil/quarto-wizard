@@ -1521,6 +1521,30 @@ test('escaped and doubled quotes inside quoted scalars still parse', function()
   assert_eq(value.d, 'back\\')
 end)
 
+-- Quarto hands an extension the string "yes", so the schema must read it so too.
+test('a bare yes or no is a string, and true or false a boolean', function()
+  local value, err = schema._parse_yaml_text(
+    'a: yes\nb: no\nc: Yes\nd: No\ne: on\nf: true\ng: False\nh: TRUE\n')
+  assert_eq(err, nil)
+  assert_eq(value.a, 'yes')
+  assert_eq(value.b, 'no')
+  assert_eq(value.c, 'Yes')
+  assert_eq(value.d, 'No')
+  assert_eq(value.e, 'on')
+  assert_eq(value.f, true)
+  assert_eq(value.g, false)
+  assert_eq(value.h, true)
+end)
+
+test('a bare yes is a string in flow collections and keys too', function()
+  local value, err = schema._parse_yaml_text('a: [yes, no, true]\nno: 1\n')
+  assert_eq(err, nil)
+  assert_eq(value.a[1], 'yes')
+  assert_eq(value.a[2], 'no')
+  assert_eq(value.a[3], true)
+  assert_eq(value['no'], 1)
+end)
+
 test('an unescaped quote is refused in keys and flow collections too', function()
   assert_contains(yaml_error('"a"b"c": 1\n'), 'line 1: unescaped " inside a double-quoted scalar')
   assert_contains(yaml_error('"a"b: 1\n'), 'line 1: text after the closing quote of a double-quoted scalar')
@@ -1599,6 +1623,19 @@ options:
     assert_contains(errors, 'must be of type "boolean"')
     assert_eq(merged.inline, word, word .. ' is left as the string it is')
   end
+end)
+
+test('a bare yes as the default of a boolean option is a type error', function()
+  local loaded = load_schema([[
+options:
+  inline:
+    type: boolean
+    default: yes
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_eq(valid, false, 'the default is rejected')
+  assert_contains(errors, 'must be of type "boolean"')
+  assert_eq(merged.inline, 'yes', 'the default is the string Quarto hands over')
 end)
 
 test('a string enum of "true" and "false" stays a string', function()

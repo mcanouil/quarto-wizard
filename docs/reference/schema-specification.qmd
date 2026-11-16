@@ -489,10 +489,14 @@ The IDE shows a diagnostic on deprecated fields.
 
 ### Boolean Coercion
 
-YAML parsers accept `true`, `True`, `yes`, `on` (and their negatives) as boolean values.
-Pandoc metadata may deliver these as native booleans or as the strings `"true"`/`"false"`.
+Pandoc reads YAML 1.2.
+In YAML 1.2, only `true` and `false` are boolean values.
+The words `yes`, `no`, `on`, and `off` are strings, in document metadata and in a schema file.
+The `required` keyword is the one exception: a schema file can set it with `required: yes`.
 
-For `type: boolean` fields, string representations are normalised to native booleans before validation.
+An attribute or a shortcode argument is always a string.
+For `type: boolean` fields, the strings `"true"` and `"false"`, in any letter case, change to boolean values before validation.
+Other strings, such as `"yes"`, give a type error.
 
 ### Nested Validation
 

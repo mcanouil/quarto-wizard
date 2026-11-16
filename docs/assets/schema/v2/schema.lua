@@ -935,10 +935,12 @@ local function _parse_scalar(text, line_number)
     return nil, _yaml_error(line_number, 'anchors, aliases and tags are not supported')
   end
 
-  if text == 'true' or text == 'True' or text == 'TRUE' or text == 'yes' or text == 'Yes' then
+  -- YAML 1.2, which Pandoc reads, has only these booleans. `yes` and `no` are
+  -- booleans in YAML 1.1 alone, so they stay strings, as Pandoc hands them over.
+  if text == 'true' or text == 'True' or text == 'TRUE' then
     return true, nil
   end
-  if text == 'false' or text == 'False' or text == 'FALSE' or text == 'no' or text == 'No' then
+  if text == 'false' or text == 'False' or text == 'FALSE' then
     return false, nil
   end
 
@@ -2555,8 +2557,8 @@ function M.validate_format(meta, format, schema, options)
     if type(spec) == 'table' and type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
         -- A schema file is not read against the meta-schema, so an unquoted
-        -- `no` reaches here as a boolean. `_lookup` skips a key that is not a
-        -- string everywhere else, and so does this.
+        -- `true` or `1` reaches here as a boolean or a number. `_lookup` skips
+        -- a key that is not a string everywhere else, and so does this.
         if type(alias) == 'string' then
           local normalised = (alias:gsub('_', '-'))
           if not listed[normalised] then
