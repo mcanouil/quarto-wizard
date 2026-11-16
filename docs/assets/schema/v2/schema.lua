@@ -3,7 +3,7 @@
 --- @license MIT
 --- @copyright 2026 Mickaël Canouil
 --- @author Mickaël Canouil
---- @version 2.3.1
+--- @version 2.3.2
 ---
 --- Implements the v2 extension schema vocabulary published at
 --- <https://m.canouil.dev/quarto-wizard/assets/schema/v2/extension-schema.json>.

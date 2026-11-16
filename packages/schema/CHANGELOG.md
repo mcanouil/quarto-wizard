@@ -7,6 +7,8 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+## 2.3.2
+
 ### Bug Fixes
 
 - fix: Refuse a quoted scalar with a quote inside it that is not escaped, as Pandoc does.
