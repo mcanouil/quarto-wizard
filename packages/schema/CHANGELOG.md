@@ -10,7 +10,7 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 ### Bug Fixes
 
 - fix: Read a bare `yes` or `no` in a schema file as a string, as Pandoc does.
-  Only `true` and `false` are booleans in YAML 1.2, so `default: yes` on a boolean option is now refused.
+  Only `true` and `false` are booleans in YAML 1.2, so `default: yes` on a boolean option is now refused, and `required: yes` no longer makes an option required.
 
 ## 2.3.2
 
