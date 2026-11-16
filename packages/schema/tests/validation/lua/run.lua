@@ -1499,6 +1499,8 @@ end)
 test('text after the closing quote of a quoted scalar is named as such', function()
   assert_contains(yaml_error('a: "done" later\n'), 'line 1: text after the closing quote of a double-quoted scalar')
   assert_contains(yaml_error("a: 'done' later\n"), 'line 1: text after the closing quote of a single-quoted scalar')
+  assert_contains(yaml_error('a: "x" "y"\n'), 'line 1: text after the closing quote of a double-quoted scalar')
+  assert_contains(yaml_error("a: 'x' 'y'\n"), 'line 1: text after the closing quote of a single-quoted scalar')
 end)
 
 test('an undoubled single quote inside a single-quoted scalar is refused', function()

@@ -9,7 +9,8 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ### Bug Fixes
 
-- fix: Refuse a quoted scalar with a quote inside it that is not escaped, as Pandoc does. A `"` must be written `\"` inside double quotes, and a `'` must be doubled inside single quotes.
+- fix: Refuse a quoted scalar with a quote inside it that is not escaped, as Pandoc does.
+  A `"` must be written `\"` inside double quotes, and a `'` must be doubled inside single quotes.
 
 ## 2.3.1
 
