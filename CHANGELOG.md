@@ -47,10 +47,10 @@
 - fix: Update only the extension an update names when its source holds several, in Update, Update All and Reinstall. (#530)
 - fix: Update, reinstall or change the update source of an extension installed without an owner in its own folder, instead of adding a second copy under the owner of its source. (#534)
 - fix: Keep the keys of `.quarto-source.yml` that Quarto Wizard does not write when it replaces an extension, so the data of Quarto 2 and other tools survives an update. (#537)
+- fix: Report `required`, `uniqueItems`, `enumCaseInsensitive` or `additionalProperties` in a schema file when the value is not `true` or `false`. A `yes` or `no` there is a string in YAML 1.2, and `required: yes` no longer makes a field required. (#543)
 - fix: Recognise a full commit of 40 characters as a commit pin.
 - fix: Check YAML options and inline attribute values the same way as the Lua validator. The diagnostic codes `schema-enum-invalid`, `schema-range` and `schema-length` are now `schema-enum`, `schema-min` or `schema-max`, and `schema-min-length` or `schema-max-length`.
 - fix: Install and update the default branch of an extension from the archive GitHub serves for it, so the real default branch is installed and its commit recorded, even when the GitHub API is not available. Quarto Wizard no longer guesses `main`.
-- fix: Report `required`, `uniqueItems`, `enumCaseInsensitive` or `additionalProperties` in a schema file when the value is not `true` or `false`. A `yes` or `no` there is a string in YAML 1.2, and `required: yes` no longer makes a field required.
 
 ### Documentation
 

@@ -494,6 +494,7 @@ In YAML 1.2, only `true` and `false` are boolean values.
 The words `yes`, `no`, `on`, and `off` are strings, in document metadata and in a schema file.
 
 The keywords `required`, `uniqueItems`, `enumCaseInsensitive`, and `additionalProperties` take `true` or `false`.
+The strings `"true"` and `"false"`, in any letter case, are also read as booleans.
 A value such as `yes` or `no` gives a schema error, and the keyword has no effect.
 
 An attribute or a shortcode argument is always a string.

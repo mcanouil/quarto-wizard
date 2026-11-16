@@ -411,6 +411,7 @@ describe("semantic checks", () => {
 				tags: { type: "array", uniqueItems: { on: true } },
 				style: { type: "object", additionalProperties: ["a", "b"] },
 				open: { type: "object", additionalProperties: {} },
+				empty: { type: "object", additionalProperties: [] },
 			},
 		});
 		expect(findings.filter((f) => f.code === "invalid-boolean-keyword").map((f) => f.keyPath)).toEqual([

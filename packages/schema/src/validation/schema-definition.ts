@@ -496,7 +496,9 @@ function validateBooleanKeywords(
 		if (!BOOLEAN_KEYWORDS.has(name) || readBooleanKeyword(value) !== undefined) {
 			continue;
 		}
-		if (name === "additionalProperties" && isPlainObject(value)) {
+		// Lua reads an empty sequence and an empty mapping as the same table, so `[]` is a descriptor there too.
+		const emptyList = Array.isArray(value) && value.length === 0;
+		if (name === "additionalProperties" && (isPlainObject(value) || emptyList)) {
 			continue;
 		}
 		findings.push({
