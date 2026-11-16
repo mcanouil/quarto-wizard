@@ -1638,6 +1638,130 @@ options:
   assert_eq(merged.inline, 'yes', 'the default is the string Quarto hands over')
 end)
 
+-- A bare `yes` in a schema file is a string, so a boolean keyword that holds it
+-- cannot be read as the author meant. It is reported, and is not guessed.
+test('a boolean keyword that holds a string other than true or false is reported', function()
+  local loaded = load_schema([[
+options:
+  token:
+    type: string
+    required: yes
+  tags:
+    type: array
+    uniqueItems: yes
+  mode:
+    type: string
+    enum: [dark]
+    enumCaseInsensitive: yes
+  style:
+    type: object
+    additionalProperties: no
+]])
+  local valid, errors = schema.validate({ tags = { 'a' }, mode = 'dark', style = {} }, loaded.options)
+  assert_eq(valid, false, 'the schema faults are errors')
+  assert_contains(errors, 'token: schema declares "required" as "yes"; write true or false.')
+  assert_contains(errors, 'tags: schema declares "uniqueItems" as "yes"; write true or false.')
+  assert_contains(errors, 'mode: schema declares "enumCaseInsensitive" as "yes"; write true or false.')
+  assert_contains(errors, 'style: schema declares "additionalProperties" as "no"; write true or false.')
+  assert_eq(#errors, 4, 'one report per fault, and no "is required" for token')
+end)
+
+test('a list under a boolean keyword is reported, and a descriptor under additionalProperties is read', function()
+  local loaded = load_schema([[
+options:
+  size:
+    type: string
+    required: [size]
+  style:
+    type: object
+    additionalProperties:
+      type: string
+]])
+  local _, errors = schema.validate({ style = { colour = 'red' } }, loaded.options)
+  assert_contains(errors, 'size: schema declares "required" as "[size]"; write true or false.')
+  assert_eq(#errors, 1)
+
+  local listed = load_schema([[
+options:
+  style:
+    type: object
+    additionalProperties: [a, b]
+  open:
+    type: object
+    additionalProperties: {}
+]])
+  local _, list_errors = schema.validate({}, listed.options)
+  assert_contains(list_errors, 'style: schema declares "additionalProperties" as "[a, b]"; write true or false.')
+  assert_eq(#list_errors, 1, 'an empty map is a descriptor')
+end)
+
+test('a nested boolean keyword fault is reported once, at its schema path', function()
+  local loaded = load_schema([[
+options:
+  tags:
+    type: array
+    items:
+      type: string
+      enumCaseInsensitive: yes
+  style:
+    type: object
+    properties:
+      size:
+        type: number
+        required: yes
+]])
+  local _, errors = schema.validate({ tags = { 'a', 'b', 'c' } }, loaded.options)
+  assert_contains(errors, 'tags.items: schema declares "enumCaseInsensitive" as "yes"; write true or false.')
+  assert_contains(errors, 'style.size: schema declares "required" as "yes"; write true or false.')
+  assert_eq(#errors, 2, 'one report per fault, whatever the values')
+
+  local _, empty_errors = schema.validate({}, loaded.options)
+  assert_eq(#empty_errors, 2, 'an absent value still reports the faults under it')
+
+  local _, present_errors = schema.validate({ style = {} }, loaded.options)
+  assert_eq(#present_errors, 2, 'a present parent does not report a nested fault again')
+end)
+
+test('a boolean keyword written as the string true or false is still read', function()
+  local loaded = load_schema([[
+options:
+  token:
+    type: string
+    required: "True"
+  tags:
+    type: array
+    uniqueItems: "true"
+  style:
+    type: object
+    additionalProperties: "FALSE"
+    properties:
+      size:
+        type: number
+]])
+  local valid, errors, warnings = schema.validate(
+    { tags = { 'a', 'a' }, style = { colour = 'red' } }, loaded.options)
+  assert_eq(valid, false)
+  assert_contains(errors, 'token: is required but was not provided.')
+  assert_contains(errors, 'tags: must not repeat items')
+  assert_eq(#errors, 2)
+  assert_contains(warnings, 'style.colour: is not a recognised key and was ignored.')
+end)
+
+test('a shortcode argument that holds a string as required is reported', function()
+  local loaded = load_schema([[
+shortcodes:
+  iconify:
+    arguments:
+      - name: icon
+        type: string
+        required: no
+]])
+  local valid, errors = schema.validate_shortcode('iconify', {}, {}, loaded.shortcodes.iconify)
+  assert_false(valid)
+  assert_contains(errors, 'argument 1 ("icon"): schema declares "required" as "no"; write true or false.')
+  assert_eq(#errors, 1)
+end)
+
 test('a string enum of "true" and "false" stays a string', function()
   local loaded = load_schema([[
 shortcodes:

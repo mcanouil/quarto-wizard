@@ -16,6 +16,18 @@ import { SchemaCache } from "../../src/filesystem/schema-cache.js";
 import { SchemaError } from "../../src/errors.js";
 
 describe("normaliseFieldDescriptor", () => {
+	it("reads a boolean keyword only from a boolean or the string true or false", () => {
+		const result = normaliseFieldDescriptor({
+			required: "yes",
+			"enum-case-insensitive": "True",
+			additionalProperties: "FALSE",
+		});
+
+		expect(result.required).toBeUndefined();
+		expect(result.enumCaseInsensitive).toBe(true);
+		expect(result.additionalProperties).toBe(false);
+	});
+
 	it("passes through camelCase keys unchanged", () => {
 		const result = normaliseFieldDescriptor({
 			type: "string",

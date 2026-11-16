@@ -11,7 +11,7 @@
  * @module validation
  */
 
-import type { DeprecatedSpec, FieldDescriptor } from "../types/schema.js";
+import { readBooleanKeyword, type DeprecatedSpec, type FieldDescriptor } from "../types/schema.js";
 
 /**
  * Machine-readable code of a field value finding.
@@ -151,9 +151,9 @@ function coerceScalar(value: string, name: string): { ok: boolean; value?: unkno
 			return { ok: true, value: number };
 		}
 	} else if (name === "boolean") {
-		const lowered = value.toLowerCase();
-		if (lowered === "true" || lowered === "false") {
-			return { ok: true, value: lowered === "true" };
+		const flag = readBooleanKeyword(value);
+		if (flag !== undefined) {
+			return { ok: true, value: flag };
 		}
 	}
 	return { ok: false };

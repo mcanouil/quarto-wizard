@@ -127,6 +127,10 @@ local NUMERIC_KEYWORDS = {
   'minLength', 'maxLength', 'minItems', 'maxItems',
 }
 
+--- Keywords whose value is a boolean. `additionalProperties` can also hold a
+--- descriptor. `deprecated` is not listed, because a string there is a message.
+local BOOLEAN_KEYWORDS = { 'required', 'uniqueItems', 'enumCaseInsensitive', 'additionalProperties' }
+
 --- Every keyword the v2 field descriptor may carry, mapped to whether this
 --- module enforces it. Annotations are carried through untouched for tooling.
 M.KEYWORDS = {
@@ -1614,19 +1618,26 @@ _compile = function(spec)
     end
   end
 
-  if type(out.required) == 'string' then
-    out.required = out.required:lower() == 'true' or out.required:lower() == 'yes'
-  end
-  if type(out.uniqueItems) == 'string' then
-    out.uniqueItems = out.uniqueItems:lower() == 'true'
-  end
-  if type(out.enumCaseInsensitive) == 'string' then
-    out.enumCaseInsensitive = out.enumCaseInsensitive:lower() == 'true'
-  end
-  if out.additionalProperties == 'false' then
-    out.additionalProperties = false
-  elseif out.additionalProperties == 'true' then
-    out.additionalProperties = true
+  -- A schema file is read as YAML 1.2, so `yes` and `no` reach here as
+  -- strings. Only `true` and `false` name a boolean, in any case. Any other
+  -- value is dropped and reported, because guessing what it meant would turn a
+  -- check on or off without telling the author.
+  for _, keyword in ipairs(BOOLEAN_KEYWORDS) do
+    local value = out[keyword]
+    -- An empty table is a mapping as well as a list, and `{}` is a descriptor.
+    local descriptor = keyword == 'additionalProperties' and type(value) == 'table'
+      and not (_is_array(value) and #value > 0)
+    if value ~= nil and type(value) ~= 'boolean' and not descriptor then
+      local flag, ok = _coerce_scalar(value, 'boolean')
+      if ok then
+        out[keyword] = flag
+      else
+        out._keyword_faults = out._keyword_faults or {}
+        out._keyword_faults[#out._keyword_faults + 1] = string.format(
+          'schema declares "%s" as "%s"; write true or false.', keyword, _format_value(value))
+        out[keyword] = nil
+      end
+    end
   end
 
   if type(out.pattern) == 'string' then
@@ -1650,7 +1661,20 @@ _compile = function(spec)
     out.additionalProperties = _compile(out.additionalProperties)
   end
 
+  -- Marks a tree that holds a keyword fault anywhere, so a tree without one
+  -- costs nothing to check.
+  out._has_faults = out._keyword_faults ~= nil
+    or (type(out.items) == 'table' and out.items._has_faults)
+    or (type(out.additionalProperties) == 'table' and out.additionalProperties._has_faults)
+  for _, property in pairs(type(out.properties) == 'table' and out.properties or {}) do
+    out._has_faults = out._has_faults or (type(property) == 'table' and property._has_faults)
+  end
+
+  -- A compiled descriptor compiles to itself. `_check_object` hands compiled
+  -- properties back to `_validate_map`, and a fresh copy would hide from the
+  -- `faults_seen` set, so a nested fault would be reported twice.
   _compiled_cache[spec] = out
+  _compiled_cache[out] = out
   return out
 end
 
@@ -1717,6 +1741,31 @@ local function _check_enum(value, spec, path, context)
   _report(context, 'error', path, 'enum', string.format(
     'must be one of: %s, got %s.', _format_list(spec.enum), _format_value(value)
   ))
+end
+
+--- Report the keyword faults of a descriptor and of the descriptors under it.
+--- A fault belongs to the schema and not to a value, so it is reported once at
+--- its schema path, whether or not the document supplies a value there.
+local function _check_keyword_faults(spec, path, context)
+  if type(spec) ~= 'table' or not spec._has_faults or context.faults_seen[spec] then
+    return
+  end
+  context.faults_seen[spec] = true
+  for _, message in ipairs(spec._keyword_faults or {}) do
+    _report(context, 'error', path, 'schema', message)
+  end
+  _check_keyword_faults(spec.items, path .. '.items', context)
+  _check_keyword_faults(spec.additionalProperties, path .. '.additionalProperties', context)
+  if type(spec.properties) == 'table' then
+    local keys = {}
+    for key in pairs(spec.properties) do
+      keys[#keys + 1] = key
+    end
+    table.sort(keys)
+    for _, key in ipairs(keys) do
+      _check_keyword_faults(spec.properties[key], path .. '.' .. key, context)
+    end
+  end
 end
 
 --- Check `pattern`, reporting a pattern the module cannot compile.
@@ -2177,6 +2226,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
 
     -- An empty string is a value the author wrote. Only a missing key is
     -- absent, so `minLength`, `const` and `enum` can be tested against ''.
+    _check_keyword_faults(spec, path, context)
     if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
     elseif value ~= nil then
@@ -2209,7 +2259,7 @@ end
 --- Start a validation run.
 --- @return table Fresh validation context
 local function _new_context()
-  return { findings = {} }
+  return { findings = {}, faults_seen = {} }
 end
 
 --- Close a validation run and shape the public return values.
@@ -2336,6 +2386,7 @@ function M.validate_arguments(args, argument_specs, options)
     end
     merged[name] = value
 
+    _check_keyword_faults(spec, path, context)
     if spec.required == true and value == nil then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
     elseif value ~= nil then

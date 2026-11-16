@@ -384,6 +384,55 @@ describe("shortcode validation", () => {
 });
 
 describe("semantic checks", () => {
+	it("reports a boolean keyword that holds a string other than true or false", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: {
+				token: { type: "string", required: "yes" },
+				tags: { type: "array", uniqueItems: "yes" },
+				mode: { type: "string", enum: ["dark"], enumCaseInsensitive: "yes" },
+				style: { type: "object", additionalProperties: "no" },
+			},
+		});
+		const reported = findings.filter((f) => f.code === "invalid-boolean-keyword");
+		expect(reported.map((f) => f.keyPath)).toEqual([
+			"options.token.required",
+			"options.tags.uniqueItems",
+			"options.mode.enumCaseInsensitive",
+			"options.style.additionalProperties",
+		]);
+		expect(reported[0].severity).toBe("error");
+		expect(reported[0].message).toBe('"required" is "yes"; write true or false.');
+	});
+
+	it("reports a list or a map under a boolean keyword other than additionalProperties", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: {
+				size: { type: "string", required: ["size"] },
+				tags: { type: "array", uniqueItems: { on: true } },
+				style: { type: "object", additionalProperties: ["a", "b"] },
+				open: { type: "object", additionalProperties: {} },
+				empty: { type: "object", additionalProperties: [] },
+			},
+		});
+		expect(findings.filter((f) => f.code === "invalid-boolean-keyword").map((f) => f.keyPath)).toEqual([
+			"options.size.required",
+			"options.tags.uniqueItems",
+			"options.style.additionalProperties",
+		]);
+	});
+
+	it("accepts a boolean keyword written as a boolean, or as the string true or false", () => {
+		const findings = validateSchemaDefinitionStructure({
+			options: {
+				token: { type: "string", required: "True" },
+				tags: { type: "array", uniqueItems: true },
+				style: { type: "object", additionalProperties: "FALSE" },
+				nested: { type: "object", additionalProperties: { type: "string" } },
+			},
+		});
+		expect(findings.filter((f) => f.code === "invalid-boolean-keyword")).toHaveLength(0);
+	});
+
 	it("reports min > max", () => {
 		const findings = validateSchemaDefinitionStructure({
 			options: { f: { type: "number", min: 10, max: 5 } },

@@ -233,7 +233,7 @@ export function isSupportedSchemaUri(schemaUri: string): boolean {
  * Mapping of alternate key names to canonical TypeScript property names.
  * Handles kebab-case YAML keys and JSON Schema-style aliases.
  */
-const KEY_ALIASES: Record<string, string> = {
+export const KEY_ALIASES: Record<string, string> = {
 	"enum-case-insensitive": "enumCaseInsensitive",
 	"pattern-exact": "patternExact",
 	"min-length": "minLength",
@@ -278,6 +278,38 @@ function normaliseDeprecatedSpec(raw: Record<string, unknown>): DeprecatedSpec {
 }
 
 /**
+ * Read a boolean keyword the way the Lua reference validator does.
+ * A schema file is YAML 1.2, so `yes` and `no` are strings, and only `true` and `false` name a boolean, in any case.
+ *
+ * @param value - Raw keyword value.
+ * @returns The boolean, or undefined for any other value.
+ */
+export function readBooleanKeyword(value: unknown): boolean | undefined {
+	if (typeof value === "boolean") {
+		return value;
+	}
+	const word = typeof value === "string" ? value.toLowerCase() : undefined;
+	if (word === "true") {
+		return true;
+	}
+	if (word === "false") {
+		return false;
+	}
+	return undefined;
+}
+
+/**
+ * Descriptor keywords that take a boolean.
+ * `additionalProperties` can also hold a descriptor, and `deprecated` is not listed, because a string there is a message.
+ */
+export const BOOLEAN_KEYWORDS: ReadonlySet<string> = new Set([
+	"required",
+	"uniqueItems",
+	"enumCaseInsensitive",
+	"additionalProperties",
+]);
+
+/**
  * Normalise a raw field descriptor from YAML, converting kebab-case keys to camelCase.
  *
  * @param raw - Raw field descriptor object from YAML
@@ -297,6 +329,11 @@ export function normaliseFieldDescriptor(raw: Record<string, unknown>): FieldDes
 			result[camelKey] = normaliseDeprecatedSpec(value as Record<string, unknown>);
 		} else if (camelKey === "additionalProperties" && value && typeof value === "object" && !Array.isArray(value)) {
 			result[camelKey] = normaliseFieldDescriptor(value as Record<string, unknown>);
+		} else if (BOOLEAN_KEYWORDS.has(camelKey)) {
+			const flag = readBooleanKeyword(value);
+			if (flag !== undefined) {
+				result[camelKey] = flag;
+			}
 		} else {
 			result[camelKey] = value;
 		}

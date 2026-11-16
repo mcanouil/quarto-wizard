@@ -11,7 +11,15 @@
 import * as yaml from "js-yaml";
 import { normaliseCellLanguage } from "./cell-language.js";
 import { allowedSetsFor, ALLOWED_TYPES } from "./schema-derived.js";
-import { FIELD_ALIAS_PAIRS, isSupportedSchemaUri, resolveSchemaVersion, type SchemaVersion } from "../types/schema.js";
+import {
+	BOOLEAN_KEYWORDS,
+	FIELD_ALIAS_PAIRS,
+	isSupportedSchemaUri,
+	KEY_ALIASES,
+	readBooleanKeyword,
+	resolveSchemaVersion,
+	type SchemaVersion,
+} from "../types/schema.js";
 
 const ALLOWED_TYPES_LIST = [...ALLOWED_TYPES].join(", ");
 
@@ -454,6 +462,7 @@ function validateFieldDescriptor(
 	}
 
 	validateFieldSemantics(raw, keyPath, findings);
+	validateBooleanKeywords(raw, keyPath, findings);
 
 	if (isPlainObject(raw["items"])) {
 		validateFieldDescriptor(raw["items"] as Record<string, unknown>, `${keyPath}.items`, ctx, false);
@@ -474,6 +483,30 @@ function validateFieldDescriptor(
 		if (isPlainObject(ap)) {
 			validateFieldDescriptor(ap as Record<string, unknown>, `${keyPath}.${apKey}`, ctx, false);
 		}
+	}
+}
+
+function validateBooleanKeywords(
+	raw: Record<string, unknown>,
+	keyPath: string,
+	findings: SchemaDefinitionFinding[],
+): void {
+	for (const [keyword, value] of Object.entries(raw)) {
+		const name = KEY_ALIASES[keyword] ?? keyword;
+		if (!BOOLEAN_KEYWORDS.has(name) || readBooleanKeyword(value) !== undefined) {
+			continue;
+		}
+		// Lua reads an empty sequence and an empty mapping as the same table, so `[]` is a descriptor there too.
+		const emptyList = Array.isArray(value) && value.length === 0;
+		if (name === "additionalProperties" && (isPlainObject(value) || emptyList)) {
+			continue;
+		}
+		findings.push({
+			message: `"${keyword}" is ${JSON.stringify(value)}; write true or false.`,
+			severity: "error",
+			code: "invalid-boolean-keyword",
+			keyPath: `${keyPath}.${keyword}`,
+		});
 	}
 }
 
