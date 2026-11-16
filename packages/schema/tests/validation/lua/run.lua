@@ -1521,18 +1521,16 @@ test('escaped and doubled quotes inside quoted scalars still parse', function()
   assert_eq(value.d, 'back\\')
 end)
 
--- Pandoc reads YAML 1.2, where only `true` and `false` are booleans. A schema
--- file that the reader turned `yes` into a boolean described a value that the
--- extension never receives, because Quarto hands it the string "yes".
+-- Quarto hands an extension the string "yes", so the schema must read it so too.
 test('a bare yes or no is a string, and true or false a boolean', function()
   local value, err = schema._parse_yaml_text(
     'a: yes\nb: no\nc: Yes\nd: No\ne: on\nf: true\ng: False\nh: TRUE\n')
   assert_eq(err, nil)
-  for _, key in ipairs({ 'a', 'b', 'c', 'd', 'e' }) do
-    assert_eq(type(value[key]), 'string', key .. ' is a string')
-  end
   assert_eq(value.a, 'yes')
   assert_eq(value.b, 'no')
+  assert_eq(value.c, 'Yes')
+  assert_eq(value.d, 'No')
+  assert_eq(value.e, 'on')
   assert_eq(value.f, true)
   assert_eq(value.g, false)
   assert_eq(value.h, true)

@@ -2557,8 +2557,8 @@ function M.validate_format(meta, format, schema, options)
     if type(spec) == 'table' and type(spec.aliases) == 'table' then
       for _, alias in ipairs(spec.aliases) do
         -- A schema file is not read against the meta-schema, so an unquoted
-        -- `true` or `1` reaches here as a boolean or a number. `_lookup` skips a key that is not a
-        -- string everywhere else, and so does this.
+        -- `true` or `1` reaches here as a boolean or a number. `_lookup` skips
+        -- a key that is not a string everywhere else, and so does this.
         if type(alias) == 'string' then
           local normalised = (alias:gsub('_', '-'))
           if not listed[normalised] then
