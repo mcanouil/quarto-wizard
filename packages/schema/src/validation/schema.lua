@@ -869,6 +869,46 @@ local function _trim(text)
   return (text:gsub('^%s+', ''):gsub('%s+$', ''))
 end
 
+local _DOUBLE_QUOTED_ESCAPES = { n = '\n', t = '\t', r = '\r' }
+
+--- Read the body of a quoted scalar up to its closing quote.
+--- In double quotes, `\` escapes the next character.
+--- In single quotes, `''` stands for one quote.
+--- The closing quote must be the last character of the text.
+--- @param text string Trimmed scalar text, opening quote included
+--- @param line_number number Line number for errors
+--- @return string|nil value Unquoted value
+--- @return string|nil err
+local function _parse_quoted(text, line_number)
+  local quote = text:sub(1, 1)
+  local style = quote == '"' and 'double-quoted' or 'single-quoted'
+  local out = {}
+  local index = 2
+  while index <= #text do
+    local char = text:sub(index, index)
+    if quote == '"' and char == '\\' then
+      if index == #text then
+        break
+      end
+      local escaped = text:sub(index + 1, index + 1)
+      out[#out + 1] = _DOUBLE_QUOTED_ESCAPES[escaped] or escaped
+      index = index + 2
+    elseif char == quote and quote == "'" and text:sub(index + 1, index + 1) == "'" then
+      out[#out + 1] = "'"
+      index = index + 2
+    elseif char == quote then
+      if index ~= #text then
+        return nil, _yaml_error(line_number, 'unescaped ' .. quote .. ' inside a ' .. style .. ' scalar')
+      end
+      return table.concat(out), nil
+    else
+      out[#out + 1] = char
+      index = index + 1
+    end
+  end
+  return nil, _yaml_error(line_number, 'unterminated ' .. style .. ' scalar')
+end
+
 --- Parse a scalar, giving numbers and booleans their real Lua types.
 --- @param text string Scalar text
 --- @param line_number number Line number for errors
@@ -883,23 +923,8 @@ local function _parse_scalar(text, line_number)
 
   local first = text:sub(1, 1)
 
-  if first == '"' then
-    if #text < 2 or text:sub(-1) ~= '"' then
-      return nil, _yaml_error(line_number, 'unterminated double-quoted scalar')
-    end
-    return (text:sub(2, -2):gsub('\\(.)', function(escaped)
-      if escaped == 'n' then return '\n' end
-      if escaped == 't' then return '\t' end
-      if escaped == 'r' then return '\r' end
-      return escaped
-    end)), nil
-  end
-
-  if first == "'" then
-    if #text < 2 or text:sub(-1) ~= "'" then
-      return nil, _yaml_error(line_number, 'unterminated single-quoted scalar')
-    end
-    return (text:sub(2, -2):gsub("''", "'")), nil
+  if first == '"' or first == "'" then
+    return _parse_quoted(text, line_number)
   end
 
   if first == '&' or first == '*' or first == '!' then
