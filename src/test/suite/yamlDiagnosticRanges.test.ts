@@ -173,4 +173,23 @@ suite("YAML required options", () => {
 	test("Should report a required option that is not written", async () => {
 		assert.deepStrictEqual(await missing("other", required), ['Required option "fig-width" is missing.']);
 	});
+
+	const auth: Record<string, FieldDescriptor> = {
+		auth: {
+			type: "object",
+			properties: {
+				user: { type: "string", default: "anonymous" },
+				token: { type: "string", required: true },
+			},
+		},
+	};
+
+	test("Should not report a required property of an object that is not written", async () => {
+		assert.deepStrictEqual(await missing("other", auth), []);
+	});
+
+	test("Should report a required object that only its property defaults would fill", async () => {
+		const fields: Record<string, FieldDescriptor> = { auth: { ...auth.auth, required: true } };
+		assert.deepStrictEqual(await missing("other", fields), ['Required option "auth" is missing.']);
+	});
 });
