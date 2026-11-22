@@ -713,6 +713,155 @@ options:
   assert_eq(type(coerced.layout.gap), 'number', 'and stored as a number')
 end)
 
+local NESTED_DEFAULTS = [[
+options:
+  hotfix:
+    type: object
+    additionalProperties: false
+    properties:
+      code-annotations:
+        type: [boolean, object]
+        default: true
+        properties:
+          enabled:
+            type: boolean
+      skylighting:
+        type: [boolean, object]
+        default: true
+        properties:
+          enabled:
+            type: boolean
+]]
+
+test('an absent object without a default is built from its property defaults', function()
+  local loaded = load_schema(NESTED_DEFAULTS)
+  local valid, errors, warnings, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#warnings, 0, 'filling defaults reports nothing')
+  assert_eq(type(merged.hotfix), 'table', 'the object is filled')
+  assert_eq(merged.hotfix['code-annotations'], true, 'first nested default')
+  assert_eq(merged.hotfix.skylighting, true, 'second nested default')
+end)
+
+test('a written object still takes the defaults of the properties it omits', function()
+  local loaded = load_schema(NESTED_DEFAULTS)
+  local valid, errors, _, merged = schema.validate({ hotfix = { skylighting = false } }, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.hotfix['code-annotations'], true, 'omitted property takes its default')
+  assert_eq(merged.hotfix.skylighting, false, 'written property is kept')
+end)
+
+test('an absent object whose properties declare no default stays absent', function()
+  local loaded = load_schema([[
+options:
+  layout:
+    type: object
+    properties:
+      columns:
+        type: number
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.layout, nil, 'no default, no object')
+end)
+
+test('an absent object with its own default keeps that default', function()
+  local loaded = load_schema([[
+options:
+  layout:
+    type: object
+    default:
+      columns: 4
+    properties:
+      columns:
+        type: number
+        default: 2
+      gap:
+        type: number
+        default: 1
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.layout.columns, 4, 'the own default wins')
+end)
+
+test('defaults deeper down build every absent object on the way', function()
+  local loaded = load_schema([[
+options:
+  outer:
+    type: object
+    properties:
+      inner:
+        type: object
+        properties:
+          depth:
+            type: number
+            default: 3
+      empty:
+        type: object
+        properties:
+          nothing:
+            type: string
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.outer.inner.depth, 3, 'the deep default is reached')
+  assert_eq(merged.outer.empty, nil, 'a branch without defaults stays absent')
+end)
+
+test('a required property inside an object built from defaults is not reported', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    properties:
+      user:
+        type: string
+        default: anonymous
+      token:
+        type: string
+        required: true
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.auth.user, 'anonymous', 'the default is applied')
+
+  local written = schema.validate({ auth = { user = 'me' } }, loaded.options)
+  assert_false(written, 'a written object is still checked for required properties')
+end)
+
+test('a required object built only from property defaults is still missing', function()
+  local loaded = load_schema([[
+options:
+  auth:
+    type: object
+    required: true
+    properties:
+      user:
+        type: string
+        default: anonymous
+]])
+  local valid, errors = schema.validate({}, loaded.options)
+  assert_false(valid, 'property defaults do not stand for the object')
+  assert_contains(errors, 'auth', 'the object is named')
+end)
+
+test('a bad property default is reported when the object is built from defaults', function()
+  local loaded = load_schema([[
+options:
+  layout:
+    type: object
+    properties:
+      columns:
+        type: number
+        minimum: 1
+        default: 0
+]])
+  local valid, errors = schema.validate({}, loaded.options)
+  assert_false(valid, 'the default breaks its own minimum')
+  assert_contains(errors, 'layout.columns', 'the nested path is named')
+end)
+
 test('a value given under an alias leaves only the canonical key', function()
   local loaded = load_schema([[
 options:

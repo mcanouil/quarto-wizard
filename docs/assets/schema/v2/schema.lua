@@ -2112,12 +2112,42 @@ local function _declare_spelling(sources, spelling, field, base_path, context)
 end
 
 
+--- Build an absent object from the defaults that its properties declare.
+--- The members are validated as they are built, as any default is, but a
+--- `required` member is not reported: nobody wrote the object.
+--- @param spec table Compiled descriptor without a `default` of its own
+--- @param path string Dotted path of the object
+--- @param context table Validation context
+--- @return table|nil Object of defaults, or nil when no property declares one
+local function _build_from_defaults(spec, path, context)
+  if type(spec.properties) ~= 'table' then
+    return nil
+  end
+  local names = _type_names(spec.type)
+  if names ~= nil then
+    local admits_object = false
+    for _, name in ipairs(names) do
+      admits_object = admits_object or name == 'object'
+    end
+    if not admits_object then
+      return nil
+    end
+  end
+
+  local built = _validate_map({}, spec.properties, path, context, { defaults_only = true })
+  if next(built) == nil then
+    return nil
+  end
+  return built
+end
+
 --- Validate a map of values against a map of field descriptors.
 --- @param values table Values to validate
 --- @param descriptors table Field descriptor map
 --- @param base_path string|nil Path prefix for findings
 --- @param context table Validation context
---- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor}
+--- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor,
+---   defaults_only = true when building an absent object from its defaults}
 --- @return table merged Values with aliases, coercion and defaults applied
 --- @return table defaulted Set of field names whose value came from `default`
 --- @return table sources Map of every spelling the schema accepts to the
@@ -2210,6 +2240,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
   for _, entry in ipairs(fields) do
     local field, spec, path = entry.name, entry.spec, entry.path
     local value
+    local built = false
 
     if entry.cleared then
       value = nil
@@ -2221,15 +2252,26 @@ _validate_map = function(values, descriptors, base_path, context, options)
         value = spec.default
         merged[field] = value
         defaulted[field] = true
+      elseif value == nil then
+        -- An object without a default of its own takes one from the defaults
+        -- of its properties, at any depth. The build validated its members,
+        -- and it does not satisfy `required`: the defaults describe the
+        -- members, and the author still has to write the object.
+        value = _build_from_defaults(spec, path, context)
+        if value ~= nil then
+          merged[field] = value
+          defaulted[field] = true
+          built = true
+        end
       end
     end
 
     -- An empty string is a value the author wrote. Only a missing key is
     -- absent, so `minLength`, `const` and `enum` can be tested against ''.
     _check_keyword_faults(spec, path, context)
-    if spec.required == true and value == nil then
+    if spec.required == true and (value == nil or built) and not options.defaults_only then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
-    elseif value ~= nil then
+    elseif value ~= nil and not built then
       _validate_value(value, spec, path, context)
     end
   end

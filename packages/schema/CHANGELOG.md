@@ -7,6 +7,11 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+### Features
+
+- feat: Fill an absent object option that has no `default` from the defaults of its properties, at any depth.
+  An object whose properties declare no default stays absent, and an object with its own `default` keeps it.
+
 ## 2.3.4
 
 ### Bug Fixes
