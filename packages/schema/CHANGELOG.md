@@ -7,6 +7,8 @@ This is not the changelog of the `@quarto-wizard/schema` npm package, whose vers
 
 ## Unreleased
 
+## 2.4.0
+
 ### Features
 
 - feat: Fill an absent `type: object` option that has no `default` from the defaults of its properties, at any depth.
