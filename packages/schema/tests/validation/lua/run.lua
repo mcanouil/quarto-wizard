@@ -865,6 +865,54 @@ options:
   assert_eq(merged.label, nil, 'the string option stays absent')
 end)
 
+test('only a descriptor of type object is built from defaults', function()
+  local loaded = load_schema([[
+options:
+  either:
+    type: [boolean, object]
+    properties:
+      enabled:
+        type: boolean
+        default: true
+  untyped:
+    properties:
+      enabled:
+        type: boolean
+        default: true
+  listed:
+    type: [object]
+    properties:
+      enabled:
+        type: boolean
+        default: true
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.either, nil, 'a type that admits another type stays absent')
+  assert_eq(merged.untyped, nil, 'a descriptor without a type stays absent')
+  assert_eq(merged.listed.enabled, true, 'a list that names object alone is built')
+end)
+
+test('an object attribute built from defaults does not satisfy a shortcode required list', function()
+  local loaded = load_schema([[
+shortcodes:
+  demo:
+    required:
+      - opts
+    attributes:
+      opts:
+        type: object
+        properties:
+          size:
+            type: string
+            default: small
+]])
+  local valid, errors, _, merged = schema.validate_shortcode('demo', {}, {}, loaded.shortcodes.demo)
+  assert_false(valid, 'the required attribute is missing')
+  assert_contains(errors, 'opts', 'the attribute is named')
+  assert_eq(merged.attributes.opts.size, 'small', 'the built object is still handed over')
+end)
+
 test('a required object built only from property defaults is still missing', function()
   local loaded = load_schema([[
 options:

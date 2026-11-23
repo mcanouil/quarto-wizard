@@ -392,9 +392,10 @@ A `null` or `~` element inside a sequence follows the same rule and is dropped, 
 An absent `type: object` option without a `default` of its own gets its value from the defaults of its `properties`.
 The validator builds an object that holds each property with a `default`, at all levels of nesting.
 If no property declares a `default`, the option stays absent.
+An option whose `type` also lists other types, such as `[boolean, object]`, or that declares no `type`, stays absent too.
 An own `default` on the object always wins over the defaults of its properties.
 The validator does not report a `required` property inside an object that it built from defaults, because the document does not contain that object.
-An object built from defaults does not satisfy `required` on the object itself.
+An object built from defaults does not satisfy `required` on the object itself, or the `required` list of a shortcode.
 
 The `integer` type validates that the value is a whole number.
 It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of`).

@@ -2115,23 +2115,17 @@ end
 --- Build an absent object from the defaults that its properties declare.
 --- The members are validated as they are built, as any default is, but a
 --- `required` member is not reported: nobody wrote the object.
+--- Only a descriptor whose type is `object` alone is built. A type such as
+--- `[boolean, object]` stays absent, so a filter that tests the option for
+--- truth does not see an object that nobody asked for.
 --- @param spec table Compiled descriptor without a `default` of its own
 --- @param path string Dotted path of the object
 --- @param context table Validation context
 --- @return table|nil Object of defaults, or nil when no property declares one
 local function _build_from_defaults(spec, path, context)
-  if type(spec.properties) ~= 'table' then
-    return nil
-  end
   local names = _type_names(spec.type)
-  if names ~= nil then
-    local admits_object = false
-    for _, name in ipairs(names) do
-      admits_object = admits_object or name == 'object'
-    end
-    if not admits_object then
-      return nil
-    end
+  if type(spec.properties) ~= 'table' or names == nil or #names ~= 1 or names[1] ~= 'object' then
+    return nil
   end
 
   -- Set on the context rather than passed as an option, so that the check of
@@ -2153,7 +2147,8 @@ end
 --- @param context table Validation context
 --- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor}
 --- @return table merged Values with aliases, coercion and defaults applied
---- @return table defaulted Set of field names whose value came from `default`
+--- @return table defaulted Set of field names whose value came from `default`.
+---   An object built from the defaults of its properties is marked 'built'.
 --- @return table sources Map of every spelling the schema accepts to the
 ---   declared name it resolves to. A reader that has to answer a question
 ---   about a name the caller wrote asks this rather than walking the
@@ -2264,7 +2259,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
         value = _build_from_defaults(spec, path, context)
         if value ~= nil then
           merged[field] = value
-          defaulted[field] = true
+          defaulted[field] = 'built'
           built = true
         end
       end
@@ -2484,11 +2479,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
 
   local declared = type(entry.attributes) == 'table'
   local spellings
+  local defaulted = {}
   if declared then
-    local attributes, _, resolved = _validate_map(kwargs or {}, entry.attributes, name, context, {
+    local attributes, filled, resolved = _validate_map(kwargs or {}, entry.attributes, name, context, {
       unknown = options.unknown or 'warn',
     })
     merged.attributes = attributes
+    defaulted = filled
     spellings = resolved
   end
 
@@ -2512,10 +2509,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- That is the opposite of `dependentRequired` above, which asks what
     -- the author wrote and treats a default as an annotation nobody
     -- supplied. Neither reading is a bug: they answer different questions
-    -- about the same instance.
+    -- about the same instance. An object built from the defaults of its
+    -- properties is the exception, as it is for `required` on a descriptor:
+    -- the author still has to write the object.
     local function _required_satisfied(required)
       local field = (spellings and _lookup(spellings, required)) or required
-      if _lookup(merged.attributes, field) ~= nil then
+      local value, key = _lookup(merged.attributes, field)
+      if value ~= nil and defaulted[key] ~= 'built' then
         return true
       end
       if not declared then
