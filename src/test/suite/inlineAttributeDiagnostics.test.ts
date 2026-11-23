@@ -1071,6 +1071,15 @@ suite("Inline Attribute Diagnostics", () => {
 				assert.ok(!isRequiredPresent("old", both, { old: 1 }, { old: both, new: { type: "number" } }));
 			});
 
+			test("a required object is not present through the defaults of its properties", () => {
+				const object: FieldDescriptor = {
+					type: "object",
+					required: true,
+					properties: { user: { type: "string", default: "anonymous" } },
+				};
+				assert.ok(!isRequiredPresent("auth", object, {}, { auth: object }));
+			});
+
 			test("names inherited by a plain object are not written", () => {
 				for (const inherited of ["constructor", "toString"]) {
 					const hostile: FieldDescriptor = { type: "number", required: true, aliases: [inherited] };

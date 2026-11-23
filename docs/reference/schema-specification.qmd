@@ -389,6 +389,15 @@ A key set to `""` keeps that value, does not take its `default`, satisfies `requ
 A key with no value, or set to `null` or `~`, is absent in the same way as a key that is missing entirely, and takes its `default`.
 A `null` or `~` element inside a sequence follows the same rule and is dropped, rather than becoming an empty string.
 
+An absent `type: object` option without a `default` of its own gets its value from the defaults of its `properties`.
+The validator builds an object that holds each property with a `default`, at all levels of nesting.
+If no property declares a `default`, the option stays absent.
+An option whose `type` also lists other types, such as `[boolean, object]`, or that declares no `type`, stays absent too.
+An own `default` on the object wins key by key: the keys that it writes keep their values, and the keys that it omits take the defaults of their properties.
+The validator does not report a `required` property inside an object that it built from defaults, because the document does not contain that object.
+For the same reason, it checks the defaults of the properties, but it does not check the built object against keywords of the object itself, such as `property-names`.
+An object built from defaults does not satisfy `required` on the object itself, or the `required` list of a shortcode.
+
 The `integer` type validates that the value is a whole number.
 It supports the same numeric constraints as `number` (`min`, `max`, `exclusive-minimum`, `exclusive-maximum`, `multiple-of`).
 

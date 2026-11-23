@@ -2112,6 +2112,34 @@ local function _declare_spelling(sources, spelling, field, base_path, context)
 end
 
 
+--- Build an absent object from the defaults that its properties declare.
+--- The members are validated as they are built, as any default is, but a
+--- `required` member is not reported: nobody wrote the object.
+--- Only a descriptor whose type is `object` alone is built. A type such as
+--- `[boolean, object]` stays absent, so a filter that tests the option for
+--- truth does not see an object that nobody asked for.
+--- @param spec table Compiled descriptor without a `default` of its own
+--- @param path string Dotted path of the object
+--- @param context table Validation context
+--- @return table|nil Object of defaults, or nil when no property declares one
+local function _build_from_defaults(spec, path, context)
+  local names = _type_names(spec.type)
+  if type(spec.properties) ~= 'table' or names == nil or #names ~= 1 or names[1] ~= 'object' then
+    return nil
+  end
+
+  -- Set on the context rather than passed as an option, so that the check of
+  -- an object `default` further down the build sees it as well.
+  local outer = context.defaults_only
+  context.defaults_only = true
+  local built = _validate_map({}, spec.properties, path, context)
+  context.defaults_only = outer
+  if next(built) == nil then
+    return nil
+  end
+  return built
+end
+
 --- Validate a map of values against a map of field descriptors.
 --- @param values table Values to validate
 --- @param descriptors table Field descriptor map
@@ -2119,7 +2147,8 @@ end
 --- @param context table Validation context
 --- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor}
 --- @return table merged Values with aliases, coercion and defaults applied
---- @return table defaulted Set of field names whose value came from `default`
+--- @return table defaulted Set of field names whose value came from `default`.
+---   An object built from the defaults of its properties is marked 'built'.
 --- @return table sources Map of every spelling the schema accepts to the
 ---   declared name it resolves to. A reader that has to answer a question
 ---   about a name the caller wrote asks this rather than walking the
@@ -2210,6 +2239,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
   for _, entry in ipairs(fields) do
     local field, spec, path = entry.name, entry.spec, entry.path
     local value
+    local built = false
 
     if entry.cleared then
       value = nil
@@ -2221,15 +2251,26 @@ _validate_map = function(values, descriptors, base_path, context, options)
         value = spec.default
         merged[field] = value
         defaulted[field] = true
+      elseif value == nil then
+        -- An object without a default of its own takes one from the defaults
+        -- of its properties, at any depth. The build validated its members,
+        -- and it does not satisfy `required`: the defaults describe the
+        -- members, and the author still has to write the object.
+        value = _build_from_defaults(spec, path, context)
+        if value ~= nil then
+          merged[field] = value
+          defaulted[field] = 'built'
+          built = true
+        end
       end
     end
 
     -- An empty string is a value the author wrote. Only a missing key is
     -- absent, so `minLength`, `const` and `enum` can be tested against ''.
     _check_keyword_faults(spec, path, context)
-    if spec.required == true and value == nil then
+    if spec.required == true and not context.defaults_only and (value == nil or built) then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
-    elseif value ~= nil then
+    elseif value ~= nil and not built then
       _validate_value(value, spec, path, context)
     end
   end
@@ -2438,11 +2479,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
 
   local declared = type(entry.attributes) == 'table'
   local spellings
+  local defaulted = {}
   if declared then
-    local attributes, _, resolved = _validate_map(kwargs or {}, entry.attributes, name, context, {
+    local attributes, filled, resolved = _validate_map(kwargs or {}, entry.attributes, name, context, {
       unknown = options.unknown or 'warn',
     })
     merged.attributes = attributes
+    defaulted = filled
     spellings = resolved
   end
 
@@ -2466,10 +2509,13 @@ function M.validate_shortcode(name, args, kwargs, entry, options)
     -- That is the opposite of `dependentRequired` above, which asks what
     -- the author wrote and treats a default as an annotation nobody
     -- supplied. Neither reading is a bug: they answer different questions
-    -- about the same instance.
+    -- about the same instance. An object built from the defaults of its
+    -- properties is the exception, as it is for `required` on a descriptor:
+    -- the author still has to write the object.
     local function _required_satisfied(required)
       local field = (spellings and _lookup(spellings, required)) or required
-      if _lookup(merged.attributes, field) ~= nil then
+      local value, key = _lookup(merged.attributes, field)
+      if value ~= nil and defaulted[key] ~= 'built' then
         return true
       end
       if not declared then
