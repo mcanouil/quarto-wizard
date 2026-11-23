@@ -783,6 +783,26 @@ options:
   local valid, errors, _, merged = schema.validate({}, loaded.options)
   assert_valid(valid, errors)
   assert_eq(merged.layout.columns, 4, 'the own default wins')
+  assert_eq(merged.layout.gap, 1, 'a key the own default omits takes its property default')
+end)
+
+test('a built object is not checked against keywords of the object itself', function()
+  local loaded = load_schema([[
+options:
+  layout:
+    type: object
+    propertyNames: "^[a-z]+$"
+    properties:
+      Gap:
+        type: number
+        default: 1
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(merged.layout.Gap, 1, 'the object is built')
+
+  local written = schema.validate({ layout = { Gap = 2 } }, loaded.options)
+  assert_false(written, 'a written object is checked')
 end)
 
 test('defaults deeper down build every absent object on the way', function()
