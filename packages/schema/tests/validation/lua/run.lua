@@ -830,6 +830,41 @@ options:
   assert_false(written, 'a written object is still checked for required properties')
 end)
 
+test('a required member under an object default inside a built object is not reported', function()
+  local loaded = load_schema([[
+options:
+  outer:
+    type: object
+    properties:
+      inner:
+        type: object
+        default: {}
+        properties:
+          token:
+            type: string
+            required: true
+]])
+  local valid, errors, _, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(type(merged.outer.inner), 'table', 'the object default is applied')
+end)
+
+test('a descriptor whose type does not admit an object is not built from defaults', function()
+  local loaded = load_schema([[
+options:
+  label:
+    type: string
+    properties:
+      inner:
+        type: number
+        default: 1
+]])
+  local valid, errors, warnings, merged = schema.validate({}, loaded.options)
+  assert_valid(valid, errors)
+  assert_eq(#warnings, 0, 'nothing is reported')
+  assert_eq(merged.label, nil, 'the string option stays absent')
+end)
+
 test('a required object built only from property defaults is still missing', function()
   local loaded = load_schema([[
 options:

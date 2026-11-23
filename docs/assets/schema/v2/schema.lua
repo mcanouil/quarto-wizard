@@ -2134,7 +2134,12 @@ local function _build_from_defaults(spec, path, context)
     end
   end
 
-  local built = _validate_map({}, spec.properties, path, context, { defaults_only = true })
+  -- Set on the context rather than passed as an option, so that the check of
+  -- an object `default` further down the build sees it as well.
+  local outer = context.defaults_only
+  context.defaults_only = true
+  local built = _validate_map({}, spec.properties, path, context)
+  context.defaults_only = outer
   if next(built) == nil then
     return nil
   end
@@ -2146,8 +2151,7 @@ end
 --- @param descriptors table Field descriptor map
 --- @param base_path string|nil Path prefix for findings
 --- @param context table Validation context
---- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor,
----   defaults_only = true when building an absent object from its defaults}
+--- @param options table|nil {unknown = 'warn'|'error'|'ignore', additional = descriptor}
 --- @return table merged Values with aliases, coercion and defaults applied
 --- @return table defaulted Set of field names whose value came from `default`
 --- @return table sources Map of every spelling the schema accepts to the
@@ -2269,7 +2273,7 @@ _validate_map = function(values, descriptors, base_path, context, options)
     -- An empty string is a value the author wrote. Only a missing key is
     -- absent, so `minLength`, `const` and `enum` can be tested against ''.
     _check_keyword_faults(spec, path, context)
-    if spec.required == true and (value == nil or built) and not options.defaults_only then
+    if spec.required == true and not context.defaults_only and (value == nil or built) then
       _report(context, 'error', path, 'required', 'is required but was not provided.')
     elseif value ~= nil and not built then
       _validate_value(value, spec, path, context)
